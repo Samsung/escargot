@@ -171,6 +171,27 @@ void ScriptClassConstructorFunctionObject::initInstanceFieldMembers(ExecutionSta
 {
     size_t s = m_instanceFieldInitData.size();
     Object* homeObject = getFunctionPrototype(state).isObject() ? getFunctionPrototype(state).asObject() : nullptr;
+
+    // phase 1
+    // define private method, getter setter
+    for (size_t i = 0; i < s; i++) {
+        Value name = std::get<0>(m_instanceFieldInitData[i]);
+        Value value = std::get<1>(m_instanceFieldInitData[i]);
+        size_t kind = std::get<2>(m_instanceFieldInitData[i]);
+
+        if (kind == ScriptClassConstructorFunctionObject::PrivateFieldMethod) {
+            instance->privateFieldAdd(state, AtomicString(state, name.asString()), value);
+        } else if (kind == ScriptClassConstructorFunctionObject::PrivateFieldGetter) {
+            instance->privateAccessorAdd(state, AtomicString(state, name.asString()), value.asFunction(), true, false);
+        } else if (kind == ScriptClassConstructorFunctionObject::PrivateFieldSetter) {
+            instance->privateAccessorAdd(state, AtomicString(state, name.asString()), value.asFunction(), false, true);
+        } else {
+            ASSERT(kind == ScriptClassConstructorFunctionObject::NotPrivate || kind == ScriptClassConstructorFunctionObject::PrivateFieldValue);
+        }
+    }
+
+    // phase 2
+    // define rest field
     for (size_t i = 0; i < s; i++) {
         Value name = std::get<0>(m_instanceFieldInitData[i]);
         Value value = std::get<1>(m_instanceFieldInitData[i]);
@@ -185,18 +206,15 @@ void ScriptClassConstructorFunctionObject::initInstanceFieldMembers(ExecutionSta
         default:
             break;
         }
+
         if (kind == ScriptClassConstructorFunctionObject::NotPrivate) {
             instance->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, name), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
         } else if (kind == ScriptClassConstructorFunctionObject::PrivateFieldValue) {
             instance->privateFieldAdd(state, AtomicString(state, name.asString()), value);
-        } else if (kind == ScriptClassConstructorFunctionObject::PrivateFieldMethod) {
-            instance->privateFieldAdd(state, AtomicString(state, name.asString()), value);
-        } else if (kind == ScriptClassConstructorFunctionObject::PrivateFieldGetter) {
-            instance->privateAccessorAdd(state, AtomicString(state, name.asString()), value.asFunction(), true, false);
-        } else if (kind == ScriptClassConstructorFunctionObject::PrivateFieldSetter) {
-            instance->privateAccessorAdd(state, AtomicString(state, name.asString()), value.asFunction(), false, true);
         } else {
-            ASSERT_NOT_REACHED();
+            ASSERT(kind == ScriptClassConstructorFunctionObject::PrivateFieldMethod ||
+                kind == ScriptClassConstructorFunctionObject::PrivateFieldGetter ||
+                kind == ScriptClassConstructorFunctionObject::PrivateFieldSetter);
         }
     }
 }

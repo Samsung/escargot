@@ -2483,7 +2483,7 @@ public:
             }
             ASTNode property = this->parseClassPrivateIdentifierName(builder);
             auto type = exprNode->type();
-            if (UNLIKELY(type == ASTNodeType::SuperExpression || type == ASTNodeType::CallExpression)) {
+            if (UNLIKELY(type == ASTNodeType::SuperExpression)) {
                 this->throwError(Messages::CannnotUsePrivateFieldHere);
             }
             if (!this->isParsingSingleFunction) {
