@@ -271,6 +271,19 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
             m_buffer.ensureSize(sizeof(size_t));
             m_buffer.put((size_t)0);
         }
+
+        if (auto privateNameVector = codeBlock->classPrivateNames()) {
+            size_t nameSize = privateNameVector->size();
+            m_buffer.ensureSize((1 + nameSize) * sizeof(size_t));
+            m_buffer.put(nameSize);
+            for (size_t i = 0; i < nameSize; i++) {
+                size_t stringIndex = m_stringTable->add(privateNameVector->data()[i]);
+                m_buffer.put(stringIndex);
+            }
+        } else {
+            m_buffer.ensureSize(sizeof(size_t));
+            m_buffer.put((size_t)0);
+        }
     }
 }
 
@@ -799,6 +812,17 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
                 varMap->insert(std::make_pair(m_stringTable->get(stringIndex), index));
             }
             codeBlock->rareData()->m_identifierInfoMap = varMap;
+        }
+
+        if (size_t privateNameSize = m_buffer.get<size_t>()) {
+            AtomicStringTightVector* nameVector = new AtomicStringTightVector();
+            nameVector->resize(privateNameSize);
+            for (size_t i = 0; i < privateNameSize; i++) {
+                size_t stringIndex = m_buffer.get<size_t>();
+                auto name = m_stringTable->get(stringIndex);
+                nameVector->data()[i] = name;
+            }
+            codeBlock->rareData()->m_classPrivateNames = nameVector;
         }
     }
 

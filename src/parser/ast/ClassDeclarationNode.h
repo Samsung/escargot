@@ -84,7 +84,7 @@ public:
             m_class.classBody()->constructor()->generateExpressionByteCode(codeBlock, context, classIndex);
         } else {
             codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), classIndex, context->m_classInfo.m_prototypeIndex,
-                                                context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src, context->m_classInfo.m_name),
+                                                context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src, context->m_classInfo.m_name, false),
                                 context, this);
         }
 

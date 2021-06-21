@@ -172,14 +172,17 @@ private:
 struct InterpretedCodeBlockRareData : public gc {
     FunctionContextVarMap* m_identifierInfoMap;
     TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>> m_taggedTemplateLiteralCache;
+    AtomicStringTightVector* m_classPrivateNames;
 
     InterpretedCodeBlockRareData()
         : m_identifierInfoMap(nullptr)
+        , m_classPrivateNames(nullptr)
     {
     }
 
-    InterpretedCodeBlockRareData(FunctionContextVarMap* map)
+    InterpretedCodeBlockRareData(FunctionContextVarMap* map, AtomicStringTightVector* classPrivateNames)
         : m_identifierInfoMap(map)
+        , m_classPrivateNames(classPrivateNames)
     {
     }
 };
@@ -322,6 +325,11 @@ public:
     }
 
     virtual Optional<FunctionContextVarMap*> identifierInfoMap()
+    {
+        return nullptr;
+    }
+
+    virtual Optional<AtomicStringTightVector*> classPrivateNames()
     {
         return nullptr;
     }
@@ -946,17 +954,23 @@ public:
         return m_rareData->m_identifierInfoMap;
     }
 
+    virtual Optional<AtomicStringTightVector*> classPrivateNames() override
+    {
+        ASSERT(!!m_rareData);
+        return m_rareData->m_classPrivateNames;
+    }
+
 private:
     InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
         : InterpretedCodeBlock(ctx, script, src, scopeCtx, isEvalCode, isEvalCodeInFunction)
-        , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap))
+        , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap, scopeCtx->m_classPrivateNames))
     {
         ASSERT(scopeCtx->m_needRareData);
     }
 
     InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
         : InterpretedCodeBlock(ctx, script, src, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction)
-        , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap))
+        , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap, scopeCtx->m_classPrivateNames))
     {
         ASSERT(scopeCtx->m_needRareData);
     }
