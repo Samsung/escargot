@@ -115,6 +115,7 @@ public:
         static constexpr const char* String_InvalidStringLength = "Invalid string length";
         static constexpr const char* CanNotReadPrivateMember = "Cannot read private member %s from an object whose class did not declare it";
         static constexpr const char* CanNotWritePrivateMember = "Cannot write private member %s from an object whose class did not declare it";
+        static constexpr const char* CanNotRedefinePrivateMember = "Cannot add private field %s with same name twice";
 #if defined(ENABLE_CODE_CACHE)
         static constexpr const char* CodeCache_Loaded_StaticError = "[CodeCache] Default Error Message of ThrowStaticError: %s";
 #endif

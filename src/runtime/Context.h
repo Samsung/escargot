@@ -232,6 +232,11 @@ public:
         return m_defaultStructureForUnmappedArgumentsObject;
     }
 
+    ObjectPrivateMemberStructure* defaultPrivateMemberStructure()
+    {
+        return m_defaultPrivateMemberStructure;
+    }
+
     GlobalObject* globalObject()
     {
         return m_globalObject;
@@ -349,6 +354,8 @@ private:
     ObjectStructure* m_defaultStructureForRegExpObject;
     ObjectStructure* m_defaultStructureForMappedArgumentsObject;
     ObjectStructure* m_defaultStructureForUnmappedArgumentsObject;
+
+    ObjectPrivateMemberStructure* m_defaultPrivateMemberStructure;
 
     ToStringRecursionPreventer* m_toStringRecursionPreventer;
     VirtualIdentifierCallback m_virtualIdentifierCallback;

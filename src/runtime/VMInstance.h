@@ -321,6 +321,8 @@ private:
     ObjectStructure* m_defaultStructureForMappedArgumentsObject;
     ObjectStructure* m_defaultStructureForUnmappedArgumentsObject;
 
+    ObjectPrivateMemberStructure* m_defaultPrivateMemberStructure;
+
     std::vector<ByteCodeBlock*> m_compiledByteCodeBlocks;
     size_t m_compiledByteCodeSize;
 
