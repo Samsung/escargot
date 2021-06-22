@@ -1391,7 +1391,6 @@
     <test id="language/expressions/call/tco-non-eval-function-dynamic"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-non-eval-global"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-non-eval-with"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/private-setter-shadowed-by-method-on-nested-class"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/syntax/valid/grammar-static-ctor-async-gen-meth-valid"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/syntax/valid/grammar-static-ctor-async-meth-valid"><reason>TODO</reason></test>
     <test id="language/expressions/class/elements/syntax/valid/grammar-static-private-async-gen-meth-prototype"><reason>TODO</reason></test>
@@ -1692,7 +1691,6 @@
     <test id="language/statements/class/elements/private-method-visible-to-direct-eval-on-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-setter-brand-check-multiple-evaluations-of-class"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-setter-brand-check-super-class"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/private-setter-shadowed-by-method-on-nested-class"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-setter-visible-to-direct-eval"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-setter-visible-to-direct-eval-on-initializer"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/private-static-field-visible-to-direct-eval"><reason>TODO</reason></test>
@@ -1706,7 +1704,6 @@
     <test id="language/statements/class/elements/privatefieldset-typeerror-4"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/privatefieldset-typeerror-5"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/set-access-of-missing-shadowed-private-setter"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/set-access-of-private-method"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/set-access-of-shadowed-private-method"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/syntax/valid/grammar-static-ctor-async-gen-meth-valid"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/syntax/valid/grammar-static-ctor-async-meth-valid"><reason>TODO</reason></test>

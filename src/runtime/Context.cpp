@@ -77,7 +77,7 @@ Context::Context(VMInstance* instance)
     , m_defaultStructureForRegExpObject(instance->m_defaultStructureForRegExpObject)
     , m_defaultStructureForMappedArgumentsObject(instance->m_defaultStructureForMappedArgumentsObject)
     , m_defaultStructureForUnmappedArgumentsObject(instance->m_defaultStructureForUnmappedArgumentsObject)
-
+    , m_defaultPrivateMemberStructure(instance->m_defaultPrivateMemberStructure)
     , m_toStringRecursionPreventer(&instance->m_toStringRecursionPreventer)
     , m_virtualIdentifierCallback(nullptr)
     , m_securityPolicyCheckCallback(nullptr)

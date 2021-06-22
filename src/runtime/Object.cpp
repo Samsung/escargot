@@ -1656,100 +1656,111 @@ bool Object::setIndexedProperty(ExecutionState& state, const Value& property, co
     return set(state, ObjectPropertyName(state, property), value, receiver);
 }
 
+static void addPrivateMember(ExecutionState& state, ObjectExtendedExtraData* e, AtomicString propertyName,
+                             ObjectPrivateMemberStructureItemKind kind, const EncodedValue& value)
+{
+    if (!e->m_privateMemberStructure) {
+        e->m_privateMemberStructure = state.context()->defaultPrivateMemberStructure();
+    }
+
+    if (e->m_privateMemberStructure->findProperty(propertyName)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotRedefinePrivateMember, propertyName.string());
+    }
+
+    e->m_privateMemberStructure = e->m_privateMemberStructure->addProperty(ObjectPrivateMemberStructureItem(propertyName, kind));
+    e->m_privateMemberValues.pushBack(value, e->m_privateMemberStructure->propertyCount());
+}
 
 void Object::privateFieldAdd(ExecutionState& state, AtomicString propertyName, const Value& value)
 {
-    auto& v = ensureObjectExtendedExtraData()->m_privateFieldValues;
-    for (size_t i = 0; i < v.size(); i++) {
-        if (UNLIKELY(v[i].first == propertyName)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot add private field %s with same name twice", propertyName.string());
-        }
-    }
+    addPrivateMember(state, ensureObjectExtendedExtraData(), propertyName, ObjectPrivateMemberStructureItemKind::Field, value);
+}
 
-    v.pushBack(std::make_pair(propertyName, value));
+void Object::privateMethodAdd(ExecutionState& state, AtomicString propertyName, FunctionObject* fn)
+{
+    addPrivateMember(state, ensureObjectExtendedExtraData(), propertyName, ObjectPrivateMemberStructureItemKind::Method, EncodedValue(fn));
 }
 
 void Object::privateAccessorAdd(ExecutionState& state, AtomicString propertyName, FunctionObject* callback, bool isGetter, bool isSetter)
 {
-    auto& v = ensureObjectExtendedExtraData()->m_privateFieldValues;
-    for (size_t i = 0; i < v.size(); i++) {
-        if (UNLIKELY(v[i].first == propertyName)) {
-            Value val = v[i].second;
-            bool isInvalid = false;
-            if (val.isPointerValue() && val.asPointerValue()->isJSGetterSetter()) {
-                JSGetterSetter* gs = val.asPointerValue()->asJSGetterSetter();
-                if (isGetter) {
-                    if (!gs->hasGetter()) {
-                        gs->setGetter(callback);
-                    } else {
-                        isInvalid = true;
-                    }
-                }
-                if (isSetter) {
-                    if (!gs->hasSetter()) {
-                        gs->setSetter(callback);
-                    } else {
-                        isInvalid = true;
-                    }
-                }
-            } else {
-                isInvalid = true;
-            }
-
-            if (isInvalid) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot add private field %s with same name twice", propertyName.string());
-            }
-            return;
-        }
+    auto e = ensureObjectExtendedExtraData();
+    if (!e->m_privateMemberStructure) {
+        e->m_privateMemberStructure = state.context()->defaultPrivateMemberStructure();
     }
-
-    JSGetterSetter* gs = new JSGetterSetter(isGetter ? callback : Value(Value::EmptyValue), isSetter ? callback : Value(Value::EmptyValue));
-    v.pushBack(std::make_pair(propertyName, Value(gs)));
+    auto r = e->m_privateMemberStructure->findProperty(propertyName);
+    if (r) {
+        if (e->m_privateMemberStructure->readProperty(r.value()).kind() == ObjectPrivateMemberStructureItemKind::GetterSetter) {
+            Value val = e->m_privateMemberValues[r.value()];
+            JSGetterSetter* gs = val.asPointerValue()->asJSGetterSetter();
+            if (isGetter) {
+                if (!gs->hasGetter()) {
+                    gs->setGetter(callback);
+                    return;
+                }
+            }
+            if (isSetter) {
+                if (gs->hasSetter()) {
+                    gs->setSetter(callback);
+                    return;
+                }
+            }
+        }
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot add private field %s with same name twice", propertyName.string());
+    } else {
+        JSGetterSetter* gs = new JSGetterSetter(isGetter ? callback : Value(Value::EmptyValue), isSetter ? callback : Value(Value::EmptyValue));
+        e->m_privateMemberStructure = e->m_privateMemberStructure->addProperty(
+            ObjectPrivateMemberStructureItem(propertyName, ObjectPrivateMemberStructureItemKind::GetterSetter));
+        e->m_privateMemberValues.pushBack(EncodedValue(gs), e->m_privateMemberStructure->propertyCount());
+    }
 }
 
 Value Object::privateFieldGet(ExecutionState& state, AtomicString propertyName)
 {
-    auto& v = ensureObjectExtendedExtraData()->m_privateFieldValues;
-    for (size_t i = 0; i < v.size(); i++) {
-        if (v[i].first == propertyName) {
-            Value val = v[i].second;
-            if (UNLIKELY(val.isPointerValue() && val.asPointerValue()->isJSGetterSetter())) {
-                JSGetterSetter* gs = val.asPointerValue()->asJSGetterSetter();
+    auto e = ensureObjectExtendedExtraData();
+    if (e->m_privateMemberStructure) {
+        auto r = e->m_privateMemberStructure->findProperty(propertyName);
+        if (r) {
+            auto desc = e->m_privateMemberStructure->readProperty(r.value());
+            if (desc.kind() == ObjectPrivateMemberStructureItemKind::GetterSetter) {
+                JSGetterSetter* gs = Value(e->m_privateMemberValues[r.value()]).asPointerValue()->asJSGetterSetter();
                 if (!gs->hasGetter()) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'%s' was defined without a getter", propertyName.string());
                 } else {
                     return Object::call(state, gs->getter(), this, 0, nullptr);
                 }
+            } else {
+                return e->m_privateMemberValues[r.value()];
             }
-            return val;
         }
     }
-
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotReadPrivateMember, propertyName.string());
     return Value();
 }
 
 void Object::privateFieldSet(ExecutionState& state, AtomicString propertyName, const Value& value)
 {
-    auto& v = ensureObjectExtendedExtraData()->m_privateFieldValues;
-    for (size_t i = 0; i < v.size(); i++) {
-        if (v[i].first == propertyName) {
-            Value val = v[i].second;
-            if (UNLIKELY(val.isPointerValue() && val.asPointerValue()->isJSGetterSetter())) {
-                JSGetterSetter* gs = val.asPointerValue()->asJSGetterSetter();
+    auto e = ensureObjectExtendedExtraData();
+    if (e->m_privateMemberStructure) {
+        auto r = e->m_privateMemberStructure->findProperty(propertyName);
+        if (r) {
+            auto desc = e->m_privateMemberStructure->readProperty(r.value());
+            if (desc.kind() == ObjectPrivateMemberStructureItemKind::GetterSetter) {
+                JSGetterSetter* gs = Value(e->m_privateMemberValues[r.value()]).asPointerValue()->asJSGetterSetter();
                 if (!gs->hasSetter()) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'%s' was defined without a setter", propertyName.string());
                 } else {
                     Value argv = value;
                     Object::call(state, gs->setter(), this, 1, &argv);
+                    return;
                 }
+            } else if (desc.kind() == ObjectPrivateMemberStructureItemKind::Method) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'%s' is non writable private property", propertyName.string());
+            } else {
+                e->m_privateMemberValues[r.value()] = value;
                 return;
             }
-            v[i].second = value;
-            return;
         }
     }
-
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotWritePrivateMember, propertyName.string());
 }
 

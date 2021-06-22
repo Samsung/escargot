@@ -22,6 +22,7 @@
 
 #include "runtime/PointerValue.h"
 #include "runtime/ObjectStructure.h"
+#include "runtime/ObjectPrivateMemberStructure.h"
 #include "util/Vector.h"
 #include "util/TightVector.h"
 
@@ -42,12 +43,13 @@ class ExecutionPauser;
 #define MAXIMUM_UINT_FOR_64BIT_PROPERTY_NAME (std::numeric_limits<uint64_t>::max() >> OBJECT_PROPERTY_NAME_UINT32_VIAS)
 
 typedef void (*ObjectFinalizer)(Object* self, void* data);
-typedef TightVector<std::pair<AtomicString, EncodedValue>, GCUtil::gc_malloc_allocator<std::pair<AtomicString, EncodedValue>>> ObjectPrivateFieldValueVector;
+typedef TightVectorWithNoSizeUseGCRealloc<EncodedValue> ObjectPrivateFieldValueVector;
 
 struct ObjectExtendedExtraData : public gc {
     void* m_extraData;
     TightVector<std::pair<ObjectFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<ObjectFinalizer, void*>>> m_finalizer;
-    ObjectPrivateFieldValueVector m_privateFieldValues;
+    Optional<ObjectPrivateMemberStructure*> m_privateMemberStructure;
+    ObjectPrivateFieldValueVector m_privateMemberValues;
     Optional<Object*> m_homeObject;
     ObjectExtendedExtraData(void* e)
         : m_extraData(e)
@@ -973,6 +975,7 @@ public:
     }
 
     void privateFieldAdd(ExecutionState& state, AtomicString propertyName, const Value& value);
+    void privateMethodAdd(ExecutionState& state, AtomicString propertyName, FunctionObject* fn);
     void privateAccessorAdd(ExecutionState& state, AtomicString propertyName, FunctionObject* callback, bool isGetter, bool isSetter);
     Value privateFieldGet(ExecutionState& state, AtomicString propertyName);
     void privateFieldSet(ExecutionState& state, AtomicString propertyName, const Value& value);
