@@ -1254,12 +1254,6 @@
     <test id="language/expressions/call/tco-non-eval-function-dynamic"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-non-eval-global"><reason>TODO</reason></test>
     <test id="language/expressions/call/tco-non-eval-with"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/syntax/valid/grammar-static-ctor-async-gen-meth-valid"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/syntax/valid/grammar-static-ctor-async-meth-valid"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/syntax/valid/grammar-static-private-async-gen-meth-prototype"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/syntax/valid/grammar-static-private-async-meth-prototype"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/syntax/valid/grammar-static-private-gen-meth-prototype"><reason>TODO</reason></test>
-    <test id="language/expressions/class/elements/syntax/valid/grammar-static-private-meth-prototype"><reason>TODO</reason></test>
     <test id="language/expressions/class/private-getter-brand-check-multiple-evaluations-of-class-eval"><reason>TODO</reason></test>
     <test id="language/expressions/class/private-getter-brand-check-multiple-evaluations-of-class-eval-indirect"><reason>TODO</reason></test>
     <test id="language/expressions/class/private-getter-brand-check-multiple-evaluations-of-class-factory"><reason>TODO</reason></test>
@@ -1568,12 +1562,6 @@
     <test id="language/statements/class/elements/privatefieldset-typeerror-5"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/set-access-of-missing-shadowed-private-setter"><reason>TODO</reason></test>
     <test id="language/statements/class/elements/set-access-of-shadowed-private-method"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/syntax/valid/grammar-static-ctor-async-gen-meth-valid"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/syntax/valid/grammar-static-ctor-async-meth-valid"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/syntax/valid/grammar-static-private-async-gen-meth-prototype"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/syntax/valid/grammar-static-private-async-meth-prototype"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/syntax/valid/grammar-static-private-gen-meth-prototype"><reason>TODO</reason></test>
-    <test id="language/statements/class/elements/syntax/valid/grammar-static-private-meth-prototype"><reason>TODO</reason></test>
     <test id="language/statements/class/scope-name-lex-open-heritage"><reason>TODO</reason></test>
     <test id="language/statements/do-while/tco-body"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/async-func-decl-dstr-array-elem-target-simple-strict"><reason>TODO</reason></test>

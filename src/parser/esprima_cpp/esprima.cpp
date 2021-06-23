@@ -5736,7 +5736,7 @@ public:
                     computed = this->match(LeftSquareBracket);
                     *token = this->lookahead;
                     keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
-                    if (builder.isPropertyKey(keyNode, "constructor")) {
+                    if (!isStatic && builder.isPropertyKey(keyNode, "constructor")) {
                         this->throwError(Messages::InvalidClassElementName);
                     }
                 }
@@ -5804,8 +5804,14 @@ public:
         }
 
         if (isPrivate) {
-            if (builder.isPropertyKey(keyNode, "#constructor") || builder.isPropertyKey(keyNode, "#prototype")) {
-                this->throwError(Messages::InvalidClassElementName);
+            if (isStatic) {
+                if (builder.isPropertyKey(keyNode, "#constructor")) {
+                    this->throwError(Messages::InvalidClassElementName);
+                }
+            } else {
+                if (builder.isPropertyKey(keyNode, "#prototype") || builder.isPropertyKey(keyNode, "#constructor")) {
+                    this->throwError(Messages::InvalidClassElementName);
+                }
             }
         }
 
