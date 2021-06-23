@@ -209,10 +209,13 @@ class FunctionObject;
     F(finalizationRegistryPrototype, Object, NAME)
 
 #if defined(ENABLE_THREADING)
+#define GLOBALOBJECT_BUILTIN_ATOMICS(F, NAME) \
+    F(atomics, Object, Name)
 #define GLOBALOBJECT_BUILTIN_SHAREDARRAYBUFFER(F, NAME) \
     F(sharedArrayBuffer, FunctionObject, Name)          \
     F(sharedArrayBufferPrototype, Object, Name)
 #else
+#define GLOBALOBJECT_BUILTIN_ATOMICS(F, NAME)
 #define GLOBALOBJECT_BUILTIN_SHAREDARRAYBUFFER(F, NAME)
 #endif
 
@@ -239,6 +242,7 @@ class FunctionObject;
     GLOBALOBJECT_BUILTIN_ASYNCFUNCTION(F, AsyncFunction)                 \
     GLOBALOBJECT_BUILTIN_ASYNCGENERATOR(F, AsyncGenerator)               \
     GLOBALOBJECT_BUILTIN_ASYNCITERATOR(F, AsyncIterator)                 \
+    GLOBALOBJECT_BUILTIN_ATOMICS(F, Atomics)                             \
     GLOBALOBJECT_BUILTIN_BOOLEAN(F, Boolean)                             \
     GLOBALOBJECT_BUILTIN_DATAVIEW(F, DataView)                           \
     GLOBALOBJECT_BUILTIN_DATE(F, Date)                                   \
@@ -362,6 +366,7 @@ private:
     void installAsyncFromSyncIterator(ExecutionState& state);
     void installAsyncGeneratorFunction(ExecutionState& state);
 #if defined(ENABLE_THREADING)
+    void installAtomics(ExecutionState& state);
     void installSharedArrayBuffer(ExecutionState& state);
 #endif
 #if defined(ENABLE_WASM)

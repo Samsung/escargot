@@ -99,6 +99,7 @@ void GlobalObject::installBuiltins(ExecutionState& state)
     installAsyncFromSyncIterator(state);
     installAsyncGeneratorFunction(state);
 #if defined(ENABLE_THREADING)
+    installAtomics(state);
     installSharedArrayBuffer(state);
 #endif
 #if defined(ENABLE_WASM)

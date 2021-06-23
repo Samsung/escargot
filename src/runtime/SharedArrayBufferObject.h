@@ -45,7 +45,7 @@ public:
         return true;
     }
 
-    ALWAYS_INLINE const uint8_t* data() { return m_data; }
+    ALWAYS_INLINE uint8_t* data() { return m_data; }
     ALWAYS_INLINE size_t byteLength() { return m_byteLength; }
 
     void* operator new(size_t size);

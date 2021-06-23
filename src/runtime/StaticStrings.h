@@ -505,7 +505,12 @@ namespace Escargot {
 #if defined(ENABLE_THREADING)
 #define FOR_EACH_STATIC_THREADING_STRING(F) \
     F(Atomics)                              \
-    F(SharedArrayBuffer)
+    F(SharedArrayBuffer)                    \
+    F(compareExchange)                      \
+    F(isLockFree)                           \
+    F(notify)                               \
+    F(store)                                \
+    F(wait)
 #else
 #define FOR_EACH_STATIC_THREADING_STRING(F)
 #endif
@@ -806,6 +811,11 @@ public:
     AtomicString stringTypeof;
     AtomicString stringVoid;
     AtomicString stringWhile;
+#if defined(ENABLE_THREADING)
+    AtomicString stringAnd;
+    AtomicString stringOr;
+    AtomicString stringXor;
+#endif
 
     AtomicString $Ampersand;
     AtomicString $Apostrophe;
