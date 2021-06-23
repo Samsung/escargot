@@ -71,6 +71,11 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(stringTypeof, "typeof");
     INIT_STATIC_STRING(stringVoid, "void");
     INIT_STATIC_STRING(stringWhile, "while");
+#if defined(ENABLE_THREADING)
+    INIT_STATIC_STRING(stringAnd, "and");
+    INIT_STATIC_STRING(stringOr, "or");
+    INIT_STATIC_STRING(stringXor, "xor");
+#endif
 
     INIT_STATIC_STRING($Ampersand, "$&");
     INIT_STATIC_STRING($Apostrophe, "$'");

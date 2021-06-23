@@ -99,13 +99,12 @@ static Value getDefaultTypedArrayConstructor(ExecutionState& state, const TypedA
     return Value();
 }
 
-static Value TypedArraySpeciesCreate(ExecutionState& state, Value thisValue, size_t argc, Value* argumentList)
+static Value TypedArraySpeciesCreate(ExecutionState& state, TypedArrayObject* exemplar, size_t argc, Value* argumentList)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(T, TypedArray, constructor);
     // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
-    Value defaultConstructor = getDefaultTypedArrayConstructor(state, T->asTypedArrayObject()->typedArrayType());
+    Value defaultConstructor = getDefaultTypedArrayConstructor(state, exemplar->typedArrayType());
     // Let C be SpeciesConstructor(O, defaultConstructor).
-    Value C = T->speciesConstructor(state, defaultConstructor);
+    Value C = exemplar->speciesConstructor(state, defaultConstructor);
     Value A = Object::construct(state, C, argc, argumentList);
     validateTypedArray(state, A, state.context()->staticStrings().constructor.string());
     if (argc == 1 && argumentList[0].isNumber() && A.asObject()->asTypedArrayObject()->arrayLength() < argumentList->toNumber(state)) {
