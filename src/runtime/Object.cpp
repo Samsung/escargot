@@ -118,11 +118,7 @@ Value ObjectGetResult::valueSlowCase(ExecutionState& state, const Value& receive
     if (LIKELY(isDataProperty())) {
         return m_nativeGetterSetterData.m_nativeGetterSetterData->m_getter(state, m_nativeGetterSetterData.m_object, receiver, m_nativeGetterSetterData.m_internalData);
     }
-#ifdef ESCARGOT_32
-    if (m_jsGetterSetter->getter().isCallable()) {
-#else
     if (m_jsGetterSetter->hasGetter() && m_jsGetterSetter->getter().isCallable()) {
-#endif
         return Object::call(state, m_jsGetterSetter->getter(), receiver, 0, nullptr);
     }
     return Value();
@@ -1616,11 +1612,7 @@ Value Object::getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t i
 {
     Value v = m_values[idx];
     auto gs = v.asPointerValue()->asJSGetterSetter();
-#ifdef ESCARGOT_32
-    if (gs->getter().isCallable()) {
-#else
     if (gs->hasGetter() && gs->getter().isCallable()) {
-#endif
         return Object::call(state, gs->getter(), receiver, 0, nullptr);
     }
     return Value();
@@ -1630,11 +1622,7 @@ bool Object::setOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t id
 {
     Value v = m_values[idx];
     auto gs = v.asPointerValue()->asJSGetterSetter();
-#ifdef ESCARGOT_32
-    if (gs->setter().isCallable()) {
-#else
     if (gs->hasSetter() && gs->setter().isCallable()) {
-#endif
         Value arg = newValue;
         Object::call(state, gs->setter(), receiver, 1, &arg);
         return true;
@@ -1690,14 +1678,14 @@ void Object::privateAccessorAdd(ExecutionState& state, AtomicString propertyName
             if (val.isPointerValue() && val.asPointerValue()->isJSGetterSetter()) {
                 JSGetterSetter* gs = val.asPointerValue()->asJSGetterSetter();
                 if (isGetter) {
-                    if (gs->getter().isEmpty()) {
+                    if (!gs->hasGetter()) {
                         gs->setGetter(callback);
                     } else {
                         isInvalid = true;
                     }
                 }
                 if (isSetter) {
-                    if (gs->setter().isEmpty()) {
+                    if (!gs->hasSetter()) {
                         gs->setSetter(callback);
                     } else {
                         isInvalid = true;

@@ -344,17 +344,13 @@ public:
 
     Value getter() const
     {
-#ifndef ESCARGOT_32
         ASSERT(hasGetter());
-#endif
         return m_getter;
     }
 
     Value setter() const
     {
-#ifndef ESCARGOT_32
         ASSERT(hasSetter());
-#endif
         return m_setter;
     }
 
