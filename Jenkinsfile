@@ -66,19 +66,22 @@ def isPr() {
 
             stage('Running test') {
                 timeout(30) {
-                parallel (
-                    'debug-32bit-test262' : {
-                        sh 'GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${WORKSPACE}/backtrace-hooking-32.so tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux/escargot" test262'
-                    },
-                    'release-64bit-test262' : {
-                        sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" test262'
-                    },
-                    'kangax test-suites' : {
-                        sh 'python tools/kangax/run-kangax.py --engine="${WORKSPACE}/build/out_linux64/escargot"'
-                    },
-                )
+                    parallel (
+                        'release-32bit-test262' : {
+                            sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux_release/escargot" test262'
+                        },
+                        'debug-32bit-test262' : {
+                            sh 'GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${WORKSPACE}/backtrace-hooking-32.so tools/run-tests.py --arch=x86 --engine="${WORKSPACE}/build/out_linux/escargot" test262'
+                        },
+                        'release-64bit-test262' : {
+                            sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${WORKSPACE}/build/out_linux64_release/escargot" test262'
+                        },
+                        'kangax test-suites' : {
+                            sh 'python tools/kangax/run-kangax.py --engine="${WORKSPACE}/build/out_linux64/escargot"'
+                        },
+                    )
+                }
             }
-        }
 
         } catch (e) {
             throw e
