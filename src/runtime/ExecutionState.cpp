@@ -24,6 +24,7 @@
 #include "EnvironmentRecord.h"
 #include "FunctionObject.h"
 #include "NativeFunctionObject.h"
+#include "ScriptClassConstructorFunctionObject.h"
 
 namespace Escargot {
 
@@ -75,7 +76,7 @@ LexicalEnvironment* ExecutionState::mostNearestFunctionLexicalEnvironment()
     return es->lexicalEnvironment();
 }
 
-LexicalEnvironment* ExecutionState::mostNearestHeapAllocatedLexicalEnvironment()
+Optional<LexicalEnvironment*> ExecutionState::mostNearestHeapAllocatedLexicalEnvironment()
 {
     LexicalEnvironment* env = m_lexicalEnvironment;
 
@@ -87,6 +88,40 @@ LexicalEnvironment* ExecutionState::mostNearestHeapAllocatedLexicalEnvironment()
     }
 
     return nullptr;
+}
+
+Optional<Object*> ExecutionState::mostNearestHomeObject()
+{
+    LexicalEnvironment* env = m_lexicalEnvironment;
+
+    while (env) {
+        auto rec = env->record();
+        if (rec->isDeclarativeEnvironmentRecord() && rec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            auto homeObject = rec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->homeObject();
+            if (homeObject) {
+                return homeObject;
+            }
+        }
+        env = env->outerEnvironment();
+    }
+    return nullptr;
+}
+
+Object* ExecutionState::convertHomeObjectIntoPrivateMemberContextObject(Object* o)
+{
+    if (o->isScriptClassConstructorPrototypeObject()) {
+        o = o->asScriptClassConstructorPrototypeObject()->constructor();
+    }
+    return o;
+}
+
+Object* ExecutionState::findPrivateMemberContextObject()
+{
+    auto o = mostNearestHomeObject();
+    if (!o) {
+        ErrorObject::throwBuiltinError(*this, ErrorObject::TypeError, "Cannot read/write private member here");
+    }
+    return convertHomeObjectIntoPrivateMemberContextObject(o.value());
 }
 
 Object* ExecutionState::getNewTarget()

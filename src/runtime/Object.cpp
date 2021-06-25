@@ -31,6 +31,7 @@
 #include "SymbolObject.h"
 #include "BigIntObject.h"
 #include "ProxyObject.h"
+#include "ScriptClassConstructorFunctionObject.h"
 
 namespace Escargot {
 
@@ -1656,41 +1657,60 @@ bool Object::setIndexedProperty(ExecutionState& state, const Value& property, co
     return set(state, ObjectPropertyName(state, property), value, receiver);
 }
 
-static void addPrivateMember(ExecutionState& state, ObjectExtendedExtraData* e, AtomicString propertyName,
+static ObjectPrivateMemberDataChain* ensurePieceOnPrivateMemberChain(ExecutionState& state, ObjectExtendedExtraData* e, Object* contextObject)
+{
+    Optional<ObjectPrivateMemberDataChain*> piece = e->m_privateMemberChain;
+    if (e->m_privateMemberChain) {
+        while (true) {
+            if (piece->m_contextObject == contextObject) {
+                break;
+            }
+            if (!piece->m_nextPiece) {
+                piece = piece->m_nextPiece = new ObjectPrivateMemberDataChain(contextObject,
+                                                                              state.context()->defaultPrivateMemberStructure());
+                break;
+            }
+            piece = piece->m_nextPiece;
+        }
+    } else {
+        piece = e->m_privateMemberChain = new ObjectPrivateMemberDataChain(contextObject,
+                                                                           state.context()->defaultPrivateMemberStructure());
+    }
+    return piece.value();
+}
+
+static void addPrivateMember(ExecutionState& state, ObjectExtendedExtraData* e, Object* contextObject, AtomicString propertyName,
                              ObjectPrivateMemberStructureItemKind kind, const EncodedValue& value)
 {
-    if (!e->m_privateMemberStructure) {
-        e->m_privateMemberStructure = state.context()->defaultPrivateMemberStructure();
-    }
+    ObjectPrivateMemberDataChain* piece = ensurePieceOnPrivateMemberChain(state, e, contextObject);
 
-    if (e->m_privateMemberStructure->findProperty(propertyName)) {
+    if (piece->m_privateMemberStructure->findProperty(propertyName)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotRedefinePrivateMember, propertyName.string());
     }
 
-    e->m_privateMemberStructure = e->m_privateMemberStructure->addProperty(ObjectPrivateMemberStructureItem(propertyName, kind));
-    e->m_privateMemberValues.pushBack(value, e->m_privateMemberStructure->propertyCount());
+    piece->m_privateMemberStructure = piece->m_privateMemberStructure->addProperty(ObjectPrivateMemberStructureItem(propertyName, kind));
+    piece->m_privateMemberValues.pushBack(value, piece->m_privateMemberStructure->propertyCount());
 }
 
-void Object::privateFieldAdd(ExecutionState& state, AtomicString propertyName, const Value& value)
+void Object::addPrivateField(ExecutionState& state, Object* contextObject, AtomicString propertyName, const Value& value)
 {
-    addPrivateMember(state, ensureObjectExtendedExtraData(), propertyName, ObjectPrivateMemberStructureItemKind::Field, value);
+    addPrivateMember(state, ensureObjectExtendedExtraData(), contextObject, propertyName, ObjectPrivateMemberStructureItemKind::Field, value);
 }
 
-void Object::privateMethodAdd(ExecutionState& state, AtomicString propertyName, FunctionObject* fn)
+void Object::addPrivateMethod(ExecutionState& state, Object* contextObject, AtomicString propertyName, FunctionObject* fn)
 {
-    addPrivateMember(state, ensureObjectExtendedExtraData(), propertyName, ObjectPrivateMemberStructureItemKind::Method, EncodedValue(fn));
+    addPrivateMember(state, ensureObjectExtendedExtraData(), contextObject, propertyName, ObjectPrivateMemberStructureItemKind::Method, EncodedValue(fn));
 }
 
-void Object::privateAccessorAdd(ExecutionState& state, AtomicString propertyName, FunctionObject* callback, bool isGetter, bool isSetter)
+void Object::addPrivateAccessor(ExecutionState& state, Object* contextObject, AtomicString propertyName, FunctionObject* callback, bool isGetter, bool isSetter)
 {
     auto e = ensureObjectExtendedExtraData();
-    if (!e->m_privateMemberStructure) {
-        e->m_privateMemberStructure = state.context()->defaultPrivateMemberStructure();
-    }
-    auto r = e->m_privateMemberStructure->findProperty(propertyName);
+    ObjectPrivateMemberDataChain* piece = ensurePieceOnPrivateMemberChain(state, e, contextObject);
+
+    auto r = piece->m_privateMemberStructure->findProperty(propertyName);
     if (r) {
-        if (e->m_privateMemberStructure->readProperty(r.value()).kind() == ObjectPrivateMemberStructureItemKind::GetterSetter) {
-            Value val = e->m_privateMemberValues[r.value()];
+        if (piece->m_privateMemberStructure->readProperty(r.value()).kind() == ObjectPrivateMemberStructureItemKind::GetterSetter) {
+            Value val = piece->m_privateMemberValues[r.value()];
             JSGetterSetter* gs = val.asPointerValue()->asJSGetterSetter();
             if (isGetter) {
                 if (!gs->hasGetter()) {
@@ -1699,7 +1719,7 @@ void Object::privateAccessorAdd(ExecutionState& state, AtomicString propertyName
                 }
             }
             if (isSetter) {
-                if (gs->hasSetter()) {
+                if (!gs->hasSetter()) {
                     gs->setSetter(callback);
                     return;
                 }
@@ -1708,44 +1728,60 @@ void Object::privateAccessorAdd(ExecutionState& state, AtomicString propertyName
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot add private field %s with same name twice", propertyName.string());
     } else {
         JSGetterSetter* gs = new JSGetterSetter(isGetter ? callback : Value(Value::EmptyValue), isSetter ? callback : Value(Value::EmptyValue));
-        e->m_privateMemberStructure = e->m_privateMemberStructure->addProperty(
+        piece->m_privateMemberStructure = piece->m_privateMemberStructure->addProperty(
             ObjectPrivateMemberStructureItem(propertyName, ObjectPrivateMemberStructureItemKind::GetterSetter));
-        e->m_privateMemberValues.pushBack(EncodedValue(gs), e->m_privateMemberStructure->propertyCount());
+        piece->m_privateMemberValues.pushBack(EncodedValue(gs), piece->m_privateMemberStructure->propertyCount());
     }
 }
 
-Value Object::privateFieldGet(ExecutionState& state, AtomicString propertyName)
+static Optional<ObjectPrivateMemberDataChain*> findPieceOnPrivateMemberChain(ExecutionState& state, ObjectExtendedExtraData* e, Object* contextObject)
+{
+    Optional<ObjectPrivateMemberDataChain*> piece = e->m_privateMemberChain;
+    while (piece) {
+        if (piece->m_contextObject == contextObject) {
+            return piece;
+        }
+        piece = piece->m_nextPiece;
+    }
+    return nullptr;
+}
+
+Value Object::getPrivateMember(ExecutionState& state, Object* contextObject, AtomicString propertyName, bool shouldReferOuterClass)
 {
     auto e = ensureObjectExtendedExtraData();
-    if (e->m_privateMemberStructure) {
-        auto r = e->m_privateMemberStructure->findProperty(propertyName);
+    auto piece = findPieceOnPrivateMemberChain(state, e, contextObject);
+    if (piece) {
+        auto r = piece->m_privateMemberStructure->findProperty(propertyName);
         if (r) {
-            auto desc = e->m_privateMemberStructure->readProperty(r.value());
+            auto desc = piece->m_privateMemberStructure->readProperty(r.value());
             if (desc.kind() == ObjectPrivateMemberStructureItemKind::GetterSetter) {
-                JSGetterSetter* gs = Value(e->m_privateMemberValues[r.value()]).asPointerValue()->asJSGetterSetter();
+                JSGetterSetter* gs = Value(piece->m_privateMemberValues[r.value()]).asPointerValue()->asJSGetterSetter();
                 if (!gs->hasGetter()) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'%s' was defined without a getter", propertyName.string());
                 } else {
                     return Object::call(state, gs->getter(), this, 0, nullptr);
                 }
             } else {
-                return e->m_privateMemberValues[r.value()];
+                return piece->m_privateMemberValues[r.value()];
             }
         }
+    } else if (shouldReferOuterClass && contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor()) {
+        return getPrivateMember(state, contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor().value(), propertyName);
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotReadPrivateMember, propertyName.string());
     return Value();
 }
 
-void Object::privateFieldSet(ExecutionState& state, AtomicString propertyName, const Value& value)
+void Object::setPrivateMember(ExecutionState& state, Object* contextObject, AtomicString propertyName, const Value& value, bool shouldReferOuterClass)
 {
     auto e = ensureObjectExtendedExtraData();
-    if (e->m_privateMemberStructure) {
-        auto r = e->m_privateMemberStructure->findProperty(propertyName);
+    auto piece = findPieceOnPrivateMemberChain(state, e, contextObject);
+    if (piece) {
+        auto r = piece->m_privateMemberStructure->findProperty(propertyName);
         if (r) {
-            auto desc = e->m_privateMemberStructure->readProperty(r.value());
+            auto desc = piece->m_privateMemberStructure->readProperty(r.value());
             if (desc.kind() == ObjectPrivateMemberStructureItemKind::GetterSetter) {
-                JSGetterSetter* gs = Value(e->m_privateMemberValues[r.value()]).asPointerValue()->asJSGetterSetter();
+                JSGetterSetter* gs = Value(piece->m_privateMemberValues[r.value()]).asPointerValue()->asJSGetterSetter();
                 if (!gs->hasSetter()) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'%s' was defined without a setter", propertyName.string());
                 } else {
@@ -1756,26 +1792,14 @@ void Object::privateFieldSet(ExecutionState& state, AtomicString propertyName, c
             } else if (desc.kind() == ObjectPrivateMemberStructureItemKind::Method) {
                 ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'%s' is non writable private property", propertyName.string());
             } else {
-                e->m_privateMemberValues[r.value()] = value;
+                piece->m_privateMemberValues[r.value()] = value;
                 return;
             }
         }
+    } else if (shouldReferOuterClass && contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor()) {
+        return setPrivateMember(state, contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor().value(), propertyName, value);
     }
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotWritePrivateMember, propertyName.string());
-}
-
-void Object::setHomeObject(Object* homeObject)
-{
-    ensureObjectExtendedExtraData()->m_homeObject = homeObject;
-}
-
-Optional<Object*> Object::homeObject()
-{
-    auto e = extendedExtraData();
-    if (e) {
-        return e->m_homeObject;
-    }
-    return nullptr;
 }
 
 IteratorObject* Object::values(ExecutionState& state)

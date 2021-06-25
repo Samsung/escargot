@@ -45,12 +45,23 @@ class ExecutionPauser;
 typedef void (*ObjectFinalizer)(Object* self, void* data);
 typedef TightVectorWithNoSizeUseGCRealloc<EncodedValue> ObjectPrivateFieldValueVector;
 
+struct ObjectPrivateMemberDataChain : public gc {
+    Object* m_contextObject;
+    ObjectPrivateMemberStructure* m_privateMemberStructure;
+    ObjectPrivateFieldValueVector m_privateMemberValues;
+    Optional<ObjectPrivateMemberDataChain*> m_nextPiece;
+
+    ObjectPrivateMemberDataChain(Object* contextObject, ObjectPrivateMemberStructure* privateMemberStructure)
+        : m_contextObject(contextObject)
+        , m_privateMemberStructure(privateMemberStructure)
+    {
+    }
+};
+
 struct ObjectExtendedExtraData : public gc {
     void* m_extraData;
     TightVector<std::pair<ObjectFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<ObjectFinalizer, void*>>> m_finalizer;
-    Optional<ObjectPrivateMemberStructure*> m_privateMemberStructure;
-    ObjectPrivateFieldValueVector m_privateMemberValues;
-    Optional<Object*> m_homeObject;
+    Optional<ObjectPrivateMemberDataChain*> m_privateMemberChain;
     ObjectExtendedExtraData(void* e)
         : m_extraData(e)
     {
@@ -974,14 +985,11 @@ public:
         }
     }
 
-    void privateFieldAdd(ExecutionState& state, AtomicString propertyName, const Value& value);
-    void privateMethodAdd(ExecutionState& state, AtomicString propertyName, FunctionObject* fn);
-    void privateAccessorAdd(ExecutionState& state, AtomicString propertyName, FunctionObject* callback, bool isGetter, bool isSetter);
-    Value privateFieldGet(ExecutionState& state, AtomicString propertyName);
-    void privateFieldSet(ExecutionState& state, AtomicString propertyName, const Value& value);
-
-    void setHomeObject(Object* homeObject);
-    Optional<Object*> homeObject();
+    void addPrivateField(ExecutionState& state, Object* contextObject, AtomicString propertyName, const Value& value);
+    void addPrivateMethod(ExecutionState& state, Object* contextObject, AtomicString propertyName, FunctionObject* fn);
+    void addPrivateAccessor(ExecutionState& state, Object* contextObject, AtomicString propertyName, FunctionObject* callback, bool isGetter, bool isSetter);
+    Value getPrivateMember(ExecutionState& state, Object* contextObject, AtomicString propertyName, bool shouldReferOuterClass = true);
+    void setPrivateMember(ExecutionState& state, Object* contextObject, AtomicString propertyName, const Value& value, bool shouldReferOuterClass = true);
 
     void markThisObjectDontNeedStructureTransitionTable()
     {
@@ -1177,14 +1185,6 @@ protected:
     {
         ASSERT(hasRareData());
         return (ObjectRareData*)m_prototype;
-    }
-
-    ObjectExtendedExtraData* extendedExtraData()
-    {
-        if (hasRareData() && rareData()->m_hasExtendedExtraData) {
-            return rareData()->m_extendedExtraData;
-        }
-        return nullptr;
     }
 
     ObjectExtendedExtraData* ensureObjectExtendedExtraData()

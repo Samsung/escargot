@@ -273,7 +273,11 @@ public:
     }
 
     LexicalEnvironment* mostNearestFunctionLexicalEnvironment();
-    LexicalEnvironment* mostNearestHeapAllocatedLexicalEnvironment();
+    Optional<LexicalEnvironment*> mostNearestHeapAllocatedLexicalEnvironment();
+
+    Optional<Object*> mostNearestHomeObject();
+    static Object* convertHomeObjectIntoPrivateMemberContextObject(Object* o);
+    Object* findPrivateMemberContextObject();
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-getnewtarget
     Object* getNewTarget();

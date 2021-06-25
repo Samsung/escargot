@@ -60,6 +60,11 @@ public:
         return m_hasValue;
     }
 
+    T unwrap() const
+    {
+        return m_value;
+    }
+
     operator bool() const
     {
         return hasValue();
@@ -168,6 +173,11 @@ public:
     const T* operator->() const
     {
         ASSERT(hasValue());
+        return m_value;
+    }
+
+    T* unwrap() const
+    {
         return m_value;
     }
 

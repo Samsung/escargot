@@ -816,11 +816,11 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
 
         if (size_t privateNameSize = m_buffer.get<size_t>()) {
             AtomicStringTightVector* nameVector = new AtomicStringTightVector();
-            nameVector->resize(privateNameSize);
+            nameVector->resizeWithUninitializedValues(privateNameSize);
             for (size_t i = 0; i < privateNameSize; i++) {
                 size_t stringIndex = m_buffer.get<size_t>();
                 auto name = m_stringTable->get(stringIndex);
-                nameVector->data()[i] = name;
+                (*nameVector)[i] = name;
             }
             codeBlock->rareData()->m_classPrivateNames = nameVector;
         }
