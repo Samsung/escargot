@@ -126,7 +126,9 @@ public:
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this);
                 context->giveUpRegister();
             } else if (UNLIKELY(isReferencePrivateField())) {
-                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name(), needsToCheckObjectIsItsInstance(codeBlock)), context, this);
+                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name(),
+                                                              needsToReferOuterClassWhenEvaluatePrivateMember(context)),
+                                    context, this);
             } else {
                 codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this);
             }
@@ -182,7 +184,8 @@ public:
                 context->giveUpRegister();
             } else if (UNLIKELY(isReferencePrivateField())) {
                 codeBlock->pushCode(ComplexSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex,
-                                                              m_property->asIdentifier()->name(), valueIndex, needsToCheckObjectIsItsInstance(codeBlock)),
+                                                              m_property->asIdentifier()->name(), valueIndex,
+                                                              needsToReferOuterClassWhenEvaluatePrivateMember(context)),
                                     context, this);
             } else {
                 codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this);
@@ -246,7 +249,9 @@ public:
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, resultIndex), context, this);
                 context->giveUpRegister();
             } else if (UNLIKELY(isReferencePrivateField())) {
-                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name(), needsToCheckObjectIsItsInstance(codeBlock)), context, this);
+                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name(),
+                                                              needsToReferOuterClassWhenEvaluatePrivateMember(context)),
+                                    context, this);
             } else {
                 codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name()), context, this);
             }
@@ -282,19 +287,32 @@ public:
         m_property->iterateChildren(fn);
     }
 
-    bool needsToCheckObjectIsItsInstance(ByteCodeBlock* codeBlock)
+    bool needsToReferOuterClassWhenEvaluatePrivateMember(ByteCodeGenerateContext* context)
     {
         ASSERT(isReferencePrivateField());
 
-        if (codeBlock->codeBlock()->classPrivateNames()) {
-            auto vec = codeBlock->codeBlock()->classPrivateNames();
-            for (size_t i = 0; i < vec->size(); i++) {
-                if (m_property->asIdentifier()->name() == vec->data()[i]) {
-                    return true;
+        auto pnames = context->m_codeBlock->classPrivateNames();
+        if (pnames) {
+            for (size_t i = 0; i < pnames->size(); i++) {
+                AtomicString name = pnames->data()[i];
+
+                InterpretedCodeBlock* c = context->m_codeBlock->parent();
+
+                while (c) {
+                    auto parentNames = c->classPrivateNames();
+                    if (parentNames) {
+                        for (size_t j = 0; j < parentNames->size(); j++) {
+                            if (parentNames->data()[j] == name) {
+                                return false;
+                            }
+                        }
+                    }
+                    c = c->parent();
                 }
             }
         }
-        return false;
+
+        return true;
     }
 
 private:

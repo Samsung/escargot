@@ -77,23 +77,12 @@ public:
             m_class.superClass()->generateExpressionByteCode(codeBlock, context, context->m_classInfo.m_superIndex);
         }
 
-        bool needsToSetHomeObjectForInstanceInCreateClass = false;
-        if (codeBlock->m_codeBlock->hasChildren()) {
-            auto children = codeBlock->m_codeBlock->children();
-            for (size_t i = 0; i < children.size(); i++) {
-                if (!!children[i]->classPrivateNames()) {
-                    needsToSetHomeObjectForInstanceInCreateClass = true;
-                    break;
-                }
-            }
-        }
-
         if (m_class.classBody()->hasConstructor()) {
             m_class.classBody()->constructor()->generateExpressionByteCode(codeBlock, context, dstIndex);
         } else {
             codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_prototypeIndex,
                                                 context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src,
-                                                context->m_classInfo.m_name, needsToSetHomeObjectForInstanceInCreateClass),
+                                                context->m_classInfo.m_name),
                                 context, this);
         }
 

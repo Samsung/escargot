@@ -197,7 +197,6 @@ typedef Vector<ASTScopeContextClassPrivateUsingInfo, GCUtil::gc_malloc_atomic_al
 struct ASTScopeContext;
 
 struct ASTClassInfo {
-    bool m_isClassExpression;
     bool m_hasSameNameOnParentClass;
     ASTClassInfo *m_parent;
     ASTClassInfo *m_firstChild;
@@ -208,6 +207,7 @@ struct ASTClassInfo {
 
     ASTScopeContext *m_firstMethod;
     ASTScopeContext *m_lastMethod;
+
 
     void appendChild(ASTClassInfo *child)
     {
@@ -263,15 +263,15 @@ struct ASTClassInfo {
         return allocator.allocate(size);
     }
 
-    explicit ASTClassInfo(bool isClassExpression)
-        : m_isClassExpression(isClassExpression)
-        , m_hasSameNameOnParentClass(false)
+    explicit ASTClassInfo()
+        : m_hasSameNameOnParentClass(false)
         , m_parent(nullptr)
         , m_firstChild(nullptr)
         , m_lastChild(nullptr)
         , m_nextSibling(nullptr)
         , m_firstMethod(nullptr)
         , m_lastMethod(nullptr)
+
     {
     }
 };
@@ -296,6 +296,7 @@ struct ASTScopeContext {
     bool m_hasSuperOrNewTarget : 1;
     bool m_hasArrowParameterPlaceHolder : 1;
     bool m_hasParameterOtherThanIdentifier : 1;
+    bool m_hasClassPrivateNameExpression : 1;
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
     bool m_allowArguments : 1;
@@ -307,7 +308,7 @@ struct ASTScopeContext {
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn : 16;
     ASTScopeContextNameInfoVector m_varNames;
     FunctionContextVarMap *m_varNamesMap;
-    AtomicStringTightVector *m_classPrivateNames;
+    AtomicStringTightVector *m_classPrivateNames; // this is needed for direct eval in class & nested class
     AtomicStringTightVector m_parameters;
     AtomicString m_functionName;
 
@@ -674,6 +675,7 @@ struct ASTScopeContext {
         , m_hasSuperOrNewTarget(false)
         , m_hasArrowParameterPlaceHolder(false)
         , m_hasParameterOtherThanIdentifier(false)
+        , m_hasClassPrivateNameExpression(false)
         , m_allowSuperCall(false)
         , m_allowSuperProperty(false)
         , m_allowArguments(true)

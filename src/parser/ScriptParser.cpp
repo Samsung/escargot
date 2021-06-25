@@ -91,6 +91,23 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                     } else if (c->isClassConstructor()) {
                         c->m_canAllocateEnvironmentOnStack = false;
                         break;
+                    } else if ((c->isClassMethod() || c->isClassStaticMethod()) && scopeCtx->m_hasClassPrivateNameExpression) {
+                        /*
+                        // this covers case below
+                        var C = class {
+                          #f = 'Test262';
+
+                          method() {
+                            let arrowFunction = () => {
+                              return this.#f; // private member access needs upper env's homeObject
+                            }
+
+                            return arrowFunction();
+                          }
+                        }
+                        */
+                        c->m_canAllocateEnvironmentOnStack = false;
+                        break;
                     } else {
                         break;
                     }

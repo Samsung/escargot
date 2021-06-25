@@ -26,10 +26,11 @@
 
 namespace Escargot {
 ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock,
-                                                                           LexicalEnvironment* outerEnvironment, Object* homeObject, String* classSourceCode, const Optional<AtomicString>& name, bool needsToSetHomeObjectForInstance)
+                                                                           LexicalEnvironment* outerEnvironment, Object* homeObject, Optional<Object*> outerClassConstructor,
+                                                                           String* classSourceCode, const Optional<AtomicString>& name)
     : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, name ? 3 : 2)
-    , m_needsToSetHomeObjectForInstance(needsToSetHomeObjectForInstance)
     , m_homeObject(homeObject)
+    , m_outerClassConstructor(outerClassConstructor)
     , m_classSourceCode(classSourceCode)
 {
     ASSERT(!codeBlock->isGenerator()); // Class constructor may not be a generator
@@ -53,6 +54,8 @@ ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(Execu
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 0] = (Value(m_codeBlock->functionLength()));
         m_values[ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1] = ObjectPropertyValue::EmptyValue; // lazy init on VMInstance::functionPrototypeNativeGetter
     }
+
+    homeObject->asScriptClassConstructorPrototypeObject()->m_constructor = this;
 }
 
 Value ScriptClassConstructorFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
@@ -128,27 +131,6 @@ Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, con
         // Set the [[Prototype]] internal slot of obj to proto.
         thisArgument = new Object(state, proto);
         // ReturnIfAbrupt(thisArgument).
-
-        // if there is class private names on CodeBlock,
-        // we should store homeObject for check nested private class field classes
-        /*
-        var C = class {
-          get #m() { return 'outer class'; }
-          method() { return this.#m; }
-          B = class {
-            method(o) {
-              return o.#m;
-            }
-            #m = 'test262';
-          }
-        }
-        let c = new C();
-        let innerB = new c.B();
-        print(innerB.method(c)) // throw exception
-        */
-        if (m_needsToSetHomeObjectForInstance) {
-            thisArgument->setHomeObject(homeObject());
-        }
     }
 
     // Let calleeContext be PrepareForOrdinaryCall(F, newTarget).
@@ -171,6 +153,7 @@ void ScriptClassConstructorFunctionObject::initInstanceFieldMembers(ExecutionSta
 {
     size_t s = m_instanceFieldInitData.size();
     Object* homeObject = getFunctionPrototype(state).isObject() ? getFunctionPrototype(state).asObject() : nullptr;
+    Object* privateContextObject = this;
 
     // phase 1
     // define private method, getter setter
@@ -180,11 +163,11 @@ void ScriptClassConstructorFunctionObject::initInstanceFieldMembers(ExecutionSta
         size_t kind = std::get<2>(m_instanceFieldInitData[i]);
 
         if (kind == ScriptClassConstructorFunctionObject::PrivateFieldMethod) {
-            instance->privateMethodAdd(state, AtomicString(state, name.asString()), value.asFunction());
+            instance->addPrivateMethod(state, privateContextObject, AtomicString(state, name.asString()), value.asFunction());
         } else if (kind == ScriptClassConstructorFunctionObject::PrivateFieldGetter) {
-            instance->privateAccessorAdd(state, AtomicString(state, name.asString()), value.asFunction(), true, false);
+            instance->addPrivateAccessor(state, privateContextObject, AtomicString(state, name.asString()), value.asFunction(), true, false);
         } else if (kind == ScriptClassConstructorFunctionObject::PrivateFieldSetter) {
-            instance->privateAccessorAdd(state, AtomicString(state, name.asString()), value.asFunction(), false, true);
+            instance->addPrivateAccessor(state, privateContextObject, AtomicString(state, name.asString()), value.asFunction(), false, true);
         } else {
             ASSERT(kind == ScriptClassConstructorFunctionObject::NotPrivate || kind == ScriptClassConstructorFunctionObject::PrivateFieldValue);
         }
@@ -210,7 +193,7 @@ void ScriptClassConstructorFunctionObject::initInstanceFieldMembers(ExecutionSta
         if (kind == ScriptClassConstructorFunctionObject::NotPrivate) {
             instance->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, name), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
         } else if (kind == ScriptClassConstructorFunctionObject::PrivateFieldValue) {
-            instance->privateFieldAdd(state, AtomicString(state, name.asString()), value);
+            instance->addPrivateField(state, privateContextObject, AtomicString(state, name.asString()), value);
         } else {
             ASSERT(kind == ScriptClassConstructorFunctionObject::PrivateFieldMethod || kind == ScriptClassConstructorFunctionObject::PrivateFieldGetter || kind == ScriptClassConstructorFunctionObject::PrivateFieldSetter);
         }

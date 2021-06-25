@@ -37,6 +37,7 @@ class ScriptGeneratorFunctionObject;
 class ScriptAsyncFunctionObject;
 class ScriptAsyncGeneratorFunctionObject;
 class ScriptClassConstructorFunctionObject;
+class ScriptClassConstructorPrototypeObject;
 class ArrayObject;
 class StringObject;
 class SymbolObject;
@@ -571,6 +572,12 @@ public:
     {
         ASSERT(isScriptClassConstructorFunctionObject());
         return (ScriptClassConstructorFunctionObject*)this;
+    }
+
+    ScriptClassConstructorPrototypeObject* asScriptClassConstructorPrototypeObject()
+    {
+        ASSERT(isScriptClassConstructorPrototypeObject());
+        return (ScriptClassConstructorPrototypeObject*)this;
     }
 
     StringObject* asStringObject()

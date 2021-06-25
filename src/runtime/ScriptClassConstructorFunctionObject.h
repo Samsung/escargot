@@ -24,10 +24,14 @@
 
 namespace Escargot {
 
+class ScriptClassConstructorFunctionObject;
+
 class ScriptClassConstructorPrototypeObject : public Object {
 public:
+    friend class ScriptClassConstructorFunctionObject;
     explicit ScriptClassConstructorPrototypeObject(ExecutionState& state)
         : Object(state)
+        , m_constructor(nullptr)
     {
     }
 
@@ -35,6 +39,14 @@ public:
     {
         return true;
     }
+
+    ScriptClassConstructorFunctionObject* constructor() const
+    {
+        return m_constructor;
+    }
+
+private:
+    ScriptClassConstructorFunctionObject* m_constructor;
 };
 
 class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
@@ -43,7 +55,7 @@ class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
 
 public:
     ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment,
-                                         Object* homeObject, String* classSourceCode, const Optional<AtomicString>& name, bool needsToSetHomeObjectForInstance);
+                                         Object* homeObject, Optional<Object*> outerClassConstructor, String* classSourceCode, const Optional<AtomicString>& name);
 
     friend class FunctionObjectProcessCallGenerator;
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv) override;
@@ -69,6 +81,11 @@ public:
         return m_classSourceCode;
     }
 
+    Optional<Object*> outerClassConstructor()
+    {
+        return m_outerClassConstructor;
+    }
+
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
 
     enum ClassPrivateFieldKind {
@@ -87,9 +104,9 @@ private:
         return m_prototypeIndex;
     }
 
-    bool m_needsToSetHomeObjectForInstance;
     size_t m_prototypeIndex;
     Object* m_homeObject;
+    Optional<Object*> m_outerClassConstructor;
     // We needs to store class source code for toString(). because class constructor stores its source code
     String* m_classSourceCode;
     TightVector<std::tuple<EncodedValue, EncodedValue, size_t>, GCUtil::gc_malloc_allocator<std::tuple<EncodedValue, EncodedValue, size_t>>> m_instanceFieldInitData;

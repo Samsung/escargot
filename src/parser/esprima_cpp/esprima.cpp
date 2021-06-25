@@ -62,22 +62,24 @@
 #define NEW_FUNCTION_AST_BUILDER() SyntaxChecker newBuilder;
 #endif
 
-#define BEGIN_FUNCTION_SCANNING(name)                                                                                 \
-    NEW_FUNCTION_AST_BUILDER()                                                                                        \
-    auto oldSubCodeBlockIndex = ++this->subCodeBlockIndex;                                                            \
-    auto oldScopeContext = pushScopeContext(name);                                                                    \
-    if (UNLIKELY(this->currentClassInfo != nullptr)) {                                                                \
-        if (this->currentClassInfo->m_firstMethod) {                                                                  \
-            this->currentClassInfo->m_lastMethod = this->currentScopeContext;                                         \
-        } else {                                                                                                      \
-            this->currentClassInfo->m_lastMethod = this->currentClassInfo->m_firstMethod = this->currentScopeContext; \
-        }                                                                                                             \
-    }                                                                                                                 \
-    LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;                                              \
-    LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;                                              \
-    this->lexicalBlockIndex = LEXICAL_BLOCK_INDEX_MAX;                                                                \
-    this->lexicalBlockCount = LEXICAL_BLOCK_INDEX_MAX;                                                                \
-    ParserBlockContext blockContext;                                                                                  \
+#define BEGIN_FUNCTION_SCANNING(name)                                                              \
+    NEW_FUNCTION_AST_BUILDER()                                                                     \
+    auto oldSubCodeBlockIndex = ++this->subCodeBlockIndex;                                         \
+    auto oldScopeContext = pushScopeContext(name);                                                 \
+    if (UNLIKELY(this->currentClassInfo != nullptr)) {                                             \
+        if (this->currentClassInfo->m_firstMethod                                                  \
+            && this->currentScopeContext == this->currentClassInfo->m_lastMethod->m_nextSibling) { \
+            this->currentClassInfo->m_lastMethod = this->currentScopeContext;                      \
+        } else if (!this->currentClassInfo->m_firstMethod) {                                       \
+            this->currentClassInfo->m_lastMethod = this->currentClassInfo->m_firstMethod           \
+                = this->currentScopeContext;                                                       \
+        }                                                                                          \
+    }                                                                                              \
+    LexicalBlockIndex lexicalBlockIndexBefore = this->lexicalBlockIndex;                           \
+    LexicalBlockIndex lexicalBlockCountBefore = this->lexicalBlockCount;                           \
+    this->lexicalBlockIndex = LEXICAL_BLOCK_INDEX_MAX;                                             \
+    this->lexicalBlockCount = LEXICAL_BLOCK_INDEX_MAX;                                             \
+    ParserBlockContext blockContext;                                                               \
     openBlock(blockContext);
 
 #define END_FUNCTION_SCANNING()                                                                \
@@ -2487,6 +2489,7 @@ public:
                 this->throwError(Messages::CannnotUsePrivateFieldHere);
             }
             if (!this->isParsingSingleFunction) {
+                this->currentScopeContext->m_hasClassPrivateNameExpression = true;
                 if (this->currentClassInfo) {
                     this->currentClassInfo->insertClassPrivateUsingName(property->asIdentifier()->name(),
                                                                         startToken->start,
@@ -5930,11 +5933,7 @@ public:
                     break;
                 }
 
-                if (c->m_isClassExpression) {
-                    c = c->m_parent;
-                } else {
-                    break;
-                }
+                c = c->m_parent;
             }
             if (!find) {
                 // throw error
@@ -5945,7 +5944,7 @@ public:
             }
         }
 
-        if (info->m_isClassExpression && info->m_parent) {
+        if (info->m_parent) {
             for (size_t i = 0; i < info->m_classPrivateNames.size(); i++) {
                 auto name = info->m_classPrivateNames[i];
 
@@ -5965,32 +5964,37 @@ public:
                         break;
                     }
 
-                    if (c->m_isClassExpression) {
-                        c = c->m_parent;
-                    } else {
-                        break;
-                    }
+                    c = c->m_parent;
                 }
             }
         }
 
         if (UNLIKELY(info->m_hasSameNameOnParentClass)) {
-            AtomicStringTightVector* privateNames = new AtomicStringTightVector();
-            privateNames->resize(info->m_classPrivateNames.size());
+            ASTClassInfo* cur = info;
+            while (cur) {
+                AtomicStringTightVector* privateNames = nullptr;
+                auto s = cur->m_firstMethod;
+                while (true) {
+                    s->m_needRareData = true;
+                    if (!s->m_classPrivateNames) {
+                        if (!privateNames) {
+                            privateNames = new AtomicStringTightVector();
+                            privateNames->resize(cur->m_classPrivateNames.size());
 
-            for (size_t i = 0; i < info->m_classPrivateNames.size(); i++) {
-                (*privateNames)[i] = info->m_classPrivateNames[i];
-            }
+                            for (size_t i = 0; i < cur->m_classPrivateNames.size(); i++) {
+                                (*privateNames)[i] = cur->m_classPrivateNames[i];
+                            }
+                        }
+                        s->m_classPrivateNames = privateNames;
+                    }
 
-            auto s = info->m_firstMethod;
-            while (true) {
-                s->m_needRareData = true;
-                s->m_classPrivateNames = privateNames;
-
-                if (s == info->m_lastMethod) {
-                    break;
+                    if (s == cur->m_lastMethod) {
+                        break;
+                    }
+                    s = s->nextSibling();
                 }
-                s = s->nextSibling();
+
+                cur = cur->m_parent;
             }
         }
 
@@ -6002,11 +6006,11 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseClassBody(ASTBuilder& builder, bool hasSuperClass, bool isClassExpression, MetaNode& endNode, const AtomicString& className)
+    ASTNode parseClassBody(ASTBuilder& builder, bool hasSuperClass, MetaNode& endNode, const AtomicString& className)
     {
         MetaNode node = this->createNode();
 
-        ASTClassInfo* newClassInfo = new (allocator) ASTClassInfo(isClassExpression);
+        ASTClassInfo* newClassInfo = new (allocator) ASTClassInfo();
         ASTClassInfo* oldClassInfo = this->currentClassInfo;
 
         this->currentClassInfo = newClassInfo;
@@ -6101,7 +6105,7 @@ public:
         }
 
         MetaNode endNode;
-        ASTNode classBody = this->parseClassBody(builder, hasSuperClass, isClassExpression, endNode, id);
+        ASTNode classBody = this->parseClassBody(builder, hasSuperClass, endNode, id);
 
         this->context->strict = previousStrict;
         closeBlock(classBlockContext);
