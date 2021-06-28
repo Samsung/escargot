@@ -24,6 +24,7 @@
 #include "runtime/Context.h"
 #include "runtime/Object.h"
 #include "runtime/ArrayBufferObject.h"
+#include "runtime/BackingStore.h"
 #include "wasm/WASMObject.h"
 #include "wasm/WASMValueConverter.h"
 

@@ -24,6 +24,7 @@
 #include "Context.h"
 #include "VMInstance.h"
 #include "NativeFunctionObject.h"
+#include "ArrayBufferObject.h"
 #include "SharedArrayBufferObject.h"
 
 namespace Escargot {

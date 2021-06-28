@@ -26,13 +26,6 @@
 
 namespace Escargot {
 
-#define RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                  \
-    if (!thisValue.isObject() || !thisValue.asObject()->isArrayBufferObject()) {                                                                                                                                                                         \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                    \
-    ArrayBufferObject* NAME = thisValue.asObject()->asArrayBufferObject();                                                                                                                                                                               \
-    NAME->throwTypeErrorIfDetached(state);
-
 // https://262.ecma-international.org/#sec-arraybuffer-constructor
 static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -69,17 +62,35 @@ static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thi
     if (!thisValue.isObject() || !thisValue.asObject()->isArrayBufferObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().getbyteLength.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
+
     ArrayBufferObject* obj = thisValue.asObject()->asArrayBufferObject();
+#if defined(ENABLE_THREADING)
+    if (obj->isSharedArrayBufferObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().getbyteLength.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+#endif
+
     if (obj->isDetachedBuffer()) {
         return Value(0);
     }
+
     return Value(obj->byteLength());
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-arraybuffer.prototype.slice
 static Value builtinArrayBufferSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, slice);
+    if (!thisValue.isObject() || !thisValue.asObject()->isArrayBufferObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    ArrayBufferObject* obj = thisValue.asObject()->asArrayBufferObject();
+#if defined(ENABLE_THREADING)
+    if (obj->isSharedArrayBufferObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+#endif
+    obj->throwTypeErrorIfDetached(state);
 
     double len = obj->byteLength();
     double relativeStart = argv[0].toInteger(state);
