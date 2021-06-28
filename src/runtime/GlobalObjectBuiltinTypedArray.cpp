@@ -34,28 +34,12 @@ namespace Escargot {
     }                                                                                                                                                                                                                                                    \
     TypedArrayObject* NAME = thisValue.asPointerValue()->asTypedArrayObject();
 
-static ArrayBufferObject* validateTypedArray(ExecutionState& state, const Value& O, String* func)
-{
-    if (!O.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, ErrorObject::Messages::GlobalObject_ThisNotObject);
-    }
-
-    Object* thisObject = O.asObject();
-    if (!thisObject->isTypedArrayObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, func, ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
-    }
-
-    auto wrapper = thisObject->asTypedArrayObject();
-    ArrayBufferObject* buffer = wrapper->buffer();
-    buffer->throwTypeErrorIfDetached(state);
-    return buffer;
-}
 
 // https://www.ecma-international.org/ecma-262/10.0/#typedarray-create
 static Object* createTypedArray(ExecutionState& state, const Value& constructor, size_t argc, Value* argv)
 {
     Object* newTypedArray = Object::construct(state, constructor, argc, argv).toObject(state);
-    validateTypedArray(state, newTypedArray, state.context()->staticStrings().TypedArray.string());
+    TypedArrayObject::validateTypedArray(state, newTypedArray);
 
     if (argc == 1 && argv[0].isNumber()) {
         double arrayLength = newTypedArray->asTypedArrayObject()->arrayLength();
@@ -106,7 +90,7 @@ static Value TypedArraySpeciesCreate(ExecutionState& state, TypedArrayObject* ex
     // Let C be SpeciesConstructor(O, defaultConstructor).
     Value C = exemplar->speciesConstructor(state, defaultConstructor);
     Value A = Object::construct(state, C, argc, argumentList);
-    validateTypedArray(state, A, state.context()->staticStrings().constructor.string());
+    TypedArrayObject::validateTypedArray(state, A);
     if (argc == 1 && argumentList[0].isNumber() && A.asObject()->asTypedArrayObject()->arrayLength() < argumentList->toNumber(state)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
@@ -341,10 +325,18 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
         // Let byteLength be elementSize × elementLength.
         uint64_t byteLength = static_cast<uint64_t>(elementSize) * elementLength;
 
-        ArrayBufferObject* data;
-        // Let bufferConstructor be SpeciesConstructor(srcData, %ArrayBuffer%).
-        Value bufferConstructor = srcData->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
+        Value bufferConstructor;
+#if defined(ENABLE_THREADING)
+        if (srcData->isSharedArrayBufferObject())
+            // Let bufferConstructor be %ArrayBuffer%.
+            bufferConstructor = state.context()->globalObject()->arrayBuffer();
+        else
+#endif
+            // Let bufferConstructor be ? SpeciesConstructor(srcData, %ArrayBuffer%).
+            bufferConstructor = srcData->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
+
         // If SameValue(elementType,srcType) is true, then
+        ArrayBufferObject* data;
         if (obj->typedArrayType() == srcArray->typedArrayType()) {
             // Let data be ? CloneArrayBuffer(srcData, srcByteOffset, byteLength, bufferConstructor).
             data = ArrayBufferObject::cloneArrayBuffer(state, srcData, srcByteOffset, byteLength, bufferConstructor.asObject());
@@ -448,8 +440,8 @@ Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_
 // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.copywithin
 static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, thisValue, state.context()->staticStrings().copyWithin.string());
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, thisValue);
     TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
@@ -528,7 +520,7 @@ static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, si
     // NOTE: Same algorithm as Array.prototype.indexOf
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, indexOf);
-    validateTypedArray(state, O, state.context()->staticStrings().indexOf.string());
+    TypedArrayObject::validateTypedArray(state, O);
 
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
@@ -594,7 +586,7 @@ static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue
     // NOTE: Same algorithm as Array.prototype.lastIndexOf
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, lastIndexOf);
-    validateTypedArray(state, O, state.context()->staticStrings().lastIndexOf.string());
+    TypedArrayObject::validateTypedArray(state, O);
 
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
@@ -660,7 +652,7 @@ static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, s
 {
     // Let O be ? ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, includes);
-    validateTypedArray(state, O, state.context()->staticStrings().includes.string());
+    TypedArrayObject::validateTypedArray(state, O);
 
     size_t len = O->asTypedArrayObject()->arrayLength();
 
@@ -823,8 +815,8 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, some);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().some.string());
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, O);
 
     // Array.prototype.some as defined in 22.1.3.23 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -872,8 +864,8 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, sort);
-    // Let buffer be ValidateTypedArray(obj).
-    ArrayBufferObject* buffer = validateTypedArray(state, O, state.context()->staticStrings().sort.string());
+    // Let buffer be TypedArrayObject::validateTypedArray(obj).
+    ArrayBufferObject* buffer = TypedArrayObject::validateTypedArray(state, O);
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
     int64_t len = O->asTypedArrayObject()->arrayLength();
@@ -964,8 +956,8 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, every);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().every.string());
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, O);
 
     // Array.prototype.every as defined in 22.1.3.5 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1008,8 +1000,8 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
 //https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.fill
 static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Perform ? ValidateTypedArray(O).
-    validateTypedArray(state, thisValue, state.context()->staticStrings().fill.string());
+    // Perform ? TypedArrayObject::validateTypedArray(O).
+    TypedArrayObject::validateTypedArray(state, thisValue);
     TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
@@ -1055,8 +1047,8 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
 // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.filter
 static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Perform ? ValidateTypedArray(O).
-    validateTypedArray(state, thisValue, state.context()->staticStrings().filter.string());
+    // Perform ? TypedArrayObject::validateTypedArray(O).
+    TypedArrayObject::validateTypedArray(state, thisValue);
     TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
@@ -1110,8 +1102,8 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, find);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().find.string());
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, O);
 
     // Array.prototype.find as defined in 22.1.3.8 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1155,8 +1147,8 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, findIndex);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().findIndex.string());
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, O);
 
     // Array.prototype.findIndex as defined in 22.1.3.9 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1200,8 +1192,8 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, forEach);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().forEach.string());
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, O);
 
     // Array.prototype.forEach as defined in 22.1.3.10 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1237,8 +1229,8 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, join);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().join.string());
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, O);
 
     // Array.prototype.join as defined in 22.1.3.12 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1289,8 +1281,8 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
 // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.map
 static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Perform ? ValidateTypedArray(O).
-    validateTypedArray(state, thisValue, state.context()->staticStrings().map.string());
+    // Perform ? TypedArrayObject::validateTypedArray(O).
+    TypedArrayObject::validateTypedArray(state, thisValue);
     TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
@@ -1330,8 +1322,8 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reduce);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().reduce.string());
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, O);
 
     // Array.prototype.reduce as defined in 22.1.3.18 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1370,8 +1362,8 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reduceRight);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().reduceRight.string());
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, O);
 
     // Array.prototype.reduceRight as defined in 22.1.3.19 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1421,8 +1413,8 @@ static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, si
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reverse);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, O, state.context()->staticStrings().reverse.string());
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, O);
 
     // Array.prototype.reverse as defined in 22.1.3.20 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1456,8 +1448,8 @@ static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, si
 static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the this value.
-    // Perform ? ValidateTypedArray(O).
-    validateTypedArray(state, thisValue, state.context()->staticStrings().slice.string());
+    // Perform ? TypedArrayObject::validateTypedArray(O).
+    TypedArrayObject::validateTypedArray(state, thisValue);
     TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
@@ -1516,8 +1508,8 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
 {
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(array, TypedArray, toLocaleString);
-    // ValidateTypedArray is applied to the this value prior to evaluating the algorithm.
-    validateTypedArray(state, array, state.context()->staticStrings().toLocaleString.string());
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, array);
 
     // Array.prototype.toLocaleString as defined in 22.1.3.26 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1571,23 +1563,23 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
 // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.keys
 static Value builtinTypedArrayKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Perform ? ValidateTypedArray(O).
-    validateTypedArray(state, thisValue, state.context()->staticStrings().keys.string());
+    // Perform ? TypedArrayObject::validateTypedArray(O).
+    TypedArrayObject::validateTypedArray(state, thisValue);
     // Return CreateArrayIterator(O, "key").
     return thisValue.asObject()->keys(state);
 }
 
 static Value builtinTypedArrayValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Perform ? ValidateTypedArray(O).
-    validateTypedArray(state, thisValue, state.context()->staticStrings().values.string());
+    // Perform ? TypedArrayObject::validateTypedArray(O).
+    TypedArrayObject::validateTypedArray(state, thisValue);
     return thisValue.asObject()->values(state);
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.entries
 static Value builtinTypedArrayEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    validateTypedArray(state, thisValue, state.context()->staticStrings().entries.string());
+    TypedArrayObject::validateTypedArray(state, thisValue);
     return thisValue.asObject()->entries(state);
 }
 
@@ -1607,7 +1599,7 @@ static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thi
 
 static Value builtinTypedArrayAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    validateTypedArray(state, thisValue, state.context()->staticStrings().TypedArray.string());
+    TypedArrayObject::validateTypedArray(state, thisValue);
     Object* obj = thisValue.asObject();
     size_t len = obj->length(state);
     double relativeStart = argv[0].toInteger(state);

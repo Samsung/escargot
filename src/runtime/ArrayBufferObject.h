@@ -21,9 +21,10 @@
 #define __EscargotArrayBufferObject__
 
 #include "runtime/Context.h"
-#include "runtime/BackingStore.h"
 
 namespace Escargot {
+
+class BackingStore;
 
 enum class TypedArrayType : unsigned {
     Int8 = 0,
@@ -50,7 +51,7 @@ public:
     static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength);
     static ArrayBufferObject* cloneArrayBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset, uint64_t srcLength, Object* constructor);
 
-    static const uint32_t maxArrayBufferSize = 210000000;
+    static const uint64_t maxArrayBufferSize = 210000000;
 
     void allocateBuffer(ExecutionState& state, size_t bytelength);
     void attachBuffer(BackingStore* backingStore);
@@ -67,7 +68,6 @@ public:
     {
         return true;
     }
-
 
     ALWAYS_INLINE const uint8_t* data() { return m_data; }
     ALWAYS_INLINE size_t byteLength() { return m_byteLength; }
@@ -97,7 +97,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-private:
+protected:
     uint8_t* m_data; // Points backing stores data address
     size_t m_byteLength; // Indicates backing stores byte length
     bool m_mayPointsSharedBackingStore;

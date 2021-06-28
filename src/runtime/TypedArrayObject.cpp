@@ -146,6 +146,23 @@ void TypedArrayObject::sort(ExecutionState& state, int64_t length, const std::fu
     }
 }
 
+ArrayBufferObject* TypedArrayObject::validateTypedArray(ExecutionState& state, const Value& O)
+{
+    if (!O.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+    }
+
+    Object* thisObject = O.asObject();
+    if (!thisObject->isTypedArrayObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
+    }
+
+    auto wrapper = thisObject->asTypedArrayObject();
+    ArrayBufferObject* buffer = wrapper->buffer();
+    buffer->throwTypeErrorIfDetached(state);
+    return buffer;
+}
+
 // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementget
 ObjectGetResult TypedArrayObject::integerIndexedElementGet(ExecutionState& state, double index)
 {

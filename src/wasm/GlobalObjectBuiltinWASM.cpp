@@ -28,6 +28,7 @@
 #include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
+#include "runtime/BackingStore.h"
 #include "runtime/PromiseObject.h"
 #include "runtime/Job.h"
 #include "wasm/WASMObject.h"

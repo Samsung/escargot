@@ -21,16 +21,19 @@
 
 #include "Escargot.h"
 #include "runtime/VMInstance.h"
+#include "runtime/Context.h"
+#include "runtime/BackingStore.h"
+#include "runtime/ArrayBufferObject.h"
 #include "runtime/SharedArrayBufferObject.h"
 
 namespace Escargot {
 
 SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, size_t byteLength)
-    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
-    , m_data(nullptr)
-    , m_byteLength(0)
+    : ArrayBufferObject(state, proto)
 {
-    ASSERT(byteLength < (size_t)SharedArrayBufferObject::maxArrayBufferSize);
+    ASSERT(byteLength < ArrayBufferObject::maxArrayBufferSize);
+
+    m_mayPointsSharedBackingStore = true;
 
     const size_t ratio = std::max((size_t)GC_get_free_space_divisor() / 6, (size_t)1);
     if (byteLength > (GC_get_heap_size() / ratio)) {
@@ -62,7 +65,7 @@ SharedArrayBufferObject* SharedArrayBufferObject::allocateSharedArrayBuffer(Exec
         return constructorRealm->globalObject()->sharedArrayBufferPrototype();
     });
 
-    if (byteLength >= (uint64_t)SharedArrayBufferObject::maxArrayBufferSize) {
+    if (byteLength >= ArrayBufferObject::maxArrayBufferSize) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
     }
 

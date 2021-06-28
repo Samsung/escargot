@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "runtime/VMInstance.h"
+#include "runtime/BackingStore.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/TypedArrayInlines.h"
 
@@ -33,7 +34,7 @@ ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state,
         return constructorRealm->globalObject()->arrayBufferPrototype();
     });
 
-    if (byteLength >= (uint64_t)ArrayBufferObject::maxArrayBufferSize) {
+    if (byteLength >= ArrayBufferObject::maxArrayBufferSize) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
     }
 
@@ -73,7 +74,7 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
 {
     detachArrayBuffer();
 
-    ASSERT(byteLength < (size_t)ArrayBufferObject::maxArrayBufferSize);
+    ASSERT(byteLength < ArrayBufferObject::maxArrayBufferSize);
 
     const size_t ratio = std::max((size_t)GC_get_free_space_divisor() / 6, (size_t)1);
     if (byteLength > (GC_get_heap_size() / ratio)) {
@@ -109,6 +110,11 @@ void ArrayBufferObject::attachBuffer(BackingStore* backingStore)
 
 void ArrayBufferObject::detachArrayBuffer()
 {
+#if defined(ENABLE_THREADING)
+    // this check looks redundant, but it is necessary because SharedArrayBuffer cannot detach the buffer
+    ASSERT(!isSharedArrayBufferObject());
+#endif
+
     if (m_data && !m_mayPointsSharedBackingStore) {
         // if backingstore is definitely not shared, we deallocate the backingstore immediately.
         m_backingStore.value()->deallocate();

@@ -23,14 +23,14 @@
 #include "Context.h"
 #include "VMInstance.h"
 #include "NativeFunctionObject.h"
-#include "SharedArrayBufferObject.h"
 #include "TypedArrayObject.h"
 #include "TypedArrayInlines.h"
+#include "SharedArrayBufferObject.h"
 #include "CheckedArithmetic.h"
 
 namespace Escargot {
 
-enum class AtomicOps : uint8_t {
+enum class AtomicBinaryOps : uint8_t {
     ADD,
     AND,
     OR,
@@ -38,25 +38,25 @@ enum class AtomicOps : uint8_t {
     XOR,
 };
 
-static Value atomicIntegerOperations(ExecutionState& state, int32_t lnum, int32_t rnum, AtomicOps op)
+static Value atomicIntegerOperations(ExecutionState& state, int32_t lnum, int32_t rnum, AtomicBinaryOps op)
 {
     int32_t result = 0;
     bool passed = true;
 
     switch (op) {
-    case AtomicOps::ADD:
+    case AtomicBinaryOps::ADD:
         passed = ArithmeticOperations<int32_t, int32_t, int32_t>::add(lnum, rnum, result);
         break;
-    case AtomicOps::AND:
+    case AtomicBinaryOps::AND:
         result = lnum & rnum;
         break;
-    case AtomicOps::OR:
+    case AtomicBinaryOps::OR:
         result = lnum | rnum;
         break;
-    case AtomicOps::SUB:
+    case AtomicBinaryOps::SUB:
         passed = ArithmeticOperations<int32_t, int32_t, int32_t>::sub(lnum, rnum, result);
         break;
-    case AtomicOps::XOR:
+    case AtomicBinaryOps::XOR:
         result = lnum ^ rnum;
         break;
     default:
@@ -68,31 +68,31 @@ static Value atomicIntegerOperations(ExecutionState& state, int32_t lnum, int32_
         return Value(result);
     }
 
-    ASSERT(op == AtomicOps::ADD || op == AtomicOps::SUB);
-    if (op == AtomicOps::ADD) {
+    ASSERT(op == AtomicBinaryOps::ADD || op == AtomicBinaryOps::SUB);
+    if (op == AtomicBinaryOps::ADD) {
         return Value(Value::EncodeAsDouble, static_cast<double>(lnum) + static_cast<double>(rnum));
     }
     return Value(Value::EncodeAsDouble, static_cast<double>(lnum) - static_cast<double>(rnum));
 }
 
-static Value atomicNumberOperations(ExecutionState& state, double lnum, double rnum, AtomicOps op)
+static Value atomicNumberOperations(ExecutionState& state, double lnum, double rnum, AtomicBinaryOps op)
 {
     double result = 0;
 
     switch (op) {
-    case AtomicOps::ADD:
+    case AtomicBinaryOps::ADD:
         result = lnum + rnum;
         break;
-    case AtomicOps::AND:
+    case AtomicBinaryOps::AND:
         result = Value(lnum).toInt32(state) & Value(rnum).toInt32(state);
         break;
-    case AtomicOps::OR:
+    case AtomicBinaryOps::OR:
         result = Value(lnum).toInt32(state) | Value(rnum).toInt32(state);
         break;
-    case AtomicOps::SUB:
+    case AtomicBinaryOps::SUB:
         result = lnum - rnum;
         break;
-    case AtomicOps::XOR:
+    case AtomicBinaryOps::XOR:
         result = Value(lnum).toInt32(state) ^ Value(rnum).toInt32(state);
         break;
     default:
@@ -103,18 +103,18 @@ static Value atomicNumberOperations(ExecutionState& state, double lnum, double r
     return Value(result);
 }
 
-static Value atomicBigIntOperations(ExecutionState& state, BigInt* lnum, BigInt* rnum, AtomicOps op)
+static Value atomicBigIntOperations(ExecutionState& state, BigInt* lnum, BigInt* rnum, AtomicBinaryOps op)
 {
     switch (op) {
-    case AtomicOps::ADD:
+    case AtomicBinaryOps::ADD:
         return lnum->addition(state, rnum);
-    case AtomicOps::AND:
+    case AtomicBinaryOps::AND:
         return lnum->bitwiseAnd(state, rnum);
-    case AtomicOps::OR:
+    case AtomicBinaryOps::OR:
         return lnum->bitwiseOr(state, rnum);
-    case AtomicOps::SUB:
+    case AtomicBinaryOps::SUB:
         return lnum->subtraction(state, rnum);
-    case AtomicOps::XOR:
+    case AtomicBinaryOps::XOR:
         return lnum->bitwiseXor(state, rnum);
     default:
         RELEASE_ASSERT_NOT_REACHED();
@@ -122,11 +122,9 @@ static Value atomicBigIntOperations(ExecutionState& state, BigInt* lnum, BigInt*
     };
 }
 
-static SharedArrayBufferObject* validateSharedIntegerTypedArray(ExecutionState& state, Value typedArray, bool waitable = false)
+static ArrayBufferObject* validateIntegerTypedArray(ExecutionState& state, Value typedArray, bool waitable = false)
 {
-    if (UNLIKELY(!typedArray.isObject() || !typedArray.asObject()->isTypedArrayObject())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
-    }
+    ArrayBufferObject* buffer = TypedArrayObject::validateTypedArray(state, typedArray);
     TypedArrayObject* TA = typedArray.asObject()->asTypedArrayObject();
 
     if (waitable) {
@@ -137,30 +135,29 @@ static SharedArrayBufferObject* validateSharedIntegerTypedArray(ExecutionState& 
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
-    Object* buffer = TA->buffer();
-    if (!buffer->isSharedArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
-    }
-
-    return buffer->asSharedArrayBufferObject();
+    return buffer;
 }
 
 static size_t validateAtomicAccess(ExecutionState& state, TypedArrayObject* typedArray, Value index)
 {
     uint64_t accessIndex = index.toIndex(state);
     size_t length = typedArray->arrayLength();
-    if (accessIndex >= (uint64_t)length || accessIndex > (uint64_t)std::numeric_limits<size_t>::max()) {
+    if (UNLIKELY(accessIndex == Value::InvalidIndexValue || accessIndex >= (uint64_t)length)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::GlobalObject_RangeError);
     }
-    return accessIndex;
+
+    ASSERT(accessIndex < std::numeric_limits<size_t>::max());
+    size_t elementSize = typedArray->elementSize();
+    size_t offset = typedArray->byteOffset();
+    return (static_cast<size_t>(accessIndex) * elementSize) + offset;
 }
 
-static Value getModifySetValueInBuffer(ExecutionState& state, SharedArrayBufferObject* buffer, size_t indexedPosition, TypedArrayType type, Value v2, AtomicOps op)
+static Value getModifySetValueInBuffer(ExecutionState& state, ArrayBufferObject* buffer, size_t indexedPosition, TypedArrayType type, Value v2, AtomicBinaryOps op)
 {
     size_t elemSize = TypedArrayHelper::elementSize(type);
     ASSERT(indexedPosition + elemSize <= buffer->byteLength());
 
-    uint8_t* rawStart = buffer->data() + indexedPosition;
+    uint8_t* rawStart = const_cast<uint8_t*>(buffer->data()) + indexedPosition;
     Value rawBytesRead = TypedArrayHelper::rawBytesToNumber(state, type, rawStart);
     Value v1 = rawBytesRead;
     Value val;
@@ -183,11 +180,11 @@ static Value getModifySetValueInBuffer(ExecutionState& state, SharedArrayBufferO
     return rawBytesRead;
 }
 
-static Value atomicReadModifyWrite(ExecutionState& state, Value typedArray, Value index, Value value, AtomicOps op)
+static Value atomicReadModifyWrite(ExecutionState& state, Value typedArray, Value index, Value value, AtomicBinaryOps op)
 {
-    SharedArrayBufferObject* buffer = validateSharedIntegerTypedArray(state, typedArray);
+    ArrayBufferObject* buffer = validateIntegerTypedArray(state, typedArray);
     TypedArrayObject* TA = typedArray.asObject()->asTypedArrayObject();
-    size_t i = validateAtomicAccess(state, TA, index);
+    size_t indexedPosition = validateAtomicAccess(state, TA, index);
     TypedArrayType type = TA->typedArrayType();
 
     Value v;
@@ -197,36 +194,61 @@ static Value atomicReadModifyWrite(ExecutionState& state, Value typedArray, Valu
         v = Value(value.toInteger(state));
     }
 
-    size_t elementSize = TA->elementSize();
-    size_t offset = TA->byteOffset();
-    size_t indexedPosition = (i * elementSize) + offset;
-
     return getModifySetValueInBuffer(state, buffer, indexedPosition, type, v, op);
 }
 
 static Value builtinAtomicsAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicOps::ADD);
+    return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::ADD);
 }
 
 static Value builtinAtomicsAnd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicOps::AND);
+    return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::AND);
+}
+
+static Value builtinAtomicsLoad(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    ArrayBufferObject* buffer = validateIntegerTypedArray(state, argv[0]);
+    TypedArrayObject* TA = argv[0].asObject()->asTypedArrayObject();
+    size_t indexedPosition = validateAtomicAccess(state, TA, argv[1]);
+    TypedArrayType type = TA->typedArrayType();
+
+    return buffer->getValueFromBuffer(state, indexedPosition, type);
 }
 
 static Value builtinAtomicsOr(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicOps::OR);
+    return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::OR);
+}
+
+static Value builtinAtomicsStore(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    ArrayBufferObject* buffer = validateIntegerTypedArray(state, argv[0]);
+    TypedArrayObject* TA = argv[0].asObject()->asTypedArrayObject();
+    size_t indexedPosition = validateAtomicAccess(state, TA, argv[1]);
+    TypedArrayType type = TA->typedArrayType();
+
+    Value value = argv[2];
+    Value v;
+    if (type == TypedArrayType::BigInt64 || type == TypedArrayType::BigUint64) {
+        v = value.toBigInt(state);
+    } else {
+        v = Value(value.toInteger(state));
+    }
+
+    buffer->setValueInBuffer(state, indexedPosition, type, v);
+    return v;
 }
 
 static Value builtinAtomicsSub(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicOps::SUB);
+    return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::SUB);
 }
 
 static Value builtinAtomicsXor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicOps::XOR);
+    return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::XOR);
 }
 
 void GlobalObject::installAtomics(ExecutionState& state)
@@ -243,8 +265,14 @@ void GlobalObject::installAtomics(ExecutionState& state)
     m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringAnd),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringAnd, builtinAtomicsAnd, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().load),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().load, builtinAtomicsLoad, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringOr),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringOr, builtinAtomicsOr, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().store),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().store, builtinAtomicsStore, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().sub),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().sub, builtinAtomicsSub, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -911,10 +911,10 @@ inline double Value::toInteger(ExecutionState& state) const
     }
 
     double d = toNumber(state);
-    if (std::isnan(d)) {
+    if (std::isnan(d) || d == 0) {
         return 0;
     }
-    if (d == 0 || d == std::numeric_limits<double>::infinity() || d == -std::numeric_limits<double>::infinity()) {
+    if (d == std::numeric_limits<double>::infinity() || d == -std::numeric_limits<double>::infinity()) {
         return d;
     }
     return (d < 0 ? -1 : 1) * std::floor(std::abs(d));

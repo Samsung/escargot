@@ -81,6 +81,8 @@ public:
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey) override;
     virtual void sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override;
 
+    static ArrayBufferObject* validateTypedArray(ExecutionState& state, const Value& O);
+
 protected:
     explicit TypedArrayObject(ExecutionState& state, Object* proto)
         : ArrayBufferView(state, proto)
