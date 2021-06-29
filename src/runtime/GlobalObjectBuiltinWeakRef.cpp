@@ -26,7 +26,7 @@
 
 namespace Escargot {
 
-Value builtinWeakRefConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinWeakRefConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
@@ -45,7 +45,7 @@ Value builtinWeakRefConstructor(ExecutionState& state, Value thisValue, size_t a
 }
 
 
-Value builtinWeakRefDeRef(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinWeakRefDeRef(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isWeakRefObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);

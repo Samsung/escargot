@@ -113,7 +113,7 @@ static Value TypedArraySpeciesCreate(ExecutionState& state, TypedArrayObject* ex
     return A;
 }
 
-Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor);
     return Value();
@@ -249,7 +249,7 @@ static Value builtinTypedArrayLengthGetter(ExecutionState& state, Value thisValu
 }
 
 template <typename TA>
-Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {

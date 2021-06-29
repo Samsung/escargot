@@ -100,7 +100,7 @@ ObjectStructure* ObjectStructureWithoutTransition::addProperty(const ObjectStruc
     m_properties->push_back(newItem);
 
     if (m_properties->size() + 1 > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
-        newStructure = new ObjectStructureWithMap(m_properties, ObjectStructureWithMap::createPropertyNameMap(m_properties), m_hasIndexPropertyName | nameIsIndexString);
+        newStructure = new ObjectStructureWithMap(m_properties, ObjectStructureWithMap::createPropertyNameMap(m_properties), m_hasIndexPropertyName || nameIsIndexString);
     } else {
         newStructure = new ObjectStructureWithoutTransition(m_properties, nameIsIndexString, hasNonAtomicName);
     }

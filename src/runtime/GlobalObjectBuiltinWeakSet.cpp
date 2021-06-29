@@ -29,7 +29,7 @@
 namespace Escargot {
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-weakset-constructor
-Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget.hasValue()) {

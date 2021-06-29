@@ -116,7 +116,7 @@ public:
             }
         }
 
-        bool isValid() { return valid; }
+        bool isValid() const { return valid; }
 
         void invalidate()
         {

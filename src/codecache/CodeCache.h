@@ -147,7 +147,7 @@ public:
     CodeCache(const char* baseCacheDir);
     ~CodeCache();
 
-    bool enabled() { return m_enabled; }
+    bool enabled() const { return m_enabled; }
     std::pair<bool, CodeCacheEntry> searchCache(size_t srcHash);
 
     void prepareCacheLoading(Context* context, size_t srcHash, const CodeCacheEntry& entry);

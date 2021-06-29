@@ -143,11 +143,7 @@ enum Opcode {
     // special opcode only used in interpreter
     GetObjectOpcodeSlowCaseOpcode,
     SetObjectOpcodeSlowCaseOpcode,
-#if defined(COMPILER_MSVC)
 };
-#else
-};
-#endif
 
 struct OpcodeTable {
     OpcodeTable();
@@ -654,7 +650,7 @@ public:
             printf("set private field data r%d[%d] = r%d type %d", (int)m_classConstructorRegisterIndex, (int)m_setPrivateFieldIndex, (int)m_privatePropertySetRegisterIndex, (int)m_setPrivateFieldType);
         } else if (m_stage == Stage::InitStaticField) {
             printf("init static field r%d.r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPropertyInitRegisterIndex);
-        } else if (m_stage == Stage::InitStaticField) {
+        } else if (m_stage == Stage::InitStaticPrivateField) {
             printf("init private static field r%d.r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPrivatePropertyInitRegisterIndex);
         } else if (m_stage == Stage::SetStaticFieldData) {
             printf("set static field r%d.? = r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPropertySetRegisterIndex);

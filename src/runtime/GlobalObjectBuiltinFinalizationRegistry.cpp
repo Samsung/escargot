@@ -32,7 +32,7 @@ namespace Escargot {
     }                                                                                                                                                                                                                                                                     \
     FinalizationRegistryObject* NAME = thisValue.asObject()->asFinalizationRegistryObject();
 
-Value builtinFinalizationRegistryConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinFinalizationRegistryConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
@@ -49,7 +49,7 @@ Value builtinFinalizationRegistryConstructor(ExecutionState& state, Value thisVa
     return new FinalizationRegistryObject(state, proto, argv[0].asObject(), state.resolveCallee()->getFunctionRealm(state));
 }
 
-Value builtinfinalizationRegistryRegister(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinfinalizationRegistryRegister(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, stringRegister);
 
@@ -72,7 +72,7 @@ Value builtinfinalizationRegistryRegister(ExecutionState& state, Value thisValue
     return Value();
 }
 
-Value builtinfinalizationRegistryUnregister(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinfinalizationRegistryUnregister(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, unregister);
     if (argc == 0 || !argv[0].isObject()) {
@@ -81,7 +81,7 @@ Value builtinfinalizationRegistryUnregister(ExecutionState& state, Value thisVal
     return Value(finalRegistry->deleteCell(state, argv[0].asObject()));
 }
 
-Value builtinfinalizationRegistryCleanupSome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinfinalizationRegistryCleanupSome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, cleanupSome);
 
