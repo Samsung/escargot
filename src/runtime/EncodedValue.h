@@ -185,7 +185,7 @@ public:
         m_data.payload = (intptr_t)v;
     }
 
-    bool isStoredInHeap()
+    bool isStoredInHeap() const
     {
         if (HAS_SMI_TAG(m_data.payload)) {
             return false;
@@ -434,7 +434,7 @@ public:
         return HAS_SMI_TAG(m_data.payload);
     }
 
-    bool isStoredInHeap()
+    bool isStoredInHeap() const
     {
         if (HAS_SMI_TAG(m_data.payload)) {
             return false;

@@ -130,7 +130,6 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
         }
     } else if (value.IsArray()) {
         ArrayObject* arr = new ArrayObject(state, value.Size(), false);
-        size_t i = 0;
         for (size_t i = 0; i < value.Size(); i++) {
             arr->defineOwnIndexedPropertyWithExpandedLength(state, i, parseJSONWorker<CharType, JSONCharType>(state, value[i]));
         }
@@ -155,7 +154,7 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
 }
 
 template <typename CharType, typename JSONCharType>
-Value parseJSON(ExecutionState& state, const CharType* data, size_t length)
+static Value parseJSON(ExecutionState& state, const CharType* data, size_t length)
 {
     auto strings = &state.context()->staticStrings();
     rapidjson::GenericDocument<JSONCharType> jsonDocument;

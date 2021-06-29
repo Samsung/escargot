@@ -236,7 +236,7 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
         }
     }
 
-    if (!m_isDataProperty && (hasWritable | hasValue)) {
+    if (!m_isDataProperty && (hasWritable || hasValue)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid property descriptor. Cannot both specify accessors and a value or writable attribute");
     }
 
@@ -1022,7 +1022,6 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
             ObjectStructurePropertyName propertyStructureName = propertyName.toObjectStructurePropertyName(state);
             auto findResult = m_structure->findProperty(propertyStructureName);
             ASSERT(findResult.first != SIZE_MAX);
-            size_t idx = findResult.first;
             const ObjectStructureItem* item = findResult.second.value();
             return setOwnDataPropertyUtilForObjectInner(state, findResult.first, *item, v, receiver.asObject());
         }
