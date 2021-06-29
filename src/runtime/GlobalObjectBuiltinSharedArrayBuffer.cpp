@@ -54,8 +54,36 @@ static Value builtinSharedArrayBufferByteLengthGetter(ExecutionState& state, Val
     return Value(obj->byteLength());
 }
 
-// TODO
 // https://262.ecma-international.org/#sec-sharedarraybuffer.prototype.slice
+static Value builtinSharedArrayBufferSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isSharedArrayBufferObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    SharedArrayBufferObject* O = thisValue.asObject()->asSharedArrayBufferObject();
+    double len = O->byteLength();
+    double relativeStart = argv[0].toInteger(state);
+    size_t first = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
+    double relativeEnd = argv[1].isUndefined() ? len : argv[1].toInteger(state);
+    double final_ = (relativeEnd < 0) ? std::max(len + relativeEnd, 0.0) : std::min(relativeEnd, len);
+    size_t newLen = std::max((int)final_ - (int)first, 0);
+
+    Value constructor = O->speciesConstructor(state, state.context()->globalObject()->sharedArrayBuffer());
+    Value arguments[] = { Value(newLen) };
+    Object* newValue = Object::construct(state, constructor, 1, arguments).toObject(state);
+    if (!newValue->isSharedArrayBufferObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor SharedArrayBuffer is not valid SharedArrayBuffer");
+    }
+
+    SharedArrayBufferObject* newBuffer = newValue->asSharedArrayBufferObject();
+    if ((newBuffer->data() == O->data()) || (newBuffer->byteLength() < newLen)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor SharedArrayBuffer is not valid SharedArrayBuffer");
+    }
+
+    newBuffer->fillData(O->data() + first, newLen);
+    return newBuffer;
+}
 
 void GlobalObject::installSharedArrayBuffer(ExecutionState& state)
 {
@@ -83,6 +111,8 @@ void GlobalObject::installSharedArrayBuffer(ExecutionState& state)
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor byteLengthDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
+    m_sharedArrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->slice),
+                                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinSharedArrayBufferSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_sharedArrayBuffer->setFunctionPrototype(state, m_sharedArrayBufferPrototype);
 
