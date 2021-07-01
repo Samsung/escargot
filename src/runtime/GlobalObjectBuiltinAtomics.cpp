@@ -33,6 +33,7 @@ namespace Escargot {
 enum class AtomicBinaryOps : uint8_t {
     ADD,
     AND,
+    EXCH,
     OR,
     SUB,
     XOR,
@@ -49,6 +50,9 @@ static Value atomicIntegerOperations(ExecutionState& state, int32_t lnum, int32_
         break;
     case AtomicBinaryOps::AND:
         result = lnum & rnum;
+        break;
+    case AtomicBinaryOps::EXCH:
+        result = rnum;
         break;
     case AtomicBinaryOps::OR:
         result = lnum | rnum;
@@ -86,6 +90,9 @@ static Value atomicNumberOperations(ExecutionState& state, double lnum, double r
     case AtomicBinaryOps::AND:
         result = Value(lnum).toInt32(state) & Value(rnum).toInt32(state);
         break;
+    case AtomicBinaryOps::EXCH:
+        result = rnum;
+        break;
     case AtomicBinaryOps::OR:
         result = Value(lnum).toInt32(state) | Value(rnum).toInt32(state);
         break;
@@ -110,6 +117,8 @@ static Value atomicBigIntOperations(ExecutionState& state, BigInt* lnum, BigInt*
         return lnum->addition(state, rnum);
     case AtomicBinaryOps::AND:
         return lnum->bitwiseAnd(state, rnum);
+    case AtomicBinaryOps::EXCH:
+        return rnum;
     case AtomicBinaryOps::OR:
         return lnum->bitwiseOr(state, rnum);
     case AtomicBinaryOps::SUB:
@@ -207,6 +216,53 @@ static Value builtinAtomicsAnd(ExecutionState& state, Value thisValue, size_t ar
     return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::AND);
 }
 
+static Value builtinAtomicsCompareExchange(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    ArrayBufferObject* buffer = validateIntegerTypedArray(state, argv[0]);
+    TypedArrayObject* TA = argv[0].asObject()->asTypedArrayObject();
+    size_t indexedPosition = validateAtomicAccess(state, TA, argv[1]);
+    TypedArrayType type = TA->typedArrayType();
+
+    Value expected;
+    Value replacement;
+    if (type == TypedArrayType::BigInt64 || type == TypedArrayType::BigUint64) {
+        expected = argv[2].toBigInt(state);
+        replacement = argv[3].toBigInt(state);
+    } else {
+        expected = Value(argv[2].toInteger(state));
+        replacement = Value(argv[3].toInteger(state));
+    }
+
+    size_t elemSize = TypedArrayHelper::elementSize(type);
+    ASSERT(indexedPosition + elemSize <= buffer->byteLength());
+    uint8_t* expectedBytes = ALLOCA(8, uint8_t, state);
+    TypedArrayHelper::numberToRawBytes(state, type, expected, expectedBytes);
+
+    // TODO SharedArrayBuffer case
+    uint8_t* rawStart = const_cast<uint8_t*>(buffer->data()) + indexedPosition;
+    Value rawBytesRead = TypedArrayHelper::rawBytesToNumber(state, type, rawStart);
+
+    bool isByteListEqual = true;
+    for (size_t i = 0; i < elemSize; i++) {
+        if (rawStart[i] != expectedBytes[i]) {
+            isByteListEqual = false;
+            break;
+        }
+    }
+    if (isByteListEqual) {
+        uint8_t* replacementBytes = ALLOCA(8, uint8_t, state);
+        TypedArrayHelper::numberToRawBytes(state, type, replacement, replacementBytes);
+        memcpy(rawStart, replacementBytes, elemSize);
+    }
+
+    return rawBytesRead;
+}
+
+static Value builtinAtomicsExchange(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::EXCH);
+}
+
 static Value builtinAtomicsLoad(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ArrayBufferObject* buffer = validateIntegerTypedArray(state, argv[0]);
@@ -264,6 +320,12 @@ void GlobalObject::installAtomics(ExecutionState& state)
 
     m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringAnd),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringAnd, builtinAtomicsAnd, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().compareExchange),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().compareExchange, builtinAtomicsCompareExchange, 4, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().exchange),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().exchange, builtinAtomicsExchange, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().load),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().load, builtinAtomicsLoad, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
