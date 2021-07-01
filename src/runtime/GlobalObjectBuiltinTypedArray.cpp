@@ -293,7 +293,7 @@ static void initializeTypedArrayFromTypedArray(ExecutionState& state, TypedArray
 static void initializeTypedArrayFromArrayBuffer(ExecutionState& state, TypedArrayObject* obj, ArrayBufferObject* buffer, const Value& byteOffset, const Value& length)
 {
     size_t elementSize = obj->elementSize();
-    size_t offset = byteOffset.toIndex(state);
+    uint64_t offset = byteOffset.toIndex(state);
     if (offset == Value::InvalidIndexValue || offset % elementSize != 0) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
     }

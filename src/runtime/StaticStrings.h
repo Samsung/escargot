@@ -507,6 +507,7 @@ namespace Escargot {
     F(Atomics)                              \
     F(SharedArrayBuffer)                    \
     F(compareExchange)                      \
+    F(exchange)                             \
     F(isLockFree)                           \
     F(notify)                               \
     F(store)                                \
