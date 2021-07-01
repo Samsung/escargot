@@ -344,6 +344,25 @@ TEST(ValueRef, Basic2) {
     EXPECT_EQ(ii, 123);
 }
 
+TEST(ValueRef, Basic3) {
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        auto value = ValueRef::create(-1);
+        uint32_t result1 = value->toArrayIndex(state);
+        int32_t result2 = value->asInt32();
+        EXPECT_EQ(result1, ValueRef::InvalidArrayIndexValue);
+        EXPECT_EQ(result2, -1);
+
+        uint32_t maxValue = std::numeric_limits<uint32_t>::max();
+        value = ValueRef::create(maxValue);
+        result1 = value->toArrayIndex(state);
+        result2 = value->toIndex(state);
+        EXPECT_EQ(result1, maxValue);
+        EXPECT_EQ(result2, maxValue);
+
+        return ValueRef::createUndefined();
+    });
+}
+
 TEST(EvalScript, Run)
 {
     auto s = evalScript(g_context.get(), StringRef::createFromASCII("1 + 1"), StringRef::createFromASCII("test.js"), false);

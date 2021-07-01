@@ -890,7 +890,7 @@ uint32_t Value::tryToUseAsArrayIndex(ExecutionState& ec) const
     }
 }
 
-inline uint64_t Value::toArrayIndex(ExecutionState& state) const
+inline uint32_t Value::toArrayIndex(ExecutionState& state) const
 {
     if (LIKELY(isUInt32())) {
         return asUInt32();
