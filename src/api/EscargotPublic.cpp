@@ -2494,22 +2494,12 @@ ValueRef::ValueIndex ValueRef::toIndex(ExecutionStateRef* state)
 
 uint32_t ValueRef::toArrayIndex(ExecutionStateRef* state)
 {
-    EncodedValue s = EncodedValue::fromPayload(this);
-    if (LIKELY(s.isUInt32())) {
-        return s.asUInt32();
-    } else {
-        return Value(s).toArrayIndex(*toImpl(state));
-    }
+    return toImpl(this).toArrayIndex(*toImpl(state));
 }
 
 uint32_t ValueRef::tryToUseAsArrayIndex(ExecutionStateRef* state)
 {
-    EncodedValue s = EncodedValue::fromPayload(this);
-    if (LIKELY(s.isUInt32())) {
-        return s.asUInt32();
-    } else {
-        return Value(s).tryToUseAsArrayIndex(*toImpl(state));
-    }
+    return toImpl(this).tryToUseAsArrayIndex(*toImpl(state));
 }
 
 bool ValueRef::abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const

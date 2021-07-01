@@ -233,7 +233,7 @@ public:
 
     inline ValueIndex tryToUseAsIndex(ExecutionState& ec) const;
     enum : uint32_t { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
-    inline uint64_t toArrayIndex(ExecutionState& ec) const;
+    inline uint32_t toArrayIndex(ExecutionState& ec) const;
     inline uint32_t tryToUseAsArrayIndex(ExecutionState& ec) const;
 
     inline bool abstractEqualsTo(ExecutionState& ec, const Value& val) const;
