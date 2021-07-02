@@ -28,9 +28,11 @@
 
 namespace Escargot {
 
-class ProgramNode;
-class FunctionNode;
 class CodeBlock;
+class FunctionNode;
+class ProgramNode;
+
+struct ASTClassInfo;
 
 // Based on the latest esprima version 4.0.1
 
@@ -61,9 +63,13 @@ struct Error : public gc {
 
 #define ESPRIMA_RECURSIVE_LIMIT 1024
 
-ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside,
-                          bool inWith, size_t stackRemain, bool allowSuperCallFromOutside, bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside, bool allowArgumentsFromOutside);
+ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ASTClassInfo* outerClassInfo,
+                          bool isModule, bool strictFromOutside, bool inWith, size_t stackRemain, bool allowSuperCallFromOutside,
+                          bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside, bool allowArgumentsFromOutside);
 FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain);
+
+ASTClassInfo* generateClassInfoFrom(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock);
+
 } // namespace esprima
 } // namespace Escargot
 

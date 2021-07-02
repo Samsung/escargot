@@ -331,7 +331,10 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
 
     // Parsing
     try {
-        programNode = esprima::parseProgram(m_context, sourceView, isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP, allowNewTarget, allowArguments);
+        ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock);
+
+        programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo,
+                                            isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP, allowNewTarget, allowArguments);
 
         script = new Script(srcName, source, programNode->moduleData(), !parentCodeBlock);
         if (parentCodeBlock) {
@@ -413,6 +416,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
 
 ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget, bool needByteCodeGeneration, size_t stackSizeRemain)
 {
+    ASSERT(m_context->astAllocator().isInitialized());
 #ifdef ESCARGOT_DEBUGGER
     if (LIKELY(needByteCodeGeneration) && m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
         return initializeScriptWithDebugger(source, srcName, parentCodeBlock, isModule, isEvalMode, isEvalCodeInFunction, inWithOperation, strictFromOutside, allowSuperCall, allowSuperProperty, allowNewTarget);
@@ -433,7 +437,10 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
 
     // Parsing
     try {
-        programNode = esprima::parseProgram(m_context, sourceView, isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP, allowNewTarget, allowArguments);
+        ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock);
+
+        programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo,
+                                            isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP, allowNewTarget, allowArguments);
 
         script = new Script(srcName, source, programNode->moduleData(), !parentCodeBlock);
         if (parentCodeBlock) {
@@ -579,7 +586,9 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
 
     // Parsing
     try {
-        programNode = esprima::parseProgram(m_context, sourceView, isModule, strictFromOutside, inWith, SIZE_MAX, allowSC, allowSP, allowNewTarget, allowArguments);
+        ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock);
+
+        programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo, isModule, strictFromOutside, inWith, SIZE_MAX, allowSC, allowSP, allowNewTarget, allowArguments);
 
         if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
             m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_SOURCE_8BIT, source);
