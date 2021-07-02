@@ -47,6 +47,7 @@
 #include "parser/Lexer.h"
 #include "parser/Script.h"
 #include "parser/ASTBuilder.h"
+#include "parser/ASTAllocator.h"
 #include "parser/esprima_cpp/ParserContext.h"
 
 #define ALLOC_TOKEN(tokenName) Scanner::ScannerResult* tokenName = ALLOCA(sizeof(Scanner::ScannerResult), Scanner::ScannerResult, ec);
@@ -151,6 +152,7 @@ public:
 
     ASTScopeContext* currentScopeContext;
     ASTScopeContext* lastPoppedScopeContext;
+    ASTClassInfo* outerClassInfo;
     ASTClassInfo* currentClassInfo;
 
     AtomicString lastUsingName;
@@ -186,7 +188,7 @@ public:
         }
     };
 
-    Parser(::Escargot::Context* escargotContext, StringView code, bool isModule, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(1, 0, 0))
+    Parser(::Escargot::Context* escargotContext, StringView code, ASTClassInfo* outerClassInfo, bool isModule, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(1, 0, 0))
         : scannerInstance(escargotContext, &contextInstance, code, isModule, startLoc.line, startLoc.column)
         , allocator(escargotContext->astAllocator())
         , fakeContext(escargotContext->astAllocator())
@@ -212,7 +214,8 @@ public:
         this->taggedTemplateExpressionIndex = 0;
         this->lastPoppedScopeContext = &fakeContext;
         this->currentScopeContext = nullptr;
-        this->currentClassInfo = nullptr;
+        this->outerClassInfo = outerClassInfo;
+        this->currentClassInfo = outerClassInfo;
         this->trackUsingNames = true;
         this->isParsingSingleFunction = false;
         this->codeBlock = nullptr;
@@ -5969,29 +5972,46 @@ public:
             }
         }
 
-        if (UNLIKELY(info->m_hasSameNameOnParentClass)) {
+        bool seenDirectEval = false;
+        if (info->m_firstMethod) {
+            auto s = info->m_firstMethod;
+            while (true) {
+                if (s->m_hasEval) {
+                    seenDirectEval = true;
+                    break;
+                }
+                if (s == info->m_lastMethod) {
+                    break;
+                }
+                s = s->nextSibling();
+            }
+        }
+
+        if (UNLIKELY(info->m_hasSameNameOnParentClass || seenDirectEval)) {
             ASTClassInfo* cur = info;
             while (cur) {
-                AtomicStringTightVector* privateNames = nullptr;
-                auto s = cur->m_firstMethod;
-                while (true) {
-                    s->m_needRareData = true;
-                    if (!s->m_classPrivateNames) {
-                        if (!privateNames) {
-                            privateNames = new AtomicStringTightVector();
-                            privateNames->resize(cur->m_classPrivateNames.size());
+                if (cur->m_firstMethod) {
+                    AtomicStringTightVector* privateNames = nullptr;
+                    auto s = cur->m_firstMethod;
+                    while (true) {
+                        s->m_needRareData = true;
+                        if (!s->m_classPrivateNames) {
+                            if (!privateNames) {
+                                privateNames = new AtomicStringTightVector();
+                                privateNames->resize(cur->m_classPrivateNames.size());
 
-                            for (size_t i = 0; i < cur->m_classPrivateNames.size(); i++) {
-                                (*privateNames)[i] = cur->m_classPrivateNames[i];
+                                for (size_t i = 0; i < cur->m_classPrivateNames.size(); i++) {
+                                    (*privateNames)[i] = cur->m_classPrivateNames[i];
+                                }
                             }
+                            s->m_classPrivateNames = privateNames;
                         }
-                        s->m_classPrivateNames = privateNames;
-                    }
 
-                    if (s == cur->m_lastMethod) {
-                        break;
+                        if (s == cur->m_lastMethod) {
+                            break;
+                        }
+                        s = s->nextSibling();
                     }
-                    s = s->nextSibling();
                 }
 
                 cur = cur->m_parent;
@@ -6053,7 +6073,7 @@ public:
 
         this->currentClassInfo = oldClassInfo;
 
-        if (!this->currentClassInfo && !this->isParsingSingleFunction) {
+        if (this->currentClassInfo == this->outerClassInfo && !this->isParsingSingleFunction) {
             // test class private field here
             testClassPrivateNameRules(newClassInfo);
         }
@@ -6682,6 +6702,11 @@ public:
         this->currentScopeContext->m_bodyEndLOC.column = endNode.column;
 #endif
         ProgramNode* programNode = builder.createProgramNode(container, this->currentScopeContext, this->moduleData, std::move(this->numeralLiteralVector));
+
+        if (UNLIKELY(this->outerClassInfo != nullptr)) {
+            testClassPrivateNameRules(this->outerClassInfo);
+        }
+
         return this->finalize(endNode, programNode);
     }
 
@@ -6834,14 +6859,13 @@ public:
     }
 };
 
-ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, bool isModule, bool strictFromOutside,
+ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ASTClassInfo* outerClassInfo, bool isModule, bool strictFromOutside,
                           bool inWith, size_t stackRemain, bool allowSuperCallFromOutside, bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside, bool allowArgumentsFromOutside)
 {
     // GC should be disabled during the parsing process
     ASSERT(GC_is_disabled());
-    ASSERT(ctx->astAllocator().isInitialized());
 
-    Parser parser(ctx, source, isModule, stackRemain);
+    Parser parser(ctx, source, outerClassInfo, isModule, stackRemain);
     NodeGenerator builder(ctx->astAllocator());
 
     parser.context->strict |= strictFromOutside;
@@ -6861,7 +6885,7 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     ASSERT(GC_is_disabled());
     ASSERT(ctx->astAllocator().isInitialized());
 
-    Parser parser(ctx, codeBlock->src(), codeBlock->script()->isModule(), stackRemain, codeBlock->functionStart());
+    Parser parser(ctx, codeBlock->src(), nullptr, codeBlock->script()->isModule(), stackRemain, codeBlock->functionStart());
     NodeGenerator builder(ctx->astAllocator());
 
     parser.trackUsingNames = false;
@@ -6890,6 +6914,31 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
         return parser.parseScriptArrowFunction(builder);
     }
     return parser.parseScriptFunction(builder);
+}
+
+ASTClassInfo* generateClassInfoFrom(::Escargot::Context* ctx, InterpretedCodeBlock* cb)
+{
+    ASTClassInfo* ret = nullptr;
+    ASTClassInfo* currentClassInfo = nullptr;
+    InterpretedCodeBlock* c = cb;
+    while (c) {
+        auto privateNames = c->classPrivateNames();
+        if (privateNames) {
+            ASTClassInfo* newInfo = new (ctx->astAllocator()) ASTClassInfo();
+            if (privateNames->size()) {
+                newInfo->m_classPrivateNames.resizeWithUninitializedValues(privateNames->size());
+                memcpy(newInfo->m_classPrivateNames.data(), privateNames->data(), sizeof(AtomicString) * privateNames->size());
+            }
+            if (currentClassInfo) {
+                currentClassInfo->m_parent = newInfo;
+                currentClassInfo = newInfo;
+            } else {
+                ret = currentClassInfo = newInfo;
+            }
+        }
+        c = c->parent();
+    }
+    return ret;
 }
 
 } // namespace esprima

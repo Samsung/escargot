@@ -187,6 +187,7 @@ public:
                                                               m_property->asIdentifier()->name(), valueIndex,
                                                               needsToReferOuterClassWhenEvaluatePrivateMember(context)),
                                     context, this);
+                context->giveUpRegister();
             } else {
                 codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this);
                 context->giveUpRegister();
