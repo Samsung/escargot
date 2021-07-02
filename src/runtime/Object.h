@@ -40,7 +40,6 @@ class ExecutionPauser;
 
 #define OBJECT_PROPERTY_NAME_UINT32_VIAS 2
 #define MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME (std::numeric_limits<uint32_t>::max() >> OBJECT_PROPERTY_NAME_UINT32_VIAS)
-#define MAXIMUM_UINT_FOR_64BIT_PROPERTY_NAME (std::numeric_limits<uint64_t>::max() >> OBJECT_PROPERTY_NAME_UINT32_VIAS)
 
 typedef void (*ObjectFinalizer)(Object* self, void* data);
 typedef TightVectorWithNoSizeUseGCRealloc<EncodedValue> ObjectPrivateFieldValueVector;
@@ -99,7 +98,6 @@ struct ObjectRareData : public PointerValue {
 
 class ObjectPropertyName {
 public:
-#ifdef ESCARGOT_32
     ObjectPropertyName(ExecutionState& state, const Value& v)
     {
         if (v.isUInt32()) {
@@ -121,6 +119,15 @@ public:
         }
     }
 
+    ObjectPropertyName(ExecutionState& state, const size_t& v)
+    {
+        if (v <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME) {
+            setUIntValue((uint32_t)v);
+        } else {
+            setNameValue(state, Value(v));
+        }
+    }
+#ifdef ESCARGOT_32
     ObjectPropertyName(ExecutionState& state, const uint64_t& v)
     {
         if (v <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME) {
@@ -129,43 +136,11 @@ public:
             setNameValue(state, Value(v));
         }
     }
-
-    ObjectPropertyName(ExecutionState& state, const size_t& v)
-    {
-        if (v <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME) {
-            setUIntValue((uint32_t)v);
-        } else {
-            setNameValue(state, Value(v));
-        }
-    }
 #else
-    ObjectPropertyName(ExecutionState& state, const Value& v)
-    {
-        if (v.isUInt32()) {
-            setUIntValue(v.asUInt32());
-            return;
-        }
-        setNameValue(state, v);
-    }
-
-    ObjectPropertyName(ExecutionState& state, const int64_t& v)
-    {
-        if (v >= 0 && (uint64_t)v <= MAXIMUM_UINT_FOR_64BIT_PROPERTY_NAME) {
-            setUIntValue((uint64_t)v);
-        } else {
-            setNameValue(state, Value(v));
-        }
-    }
-
     ObjectPropertyName(ExecutionState& state, const uint32_t& v)
     {
-        setUIntValue(v);
-    }
-
-    ObjectPropertyName(ExecutionState& state, const size_t& v)
-    {
-        if (v <= MAXIMUM_UINT_FOR_64BIT_PROPERTY_NAME) {
-            setUIntValue((uint64_t)v);
+        if (v <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME) {
+            setUIntValue(v);
         } else {
             setNameValue(state, Value(v));
         }
@@ -209,11 +184,7 @@ public:
         return false;
     }
 
-#if ESCARGOT_32
     inline uint32_t uintValue() const
-#else
-    inline uint64_t uintValue() const
-#endif
     {
         ASSERT(isUIntType());
         return (m_uintData >> OBJECT_PROPERTY_NAME_UINT32_VIAS);
@@ -250,20 +221,13 @@ public:
         return objectStructurePropertyName().canonicalNumericIndexString(state);
     }
 
-    uint64_t tryToUseAsIndex() const
+    uint32_t tryToUseAsIndexProperty() const
     {
+        // index property uses 32bit unsigned integer
         if (LIKELY(isUIntType())) {
             return uintValue();
         }
-        return objectStructurePropertyName().tryToUseAsIndex();
-    }
-
-    uint64_t tryToUseAsArrayIndex() const
-    {
-        if (LIKELY(isUIntType())) {
-            return uintValue();
-        }
-        return objectStructurePropertyName().tryToUseAsArrayIndex();
+        return objectStructurePropertyName().tryToUseAsIndexProperty();
     }
 
     Value toPlainValue(ExecutionState&) const
@@ -296,26 +260,14 @@ public:
 private:
     union {
         ObjectStructurePropertyName m_name;
-#ifdef ESCARGOT_32
         uint32_t m_uintData;
-#else
-        uint64_t m_uintData;
-#endif
     };
 
-#ifdef ESCARGOT_32
     inline void setUIntValue(uint32_t value)
     {
         ASSERT(value <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME);
         m_uintData = (value << OBJECT_PROPERTY_NAME_UINT32_VIAS) | OBJECT_PROPERTY_NAME_UINT32_VIAS;
     }
-#else
-    inline void setUIntValue(uint64_t value)
-    {
-        ASSERT(value <= MAXIMUM_UINT_FOR_64BIT_PROPERTY_NAME);
-        m_uintData = (value << OBJECT_PROPERTY_NAME_UINT32_VIAS) | OBJECT_PROPERTY_NAME_UINT32_VIAS;
-    }
-#endif
 
     inline void setNameValue(ExecutionState& state, const Value& v)
     {

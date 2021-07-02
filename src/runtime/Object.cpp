@@ -892,21 +892,18 @@ static ResultType objectOwnPropertyKeys(ExecutionState& state, Object* self)
     self->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         auto properties = (Properties*)data;
 
-        if (name.isUIntType()) {
-            properties->indexes.push_back(std::make_pair(name.uintValue(), desc));
+        auto indexProperty = name.tryToUseAsIndexProperty();
+        if (indexProperty != Value::InvalidIndexPropertyValue) {
+            properties->indexes.push_back(std::make_pair(indexProperty, desc));
         } else {
             const ObjectStructurePropertyName& propertyName = name.objectStructurePropertyName();
 
             if (propertyName.isSymbol()) {
                 properties->symbols.push_back(std::make_pair(propertyName.symbol(), desc));
             } else {
+                ASSERT(propertyName.isPlainString());
                 String* name = propertyName.plainString();
-                auto idx = name->tryToUseAsArrayIndex();
-                if (idx == Value::InvalidArrayIndexValue) {
-                    properties->strings.push_back(std::make_pair(name, desc));
-                } else {
-                    properties->indexes.push_back(std::make_pair(idx, desc));
-                }
+                properties->strings.push_back(std::make_pair(name, desc));
             }
         }
         return true;

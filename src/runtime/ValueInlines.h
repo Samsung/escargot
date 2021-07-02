@@ -872,6 +872,20 @@ inline Value::ValueIndex Value::toIndex(ExecutionState& ec) const
     return index;
 }
 
+inline uint32_t Value::toIndex32(ExecutionState& state) const
+{
+    if (LIKELY(isUInt32())) {
+        return asUInt32();
+    } else {
+        uint32_t newLen = toUint32(state);
+        if (newLen != toNumber(state)) {
+            return Value::InvalidIndex32Value;
+        } else {
+            return newLen;
+        }
+    }
+}
+
 Value::ValueIndex Value::tryToUseAsIndex(ExecutionState& ec) const
 {
     if (LIKELY(isUInt32())) {
@@ -881,27 +895,18 @@ Value::ValueIndex Value::tryToUseAsIndex(ExecutionState& ec) const
     }
 }
 
-uint32_t Value::tryToUseAsArrayIndex(ExecutionState& ec) const
+uint32_t Value::tryToUseAsIndex32(ExecutionState& ec) const
 {
     if (LIKELY(isUInt32())) {
         return asUInt32();
     } else {
-        return tryToUseAsArrayIndexSlowCase(ec);
+        return tryToUseAsIndex32SlowCase(ec);
     }
 }
 
-inline uint32_t Value::toArrayIndex(ExecutionState& state) const
+uint32_t Value::tryToUseAsIndexProperty(ExecutionState& ec) const
 {
-    if (LIKELY(isUInt32())) {
-        return asUInt32();
-    } else {
-        uint32_t newLen = toUint32(state);
-        if (newLen != toNumber(state)) {
-            return Value::InvalidArrayIndexValue;
-        } else {
-            return newLen;
-        }
-    }
+    return tryToUseAsIndex32(ec);
 }
 
 inline double Value::toInteger(ExecutionState& state) const

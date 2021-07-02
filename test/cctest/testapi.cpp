@@ -329,35 +329,42 @@ int main(int argc, char* argv[])
 }
 
 TEST(ValueRef, Basic1) {
-    auto val = ValueRef::create(-1);
-    auto vector = ValueVectorRef::create(5);
-    vector->set(0, val);
-    auto ii = vector->at(0)->asInt32();
-    EXPECT_EQ(ii, -1);
-}
-
-TEST(ValueRef, Basic2) {
-    auto val = ValueRef::create(123);
-    auto vector = ValueVectorRef::create(5);
-    vector->set(0, val);
-    auto ii = vector->at(0)->asInt32();
-    EXPECT_EQ(ii, 123);
-}
-
-TEST(ValueRef, Basic3) {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
-        auto value = ValueRef::create(-1);
-        uint32_t result1 = value->toArrayIndex(state);
-        int32_t result2 = value->asInt32();
-        EXPECT_EQ(result1, ValueRef::InvalidArrayIndexValue);
-        EXPECT_EQ(result2, -1);
+        auto minusValue = ValueRef::create(-1);
+        auto vector = ValueVectorRef::create(3);
+        vector->set(0, minusValue);
+        
+        EXPECT_TRUE(minusValue->isInt32());
+        EXPECT_EQ(vector->at(0)->asInt32(), -1);
+        EXPECT_EQ(minusValue->toIndex(state), -1);
+        EXPECT_EQ(minusValue->tryToUseAsIndex(state), -1);
+        EXPECT_EQ(minusValue->toIndex32(state), -1);
+        EXPECT_EQ(minusValue->tryToUseAsIndex32(state), -1);
+        EXPECT_EQ(minusValue->tryToUseAsIndexProperty(state), -1);
 
-        uint32_t maxValue = std::numeric_limits<uint32_t>::max();
-        value = ValueRef::create(maxValue);
-        result1 = value->toArrayIndex(state);
-        result2 = value->toIndex(state);
-        EXPECT_EQ(result1, maxValue);
-        EXPECT_EQ(result2, maxValue);
+        uint32_t maximum = std::numeric_limits<uint32_t>::max();
+        auto plusValue = ValueRef::create(maximum);
+        vector->set(1, plusValue);
+
+        // Note) ValueRef(EncodedValue) uses one bit for smi tagging
+        // that means ValueRef cannot store maximum uint32_t value as uint32_t type
+        EXPECT_FALSE(plusValue->isInt32());
+        EXPECT_TRUE(plusValue->isNumber());
+        EXPECT_EQ(vector->at(1)->asNumber(), maximum);
+        EXPECT_EQ(plusValue->toIndex(state), maximum);
+        EXPECT_EQ(plusValue->tryToUseAsIndex(state), maximum);
+
+        uint32_t realMax = (std::numeric_limits<uint32_t>::max() >> 1);
+        plusValue = ValueRef::create(realMax);
+        vector->set(2, plusValue);
+
+        EXPECT_TRUE(plusValue->isInt32());
+        EXPECT_EQ(vector->at(2)->asInt32(), realMax);
+        EXPECT_EQ(plusValue->toIndex(state), realMax);
+        EXPECT_EQ(plusValue->tryToUseAsIndex(state), realMax);
+        EXPECT_EQ(plusValue->toIndex32(state), realMax);
+        EXPECT_EQ(plusValue->tryToUseAsIndex32(state), realMax);
+        EXPECT_EQ(plusValue->tryToUseAsIndexProperty(state), realMax);
 
         return ValueRef::createUndefined();
     });
@@ -1045,19 +1052,13 @@ TEST(EnumerateObjectOwnProperties, Basic1)
         // iterate on enumerable properties including symbol keys
         obj->enumerateObjectOwnProperties(state, [&](ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable) -> bool {
             if (isEnumerable) {
-                if (propertyName->isUInt32()) {
-                    indexes.push_back(propertyName->asUInt32());
+                auto indexProperty = propertyName->tryToUseAsIndexProperty(state);
+                if (indexProperty != ValueRef::InvalidIndexPropertyValue) {
+                    indexes.push_back(indexProperty);
+                } else if (propertyName->isSymbol()) {
+                    symbols->pushBack(propertyName);
                 } else {
-                    if (propertyName->isSymbol()) {
-                        symbols->pushBack(propertyName);
-                    } else {
-                        auto index = propertyName->tryToUseAsArrayIndex(state);
-                        if (index == ValueRef::InvalidArrayIndexValue) {
-                            strings->pushBack(propertyName);
-                        } else {
-                            indexes.push_back(index);
-                        }
-                    }
+                    strings->pushBack(propertyName);
                 }
             }
 

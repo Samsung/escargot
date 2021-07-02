@@ -825,12 +825,12 @@ Value::ValueIndex Value::tryToUseAsIndexSlowCase(ExecutionState& ec) const
     return toString(ec)->tryToUseAsIndex();
 }
 
-uint32_t Value::tryToUseAsArrayIndexSlowCase(ExecutionState& ec) const
+uint32_t Value::tryToUseAsIndex32SlowCase(ExecutionState& ec) const
 {
     if (isSymbol()) {
-        return Value::InvalidArrayIndexValue;
+        return Value::InvalidIndex32Value;
     }
-    return toString(ec)->tryToUseAsArrayIndex();
+    return toString(ec)->tryToUseAsIndex32();
 }
 
 #if defined(ESCARGOT_ENABLE_TEST)

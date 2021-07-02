@@ -692,16 +692,16 @@ bool String::equals(const String* src) const
     }
 }
 
-uint64_t String::tryToUseAsArrayIndex() const
+static uint64_t convertToIndexNumber(const String* str, uint64_t maxLimit)
 {
-    uint32_t number = 0;
-    const size_t& len = length();
+    uint64_t number = 0;
+    const size_t& len = str->length();
 
     if (UNLIKELY(len == 0)) {
-        return Value::InvalidArrayIndexValue;
+        return maxLimit;
     }
 
-    const auto& data = bufferAccessData();
+    const auto& data = str->bufferAccessData();
 
     char16_t first;
     if (LIKELY(data.has8BitContent)) {
@@ -711,7 +711,7 @@ uint64_t String::tryToUseAsArrayIndex() const
     }
 
     if (len > 1 && first == '0') {
-        return Value::InvalidArrayIndexValue;
+        return maxLimit;
     }
 
     for (unsigned i = 0; i < len; i++) {
@@ -722,11 +722,12 @@ uint64_t String::tryToUseAsArrayIndex() const
             c = ((char16_t*)data.buffer)[i];
         }
         if (c < '0' || c > '9') {
-            return Value::InvalidArrayIndexValue;
+            return maxLimit;
         } else {
-            uint32_t cnum = c - '0';
-            if (number > (Value::InvalidArrayIndexValue - cnum) / 10)
-                return Value::InvalidArrayIndexValue;
+            uint64_t cnum = c - '0';
+            if (UNLIKELY(number > (maxLimit - cnum) / 10)) {
+                return maxLimit;
+            }
             number = number * 10 + cnum;
         }
     }
@@ -735,43 +736,17 @@ uint64_t String::tryToUseAsArrayIndex() const
 
 uint64_t String::tryToUseAsIndex() const
 {
-    uint32_t number = 0;
-    const size_t& len = length();
+    return convertToIndexNumber(this, Value::InvalidIndexValue);
+}
 
-    if (UNLIKELY(len == 0)) {
-        return Value::InvalidIndexValue;
-    }
+uint32_t String::tryToUseAsIndex32() const
+{
+    return convertToIndexNumber(this, static_cast<uint64_t>(Value::InvalidIndex32Value));
+}
 
-    const auto& data = bufferAccessData();
-
-    char16_t first;
-    if (LIKELY(data.has8BitContent)) {
-        first = ((LChar*)data.buffer)[0];
-    } else {
-        first = ((char16_t*)data.buffer)[0];
-    }
-
-    if (len > 1 && first == '0') {
-        return Value::InvalidIndexValue;
-    }
-
-    for (unsigned i = 0; i < len; i++) {
-        char16_t c;
-        if (LIKELY(data.has8BitContent)) {
-            c = ((LChar*)data.buffer)[i];
-        } else {
-            c = ((char16_t*)data.buffer)[i];
-        }
-        if (c < '0' || c > '9') {
-            return Value::InvalidIndexValue;
-        } else {
-            uint32_t cnum = c - '0';
-            if (number > (Value::InvalidIndexValue - cnum) / 10)
-                return Value::InvalidIndexValue;
-            number = number * 10 + cnum;
-        }
-    }
-    return number;
+uint32_t String::tryToUseAsIndexProperty() const
+{
+    return tryToUseAsIndex32();
 }
 
 size_t String::find(String* str, size_t pos)

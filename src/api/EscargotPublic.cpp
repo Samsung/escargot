@@ -2492,14 +2492,24 @@ ValueRef::ValueIndex ValueRef::toIndex(ExecutionStateRef* state)
     return toImpl(this).toIndex(*toImpl(state));
 }
 
-uint32_t ValueRef::toArrayIndex(ExecutionStateRef* state)
+ValueRef::ValueIndex ValueRef::tryToUseAsIndex(ExecutionStateRef* state)
 {
-    return toImpl(this).toArrayIndex(*toImpl(state));
+    return toImpl(this).tryToUseAsIndex(*toImpl(state));
 }
 
-uint32_t ValueRef::tryToUseAsArrayIndex(ExecutionStateRef* state)
+uint32_t ValueRef::toIndex32(ExecutionStateRef* state)
 {
-    return toImpl(this).tryToUseAsArrayIndex(*toImpl(state));
+    return toImpl(this).toIndex32(*toImpl(state));
+}
+
+uint32_t ValueRef::tryToUseAsIndex32(ExecutionStateRef* state)
+{
+    return toImpl(this).tryToUseAsIndex32(*toImpl(state));
+}
+
+uint32_t ValueRef::tryToUseAsIndexProperty(ExecutionStateRef* state)
+{
+    return toImpl(this).tryToUseAsIndexProperty(*toImpl(state));
 }
 
 bool ValueRef::abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const

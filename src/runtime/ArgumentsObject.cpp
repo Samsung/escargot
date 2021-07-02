@@ -156,7 +156,7 @@ ArgumentsObject::ArgumentsObject(ExecutionState& state, Object* proto, ScriptFun
 
 ObjectHasPropertyResult ArgumentsObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
-    uint64_t index = P.tryToUseAsIndex();
+    size_t index = P.tryToUseAsIndexProperty();
     if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
         return ObjectHasPropertyResult(ObjectGetResult(getIndexedPropertyValueQuickly(state, index), true, true, true));
     }
@@ -166,7 +166,7 @@ ObjectHasPropertyResult ArgumentsObject::hasProperty(ExecutionState& state, cons
 
 ObjectGetResult ArgumentsObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
-    uint64_t index = P.tryToUseAsIndex();
+    size_t index = P.tryToUseAsIndexProperty();
     if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
         return ObjectGetResult(getIndexedPropertyValueQuickly(state, index), true, true, true);
     }
@@ -182,7 +182,7 @@ ObjectGetResult ArgumentsObject::getOwnProperty(ExecutionState& state, const Obj
 
 bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
-    uint64_t index = P.tryToUseAsIndex();
+    size_t index = P.tryToUseAsIndexProperty();
     ObjectPropertyDescriptor newDesc(desc);
 
     if (isMatchedArgument(index)) {
@@ -225,7 +225,7 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
 
 bool ArgumentsObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
-    uint64_t index = P.tryToUseAsIndex();
+    size_t index = P.tryToUseAsIndexProperty();
     bool hasPropertyInObject = isModifiedArgument(index) || !isMatchedArgument(index);
     bool deleted = true;
 
@@ -259,7 +259,7 @@ void ArgumentsObject::enumeration(ExecutionState& state, bool (*callback)(Execut
 
 ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver)
 {
-    Value::ValueIndex index = property.tryToUseAsIndex(state);
+    size_t index = property.tryToUseAsIndexProperty(state);
     if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
         return ObjectGetResult(getIndexedPropertyValueQuickly(state, index), true, true, true);
     }
@@ -275,7 +275,7 @@ ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const
 
 ObjectHasPropertyResult ArgumentsObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)
 {
-    Value::ValueIndex index = propertyName.tryToUseAsIndex(state);
+    size_t index = propertyName.tryToUseAsIndexProperty(state);
     if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
         return ObjectHasPropertyResult(ObjectGetResult(getIndexedPropertyValueQuickly(state, index), true, true, true));
     }
@@ -294,7 +294,7 @@ bool ArgumentsObject::set(ExecutionState& state, const ObjectPropertyName& prope
         return Object::set(state, propertyName, v, receiver);
     }
 
-    Value::ValueIndex index = propertyName.tryToUseAsIndex();
+    size_t index = propertyName.tryToUseAsIndexProperty();
     if (LIKELY(isMatchedArgument(index))) {
         setIndexedPropertyValueQuickly(state, index, v);
         return true;
@@ -305,7 +305,7 @@ bool ArgumentsObject::set(ExecutionState& state, const ObjectPropertyName& prope
 
 bool ArgumentsObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver)
 {
-    Value::ValueIndex index = property.tryToUseAsIndex(state);
+    size_t index = property.tryToUseAsIndexProperty(state);
     if (LIKELY(isMatchedArgument(index))) {
         setIndexedPropertyValueQuickly(state, index, value);
         return true;
@@ -314,9 +314,9 @@ bool ArgumentsObject::setIndexedProperty(ExecutionState& state, const Value& pro
     return Object::set(state, ObjectPropertyName(state, property), value, receiver);
 }
 
-Value ArgumentsObject::getIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index)
+Value ArgumentsObject::getIndexedPropertyValueQuickly(ExecutionState& state, size_t index)
 {
-    ASSERT((index != Value::InvalidIndexValue) && (index < argc()));
+    ASSERT((index != Value::InvalidIndexPropertyValue) && (index < argc()));
     ASSERT(!m_parameterMap[index].first.isEmpty());
 
     if (m_parameterMap[index].second.string()->length()) {
@@ -329,9 +329,9 @@ Value ArgumentsObject::getIndexedPropertyValueQuickly(ExecutionState& state, uin
     }
 }
 
-void ArgumentsObject::setIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index, const Value& value)
+void ArgumentsObject::setIndexedPropertyValueQuickly(ExecutionState& state, size_t index, const Value& value)
 {
-    ASSERT((index != Value::InvalidIndexValue) && (index < argc()));
+    ASSERT((index != Value::InvalidIndexPropertyValue) && (index < argc()));
     ASSERT(!m_parameterMap[index].first.isEmpty());
 
     if (m_parameterMap[index].second.string()->length()) {
@@ -344,20 +344,20 @@ void ArgumentsObject::setIndexedPropertyValueQuickly(ExecutionState& state, uint
     }
 }
 
-bool ArgumentsObject::isModifiedArgument(uint64_t index)
+bool ArgumentsObject::isModifiedArgument(size_t index)
 {
     if (!modifiedArguments()) {
         return false;
     }
-    if (LIKELY(index != Value::InvalidIndexValue) && index < argc()) {
+    if (LIKELY(index != Value::InvalidIndexPropertyValue) && index < argc()) {
         return m_modifiedArguments->m_modified[index];
     }
     return false;
 }
 
-void ArgumentsObject::setModifiedArgument(uint64_t index)
+void ArgumentsObject::setModifiedArgument(size_t index)
 {
-    if (LIKELY(index != Value::InvalidIndexValue)) {
+    if (LIKELY(index != Value::InvalidIndexPropertyValue)) {
         if (modifiedArguments() == nullptr) {
             size_t c = argc();
             m_modifiedArguments = new ModifiedArguments(c);
@@ -368,9 +368,9 @@ void ArgumentsObject::setModifiedArgument(uint64_t index)
     }
 }
 
-bool ArgumentsObject::isMatchedArgument(uint64_t index)
+bool ArgumentsObject::isMatchedArgument(size_t index)
 {
-    if (LIKELY(index != Value::InvalidIndexValue) && index < argc()) {
+    if (LIKELY(index != Value::InvalidIndexPropertyValue) && index < argc()) {
         return !m_parameterMap[index].first.isEmpty();
     }
     return false;
