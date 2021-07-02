@@ -52,8 +52,8 @@ void* StringObject::operator new(size_t size)
 
 ObjectHasPropertyResult StringObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
-    Value::ValueIndex idx = P.tryToUseAsIndex();
-    if (idx != Value::InvalidIndexValue) {
+    size_t idx = P.tryToUseAsIndexProperty();
+    if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
             return ObjectHasPropertyResult(ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false));
@@ -65,8 +65,8 @@ ObjectHasPropertyResult StringObject::hasProperty(ExecutionState& state, const O
 
 ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
-    Value::ValueIndex idx = P.tryToUseAsIndex();
-    if (idx != Value::InvalidIndexValue) {
+    size_t idx = P.tryToUseAsIndexProperty();
+    if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
             return ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false);
@@ -104,8 +104,8 @@ void StringObject::enumeration(ExecutionState& state, bool (*callback)(Execution
 
 ObjectGetResult StringObject::getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver)
 {
-    Value::ValueIndex idx = property.tryToUseAsIndex(state);
-    if (idx != Value::InvalidIndexValue) {
+    size_t idx = property.tryToUseAsIndexProperty(state);
+    if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
             return ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false);
@@ -116,8 +116,8 @@ ObjectGetResult StringObject::getIndexedProperty(ExecutionState& state, const Va
 
 ObjectHasPropertyResult StringObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)
 {
-    Value::ValueIndex idx = propertyName.tryToUseAsIndex(state);
-    if (idx != Value::InvalidIndexValue) {
+    size_t idx = propertyName.tryToUseAsIndexProperty(state);
+    if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
             return ObjectHasPropertyResult(ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false));

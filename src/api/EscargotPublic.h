@@ -763,10 +763,15 @@ public:
     enum : uint64_t { InvalidIndexValue = std::numeric_limits<uint64_t>::max() };
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionStateRef* state);
+    ValueIndex tryToUseAsIndex(ExecutionStateRef* state);
 
-    enum : uint32_t { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
-    uint32_t toArrayIndex(ExecutionStateRef* state);
-    uint32_t tryToUseAsArrayIndex(ExecutionStateRef* state);
+    enum : uint32_t {
+        InvalidIndex32Value = std::numeric_limits<uint32_t>::max(),
+        InvalidIndexPropertyValue = InvalidIndex32Value
+    };
+    uint32_t toIndex32(ExecutionStateRef* state);
+    uint32_t tryToUseAsIndex32(ExecutionStateRef* state);
+    uint32_t tryToUseAsIndexProperty(ExecutionStateRef* state);
 
     bool abstractEqualsTo(ExecutionStateRef* state, const ValueRef* other) const; // ==
     bool equalsTo(ExecutionStateRef* state, const ValueRef* other) const; // ===

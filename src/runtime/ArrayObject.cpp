@@ -162,9 +162,9 @@ bool ArrayObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
         return true;
     }
 
-    uint64_t idx = P.tryToUseAsArrayIndex();
+    uint32_t idx = P.tryToUseAsIndexProperty();
     if (LIKELY(isFastModeArray())) {
-        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+        if (LIKELY(idx != Value::InvalidIndexPropertyValue)) {
             uint32_t len = arrayLength(state);
             if (len > idx && !m_fastModeData[idx].isEmpty()) {
                 // Non-empty slot of fast-mode array always has {writable:true, enumerable:true, configurable:true}.
@@ -202,13 +202,13 @@ NonFastPath:
 
     uint32_t oldLen = arrayLength(state);
 
-    if (idx != Value::InvalidArrayIndexValue) {
+    if (idx != Value::InvalidIndexPropertyValue) {
         if ((idx >= oldLen) && !isLengthPropertyWritable())
             return false;
         bool succeeded = Object::defineOwnProperty(state, P, desc);
         if (!succeeded)
             return false;
-        if (idx >= oldLen && ((idx + 1) <= Value::InvalidArrayIndexValue)) {
+        if (idx >= oldLen && ((idx + 1) <= Value::InvalidIndexPropertyValue)) {
             return setArrayLength(state, idx + 1);
         }
         return true;
@@ -224,9 +224,9 @@ bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
     }
 
     if (LIKELY(isFastModeArray())) {
-        uint64_t idx = P.tryToUseAsArrayIndex();
-        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
-            uint64_t len = arrayLength(state);
+        uint32_t idx = P.tryToUseAsIndexProperty();
+        if (LIKELY(idx != Value::InvalidIndexPropertyValue)) {
+            uint32_t len = arrayLength(state);
             if (idx < len) {
                 if (!m_fastModeData[idx].isEmpty()) {
                     m_fastModeData[idx] = Value(Value::EmptyValue);
@@ -521,8 +521,8 @@ ObjectGetResult ArrayObject::getVirtualValue(ExecutionState& state, const Object
         return ObjectGetResult(Value(m_arrayLength), isLengthPropertyWritable(), false, false);
     }
     if (LIKELY(isFastModeArray())) {
-        uint64_t idx = P.tryToUseAsArrayIndex();
-        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < arrayLength(state))) {
+        uint32_t idx = P.tryToUseAsIndexProperty();
+        if (LIKELY(idx != Value::InvalidIndexPropertyValue) && LIKELY(idx < arrayLength(state))) {
             Value v = m_fastModeData[idx];
             if (LIKELY(!v.isEmpty())) {
                 return ObjectGetResult(v, true, true, true);
@@ -536,8 +536,8 @@ ObjectGetResult ArrayObject::getVirtualValue(ExecutionState& state, const Object
 ObjectHasPropertyResult ArrayObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)
 {
     if (LIKELY(isFastModeArray())) {
-        uint32_t idx = propertyName.tryToUseAsArrayIndex(state);
-        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < arrayLength(state))) {
+        uint32_t idx = propertyName.tryToUseAsIndexProperty(state);
+        if (LIKELY(idx != Value::InvalidIndexPropertyValue) && LIKELY(idx < arrayLength(state))) {
             Value v = m_fastModeData[idx];
             if (LIKELY(!v.isEmpty())) {
                 return ObjectHasPropertyResult(ObjectGetResult(v, true, true, true));
@@ -550,8 +550,8 @@ ObjectHasPropertyResult ArrayObject::hasIndexedProperty(ExecutionState& state, c
 ObjectGetResult ArrayObject::getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver)
 {
     if (LIKELY(isFastModeArray())) {
-        uint32_t idx = property.tryToUseAsArrayIndex(state);
-        if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < arrayLength(state))) {
+        uint32_t idx = property.tryToUseAsIndexProperty(state);
+        if (LIKELY(idx != Value::InvalidIndexPropertyValue) && LIKELY(idx < arrayLength(state))) {
             Value v = m_fastModeData[idx];
             if (LIKELY(!v.isEmpty())) {
                 return ObjectGetResult(v, true, true, true);
@@ -565,8 +565,8 @@ bool ArrayObject::setIndexedProperty(ExecutionState& state, const Value& propert
 {
     // checking isUint32 to prevent invoke toString on property more than once while calling setIndexedProperty
     if (LIKELY(isFastModeArray() && property.isUInt32())) {
-        uint32_t idx = property.tryToUseAsArrayIndex(state);
-        if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+        uint32_t idx = property.tryToUseAsIndexProperty(state);
+        if (LIKELY(idx != Value::InvalidIndexPropertyValue)) {
             uint32_t len = arrayLength(state);
             if (UNLIKELY(len <= idx)) {
                 if (UNLIKELY(!isExtensible(state))) {

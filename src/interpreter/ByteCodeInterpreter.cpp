@@ -465,8 +465,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             if (LIKELY(willBeObject.isObject() && (v = willBeObject.asPointerValue())->isArrayObject())) {
                 ArrayObject* arr = (ArrayObject*)v;
                 if (LIKELY(arr->isFastModeArray())) {
-                    uint32_t idx = property.tryToUseAsArrayIndex(*state);
-                    if (LIKELY(idx != Value::InvalidArrayIndexValue) && LIKELY(idx < arr->arrayLength(*state))) {
+                    uint32_t idx = property.tryToUseAsIndexProperty(*state);
+                    if (LIKELY(idx != Value::InvalidIndexPropertyValue) && LIKELY(idx < arr->arrayLength(*state))) {
                         const Value& v = arr->m_fastModeData[idx];
                         if (LIKELY(!v.isEmpty())) {
                             registerFile[code->m_storeRegisterIndex] = v;
@@ -487,9 +487,9 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->isArrayObject())) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
-                uint32_t idx = property.tryToUseAsArrayIndex(*state);
+                uint32_t idx = property.tryToUseAsIndexProperty(*state);
                 if (LIKELY(arr->isFastModeArray())) {
-                    if (LIKELY(idx != Value::InvalidArrayIndexValue)) {
+                    if (LIKELY(idx != Value::InvalidIndexPropertyValue)) {
                         uint32_t len = arr->arrayLength(*state);
                         if (UNLIKELY(len <= idx)) {
                             if (UNLIKELY(!arr->isExtensible(*state))) {

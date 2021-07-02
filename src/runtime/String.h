@@ -469,7 +469,8 @@ public:
     static String* emptyString;
 
     uint64_t tryToUseAsIndex() const;
-    uint64_t tryToUseAsArrayIndex() const;
+    uint32_t tryToUseAsIndex32() const;
+    uint32_t tryToUseAsIndexProperty() const;
 
     bool is8Bit() const
     {

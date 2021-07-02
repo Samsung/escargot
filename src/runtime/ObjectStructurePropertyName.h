@@ -136,20 +136,13 @@ public:
         return n;
     }
 
-    uint64_t tryToUseAsIndex() const
+    uint32_t tryToUseAsIndexProperty() const
     {
+        // index property uses 32bit unsigned integer
         if (isPlainString()) {
-            return plainString()->tryToUseAsIndex();
+            return plainString()->tryToUseAsIndexProperty();
         }
-        return Value::InvalidIndexValue;
-    }
-
-    uint64_t tryToUseAsArrayIndex() const
-    {
-        if (isPlainString()) {
-            return plainString()->tryToUseAsArrayIndex();
-        }
-        return Value::InvalidArrayIndexValue;
+        return Value::InvalidIndexPropertyValue;
     }
 
     bool equals(String* s) const

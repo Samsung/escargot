@@ -230,11 +230,15 @@ public:
     enum : uint64_t { InvalidIndexValue = std::numeric_limits<uint64_t>::max() };
     typedef uint64_t ValueIndex;
     ValueIndex toIndex(ExecutionState& ec) const;
-
     inline ValueIndex tryToUseAsIndex(ExecutionState& ec) const;
-    enum : uint32_t { InvalidArrayIndexValue = std::numeric_limits<uint32_t>::max() };
-    inline uint32_t toArrayIndex(ExecutionState& ec) const;
-    inline uint32_t tryToUseAsArrayIndex(ExecutionState& ec) const;
+
+    enum : uint32_t {
+        InvalidIndex32Value = std::numeric_limits<uint32_t>::max(),
+        InvalidIndexPropertyValue = InvalidIndex32Value
+    };
+    inline uint32_t toIndex32(ExecutionState& ec) const;
+    inline uint32_t tryToUseAsIndex32(ExecutionState& ec) const;
+    inline uint32_t tryToUseAsIndexProperty(ExecutionState& ec) const;
 
     inline bool abstractEqualsTo(ExecutionState& ec, const Value& val) const;
     bool abstractEqualsToSlowCase(ExecutionState& ec, const Value& val) const;
@@ -277,7 +281,7 @@ private:
     Value toPrimitiveSlowCase(ExecutionState& ec, PrimitiveTypeHint) const; // $7.1.1 ToPrimitive
     int32_t toInt32SlowCase(ExecutionState& ec) const; // $7.1.5 ToInt32
     ValueIndex tryToUseAsIndexSlowCase(ExecutionState& ec) const;
-    uint32_t tryToUseAsArrayIndexSlowCase(ExecutionState& ec) const;
+    uint32_t tryToUseAsIndex32SlowCase(ExecutionState& ec) const;
 #if defined(ESCARGOT_ENABLE_TEST)
     bool checkIfObjectWithIsHTMLDDA() const;
 #endif

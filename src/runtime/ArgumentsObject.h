@@ -98,12 +98,12 @@ private:
         return nullptr;
     }
 
-    Value getIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index);
-    void setIndexedPropertyValueQuickly(ExecutionState& state, uint64_t index, const Value& value);
+    Value getIndexedPropertyValueQuickly(ExecutionState& state, size_t index);
+    void setIndexedPropertyValueQuickly(ExecutionState& state, size_t index, const Value& value);
 
-    bool isModifiedArgument(uint64_t index);
-    void setModifiedArgument(uint64_t index);
-    bool isMatchedArgument(uint64_t index);
+    bool isModifiedArgument(size_t index);
+    void setModifiedArgument(size_t index);
+    bool isMatchedArgument(size_t index);
 };
 } // namespace Escargot
 
