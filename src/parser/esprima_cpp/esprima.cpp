@@ -3299,8 +3299,23 @@ public:
                     } else {
                         exprNode = builder.reinterpretExpressionAsPattern(exprNode);
 
-                        if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
+                        // https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype
+                        auto type = exprNode->type();
+                        switch (type) {
+                        case ASTNodeType::Identifier:
+                        case ASTNodeType::MemberExpression:
+                        case ASTNodeType::CallExpression:
+                            break;
+                        case ASTNodeType::ObjectPattern:
+                        case ASTNodeType::ArrayPattern:
+                            if (startToken->type == Token::PunctuatorToken
+                                && startToken->valuePunctuatorKind == PunctuatorKind::LeftParenthesis) {
+                                this->throwError(Messages::InvalidLHSInAssignment);
+                            }
+                            break;
+                        default:
                             this->throwError(Messages::InvalidLHSInAssignment);
+                            break;
                         }
                     }
 
