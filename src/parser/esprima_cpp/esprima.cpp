@@ -1015,6 +1015,7 @@ public:
         if (this->trackUsingNames) {
             this->insertUsingName(ret->asIdentifier()->name());
         }
+
         return ret;
     }
 
@@ -3755,6 +3756,9 @@ public:
             }
         } else if ((this->sourceType == Module || this->currentScopeContext->m_isAsync) && token->type == Token::IdentifierToken && token->relatedSource(this->scanner->source) == "await") {
             this->throwUnexpectedToken(*token);
+        } else if (UNLIKELY(this->context->strict && token->type == Token::IdentifierToken
+                            && token->hasAllocatedString && this->scanner->isStrictModeReservedWord(token->valueStringLiteral(this->scanner)))) {
+            this->throwUnexpectedToken(*token, Messages::StrictReservedWord);
         }
 
         ASTNode id;
