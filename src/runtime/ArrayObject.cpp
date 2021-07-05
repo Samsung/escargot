@@ -208,7 +208,7 @@ NonFastPath:
         bool succeeded = Object::defineOwnProperty(state, P, desc);
         if (!succeeded)
             return false;
-        if (idx >= oldLen && ((idx + 1) <= Value::InvalidIndexPropertyValue)) {
+        if (idx >= oldLen) {
             return setArrayLength(state, idx + 1);
         }
         return true;
