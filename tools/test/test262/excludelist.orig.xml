@@ -885,13 +885,6 @@
     <test id="language/eval-code/direct/meth-fn-body-cntns-arguments-var-bind-declare-arguments-and-assign"><reason>TODO</reason></test>
     <test id="language/eval-code/direct/meth-no-pre-existing-arguments-bindings-are-present-declare-arguments"><reason>TODO</reason></test>
     <test id="language/eval-code/direct/meth-no-pre-existing-arguments-bindings-are-present-declare-arguments-and-assign"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/syntax-error-ident-ref-implements-escaped"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/syntax-error-ident-ref-interface-escaped"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/syntax-error-ident-ref-package-escaped"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/syntax-error-ident-ref-private-escaped"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/syntax-error-ident-ref-protected-escaped"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/syntax-error-ident-ref-public-escaped"><reason>TODO</reason></test>
-    <test id="language/expressions/arrow-function/dstr/syntax-error-ident-ref-static-escaped"><reason>TODO</reason></test>
     <test id="language/expressions/arrow-function/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/S11.13.1_A7_T1"><reason>TODO</reason></test>
     <test id="language/expressions/assignment/S11.13.1_A7_T2"><reason>TODO</reason></test>
@@ -1317,13 +1310,6 @@
     <test id="language/expressions/tco-pos"><reason>TODO</reason></test>
     <test id="language/expressions/template-literal/invalid-legacy-octal-escape-sequence-8"><reason>TODO</reason></test>
     <test id="language/expressions/template-literal/invalid-legacy-octal-escape-sequence-9"><reason>TODO</reason></test>
-    <test id="language/future-reserved-words/implements-strict-escaped"><reason>TODO</reason></test>
-    <test id="language/future-reserved-words/interface-strict-escaped"><reason>TODO</reason></test>
-    <test id="language/future-reserved-words/package-strict-escaped"><reason>TODO</reason></test>
-    <test id="language/future-reserved-words/private-strict-escaped"><reason>TODO</reason></test>
-    <test id="language/future-reserved-words/protected-strict-escaped"><reason>TODO</reason></test>
-    <test id="language/future-reserved-words/public-strict-escaped"><reason>TODO</reason></test>
-    <test id="language/future-reserved-words/static-strict-escaped"><reason>TODO</reason></test>
     <test id="language/identifier-resolution/assign-to-global-undefined"><reason>TODO</reason></test>
     <test id="language/identifiers/part-unicode-10.0.0"><reason>TODO</reason></test>
     <test id="language/identifiers/part-unicode-11.0.0"><reason>TODO</reason></test>
