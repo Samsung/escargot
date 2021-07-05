@@ -63,6 +63,7 @@ public:
         static constexpr const char* UnInitialized_This_Binding = "Must call super constructor in derived class before accessing 'this' or returning from derived constructor";
         static constexpr const char* No_Super_Binding = "Invalid super binding";
         static constexpr const char* InvalidDerivedConstructorReturnValue = "Derived constructors may only return object or undefined";
+        static constexpr const char* InvalidLHSInAssignment = "Invalid left-hand side in assignment";
         static constexpr const char* InstanceOf_NotFunction = "Invalid operand to 'instanceof': right expr is not a function object";
         static constexpr const char* InstanceOf_InvalidPrototypeProperty = "instanceof called on an object with an invalid prototype property";
         static constexpr const char* ArgumentsOrCaller_InStrictMode = "'caller' and 'arguments' are restricted function properties and cannot be accessed in this context.";
