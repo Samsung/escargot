@@ -53,9 +53,6 @@ SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* 
         platform->onFreeArrayBufferObjectDataBuffer(data, length);
     },
                                       platform, true);
-
-    m_data = (uint8_t*)m_backingStore->data();
-    m_byteLength = byteLength;
 }
 
 SharedArrayBufferObject* SharedArrayBufferObject::allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength)

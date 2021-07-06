@@ -19,6 +19,8 @@
 
 #include "Escargot.h"
 #include "BackingStore.h"
+#include "runtime/VMInstance.h"
+#include "runtime/Platform.h"
 
 namespace Escargot {
 
@@ -36,8 +38,20 @@ void* BackingStore::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-BackingStore::BackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData, bool isShared)
+static void defaultPlatformBackingStoreDeleter(void* data, size_t length, void* deleterData)
+{
+    if (deleterData) {
+        VMInstance* instance = (VMInstance*)deleterData;
+        instance->platform()->onFreeArrayBufferObjectDataBuffer(data, length);
+    } else {
+        ASSERT(data == nullptr);
+    }
+}
+
+BackingStore::BackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData,
+                           bool isShared, bool isAllocatedByPlatformAllocator)
     : m_isShared(isShared)
+    , m_isAllocatedByPlatformAllocator(isAllocatedByPlatformAllocator)
     , m_data(data)
     , m_byteLength(byteLength)
     , m_deleter(callback)
@@ -50,13 +64,32 @@ BackingStore::BackingStore(void* data, size_t byteLength, BackingStoreDeleterCal
                                    nullptr, nullptr, nullptr);
 }
 
-BackingStore::BackingStore(size_t byteLength)
-    : BackingStore(calloc(byteLength, 1), byteLength,
-                   [](void* data, size_t length, void* deleterData) {
-                       free(data);
-                   },
-                   nullptr)
+BackingStore::BackingStore(VMInstance* instance, size_t byteLength)
+    : BackingStore(instance->platform()->onMallocArrayBufferObjectDataBuffer(byteLength), byteLength,
+                   defaultPlatformBackingStoreDeleter, instance, false, true)
 {
+}
+
+void BackingStore::reallocate(VMInstance* instance, size_t newByteLength)
+{
+    // Shared Data Block should not be reallocated
+    ASSERT(!m_isShared);
+
+    if (m_byteLength == newByteLength) {
+        return;
+    }
+
+    if (m_isAllocatedByPlatformAllocator) {
+        m_data = instance->platform()->onReallocArrayBufferObjectDataBuffer(m_data, m_byteLength, newByteLength);
+        m_byteLength = newByteLength;
+    } else {
+        m_deleter(m_data, m_byteLength, m_deleterData);
+        m_data = instance->platform()->onMallocArrayBufferObjectDataBuffer(newByteLength);
+        m_deleter = defaultPlatformBackingStoreDeleter;
+        m_deleterData = instance;
+        m_byteLength = newByteLength;
+        m_isAllocatedByPlatformAllocator = true;
+    }
 }
 
 void BackingStore::deallocate()
@@ -65,6 +98,11 @@ void BackingStore::deallocate()
     ASSERT(!m_isShared);
     m_deleter(m_data, m_byteLength, m_deleterData);
     GC_REGISTER_FINALIZER_NO_ORDER(this, nullptr, nullptr, nullptr, nullptr);
+    m_data = nullptr;
+    m_byteLength = 0;
+    m_deleter = defaultPlatformBackingStoreDeleter;
+    m_deleterData = nullptr;
+    m_isAllocatedByPlatformAllocator = true;
 }
 
 } // namespace Escargot

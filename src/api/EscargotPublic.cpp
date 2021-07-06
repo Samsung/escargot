@@ -722,6 +722,11 @@ public:
         m_platform->onFreeArrayBufferObjectDataBuffer(buffer, sizeInByte);
     }
 
+    virtual void* onReallocArrayBufferObjectDataBuffer(void* oldBuffer, size_t oldSizeInByte, size_t newSizeInByte) override
+    {
+        return m_platform->onReallocArrayBufferObjectDataBuffer(oldBuffer, oldSizeInByte, newSizeInByte);
+    }
+
     virtual void markJSJobEnqueued(Context* relatedContext) override
     {
         m_platform->markJSJobEnqueued(toRef(relatedContext));
@@ -2745,9 +2750,9 @@ RegExpObjectRef::RegExpObjectOption RegExpObjectRef::option()
     return (RegExpObjectRef::RegExpObjectOption)toImpl(this)->option();
 }
 
-BackingStoreRef* BackingStoreRef::create(size_t byteLength)
+BackingStoreRef* BackingStoreRef::create(VMInstanceRef* instance, size_t byteLength)
 {
-    return toRef(new BackingStore(byteLength));
+    return toRef(new BackingStore(toImpl(instance), byteLength));
 }
 
 BackingStoreRef* BackingStoreRef::create(void* data, size_t byteLength, BackingStoreRef::BackingStoreRefDeleterCallback callback, void* callbackData)
@@ -2768,6 +2773,11 @@ size_t BackingStoreRef::byteLength()
 bool BackingStoreRef::isShared()
 {
     return toImpl(this)->isShared();
+}
+
+void BackingStoreRef::reallocate(VMInstanceRef* instance, size_t newByteLength)
+{
+    toImpl(this)->reallocate(toImpl(instance), newByteLength);
 }
 
 ArrayBufferObjectRef* ArrayBufferObjectRef::create(ExecutionStateRef* state)

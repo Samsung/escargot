@@ -35,6 +35,7 @@ public:
     // ArrayBuffer
     virtual void* onMallocArrayBufferObjectDataBuffer(size_t sizeInByte) = 0;
     virtual void onFreeArrayBufferObjectDataBuffer(void* buffer, size_t sizeInByte) = 0;
+    virtual void* onReallocArrayBufferObjectDataBuffer(void* oldBuffer, size_t oldSizeInByte, size_t newSizeInByte) = 0;
 
     // Promise
     virtual void markJSJobEnqueued(Context* relatedContext) = 0;
