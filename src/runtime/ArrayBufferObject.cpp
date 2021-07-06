@@ -64,8 +64,6 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
 
 ArrayBufferObject::ArrayBufferObject(ExecutionState& state, Object* proto)
     : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
-    , m_data(nullptr)
-    , m_byteLength(0)
     , m_mayPointsSharedBackingStore(false)
 {
 }
@@ -87,15 +85,7 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
         GC_invoke_finalizers();
     }
 
-    auto platform = state.context()->vmInstance()->platform();
-    void* buffer = platform->onMallocArrayBufferObjectDataBuffer(byteLength);
-    m_backingStore = new BackingStore(buffer, byteLength, [](void* data, size_t length, void* deleterData) {
-        Platform* platform = (Platform*)deleterData;
-        platform->onFreeArrayBufferObjectDataBuffer(data, length);
-    },
-                                      platform);
-    m_data = (uint8_t*)m_backingStore->data();
-    m_byteLength = byteLength;
+    m_backingStore = new BackingStore(state.context()->vmInstance(), byteLength);
 }
 
 void ArrayBufferObject::attachBuffer(BackingStore* backingStore)
@@ -104,8 +94,6 @@ void ArrayBufferObject::attachBuffer(BackingStore* backingStore)
 
     m_mayPointsSharedBackingStore = true;
     m_backingStore = backingStore;
-    m_data = (uint8_t*)backingStore->data();
-    m_byteLength = backingStore->byteLength();
 }
 
 void ArrayBufferObject::detachArrayBuffer()
@@ -115,12 +103,10 @@ void ArrayBufferObject::detachArrayBuffer()
     ASSERT(!isSharedArrayBufferObject());
 #endif
 
-    if (m_data && !m_mayPointsSharedBackingStore) {
+    if (m_backingStore && !m_mayPointsSharedBackingStore) {
         // if backingstore is definitely not shared, we deallocate the backingstore immediately.
         m_backingStore.value()->deallocate();
     }
-    m_data = nullptr;
-    m_byteLength = 0;
     m_backingStore.reset();
     m_mayPointsSharedBackingStore = false;
 }
@@ -147,10 +133,10 @@ void* ArrayBufferObject::operator new(size_t size)
 Value ArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian)
 {
     // If isLittleEndian is not present, set isLittleEndian to either true or false.
-    ASSERT(m_byteLength);
+    ASSERT(byteLength());
     size_t elemSize = TypedArrayHelper::elementSize(type);
-    ASSERT(byteindex + elemSize <= m_byteLength);
-    uint8_t* rawStart = m_data + byteindex;
+    ASSERT(byteindex + elemSize <= byteLength());
+    uint8_t* rawStart = data() + byteindex;
     if (LIKELY(isLittleEndian)) {
         return TypedArrayHelper::rawBytesToNumber(state, type, rawStart);
     } else {
@@ -166,10 +152,10 @@ Value ArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t bytein
 void ArrayBufferObject::setValueInBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, const Value& val, bool isLittleEndian)
 {
     // If isLittleEndian is not present, set isLittleEndian to either true or false.
-    ASSERT(m_byteLength);
+    ASSERT(byteLength());
     size_t elemSize = TypedArrayHelper::elementSize(type);
-    ASSERT(byteindex + elemSize <= m_byteLength);
-    uint8_t* rawStart = m_data + byteindex;
+    ASSERT(byteindex + elemSize <= byteLength());
+    uint8_t* rawStart = data() + byteindex;
     uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
     TypedArrayHelper::numberToRawBytes(state, type, val, rawBytes);
     if (LIKELY(isLittleEndian)) {

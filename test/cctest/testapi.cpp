@@ -909,7 +909,7 @@ TEST(FunctionTemplate, Basic4)
 TEST(BackingStore, Basic1)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
-        auto bs = BackingStoreRef::create(1024);
+        auto bs = BackingStoreRef::create(state->context()->vmInstance(), 1024);
         EXPECT_FALSE(bs->isShared());
         EXPECT_TRUE(bs->byteLength() == 1024);
         auto abo = ArrayBufferObjectRef::create(state);
@@ -921,6 +921,12 @@ TEST(BackingStore, Basic1)
         EXPECT_TRUE(abo->isDetachedBuffer());
         EXPECT_TRUE(abo->rawBuffer() == nullptr);
         EXPECT_FALSE(abo->backingStore().hasValue());
+
+        bs->reallocate(state->context()->vmInstance(), 300);
+        abo->attachBuffer(bs);
+        EXPECT_TRUE(abo->byteLength() == 300);
+        EXPECT_FALSE(abo->isDetachedBuffer());
+        EXPECT_TRUE(abo->rawBuffer() != nullptr);
 
         abo->allocateBuffer(state, 1024);
         EXPECT_TRUE(abo->byteLength() == 1024);

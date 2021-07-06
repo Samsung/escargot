@@ -30,6 +30,7 @@
 
 #include <cstdlib>
 #include <cstddef>
+#include <cstring>
 #include <string>
 #include <vector>
 #include <functional>
@@ -1446,7 +1447,7 @@ class ESCARGOT_EXPORT BackingStoreRef {
     friend class ArrayBufferObject;
 
 public:
-    static BackingStoreRef* create(size_t byteLength);
+    static BackingStoreRef* create(VMInstanceRef* instance, size_t byteLength);
     typedef void (*BackingStoreRefDeleterCallback)(void* data, size_t length,
                                                    void* deleterData);
     static BackingStoreRef* create(void* data, size_t byteLength, BackingStoreRefDeleterCallback callback, void* callbackData);
@@ -1455,6 +1456,7 @@ public:
     size_t byteLength();
     // Indicates whether the backing store is Shared Data Block (for SharedArrayBuffer)
     bool isShared();
+    void reallocate(VMInstanceRef* instance, size_t newByteLength);
 };
 
 class ESCARGOT_EXPORT ArrayBufferObjectRef : public ObjectRef {
@@ -1808,6 +1810,15 @@ public:
         return free(buffer);
     }
 
+    virtual void* onReallocArrayBufferObjectDataBuffer(void* oldBuffer, size_t oldSizeInByte, size_t newSizeInByte)
+    {
+        void* ptr = realloc(oldBuffer, newSizeInByte);
+        if (oldSizeInByte < newSizeInByte) {
+            uint8_t* s = static_cast<uint8_t*>(ptr);
+            memset(s + oldSizeInByte, 0, newSizeInByte - oldSizeInByte);
+        }
+        return ptr;
+    }
 
     // If you want to add a Job event, you should call VMInstanceRef::executePendingJob after event. see Shell.cpp
     virtual void markJSJobEnqueued(ContextRef* relatedContext) = 0;

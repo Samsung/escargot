@@ -21,10 +21,9 @@
 #define __EscargotArrayBufferObject__
 
 #include "runtime/Context.h"
+#include "runtime/BackingStore.h"
 
 namespace Escargot {
-
-class BackingStore;
 
 enum class TypedArrayType : unsigned {
     Int8 = 0,
@@ -69,8 +68,20 @@ public:
         return true;
     }
 
-    ALWAYS_INLINE const uint8_t* data() { return m_data; }
-    ALWAYS_INLINE size_t byteLength() { return m_byteLength; }
+    ALWAYS_INLINE uint8_t* data()
+    {
+        if (LIKELY(m_backingStore)) {
+            return reinterpret_cast<uint8_t*>(m_backingStore->data());
+        }
+        return nullptr;
+    }
+    ALWAYS_INLINE size_t byteLength()
+    {
+        if (LIKELY(m_backingStore)) {
+            return m_backingStore->byteLength();
+        }
+        return 0;
+    }
     // $24.1.1.6
     Value getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian = true);
     // $24.1.1.8
@@ -88,18 +99,16 @@ public:
         }
     }
 
-    void fillData(const uint8_t* data, size_t length)
+    void fillData(const uint8_t* newData, size_t length)
     {
         ASSERT(!isDetachedBuffer());
-        memcpy(m_data, data, length);
+        memcpy(data(), newData, length);
     }
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 protected:
-    uint8_t* m_data; // Points backing stores data address
-    size_t m_byteLength; // Indicates backing stores byte length
     bool m_mayPointsSharedBackingStore;
     Optional<BackingStore*> m_backingStore;
 };
