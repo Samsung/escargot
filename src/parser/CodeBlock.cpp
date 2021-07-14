@@ -29,8 +29,8 @@ namespace Escargot {
 
 void* NativeCodeBlock::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(NativeCodeBlock)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NativeCodeBlock, m_context));
@@ -43,8 +43,8 @@ void* NativeCodeBlock::operator new(size_t size)
 void* InterpretedCodeBlock::operator new(size_t size)
 {
 #ifdef NDEBUG
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(InterpretedCodeBlock)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_context));
@@ -67,8 +67,8 @@ void* InterpretedCodeBlock::operator new(size_t size)
 void* InterpretedCodeBlockWithRareData::operator new(size_t size)
 {
 #ifdef NDEBUG
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(InterpretedCodeBlockWithRareData)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_context));
@@ -91,8 +91,8 @@ void* InterpretedCodeBlockWithRareData::operator new(size_t size)
 
 void* InterpretedCodeBlock::BlockInfo::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(InterpretedCodeBlock::BlockInfo)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock::BlockInfo, m_identifiers));

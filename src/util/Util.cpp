@@ -65,7 +65,7 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
 {
     FILETIME ft;
     unsigned __int64 tmpres = 0;
-    static int tzflag = 0;
+    static MAY_THREAD_LOCAL int tzflag = 0;
 
     if (NULL != tv) {
         GetSystemTimeAsFileTime(&ft);

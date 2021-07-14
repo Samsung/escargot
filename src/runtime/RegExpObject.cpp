@@ -82,8 +82,8 @@ void RegExpObject::initRegExpObject(ExecutionState& state, bool hasLastIndex)
 
 void* RegExpObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(RegExpObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
@@ -527,8 +527,8 @@ RegExpStringIteratorObject::RegExpStringIteratorObject(ExecutionState& state, bo
 void* RegExpStringIteratorObject::operator new(size_t size)
 {
     ASSERT(size == sizeof(RegExpStringIteratorObject));
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(RegExpStringIteratorObject)] = { 0 };
         fillGCDescriptor(obj_bitmap);

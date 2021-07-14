@@ -248,8 +248,8 @@ public:
 
     void* operator new(size_t size)
     {
-        static bool typeInited = false;
-        static GC_descr descr;
+        static MAY_THREAD_LOCAL bool typeInited = false;
+        static MAY_THREAD_LOCAL GC_descr descr;
         if (!typeInited) {
             GC_word desc[GC_BITMAP_SIZE(TightVector)] = { 0 };
             GC_set_bit(desc, GC_WORD_OFFSET(TightVector, m_buffer));

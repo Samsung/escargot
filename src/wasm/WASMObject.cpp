@@ -52,8 +52,8 @@ WASMHostFunctionEnvironment::WASMHostFunctionEnvironment(Object* f, wasm_functyp
 
 void* WASMHostFunctionEnvironment::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(WASMHostFunctionEnvironment)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WASMHostFunctionEnvironment, func));
@@ -78,8 +78,8 @@ WASMModuleObject::WASMModuleObject(ExecutionState& state, Object* proto, wasm_mo
 
 void* WASMModuleObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(WASMModuleObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
@@ -110,8 +110,8 @@ WASMInstanceObject::WASMInstanceObject(ExecutionState& state, Object* proto, was
 
 void* WASMInstanceObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(WASMInstanceObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
@@ -144,8 +144,8 @@ WASMMemoryObject::WASMMemoryObject(ExecutionState& state, Object* proto, wasm_me
 
 void* WASMMemoryObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(WASMMemoryObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
@@ -227,8 +227,8 @@ WASMTableObject::WASMTableObject(ExecutionState& state, Object* proto, wasm_tabl
 
 void* WASMTableObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(WASMTableObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
@@ -285,8 +285,8 @@ WASMGlobalObject::WASMGlobalObject(ExecutionState& state, Object* proto, wasm_gl
 
 void* WASMGlobalObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(WASMGlobalObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);

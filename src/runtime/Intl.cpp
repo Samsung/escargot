@@ -1808,30 +1808,34 @@ Value Intl::getOption(ExecutionState& state, Object* options, Value property, In
     }
 }
 
+static std::vector<std::string> initAvailableNumberingSystems()
+{
+    std::vector<std::string> availableNumberingSystems;
+    UErrorCode status = U_ZERO_ERROR;
+    UEnumeration* numberingSystemNames = unumsys_openAvailableNames(&status);
+    ASSERT(U_SUCCESS(status));
+
+    int32_t resultLength;
+    // Numbering system names are always ASCII, so use char[].
+    while (const char* result = uenum_next(numberingSystemNames, &resultLength, &status)) {
+        ASSERT(U_SUCCESS(status));
+        auto numsys = unumsys_openByName(result, &status);
+        ASSERT(U_SUCCESS(status));
+        if (!unumsys_isAlgorithmic(numsys)) {
+            availableNumberingSystems.push_back(std::string(result, resultLength));
+        }
+        unumsys_close(numsys);
+    }
+    uenum_close(numberingSystemNames);
+
+    return availableNumberingSystems;
+}
+
 std::vector<std::string> Intl::numberingSystemsForLocale(String* locale)
 {
-    static std::vector<std::string> availableNumberingSystems;
+    static std::vector<std::string> availableNumberingSystems = initAvailableNumberingSystems();
 
     UErrorCode status = U_ZERO_ERROR;
-    if (availableNumberingSystems.size() == 0) {
-        UEnumeration* numberingSystemNames = unumsys_openAvailableNames(&status);
-        ASSERT(U_SUCCESS(status));
-
-        int32_t resultLength;
-        // Numbering system names are always ASCII, so use char[].
-        while (const char* result = uenum_next(numberingSystemNames, &resultLength, &status)) {
-            ASSERT(U_SUCCESS(status));
-            auto numsys = unumsys_openByName(result, &status);
-            ASSERT(U_SUCCESS(status));
-            if (!unumsys_isAlgorithmic(numsys)) {
-                availableNumberingSystems.push_back(std::string(result, resultLength));
-            }
-            unumsys_close(numsys);
-        }
-        uenum_close(numberingSystemNames);
-    }
-
-    status = U_ZERO_ERROR;
     UNumberingSystem* defaultSystem = unumsys_open(locale->toUTF8StringData().data(), &status);
     ASSERT(U_SUCCESS(status));
     std::string defaultSystemName(unumsys_getName(defaultSystem));

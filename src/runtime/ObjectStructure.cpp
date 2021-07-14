@@ -24,8 +24,8 @@ namespace Escargot {
 
 void* ObjectStructureItemVector::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectStructureItemVector)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureItemVector, m_buffer));
@@ -37,8 +37,8 @@ void* ObjectStructureItemVector::operator new(size_t size)
 
 void* ObjectStructureWithoutTransition::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectStructureWithoutTransition)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithoutTransition, m_properties));
@@ -148,8 +148,8 @@ ObjectStructure* ObjectStructureWithoutTransition::convertToNonTransitionStructu
 
 void* ObjectStructureWithTransition::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectStructureWithTransition)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithTransition, m_properties));
@@ -305,8 +305,8 @@ ObjectStructure* ObjectStructureWithTransition::convertToNonTransitionStructure(
 
 void* ObjectStructureWithMap::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ObjectStructureWithMap)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ObjectStructureWithMap, m_properties));

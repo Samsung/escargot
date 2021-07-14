@@ -29,8 +29,8 @@ namespace Escargot {
 
 void* CompressibleString::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(CompressibleString)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CompressibleString, m_vmInstance));

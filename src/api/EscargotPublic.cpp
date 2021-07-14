@@ -102,7 +102,7 @@ inline AtomicString toImpl(AtomicStringRef* v)
     return AtomicString::fromPayload(reinterpret_cast<void*>(v));
 }
 
-bool Globals::g_globalsInited = false;
+bool thread_local Globals::g_globalsInited = false;
 void Globals::initialize()
 {
     // initialize global value or context

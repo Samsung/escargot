@@ -21,6 +21,8 @@
 
 #include <string>
 #include <type_traits>
+#include <thread>
+#include <mutex>
 #include <inttypes.h>
 
 #include "ICUTypes.h"
@@ -203,7 +205,6 @@ namespace RuntimeICUBinder {
 #define FOR_EACH_I18N_STICKY_OP(F) \
     F(vzone_getOffset3)
 
-// TODO make this class thread-safe
 class ICU {
 private:
     enum Function {
@@ -298,10 +299,12 @@ public:
     void vzone_getOffset3(VZone* zone, UDate date, UBool local, int32_t& rawOffset,
                           int32_t& dstOffset, UErrorCode& ec)
     {
-        ensureLoadSo(Soname::i18n);
-
-        if (!m_functions[functionvzone_getOffset3]) {
-            loadFunction(Soname::i18n, functionvzone_getOffset3);
+        {
+            std::lock_guard<std::mutex> guard(m_dataMutex);
+            ensureLoadSo(Soname::i18n);
+            if (!m_functions[functionvzone_getOffset3]) {
+                loadFunction(Soname::i18n, functionvzone_getOffset3);
+            }
         }
 
         typedef void (*FP)(VZone * zone, UDate date, UBool local, int32_t & rawOffset,
@@ -319,10 +322,12 @@ private:
     template <Soname soname, typename FunctionPrototype, typename FunctionReturnType, typename... Args>
     FunctionReturnType invokeICU(Function kind, Args... args)
     {
-        ensureLoadSo(soname);
-
-        if (!m_functions[kind]) {
-            loadFunction(soname, kind);
+        {
+            std::lock_guard<std::mutex> guard(m_dataMutex);
+            ensureLoadSo(soname);
+            if (!m_functions[kind]) {
+                loadFunction(soname, kind);
+            }
         }
 
         FunctionPrototype fp = (FunctionPrototype)m_functions[kind];
@@ -333,10 +338,12 @@ private:
     template <Soname soname, typename FunctionPrototype, typename... Args>
     void invokeICUWithoutReturn(Function kind, Args... args)
     {
-        ensureLoadSo(soname);
-
-        if (!m_functions[kind]) {
-            loadFunction(soname, kind);
+        {
+            ensureLoadSo(soname);
+            std::lock_guard<std::mutex> guard(m_dataMutex);
+            if (!m_functions[kind]) {
+                loadFunction(soname, kind);
+            }
         }
 
         FunctionPrototype fp = (FunctionPrototype)m_functions[kind];
@@ -347,6 +354,7 @@ private:
     void* m_soHandles[SonameMax];
     void* m_functions[FunctionMax];
     int m_icuVersion;
+    std::mutex m_dataMutex;
 };
 } // namespace RuntimeICUBinder
 

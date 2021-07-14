@@ -38,8 +38,8 @@ namespace Escargot {
 
 void* Script::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(Script)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Script, m_srcName));
@@ -587,8 +587,8 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
 
 void* Script::ModuleData::ModulePromiseObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word desc[GC_BITMAP_SIZE(ModulePromiseObject)] = { 0 };
         PromiseObject::fillGCDescriptor(desc);

@@ -51,8 +51,8 @@ ExportedFunctionObject::ExportedFunctionObject(ExecutionState& state, NativeFunc
 
 void* ExportedFunctionObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ExportedFunctionObject)] = { 0 };
         FunctionObject::fillGCDescriptor(obj_bitmap);
