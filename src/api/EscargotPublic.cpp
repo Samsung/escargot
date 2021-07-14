@@ -946,6 +946,20 @@ void VMInstanceRef::setOnVMInstanceDelete(OnVMInstanceDelete cb)
                                        (void*)cb);
 }
 
+void VMInstanceRef::registerPromiseHook(PromiseHook promiseHook)
+{
+    toImpl(this)->registerPromiseHook([](ExecutionState& state, VMInstance::PromiseHookType type, PromiseObject* promise, const Value& parent, void* hook) -> void {
+        ASSERT(!!hook);
+        ((PromiseHook)hook)(toRef(&state), (PromiseHookType)type, toRef(promise), toRef(parent));
+    },
+                                      (void*)promiseHook);
+}
+
+void VMInstanceRef::unregisterPromiseHook()
+{
+    toImpl(this)->unregisterPromiseHook();
+}
+
 void VMInstanceRef::enterIdleMode()
 {
     toImpl(this)->enterIdleMode();
@@ -2053,14 +2067,13 @@ StringRef* ContextRef::getClientSource(StringRef** sourceName)
 
 void ContextRef::setVirtualIdentifierCallback(VirtualIdentifierCallback cb)
 {
-    Context* ctx = toImpl(this);
-    ctx->m_virtualIdentifierCallbackPublic = (void*)cb;
-    ctx->setVirtualIdentifierCallback([](ExecutionState& state, Value name) -> Value {
+    toImpl(this)->setVirtualIdentifierCallback([](ExecutionState& state, Value name) -> Value {
         if (state.context()->m_virtualIdentifierCallbackPublic && !name.isSymbol()) {
             return toImpl(((VirtualIdentifierCallback)state.context()->m_virtualIdentifierCallbackPublic)(toRef(&state), toRef(name)));
         }
         return Value(Value::EmptyValue);
-    });
+    },
+                                               (void*)cb);
 }
 
 ContextRef::VirtualIdentifierCallback ContextRef::virtualIdentifierCallback()
@@ -2071,14 +2084,13 @@ ContextRef::VirtualIdentifierCallback ContextRef::virtualIdentifierCallback()
 
 void ContextRef::setSecurityPolicyCheckCallback(SecurityPolicyCheckCallback cb)
 {
-    Context* ctx = toImpl(this);
-    ctx->m_securityPolicyCheckCallbackPublic = (void*)cb;
-    ctx->setSecurityPolicyCheckCallback([](ExecutionState& state, bool isEval) -> Value {
+    toImpl(this)->setSecurityPolicyCheckCallback([](ExecutionState& state, bool isEval) -> Value {
         if (state.context()->m_securityPolicyCheckCallbackPublic) {
             return toImpl(((SecurityPolicyCheckCallback)state.context()->m_securityPolicyCheckCallbackPublic)(toRef(&state), isEval));
         }
         return Value(Value::EmptyValue);
-    });
+    },
+                                                 (void*)cb);
 }
 
 OptionalRef<FunctionObjectRef> ExecutionStateRef::resolveCallee()

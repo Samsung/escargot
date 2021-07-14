@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "Job.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "SandBox.h"
 #include "runtime/FinalizationRegistryObject.h"
 
@@ -27,10 +28,18 @@ namespace Escargot {
 
 SandBox::SandBoxResult PromiseReactionJob::run()
 {
+    Context* context = relatedContext();
+    ExecutionState state(context);
+
+    if (UNLIKELY(context->vmInstance()->isPromiseHookRegistered())) {
+        Object* promiseTarget = m_reaction.m_capability.m_promise;
+        PromiseObject* promise = (promiseTarget && promiseTarget->isPromiseObject()) ? promiseTarget->asPromiseObject() : nullptr;
+        context->vmInstance()->triggerPromiseHook(state, VMInstance::PromiseHookType::Before, promise, Value());
+    }
+
     // https://www.ecma-international.org/ecma-262/10.0/#sec-promisereactionjob
-    SandBox sandbox(relatedContext());
-    ExecutionState state(relatedContext());
-    return sandbox.run([&]() -> Value {
+    SandBox sandbox(context);
+    SandBox::SandBoxResult result = sandbox.run([&]() -> Value {
         /* 25.4.2.1.4 Handler is "Identity" case */
         if (m_reaction.m_handler == (Object*)1) {
             Value value[] = { m_argument };
@@ -64,6 +73,14 @@ SandBox::SandBoxResult PromiseReactionJob::run()
         }
         return res.result;
     });
+
+    if (UNLIKELY(context->vmInstance()->isPromiseHookRegistered())) {
+        Object* promiseTarget = m_reaction.m_capability.m_promise;
+        PromiseObject* promise = (promiseTarget && promiseTarget->isPromiseObject()) ? promiseTarget->asPromiseObject() : nullptr;
+        context->vmInstance()->triggerPromiseHook(state, VMInstance::PromiseHookType::After, promise, Value());
+    }
+
+    return result;
 }
 
 SandBox::SandBoxResult PromiseResolveThenableJob::run()

@@ -82,17 +82,22 @@ PromiseReaction::Capability PromiseObject::createResolvingFunctions(ExecutionSta
     return PromiseReaction::Capability(this, resolve, reject);
 }
 
-PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& state, Object* constructor)
+PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& state, Object* constructor, const Value& parentPromise)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-newpromisecapability
+    Context* context = state.context();
 
     // fast path
-    if (constructor == state.context()->globalObject()->promise()) {
-        PromiseObject* promise = new PromiseObject(state, state.context()->globalObject()->promisePrototype());
+    if (constructor == context->globalObject()->promise()) {
+        PromiseObject* promise = new PromiseObject(state, context->globalObject()->promisePrototype());
+        // PromiseHook for Promise initialization case
+        if (UNLIKELY(context->vmInstance()->isPromiseHookRegistered())) {
+            context->vmInstance()->triggerPromiseHook(state, VMInstance::PromiseHookType::Init, promise, parentPromise);
+        }
         return promise->createResolvingFunctions(state);
     }
 
-    const StaticStrings* strings = &state.context()->staticStrings();
+    const StaticStrings* strings = &context->staticStrings();
 
     // If IsConstructor(C) is false, throw a TypeError exception.
     if (!constructor->isConstructor()) {
@@ -110,8 +115,15 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
     executor->setInternalSlot(BuiltinFunctionSlot::Capability, capability);
 
     // Let promise be ? Construct(C, « executor »).
-    Value arguments[] = { executor };
-    Object* promise = Object::construct(state, constructor, 1, arguments).toObject(state);
+    Object* promise = nullptr;
+    if (UNLIKELY(context->vmInstance()->isPromiseHookRegistered())) {
+        // Note) parent promise is used only for PromiseHook (delivered as an argument here)
+        Value arguments[] = { executor, parentPromise };
+        promise = Object::construct(state, constructor, 2, arguments).toObject(state);
+    } else {
+        Value arguments[] = { executor };
+        promise = Object::construct(state, constructor, 1, arguments).toObject(state);
+    }
 
     Value resolveFunction = capability->get(state, strings->resolve).value(state, capability);
     Value rejectFunction = capability->get(state, strings->reject).value(state, capability);
@@ -150,7 +162,7 @@ PromiseReaction::Capability PromiseObject::newPromiseResultCapability(ExecutionS
     // Let C be ? SpeciesConstructor(promise, %Promise%).
     Value C = speciesConstructor(state, state.context()->globalObject()->promise());
     // Let resultCapability be ? NewPromiseCapability(C).
-    return PromiseObject::newPromiseCapability(state, C.toObject(state));
+    return PromiseObject::newPromiseCapability(state, C.toObject(state), this);
 }
 
 Object* PromiseObject::then(ExecutionState& state, Value handler)
@@ -266,6 +278,10 @@ static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, siz
     Value promiseValue = callee->internalSlot(PromiseObject::BuiltinFunctionSlot::Promise);
     PromiseObject* promise = promiseValue.asObject()->asPromiseObject();
 
+    if (UNLIKELY(state.context()->vmInstance()->isPromiseHookRegistered())) {
+        state.context()->vmInstance()->triggerPromiseHook(state, VMInstance::PromiseHookType::Resolve, promise, Value());
+    }
+
     // Let alreadyResolved be F.[[AlreadyResolved]].
     Value alreadyResolvedValue = callee->internalSlot(PromiseObject::BuiltinFunctionSlot::AlreadyResolved);
     Object* alreadyResolved = alreadyResolvedValue.asObject();
@@ -318,6 +334,10 @@ static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size
     // Let promise be F.[[Promise]].
     Value promiseValue = callee->internalSlot(PromiseObject::BuiltinFunctionSlot::Promise);
     PromiseObject* promise = promiseValue.asObject()->asPromiseObject();
+
+    if (UNLIKELY(state.context()->vmInstance()->isPromiseHookRegistered())) {
+        state.context()->vmInstance()->triggerPromiseHook(state, VMInstance::PromiseHookType::Resolve, promise, Value());
+    }
 
     // Let alreadyResolved be F.[[AlreadyResolved]].
     Value alreadyResolvedValue = callee->internalSlot(PromiseObject::BuiltinFunctionSlot::AlreadyResolved);

@@ -139,6 +139,15 @@ public:
     }
     /////////////////////////////////
 
+    enum PromiseHookType {
+        Init,
+        Resolve,
+        Before,
+        After
+    };
+
+    typedef void (*PromiseHook)(ExecutionState& state, PromiseHookType type, PromiseObject* promise, const Value& parent, void* hook);
+
     VMInstance(Platform* platform, const char* locale = nullptr, const char* timezone = nullptr, const char* baseCacheDir = nullptr);
     ~VMInstance();
 
@@ -276,6 +285,33 @@ public:
         m_onVMInstanceDestroyData = data;
     }
 
+    // PromiseHook is triggered for each Promise event
+    // Third party app registers PromiseHook when it is necessary
+    bool isPromiseHookRegistered()
+    {
+        return !!m_promiseHook;
+    }
+
+    void registerPromiseHook(PromiseHook promiseHook, void* promiseHookPublic)
+    {
+        m_promiseHook = promiseHook;
+        m_promiseHookPublic = promiseHookPublic;
+    }
+
+    void unregisterPromiseHook()
+    {
+        m_promiseHook = nullptr;
+        m_promiseHookPublic = nullptr;
+    }
+
+    void triggerPromiseHook(ExecutionState& state, PromiseHookType type, PromiseObject* promise, const Value& parent)
+    {
+        ASSERT(!!m_promiseHook);
+        if (m_promiseHookPublic) {
+            m_promiseHook(state, type, promise, parent, m_promiseHookPublic);
+        }
+    }
+
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlCollatorAvailableLocales();
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlDateTimeFormatAvailableLocales();
@@ -340,6 +376,11 @@ private:
     static void gcEventCallback(GC_EventType t, void* data);
     void (*m_onVMInstanceDestroy)(VMInstance* instance, void* data);
     void* m_onVMInstanceDestroyData;
+
+    // PromiseHook is triggered for each Promise event
+    // Third party app registers PromiseHook when it is necessary
+    PromiseHook m_promiseHook;
+    void* m_promiseHookPublic;
 
     ToStringRecursionPreventer m_toStringRecursionPreventer;
 
