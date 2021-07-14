@@ -387,6 +387,8 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
 #endif
     , m_onVMInstanceDestroy(nullptr)
     , m_onVMInstanceDestroyData(nullptr)
+    , m_promiseHook(nullptr)
+    , m_promiseHookPublic(nullptr)
     , m_cachedUTC(nullptr)
     , m_platform(platform)
 {

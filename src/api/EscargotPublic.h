@@ -606,6 +606,19 @@ public:
     typedef void (*OnVMInstanceDelete)(VMInstanceRef* instance);
     void setOnVMInstanceDelete(OnVMInstanceDelete cb);
 
+    enum PromiseHookType {
+        Init,
+        Resolve,
+        Before,
+        After
+    };
+
+    typedef void (*PromiseHook)(ExecutionStateRef* state, PromiseHookType type, PromiseObjectRef* promise, ValueRef* parent);
+
+    // Register PromiseHook (PromiseHook is used by third party app)
+    void registerPromiseHook(PromiseHook promiseHook);
+    void unregisterPromiseHook();
+
     // this function enforce do gc,
     // remove every compiled bytecodes,
     // remove regexp cache,

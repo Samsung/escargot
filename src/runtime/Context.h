@@ -85,6 +85,7 @@ class Context : public gc {
     friend class ByteCodeInterpreter;
     friend struct OpcodeTable;
     friend class ContextRef;
+    friend class VirtualIdDisabler;
 #if defined(ENABLE_CODE_CACHE)
     friend class CodeCacheWriter;
     friend class CodeCacheReader;
@@ -260,9 +261,10 @@ public:
     // this is not compatible with ECMAScript
     // but this callback is needed for browser-implementation
     // if there is a Identifier with that value, callback should return non-empty value
-    void setVirtualIdentifierCallback(VirtualIdentifierCallback cb)
+    void setVirtualIdentifierCallback(VirtualIdentifierCallback cb, void* callbackPublic)
     {
         m_virtualIdentifierCallback = cb;
+        m_virtualIdentifierCallbackPublic = callbackPublic;
     }
 
     VirtualIdentifierCallback virtualIdentifierCallback()
@@ -270,9 +272,10 @@ public:
         return m_virtualIdentifierCallback;
     }
 
-    void setSecurityPolicyCheckCallback(SecurityPolicyCheckCallback cb)
+    void setSecurityPolicyCheckCallback(SecurityPolicyCheckCallback cb, void* callbackPublic)
     {
         m_securityPolicyCheckCallback = cb;
+        m_securityPolicyCheckCallbackPublic = callbackPublic;
     }
 
     SecurityPolicyCheckCallback securityPolicyCheckCallback()
@@ -380,16 +383,19 @@ class VirtualIdDisabler {
 public:
     explicit VirtualIdDisabler(Context* c)
         : m_fn(c->virtualIdentifierCallback())
+        , m_fnPublic(c->m_virtualIdentifierCallbackPublic)
         , m_context(c)
     {
-        c->setVirtualIdentifierCallback(nullptr);
+        c->setVirtualIdentifierCallback(nullptr, nullptr);
     }
+
     ~VirtualIdDisabler()
     {
-        m_context->setVirtualIdentifierCallback(m_fn);
+        m_context->setVirtualIdentifierCallback(m_fn, m_fnPublic);
     }
 
     VirtualIdentifierCallback m_fn;
+    void* m_fnPublic;
     Context* m_context;
 };
 } // namespace Escargot

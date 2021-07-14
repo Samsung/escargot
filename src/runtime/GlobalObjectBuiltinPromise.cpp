@@ -52,6 +52,13 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
 
     PromiseReaction::Capability capability = promise->createResolvingFunctions(state);
 
+    // PromiseHook for Promise initialization case
+    if (UNLIKELY(state.context()->vmInstance()->isPromiseHookRegistered())) {
+        // Note) To pass parent promise, we allocate the second argument (argv[1]) for the parent promise
+        // otherwise, the second argument would be ignored
+        state.context()->vmInstance()->triggerPromiseHook(state, VMInstance::PromiseHookType::Init, promise, (argc > 1) ? argv[1] : Value());
+    }
+
     SandBox sb(state.context());
     auto res = sb.run([&]() -> Value {
         Value arguments[] = { capability.m_resolveFunction, capability.m_rejectFunction };
@@ -62,6 +69,7 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
         Value arguments[] = { res.error };
         Object::call(state, capability.m_rejectFunction, Value(), 1, arguments);
     }
+
     return promise;
 }
 
@@ -403,7 +411,7 @@ static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t a
     if (!thisValue.isObject() || !thisValue.asObject()->isPromiseObject())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->then.string(), "%s: not a Promise object");
     Value C = thisValue.asObject()->speciesConstructor(state, state.context()->globalObject()->promise());
-    PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C.asObject());
+    PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C.asObject(), thisValue.asObject()->asPromiseObject());
     return thisValue.asObject()->asPromiseObject()->then(state, argv[0], argv[1], promiseCapability).value();
 }
 

@@ -318,7 +318,7 @@ int main(int argc, char* argv[])
     Memory::setGCFrequency(24);
 
     ShellPlatform* platform = new ShellPlatform();
-    PersistentRefHolder<VMInstanceRef> g_instance = VMInstanceRef::create(platform);
+    g_instance = VMInstanceRef::create(platform);
     g_instance->setOnVMInstanceDelete([](VMInstanceRef* instance) {
         delete instance->platform();
     });
@@ -1120,6 +1120,83 @@ TEST(EnumerateObjectOwnProperties, Basic1)
         EXPECT_TRUE(strings->at(1)->equalsTo(state, StringRef::createFromASCII("-20")));
         EXPECT_TRUE(symbols->at(0)->asSymbol()->description()->equalsTo(state, StringRef::createFromASCII("sym_enum")));
 
+        return ValueRef::createUndefined();
+    });
+}
+
+TEST(PromiseHook, Basic1)
+{
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        // Register PromiseHook
+        g_instance.get()->registerPromiseHook([](ExecutionStateRef* state, VMInstanceRef::PromiseHookType type, PromiseObjectRef* promise, ValueRef* parent) -> void {
+            GlobalObjectRef* globalObj = g_context.get()->globalObject();
+            switch (type) {
+            case VMInstanceRef::PromiseHookType::Init: {
+                StringRef* prop = StringRef::createFromASCII("hookInit");
+                int count = 1;
+                if (globalObj->has(state, prop)) {
+                    count += globalObj->get(state, prop)->asInt32();
+                }
+                globalObj->set(state, prop, ValueRef::create(count));
+                break;
+            }
+            case VMInstanceRef::PromiseHookType::Resolve: {
+                StringRef* prop = StringRef::createFromASCII("hookResolve");
+                int count = 1;
+                if (globalObj->has(state, prop)) {
+                    count += globalObj->get(state, prop)->asInt32();
+                }
+                globalObj->set(state, prop, ValueRef::create(count));
+                break;
+            }
+            case VMInstanceRef::PromiseHookType::Before: {
+                StringRef* prop = StringRef::createFromASCII("hookBefore");
+                int count = 1;
+                if (globalObj->has(state, prop)) {
+                    count += globalObj->get(state, prop)->asInt32();
+                }
+                globalObj->set(state, prop, ValueRef::create(count));
+                break;
+            }
+            case VMInstanceRef::PromiseHookType::After: {
+                StringRef* prop = StringRef::createFromASCII("hookAfter");
+                int count = 1;
+                if (globalObj->has(state, prop)) {
+                    count += globalObj->get(state, prop)->asInt32();
+                }
+                globalObj->set(state, prop, ValueRef::create(count));
+                break;
+            }
+            default:
+                break;
+            }
+        });
+        return ValueRef::createUndefined();
+    });
+
+    auto result = evalScript(g_context.get(), StringRef::createFromASCII("var p = new Promise((resolve, reject) => { resolve(1); }); p.then((v) => {});"), StringRef::createFromASCII("testPromiseHook.js"), false);
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        ValueRef* initProperty = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("hookInit"));
+        ValueRef* resolveProperty = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("hookResolve"));
+        ValueRef* beforeProperty = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("hookBefore"));
+        ValueRef* afterProperty = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("hookAfter"));
+        EXPECT_TRUE(initProperty->isInt32() && initProperty->asInt32() == 2);
+        EXPECT_TRUE(resolveProperty->isInt32() && resolveProperty->asInt32() == 2);
+        EXPECT_TRUE(beforeProperty->isInt32() && beforeProperty->asInt32() == 1);
+        EXPECT_TRUE(afterProperty->isInt32() && afterProperty->asInt32() == 1);
+
+        bool removeInit = g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("hookInit"));
+        bool removeResolve = g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("hookResolve"));
+        bool removeBefore = g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("hookBefore"));
+        bool removeAfter = g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("hookAfter"));
+        EXPECT_TRUE(removeInit);
+        EXPECT_TRUE(removeResolve);
+        EXPECT_TRUE(removeBefore);
+        EXPECT_TRUE(removeAfter);
+
+        // Unregister PromiseHook
+        g_instance.get()->unregisterPromiseHook();
         return ValueRef::createUndefined();
     });
 }

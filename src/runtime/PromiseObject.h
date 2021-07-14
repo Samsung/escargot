@@ -128,7 +128,7 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    static PromiseReaction::Capability newPromiseCapability(ExecutionState& state, Object* constructor);
+    static PromiseReaction::Capability newPromiseCapability(ExecutionState& state, Object* constructor, const Value& parentPromise = Value());
     static Value getCapabilitiesExecutorFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
     // http://www.ecma-international.org/ecma-262/10.0/#sec-promise-resolve
     // The abstract operation PromiseResolve, given a constructor and a value, returns a new promise resolved with that value.
