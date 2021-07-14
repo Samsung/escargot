@@ -51,8 +51,8 @@ FinalizationRegistryObject::FinalizationRegistryObject(ExecutionState& state, Ob
 
 void* FinalizationRegistryObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(FinalizationRegistryObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
@@ -99,8 +99,8 @@ void FinalizationRegistryObject::cleanupSome(ExecutionState& state, Optional<Obj
 void* FinalizationRegistryObject::FinalizationRegistryObjectItem::operator new(size_t size)
 {
 #ifdef NDEBUG
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(FinalizationRegistryObject::FinalizationRegistryObjectItem)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FinalizationRegistryObject::FinalizationRegistryObjectItem, source));

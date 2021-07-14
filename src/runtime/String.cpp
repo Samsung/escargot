@@ -55,7 +55,7 @@
 
 namespace Escargot {
 
-String* String::emptyString;
+MAY_THREAD_LOCAL String* String::emptyString;
 
 std::vector<std::string> split(const std::string& s, char seperator)
 {
@@ -908,8 +908,8 @@ String* String::trim(String::StringTrimWhere where)
 
 void* ASCIIString::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ASCIIString)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASCIIString, m_bufferData.buffer));
@@ -921,8 +921,8 @@ void* ASCIIString::operator new(size_t size)
 
 void* Latin1String::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(Latin1String)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Latin1String, m_bufferData.buffer));
@@ -934,8 +934,8 @@ void* Latin1String::operator new(size_t size)
 
 void* UTF16String::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(UTF16String)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(UTF16String, m_bufferData.buffer));

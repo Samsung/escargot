@@ -36,8 +36,8 @@ SymbolObject::SymbolObject(ExecutionState& state, Object* proto, Symbol* value)
 
 void* SymbolObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(SymbolObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);

@@ -466,7 +466,7 @@ public:
     virtual UTF16StringData toUTF16StringData() const = 0;
     virtual UTF8StringData toUTF8StringData() const = 0;
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const = 0;
-    static String* emptyString;
+    static MAY_THREAD_LOCAL String* emptyString;
 
     uint64_t tryToUseAsIndex() const;
     uint32_t tryToUseAsIndex32() const;

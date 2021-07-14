@@ -578,8 +578,8 @@ public:
 
     void* operator new(size_t size)
     {
-        static bool typeInited = false;
-        static GC_descr descr;
+        static MAY_THREAD_LOCAL bool typeInited = false;
+        static MAY_THREAD_LOCAL GC_descr descr;
         if (!typeInited) {
             GC_word objBitmap[GC_BITMAP_SIZE(DeclarativeEnvironmentRecordIndexed)] = { 0 };
             GC_set_bit(objBitmap, GC_WORD_OFFSET(DeclarativeEnvironmentRecordIndexed, m_blockInfo));
@@ -653,8 +653,8 @@ public:
 
     void* operator new(size_t size)
     {
-        static bool typeInited = false;
-        static GC_descr descr;
+        static MAY_THREAD_LOCAL bool typeInited = false;
+        static MAY_THREAD_LOCAL GC_descr descr;
         if (!typeInited) {
             GC_word objBitmap[GC_BITMAP_SIZE(DeclarativeEnvironmentRecordNotIndexed)] = { 0 };
             GC_set_bit(objBitmap, GC_WORD_OFFSET(DeclarativeEnvironmentRecordNotIndexed, m_heapStorage));
@@ -1209,8 +1209,8 @@ public:
 
     void* operator new(size_t size)
     {
-        static bool typeInited = false;
-        static GC_descr descr;
+        static MAY_THREAD_LOCAL bool typeInited = false;
+        static MAY_THREAD_LOCAL GC_descr descr;
         if (!typeInited) {
             GC_word objBitmap[GC_BITMAP_SIZE(ModuleEnvironmentRecord)] = { 0 };
             GC_set_bit(objBitmap, GC_WORD_OFFSET(ModuleEnvironmentRecord, m_moduleBindings));

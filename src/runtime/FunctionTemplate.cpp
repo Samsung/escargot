@@ -30,8 +30,8 @@ namespace Escargot {
 
 void* FunctionTemplate::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word objBitmap[GC_BITMAP_SIZE(FunctionTemplate)] = { 0 };
         Template::fillGCDescriptor(objBitmap);
@@ -69,8 +69,8 @@ public:
 
     void* operator new(size_t size)
     {
-        static bool typeInited = false;
-        static GC_descr descr;
+        static MAY_THREAD_LOCAL bool typeInited = false;
+        static MAY_THREAD_LOCAL GC_descr descr;
         if (!typeInited) {
             GC_word obj_bitmap[GC_BITMAP_SIZE(CallTemplateFunctionData)] = { 0 };
             GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CallTemplateFunctionData, m_functionTemplate));

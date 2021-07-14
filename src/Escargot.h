@@ -396,6 +396,17 @@ typedef int32_t UChar32;
 #error "I don't know what architecture this is!"
 #endif
 
+#if defined(ENABLE_THREADING)
+#if defined(COMPILER_MSVC)
+#define MAY_THREAD_LOCAL __declspec(thread)
+#else
+#define MAY_THREAD_LOCAL __thread
+#endif
+#else
+#define MAY_THREAD_LOCAL
+#endif
+
+
 #define MAKE_STACK_ALLOCATED()                    \
     static void* operator new(size_t) = delete;   \
     static void* operator new[](size_t) = delete; \

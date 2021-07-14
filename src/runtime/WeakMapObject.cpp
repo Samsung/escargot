@@ -44,8 +44,8 @@ WeakMapObject::WeakMapObject(ExecutionState& state, Object* proto)
 
 void* WeakMapObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word desc[GC_BITMAP_SIZE(WeakMapObject)] = { 0 };
         Object::fillGCDescriptor(desc);
@@ -59,8 +59,8 @@ void* WeakMapObject::operator new(size_t size)
 void* WeakMapObject::WeakMapObjectDataItem::operator new(size_t size)
 {
 #ifdef NDEBUG
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word desc[GC_BITMAP_SIZE(WeakMapObject::WeakMapObjectDataItem)] = { 0 };
         GC_set_bit(desc, GC_WORD_OFFSET(WeakMapObject::WeakMapObjectDataItem, data));

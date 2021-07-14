@@ -121,9 +121,11 @@ ESCARGOT_REF_LIST(DECLARE_REF_CLASS);
 #undef DECLARE_REF_CLASS
 
 class ESCARGOT_EXPORT Globals {
-    static bool g_globalsInited;
+    static thread_local bool g_globalsInited;
 
 public:
+    // Escargot has thread-isoloate Globals.
+    // Users need to call initialize, finalize function for each thread
     static void initialize();
     static void finalize();
 };

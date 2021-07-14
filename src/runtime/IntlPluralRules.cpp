@@ -55,8 +55,8 @@ static double getNumberOption(ExecutionState& state, Optional<Object*> options, 
 
 void* IntlPluralRulesObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word desc[GC_BITMAP_SIZE(IntlPluralRulesObject)] = { 0 };
         Object::fillGCDescriptor(desc);

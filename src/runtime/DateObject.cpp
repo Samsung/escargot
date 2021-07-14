@@ -1414,8 +1414,8 @@ DECLARE_DATE_UTC_GETTER(Seconds);
 void* DateObject::operator new(size_t size)
 {
     ASSERT(size == sizeof(DateObject));
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(DateObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);

@@ -44,20 +44,21 @@ namespace Escargot {
 /////////////////////////////////////////////////
 // VMInstance Global Data
 /////////////////////////////////////////////////
-std::mt19937 VMInstance::g_randEngine((unsigned int)time(NULL));
-bf_context_t VMInstance::g_bfContext;
+MAY_THREAD_LOCAL std::mt19937* VMInstance::g_randEngine;
+MAY_THREAD_LOCAL bf_context_t VMInstance::g_bfContext;
 #if defined(ENABLE_WASM)
 #ifndef ESCARGOT_WASM_GC_CHECK_INTERVAL
 #define ESCARGOT_WASM_GC_CHECK_INTERVAL 5000
 #endif
-WASMContext VMInstance::g_wasmContext;
+MAY_THREAD_LOCAL WASMContext VMInstance::g_wasmContext;
 #endif
-ASTAllocator* VMInstance::g_astAllocator;
-WTF::BumpPointerAllocator* VMInstance::g_bumpPointerAllocator;
+MAY_THREAD_LOCAL ASTAllocator* VMInstance::g_astAllocator;
+MAY_THREAD_LOCAL WTF::BumpPointerAllocator* VMInstance::g_bumpPointerAllocator;
 
 void VMInstance::initialize()
 {
-    // g_randEngine already initialized
+    // g_randEngine
+    g_randEngine = new std::mt19937((unsigned int)time(NULL));
 
     // g_bfContext
     bf_context_init(&g_bfContext, [](void* opaque, void* ptr, size_t size) -> void* {
@@ -92,6 +93,8 @@ void VMInstance::finalize()
     // because some registered gc-finalizers could use these global values
 
     // g_randEngine does not need finalization
+    delete g_randEngine;
+    g_randEngine = nullptr;
 
     // g_bfContext
     bf_context_end(&g_bfContext);
@@ -112,12 +115,6 @@ void VMInstance::finalize()
     // g_bumpPointerAllocator
     delete g_bumpPointerAllocator;
     g_bumpPointerAllocator = nullptr;
-
-    // reset PointerValue tag values
-    PointerValue::g_arrayObjectTag = 0;
-    PointerValue::g_arrayPrototypeObjectTag = 0;
-    PointerValue::g_objectRareDataTag = 0;
-    PointerValue::g_doubleInEncodedValueTag = 0;
 }
 /////////////////////////////////////////////////
 
@@ -281,8 +278,8 @@ void VMInstance::gcEventCallback(GC_EventType t, void* data)
 
 void* VMInstance::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word desc[GC_BITMAP_SIZE(VMInstance)] = { 0 };
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_staticStrings.dtoaCache));

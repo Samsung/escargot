@@ -36,8 +36,8 @@ SetObject::SetObject(ExecutionState& state, Object* proto)
 
 void* SetObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(SetObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);
@@ -142,8 +142,8 @@ SetIteratorObject::SetIteratorObject(ExecutionState& state, SetObject* set, Type
 
 void* SetIteratorObject::operator new(size_t size)
 {
-    static bool typeInited = false;
-    static GC_descr descr;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(SetIteratorObject)] = { 0 };
         Object::fillGCDescriptor(obj_bitmap);

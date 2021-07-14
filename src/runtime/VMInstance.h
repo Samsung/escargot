@@ -96,14 +96,14 @@ class VMInstance : public gc {
     /////////////////////////////////
     // Global Data
     // global values which should be initialized once and shared during the runtime
-    static std::mt19937 g_randEngine;
-    static bf_context_t g_bfContext;
+    static MAY_THREAD_LOCAL std::mt19937* g_randEngine;
+    static MAY_THREAD_LOCAL bf_context_t g_bfContext;
 #if defined(ENABLE_WASM)
-    static WASMContext g_wasmContext;
+    static MAY_THREAD_LOCAL WASMContext g_wasmContext;
 #endif
 
-    static ASTAllocator* g_astAllocator;
-    static WTF::BumpPointerAllocator* g_bumpPointerAllocator;
+    static MAY_THREAD_LOCAL ASTAllocator* g_astAllocator;
+    static MAY_THREAD_LOCAL WTF::BumpPointerAllocator* g_bumpPointerAllocator;
     /////////////////////////////////
 
 public:
@@ -113,7 +113,8 @@ public:
     static void finalize();
     static std::mt19937& randEngine()
     {
-        return g_randEngine;
+        ASSERT(!!g_randEngine);
+        return *g_randEngine;
     }
     static bf_context_t* bfContext()
     {

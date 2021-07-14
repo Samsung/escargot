@@ -32,7 +32,7 @@
 
 namespace Escargot {
 
-static int s_gcKinds[HeapObjectKind::NumberOfKind];
+static MAY_THREAD_LOCAL int s_gcKinds[HeapObjectKind::NumberOfKind];
 
 template <GC_get_next_pointer_proc proc>
 GC_ms_entry* markAndPushCustomIterable(GC_word* addr,
