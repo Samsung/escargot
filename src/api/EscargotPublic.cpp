@@ -61,6 +61,7 @@
 #include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/BigInt.h"
 #include "runtime/BigIntObject.h"
+#include "runtime/serialization/Serializer.h"
 #include "interpreter/ByteCode.h"
 #include "api/internal/ValueAdapter.h"
 #if defined(ENABLE_WASM)
@@ -3494,6 +3495,16 @@ PlatformRef::LoadModuleResult::LoadModuleResult(ErrorObjectRef::Code errorCode, 
     , errorMessage(errorMessage)
     , errorCode(errorCode)
 {
+}
+
+bool SerializerRef::serializeInto(ValueRef* value, std::ostringstream& output)
+{
+    return Serializer::serializeInto(toImpl(value), output);
+}
+
+ValueRef* SerializerRef::deserializeFrom(std::istringstream& input)
+{
+    return toRef(Serializer::deserializeFrom(input).get()->toValue());
 }
 
 #if defined(ENABLE_WASM)
