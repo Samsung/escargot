@@ -1282,3 +1282,53 @@ TEST(PromiseHook, Basic2)
         return ValueRef::createUndefined();
     });
 }
+
+TEST(Serializer, Basic1)
+{
+    std::ostringstream ostream;
+    ValueRef* v1 = ValueRef::createUndefined();
+    SerializerRef::serializeInto(v1, ostream);
+    std::istringstream istream(ostream.str());
+    ValueRef* v2 = SerializerRef::deserializeFrom(istream);
+    EXPECT_TRUE(v2->isUndefined());
+}
+
+TEST(Serializer, Basic2)
+{
+    std::ostringstream ostream;
+    ValueRef* v1 = ValueRef::createNull();
+    SerializerRef::serializeInto(v1, ostream);
+    std::istringstream istream(ostream.str());
+    ValueRef* v2 = SerializerRef::deserializeFrom(istream);
+    EXPECT_TRUE(v2->isNull());
+}
+
+TEST(Serializer, Basic3)
+{
+    std::ostringstream ostream;
+    ValueRef* v1 = ValueRef::create(true);
+    SerializerRef::serializeInto(v1, ostream);
+    std::istringstream istream(ostream.str());
+    ValueRef* v2 = SerializerRef::deserializeFrom(istream);
+    EXPECT_TRUE(v2->asBoolean());
+}
+
+TEST(Serializer, Basic4)
+{
+    std::ostringstream ostream;
+    ValueRef* v1 = ValueRef::create(123123.0);
+    SerializerRef::serializeInto(v1, ostream);
+    std::istringstream istream(ostream.str());
+    ValueRef* v2 = SerializerRef::deserializeFrom(istream);
+    EXPECT_TRUE(v2->asNumber() == 123123.0);
+}
+
+TEST(Serializer, Basic5)
+{
+    std::ostringstream ostream;
+    ValueRef* v1 = StringRef::createFromUTF8("asdf");
+    SerializerRef::serializeInto(v1, ostream);
+    std::istringstream istream(ostream.str());
+    ValueRef* v2 = SerializerRef::deserializeFrom(istream);
+    EXPECT_TRUE(v2->asString()->equalsWithASCIIString("asdf", 4));
+}
