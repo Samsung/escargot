@@ -733,6 +733,10 @@ int main(int argc, char* argv[])
         }
     }
 
+    if (runShell && !context->isDebuggerRunning()) {
+        printf("escargot version:%s, %s%s\n", Globals::version(), Globals::buildDate(), Globals::supportsThreading() ? "(supports threading)" : "");
+    }
+
     while (runShell) {
         static char buf[2048];
         printf("escargot> ");
