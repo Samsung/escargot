@@ -224,6 +224,10 @@ extern "C" {
 #include <libbf.h>
 }
 
+#ifndef ESCARGOT_BUILD_DATE
+#define ESCARGOT_BUILD_DATE __DATE__
+#endif
+
 #ifdef ENABLE_ICU
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
 typedef unsigned char LChar;

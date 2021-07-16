@@ -128,6 +128,11 @@ public:
     // Users need to call initialize, finalize function for each thread
     static void initialize();
     static void finalize();
+
+    static bool supportsThreading();
+
+    static const char* version();
+    static const char* buildDate();
 };
 
 class ESCARGOT_EXPORT Memory {
@@ -667,6 +672,7 @@ public:
     void throwException(ValueRef* exceptionValue); // if you use this function without Evaluator, your program will crash :(
 
     bool initDebugger(const char* options);
+    bool isDebuggerRunning();
     void printDebugger(StringRef* output);
     StringRef* getClientSource(StringRef** sourceName);
 
