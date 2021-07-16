@@ -38,6 +38,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <iostream>
 
 #if !defined(NDEBUG) && defined(__GLIBCXX__) && !defined(_GLIBCXX_DEBUG)
 #pragma message("You should define `_GLIBCXX_DEBUG` in {debug mode + libstdc++} because Escargot uses it")
@@ -1745,6 +1746,13 @@ struct ESCARGOT_EXPORT ObjectTemplateNamedPropertyHandlerData {
         , data(data)
     {
     }
+};
+
+class ESCARGOT_EXPORT SerializerRef {
+public:
+    // returns the serialization was successful
+    static bool serializeInto(ValueRef* value, std::ostringstream& output);
+    static ValueRef* deserializeFrom(std::istringstream& input);
 };
 
 class ESCARGOT_EXPORT ObjectTemplateRef : public TemplateRef {
