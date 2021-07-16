@@ -106,7 +106,7 @@ bool thread_local Globals::g_globalsInited = false;
 void Globals::initialize()
 {
     // initialize global value or context
-    // this function should be invoked once at the start of the program
+    // this function should be invoked once at the start of the thread or program
     RELEASE_ASSERT(!g_globalsInited);
     Heap::initialize();
     VMInstance::initialize();
@@ -116,11 +116,30 @@ void Globals::initialize()
 void Globals::finalize()
 {
     // finalize global value or context
-    // this function should be invoked once at the end of the program
+    // this function should be invoked once at the end of the thread or program
     RELEASE_ASSERT(!!g_globalsInited);
     Heap::finalize();
     VMInstance::finalize();
     g_globalsInited = false;
+}
+
+bool Globals::supportsThreading()
+{
+#if defined(ENABLE_THREADING)
+    return true;
+#else
+    return false;
+#endif
+}
+
+const char* Globals::version()
+{
+    return ESCARGOT_VERSION;
+}
+
+const char* Globals::buildDate()
+{
+    return ESCARGOT_BUILD_DATE;
 }
 
 void* Memory::gcMalloc(size_t siz)
@@ -2048,6 +2067,15 @@ bool ContextRef::initDebugger(const char* options)
 {
 #ifdef ESCARGOT_DEBUGGER
     return toImpl(this)->initDebugger(options);
+#else /* !ESCARGOT_DEBUGGER */
+    return false;
+#endif /* ESCARGOT_DEBUGGER */
+}
+
+bool ContextRef::isDebuggerRunning()
+{
+#ifdef ESCARGOT_DEBUGGER
+    return !!toImpl(this)->debugger() && toImpl(this)->debugger()->enabled();
 #else /* !ESCARGOT_DEBUGGER */
     return false;
 #endif /* ESCARGOT_DEBUGGER */
