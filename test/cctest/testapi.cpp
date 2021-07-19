@@ -1326,9 +1326,39 @@ TEST(Serializer, Basic4)
 TEST(Serializer, Basic5)
 {
     std::ostringstream ostream;
-    ValueRef* v1 = StringRef::createFromUTF8("asdf");
+    ValueRef* v1 = StringRef::createFromUTF8("asdfhelohellohellohelloasdfasdflksadjf;laksvn;lasdkf;lkjasd;lfkj");
     SerializerRef::serializeInto(v1, ostream);
     std::istringstream istream(ostream.str());
     ValueRef* v2 = SerializerRef::deserializeFrom(istream);
-    EXPECT_TRUE(v2->asString()->equalsWithASCIIString("asdf", 4));
+    EXPECT_TRUE(v2->asString()->equals(v1->asString()));
+}
+
+TEST(Serializer, Basic6)
+{
+    std::ostringstream ostream;
+    ValueRef* v1 = BigIntRef::create(StringRef::createFromASCII("123123123123123123123123123123123123123123321"));
+    SerializerRef::serializeInto(v1, ostream);
+    std::istringstream istream(ostream.str());
+    ValueRef* v2 = SerializerRef::deserializeFrom(istream);
+    EXPECT_TRUE(v2->asBigInt()->equals(v1->asBigInt()));
+}
+
+TEST(Serializer, Basic7)
+{
+    std::ostringstream ostream;
+    ValueRef* v1 = SymbolRef::create(nullptr);
+    SerializerRef::serializeInto(v1, ostream);
+    std::istringstream istream(ostream.str());
+    ValueRef* v2 = SerializerRef::deserializeFrom(istream);
+    EXPECT_FALSE(v2->asSymbol()->description().hasValue());
+}
+
+TEST(Serializer, Basic8)
+{
+    std::ostringstream ostream;
+    ValueRef* v1 = SymbolRef::create(StringRef::createFromASCII("asdfasdfasdf"));
+    SerializerRef::serializeInto(v1, ostream);
+    std::istringstream istream(ostream.str());
+    ValueRef* v2 = SerializerRef::deserializeFrom(istream);
+    EXPECT_TRUE(v2->asSymbol()->description().value()->equalsWithASCIIString("asdfasdfasdf", 12));
 }
