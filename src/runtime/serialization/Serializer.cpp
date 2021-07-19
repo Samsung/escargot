@@ -20,10 +20,12 @@
 #include "Escargot.h"
 #include "Serializer.h"
 
+#include "runtime/serialization/SerializedBigIntValue.h"
 #include "runtime/serialization/SerializedBooleanValue.h"
 #include "runtime/serialization/SerializedNullValue.h"
 #include "runtime/serialization/SerializedNumberValue.h"
 #include "runtime/serialization/SerializedStringValue.h"
+#include "runtime/serialization/SerializedSymbolValue.h"
 #include "runtime/serialization/SerializedUndefinedValue.h"
 
 namespace Escargot {
@@ -40,6 +42,14 @@ std::unique_ptr<SerializedValue> Serializer::serialize(const Value& value)
         return std::unique_ptr<SerializedValue>(new SerializedNumberValue(value.asNumber()));
     } else if (value.isString()) {
         return std::unique_ptr<SerializedValue>(new SerializedStringValue(value.asString()->toNonGCUTF8StringData()));
+    } else if (value.isBigInt()) {
+        return std::unique_ptr<SerializedValue>(new SerializedBigIntValue(value.asBigInt()->toString()->toNonGCUTF8StringData()));
+    } else if (value.isSymbol()) {
+        if (value.asSymbol()->description()) {
+            return std::unique_ptr<SerializedValue>(new SerializedSymbolValue(value.asSymbol()->description()->toNonGCUTF8StringData()));
+        } else {
+            return std::unique_ptr<SerializedValue>(new SerializedSymbolValue());
+        }
     }
 
     return nullptr;
@@ -60,16 +70,11 @@ std::unique_ptr<SerializedValue> Serializer::deserializeFrom(std::istringstream&
     unsigned char type;
     input >> type;
     switch (type) {
-    case SerializedValue::Type::Undefined:
-        return SerializedUndefinedValue::deserializeFrom(input);
-    case SerializedValue::Type::Null:
-        return SerializedNullValue::deserializeFrom(input);
-    case SerializedValue::Type::Boolean:
-        return SerializedBooleanValue::deserializeFrom(input);
-    case SerializedValue::Type::Number:
-        return SerializedNumberValue::deserializeFrom(input);
-    case SerializedValue::Type::String:
-        return SerializedStringValue::deserializeFrom(input);
+#define DECLARE_SERIALIZABLE_TYPE(name) \
+    case SerializedValue::Type::name:   \
+        return Serialized##name##Value::deserializeFrom(input);
+        FOR_EACH_SERIALIZABLE_TYPE(DECLARE_SERIALIZABLE_TYPE)
+#undef DECLARE_SERIALIZABLE_TYPE
     default:
         RELEASE_ASSERT_NOT_REACHED();
     }

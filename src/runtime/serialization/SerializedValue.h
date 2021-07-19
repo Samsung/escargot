@@ -28,12 +28,19 @@ class SerializedValue {
     friend class Serializer;
 
 public:
+#define FOR_EACH_SERIALIZABLE_TYPE(F) \
+    F(Undefined)                      \
+    F(Null)                           \
+    F(Boolean)                        \
+    F(Number)                         \
+    F(String)                         \
+    F(Symbol)                         \
+    F(BigInt)
+
     enum Type {
-        Undefined,
-        Null,
-        Boolean,
-        Number,
-        String,
+#define DECLARE_SERIALIZABLE_TYPE(name) name,
+        FOR_EACH_SERIALIZABLE_TYPE(DECLARE_SERIALIZABLE_TYPE)
+#undef DECLARE_SERIALIZABLE_TYPE
     };
     virtual ~SerializedValue() {}
     virtual Type type() = 0;
