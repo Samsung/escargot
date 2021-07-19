@@ -38,7 +38,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include <iostream>
+#include <sstream>
 
 #if !defined(NDEBUG) && defined(__GLIBCXX__) && !defined(_GLIBCXX_DEBUG)
 #pragma message("You should define `_GLIBCXX_DEBUG` in {debug mode + libstdc++} because Escargot uses it")
@@ -929,9 +929,9 @@ public:
 
 class ESCARGOT_EXPORT SymbolRef : public PointerValueRef {
 public:
-    static SymbolRef* create(StringRef* desc);
+    static SymbolRef* create(OptionalRef<StringRef> desc);
     static SymbolRef* fromGlobalSymbolRegistry(VMInstanceRef* context, StringRef* desc); // this is same with Symbol.for
-    StringRef* description();
+    OptionalRef<StringRef> description();
     StringRef* symbolDescriptiveString();
 };
 

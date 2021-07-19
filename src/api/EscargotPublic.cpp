@@ -537,9 +537,13 @@ OptionalRef<StringRef> RopeStringRef::right()
     }
 }
 
-SymbolRef* SymbolRef::create(StringRef* desc)
+SymbolRef* SymbolRef::create(OptionalRef<StringRef> desc)
 {
-    return toRef(new Symbol(toImpl(desc)));
+    if (desc) {
+        return toRef(new Symbol(toImpl(desc.value())));
+    } else {
+        return toRef(new Symbol());
+    }
 }
 
 SymbolRef* SymbolRef::fromGlobalSymbolRegistry(VMInstanceRef* vm, StringRef* desc)
@@ -547,12 +551,12 @@ SymbolRef* SymbolRef::fromGlobalSymbolRegistry(VMInstanceRef* vm, StringRef* des
     return toRef(Symbol::fromGlobalSymbolRegistry(toImpl(vm), toImpl(desc)));
 }
 
-StringRef* SymbolRef::description()
+OptionalRef<StringRef> SymbolRef::description()
 {
     if (toImpl(this)->description().hasValue()) {
         return toRef(toImpl(this)->description().value());
     }
-    return toRef(String::emptyString);
+    return nullptr;
 }
 
 StringRef* SymbolRef::symbolDescriptiveString()
