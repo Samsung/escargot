@@ -305,7 +305,7 @@ public:
         m_promiseHookPublic = nullptr;
     }
 
-    void triggerPromiseHook(ExecutionState& state, PromiseHookType type, PromiseObject* promise, const Value& parent)
+    void triggerPromiseHook(ExecutionState& state, PromiseHookType type, PromiseObject* promise, const Value& parent = Value())
     {
         ASSERT(!!m_promiseHook);
         if (m_promiseHookPublic) {
