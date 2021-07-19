@@ -926,6 +926,11 @@ Evaluator::EvaluatorResult Evaluator::executeFunction(ContextRef* ctx, ValueRef*
     return toEvaluatorResultRef(result);
 }
 
+COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::Init == (int)VMInstance::PromiseHookType::Init, "");
+COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::Resolve == (int)VMInstance::PromiseHookType::Resolve, "");
+COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::Before == (int)VMInstance::PromiseHookType::Before, "");
+COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::After == (int)VMInstance::PromiseHookType::After, "");
+
 PersistentRefHolder<VMInstanceRef> VMInstanceRef::create(PlatformRef* platform, const char* locale, const char* timezone, const char* baseCacheDir)
 {
     return PersistentRefHolder<VMInstanceRef>(toRef(new VMInstance(new PlatformBridge(platform), locale, timezone, baseCacheDir)));
@@ -2944,7 +2949,11 @@ Uint8ClampedArrayObjectRef* Uint8ClampedArrayObjectRef::create(ExecutionStateRef
 
 PromiseObjectRef* PromiseObjectRef::create(ExecutionStateRef* state)
 {
-    return toRef(new PromiseObject(*toImpl(state)));
+    auto promise = new PromiseObject(*toImpl(state));
+    if (UNLIKELY(toImpl(state)->context()->vmInstance()->isPromiseHookRegistered())) {
+        toImpl(state)->context()->vmInstance()->triggerPromiseHook(*toImpl(state), VMInstance::PromiseHookType::Init, promise);
+    }
+    return toRef(promise);
 }
 
 COMPILE_ASSERT((int)PromiseObjectRef::PromiseState::Pending == (int)PromiseObject::PromiseState::Pending, "");
@@ -2978,11 +2987,17 @@ ObjectRef* PromiseObjectRef::then(ExecutionStateRef* state, ValueRef* onFulfille
 
 void PromiseObjectRef::fulfill(ExecutionStateRef* state, ValueRef* value)
 {
+    if (UNLIKELY(toImpl(state)->context()->vmInstance()->isPromiseHookRegistered())) {
+        toImpl(state)->context()->vmInstance()->triggerPromiseHook(*toImpl(state), VMInstance::PromiseHookType::Resolve, toImpl(this));
+    }
     toImpl(this)->fulfill(*toImpl(state), toImpl(value));
 }
 
 void PromiseObjectRef::reject(ExecutionStateRef* state, ValueRef* reason)
 {
+    if (UNLIKELY(toImpl(state)->context()->vmInstance()->isPromiseHookRegistered())) {
+        toImpl(state)->context()->vmInstance()->triggerPromiseHook(*toImpl(state), VMInstance::PromiseHookType::Resolve, toImpl(this));
+    }
     toImpl(this)->reject(*toImpl(state), toImpl(reason));
 }
 

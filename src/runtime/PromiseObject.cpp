@@ -279,7 +279,7 @@ static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, siz
     PromiseObject* promise = promiseValue.asObject()->asPromiseObject();
 
     if (UNLIKELY(state.context()->vmInstance()->isPromiseHookRegistered())) {
-        state.context()->vmInstance()->triggerPromiseHook(state, VMInstance::PromiseHookType::Resolve, promise, Value());
+        state.context()->vmInstance()->triggerPromiseHook(state, VMInstance::PromiseHookType::Resolve, promise);
     }
 
     // Let alreadyResolved be F.[[AlreadyResolved]].
@@ -336,7 +336,7 @@ static Value promiseRejectFunctions(ExecutionState& state, Value thisValue, size
     PromiseObject* promise = promiseValue.asObject()->asPromiseObject();
 
     if (UNLIKELY(state.context()->vmInstance()->isPromiseHookRegistered())) {
-        state.context()->vmInstance()->triggerPromiseHook(state, VMInstance::PromiseHookType::Resolve, promise, Value());
+        state.context()->vmInstance()->triggerPromiseHook(state, VMInstance::PromiseHookType::Resolve, promise);
     }
 
     // Let alreadyResolved be F.[[AlreadyResolved]].
