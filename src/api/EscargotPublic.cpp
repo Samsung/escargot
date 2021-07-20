@@ -61,6 +61,7 @@
 #include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/BigInt.h"
 #include "runtime/BigIntObject.h"
+#include "runtime/serialization/Serializer.h"
 #include "interpreter/ByteCode.h"
 #include "api/internal/ValueAdapter.h"
 #if defined(ENABLE_WASM)
@@ -106,7 +107,7 @@ bool thread_local Globals::g_globalsInited = false;
 void Globals::initialize()
 {
     // initialize global value or context
-    // this function should be invoked once at the start of the program
+    // this function should be invoked once at the start of the thread or program
     RELEASE_ASSERT(!g_globalsInited);
     Heap::initialize();
     VMInstance::initialize();
@@ -116,11 +117,30 @@ void Globals::initialize()
 void Globals::finalize()
 {
     // finalize global value or context
-    // this function should be invoked once at the end of the program
+    // this function should be invoked once at the end of the thread or program
     RELEASE_ASSERT(!!g_globalsInited);
     Heap::finalize();
     VMInstance::finalize();
     g_globalsInited = false;
+}
+
+bool Globals::supportsThreading()
+{
+#if defined(ENABLE_THREADING)
+    return true;
+#else
+    return false;
+#endif
+}
+
+const char* Globals::version()
+{
+    return ESCARGOT_VERSION;
+}
+
+const char* Globals::buildDate()
+{
+    return ESCARGOT_BUILD_DATE;
 }
 
 void* Memory::gcMalloc(size_t siz)
@@ -517,9 +537,13 @@ OptionalRef<StringRef> RopeStringRef::right()
     }
 }
 
-SymbolRef* SymbolRef::create(StringRef* desc)
+SymbolRef* SymbolRef::create(OptionalRef<StringRef> desc)
 {
-    return toRef(new Symbol(toImpl(desc)));
+    if (desc) {
+        return toRef(new Symbol(toImpl(desc.value())));
+    } else {
+        return toRef(new Symbol());
+    }
 }
 
 SymbolRef* SymbolRef::fromGlobalSymbolRegistry(VMInstanceRef* vm, StringRef* desc)
@@ -527,12 +551,12 @@ SymbolRef* SymbolRef::fromGlobalSymbolRegistry(VMInstanceRef* vm, StringRef* des
     return toRef(Symbol::fromGlobalSymbolRegistry(toImpl(vm), toImpl(desc)));
 }
 
-StringRef* SymbolRef::description()
+OptionalRef<StringRef> SymbolRef::description()
 {
     if (toImpl(this)->description().hasValue()) {
         return toRef(toImpl(this)->description().value());
     }
-    return toRef(String::emptyString);
+    return nullptr;
 }
 
 StringRef* SymbolRef::symbolDescriptiveString()
@@ -2048,6 +2072,15 @@ bool ContextRef::initDebugger(const char* options)
 #endif /* ESCARGOT_DEBUGGER */
 }
 
+bool ContextRef::isDebuggerRunning()
+{
+#ifdef ESCARGOT_DEBUGGER
+    return !!toImpl(this)->debugger() && toImpl(this)->debugger()->enabled();
+#else /* !ESCARGOT_DEBUGGER */
+    return false;
+#endif /* ESCARGOT_DEBUGGER */
+}
+
 void ContextRef::printDebugger(StringRef* output)
 {
 #ifdef ESCARGOT_DEBUGGER
@@ -3451,6 +3484,16 @@ PlatformRef::LoadModuleResult::LoadModuleResult(ErrorObjectRef::Code errorCode, 
     , errorMessage(errorMessage)
     , errorCode(errorCode)
 {
+}
+
+bool SerializerRef::serializeInto(ValueRef* value, std::ostringstream& output)
+{
+    return Serializer::serializeInto(toImpl(value), output);
+}
+
+ValueRef* SerializerRef::deserializeFrom(std::istringstream& input)
+{
+    return toRef(Serializer::deserializeFrom(input).get()->toValue());
 }
 
 #if defined(ENABLE_WASM)

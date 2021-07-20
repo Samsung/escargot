@@ -38,6 +38,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <sstream>
 
 #if !defined(NDEBUG) && defined(__GLIBCXX__) && !defined(_GLIBCXX_DEBUG)
 #pragma message("You should define `_GLIBCXX_DEBUG` in {debug mode + libstdc++} because Escargot uses it")
@@ -128,6 +129,11 @@ public:
     // Users need to call initialize, finalize function for each thread
     static void initialize();
     static void finalize();
+
+    static bool supportsThreading();
+
+    static const char* version();
+    static const char* buildDate();
 };
 
 class ESCARGOT_EXPORT Memory {
@@ -667,6 +673,7 @@ public:
     void throwException(ValueRef* exceptionValue); // if you use this function without Evaluator, your program will crash :(
 
     bool initDebugger(const char* options);
+    bool isDebuggerRunning();
     void printDebugger(StringRef* output);
     StringRef* getClientSource(StringRef** sourceName);
 
@@ -922,9 +929,9 @@ public:
 
 class ESCARGOT_EXPORT SymbolRef : public PointerValueRef {
 public:
-    static SymbolRef* create(StringRef* desc);
+    static SymbolRef* create(OptionalRef<StringRef> desc);
     static SymbolRef* fromGlobalSymbolRegistry(VMInstanceRef* context, StringRef* desc); // this is same with Symbol.for
-    StringRef* description();
+    OptionalRef<StringRef> description();
     StringRef* symbolDescriptiveString();
 };
 
@@ -1739,6 +1746,13 @@ struct ESCARGOT_EXPORT ObjectTemplateNamedPropertyHandlerData {
         , data(data)
     {
     }
+};
+
+class ESCARGOT_EXPORT SerializerRef {
+public:
+    // returns the serialization was successful
+    static bool serializeInto(ValueRef* value, std::ostringstream& output);
+    static ValueRef* deserializeFrom(std::istringstream& input);
 };
 
 class ESCARGOT_EXPORT ObjectTemplateRef : public TemplateRef {
