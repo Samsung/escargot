@@ -85,7 +85,7 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
         GC_invoke_finalizers();
     }
 
-    m_backingStore = new BackingStore(state.context()->vmInstance(), byteLength);
+    m_backingStore = new BackingStore(byteLength);
 }
 
 void ArrayBufferObject::attachBuffer(BackingStore* backingStore)

@@ -24,6 +24,8 @@
 #include "parser/ScriptParser.h"
 #include "parser/CodeBlock.h"
 #include "runtime/Context.h"
+#include "runtime/Global.h"
+#include "runtime/Platform.h"
 #include "runtime/FunctionObject.h"
 #include "runtime/Value.h"
 #include "runtime/VMInstance.h"
@@ -103,12 +105,127 @@ inline AtomicString toImpl(AtomicStringRef* v)
     return AtomicString::fromPayload(reinterpret_cast<void*>(v));
 }
 
-bool thread_local Globals::g_globalsInited = false;
-void Globals::initialize()
+class PlatformBridge : public Platform {
+public:
+    PlatformBridge(PlatformRef* p)
+        : m_platform(p)
+    {
+    }
+
+    virtual ~PlatformBridge()
+    {
+        // delete PlatformRef, so we don't care about PlatformRef's lifetime
+        delete m_platform;
+    }
+
+    virtual void* onMallocArrayBufferObjectDataBuffer(size_t sizeInByte) override
+    {
+        return m_platform->onMallocArrayBufferObjectDataBuffer(sizeInByte);
+    }
+
+    virtual void onFreeArrayBufferObjectDataBuffer(void* buffer, size_t sizeInByte) override
+    {
+        m_platform->onFreeArrayBufferObjectDataBuffer(buffer, sizeInByte);
+    }
+
+    virtual void* onReallocArrayBufferObjectDataBuffer(void* oldBuffer, size_t oldSizeInByte, size_t newSizeInByte) override
+    {
+        return m_platform->onReallocArrayBufferObjectDataBuffer(oldBuffer, oldSizeInByte, newSizeInByte);
+    }
+
+    virtual void markJSJobEnqueued(Context* relatedContext) override
+    {
+        // Job should be enqueued in the main thread
+        ASSERT(Global::inMainThread());
+        m_platform->markJSJobEnqueued(toRef(relatedContext));
+    }
+
+    virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) override
+    {
+        // Module related operations are enabled only in the main thread
+        ASSERT(Global::inMainThread());
+        LoadModuleResult result;
+        auto refResult = m_platform->onLoadModule(toRef(relatedContext), toRef(whereRequestFrom), toRef(moduleSrc));
+
+        result.script = toImpl(refResult.script.get());
+        result.errorMessage = toImpl(refResult.errorMessage);
+        result.errorCode = refResult.errorCode;
+
+        return result;
+    }
+
+    virtual void didLoadModule(Context* relatedContext, Optional<Script*> whereRequestFrom, Script* loadedModule) override
+    {
+        // Module related operations are enabled only in the main thread
+        ASSERT(Global::inMainThread());
+        if (whereRequestFrom) {
+            m_platform->didLoadModule(toRef(relatedContext), toRef(whereRequestFrom.value()), toRef(loadedModule));
+        } else {
+            m_platform->didLoadModule(toRef(relatedContext), nullptr, toRef(loadedModule));
+        }
+    }
+
+    virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, PromiseObject* promise) override
+    {
+        // Module related operations are enabled only in the main thread
+        ASSERT(Global::inMainThread());
+        m_platform->hostImportModuleDynamically(toRef(relatedContext), toRef(referrer), toRef(src), toRef(promise));
+    }
+
+    PlatformRef* m_platform;
+};
+
+void PlatformRef::notifyHostImportModuleDynamicallyResult(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise, LoadModuleResult loadModuleResult)
 {
-    // initialize global value or context
-    // this function should be invoked once at the start of the thread or program
+    auto result = Evaluator::execute(relatedContext, [](ExecutionStateRef* state, LoadModuleResult loadModuleResult, Script::ModuleData::ModulePromiseObject* promise) -> ValueRef* {
+        if (loadModuleResult.script) {
+            if (loadModuleResult.script.value()->isExecuted()) {
+                if (loadModuleResult.script.value()->wasThereErrorOnModuleEvaluation()) {
+                    state->throwException(loadModuleResult.script.value()->moduleEvaluationError());
+                }
+            }
+        } else {
+            state->throwException(ErrorObjectRef::create(state, loadModuleResult.errorCode, loadModuleResult.errorMessage));
+        }
+        return ValueRef::createUndefined();
+    },
+                                     loadModuleResult, (Script::ModuleData::ModulePromiseObject*)promise);
+
+    Script::ModuleData::ModulePromiseObject* mp = (Script::ModuleData::ModulePromiseObject*)promise;
+    mp->m_referrer = toImpl(referrer);
+    if (loadModuleResult.script.hasValue()) {
+        mp->m_loadedScript = toImpl(loadModuleResult.script.value());
+        if (!mp->m_loadedScript->moduleData()->m_didCallLoadedCallback) {
+            Context* ctx = toImpl(relatedContext);
+            Global::platform()->didLoadModule(ctx, toImpl(referrer), mp->m_loadedScript);
+            mp->m_loadedScript->moduleData()->m_didCallLoadedCallback = true;
+        }
+    }
+
+    if (result.error) {
+        mp->m_value = toImpl(result.error.value());
+        Evaluator::execute(relatedContext, [](ExecutionStateRef* state, ValueRef* error, PromiseObjectRef* promise) -> ValueRef* {
+            promise->reject(state, promise);
+            return ValueRef::createUndefined();
+        },
+                           result.error.value(), promise);
+    } else {
+        Evaluator::execute(relatedContext, [](ExecutionStateRef* state, ValueRef* error, PromiseObjectRef* promise) -> ValueRef* {
+            promise->fulfill(state, promise);
+            return ValueRef::createUndefined();
+        },
+                           result.error.value(), promise);
+    }
+}
+
+bool thread_local Globals::g_globalsInited = false;
+void Globals::initialize(PlatformRef* platform)
+{
+    // initialize global value or context including thread-local variables
+    // this function should be invoked once at the start of the program (main thread)
+    // argument `platform` will be deleted automatically when Globals::finalize called
     RELEASE_ASSERT(!g_globalsInited);
+    Global::initialize(new PlatformBridge(platform));
     Heap::initialize();
     VMInstance::initialize();
     g_globalsInited = true;
@@ -116,8 +233,32 @@ void Globals::initialize()
 
 void Globals::finalize()
 {
-    // finalize global value or context
-    // this function should be invoked once at the end of the thread or program
+    // finalize global value or context including thread-local variables
+    // this function should be invoked once at the end of the program (main thread)
+    RELEASE_ASSERT(!!g_globalsInited);
+    Heap::finalize();
+    VMInstance::finalize();
+
+    // Global::finalize should be called at the end of program
+    // because it holds Platform which could be used in other Object's finalizer
+    Global::finalize();
+    g_globalsInited = false;
+}
+
+void Globals::initializeThreadLocal()
+{
+    // initialize thread-local variables
+    // this function should be invoked at the start of sub-thread
+    RELEASE_ASSERT(!g_globalsInited);
+    Heap::initialize();
+    VMInstance::initialize();
+    g_globalsInited = true;
+}
+
+void Globals::finalizeThreadLocal()
+{
+    // finalize thread-local variables
+    // this function should be invoked once at the end of sub-thread
     RELEASE_ASSERT(!!g_globalsInited);
     Heap::finalize();
     VMInstance::finalize();
@@ -729,105 +870,6 @@ bool BigIntRef::isNegative()
     return toImpl(this)->isNegative();
 }
 
-class PlatformBridge : public Platform {
-public:
-    PlatformBridge(PlatformRef* p)
-        : m_platform(p)
-    {
-    }
-
-    virtual void* onMallocArrayBufferObjectDataBuffer(size_t sizeInByte) override
-    {
-        return m_platform->onMallocArrayBufferObjectDataBuffer(sizeInByte);
-    }
-
-    virtual void onFreeArrayBufferObjectDataBuffer(void* buffer, size_t sizeInByte) override
-    {
-        m_platform->onFreeArrayBufferObjectDataBuffer(buffer, sizeInByte);
-    }
-
-    virtual void* onReallocArrayBufferObjectDataBuffer(void* oldBuffer, size_t oldSizeInByte, size_t newSizeInByte) override
-    {
-        return m_platform->onReallocArrayBufferObjectDataBuffer(oldBuffer, oldSizeInByte, newSizeInByte);
-    }
-
-    virtual void markJSJobEnqueued(Context* relatedContext) override
-    {
-        m_platform->markJSJobEnqueued(toRef(relatedContext));
-    }
-
-    virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) override
-    {
-        LoadModuleResult result;
-        auto refResult = m_platform->onLoadModule(toRef(relatedContext), toRef(whereRequestFrom), toRef(moduleSrc));
-
-        result.script = toImpl(refResult.script.get());
-        result.errorMessage = toImpl(refResult.errorMessage);
-        result.errorCode = refResult.errorCode;
-
-        return result;
-    }
-
-    virtual void didLoadModule(Context* relatedContext, Optional<Script*> whereRequestFrom, Script* loadedModule) override
-    {
-        if (whereRequestFrom) {
-            m_platform->didLoadModule(toRef(relatedContext), toRef(whereRequestFrom.value()), toRef(loadedModule));
-        } else {
-            m_platform->didLoadModule(toRef(relatedContext), nullptr, toRef(loadedModule));
-        }
-    }
-
-    virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, PromiseObject* promise) override
-    {
-        m_platform->hostImportModuleDynamically(toRef(relatedContext), toRef(referrer), toRef(src), toRef(promise));
-    }
-
-    PlatformRef* m_platform;
-};
-
-void PlatformRef::notifyHostImportModuleDynamicallyResult(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise, LoadModuleResult loadModuleResult)
-{
-    auto result = Evaluator::execute(relatedContext, [](ExecutionStateRef* state, LoadModuleResult loadModuleResult, Script::ModuleData::ModulePromiseObject* promise) -> ValueRef* {
-        if (loadModuleResult.script) {
-            if (loadModuleResult.script.value()->isExecuted()) {
-                if (loadModuleResult.script.value()->wasThereErrorOnModuleEvaluation()) {
-                    state->throwException(loadModuleResult.script.value()->moduleEvaluationError());
-                }
-            }
-        } else {
-            state->throwException(ErrorObjectRef::create(state, loadModuleResult.errorCode, loadModuleResult.errorMessage));
-        }
-        return ValueRef::createUndefined();
-    },
-                                     loadModuleResult, (Script::ModuleData::ModulePromiseObject*)promise);
-
-    Script::ModuleData::ModulePromiseObject* mp = (Script::ModuleData::ModulePromiseObject*)promise;
-    mp->m_referrer = toImpl(referrer);
-    if (loadModuleResult.script.hasValue()) {
-        mp->m_loadedScript = toImpl(loadModuleResult.script.value());
-        if (!mp->m_loadedScript->moduleData()->m_didCallLoadedCallback) {
-            Context* ctx = toImpl(relatedContext);
-            ctx->vmInstance()->platform()->didLoadModule(ctx, toImpl(referrer), mp->m_loadedScript);
-            mp->m_loadedScript->moduleData()->m_didCallLoadedCallback = true;
-        }
-    }
-
-    if (result.error) {
-        mp->m_value = toImpl(result.error.value());
-        Evaluator::execute(relatedContext, [](ExecutionStateRef* state, ValueRef* error, PromiseObjectRef* promise) -> ValueRef* {
-            promise->reject(state, promise);
-            return ValueRef::createUndefined();
-        },
-                           result.error.value(), promise);
-    } else {
-        Evaluator::execute(relatedContext, [](ExecutionStateRef* state, ValueRef* error, PromiseObjectRef* promise) -> ValueRef* {
-            promise->fulfill(state, promise);
-            return ValueRef::createUndefined();
-        },
-                           result.error.value(), promise);
-    }
-}
-
 Evaluator::StackTraceData::StackTraceData()
     : src(toRef(String::emptyString))
     , sourceCode(toRef(String::emptyString))
@@ -955,14 +997,9 @@ COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::Resolve == (int)VMInstance::
 COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::Before == (int)VMInstance::PromiseHookType::Before, "");
 COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::After == (int)VMInstance::PromiseHookType::After, "");
 
-PersistentRefHolder<VMInstanceRef> VMInstanceRef::create(PlatformRef* platform, const char* locale, const char* timezone, const char* baseCacheDir)
+PersistentRefHolder<VMInstanceRef> VMInstanceRef::create(const char* locale, const char* timezone, const char* baseCacheDir)
 {
-    return PersistentRefHolder<VMInstanceRef>(toRef(new VMInstance(new PlatformBridge(platform), locale, timezone, baseCacheDir)));
-}
-
-PlatformRef* VMInstanceRef::platform()
-{
-    return ((PlatformBridge*)toImpl(this)->platform())->m_platform;
+    return PersistentRefHolder<VMInstanceRef>(toRef(new VMInstance(locale, timezone, baseCacheDir)));
 }
 
 void VMInstanceRef::setOnVMInstanceDelete(OnVMInstanceDelete cb)
@@ -2800,9 +2837,9 @@ RegExpObjectRef::RegExpObjectOption RegExpObjectRef::option()
     return (RegExpObjectRef::RegExpObjectOption)toImpl(this)->option();
 }
 
-BackingStoreRef* BackingStoreRef::create(VMInstanceRef* instance, size_t byteLength)
+BackingStoreRef* BackingStoreRef::create(size_t byteLength)
 {
-    return toRef(new BackingStore(toImpl(instance), byteLength));
+    return toRef(new BackingStore(byteLength));
 }
 
 BackingStoreRef* BackingStoreRef::create(void* data, size_t byteLength, BackingStoreRef::BackingStoreRefDeleterCallback callback, void* callbackData)
@@ -2825,9 +2862,9 @@ bool BackingStoreRef::isShared()
     return toImpl(this)->isShared();
 }
 
-void BackingStoreRef::reallocate(VMInstanceRef* instance, size_t newByteLength)
+void BackingStoreRef::reallocate(size_t newByteLength)
 {
-    toImpl(this)->reallocate(toImpl(instance), newByteLength);
+    toImpl(this)->reallocate(newByteLength);
 }
 
 ArrayBufferObjectRef* ArrayBufferObjectRef::create(ExecutionStateRef* state)
