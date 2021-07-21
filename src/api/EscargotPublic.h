@@ -126,9 +126,14 @@ class ESCARGOT_EXPORT Globals {
 
 public:
     // Escargot has thread-isoloate Globals.
-    // Users need to call initialize, finalize function for each thread
-    static void initialize();
+    // Users should call initialize, finalize in the main thread
+    static void initialize(PlatformRef* platform);
     static void finalize();
+
+    // Globals also used for thread initialization
+    // Users need to call initializeThreadLocal, finalizeThreadLocal function for each thread
+    static void initializeThreadLocal();
+    static void finalizeThreadLocal();
 
     static bool supportsThreading();
 
@@ -609,7 +614,7 @@ class ESCARGOT_EXPORT VMInstanceRef {
 public:
     // you can to provide timezone as TZ database name like "US/Pacific".
     // if you don't provide, we try to detect system timezone.
-    static PersistentRefHolder<VMInstanceRef> create(PlatformRef* platform, const char* locale = nullptr, const char* timezone = nullptr, const char* baseCacheDir = nullptr);
+    static PersistentRefHolder<VMInstanceRef> create(const char* locale = nullptr, const char* timezone = nullptr, const char* baseCacheDir = nullptr);
 
     typedef void (*OnVMInstanceDelete)(VMInstanceRef* instance);
     void setOnVMInstanceDelete(OnVMInstanceDelete cb);
@@ -635,8 +640,6 @@ public:
     // force clear every caches related with context
     // you can call this function if you don't want to use every alive contexts
     void clearCachesRelatedWithContext();
-
-    PlatformRef* platform();
 
     SymbolRef* toStringTagSymbol();
     SymbolRef* iteratorSymbol();
@@ -1469,7 +1472,7 @@ class ESCARGOT_EXPORT BackingStoreRef {
     friend class ArrayBufferObject;
 
 public:
-    static BackingStoreRef* create(VMInstanceRef* instance, size_t byteLength);
+    static BackingStoreRef* create(size_t byteLength);
     typedef void (*BackingStoreRefDeleterCallback)(void* data, size_t length,
                                                    void* deleterData);
     static BackingStoreRef* create(void* data, size_t byteLength, BackingStoreRefDeleterCallback callback, void* callbackData);
@@ -1478,7 +1481,7 @@ public:
     size_t byteLength();
     // Indicates whether the backing store is Shared Data Block (for SharedArrayBuffer)
     bool isShared();
-    void reallocate(VMInstanceRef* instance, size_t newByteLength);
+    void reallocate(size_t newByteLength);
 };
 
 class ESCARGOT_EXPORT ArrayBufferObjectRef : public ObjectRef {

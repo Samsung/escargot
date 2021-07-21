@@ -313,19 +313,20 @@ int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);
 
-    Globals::initialize();
+    Globals::initialize(new ShellPlatform());
 
     Memory::setGCFrequency(24);
 
-    ShellPlatform* platform = new ShellPlatform();
-    g_instance = VMInstanceRef::create(platform);
-    g_instance->setOnVMInstanceDelete([](VMInstanceRef* instance) {
-        delete instance->platform();
-    });
-
+    g_instance = VMInstanceRef::create();
     g_context = ContextRef::create(g_instance.get());
 
-    return RUN_ALL_TESTS();
+    RUN_ALL_TESTS();
+
+    g_context.release();
+    g_instance.release();
+    Globals::finalize();
+
+    return 0;
 }
 
 TEST(ValueRef, Basic1)
@@ -947,7 +948,7 @@ TEST(FunctionTemplate, Basic4)
 TEST(BackingStore, Basic1)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
-        auto bs = BackingStoreRef::create(state->context()->vmInstance(), 1024);
+        auto bs = BackingStoreRef::create(1024);
         EXPECT_FALSE(bs->isShared());
         EXPECT_TRUE(bs->byteLength() == 1024);
         auto abo = ArrayBufferObjectRef::create(state);
@@ -960,7 +961,7 @@ TEST(BackingStore, Basic1)
         EXPECT_TRUE(abo->rawBuffer() == nullptr);
         EXPECT_FALSE(abo->backingStore().hasValue());
 
-        bs->reallocate(state->context()->vmInstance(), 300);
+        bs->reallocate(300);
         abo->attachBuffer(bs);
         EXPECT_TRUE(abo->byteLength() == 300);
         EXPECT_FALSE(abo->isDetachedBuffer());

@@ -19,7 +19,7 @@
 
 #include "Escargot.h"
 #include "BackingStore.h"
-#include "runtime/VMInstance.h"
+#include "runtime/Global.h"
 #include "runtime/Platform.h"
 
 namespace Escargot {
@@ -40,11 +40,8 @@ void* BackingStore::operator new(size_t size)
 
 static void defaultPlatformBackingStoreDeleter(void* data, size_t length, void* deleterData)
 {
-    if (deleterData) {
-        VMInstance* instance = (VMInstance*)deleterData;
-        instance->platform()->onFreeArrayBufferObjectDataBuffer(data, length);
-    } else {
-        ASSERT(data == nullptr);
+    if (!!data) {
+        Global::platform()->onFreeArrayBufferObjectDataBuffer(data, length);
     }
 }
 
@@ -64,13 +61,13 @@ BackingStore::BackingStore(void* data, size_t byteLength, BackingStoreDeleterCal
                                    nullptr, nullptr, nullptr);
 }
 
-BackingStore::BackingStore(VMInstance* instance, size_t byteLength)
-    : BackingStore(instance->platform()->onMallocArrayBufferObjectDataBuffer(byteLength), byteLength,
-                   defaultPlatformBackingStoreDeleter, instance, false, true)
+BackingStore::BackingStore(size_t byteLength)
+    : BackingStore(Global::platform()->onMallocArrayBufferObjectDataBuffer(byteLength), byteLength,
+                   defaultPlatformBackingStoreDeleter, nullptr, false, true)
 {
 }
 
-void BackingStore::reallocate(VMInstance* instance, size_t newByteLength)
+void BackingStore::reallocate(size_t newByteLength)
 {
     // Shared Data Block should not be reallocated
     ASSERT(!m_isShared);
@@ -80,13 +77,13 @@ void BackingStore::reallocate(VMInstance* instance, size_t newByteLength)
     }
 
     if (m_isAllocatedByPlatformAllocator) {
-        m_data = instance->platform()->onReallocArrayBufferObjectDataBuffer(m_data, m_byteLength, newByteLength);
+        m_data = Global::platform()->onReallocArrayBufferObjectDataBuffer(m_data, m_byteLength, newByteLength);
         m_byteLength = newByteLength;
     } else {
         m_deleter(m_data, m_byteLength, m_deleterData);
-        m_data = instance->platform()->onMallocArrayBufferObjectDataBuffer(newByteLength);
+        m_data = Global::platform()->onMallocArrayBufferObjectDataBuffer(newByteLength);
         m_deleter = defaultPlatformBackingStoreDeleter;
-        m_deleterData = instance;
+        m_deleterData = nullptr;
         m_byteLength = newByteLength;
         m_isAllocatedByPlatformAllocator = true;
     }

@@ -20,6 +20,8 @@
 #include "Escargot.h"
 #include "VMInstance.h"
 #include "BumpPointerAllocator.h"
+#include "runtime/Global.h"
+#include "runtime/Platform.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/StringObject.h"
@@ -314,7 +316,6 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpOptionStringCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_cachedUTC));
-        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_platform));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_jobQueue));
 #if defined(ENABLE_INTL)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_intlAvailableLocales));
@@ -368,7 +369,7 @@ VMInstance::~VMInstance()
 #endif
 }
 
-VMInstance::VMInstance(Platform* platform, const char* locale, const char* timezone, const char* baseCacheDir)
+VMInstance::VMInstance(const char* locale, const char* timezone, const char* baseCacheDir)
     : m_staticStrings(&m_atomicStringMap)
     , m_currentSandBox(nullptr)
     , m_isFinalized(false)
@@ -387,7 +388,6 @@ VMInstance::VMInstance(Platform* platform, const char* locale, const char* timez
     , m_promiseHook(nullptr)
     , m_promiseHookPublic(nullptr)
     , m_cachedUTC(nullptr)
-    , m_platform(platform)
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         VMInstance* self = (VMInstance*)obj;
@@ -645,7 +645,7 @@ void VMInstance::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)
 void VMInstance::enqueueJob(Job* job)
 {
     m_jobQueue->enqueueJob(job);
-    m_platform->markJSJobEnqueued(job->relatedContext());
+    Global::platform()->markJSJobEnqueued(job->relatedContext());
 }
 
 bool VMInstance::hasPendingJob()

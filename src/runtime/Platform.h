@@ -24,12 +24,10 @@
 
 namespace Escargot {
 
-class ArrayBufferObject;
-class PromiseObject;
 class Context;
-class Job;
+class PromiseObject;
 
-class Platform : public gc {
+class Platform {
 public:
     virtual ~Platform() {}
     // ArrayBuffer

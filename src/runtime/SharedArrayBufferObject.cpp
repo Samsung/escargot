@@ -20,8 +20,9 @@
 #if defined(ENABLE_THREADING)
 
 #include "Escargot.h"
-#include "runtime/VMInstance.h"
 #include "runtime/Context.h"
+#include "runtime/Global.h"
+#include "runtime/Platform.h"
 #include "runtime/BackingStore.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/SharedArrayBufferObject.h"
@@ -46,13 +47,11 @@ SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* 
         GC_invoke_finalizers();
     }
 
-    auto platform = state.context()->vmInstance()->platform();
-    void* buffer = platform->onMallocArrayBufferObjectDataBuffer(byteLength);
+    void* buffer = Global::platform()->onMallocArrayBufferObjectDataBuffer(byteLength);
     m_backingStore = new BackingStore(buffer, byteLength, [](void* data, size_t length, void* deleterData) {
-        Platform* platform = (Platform*)deleterData;
-        platform->onFreeArrayBufferObjectDataBuffer(data, length);
+        Global::platform()->onFreeArrayBufferObjectDataBuffer(data, length);
     },
-                                      platform, true);
+                                      nullptr, true);
 }
 
 SharedArrayBufferObject* SharedArrayBufferObject::allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength)
