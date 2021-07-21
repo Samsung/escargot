@@ -20,6 +20,8 @@
 #include "Escargot.h"
 #include "ByteCode.h"
 #include "ByteCodeInterpreter.h"
+#include "runtime/Global.h"
+#include "runtime/Platform.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/FunctionObject.h"
@@ -3420,8 +3422,8 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         // Perform ! PerformPromiseThen(capability.[[Promise]], onFulfilled, onRejected).
         innerPromiseCapability.m_promise->asPromiseObject()->then(state, onFulfilled, onRejected);
 
-        state.context()->vmInstance()->platform()->hostImportModuleDynamically(byteCodeBlock->m_codeBlock->context(),
-                                                                               referencingScriptOrModule, specifierString, innerPromiseCapability.m_promise->asPromiseObject());
+        Global::platform()->hostImportModuleDynamically(byteCodeBlock->m_codeBlock->context(),
+                                                        referencingScriptOrModule, specifierString, innerPromiseCapability.m_promise->asPromiseObject());
 
         // Return promiseCapability.[[Promise]].
         registerFile[code->m_resultIndex] = promiseCapability.m_promise;

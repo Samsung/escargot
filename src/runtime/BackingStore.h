@@ -22,8 +22,6 @@
 
 namespace Escargot {
 
-class VMInstance;
-
 using BackingStoreDeleterCallback = void (*)(void* data, size_t length,
                                              void* deleterData);
 
@@ -31,7 +29,7 @@ class BackingStore : public gc {
     friend class ArrayBufferObject;
 
 public:
-    BackingStore(VMInstance* instance, size_t byteLength);
+    BackingStore(size_t byteLength);
     BackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback,
                  void* callbackData, bool isShared = false, bool isAllocatedByPlatformAllocator = false);
 
@@ -50,7 +48,7 @@ public:
         return m_isShared;
     }
 
-    void reallocate(VMInstance* instance, size_t newByteLength);
+    void reallocate(size_t newByteLength);
     void deallocate();
 
     void* operator new(size_t size);
