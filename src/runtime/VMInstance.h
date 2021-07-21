@@ -20,7 +20,7 @@
 #ifndef __EscargotVMInstance__
 #define __EscargotVMInstance__
 
-#include "runtime/Platform.h"
+#include "runtime/SandBox.h"
 #include "runtime/AtomicString.h"
 #include "runtime/StaticStrings.h"
 #include "runtime/ToStringRecursionPreventer.h"
@@ -41,7 +41,6 @@ class BumpPointerAllocator;
 
 namespace Escargot {
 
-class SandBox;
 class Context;
 class CodeBlock;
 class JobQueue;
@@ -149,7 +148,7 @@ public:
 
     typedef void (*PromiseHook)(ExecutionState& state, PromiseHookType type, PromiseObject* promise, const Value& parent, void* hook);
 
-    VMInstance(Platform* platform, const char* locale = nullptr, const char* timezone = nullptr, const char* baseCacheDir = nullptr);
+    VMInstance(const char* locale = nullptr, const char* timezone = nullptr, const char* baseCacheDir = nullptr);
     ~VMInstance();
 
     void* operator new(size_t size);
@@ -259,11 +258,6 @@ public:
     }
 #endif
 
-    Platform* platform()
-    {
-        return m_platform;
-    }
-
     SandBox* currentSandBox()
     {
         return m_currentSandBox;
@@ -278,7 +272,6 @@ public:
     {
         return m_regexpOptionStringCache;
     }
-
 
     void setOnDestroyCallback(void (*onVMInstanceDestroy)(VMInstance* instance, void* data), void* data)
     {
@@ -398,8 +391,6 @@ private:
     std::string m_timezoneID;
 #endif
     DateObject* m_cachedUTC;
-
-    Platform* m_platform;
 
     // promise job queue
     JobQueue* m_jobQueue;

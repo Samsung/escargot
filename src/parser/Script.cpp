@@ -24,8 +24,10 @@
 #include "interpreter/ByteCodeInterpreter.h"
 #include "parser/ast/Node.h"
 #include "runtime/Context.h"
+#include "runtime/Global.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
+#include "runtime/Platform.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/SandBox.h"
@@ -80,12 +82,12 @@ Context* Script::context()
 
 Script* Script::loadModuleFromScript(ExecutionState& state, String* src)
 {
-    Platform::LoadModuleResult result = context()->vmInstance()->platform()->onLoadModule(context(), this, src);
+    Platform::LoadModuleResult result = Global::platform()->onLoadModule(context(), this, src);
     if (!result.script) {
         ErrorObject::throwBuiltinError(state, (ErrorObject::Code)result.errorCode, result.errorMessage->toNonGCUTF8StringData().data());
     }
     if (!result.script->moduleData()->m_didCallLoadedCallback) {
-        context()->vmInstance()->platform()->didLoadModule(context(), this, result.script.value());
+        Global::platform()->didLoadModule(context(), this, result.script.value());
         result.script->moduleData()->m_didCallLoadedCallback = true;
     }
     return result.script.value();
@@ -323,7 +325,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
 
     if (isModule()) {
         if (!moduleData()->m_didCallLoadedCallback) {
-            context()->vmInstance()->platform()->didLoadModule(context(), nullptr, this);
+            Global::platform()->didLoadModule(context(), nullptr, this);
             moduleData()->m_didCallLoadedCallback = true;
         }
 
