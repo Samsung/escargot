@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "GlobalObject.h"
 #include "Context.h"
+#include "ThreadLocal.h"
 #include "VMInstance.h"
 #include "BigIntObject.h"
 #include "NativeFunctionObject.h"
@@ -49,7 +50,7 @@ static Value builtinBigIntConstructor(ExecutionState& state, Value thisValue, si
         if ((numValue > (double)std::numeric_limits<int64_t>::max()) || (numValue < (double)std::numeric_limits<int64_t>::min())) {
             // handle overflowed integer number
             bf_t r;
-            bf_init(VMInstance::bfContext(), &r);
+            bf_init(ThreadLocal::bfContext(), &r);
             int ret = bf_set_float64(&r, numValue);
             ASSERT(!ret);
             ASSERT(bf_is_finite(&r));
@@ -75,8 +76,8 @@ static Value builtinBigIntAsUintN(ExecutionState& state, Value thisValue, size_t
     BigInt* bigint = argv[1].toBigInt(state);
     // Return a BigInt representing bigint modulo 2bits.
     bf_t mask, r;
-    bf_init(VMInstance::bfContext(), &mask);
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &mask);
+    bf_init(ThreadLocal::bfContext(), &r);
     bf_set_ui(&mask, 1);
     bf_mul_2exp(&mask, bits, BF_PREC_INF, BF_RNDZ);
     bf_add_si(&mask, &mask, -1, BF_PREC_INF, BF_RNDZ);
@@ -97,8 +98,8 @@ static Value builtinBigIntAsIntN(ExecutionState& state, Value thisValue, size_t 
     BigInt* bigint = argv[1].toBigInt(state);
     // Return a BigInt representing bigint modulo 2bits.
     bf_t mask, r;
-    bf_init(VMInstance::bfContext(), &mask);
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &mask);
+    bf_init(ThreadLocal::bfContext(), &r);
     bf_set_ui(&mask, 1);
     bf_mul_2exp(&mask, bits, BF_PREC_INF, BF_RNDZ);
     bf_add_si(&mask, &mask, -1, BF_PREC_INF, BF_RNDZ);

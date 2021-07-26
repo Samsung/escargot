@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "Context.h"
 #include "runtime/AtomicString.h"
+#include "runtime/ThreadLocal.h"
 #include "VMInstance.h"
 #include "GlobalObject.h"
 #include "StringObject.h"
@@ -119,7 +120,7 @@ void Context::setGlobalObjectProxy(Object* newGlobalObjectProxy)
 
 ASTAllocator& Context::astAllocator()
 {
-    return *VMInstance::astAllocator();
+    return *ThreadLocal::astAllocator();
 }
 
 #ifdef ESCARGOT_DEBUGGER

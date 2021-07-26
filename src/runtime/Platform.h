@@ -20,11 +20,11 @@
 #ifndef __EscargotPlatform__
 #define __EscargotPlatform__
 
-#include "runtime/SandBox.h"
-
 namespace Escargot {
 
 class Context;
+class Script;
+class String;
 class PromiseObject;
 
 class Platform {
@@ -47,6 +47,10 @@ public:
     virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) = 0;
     virtual void didLoadModule(Context* relatedContext, Optional<Script*> whereRequestFrom, Script* loadedModule) = 0;
     virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, PromiseObject* promise) = 0;
+
+    // ThreadLocal custom data (g_customData)
+    virtual void* allocateThreadLocalCustomData() = 0;
+    virtual void deallocateThreadLocalCustomData() = 0;
 };
 } // namespace Escargot
 

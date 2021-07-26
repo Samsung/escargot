@@ -20,23 +20,29 @@
 #include "Escargot.h"
 #include "runtime/Global.h"
 #include "runtime/Platform.h"
+#include "runtime/PointerValue.h"
+#include "runtime/ArrayObject.h"
 
 namespace Escargot {
 
 bool Global::inited;
-std::thread::id Global::MAIN_THREAD_ID;
 Platform* Global::g_platform;
 
 void Global::initialize(Platform* platform)
 {
-    // initialize should be invoked only once in the main thread (must be thread-safe)
+    // initialize should be invoked only once in the program
     static bool called_once = true;
     RELEASE_ASSERT(called_once && !inited);
 
-    MAIN_THREAD_ID = std::this_thread::get_id();
-
     ASSERT(!g_platform);
     g_platform = platform;
+
+    // initialize PointerValue tag values
+    // tag values should be initialized once and not changed
+    PointerValue::g_arrayObjectTag = ArrayObject().getTag();
+    PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject().getTag();
+    PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getTag();
+    PointerValue::g_doubleInEncodedValueTag = DoubleInEncodedValue(0).getTag();
 
     called_once = false;
     inited = true;
@@ -44,22 +50,15 @@ void Global::initialize(Platform* platform)
 
 void Global::finalize()
 {
-    // finalize should be invoked only once in the main thread (must be thread-safe)
+    // finalize should be invoked only once in the program
     static bool called_once = true;
     RELEASE_ASSERT(called_once && inited);
-    ASSERT(MAIN_THREAD_ID == std::this_thread::get_id());
 
     delete g_platform;
     g_platform = nullptr;
 
     called_once = false;
     inited = false;
-}
-
-bool Global::inMainThread()
-{
-    ASSERT(inited);
-    return MAIN_THREAD_ID == std::this_thread::get_id();
 }
 
 Platform* Global::platform()

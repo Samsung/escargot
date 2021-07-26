@@ -21,6 +21,7 @@
 #include "GlobalObject.h"
 #include "Context.h"
 #include "VMInstance.h"
+#include "ThreadLocal.h"
 #include "StringObject.h"
 #include "NativeFunctionObject.h"
 
@@ -397,7 +398,7 @@ static Value builtinMathLog2(ExecutionState& state, Value thisValue, size_t argc
 static Value builtinMathRandom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     std::uniform_real_distribution<double> distribution;
-    return Value(distribution(VMInstance::randEngine()));
+    return Value(distribution(ThreadLocal::randEngine()));
 }
 
 static Value builtinMathExp(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

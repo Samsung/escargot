@@ -19,7 +19,7 @@
 
 #include "Escargot.h"
 #include "BigInt.h"
-#include "VMInstance.h"
+#include "ThreadLocal.h"
 #include "ErrorObject.h"
 
 namespace Escargot {
@@ -38,7 +38,7 @@ BigIntData::BigIntData(BigIntData&& src)
 
 BigIntData::BigIntData(const double& d)
 {
-    bf_init(VMInstance::bfContext(), &m_data);
+    bf_init(ThreadLocal::bfContext(), &m_data);
     bf_set_float64(&m_data, d);
 }
 
@@ -51,7 +51,7 @@ BigIntData::BigIntData(String* src)
         buffer = (char*)bd.bufferAs8Bit;
     } else {
         if (!isAllASCII(bd.bufferAs16Bit, bd.length)) {
-            bf_init(VMInstance::bfContext(), &m_data);
+            bf_init(ThreadLocal::bfContext(), &m_data);
             bf_set_nan(&m_data);
             return;
         }
@@ -72,7 +72,7 @@ BigIntData::BigIntData(const char* buf, size_t length, int radix)
 
 void BigIntData::init(const char* buf, size_t length, int radix)
 {
-    bf_init(VMInstance::bfContext(), &m_data);
+    bf_init(ThreadLocal::bfContext(), &m_data);
     if (!length) {
         bf_set_zero(&m_data, 0);
         return;
@@ -155,7 +155,7 @@ void BigInt::initFinalizer()
 BigInt::BigInt()
     : m_tag(POINTER_VALUE_BIGINT_TAG_IN_DATA)
 {
-    bf_init(VMInstance::bfContext(), &m_bf);
+    bf_init(ThreadLocal::bfContext(), &m_bf);
     initFinalizer();
 }
 
@@ -266,7 +266,7 @@ String* BigInt::toString(int radix)
         return String::emptyString;
     } else {
         String* ret = String::fromASCII(str, resultLen);
-        bf_free(VMInstance::bfContext(), str);
+        bf_free(ThreadLocal::bfContext(), str);
         return ret;
     }
 }
@@ -358,7 +358,7 @@ bool BigInt::greaterThanEqual(BigInt* b)
 BigInt* BigInt::addition(ExecutionState& state, BigInt* b)
 {
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_add(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
     if (UNLIKELY(ret)) {
         bf_delete(&r);
@@ -370,7 +370,7 @@ BigInt* BigInt::addition(ExecutionState& state, BigInt* b)
 BigInt* BigInt::subtraction(ExecutionState& state, BigInt* b)
 {
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_sub(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
     if (UNLIKELY(ret)) {
         bf_delete(&r);
@@ -382,7 +382,7 @@ BigInt* BigInt::subtraction(ExecutionState& state, BigInt* b)
 BigInt* BigInt::multiply(ExecutionState& state, BigInt* b)
 {
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_mul(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
     if (UNLIKELY(ret)) {
         bf_delete(&r);
@@ -394,8 +394,8 @@ BigInt* BigInt::multiply(ExecutionState& state, BigInt* b)
 BigInt* BigInt::division(ExecutionState& state, BigInt* b)
 {
     bf_t r, rem;
-    bf_init(VMInstance::bfContext(), &r);
-    bf_init(VMInstance::bfContext(), &rem);
+    bf_init(ThreadLocal::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &rem);
     int ret = bf_divrem(&r, &rem, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ,
                         BF_RNDZ);
     bf_delete(&rem);
@@ -409,7 +409,7 @@ BigInt* BigInt::division(ExecutionState& state, BigInt* b)
 BigInt* BigInt::remainder(ExecutionState& state, BigInt* b)
 {
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_rem(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ,
                      BF_RNDZ)
         & BF_ST_INVALID_OP;
@@ -423,7 +423,7 @@ BigInt* BigInt::remainder(ExecutionState& state, BigInt* b)
 BigInt* BigInt::pow(ExecutionState& state, BigInt* b)
 {
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_pow(&r, &m_bf, &b->m_bf, BF_PREC_INF, BF_RNDZ);
     if (UNLIKELY(ret)) {
         bf_delete(&r);
@@ -435,7 +435,7 @@ BigInt* BigInt::pow(ExecutionState& state, BigInt* b)
 BigInt* BigInt::bitwiseAnd(ExecutionState& state, BigInt* b)
 {
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_logic_and(&r, &m_bf, &b->m_bf);
     if (UNLIKELY(ret)) {
         bf_delete(&r);
@@ -447,7 +447,7 @@ BigInt* BigInt::bitwiseAnd(ExecutionState& state, BigInt* b)
 BigInt* BigInt::bitwiseOr(ExecutionState& state, BigInt* b)
 {
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_logic_or(&r, &m_bf, &b->m_bf);
     if (UNLIKELY(ret)) {
         bf_delete(&r);
@@ -459,7 +459,7 @@ BigInt* BigInt::bitwiseOr(ExecutionState& state, BigInt* b)
 BigInt* BigInt::bitwiseXor(ExecutionState& state, BigInt* b)
 {
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_logic_xor(&r, &m_bf, &b->m_bf);
     if (UNLIKELY(ret)) {
         bf_delete(&r);
@@ -471,7 +471,7 @@ BigInt* BigInt::bitwiseXor(ExecutionState& state, BigInt* b)
 BigInt* BigInt::leftShift(ExecutionState& state, BigInt* src)
 {
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
 
     slimb_t v2;
 #if defined(ESCARGOT_32)
@@ -501,7 +501,7 @@ BigInt* BigInt::leftShift(ExecutionState& state, BigInt* src)
 BigInt* BigInt::rightShift(ExecutionState& state, BigInt* src)
 {
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
 
     slimb_t v2;
 #if defined(ESCARGOT_32)
@@ -534,7 +534,7 @@ BigInt* BigInt::rightShift(ExecutionState& state, BigInt* src)
 BigInt* BigInt::increment(ExecutionState& state)
 {
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_add_si(&r, &m_bf, 1, BF_PREC_INF, BF_RNDZ);
     if (UNLIKELY(ret)) {
         bf_delete(&r);
@@ -546,7 +546,7 @@ BigInt* BigInt::increment(ExecutionState& state)
 BigInt* BigInt::decrement(ExecutionState& state)
 {
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_add_si(&r, &m_bf, -1, BF_PREC_INF, BF_RNDZ);
     if (UNLIKELY(ret)) {
         bf_delete(&r);
@@ -559,7 +559,7 @@ BigInt* BigInt::bitwiseNot(ExecutionState& state)
 {
     // The abstract operation BigInt::bitwiseNOT with an argument x of BigInt type returns the one's complement of x; that is, -x - 1.
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_add_si(&r, &m_bf, 1, BF_PREC_INF, BF_RNDZ);
     bf_neg(&r);
 
@@ -577,7 +577,7 @@ BigInt* BigInt::negativeValue(ExecutionState& state)
     }
 
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_set(&r, &m_bf);
     bf_neg(&r);
     if (UNLIKELY(ret)) {
@@ -596,7 +596,7 @@ BigInt* BigInt::negativeValue()
     }
 
     bf_t r;
-    bf_init(VMInstance::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &r);
     int ret = bf_set(&r, &m_bf);
     bf_neg(&r);
     ASSERT(!ret);

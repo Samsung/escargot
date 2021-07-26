@@ -107,7 +107,7 @@ class ExportedFunctionObject;
 class PointerValue : public gc {
     friend class Object;
     friend class Context;
-    friend class VMInstance;
+    friend class Global;
     friend class ByteCodeInterpreter;
 
     // tag values for fast type check
