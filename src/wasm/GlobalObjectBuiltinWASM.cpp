@@ -23,6 +23,7 @@
 #include "wasm.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/Context.h"
+#include "runtime/ThreadLocal.h"
 #include "runtime/VMInstance.h"
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/ExtendedNativeFunctionObject.h"
@@ -124,7 +125,7 @@ static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t 
     wasm_byte_vec_new_uninitialized(&binary, byteLength);
     memcpy(binary.data, srcBuffer->data(), byteLength);
 
-    bool result = wasm_module_validate(VMInstance::wasmStore(), &binary);
+    bool result = wasm_module_validate(ThreadLocal::wasmStore(), &binary);
     wasm_byte_vec_delete(&binary);
 
     return Value(result);
@@ -346,7 +347,7 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
 
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
-    own wasm_instance_t* instance = wasm_instance_new(VMInstance::wasmStore(), module, imports.data, &trap);
+    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, imports.data, &trap);
     wasm_extern_vec_delete(&imports);
 
     if (!instance) {
@@ -428,7 +429,7 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     own wasm_memorytype_t* memtype = wasm_memorytype_new(&limits);
 
     // Let (store, memaddr) be mem_alloc(store, memtype). If allocation fails, throw a RangeError exception.
-    own wasm_memory_t* memaddr = wasm_memory_new(VMInstance::wasmStore(), memtype);
+    own wasm_memory_t* memaddr = wasm_memory_new(ThreadLocal::wasmStore(), memtype);
     wasm_memorytype_delete(memtype);
 
     wasm_ref_t* memref = wasm_memory_as_ref(memaddr);
@@ -621,7 +622,7 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
     own wasm_tabletype_t* tabletype = wasm_tabletype_new(wasm_valtype_new(WASM_FUNCREF), &limits);
 
     // Let (store, tableaddr) be table_alloc(store, type).
-    own wasm_table_t* tableaddr = wasm_table_new(VMInstance::wasmStore(), tabletype, nullptr);
+    own wasm_table_t* tableaddr = wasm_table_new(ThreadLocal::wasmStore(), tabletype, nullptr);
     wasm_tabletype_delete(tabletype);
 
     wasm_ref_t* tableref = wasm_table_as_ref(tableaddr);
@@ -841,7 +842,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     own wasm_globaltype_t* globaltype = wasm_globaltype_new(wasm_valtype_new(valuetype), mut);
 
     // Let (store, globaladdr) be global_alloc(store, globaltype, value).
-    own wasm_global_t* globaladdr = wasm_global_new(VMInstance::wasmStore(), globaltype, &value);
+    own wasm_global_t* globaladdr = wasm_global_new(ThreadLocal::wasmStore(), globaltype, &value);
     wasm_globaltype_delete(globaltype);
 
     wasm_ref_t* globalref = wasm_global_as_ref(globaladdr);

@@ -27,7 +27,7 @@
 #include "parser/CodeBlock.h"
 #include "interpreter/ByteCode.h"
 #include "runtime/Context.h"
-#include "runtime/VMInstance.h"
+#include "runtime/ThreadLocal.h"
 #include "runtime/ObjectStructurePropertyName.h"
 
 namespace Escargot {
@@ -867,7 +867,7 @@ ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, InterpretedC
     size = m_buffer.get<size_t>();
     bigIntData.resizeWithUninitializedValues(size);
     for (size_t i = 0; i < size; i++) {
-        bigIntData[i] = new BigInt(m_buffer.getBF(VMInstance::bfContext()));
+        bigIntData[i] = new BigInt(m_buffer.getBF(ThreadLocal::bfContext()));
     }
 
     // ByteCodeBlock::m_code bytecode stream

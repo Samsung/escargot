@@ -33,6 +33,7 @@ class ArrayIteratorObject;
 
 class ArrayObject : public Object {
     friend class VMInstance;
+    friend class Global;
     friend class ByteCodeInterpreter;
     friend class EnumerateObjectWithDestruction;
     friend class EnumerateObjectWithIteration;
@@ -97,7 +98,7 @@ protected:
 #endif
     {
         // dummy default constructor
-        // only called by VMInstance::initialize to set tag value
+        // only called by Global::initialize to set tag value
     }
 
 private:
@@ -141,7 +142,7 @@ private:
 };
 
 class ArrayPrototypeObject : public ArrayObject {
-    friend class VMInstance;
+    friend class Global;
 
 public:
     explicit ArrayPrototypeObject(ExecutionState& state);
@@ -151,7 +152,7 @@ private:
         : ArrayObject()
     {
         // dummy default constructor
-        // only called by VMInstance::initialize to set tag value
+        // only called by Global::initialize to set tag value
     }
 };
 

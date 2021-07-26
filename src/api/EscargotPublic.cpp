@@ -23,8 +23,9 @@
 #include "parser/ast/Node.h"
 #include "parser/ScriptParser.h"
 #include "parser/CodeBlock.h"
-#include "runtime/Context.h"
 #include "runtime/Global.h"
+#include "runtime/ThreadLocal.h"
+#include "runtime/Context.h"
 #include "runtime/Platform.h"
 #include "runtime/FunctionObject.h"
 #include "runtime/Value.h"
@@ -135,15 +136,12 @@ public:
 
     virtual void markJSJobEnqueued(Context* relatedContext) override
     {
-        // Job should be enqueued in the main thread
-        ASSERT(Global::inMainThread());
+        // TODO Job queue should be separately managed for each thread
         m_platform->markJSJobEnqueued(toRef(relatedContext));
     }
 
     virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) override
     {
-        // Module related operations are enabled only in the main thread
-        ASSERT(Global::inMainThread());
         LoadModuleResult result;
         auto refResult = m_platform->onLoadModule(toRef(relatedContext), toRef(whereRequestFrom), toRef(moduleSrc));
 
@@ -156,8 +154,6 @@ public:
 
     virtual void didLoadModule(Context* relatedContext, Optional<Script*> whereRequestFrom, Script* loadedModule) override
     {
-        // Module related operations are enabled only in the main thread
-        ASSERT(Global::inMainThread());
         if (whereRequestFrom) {
             m_platform->didLoadModule(toRef(relatedContext), toRef(whereRequestFrom.value()), toRef(loadedModule));
         } else {
@@ -167,11 +163,20 @@ public:
 
     virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, PromiseObject* promise) override
     {
-        // Module related operations are enabled only in the main thread
-        ASSERT(Global::inMainThread());
         m_platform->hostImportModuleDynamically(toRef(relatedContext), toRef(referrer), toRef(src), toRef(promise));
     }
 
+    virtual void* allocateThreadLocalCustomData() override
+    {
+        return m_platform->allocateThreadLocalCustomData();
+    }
+
+    virtual void deallocateThreadLocalCustomData() override
+    {
+        m_platform->deallocateThreadLocalCustomData();
+    }
+
+private:
     PlatformRef* m_platform;
 };
 
@@ -218,26 +223,29 @@ void PlatformRef::notifyHostImportModuleDynamicallyResult(ContextRef* relatedCon
     }
 }
 
+void* PlatformRef::threadLocalCustomData()
+{
+    return ThreadLocal::customData();
+}
+
 bool thread_local Globals::g_globalsInited = false;
 void Globals::initialize(PlatformRef* platform)
 {
     // initialize global value or context including thread-local variables
-    // this function should be invoked once at the start of the program (main thread)
+    // this function should be invoked once at the start of the program
     // argument `platform` will be deleted automatically when Globals::finalize called
     RELEASE_ASSERT(!g_globalsInited);
     Global::initialize(new PlatformBridge(platform));
-    Heap::initialize();
-    VMInstance::initialize();
+    ThreadLocal::initialize();
     g_globalsInited = true;
 }
 
 void Globals::finalize()
 {
     // finalize global value or context including thread-local variables
-    // this function should be invoked once at the end of the program (main thread)
+    // this function should be invoked once at the end of the program
     RELEASE_ASSERT(!!g_globalsInited);
-    Heap::finalize();
-    VMInstance::finalize();
+    ThreadLocal::finalize();
 
     // Global::finalize should be called at the end of program
     // because it holds Platform which could be used in other Object's finalizer
@@ -245,23 +253,21 @@ void Globals::finalize()
     g_globalsInited = false;
 }
 
-void Globals::initializeThreadLocal()
+void Globals::initializeThread()
 {
     // initialize thread-local variables
     // this function should be invoked at the start of sub-thread
     RELEASE_ASSERT(!g_globalsInited);
-    Heap::initialize();
-    VMInstance::initialize();
+    ThreadLocal::initialize();
     g_globalsInited = true;
 }
 
-void Globals::finalizeThreadLocal()
+void Globals::finalizeThread()
 {
     // finalize thread-local variables
     // this function should be invoked once at the end of sub-thread
     RELEASE_ASSERT(!!g_globalsInited);
-    Heap::finalize();
-    VMInstance::finalize();
+    ThreadLocal::finalize();
     g_globalsInited = false;
 }
 

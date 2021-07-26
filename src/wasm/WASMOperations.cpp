@@ -21,6 +21,7 @@
 
 #include "Escargot.h"
 #include "wasm.h"
+#include "runtime/ThreadLocal.h"
 #include "runtime/VMInstance.h"
 #include "runtime/Job.h"
 #include "runtime/ArrayBufferObject.h"
@@ -121,7 +122,7 @@ static own wasm_func_t* wasmCreateHostFunction(ExecutionState& state, Object* fu
     own wasm_functype_t* functypeCopy = wasm_functype_copy(functype);
 
     WASMHostFunctionEnvironment* env = new WASMHostFunctionEnvironment(func, functypeCopy);
-    own wasm_func_t* funcaddr = wasm_func_new_with_env(VMInstance::wasmStore(), functypeCopy, callbackHostFunction, env, nullptr);
+    own wasm_func_t* funcaddr = wasm_func_new_with_env(ThreadLocal::wasmStore(), functypeCopy, callbackHostFunction, env, nullptr);
 
     state.context()->wasmEnvCache()->push_back(env);
 
@@ -146,7 +147,7 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
 
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
-    own wasm_instance_t* instance = wasm_instance_new(VMInstance::wasmStore(), module, imports.data, &trap);
+    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, imports.data, &trap);
     wasm_extern_vec_delete(&imports);
 
     if (!instance) {
@@ -212,7 +213,7 @@ Value WASMOperations::compileModule(ExecutionState& state, Value thisValue, size
     wasm_byte_vec_new_uninitialized(&binary, byteLength);
     memcpy(binary.data, srcBuffer->data(), byteLength);
 
-    own wasm_module_t* module = wasm_module_new(VMInstance::wasmStore(), &binary);
+    own wasm_module_t* module = wasm_module_new(ThreadLocal::wasmStore(), &binary);
     wasm_byte_vec_delete(&binary);
 
     if (!module) {
@@ -440,7 +441,7 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
                 // Let (store, globaladdr) be global_alloc(store, const valtype, value).
                 // FIXME globaltype
                 own wasm_globaltype_t* globaltype = wasm_globaltype_new(wasm_valtype_new(wasm_valtype_kind(valtype)), WASM_CONST);
-                globaladdr = wasm_global_new(VMInstance::wasmStore(), globaltype, &value);
+                globaladdr = wasm_global_new(ThreadLocal::wasmStore(), globaltype, &value);
                 wasm_globaltype_delete(globaltype);
 
             } else if (v.isObject() && v.asObject()->isWASMGlobalObject()) {
@@ -526,7 +527,7 @@ Value WASMOperations::instantiateCoreModule(ExecutionState& state, Value thisVal
 
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
-    own wasm_instance_t* instance = wasm_instance_new(VMInstance::wasmStore(), module, imports.data, &trap);
+    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, imports.data, &trap);
     wasm_extern_vec_delete(&imports);
 
     if (!instance) {
@@ -561,7 +562,7 @@ Object* WASMOperations::instantiatePromiseOfModuleWithImportObject(ExecutionStat
 void WASMOperations::collectHeap()
 {
     // collect (GC) WASM Objects allocated inside WASM heap
-    wasm_store_gc(VMInstance::wasmStore());
+    wasm_store_gc(ThreadLocal::wasmStore());
 }
 
 } // namespace Escargot

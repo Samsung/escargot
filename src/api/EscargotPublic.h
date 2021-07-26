@@ -125,15 +125,15 @@ class ESCARGOT_EXPORT Globals {
     static thread_local bool g_globalsInited;
 
 public:
-    // Escargot has thread-isoloate Globals.
-    // Users should call initialize, finalize in the main thread
+    // Escargot has thread-independent Globals.
+    // Users should call initialize, finalize once in the main program
     static void initialize(PlatformRef* platform);
     static void finalize();
 
     // Globals also used for thread initialization
-    // Users need to call initializeThreadLocal, finalizeThreadLocal function for each thread
-    static void initializeThreadLocal();
-    static void finalizeThreadLocal();
+    // Users need to call initializeThread, finalizeThread function for each thread
+    static void initializeThread();
+    static void finalizeThread();
 
     static bool supportsThreading();
 
@@ -1874,6 +1874,22 @@ public:
         notifyHostImportModuleDynamicallyResult(relatedContext, referrer, src, promise, onLoadModule(relatedContext, referrer, src));
     }
     void notifyHostImportModuleDynamicallyResult(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise, LoadModuleResult loadModuleResult);
+
+    // ThreadLocal custom data
+    // PlatformRef should not have any member variables
+    // Instead, user could allocate thread-local values through following methods
+    virtual void* allocateThreadLocalCustomData()
+    {
+        // do nothing
+        return nullptr;
+    }
+
+    virtual void deallocateThreadLocalCustomData()
+    {
+        // do nothing
+    }
+
+    void* threadLocalCustomData();
 };
 
 #if defined(ENABLE_WASM)

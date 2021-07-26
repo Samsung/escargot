@@ -17,11 +17,8 @@
  *  USA
  */
 
-#ifndef __EscargotGlobalRecord__
-#define __EscargotGlobalRecord__
-
-#include <mutex>
-#include <thread>
+#ifndef __EscargotGlobal__
+#define __EscargotGlobal__
 
 namespace Escargot {
 
@@ -30,14 +27,11 @@ class Platform;
 // Global is a global interface used by all threads
 class Global {
     static bool inited;
-    static std::thread::id MAIN_THREAD_ID;
     static Platform* g_platform;
 
 public:
     static void initialize(Platform* platform);
     static void finalize();
-
-    static bool inMainThread();
 
     static Platform* platform();
 };

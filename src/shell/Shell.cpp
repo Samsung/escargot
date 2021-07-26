@@ -463,46 +463,10 @@ public:
         // ignore. we always check pending job after eval script
     }
 
-    static std::string dirnameOf(const std::string& fname)
-    {
-        size_t pos = fname.find_last_of("/");
-        if (std::string::npos == pos) {
-            pos = fname.find_last_of("\\/");
-        }
-        return (std::string::npos == pos)
-            ? ""
-            : fname.substr(0, pos);
-    }
-
-    static std::string absolutePath(const std::string& referrerPath, const std::string& src)
-    {
-        std::string utf8MayRelativePath = dirnameOf(referrerPath) + "/" + src;
-        auto absPath = realpath(utf8MayRelativePath.data(), nullptr);
-        if (!absPath) {
-            return std::string();
-        }
-        std::string utf8AbsolutePath = absPath;
-        free(absPath);
-
-        return utf8AbsolutePath;
-    }
-
-    static std::string absolutePath(const std::string& src)
-    {
-        auto absPath = realpath(src.data(), nullptr);
-        if (!absPath) {
-            return std::string();
-        }
-        std::string utf8AbsolutePath = absPath;
-        free(absPath);
-
-        return utf8AbsolutePath;
-    }
-
-    std::vector<std::tuple<std::string /* abs path */, ContextRef*, PersistentRefHolder<ScriptRef>>> loadedModules;
     virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc) override
     {
         std::string referrerPath = whereRequestFrom->src()->toStdUTF8String();
+        auto& loadedModules = *reinterpret_cast<std::vector<std::tuple<std::string, ContextRef*, PersistentRefHolder<ScriptRef>>>*>(threadLocalCustomData());
 
         for (size_t i = 0; i < loadedModules.size(); i++) {
             if (std::get<2>(loadedModules[i]) == whereRequestFrom) {
@@ -545,6 +509,7 @@ public:
         } else {
             path = absolutePath(loadedModule->src()->toStdUTF8String());
         }
+        auto& loadedModules = *reinterpret_cast<std::vector<std::tuple<std::string, ContextRef*, PersistentRefHolder<ScriptRef>>>*>(threadLocalCustomData());
         loadedModules.push_back(std::make_tuple(path, relatedContext, PersistentRefHolder<ScriptRef>(loadedModule)));
     }
 
@@ -552,6 +517,53 @@ public:
     {
         LoadModuleResult loadedModuleResult = onLoadModule(relatedContext, referrer, src);
         notifyHostImportModuleDynamicallyResult(relatedContext, referrer, src, promise, loadedModuleResult);
+    }
+
+    virtual void* allocateThreadLocalCustomData() override
+    {
+        return new std::vector<std::tuple<std::string /* abs path */, ContextRef*, PersistentRefHolder<ScriptRef>>>();
+    }
+
+    virtual void deallocateThreadLocalCustomData() override
+    {
+        delete reinterpret_cast<std::vector<std::tuple<std::string, ContextRef*, PersistentRefHolder<ScriptRef>>>*>(threadLocalCustomData());
+    }
+
+private:
+    std::string dirnameOf(const std::string& fname)
+    {
+        size_t pos = fname.find_last_of("/");
+        if (std::string::npos == pos) {
+            pos = fname.find_last_of("\\/");
+        }
+        return (std::string::npos == pos)
+            ? ""
+            : fname.substr(0, pos);
+    }
+
+    std::string absolutePath(const std::string& referrerPath, const std::string& src)
+    {
+        std::string utf8MayRelativePath = dirnameOf(referrerPath) + "/" + src;
+        auto absPath = realpath(utf8MayRelativePath.data(), nullptr);
+        if (!absPath) {
+            return std::string();
+        }
+        std::string utf8AbsolutePath = absPath;
+        free(absPath);
+
+        return utf8AbsolutePath;
+    }
+
+    std::string absolutePath(const std::string& src)
+    {
+        auto absPath = realpath(src.data(), nullptr);
+        if (!absPath) {
+            return std::string();
+        }
+        std::string utf8AbsolutePath = absPath;
+        free(absPath);
+
+        return utf8AbsolutePath;
     }
 };
 

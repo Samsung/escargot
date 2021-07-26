@@ -18,10 +18,10 @@
  */
 
 #include "Escargot.h"
+#include "ThreadLocal.h"
 #include "RegExpObject.h"
 #include "Context.h"
 #include "ArrayObject.h"
-#include "VMInstance.h"
 
 #include "WTFBridge.h"
 #include "Yarr.h"
@@ -307,7 +307,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
         if (entry.m_bytecodePattern) {
             m_bytecodePattern = entry.m_bytecodePattern;
         } else {
-            WTF::BumpPointerAllocator* bumpAlloc = VMInstance::bumpPointerAllocator();
+            WTF::BumpPointerAllocator* bumpAlloc = ThreadLocal::bumpPointerAllocator();
             std::unique_ptr<JSC::Yarr::BytecodePattern> ownedBytecode = JSC::Yarr::byteCompile(*m_yarrPattern, bumpAlloc);
             m_bytecodePattern = ownedBytecode.release();
             entry.m_bytecodePattern = m_bytecodePattern;

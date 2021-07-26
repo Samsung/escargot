@@ -19,8 +19,8 @@
 
 #include "Escargot.h"
 #include "VMInstance.h"
-#include "BumpPointerAllocator.h"
 #include "runtime/Global.h"
+#include "runtime/ThreadLocal.h"
 #include "runtime/Platform.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
@@ -31,94 +31,19 @@
 #include "runtime/ReloadableString.h"
 #include "runtime/Intl.h"
 #include "interpreter/ByteCode.h"
-#include "parser/ASTAllocator.h"
 #if defined(ENABLE_CODE_CACHE)
 #include "codecache/CodeCache.h"
-#endif
-#if defined(ENABLE_WASM)
-#include "wasm.h"
 #endif
 
 #include <pthread.h>
 
 namespace Escargot {
 
-/////////////////////////////////////////////////
-// VMInstance Global Data
-/////////////////////////////////////////////////
-MAY_THREAD_LOCAL std::mt19937* VMInstance::g_randEngine;
-MAY_THREAD_LOCAL bf_context_t VMInstance::g_bfContext;
 #if defined(ENABLE_WASM)
 #ifndef ESCARGOT_WASM_GC_CHECK_INTERVAL
 #define ESCARGOT_WASM_GC_CHECK_INTERVAL 5000
 #endif
-MAY_THREAD_LOCAL WASMContext VMInstance::g_wasmContext;
 #endif
-MAY_THREAD_LOCAL ASTAllocator* VMInstance::g_astAllocator;
-MAY_THREAD_LOCAL WTF::BumpPointerAllocator* VMInstance::g_bumpPointerAllocator;
-
-void VMInstance::initialize()
-{
-    // g_randEngine
-    g_randEngine = new std::mt19937((unsigned int)time(NULL));
-
-    // g_bfContext
-    bf_context_init(&g_bfContext, [](void* opaque, void* ptr, size_t size) -> void* {
-        return realloc(ptr, size);
-    },
-                    nullptr);
-
-#if defined(ENABLE_WASM)
-    // g_wasmContext
-    g_wasmContext.engine = wasm_engine_new();
-    g_wasmContext.store = wasm_store_new(g_wasmContext.engine);
-    g_wasmContext.lastGCCheckTime = 0;
-#endif
-
-    // g_astAllocator
-    g_astAllocator = new ASTAllocator();
-
-    // g_bumpPointerAllocator
-    g_bumpPointerAllocator = new WTF::BumpPointerAllocator();
-
-    // initialize PointerValue tag values
-    // tag values should be initialized once and not changed
-    PointerValue::g_arrayObjectTag = ArrayObject().getTag();
-    PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject().getTag();
-    PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getTag();
-    PointerValue::g_doubleInEncodedValueTag = DoubleInEncodedValue(0).getTag();
-}
-
-void VMInstance::finalize()
-{
-    // this function should be invoked after full gc (Heap::finalize)
-    // because some registered gc-finalizers could use these global values
-
-    // g_randEngine does not need finalization
-    delete g_randEngine;
-    g_randEngine = nullptr;
-
-    // g_bfContext
-    bf_context_end(&g_bfContext);
-
-#if defined(ENABLE_WASM)
-    // g_wasmContext
-    wasm_store_delete(g_wasmContext.store);
-    wasm_engine_delete(g_wasmContext.engine);
-    g_wasmContext.store = nullptr;
-    g_wasmContext.engine = nullptr;
-    g_wasmContext.lastGCCheckTime = 0;
-#endif
-
-    // g_astAllocator
-    delete g_astAllocator;
-    g_astAllocator = nullptr;
-
-    // g_bumpPointerAllocator
-    delete g_bumpPointerAllocator;
-    g_bumpPointerAllocator = nullptr;
-}
-/////////////////////////////////////////////////
 
 Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea)
 {
@@ -247,9 +172,8 @@ void VMInstance::gcEventCallback(GC_EventType t, void* data)
         }
 #endif
 #if defined(ENABLE_WASM)
-        if (currentTick - g_wasmContext.lastGCCheckTime > ESCARGOT_WASM_GC_CHECK_INTERVAL) {
-            wasm_store_gc(g_wasmContext.store);
-            g_wasmContext.lastGCCheckTime = currentTick;
+        if (currentTick - ThreadLocal::wasmLastGCCheckTime() > ESCARGOT_WASM_GC_CHECK_INTERVAL) {
+            ThreadLocal::wasmGC(currentTick);
         }
 #endif
 #endif
@@ -580,7 +504,7 @@ void VMInstance::clearCachesRelatedWithContext()
     // this lock should be released immediately (destructor may be called later)
     m_codeCache->clear();
 #endif
-    bf_clear_cache(&g_bfContext);
+    bf_clear_cache(ThreadLocal::bfContext());
 }
 
 void VMInstance::enterIdleMode()

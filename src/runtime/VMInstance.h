@@ -25,27 +25,12 @@
 #include "runtime/StaticStrings.h"
 #include "runtime/ToStringRecursionPreventer.h"
 
-#if defined(ENABLE_WASM)
-struct wasm_engine_t;
-struct wasm_store_t;
-struct WASMContext {
-    wasm_engine_t* engine;
-    wasm_store_t* store;
-    uint64_t lastGCCheckTime;
-};
-#endif
-
-namespace WTF {
-class BumpPointerAllocator;
-}
-
 namespace Escargot {
 
 class Context;
 class CodeBlock;
 class JobQueue;
 class Job;
-class ASTAllocator;
 class Symbol;
 class String;
 #if defined(ENABLE_COMPRESSIBLE_STRING)
@@ -92,53 +77,7 @@ class VMInstance : public gc {
     friend class ScriptParser;
     friend class SandBox;
 
-    /////////////////////////////////
-    // Global Data
-    // global values which should be initialized once and shared during the runtime
-    static MAY_THREAD_LOCAL std::mt19937* g_randEngine;
-    static MAY_THREAD_LOCAL bf_context_t g_bfContext;
-#if defined(ENABLE_WASM)
-    static MAY_THREAD_LOCAL WASMContext g_wasmContext;
-#endif
-
-    static MAY_THREAD_LOCAL ASTAllocator* g_astAllocator;
-    static MAY_THREAD_LOCAL WTF::BumpPointerAllocator* g_bumpPointerAllocator;
-    /////////////////////////////////
-
 public:
-    /////////////////////////////////
-    // Global Data Static Function
-    static void initialize();
-    static void finalize();
-    static std::mt19937& randEngine()
-    {
-        ASSERT(!!g_randEngine);
-        return *g_randEngine;
-    }
-    static bf_context_t* bfContext()
-    {
-        ASSERT(!!g_bfContext.realloc_func);
-        return &g_bfContext;
-    }
-#if defined(ENABLE_WASM)
-    static wasm_store_t* wasmStore()
-    {
-        ASSERT(!!g_wasmContext.store);
-        return g_wasmContext.store;
-    }
-#endif
-    static ASTAllocator* astAllocator()
-    {
-        ASSERT(!!g_astAllocator);
-        return g_astAllocator;
-    }
-    static WTF::BumpPointerAllocator* bumpPointerAllocator()
-    {
-        ASSERT(!!g_bumpPointerAllocator);
-        return g_bumpPointerAllocator;
-    }
-    /////////////////////////////////
-
     enum PromiseHookType {
         Init,
         Resolve,
