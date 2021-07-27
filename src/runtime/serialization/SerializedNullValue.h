@@ -33,7 +33,7 @@ public:
         return SerializedValue::Null;
     }
 
-    virtual Value toValue() override
+    virtual Value toValue(ExecutionState& state) override
     {
         return Value(Value::Null);
     }

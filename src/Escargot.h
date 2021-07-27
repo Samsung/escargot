@@ -220,6 +220,12 @@
 #include <vector>
 #include <random>
 
+#if defined(ENABLE_THREADING)
+#include <thread>
+#include <mutex>
+#include <atomic>
+#endif
+
 extern "C" {
 #include <libbf.h>
 }

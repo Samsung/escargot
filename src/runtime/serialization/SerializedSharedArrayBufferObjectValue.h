@@ -17,61 +17,61 @@
  *  USA
  */
 
-#ifndef __EscargotSerializedStringValue__
-#define __EscargotSerializedStringValue__
+#if defined(ENABLE_THREADING)
+
+#ifndef __EscargotSerializedSharedArrayBufferObjectValue__
+#define __EscargotSerializedSharedArrayBufferObjectValue__
 
 #include "runtime/serialization/SerializedValue.h"
+#include "runtime/SharedArrayBufferObject.h"
 
 namespace Escargot {
 
-class SerializedStringValue : public SerializedValue {
+class SerializedSharedArrayBufferObjectValue : public SerializedValue {
     friend class Serializer;
 
 public:
     virtual Type type() override
     {
-        return SerializedValue::String;
+        return SerializedValue::SharedArrayBufferObject;
     }
 
     virtual Value toValue(ExecutionState& state) override
     {
-        return Value(String::fromUTF8(m_value.data(), m_value.size()));
+        return Value(new ::Escargot::SharedArrayBufferObject(state, state.context()->globalObject()->sharedArrayBufferPrototype(), m_bufferData));
     }
 
 protected:
     virtual void serializeValueData(std::ostringstream& outputStream) override
     {
-        size_t s = m_value.size();
-        outputStream << s;
+        size_t ptr = reinterpret_cast<size_t>(m_bufferData);
+        outputStream << ptr;
         outputStream << std::endl;
-        for (size_t i = 0; i < s; i++) {
-            outputStream << m_value[i];
-        }
     }
 
     static std::unique_ptr<SerializedValue> deserializeFrom(std::istringstream& inputStream)
     {
-        size_t s;
-        inputStream >> s;
-        std::string str;
-        str.reserve(s);
-
-        for (size_t i = 0; i < s; i++) {
-            char ch;
-            inputStream >> ch;
-            str.push_back(ch);
-        }
-
-        return std::unique_ptr<SerializedValue>(new SerializedStringValue(std::move(str)));
+        size_t ptr;
+        inputStream >> ptr;
+        SharedArrayBufferObjectBackingStoreData* data = reinterpret_cast<SharedArrayBufferObjectBackingStoreData*>(ptr);
+        return std::unique_ptr<SerializedValue>(new SerializedSharedArrayBufferObjectValue(data));
     }
 
-    SerializedStringValue(std::string&& value)
-        : m_value(value)
+    SerializedSharedArrayBufferObjectValue(SharedArrayBufferObjectBackingStoreData* bufferData)
+        : m_bufferData(bufferData)
     {
+        m_bufferData->ref();
     }
-    std::string m_value;
+
+    ~SerializedSharedArrayBufferObjectValue()
+    {
+        m_bufferData->deref();
+    }
+
+    SharedArrayBufferObjectBackingStoreData* m_bufferData;
 };
 
 } // namespace Escargot
 
+#endif
 #endif

@@ -31,7 +31,8 @@ class BackingStore : public gc {
 public:
     BackingStore(size_t byteLength);
     BackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback,
-                 void* callbackData, bool isShared = false, bool isAllocatedByPlatformAllocator = false);
+                 void* callbackData, bool isShared = false);
+    ~BackingStore();
 
     void* data() const
     {
@@ -48,14 +49,18 @@ public:
         return m_isShared;
     }
 
+    void* deleterData() const
+    {
+        return m_deleterData;
+    }
+
     void reallocate(size_t newByteLength);
-    void deallocate();
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 private:
-    // Indicates whether the backing store was created as Shared Data Block
+    // Indicates whether the backing store was created for SharedArrayBuffer
     bool m_isShared;
     bool m_isAllocatedByPlatformAllocator;
     void* m_data;

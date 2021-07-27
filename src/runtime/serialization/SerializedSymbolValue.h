@@ -33,7 +33,7 @@ public:
         return SerializedValue::Symbol;
     }
 
-    virtual Value toValue() override
+    virtual Value toValue(ExecutionState& state) override
     {
         if (m_value) {
             return Value(new ::Escargot::Symbol(

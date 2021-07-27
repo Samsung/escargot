@@ -105,7 +105,7 @@ void ArrayBufferObject::detachArrayBuffer()
 
     if (m_backingStore && !m_mayPointsSharedBackingStore) {
         // if backingstore is definitely not shared, we deallocate the backingstore immediately.
-        m_backingStore.value()->deallocate();
+        delete m_backingStore.value();
     }
     m_backingStore.reset();
     m_mayPointsSharedBackingStore = false;

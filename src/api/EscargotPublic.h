@@ -66,6 +66,7 @@
     F(ProxyObject)                              \
     F(RegExpObject)                             \
     F(SetObject)                                \
+    F(SharedArrayBufferObject)                  \
     F(String)                                   \
     F(StringObject)                             \
     F(Symbol)                                   \
@@ -1497,6 +1498,15 @@ public:
     bool isDetachedBuffer();
 };
 
+class ESCARGOT_EXPORT SharedArrayBufferObjectRef : public ObjectRef {
+public:
+    static SharedArrayBufferObjectRef* create(ExecutionStateRef* state, size_t bytelength);
+
+    OptionalRef<BackingStoreRef> backingStore();
+    uint8_t* rawBuffer();
+    size_t byteLength();
+};
+
 class ESCARGOT_EXPORT ArrayBufferViewRef : public ObjectRef {
 public:
     ArrayBufferObjectRef* buffer();
@@ -1755,7 +1765,7 @@ class ESCARGOT_EXPORT SerializerRef {
 public:
     // returns the serialization was successful
     static bool serializeInto(ValueRef* value, std::ostringstream& output);
-    static ValueRef* deserializeFrom(std::istringstream& input);
+    static ValueRef* deserializeFrom(ContextRef* context, std::istringstream& input);
 };
 
 class ESCARGOT_EXPORT ObjectTemplateRef : public TemplateRef {

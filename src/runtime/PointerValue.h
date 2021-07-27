@@ -70,9 +70,7 @@ class AsyncFromSyncIteratorObject;
 class GlobalObjectProxyObject;
 class TypedArrayObject;
 class ModuleNamespaceObject;
-#if defined(ENABLE_THREADING)
 class SharedArrayBufferObject;
-#endif
 #if defined(ENABLE_INTL)
 class IntlLocaleObject;
 class IntlPluralRulesObject;
@@ -411,12 +409,10 @@ public:
         return false;
     }
 
-#if defined(ENABLE_THREADING)
     virtual bool isSharedArrayBufferObject() const
     {
         return false;
     }
-#endif
 
 #if defined(ENABLE_INTL)
     virtual bool isIntlLocaleObject() const
@@ -759,6 +755,11 @@ public:
     {
         ASSERT(isSharedArrayBufferObject());
         return (SharedArrayBufferObject*)this;
+    }
+#else
+    SharedArrayBufferObject* asSharedArrayBufferObject()
+    {
+        RELEASE_ASSERT_NOT_REACHED();
     }
 #endif
 

@@ -22,14 +22,47 @@
 #ifndef __EscargotSharedArrayBufferObject__
 #define __EscargotSharedArrayBufferObject__
 
+#include "runtime/ArrayBufferObject.h"
+#include "runtime/BackingStore.h"
+
 namespace Escargot {
 
-class BackingStore;
-class ArrayBufferObject;
+class SharedArrayBufferObjectBackingStoreData {
+public:
+    SharedArrayBufferObjectBackingStoreData(void* data, size_t byteLength)
+        : m_data(data)
+        , m_byteLength(byteLength)
+        , m_refCount(1)
+    {
+    }
+
+    void* data() const
+    {
+        return m_data;
+    }
+
+    size_t byteLength() const
+    {
+        return m_byteLength;
+    }
+
+    void ref()
+    {
+        m_refCount++;
+    }
+
+    void deref();
+
+private:
+    void* m_data;
+    size_t m_byteLength;
+    std::atomic<size_t> m_refCount;
+};
 
 class SharedArrayBufferObject : public ArrayBufferObject {
 public:
     SharedArrayBufferObject(ExecutionState& state, Object* proto, size_t byteLength);
+    SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedArrayBufferObjectBackingStoreData* data);
 
     static SharedArrayBufferObject* allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength);
 
@@ -38,7 +71,7 @@ public:
         return m_backingStore;
     }
 
-    virtual bool isSharedArrayBufferObject() const
+    virtual bool isSharedArrayBufferObject() const override
     {
         return true;
     }

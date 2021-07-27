@@ -33,7 +33,7 @@ public:
         return SerializedValue::Number;
     }
 
-    virtual Value toValue() override
+    virtual Value toValue(ExecutionState& state) override
     {
         return Value(m_value);
     }

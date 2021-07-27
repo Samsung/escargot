@@ -45,10 +45,23 @@ static void defaultPlatformBackingStoreDeleter(void* data, size_t length, void* 
     }
 }
 
+BackingStore::~BackingStore()
+{
+    // Shared Data Block should not be deleted explicitly
+    ASSERT(!m_isShared);
+    m_deleter(m_data, m_byteLength, m_deleterData);
+    GC_REGISTER_FINALIZER_NO_ORDER(this, nullptr, nullptr, nullptr, nullptr);
+    m_data = nullptr;
+    m_byteLength = 0;
+    m_deleter = defaultPlatformBackingStoreDeleter;
+    m_deleterData = nullptr;
+    m_isAllocatedByPlatformAllocator = true;
+}
+
 BackingStore::BackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData,
-                           bool isShared, bool isAllocatedByPlatformAllocator)
+                           bool isShared)
     : m_isShared(isShared)
-    , m_isAllocatedByPlatformAllocator(isAllocatedByPlatformAllocator)
+    , m_isAllocatedByPlatformAllocator(false)
     , m_data(data)
     , m_byteLength(byteLength)
     , m_deleter(callback)
@@ -63,8 +76,9 @@ BackingStore::BackingStore(void* data, size_t byteLength, BackingStoreDeleterCal
 
 BackingStore::BackingStore(size_t byteLength)
     : BackingStore(Global::platform()->onMallocArrayBufferObjectDataBuffer(byteLength), byteLength,
-                   defaultPlatformBackingStoreDeleter, nullptr, false, true)
+                   defaultPlatformBackingStoreDeleter, nullptr, false)
 {
+    m_isAllocatedByPlatformAllocator = true;
 }
 
 void BackingStore::reallocate(size_t newByteLength)
@@ -87,19 +101,6 @@ void BackingStore::reallocate(size_t newByteLength)
         m_byteLength = newByteLength;
         m_isAllocatedByPlatformAllocator = true;
     }
-}
-
-void BackingStore::deallocate()
-{
-    // Shared Data Block should not be deleted explicitly
-    ASSERT(!m_isShared);
-    m_deleter(m_data, m_byteLength, m_deleterData);
-    GC_REGISTER_FINALIZER_NO_ORDER(this, nullptr, nullptr, nullptr, nullptr);
-    m_data = nullptr;
-    m_byteLength = 0;
-    m_deleter = defaultPlatformBackingStoreDeleter;
-    m_deleterData = nullptr;
-    m_isAllocatedByPlatformAllocator = true;
 }
 
 } // namespace Escargot

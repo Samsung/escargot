@@ -41,10 +41,13 @@ public:
 #define DECLARE_SERIALIZABLE_TYPE(name) name,
         FOR_EACH_SERIALIZABLE_TYPE(DECLARE_SERIALIZABLE_TYPE)
 #undef DECLARE_SERIALIZABLE_TYPE
+#if defined(ENABLE_THREADING)
+            SharedArrayBufferObject
+#endif
     };
     virtual ~SerializedValue() {}
     virtual Type type() = 0;
-    virtual Value toValue() = 0;
+    virtual Value toValue(ExecutionState& state) = 0;
 
     void serializeInto(std::ostringstream& outputStream)
     {
