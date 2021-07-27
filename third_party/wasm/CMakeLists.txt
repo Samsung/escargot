@@ -141,9 +141,12 @@ set(WABT_SRC
 
 # disable -Wpointer-arith: this is a GCC extension, and doesn't work in MSVC.
 set(WASM_CXX_FLAGS_INTERNAL
-    -Wall -Wextra -Wno-unused-parameter -Wpointer-arith
-    -Wuninitialized -std=c++11 -Wold-style-cast -fno-exceptions -fPIC -fdata-sections -ffunction-sections
+    -Wall -Wextra -Werror -Wno-unused-parameter -Wpointer-arith
+    -Wuninitialized -fno-exceptions -fPIC -fdata-sections -ffunction-sections
 )
+
+# set c++ flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wold-style-cast")
 
 # Need to define __STDC_*_MACROS because C99 specifies that C++ shouldn't
 # define format (e.g. PRIu64) or limit (e.g. UINT32_MAX) macros without the
@@ -166,7 +169,7 @@ add_compile_options(${WASM_CXX_FLAGS})
 
 set(WASM_CFLAGS_FROM_ENV $ENV{CFLAGS})
 separate_arguments(WASM_CFLAGS_FROM_ENV)
-add_compile_options(${WASM_CXX_FLAGS_FROM_ENV})
+add_compile_options(${WASM_CFLAGS_FROM_ENV})
 
 # build wabt lib
 add_library(wabt STATIC ${WABT_SRC})
