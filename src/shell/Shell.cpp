@@ -19,6 +19,13 @@
 
 #include <string.h>
 #include <vector>
+#include <thread>
+#include <mutex>
+#include <sstream>
+
+#include <sys/timeb.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 #include "api/EscargotPublic.h"
 #include "malloc.h"
@@ -259,7 +266,12 @@ static ValueRef* builtinGc(ExecutionStateRef* state, ValueRef* thisValue, size_t
     return ValueRef::createUndefined();
 }
 
+PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, bool isMainThread = true);
+
 #if defined(ESCARGOT_ENABLE_TEST)
+
+static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcName, bool shouldPrintScriptResult, bool isModule);
+
 static ValueRef* builtinUneval(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     if (argc) {
@@ -299,11 +311,9 @@ static ValueRef* builtinCreateNewGlobalObject(ExecutionStateRef* state, ValueRef
     return ContextRef::create(state->context()->vmInstance())->globalObject();
 }
 
-PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance);
-
 static ValueRef* builtin262CreateRealm(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
-    auto newContext = createEscargotContext(state->context()->vmInstance());
+    auto newContext = createEscargotContext(state->context()->vmInstance(), false);
     return newContext->globalObject()->get(state, StringRef::createFromASCII("$262"));
 }
 
@@ -327,134 +337,206 @@ static ValueRef* builtin262IsHTMLDDA(ExecutionStateRef* state, ValueRef* thisVal
 {
     return ValueRef::createNull();
 }
-#endif
 
+struct WorkerThreadData {
+    std::string message;
+    bool running;
+    volatile bool ended;
 
-PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
+    WorkerThreadData()
+        : running(true)
+        , ended(false)
+    {
+    }
+};
+std::mutex workerMutex;
+std::vector<std::pair<std::thread, WorkerThreadData>> workerThreads;
+std::vector<std::string> messagesFromWorkers;
+
+static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
-    PersistentRefHolder<ContextRef> context = ContextRef::create(instance);
+    std::string script = argv[0]->toString(state)->toStdUTF8String();
 
-    Evaluator::execute(context, [](ExecutionStateRef* state) -> ValueRef* {
-        ContextRef* context = state->context();
+    std::thread worker([](std::string script) {
+        Globals::initializeThread();
 
-        GlobalObjectProxyObjectRef* proxy = GlobalObjectProxyObjectRef::create(state, state->context()->globalObject(), [](ExecutionStateRef* state, GlobalObjectProxyObjectRef* proxy, GlobalObjectRef* targetGlobalObject, GlobalObjectProxyObjectRef::AccessOperationType operationType, OptionalRef<AtomicStringRef> nonIndexedStringPropertyNameIfExists) {
-            // TODO check security
-        });
-        context->setGlobalObjectProxy(proxy);
+        Memory::setGCFrequency(24);
 
+        PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+        PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get(), false);
 
-        {
-            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "print"), builtinPrint, 1, true, false);
-            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("print"), buildFunctionObjectRef, true, true, true);
-        }
+        evalScript(context.get(), StringRef::createFromUTF8(script.data(), script.size()),
+                   StringRef::createFromASCII("from main thread"), false, false);
 
-        {
-            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "load"), builtinLoad, 1, true, false);
-            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("load"), buildFunctionObjectRef, true, true, true);
-        }
-
-        {
-            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "read"), builtinRead, 1, true, false);
-            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("read"), buildFunctionObjectRef, true, true, true);
-        }
-
-        {
-            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "run"), builtinRun, 1, true, false);
-            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("run"), buildFunctionObjectRef, true, true, true);
-        }
-
-        {
-            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "gc"), builtinGc, 0, true, false);
-            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("gc"), buildFunctionObjectRef, true, true, true);
-        }
-
-#if defined(ESCARGOT_ENABLE_TEST)
-        // There is no specific standard for the [@@toStringTag] property of global object.
-        // But "global" string is added here to pass legacy TCs
-        context->globalObject()->defineDataProperty(state, context->vmInstance()->toStringTagSymbol(), ObjectRef::DataPropertyDescriptor(AtomicStringRef::create(context, "global")->string(), (ObjectRef::PresentAttribute)(ObjectRef::NonWritablePresent | ObjectRef::NonEnumerablePresent | ObjectRef::ConfigurablePresent)));
-
-        {
-            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "uneval"), builtinUneval, 1, true, false);
-            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("uneval"), buildFunctionObjectRef, true, true, true);
-        }
-
-        {
-            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "drainJobQueue"), builtinDrainJobQueue, 0, true, false);
-            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("drainJobQueue"), buildFunctionObjectRef, true, true, true);
-        }
-
-        {
-            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "addPromiseReactions"), builtinAddPromiseReactions, 3, true, false);
-            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("addPromiseReactions"), buildFunctionObjectRef, true, true, true);
-        }
-
-        {
-            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "createNewGlobalObject"), builtinCreateNewGlobalObject, 0, true, false);
-            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("createNewGlobalObject"), buildFunctionObjectRef, true, true, true);
-        }
-
-        {
-            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "newGlobal"), builtinCreateNewGlobalObject, 0, true, false);
-            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("newGlobal"), buildFunctionObjectRef, true, true, true);
-        }
-
-        // https://github.com/tc39/test262/blob/master/INTERPRETING.md
-        {
-            ObjectRef* dollor262Object = ObjectRef::create(state);
-
+        while (true) {
             {
-                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "gc"), builtinGc, 0, true, false);
-                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("gc"), buildFunctionObjectRef, true, true, true);
+                bool running = false;
+                std::lock_guard<std::mutex> guard(workerMutex);
+                for (size_t i = 0; i < workerThreads.size(); i++) {
+                    if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
+                        running = workerThreads[i].second.running;
+                        break;
+                    }
+                }
+                if (!running) {
+                    break;
+                }
             }
 
+            // readmessage if exists
+            std::string message;
             {
-                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "createRealm"), builtin262CreateRealm, 0, true, false);
-                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("createRealm"), buildFunctionObjectRef, true, true, true);
+                std::lock_guard<std::mutex> guard(workerMutex);
+                for (size_t i = 0; i < workerThreads.size(); i++) {
+                    if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
+                        message = std::move(workerThreads[i].second.message);
+                        break;
+                    }
+                }
             }
 
-            {
-                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "detachArrayBuffer"), builtin262DetachArrayBuffer, 1, true, false);
-                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("detachArrayBuffer"), buildFunctionObjectRef, true, true, true);
+            if (message.length()) {
+                std::istringstream istream(message);
+                ValueRef* val1 = SerializerRef::deserializeFrom(context.get(), istream);
+                ValueRef* val2 = SerializerRef::deserializeFrom(context.get(), istream);
+
+                ValueRef* callback = (ValueRef*)context.get()->globalObject()->extraData();
+                if (callback) {
+                    Evaluator::execute(context.get(), [](ExecutionStateRef* state, ValueRef* callback, ValueRef* v1, ValueRef* v2) -> ValueRef* {
+                        ValueRef* argv[2] = { v1, v2 };
+                        return callback->call(state, ValueRef::createUndefined(), 2, argv);
+                    },
+                                       callback, val1, val2);
+                }
             }
 
-            {
-                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "evalScript"), builtin262EvalScript, 1, true, false);
-                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("evalScript"), buildFunctionObjectRef, true, true, true);
-            }
-
-            {
-                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("global"), context->globalObjectProxy(), true, true, true);
-            }
-
-            {
-                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "IsHTMLDDA"), builtin262IsHTMLDDA, 0, true, false);
-                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-                buildFunctionObjectRef->setIsHTMLDDA();
-                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("IsHTMLDDA"), buildFunctionObjectRef, true, true, true);
-            }
-
-            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("$262"), dollor262Object, true, false, true);
+            usleep(10 * 1000);
         }
-#endif
-        return ValueRef::createUndefined();
-    });
 
-    return context;
+        context.release();
+        instance.release();
+
+        Globals::finalizeThread();
+
+        std::lock_guard<std::mutex> guard(workerMutex);
+        for (size_t i = 0; i < workerThreads.size(); i++) {
+            if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
+                workerThreads[i].second.ended = true;
+            }
+        }
+    },
+                       script);
+
+    {
+        std::lock_guard<std::mutex> guard(workerMutex);
+        workerThreads.push_back(std::make_pair(std::move(worker), WorkerThreadData()));
+    }
+
+    return ValueRef::createUndefined();
 }
+
+static ValueRef* builtin262AgentBroadcast(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    std::ostringstream ostream;
+    if (argc > 0) {
+        SerializerRef::serializeInto(argv[0], ostream);
+    } else {
+        SerializerRef::serializeInto(ValueRef::createUndefined(), ostream);
+    }
+    if (argc > 1) {
+        SerializerRef::serializeInto(argv[1], ostream);
+    } else {
+        SerializerRef::serializeInto(ValueRef::createUndefined(), ostream);
+    }
+
+
+    std::string message(ostream.str());
+    {
+        std::lock_guard<std::mutex> guard(workerMutex);
+        for (size_t i = 0; i < workerThreads.size(); i++) {
+            workerThreads[i].second.message = message;
+        }
+    }
+
+    while (true) {
+        bool thereIsNoMessage = true;
+        {
+            std::lock_guard<std::mutex> guard(workerMutex);
+            for (size_t i = 0; i < workerThreads.size(); i++) {
+                if (workerThreads[i].second.message.size()) {
+                    thereIsNoMessage = false;
+                    break;
+                }
+            }
+        }
+
+        if (thereIsNoMessage) {
+            break;
+        }
+
+        usleep(10 * 1000); // sleep 10ms
+    }
+
+
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtin262AgentReport(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    std::string message;
+    if (argc > 0) {
+        message = argv[0]->toString(state)->toStdUTF8String();
+    }
+    std::lock_guard<std::mutex> guard(workerMutex);
+    messagesFromWorkers.push_back(message);
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtin262AgentLeaving(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    std::lock_guard<std::mutex> guard(workerMutex);
+    for (size_t i = 0; i < workerThreads.size(); i++) {
+        if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
+            workerThreads[i].second.running = false;
+            break;
+        }
+    }
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtin262AgentReceiveBroadcast(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    state->context()->globalObject()->setExtraData(argv[0]);
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtin262AgentGetReport(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    std::lock_guard<std::mutex> guard(workerMutex);
+    if (messagesFromWorkers.size()) {
+        std::string message = messagesFromWorkers.front();
+        messagesFromWorkers.erase(messagesFromWorkers.begin());
+        return StringRef::createFromUTF8(message.data(), message.size());
+    } else {
+        return ValueRef::createNull();
+    }
+}
+
+static ValueRef* builtin262AgentMonotonicNow(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return ValueRef::create((uint64_t)tv.tv_sec * 1000UL + tv.tv_usec / 1000UL);
+}
+
+static ValueRef* builtin262AgentSleep(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    double m = argv[0]->toNumber(state);
+    usleep(m * 1000.0);
+    return ValueRef::createUndefined();
+}
+
+#endif
 
 class ShellPlatform : public PlatformRef {
 public:
@@ -634,6 +716,189 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
     return result;
 }
 
+
+PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, bool isMainThread)
+{
+    PersistentRefHolder<ContextRef> context = ContextRef::create(instance);
+
+    Evaluator::execute(context, [](ExecutionStateRef* state, bool isMainThread) -> ValueRef* {
+        ContextRef* context = state->context();
+
+        GlobalObjectProxyObjectRef* proxy = GlobalObjectProxyObjectRef::create(state, state->context()->globalObject(), [](ExecutionStateRef* state, GlobalObjectProxyObjectRef* proxy, GlobalObjectRef* targetGlobalObject, GlobalObjectProxyObjectRef::AccessOperationType operationType, OptionalRef<AtomicStringRef> nonIndexedStringPropertyNameIfExists) {
+            // TODO check security
+        });
+        context->setGlobalObjectProxy(proxy);
+
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "print"), builtinPrint, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("print"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "load"), builtinLoad, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("load"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "read"), builtinRead, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("read"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "run"), builtinRun, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("run"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "gc"), builtinGc, 0, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("gc"), buildFunctionObjectRef, true, true, true);
+        }
+
+#if defined(ESCARGOT_ENABLE_TEST)
+        // There is no specific standard for the [@@toStringTag] property of global object.
+        // But "global" string is added here to pass legacy TCs
+        context->globalObject()->defineDataProperty(state, context->vmInstance()->toStringTagSymbol(), ObjectRef::DataPropertyDescriptor(AtomicStringRef::create(context, "global")->string(), (ObjectRef::PresentAttribute)(ObjectRef::NonWritablePresent | ObjectRef::NonEnumerablePresent | ObjectRef::ConfigurablePresent)));
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "uneval"), builtinUneval, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("uneval"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "drainJobQueue"), builtinDrainJobQueue, 0, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("drainJobQueue"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "addPromiseReactions"), builtinAddPromiseReactions, 3, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("addPromiseReactions"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "createNewGlobalObject"), builtinCreateNewGlobalObject, 0, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("createNewGlobalObject"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "newGlobal"), builtinCreateNewGlobalObject, 0, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("newGlobal"), buildFunctionObjectRef, true, true, true);
+        }
+
+        // https://github.com/tc39/test262/blob/master/INTERPRETING.md
+        {
+            ObjectRef* dollor262Object = ObjectRef::create(state);
+
+            {
+                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "gc"), builtinGc, 0, true, false);
+                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("gc"), buildFunctionObjectRef, true, true, true);
+            }
+
+            {
+                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "createRealm"), builtin262CreateRealm, 0, true, false);
+                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("createRealm"), buildFunctionObjectRef, true, true, true);
+            }
+
+            {
+                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "detachArrayBuffer"), builtin262DetachArrayBuffer, 1, true, false);
+                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("detachArrayBuffer"), buildFunctionObjectRef, true, true, true);
+            }
+
+            {
+                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "evalScript"), builtin262EvalScript, 1, true, false);
+                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("evalScript"), buildFunctionObjectRef, true, true, true);
+            }
+
+            {
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("global"), context->globalObjectProxy(), true, true, true);
+            }
+
+            {
+                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "IsHTMLDDA"), builtin262IsHTMLDDA, 0, true, false);
+                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                buildFunctionObjectRef->setIsHTMLDDA();
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("IsHTMLDDA"), buildFunctionObjectRef, true, true, true);
+            }
+
+            if (Globals::supportsThreading()) {
+                ObjectRef* agentObject = ObjectRef::create(state);
+                if (isMainThread) {
+                    {
+                        FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "start"), builtin262AgentStart, 1, true, false);
+                        FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                        agentObject->defineDataProperty(state, StringRef::createFromASCII("start"), buildFunctionObjectRef, true, true, true);
+                    }
+
+                    {
+                        FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "broadcast"), builtin262AgentBroadcast, 2, true, false);
+                        FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                        agentObject->defineDataProperty(state, StringRef::createFromASCII("broadcast"), buildFunctionObjectRef, true, true, true);
+                    }
+
+                    {
+                        FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "getReport"), builtin262AgentGetReport, 0, true, false);
+                        FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                        agentObject->defineDataProperty(state, StringRef::createFromASCII("getReport"), buildFunctionObjectRef, true, true, true);
+                    }
+                } else {
+                    {
+                        FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "leaving"), builtin262AgentLeaving, 0, true, false);
+                        FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                        agentObject->defineDataProperty(state, StringRef::createFromASCII("leaving"), buildFunctionObjectRef, true, true, true);
+                    }
+
+                    {
+                        FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "receiveBroadcast"), builtin262AgentReceiveBroadcast, 1, true, false);
+                        FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                        agentObject->defineDataProperty(state, StringRef::createFromASCII("receiveBroadcast"), buildFunctionObjectRef, true, true, true);
+                    }
+
+                    {
+                        FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "report"), builtin262AgentReport, 1, true, false);
+                        FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                        agentObject->defineDataProperty(state, StringRef::createFromASCII("report"), buildFunctionObjectRef, true, true, true);
+                    }
+                }
+
+                {
+                    FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "monotonicNow"), builtin262AgentMonotonicNow, 0, true, false);
+                    FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                    agentObject->defineDataProperty(state, StringRef::createFromASCII("monotonicNow"), buildFunctionObjectRef, true, true, true);
+                }
+
+                {
+                    FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "sleep"), builtin262AgentSleep, 1, true, false);
+                    FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                    agentObject->defineDataProperty(state, StringRef::createFromASCII("sleep"), buildFunctionObjectRef, true, true, true);
+                }
+
+                dollor262Object->defineDataProperty(state, StringRef::createFromASCII("agent"), agentObject, true, false, true);
+            }
+
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("$262"), dollor262Object, true, false, true);
+        }
+#endif
+        return ValueRef::createUndefined();
+    },
+                       isMainThread);
+
+    return context;
+}
+
 int main(int argc, char* argv[])
 {
 #ifndef NDEBUG
@@ -755,6 +1020,30 @@ int main(int argc, char* argv[])
         StringRef* str = Escargot::StringRef::createFromUTF8(buf, strlen(buf));
         evalScript(context, str, StringRef::createFromASCII("from shell input"), true, false);
     }
+
+#if defined(ESCARGOT_ENABLE_TEST)
+    while (true) {
+        bool everyThreadIsEnded = true;
+        {
+            std::lock_guard<std::mutex> guard(workerMutex);
+            for (auto& i : workerThreads) {
+                if (!i.second.ended) {
+                    everyThreadIsEnded = false;
+                    break;
+                }
+            }
+        }
+        if (everyThreadIsEnded) {
+            break;
+        }
+
+        usleep(10 * 1000);
+    }
+
+    for (auto& i : workerThreads) {
+        i.first.join();
+    }
+#endif
 
     context.release();
     instance.release();

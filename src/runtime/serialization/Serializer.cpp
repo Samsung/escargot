@@ -24,6 +24,7 @@
 #include "runtime/serialization/SerializedBooleanValue.h"
 #include "runtime/serialization/SerializedNullValue.h"
 #include "runtime/serialization/SerializedNumberValue.h"
+#include "runtime/serialization/SerializedSharedArrayBufferObjectValue.h"
 #include "runtime/serialization/SerializedStringValue.h"
 #include "runtime/serialization/SerializedSymbolValue.h"
 #include "runtime/serialization/SerializedUndefinedValue.h"
@@ -50,6 +51,13 @@ std::unique_ptr<SerializedValue> Serializer::serialize(const Value& value)
         } else {
             return std::unique_ptr<SerializedValue>(new SerializedSymbolValue());
         }
+    } else if (value.isObject()) {
+#if defined(ENABLE_THREADING)
+        if (value.asObject()->isSharedArrayBufferObject()) {
+            return std::unique_ptr<SerializedValue>(new SerializedSharedArrayBufferObjectValue(
+                static_cast<SharedArrayBufferObjectBackingStoreData*>(value.asObject()->asSharedArrayBufferObject()->backingStore()->deleterData())));
+        }
+#endif
     }
 
     return nullptr;
@@ -75,6 +83,10 @@ std::unique_ptr<SerializedValue> Serializer::deserializeFrom(std::istringstream&
         return Serialized##name##Value::deserializeFrom(input);
         FOR_EACH_SERIALIZABLE_TYPE(DECLARE_SERIALIZABLE_TYPE)
 #undef DECLARE_SERIALIZABLE_TYPE
+#if defined(ENABLE_THREADING)
+    case SerializedValue::Type::SharedArrayBufferObject:
+        return SerializedSharedArrayBufferObjectValue::deserializeFrom(input);
+#endif
     default:
         RELEASE_ASSERT_NOT_REACHED();
     }

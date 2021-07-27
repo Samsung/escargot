@@ -64,6 +64,7 @@
 #include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/BigInt.h"
 #include "runtime/BigIntObject.h"
+#include "runtime/SharedArrayBufferObject.h"
 #include "runtime/serialization/Serializer.h"
 #include "interpreter/ByteCode.h"
 #include "api/internal/ValueAdapter.h"
@@ -2916,6 +2917,51 @@ bool ArrayBufferObjectRef::isDetachedBuffer()
 {
     return toImpl(this)->isDetachedBuffer();
 }
+#if defined(ENABLE_THREADING)
+SharedArrayBufferObjectRef* SharedArrayBufferObjectRef::create(ExecutionStateRef* state, size_t byteLength)
+{
+    return toRef(new SharedArrayBufferObject(*toImpl(state), toImpl(state)->context()->globalObject()->sharedArrayBufferPrototype(), byteLength));
+}
+
+OptionalRef<BackingStoreRef> SharedArrayBufferObjectRef::backingStore()
+{
+    if (toImpl(this)->backingStore()) {
+        return toRef(toImpl(this)->backingStore().value());
+    } else {
+        return nullptr;
+    }
+}
+
+uint8_t* SharedArrayBufferObjectRef::rawBuffer()
+{
+    return (uint8_t*)toImpl(this)->data();
+}
+
+size_t SharedArrayBufferObjectRef::byteLength()
+{
+    return toImpl(this)->byteLength();
+}
+#else
+SharedArrayBufferObjectRef* SharedArrayBufferObjectRef::create(ExecutionStateRef* state, size_t byteLength)
+{
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+OptionalRef<BackingStoreRef> SharedArrayBufferObjectRef::backingStore()
+{
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+uint8_t* SharedArrayBufferObjectRef::rawBuffer()
+{
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+size_t SharedArrayBufferObjectRef::byteLength()
+{
+    RELEASE_ASSERT_NOT_REACHED();
+}
+#endif
 
 ArrayBufferObjectRef* ArrayBufferViewRef::buffer()
 {
@@ -3549,9 +3595,19 @@ bool SerializerRef::serializeInto(ValueRef* value, std::ostringstream& output)
     return Serializer::serializeInto(toImpl(value), output);
 }
 
-ValueRef* SerializerRef::deserializeFrom(std::istringstream& input)
+ValueRef* SerializerRef::deserializeFrom(ContextRef* context, std::istringstream& input)
 {
-    return toRef(Serializer::deserializeFrom(input).get()->toValue());
+    std::unique_ptr<SerializedValue> value = Serializer::deserializeFrom(input);
+
+    SandBox sb(toImpl(context));
+    auto result = sb.run([](ExecutionState& state, void* data) -> Value {
+        std::unique_ptr<SerializedValue>* value = (std::unique_ptr<SerializedValue>*)data;
+        return value->get()->toValue(state);
+    },
+                         &value);
+
+    ASSERT(result.error.isEmpty());
+    return toRef(result.result);
 }
 
 #if defined(ENABLE_WASM)

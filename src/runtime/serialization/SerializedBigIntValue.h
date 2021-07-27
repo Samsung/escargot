@@ -34,7 +34,7 @@ public:
         return SerializedValue::BigInt;
     }
 
-    virtual Value toValue() override
+    virtual Value toValue(ExecutionState& state) override
     {
         BigIntData d(m_value.data(), m_value.size());
         return Value(new ::Escargot::BigInt(std::move(d)));

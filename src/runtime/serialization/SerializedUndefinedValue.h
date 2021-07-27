@@ -32,7 +32,7 @@ public:
     {
         return SerializedValue::Undefined;
     }
-    virtual Value toValue() override
+    virtual Value toValue(ExecutionState& state) override
     {
         return Value();
     }

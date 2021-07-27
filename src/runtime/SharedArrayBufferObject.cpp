@@ -29,6 +29,21 @@
 
 namespace Escargot {
 
+static void backingStoreDeleter(void* data, size_t length, void* deleterData)
+{
+    SharedArrayBufferObjectBackingStoreData* internalData = (SharedArrayBufferObjectBackingStoreData*)deleterData;
+    internalData->deref();
+}
+
+void SharedArrayBufferObjectBackingStoreData::deref()
+{
+    auto oldValue = m_refCount.fetch_sub(1);
+    if (oldValue == 1) {
+        Global::platform()->onFreeArrayBufferObjectDataBuffer(m_data, m_byteLength);
+        delete this;
+    }
+}
+
 SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, size_t byteLength)
     : ArrayBufferObject(state, proto)
 {
@@ -48,10 +63,17 @@ SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* 
     }
 
     void* buffer = Global::platform()->onMallocArrayBufferObjectDataBuffer(byteLength);
-    m_backingStore = new BackingStore(buffer, byteLength, [](void* data, size_t length, void* deleterData) {
-        Global::platform()->onFreeArrayBufferObjectDataBuffer(data, length);
-    },
-                                      nullptr, true);
+    SharedArrayBufferObjectBackingStoreData* internalData = new SharedArrayBufferObjectBackingStoreData(buffer, byteLength);
+
+    m_backingStore = new BackingStore(buffer, byteLength, backingStoreDeleter, internalData, true);
+}
+
+SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedArrayBufferObjectBackingStoreData* data)
+    : ArrayBufferObject(state, proto)
+{
+    data->ref();
+    m_mayPointsSharedBackingStore = true;
+    m_backingStore = new BackingStore(data->data(), data->byteLength(), backingStoreDeleter, data, true);
 }
 
 SharedArrayBufferObject* SharedArrayBufferObject::allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength)
