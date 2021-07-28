@@ -1780,7 +1780,10 @@ public:
     static FunctionTemplateRef* create(AtomicStringRef* name, size_t argumentCount, bool isStrict, bool isConstructor,
                                        FunctionTemplateRef::NativeFunctionPointer fn);
 
+    // setName and setLength should be called before instantiate
     void setName(AtomicStringRef* name);
+    void setLength(size_t length);
+
     void updateCallbackFunction(FunctionTemplateRef::NativeFunctionPointer fn);
 
     ObjectTemplateRef* prototypeTemplate();
