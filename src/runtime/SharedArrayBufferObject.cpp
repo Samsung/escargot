@@ -23,8 +23,6 @@
 #include "runtime/Context.h"
 #include "runtime/Global.h"
 #include "runtime/Platform.h"
-#include "runtime/BackingStore.h"
-#include "runtime/ArrayBufferObject.h"
 #include "runtime/SharedArrayBufferObject.h"
 
 namespace Escargot {
@@ -45,9 +43,9 @@ void SharedArrayBufferObjectBackingStoreData::deref()
 }
 
 SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, size_t byteLength)
-    : ArrayBufferObject(state, proto)
+    : ArrayBuffer(state, proto)
 {
-    ASSERT(byteLength < ArrayBufferObject::maxArrayBufferSize);
+    ASSERT(byteLength < ArrayBuffer::maxArrayBufferSize);
 
     m_mayPointsSharedBackingStore = true;
 
@@ -69,7 +67,7 @@ SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* 
 }
 
 SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedArrayBufferObjectBackingStoreData* data)
-    : ArrayBufferObject(state, proto)
+    : ArrayBuffer(state, proto)
 {
     data->ref();
     m_mayPointsSharedBackingStore = true;
@@ -83,7 +81,7 @@ SharedArrayBufferObject* SharedArrayBufferObject::allocateSharedArrayBuffer(Exec
         return constructorRealm->globalObject()->sharedArrayBufferPrototype();
     });
 
-    if (byteLength >= ArrayBufferObject::maxArrayBufferSize) {
+    if (byteLength >= ArrayBuffer::maxArrayBufferSize) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
     }
 
@@ -98,8 +96,7 @@ void* SharedArrayBufferObject::operator new(size_t size)
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(SharedArrayBufferObject)] = { 0 };
-        Object::fillGCDescriptor(obj_bitmap);
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SharedArrayBufferObject, m_backingStore));
+        ArrayBuffer::fillGCDescriptor(obj_bitmap);
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(SharedArrayBufferObject));
         typeInited = true;
     }

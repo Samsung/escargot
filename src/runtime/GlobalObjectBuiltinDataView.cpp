@@ -43,11 +43,11 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
     if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
-    if (!(argv[0].isObject() && argv[0].asPointerValue()->isArrayBufferObject())) {
+    if (!(argv[0].isObject() && argv[0].asPointerValue()->isArrayBuffer())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotArrayBufferObject);
     }
 
-    ArrayBufferObject* buffer = argv[0].asObject()->asArrayBufferObject();
+    ArrayBuffer* buffer = argv[0].asObject()->asArrayBuffer();
     double byteOffset = 0;
     if (argc >= 2) {
         Value& val = argv[1];
@@ -127,7 +127,7 @@ FOR_EACH_DATAVIEW_TYPES(DECLARE_DATAVIEW_SETTER);
 static Value builtinDataViewBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject())) {
-        ArrayBufferObject* buffer = thisValue.asObject()->asArrayBufferView()->buffer();
+        ArrayBuffer* buffer = thisValue.asObject()->asArrayBufferView()->buffer();
         if (buffer) {
             return Value(buffer);
         }

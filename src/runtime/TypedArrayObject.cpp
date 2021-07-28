@@ -146,7 +146,7 @@ void TypedArrayObject::sort(ExecutionState& state, int64_t length, const std::fu
     }
 }
 
-ArrayBufferObject* TypedArrayObject::validateTypedArray(ExecutionState& state, const Value& O)
+ArrayBuffer* TypedArrayObject::validateTypedArray(ExecutionState& state, const Value& O)
 {
     if (!O.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
@@ -158,7 +158,7 @@ ArrayBufferObject* TypedArrayObject::validateTypedArray(ExecutionState& state, c
     }
 
     auto wrapper = thisObject->asTypedArrayObject();
-    ArrayBufferObject* buffer = wrapper->buffer();
+    ArrayBuffer* buffer = wrapper->buffer();
     buffer->throwTypeErrorIfDetached(state);
     return buffer;
 }

@@ -52,6 +52,7 @@ class GlobalObject;
 class BoundFunctionObject;
 class PromiseObject;
 class ProxyObject;
+class ArrayBuffer;
 class ArrayBufferObject;
 class ArrayBufferView;
 class DoubleInEncodedValue;
@@ -285,6 +286,11 @@ public:
     }
 
     virtual bool isTypedArrayObject() const
+    {
+        return false;
+    }
+
+    virtual bool isArrayBuffer() const
     {
         return false;
     }
@@ -646,6 +652,12 @@ public:
     {
         ASSERT(isProxyObject());
         return (ProxyObject*)this;
+    }
+
+    ArrayBuffer* asArrayBuffer()
+    {
+        ASSERT(isArrayBuffer());
+        return (ArrayBuffer*)this;
     }
 
     ArrayBufferObject* asArrayBufferObject()

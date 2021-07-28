@@ -25,8 +25,6 @@
 
 namespace Escargot {
 
-unsigned TypedArrayHelper::elementSizeTable[11] = { 1, 2, 4, 1, 2, 4, 1, 4, 8, 8, 8 };
-
 ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-allocatearraybuffer
@@ -34,7 +32,7 @@ ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state,
         return constructorRealm->globalObject()->arrayBufferPrototype();
     });
 
-    if (byteLength >= ArrayBufferObject::maxArrayBufferSize) {
+    if (byteLength >= ArrayBuffer::maxArrayBufferSize) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
     }
 
@@ -44,7 +42,7 @@ ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state,
     return obj;
 }
 
-ArrayBufferObject* ArrayBufferObject::cloneArrayBuffer(ExecutionState& state, ArrayBufferObject* srcBuffer, size_t srcByteOffset, uint64_t srcLength, Object* constructor)
+ArrayBufferObject* ArrayBufferObject::cloneArrayBuffer(ExecutionState& state, ArrayBuffer* srcBuffer, size_t srcByteOffset, uint64_t srcLength, Object* constructor)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-clonearraybuffer
     ASSERT(constructor->isConstructor());
@@ -63,8 +61,7 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
 }
 
 ArrayBufferObject::ArrayBufferObject(ExecutionState& state, Object* proto)
-    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
-    , m_mayPointsSharedBackingStore(false)
+    : ArrayBuffer(state, proto)
 {
 }
 
@@ -72,7 +69,7 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
 {
     detachArrayBuffer();
 
-    ASSERT(byteLength < ArrayBufferObject::maxArrayBufferSize);
+    ASSERT(byteLength < ArrayBuffer::maxArrayBufferSize);
 
     const size_t ratio = std::max((size_t)GC_get_free_space_divisor() / 6, (size_t)1);
     if (byteLength > (GC_get_heap_size() / ratio)) {
@@ -118,8 +115,7 @@ void* ArrayBufferObject::operator new(size_t size)
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(ArrayBufferObject)] = { 0 };
-        Object::fillGCDescriptor(obj_bitmap);
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArrayBufferObject, m_backingStore));
+        ArrayBuffer::fillGCDescriptor(obj_bitmap);
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArrayBufferObject));
         typeInited = true;
     }
@@ -127,43 +123,5 @@ void* ArrayBufferObject::operator new(size_t size)
 #else
     return CustomAllocator<ArrayBufferObject>().allocate(1);
 #endif
-}
-
-// $24.1.1.6
-Value ArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian)
-{
-    // If isLittleEndian is not present, set isLittleEndian to either true or false.
-    ASSERT(byteLength());
-    size_t elemSize = TypedArrayHelper::elementSize(type);
-    ASSERT(byteindex + elemSize <= byteLength());
-    uint8_t* rawStart = data() + byteindex;
-    if (LIKELY(isLittleEndian)) {
-        return TypedArrayHelper::rawBytesToNumber(state, type, rawStart);
-    } else {
-        uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
-        for (size_t i = 0; i < elemSize; i++) {
-            rawBytes[elemSize - i - 1] = rawStart[i];
-        }
-        return TypedArrayHelper::rawBytesToNumber(state, type, rawBytes);
-    }
-}
-
-// $24.1.1.8
-void ArrayBufferObject::setValueInBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, const Value& val, bool isLittleEndian)
-{
-    // If isLittleEndian is not present, set isLittleEndian to either true or false.
-    ASSERT(byteLength());
-    size_t elemSize = TypedArrayHelper::elementSize(type);
-    ASSERT(byteindex + elemSize <= byteLength());
-    uint8_t* rawStart = data() + byteindex;
-    uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
-    TypedArrayHelper::numberToRawBytes(state, type, val, rawBytes);
-    if (LIKELY(isLittleEndian)) {
-        memcpy(rawStart, rawBytes, elemSize);
-    } else {
-        for (size_t i = 0; i < elemSize; i++) {
-            rawStart[i] = rawBytes[elemSize - i - 1];
-        }
-    }
 }
 } // namespace Escargot

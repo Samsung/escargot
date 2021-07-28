@@ -45,6 +45,7 @@
 #endif
 
 #define ESCARGOT_POINTERVALUE_CHILD_REF_LIST(F) \
+    F(ArrayBuffer)                              \
     F(ArrayBufferObject)                        \
     F(ArrayBufferView)                          \
     F(ArrayObject)                              \
@@ -1485,33 +1486,32 @@ public:
     void reallocate(size_t newByteLength);
 };
 
-class ESCARGOT_EXPORT ArrayBufferObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT ArrayBufferRef : public ObjectRef {
+public:
+    OptionalRef<BackingStoreRef> backingStore();
+    uint8_t* rawBuffer();
+    size_t byteLength();
+};
+
+class ESCARGOT_EXPORT ArrayBufferObjectRef : public ArrayBufferRef {
 public:
     static ArrayBufferObjectRef* create(ExecutionStateRef* state);
     void allocateBuffer(ExecutionStateRef* state, size_t bytelength);
     void attachBuffer(BackingStoreRef* backingStore);
     void detachArrayBuffer();
-
-    OptionalRef<BackingStoreRef> backingStore();
-    uint8_t* rawBuffer();
-    size_t byteLength();
     bool isDetachedBuffer();
 };
 
-class ESCARGOT_EXPORT SharedArrayBufferObjectRef : public ObjectRef {
+class ESCARGOT_EXPORT SharedArrayBufferObjectRef : public ArrayBufferRef {
 public:
     static SharedArrayBufferObjectRef* create(ExecutionStateRef* state, size_t bytelength);
-
-    OptionalRef<BackingStoreRef> backingStore();
-    uint8_t* rawBuffer();
-    size_t byteLength();
 };
 
 class ESCARGOT_EXPORT ArrayBufferViewRef : public ObjectRef {
 public:
-    ArrayBufferObjectRef* buffer();
-    void setBuffer(ArrayBufferObjectRef* bo, size_t byteOffset, size_t byteLength, size_t arrayLength);
-    void setBuffer(ArrayBufferObjectRef* bo, size_t byteOffset, size_t byteLength);
+    ArrayBufferRef* buffer();
+    void setBuffer(ArrayBufferRef* bo, size_t byteOffset, size_t byteLength, size_t arrayLength);
+    void setBuffer(ArrayBufferRef* bo, size_t byteOffset, size_t byteLength);
     uint8_t* rawBuffer();
     size_t byteLength();
     size_t byteOffset();

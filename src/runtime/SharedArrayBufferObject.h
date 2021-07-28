@@ -22,8 +22,7 @@
 #ifndef __EscargotSharedArrayBufferObject__
 #define __EscargotSharedArrayBufferObject__
 
-#include "runtime/ArrayBufferObject.h"
-#include "runtime/BackingStore.h"
+#include "runtime/ArrayBuffer.h"
 
 namespace Escargot {
 
@@ -59,17 +58,12 @@ private:
     std::atomic<size_t> m_refCount;
 };
 
-class SharedArrayBufferObject : public ArrayBufferObject {
+class SharedArrayBufferObject : public ArrayBuffer {
 public:
     SharedArrayBufferObject(ExecutionState& state, Object* proto, size_t byteLength);
     SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedArrayBufferObjectBackingStoreData* data);
 
     static SharedArrayBufferObject* allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength);
-
-    Optional<BackingStore*> backingStore()
-    {
-        return m_backingStore;
-    }
 
     virtual bool isSharedArrayBufferObject() const override
     {

@@ -188,7 +188,7 @@ Value WASMOperations::copyStableBufferBytes(ExecutionState& state, Value source)
             copyBuffer = ArrayBufferObject::cloneArrayBuffer(state, srcBuffer, 0, srcBuffer->byteLength(), state.context()->globalObject()->arrayBuffer());
         } else if (srcObject->isTypedArrayObject()) {
             TypedArrayObject* srcArray = srcObject->asTypedArrayObject();
-            ArrayBufferObject* srcBuffer = srcArray->buffer();
+            ArrayBuffer* srcBuffer = srcArray->buffer();
             copyBuffer = ArrayBufferObject::cloneArrayBuffer(state, srcBuffer, srcArray->byteOffset(), srcArray->arrayLength() * srcArray->elementSize(), state.context()->globalObject()->arrayBuffer());
         }
     }
