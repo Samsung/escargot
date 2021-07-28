@@ -36,7 +36,14 @@ check_symbol_exists(strcasecmp "strings.h" HAVE_STRCASECMP)
 
 include(CheckTypeSize)
 check_type_size(ssize_t SSIZE_T)
-check_type_size(size_t SIZEOF_SIZE_T)
+#check_type_size(size_t SIZEOF_SIZE_T)
+
+# Escargot specific option (for the case of compilation to 32bit from 64bit)
+if (ESCARGOT_BUILD_32BIT)
+    set(SIZEOF_SIZE_T 4)
+else ()
+    set(SIZEOF_SIZE_T 8)
+endif ()
 
 set(WABT_ROOT ${PROJECT_SOURCE_DIR}/wabt)
 configure_file(${WABT_ROOT}/src/config.h.in ${PROJECT_SOURCE_DIR}/config.h)

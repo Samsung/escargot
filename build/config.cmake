@@ -3,12 +3,6 @@ CMAKE_MINIMUM_REQUIRED (VERSION 2.8)
 #######################################################
 # CONFIGURATION
 #######################################################
-IF (EXISTS "${PROJECT_SOURCE_DIR}/build/cmake/toolchain_${ESCARGOT_HOST}_${ESCARGOT_ARCH}.cmake")
-    INCLUDE ("${PROJECT_SOURCE_DIR}/build/cmake/toolchain_${ESCARGOT_HOST}_${ESCARGOT_ARCH}.cmake")
-ELSE()
-    MESSAGE (FATAL_ERROR "Error: unsupported target")
-ENDIF()
-
 # CONFIGURE ESCARGOT VERSION
 FIND_PACKAGE(Git)
 IF (GIT_FOUND)
@@ -32,6 +26,10 @@ SET (ESCARGOT_ROOT ${PROJECT_SOURCE_DIR})
 SET (ESCARGOT_THIRD_PARTY_ROOT ${ESCARGOT_ROOT}/third_party)
 SET (GCUTIL_ROOT ${ESCARGOT_THIRD_PARTY_ROOT}/GCutil)
 
+#######################################################
+# FLAGS FOR TARGET
+#######################################################
+INCLUDE (${ESCARGOT_ROOT}/build/target.cmake)
 
 #######################################################
 # FLAGS FOR COMMON
@@ -85,16 +83,10 @@ ELSE()
     MESSAGE (FATAL_ERROR ${CMAKE_CXX_COMPILER_ID} " is Unsupported Compiler")
 ENDIF()
 
-
-
 # bdwgc
 IF (${ESCARGOT_MODE} STREQUAL "debug")
     SET (ESCARGOT_DEFINITIONS_COMMON ${ESCARGOT_DEFINITIONS_COMMON} -DGC_DEBUG)
 ENDIF()
-
-#######################################################
-# FLAGS FOR $(ESCARGOT_HOST)
-#######################################################
 
 IF (${ESCARGOT_OUTPUT} STREQUAL "shared_lib" AND ${ESCARGOT_HOST} STREQUAL "android")
     SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} -shared)
@@ -112,7 +104,6 @@ IF (NOT DEFINED ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
     SET (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN ON)
 ENDIF()
 
-
 IF (${ESCARGOT_HOST} STREQUAL "android")
     SET (ESCARGOT_LIBICU_SUPPORT OFF)
 ENDIF()
@@ -120,7 +111,8 @@ ENDIF()
 #######################################################
 # FLAGS FOR ADDITIONAL FUNCTION
 #######################################################
-
+SET (ESCARGOT_LIBRARIES)
+SET (ESCARGOT_INCDIRS)
 FIND_PACKAGE (PkgConfig REQUIRED)
 IF (ESCARGOT_LIBICU_SUPPORT)
     IF (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
@@ -170,22 +162,19 @@ IF (ESCARGOT_THREADING)
 ENDIF()
 
 #######################################################
-# flags for $(MODE) : debug/release
+# FLAGS FOR $(MODE) : debug/release
 #######################################################
 # DEBUG FLAGS
 SET (ESCARGOT_CXXFLAGS_DEBUG -O0 -Wall -Wextra -Werror ${ESCARGOT_CXXFLAGS_DEBUG})
 SET (ESCARGOT_DEFINITIONS_DEBUG -D_GLIBCXX_DEBUG -DGC_DEBUG)
 
-
 # RELEASE FLAGS
 SET (ESCARGOT_CXXFLAGS_RELEASE -O2 -fno-stack-protector ${ESCARGOT_CXXFLAGS_RELEASE})
 SET (ESCARGOT_DEFINITIONS_RELEASE -DNDEBUG)
 
-
 # SHARED_LIB FLAGS
 SET (ESCARGOT_CXXFLAGS_SHAREDLIB -fPIC)
 SET (ESCARGOT_LDFLAGS_SHAREDLIB -ldl)
-
 
 # STATIC_LIB FLAGS
 SET (ESCARGOT_CXXFLAGS_STATICLIB -fPIC -DESCARGOT_EXPORT=)
@@ -195,12 +184,10 @@ SET (ESCARGOT_LDFLAGS_STATICLIB -Wl,--gc-sections)
 SET (ESCARGOT_CXXFLAGS_SHELL -DESCARGOT_EXPORT=)
 SET (ESCARGOT_LDFLAGS_SHELL -Wl,--gc-sections)
 
-
 #######################################################
 # FLAGS FOR TEST
 #######################################################
 SET (ESCARGOT_DEFINITIONS_TEST -DESCARGOT_ENABLE_TEST)
-
 
 #######################################################
 # FLAGS FOR MEMORY PROFILING
@@ -223,7 +210,6 @@ ENDIF()
 # FLAGS FOR DEBUGGER
 #######################################################
 SET (DEBUGGER_FLAGS)
-
 IF (ESCARGOT_DEBUGGER)
     SET (DEBUGGER_FLAGS ${DEBUGGER_FLAGS} -DESCARGOT_DEBUGGER)
 ENDIF()
