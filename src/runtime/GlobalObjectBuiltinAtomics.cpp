@@ -131,9 +131,9 @@ static Value atomicBigIntOperations(ExecutionState& state, BigInt* lnum, BigInt*
     };
 }
 
-static ArrayBufferObject* validateIntegerTypedArray(ExecutionState& state, Value typedArray, bool waitable = false)
+static ArrayBuffer* validateIntegerTypedArray(ExecutionState& state, Value typedArray, bool waitable = false)
 {
-    ArrayBufferObject* buffer = TypedArrayObject::validateTypedArray(state, typedArray);
+    ArrayBuffer* buffer = TypedArrayObject::validateTypedArray(state, typedArray);
     TypedArrayObject* TA = typedArray.asObject()->asTypedArrayObject();
 
     if (waitable) {
@@ -161,7 +161,7 @@ static size_t validateAtomicAccess(ExecutionState& state, TypedArrayObject* type
     return (static_cast<size_t>(accessIndex) * elementSize) + offset;
 }
 
-static Value getModifySetValueInBuffer(ExecutionState& state, ArrayBufferObject* buffer, size_t indexedPosition, TypedArrayType type, Value v2, AtomicBinaryOps op)
+static Value getModifySetValueInBuffer(ExecutionState& state, ArrayBuffer* buffer, size_t indexedPosition, TypedArrayType type, Value v2, AtomicBinaryOps op)
 {
     size_t elemSize = TypedArrayHelper::elementSize(type);
     ASSERT(indexedPosition + elemSize <= buffer->byteLength());
@@ -191,7 +191,7 @@ static Value getModifySetValueInBuffer(ExecutionState& state, ArrayBufferObject*
 
 static Value atomicReadModifyWrite(ExecutionState& state, Value typedArray, Value index, Value value, AtomicBinaryOps op)
 {
-    ArrayBufferObject* buffer = validateIntegerTypedArray(state, typedArray);
+    ArrayBuffer* buffer = validateIntegerTypedArray(state, typedArray);
     TypedArrayObject* TA = typedArray.asObject()->asTypedArrayObject();
     size_t indexedPosition = validateAtomicAccess(state, TA, index);
     TypedArrayType type = TA->typedArrayType();
@@ -218,7 +218,7 @@ static Value builtinAtomicsAnd(ExecutionState& state, Value thisValue, size_t ar
 
 static Value builtinAtomicsCompareExchange(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    ArrayBufferObject* buffer = validateIntegerTypedArray(state, argv[0]);
+    ArrayBuffer* buffer = validateIntegerTypedArray(state, argv[0]);
     TypedArrayObject* TA = argv[0].asObject()->asTypedArrayObject();
     size_t indexedPosition = validateAtomicAccess(state, TA, argv[1]);
     TypedArrayType type = TA->typedArrayType();
@@ -265,7 +265,7 @@ static Value builtinAtomicsExchange(ExecutionState& state, Value thisValue, size
 
 static Value builtinAtomicsLoad(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    ArrayBufferObject* buffer = validateIntegerTypedArray(state, argv[0]);
+    ArrayBuffer* buffer = validateIntegerTypedArray(state, argv[0]);
     TypedArrayObject* TA = argv[0].asObject()->asTypedArrayObject();
     size_t indexedPosition = validateAtomicAccess(state, TA, argv[1]);
     TypedArrayType type = TA->typedArrayType();
@@ -280,7 +280,7 @@ static Value builtinAtomicsOr(ExecutionState& state, Value thisValue, size_t arg
 
 static Value builtinAtomicsStore(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    ArrayBufferObject* buffer = validateIntegerTypedArray(state, argv[0]);
+    ArrayBuffer* buffer = validateIntegerTypedArray(state, argv[0]);
     TypedArrayObject* TA = argv[0].asObject()->asTypedArrayObject();
     size_t indexedPosition = validateAtomicAccess(state, TA, argv[1]);
     TypedArrayType type = TA->typedArrayType();

@@ -53,7 +53,7 @@ public:
         }
 
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
-        ArrayBufferObject* buffer = this->buffer();
+        ArrayBuffer* buffer = this->buffer();
         buffer->throwTypeErrorIfDetached(state);
 
         size_t viewOffset = byteOffset();
@@ -80,7 +80,7 @@ public:
         UNUSED_VARIABLE(numericValue);
 
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
-        ArrayBufferObject* buffer = this->buffer();
+        ArrayBuffer* buffer = this->buffer();
         buffer->throwTypeErrorIfDetached(state);
 
         size_t viewOffset = byteOffset();

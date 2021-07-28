@@ -47,6 +47,7 @@
 #include "runtime/PromiseObject.h"
 #include "runtime/ProxyObject.h"
 #include "runtime/BackingStore.h"
+#include "runtime/ArrayBuffer.h"
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/TypedArrayObject.h"
 #include "runtime/SetObject.h"
@@ -2874,6 +2875,25 @@ void BackingStoreRef::reallocate(size_t newByteLength)
     toImpl(this)->reallocate(newByteLength);
 }
 
+OptionalRef<BackingStoreRef> ArrayBufferRef::backingStore()
+{
+    if (toImpl(this)->backingStore()) {
+        return toRef(toImpl(this)->backingStore().value());
+    } else {
+        return nullptr;
+    }
+}
+
+uint8_t* ArrayBufferRef::rawBuffer()
+{
+    return (uint8_t*)toImpl(this)->data();
+}
+
+size_t ArrayBufferRef::byteLength()
+{
+    return toImpl(this)->byteLength();
+}
+
 ArrayBufferObjectRef* ArrayBufferObjectRef::create(ExecutionStateRef* state)
 {
     return toRef(new ArrayBufferObject(*toImpl(state)));
@@ -2894,25 +2914,6 @@ void ArrayBufferObjectRef::detachArrayBuffer()
     toImpl(this)->detachArrayBuffer();
 }
 
-OptionalRef<BackingStoreRef> ArrayBufferObjectRef::backingStore()
-{
-    if (toImpl(this)->backingStore()) {
-        return toRef(toImpl(this)->backingStore().value());
-    } else {
-        return nullptr;
-    }
-}
-
-uint8_t* ArrayBufferObjectRef::rawBuffer()
-{
-    return (uint8_t*)toImpl(this)->data();
-}
-
-size_t ArrayBufferObjectRef::byteLength()
-{
-    return toImpl(this)->byteLength();
-}
-
 bool ArrayBufferObjectRef::isDetachedBuffer()
 {
     return toImpl(this)->isDetachedBuffer();
@@ -2922,58 +2923,24 @@ SharedArrayBufferObjectRef* SharedArrayBufferObjectRef::create(ExecutionStateRef
 {
     return toRef(new SharedArrayBufferObject(*toImpl(state), toImpl(state)->context()->globalObject()->sharedArrayBufferPrototype(), byteLength));
 }
-
-OptionalRef<BackingStoreRef> SharedArrayBufferObjectRef::backingStore()
-{
-    if (toImpl(this)->backingStore()) {
-        return toRef(toImpl(this)->backingStore().value());
-    } else {
-        return nullptr;
-    }
-}
-
-uint8_t* SharedArrayBufferObjectRef::rawBuffer()
-{
-    return (uint8_t*)toImpl(this)->data();
-}
-
-size_t SharedArrayBufferObjectRef::byteLength()
-{
-    return toImpl(this)->byteLength();
-}
 #else
 SharedArrayBufferObjectRef* SharedArrayBufferObjectRef::create(ExecutionStateRef* state, size_t byteLength)
 {
     RELEASE_ASSERT_NOT_REACHED();
 }
-
-OptionalRef<BackingStoreRef> SharedArrayBufferObjectRef::backingStore()
-{
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
-uint8_t* SharedArrayBufferObjectRef::rawBuffer()
-{
-    RELEASE_ASSERT_NOT_REACHED();
-}
-
-size_t SharedArrayBufferObjectRef::byteLength()
-{
-    RELEASE_ASSERT_NOT_REACHED();
-}
 #endif
 
-ArrayBufferObjectRef* ArrayBufferViewRef::buffer()
+ArrayBufferRef* ArrayBufferViewRef::buffer()
 {
     return toRef(toImpl(this)->buffer());
 }
 
-void ArrayBufferViewRef::setBuffer(ArrayBufferObjectRef* bo, size_t byteOffset, size_t byteLength, size_t arrayLength)
+void ArrayBufferViewRef::setBuffer(ArrayBufferRef* bo, size_t byteOffset, size_t byteLength, size_t arrayLength)
 {
     toImpl(this)->setBuffer(toImpl(bo), byteOffset, byteLength, arrayLength);
 }
 
-void ArrayBufferViewRef::setBuffer(ArrayBufferObjectRef* bo, size_t byteOffset, size_t byteLength)
+void ArrayBufferViewRef::setBuffer(ArrayBufferRef* bo, size_t byteOffset, size_t byteLength)
 {
     toImpl(this)->setBuffer(toImpl(bo), byteOffset, byteLength);
 }
