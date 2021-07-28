@@ -131,6 +131,12 @@ void FunctionTemplate::setName(AtomicString name)
     m_name = name;
 }
 
+void FunctionTemplate::setLength(size_t length)
+{
+    ASSERT(m_cachedObjectStructure == nullptr);
+    m_argumentCount = length;
+}
+
 Object* FunctionTemplate::instantiate(Context* ctx)
 {
     auto& instantiatedFunctionObjects = ctx->instantiatedFunctionObjects();

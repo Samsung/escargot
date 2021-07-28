@@ -824,6 +824,7 @@ TEST(FunctionTemplate, Basic1)
     });
 
     ft->setName(AtomicStringRef::create(g_context.get(), "asdf2"));
+    ft->setLength(5);
 
     int a = 100;
     int* testPtr = &a;
@@ -848,6 +849,9 @@ TEST(FunctionTemplate, Basic1)
 
         ValueRef* name = fn->getOwnProperty(state, StringRef::createFromASCII("name", 4));
         EXPECT_TRUE(name->asString()->equalsWithASCIIString("asdf2", 5));
+
+        ValueRef* length = fn->getOwnProperty(state, StringRef::createFromASCII("length", 6));
+        EXPECT_TRUE(length->asNumber() == 5);
 
         return ValueRef::createUndefined();
     },

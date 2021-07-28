@@ -3462,6 +3462,11 @@ void FunctionTemplateRef::setName(AtomicStringRef* name)
     toImpl(this)->setName(toImpl(name));
 }
 
+void FunctionTemplateRef::setLength(size_t length)
+{
+    toImpl(this)->setLength(length);
+}
+
 void FunctionTemplateRef::updateCallbackFunction(FunctionTemplateRef::NativeFunctionPointer fn)
 {
     toImpl(this)->updateCallbackFunction(fn);

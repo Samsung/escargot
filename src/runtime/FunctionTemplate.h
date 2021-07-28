@@ -75,7 +75,9 @@ public:
         return m_isConstructor;
     }
 
+    // setName and setLength should be called before instantiate
     void setName(AtomicString name);
+    void setLength(size_t length);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
