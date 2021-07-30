@@ -179,6 +179,9 @@
 #define NOMINMAX
 #endif
 
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#define HAVE_BUILTIN_ATOMIC_FUNCTIONS
+#endif
 
 #if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
 #define CPU_X86_64

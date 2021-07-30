@@ -27,6 +27,9 @@ namespace Escargot {
 
 bool Global::inited;
 Platform* Global::g_platform;
+#if defined(ENABLE_ATOMICS_GLOBAL_LOCK)
+SpinLock Global::g_atomicsLock;
+#endif
 
 void Global::initialize(Platform* platform)
 {
