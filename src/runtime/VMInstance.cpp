@@ -29,7 +29,7 @@
 #include "runtime/JobQueue.h"
 #include "runtime/CompressibleString.h"
 #include "runtime/ReloadableString.h"
-#include "runtime/Intl.h"
+#include "intl/Intl.h"
 #include "interpreter/ByteCode.h"
 #if defined(ENABLE_CODE_CACHE)
 #include "codecache/CodeCache.h"
