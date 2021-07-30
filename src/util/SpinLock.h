@@ -17,41 +17,38 @@
  *  USA
  */
 
-#ifndef __EscargotGlobal__
-#define __EscargotGlobal__
+#if defined(ENABLE_THREADING)
 
-#if defined(ENABLE_THREADING) && !defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-#define ENABLE_ATOMICS_GLOBAL_LOCK
-#endif
+#ifndef __EscargotSpinLock__
+#define __EscargotSpinLock__
 
-#if defined(ENABLE_ATOMICS_GLOBAL_LOCK)
-#include "util/SpinLock.h"
-#endif
+#include <atomic>
 
 namespace Escargot {
 
-class Platform;
+class SpinLock {
+    std::atomic_flag m_locked;
 
-// Global is a global interface used by all threads
-class Global {
-    static bool inited;
-    static Platform* g_platform;
-#if defined(ENABLE_ATOMICS_GLOBAL_LOCK)
-    static SpinLock g_atomicsLock;
-#endif
 public:
-    static void initialize(Platform* platform);
-    static void finalize();
-
-    static Platform* platform();
-#if defined(ENABLE_ATOMICS_GLOBAL_LOCK)
-    static SpinLock& atomicsLock()
+    SpinLock()
+        : m_locked(0)
     {
-        return g_atomicsLock;
     }
-#endif
+
+    void lock()
+    {
+        while (m_locked.test_and_set(std::memory_order_acquire)) {
+        }
+    }
+
+    void unlock()
+    {
+        m_locked.clear(std::memory_order_release);
+    }
 };
 
 } // namespace Escargot
+
+#endif
 
 #endif

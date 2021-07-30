@@ -20,13 +20,17 @@
 #if defined(ENABLE_THREADING)
 
 #include "Escargot.h"
-#include "Context.h"
-#include "VMInstance.h"
-#include "NativeFunctionObject.h"
-#include "TypedArrayObject.h"
-#include "TypedArrayInlines.h"
-#include "SharedArrayBufferObject.h"
-#include "CheckedArithmetic.h"
+#include "runtime/Context.h"
+#include "runtime/VMInstance.h"
+#include "runtime/NativeFunctionObject.h"
+#include "runtime/TypedArrayObject.h"
+#include "runtime/TypedArrayInlines.h"
+#include "runtime/Global.h"
+#include "runtime/BigInt.h"
+
+#if !defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS) && !defined(ENABLE_ATOMICS_GLOBAL_LOCK)
+#error "without builtin atomic functions, we need to atomics global lock for implementing atomics builtin"
+#endif
 
 namespace Escargot {
 
@@ -38,98 +42,6 @@ enum class AtomicBinaryOps : uint8_t {
     SUB,
     XOR,
 };
-
-static Value atomicIntegerOperations(ExecutionState& state, int32_t lnum, int32_t rnum, AtomicBinaryOps op)
-{
-    int32_t result = 0;
-    bool passed = true;
-
-    switch (op) {
-    case AtomicBinaryOps::ADD:
-        passed = ArithmeticOperations<int32_t, int32_t, int32_t>::add(lnum, rnum, result);
-        break;
-    case AtomicBinaryOps::AND:
-        result = lnum & rnum;
-        break;
-    case AtomicBinaryOps::EXCH:
-        result = rnum;
-        break;
-    case AtomicBinaryOps::OR:
-        result = lnum | rnum;
-        break;
-    case AtomicBinaryOps::SUB:
-        passed = ArithmeticOperations<int32_t, int32_t, int32_t>::sub(lnum, rnum, result);
-        break;
-    case AtomicBinaryOps::XOR:
-        result = lnum ^ rnum;
-        break;
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
-        break;
-    };
-
-    if (LIKELY(passed)) {
-        return Value(result);
-    }
-
-    ASSERT(op == AtomicBinaryOps::ADD || op == AtomicBinaryOps::SUB);
-    if (op == AtomicBinaryOps::ADD) {
-        return Value(Value::EncodeAsDouble, static_cast<double>(lnum) + static_cast<double>(rnum));
-    }
-    return Value(Value::EncodeAsDouble, static_cast<double>(lnum) - static_cast<double>(rnum));
-}
-
-static Value atomicNumberOperations(ExecutionState& state, double lnum, double rnum, AtomicBinaryOps op)
-{
-    double result = 0;
-
-    switch (op) {
-    case AtomicBinaryOps::ADD:
-        result = lnum + rnum;
-        break;
-    case AtomicBinaryOps::AND:
-        result = Value(lnum).toInt32(state) & Value(rnum).toInt32(state);
-        break;
-    case AtomicBinaryOps::EXCH:
-        result = rnum;
-        break;
-    case AtomicBinaryOps::OR:
-        result = Value(lnum).toInt32(state) | Value(rnum).toInt32(state);
-        break;
-    case AtomicBinaryOps::SUB:
-        result = lnum - rnum;
-        break;
-    case AtomicBinaryOps::XOR:
-        result = Value(lnum).toInt32(state) ^ Value(rnum).toInt32(state);
-        break;
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
-        break;
-    };
-
-    return Value(result);
-}
-
-static Value atomicBigIntOperations(ExecutionState& state, BigInt* lnum, BigInt* rnum, AtomicBinaryOps op)
-{
-    switch (op) {
-    case AtomicBinaryOps::ADD:
-        return lnum->addition(state, rnum);
-    case AtomicBinaryOps::AND:
-        return lnum->bitwiseAnd(state, rnum);
-    case AtomicBinaryOps::EXCH:
-        return rnum;
-    case AtomicBinaryOps::OR:
-        return lnum->bitwiseOr(state, rnum);
-    case AtomicBinaryOps::SUB:
-        return lnum->subtraction(state, rnum);
-    case AtomicBinaryOps::XOR:
-        return lnum->bitwiseXor(state, rnum);
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
-        return Value();
-    };
-}
 
 static ArrayBuffer* validateIntegerTypedArray(ExecutionState& state, Value typedArray, bool waitable = false)
 {
@@ -161,32 +73,112 @@ static size_t validateAtomicAccess(ExecutionState& state, TypedArrayObject* type
     return (static_cast<size_t>(accessIndex) * elementSize) + offset;
 }
 
+template <typename T, typename ArgType = int64_t>
+static T atomicOperation(volatile uint8_t* rawStart, ArgType value, AtomicBinaryOps op)
+{
+    T returnValue;
+#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
+    volatile T* ptr = reinterpret_cast<volatile T*>(rawStart);
+    switch (op) {
+    case AtomicBinaryOps::ADD:
+        returnValue = __atomic_fetch_add(ptr, value, __ATOMIC_SEQ_CST);
+        break;
+    case AtomicBinaryOps::AND:
+        returnValue = __atomic_fetch_and(ptr, value, __ATOMIC_SEQ_CST);
+        break;
+    case AtomicBinaryOps::EXCH: {
+        T v = value;
+        __atomic_exchange(ptr, &v, &returnValue, __ATOMIC_SEQ_CST);
+    } break;
+    case AtomicBinaryOps::OR:
+        returnValue = __atomic_fetch_or(ptr, value, __ATOMIC_SEQ_CST);
+        break;
+    case AtomicBinaryOps::SUB:
+        returnValue = __atomic_fetch_sub(ptr, value, __ATOMIC_SEQ_CST);
+        break;
+    default:
+        ASSERT(op == AtomicBinaryOps::XOR);
+        returnValue = __atomic_fetch_xor(ptr, value, __ATOMIC_SEQ_CST);
+        break;
+    }
+#else
+    {
+        volatile T* ptr = reinterpret_cast<volatile T*>(rawStart);
+        std::lock_guard<SpinLock> guard(Global::atomicsLock());
+        returnValue = *ptr;
+        switch (op) {
+        case AtomicBinaryOps::ADD:
+            *ptr = *ptr + value;
+            break;
+        case AtomicBinaryOps::AND:
+            *ptr = *ptr & value;
+            break;
+        case AtomicBinaryOps::EXCH:
+            *ptr = value;
+            break;
+        case AtomicBinaryOps::OR:
+            *ptr = *ptr | value;
+            break;
+        case AtomicBinaryOps::SUB:
+            *ptr = *ptr - value;
+            break;
+        default:
+            ASSERT(op == AtomicBinaryOps::XOR);
+            *ptr = *ptr ^ value;
+            break;
+        }
+    }
+#endif
+    return returnValue;
+}
+
 static Value getModifySetValueInBuffer(ExecutionState& state, ArrayBuffer* buffer, size_t indexedPosition, TypedArrayType type, Value v2, AtomicBinaryOps op)
 {
     size_t elemSize = TypedArrayHelper::elementSize(type);
     ASSERT(indexedPosition + elemSize <= buffer->byteLength());
-
     uint8_t* rawStart = const_cast<uint8_t*>(buffer->data()) + indexedPosition;
-    Value rawBytesRead = TypedArrayHelper::rawBytesToNumber(state, type, rawStart);
-    Value v1 = rawBytesRead;
-    Value val;
 
-    if (v1.isInt32() && v2.isInt32()) {
-        val = atomicIntegerOperations(state, v1.asInt32(), v2.asInt32(), op);
-    } else if (v1.isNumber() && v2.isNumber()) {
-        val = atomicNumberOperations(state, v1.asNumber(), v2.asNumber(), op);
-    } else {
-        ASSERT(v1.isBigInt() && v2.isBigInt());
-        auto lnum = v1.asBigInt();
-        auto rnum = v2.asBigInt();
-        val = atomicBigIntOperations(state, lnum, rnum, op);
+    if (v2.isInt32()) {
+        switch (type) {
+        case TypedArrayType::Int8:
+            return Value(atomicOperation<int8_t>(rawStart, v2.asInt32(), op));
+        case TypedArrayType::Int16:
+            return Value(atomicOperation<int16_t>(rawStart, v2.asInt32(), op));
+        case TypedArrayType::Int32:
+            return Value(atomicOperation<int32_t>(rawStart, v2.asInt32(), op));
+        case TypedArrayType::Uint8:
+            return Value(atomicOperation<uint8_t>(rawStart, v2.asInt32(), op));
+        case TypedArrayType::Uint16:
+            return Value(atomicOperation<uint16_t>(rawStart, v2.asInt32(), op));
+        case TypedArrayType::Uint32:
+            return Value(atomicOperation<uint32_t>(rawStart, v2.asInt32(), op));
+        default:
+            ASSERT(TypedArrayType::Uint8Clamped == type);
+            return Value(atomicOperation<uint8_t>(rawStart, v2.asInt32(), op));
+        }
     }
 
-    uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
-    TypedArrayHelper::numberToRawBytes(state, type, val, rawBytes);
-    memcpy(rawStart, rawBytes, elemSize);
-
-    return rawBytesRead;
+    switch (type) {
+    case TypedArrayType::Int8:
+        return Value(atomicOperation<int8_t, int64_t>(rawStart, v2.asNumber(), op));
+    case TypedArrayType::Int16:
+        return Value(atomicOperation<int16_t, int64_t>(rawStart, v2.asNumber(), op));
+    case TypedArrayType::Int32:
+        return Value(atomicOperation<int32_t, int64_t>(rawStart, v2.asNumber(), op));
+    case TypedArrayType::Uint8:
+        return Value(atomicOperation<uint8_t, int64_t>(rawStart, v2.asNumber(), op));
+    case TypedArrayType::Uint16:
+        return Value(atomicOperation<uint16_t, int64_t>(rawStart, v2.asNumber(), op));
+    case TypedArrayType::Uint32:
+        return Value(atomicOperation<uint32_t, int64_t>(rawStart, v2.asNumber(), op));
+    case TypedArrayType::Uint8Clamped:
+        return Value(atomicOperation<uint8_t, int64_t>(rawStart, v2.asNumber(), op));
+    case TypedArrayType::BigInt64:
+        return new BigInt(atomicOperation<int64_t, int64_t>(rawStart, v2.asBigInt()->toInt64(), op));
+    default:
+        ASSERT(TypedArrayType::BigUint64 == type);
+        return new BigInt(atomicOperation<uint64_t, uint64_t>(rawStart, v2.asBigInt()->toUint64(), op));
+    }
 }
 
 static Value atomicReadModifyWrite(ExecutionState& state, Value typedArray, Value index, Value value, AtomicBinaryOps op)
@@ -216,6 +208,15 @@ static Value builtinAtomicsAnd(ExecutionState& state, Value thisValue, size_t ar
     return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::AND);
 }
 
+#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
+template <typename T>
+void atomicCompareExchange(uint8_t* rawStart, uint8_t* expectedBytes, uint8_t* replacementBytes)
+{
+    __atomic_compare_exchange(reinterpret_cast<T*>(rawStart), reinterpret_cast<T*>(expectedBytes),
+                              reinterpret_cast<T*>(replacementBytes), 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+}
+#endif
+
 static Value builtinAtomicsCompareExchange(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ArrayBuffer* buffer = validateIntegerTypedArray(state, argv[0]);
@@ -237,9 +238,44 @@ static Value builtinAtomicsCompareExchange(ExecutionState& state, Value thisValu
     ASSERT(indexedPosition + elemSize <= buffer->byteLength());
     uint8_t* expectedBytes = ALLOCA(8, uint8_t, state);
     TypedArrayHelper::numberToRawBytes(state, type, expected, expectedBytes);
-
-    // TODO SharedArrayBuffer case
     uint8_t* rawStart = const_cast<uint8_t*>(buffer->data()) + indexedPosition;
+#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
+    uint8_t* replacementBytes = ALLOCA(8, uint8_t, state);
+    TypedArrayHelper::numberToRawBytes(state, type, replacement, replacementBytes);
+    bool ret;
+    switch (type) {
+    case TypedArrayType::Int8:
+        atomicCompareExchange<int8_t>(rawStart, expectedBytes, replacementBytes);
+        break;
+    case TypedArrayType::Int16:
+        atomicCompareExchange<int16_t>(rawStart, expectedBytes, replacementBytes);
+        break;
+    case TypedArrayType::Int32:
+        atomicCompareExchange<int32_t>(rawStart, expectedBytes, replacementBytes);
+        break;
+    case TypedArrayType::Uint8:
+        atomicCompareExchange<uint8_t>(rawStart, expectedBytes, replacementBytes);
+        break;
+    case TypedArrayType::Uint16:
+        atomicCompareExchange<uint16_t>(rawStart, expectedBytes, replacementBytes);
+        break;
+    case TypedArrayType::Uint32:
+        atomicCompareExchange<uint32_t>(rawStart, expectedBytes, replacementBytes);
+        break;
+    case TypedArrayType::Uint8Clamped:
+        atomicCompareExchange<uint8_t>(rawStart, expectedBytes, replacementBytes);
+        break;
+    case TypedArrayType::BigInt64:
+        atomicCompareExchange<int64_t>(rawStart, expectedBytes, replacementBytes);
+        break;
+    default:
+        ASSERT(TypedArrayType::BigUint64 == type);
+        atomicCompareExchange<uint64_t>(rawStart, expectedBytes, replacementBytes);
+        break;
+    }
+    return TypedArrayHelper::rawBytesToNumber(state, type, expectedBytes);
+#else
+    std::lock_guard<SpinLock> guard(Global::atomicsLock());
     Value rawBytesRead = TypedArrayHelper::rawBytesToNumber(state, type, rawStart);
 
     bool isByteListEqual = true;
@@ -254,14 +290,22 @@ static Value builtinAtomicsCompareExchange(ExecutionState& state, Value thisValu
         TypedArrayHelper::numberToRawBytes(state, type, replacement, replacementBytes);
         memcpy(rawStart, replacementBytes, elemSize);
     }
-
     return rawBytesRead;
+#endif
 }
 
 static Value builtinAtomicsExchange(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::EXCH);
 }
+
+#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
+template <typename T>
+void atomicLoad(uint8_t* rawStart, uint8_t* rawBytes)
+{
+    __atomic_load(reinterpret_cast<T*>(rawStart), reinterpret_cast<T*>(rawBytes), __ATOMIC_SEQ_CST);
+}
+#endif
 
 static Value builtinAtomicsLoad(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -270,13 +314,58 @@ static Value builtinAtomicsLoad(ExecutionState& state, Value thisValue, size_t a
     size_t indexedPosition = validateAtomicAccess(state, TA, argv[1]);
     TypedArrayType type = TA->typedArrayType();
 
+#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
+    uint8_t* rawStart = TA->buffer()->data() + indexedPosition;
+    uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
+    switch (type) {
+    case TypedArrayType::Int8:
+        atomicLoad<int8_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::Int16:
+        atomicLoad<int16_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::Int32:
+        atomicLoad<int32_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::Uint8:
+        atomicLoad<uint8_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::Uint16:
+        atomicLoad<uint16_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::Uint32:
+        atomicLoad<uint32_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::Uint8Clamped:
+        atomicLoad<uint8_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::BigInt64:
+        atomicLoad<int64_t>(rawStart, rawBytes);
+        break;
+    default:
+        ASSERT(TypedArrayType::BigUint64 == type);
+        atomicLoad<uint64_t>(rawStart, rawBytes);
+        break;
+    }
+    return TypedArrayHelper::rawBytesToNumber(state, type, rawBytes);
+#else
+    std::lock_guard<SpinLock> guard(Global::atomicsLock());
     return buffer->getValueFromBuffer(state, indexedPosition, type);
+#endif
 }
 
 static Value builtinAtomicsOr(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::OR);
 }
+
+#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
+template <typename T>
+void atomicStore(uint8_t* rawStart, uint8_t* rawBytes)
+{
+    __atomic_store(reinterpret_cast<T*>(rawStart), reinterpret_cast<T*>(rawBytes), __ATOMIC_SEQ_CST);
+}
+#endif
 
 static Value builtinAtomicsStore(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -293,8 +382,47 @@ static Value builtinAtomicsStore(ExecutionState& state, Value thisValue, size_t 
         v = Value(value.toInteger(state));
     }
 
+#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
+    uint8_t* rawStart = TA->buffer()->data() + indexedPosition;
+    uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
+    TypedArrayHelper::numberToRawBytes(state, type, v, rawBytes);
+
+    switch (type) {
+    case TypedArrayType::Int8:
+        atomicStore<int8_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::Int16:
+        atomicStore<int16_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::Int32:
+        atomicStore<int32_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::Uint8:
+        atomicStore<uint8_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::Uint16:
+        atomicStore<uint16_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::Uint32:
+        atomicStore<uint32_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::Uint8Clamped:
+        atomicStore<uint8_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::BigInt64:
+        atomicStore<int64_t>(rawStart, rawBytes);
+        break;
+    default:
+        ASSERT(TypedArrayType::BigUint64 == type);
+        atomicStore<uint64_t>(rawStart, rawBytes);
+        break;
+    }
+    return v;
+#else
+    std::lock_guard<SpinLock> guard(Global::atomicsLock());
     buffer->setValueInBuffer(state, indexedPosition, type, v);
     return v;
+#endif
 }
 
 static Value builtinAtomicsSub(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
