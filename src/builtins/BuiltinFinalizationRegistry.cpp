@@ -99,6 +99,18 @@ static Value builtinfinalizationRegistryCleanupSome(ExecutionState& state, Value
     return Value();
 }
 
+void GlobalObject::initializeFinalizationRegistry(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->finalizationRegistry();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().FinalizationRegistry), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installFinalizationRegistry(ExecutionState& state)
 {
     m_finalizationRegistry = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().FinalizationRegistry, builtinFinalizationRegistryConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -125,7 +137,7 @@ void GlobalObject::installFinalizationRegistry(ExecutionState& state)
                                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().cleanupSome, builtinfinalizationRegistryCleanupSome, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_finalizationRegistry->setFunctionPrototype(state, m_finalizationRegistryPrototype);
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().FinalizationRegistry),
-                      ObjectPropertyDescriptor(m_finalizationRegistry, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::NonEnumerablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().FinalizationRegistry),
+                        ObjectPropertyDescriptor(m_finalizationRegistry, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::NonEnumerablePresent)));
 }
 } // namespace Escargot

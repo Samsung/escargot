@@ -203,6 +203,80 @@ static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue
     return Value(thisValue.asObject()->hasInstance(state, argv[0]));
 }
 
+static Value builtinCallerAndArgumentsGetterSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    FunctionObject* targetFunction = nullptr;
+    bool needThrow = false;
+    if (thisValue.isCallable()) {
+        if (thisValue.isFunction()) {
+            targetFunction = thisValue.asFunction();
+            if (targetFunction->isScriptFunctionObject()) {
+                InterpretedCodeBlock* codeBlock = targetFunction->asScriptFunctionObject()->interpretedCodeBlock();
+                if (codeBlock->isStrict() || codeBlock->isArrowFunctionExpression() || codeBlock->isGenerator()) {
+                    needThrow = true;
+                }
+            } else {
+                ASSERT(targetFunction->isNativeFunctionObject());
+                if (targetFunction->asNativeFunctionObject()->nativeCodeBlock()->isStrict()) {
+                    needThrow = true;
+                }
+            }
+        } else if (thisValue.isObject()) {
+            auto object = thisValue.asObject();
+            if (object->isBoundFunctionObject()) {
+                needThrow = true;
+            }
+        }
+    } else if (!thisValue.isPrimitive() && !thisValue.isObject()) {
+        needThrow = true;
+    }
+
+    if (needThrow) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'caller' and 'arguments' restrict properties may not be accessed on strict mode functions or the arguments objects for calls to them");
+    }
+
+    bool inStrict = false;
+
+    ExecutionState* p = state.parent();
+    while (p) {
+        if (p->inStrictMode()) {
+            inStrict = true;
+            break;
+        }
+        p = p->parent();
+    }
+
+    if (targetFunction && !inStrict) {
+        bool foundTargetFunction = false;
+        ExecutionState* p = &state;
+        while (p) {
+            if (foundTargetFunction) {
+                auto callee = p->resolveCallee();
+                if (callee != targetFunction) {
+                    if (callee) {
+                        return Value(callee);
+                    } else {
+                        return Value(Value::Null);
+                    }
+                }
+            } else {
+                if (p->resolveCallee() == targetFunction) {
+                    foundTargetFunction = true;
+                }
+            }
+            p = p->parent();
+        }
+    }
+
+    return Value(Value::Null);
+}
+
+void GlobalObject::initializeFunction(ExecutionState& state)
+{
+    // Function should be installed at the start time
+    installFunction(state);
+}
+
 void GlobalObject::installFunction(ExecutionState& state)
 {
     m_functionPrototype = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinFunctionEmptyFunction, 0, NativeFunctionInfo::Strict),
@@ -231,6 +305,18 @@ void GlobalObject::installFunction(ExecutionState& state)
 
     m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().hasInstance)),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.hasInstance]")), builtinFunctionHasInstanceOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+
+    // 8.2.2 - 12
+    // AddRestrictedFunctionProperties(funcProto, realmRec).
+    m_callerAndArgumentsGetterSetter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().caller, builtinCallerAndArgumentsGetterSetter, 0, NativeFunctionInfo::Strict));
+
+    {
+        JSGetterSetter gs(m_callerAndArgumentsGetterSetter, m_callerAndArgumentsGetterSetter);
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+
+        m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().caller), desc);
+        m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().arguments), desc);
+    }
 
     defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Function),
                       ObjectPropertyDescriptor(m_function, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -44,6 +44,11 @@ static Value builtinAsyncFunction(ExecutionState& state, Value thisValue, size_t
     return new ScriptAsyncFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment);
 }
 
+void GlobalObject::initializeAsyncFunction(ExecutionState& state)
+{
+    // do nothing
+}
+
 void GlobalObject::installAsyncFunction(ExecutionState& state)
 {
     m_asyncFunction = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().AsyncFunction, builtinAsyncFunction, 1), NativeFunctionObject::__ForBuiltinConstructor__);

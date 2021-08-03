@@ -59,8 +59,15 @@ static Value builtinAsyncGeneratorThrow(ExecutionState& state, Value thisValue, 
     return AsyncGeneratorObject::asyncGeneratorEnqueue(state, thisValue, AsyncGeneratorObject::AsyncGeneratorEnqueueType::Throw, argv[0]);
 }
 
-void GlobalObject::installAsyncGeneratorFunction(ExecutionState& state)
+void GlobalObject::initializeAsyncGenerator(ExecutionState& state)
 {
+    // do nothing
+}
+
+void GlobalObject::installAsyncGenerator(ExecutionState& state)
+{
+    ASSERT(!!m_asyncIteratorPrototype);
+
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorfunction
     m_asyncGeneratorFunction = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().AsyncGeneratorFunction, builtinAsyncGeneratorFunction, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_asyncGeneratorFunction->setGlobalIntrinsicObject(state);

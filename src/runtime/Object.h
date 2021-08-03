@@ -1246,6 +1246,9 @@ protected:
     void deleteOwnProperty(ExecutionState& state, size_t idx);
 
     void markAsNonInlineCachable();
+
+    // redefine function used only for builtin installation
+    void redefineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
 };
 } // namespace Escargot
 

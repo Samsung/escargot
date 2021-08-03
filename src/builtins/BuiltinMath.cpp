@@ -413,6 +413,18 @@ static Value builtinMathExpm1(ExecutionState& state, Value thisValue, size_t arg
     return Value(ieee754::expm1(x));
 }
 
+void GlobalObject::initializeMath(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->math();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Math), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installMath(ExecutionState& state)
 {
     m_math = new Object(state);
@@ -546,7 +558,7 @@ void GlobalObject::installMath(ExecutionState& state)
     m_math->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().trunc),
                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().trunc, builtinMathTrunc, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Math),
-                      ObjectPropertyDescriptor(m_math, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Math),
+                        ObjectPropertyDescriptor(m_math, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

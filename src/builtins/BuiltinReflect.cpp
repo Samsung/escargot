@@ -280,6 +280,18 @@ static Value builtinReflectSetPrototypeOf(ExecutionState& state, Value thisValue
     return Value(target.asObject()->setPrototype(state, proto));
 }
 
+void GlobalObject::initializeReflect(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->reflect();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Reflect), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installReflect(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -328,7 +340,7 @@ void GlobalObject::installReflect(ExecutionState& state)
     m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
                                                 ObjectPropertyDescriptor(state.context()->staticStrings().Reflect.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    defineOwnProperty(state, ObjectPropertyName(strings->Reflect),
-                      ObjectPropertyDescriptor(m_reflect, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(strings->Reflect),
+                        ObjectPropertyDescriptor(m_reflect, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

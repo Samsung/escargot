@@ -17,8 +17,6 @@
  *  USA
  */
 
-#if defined(ENABLE_THREADING)
-
 #include "Escargot.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/Context.h"
@@ -27,6 +25,8 @@
 #include "runtime/SharedArrayBufferObject.h"
 
 namespace Escargot {
+
+#if defined(ENABLE_THREADING)
 
 // https://262.ecma-international.org/#sec-sharedarraybuffer-constructor
 static Value builtinSharedArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -84,6 +84,18 @@ static Value builtinSharedArrayBufferSlice(ExecutionState& state, Value thisValu
     return newBuffer;
 }
 
+void GlobalObject::initializeSharedArrayBuffer(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->sharedArrayBuffer();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().SharedArrayBuffer), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installSharedArrayBuffer(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -115,9 +127,16 @@ void GlobalObject::installSharedArrayBuffer(ExecutionState& state)
 
     m_sharedArrayBuffer->setFunctionPrototype(state, m_sharedArrayBufferPrototype);
 
-    defineOwnProperty(state, ObjectPropertyName(strings->SharedArrayBuffer),
-                      ObjectPropertyDescriptor(m_sharedArrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(strings->SharedArrayBuffer),
+                        ObjectPropertyDescriptor(m_sharedArrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-} // namespace Escargot
+
+#else
+
+void GlobalObject::initializeSharedArrayBuffer(ExecutionState& state)
+{
+    // dummy initialize function
+}
 
 #endif
+} // namespace Escargot

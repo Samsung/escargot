@@ -380,8 +380,22 @@ static Value builtinNumberIsSafeInteger(ExecutionState& state, Value thisValue, 
     return Value(Value::False);
 }
 
+void GlobalObject::initializeNumber(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->number();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Number), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installNumber(ExecutionState& state)
 {
+    ASSERT(!!m_parseInt && !!m_parseFloat);
+
     const StaticStrings* strings = &state.context()->staticStrings();
     m_number = new NativeFunctionObject(state, NativeFunctionInfo(strings->Number, builtinNumberConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_number->setGlobalIntrinsicObject(state);
@@ -430,6 +444,15 @@ void GlobalObject::installNumber(ExecutionState& state)
     // $20.1.2.3 Number.isNaN
     m_number->defineOwnPropertyThrowsException(state, strings->isNaN,
                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isNaN, builtinNumberIsNaN, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_number->defineOwnPropertyThrowsException(state, strings->parseInt,
+                                               ObjectPropertyDescriptor(m_parseInt,
+                                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_number->defineOwnProperty(state, ObjectPropertyName(strings->parseFloat),
+                                ObjectPropertyDescriptor(m_parseFloat,
+                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     // $20.1.2.5 Number.isSafeInteger
     m_number->defineOwnPropertyThrowsException(state, strings->isSafeInteger,
                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isSafeInteger, builtinNumberIsSafeInteger, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -448,7 +471,9 @@ void GlobalObject::installNumber(ExecutionState& state)
     // $20.1.2.14 Number.POSITIVE_INFINITY
     m_number->defineOwnPropertyThrowsException(state, strings->POSITIVE_INFINITY, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::infinity()), allFalsePresent));
 
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Number),
-                      ObjectPropertyDescriptor(m_number, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_numberProxyObject = new NumberObject(state);
+
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Number),
+                        ObjectPropertyDescriptor(m_number, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

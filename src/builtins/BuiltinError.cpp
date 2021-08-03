@@ -148,6 +148,38 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
     return builder.finalize(&state);
 }
 
+void GlobalObject::initializeError(ExecutionState& state)
+{
+#define DEFINE_ERROR_INIT(errorname, bname)                                                                                                                                                                                         \
+    {                                                                                                                                                                                                                               \
+        ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,                                                                                                              \
+                                                                                                    [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value { \
+                                                                                                        ASSERT(self->isGlobalObject());                                                                                             \
+                                                                                                        return self->asGlobalObject()->errorname##Error();                                                                          \
+                                                                                                    },                                                                                                                              \
+                                                                                                    nullptr);                                                                                                                       \
+        defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().bname##Error), nativeData, Value(Value::EmptyValue));                                                                           \
+    }
+
+    DEFINE_ERROR_INIT(reference, Reference);
+    DEFINE_ERROR_INIT(type, Type);
+    DEFINE_ERROR_INIT(syntax, Syntax);
+    DEFINE_ERROR_INIT(range, Range);
+    DEFINE_ERROR_INIT(uri, URI);
+    DEFINE_ERROR_INIT(eval, Eval);
+    DEFINE_ERROR_INIT(aggregate, Aggregate);
+
+    {
+        ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                    [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                        ASSERT(self->isGlobalObject());
+                                                                                                        return self->asGlobalObject()->error();
+                                                                                                    },
+                                                                                                    nullptr);
+        defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Error), nativeData, Value(Value::EmptyValue));
+    }
+}
+
 void GlobalObject::installError(ExecutionState& state)
 {
     m_error = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -187,8 +219,8 @@ void GlobalObject::installError(ExecutionState& state)
     m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().message, ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));                                 \
     m_##errorname##ErrorPrototype->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(state.context()->staticStrings().bname##Error.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent))); \
     m_##errorname##Error->setFunctionPrototype(state, m_##errorname##ErrorPrototype);                                                                                                                                                                                                                                                   \
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().bname##Error),                                                                                                                                                                                                                                         \
-                      ObjectPropertyDescriptor(m_##errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().bname##Error),                                                                                                                                                                                                                                       \
+                        ObjectPropertyDescriptor(m_##errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
 
     DEFINE_ERROR(reference, Reference, 1);
     DEFINE_ERROR(type, Type, 1);
@@ -198,7 +230,7 @@ void GlobalObject::installError(ExecutionState& state)
     DEFINE_ERROR(eval, Eval, 1);
     DEFINE_ERROR(aggregate, Aggregate, 2);
 
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Error),
-                      ObjectPropertyDescriptor(m_error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Error),
+                        ObjectPropertyDescriptor(m_error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

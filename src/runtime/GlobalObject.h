@@ -40,248 +40,252 @@ class FunctionObject;
     String* NAME = thisValue.toString(state);
 
 
-#define GLOBALOBJECT_BUILTIN_ARRAYBUFFER(F, NAME) \
-    F(arrayBuffer, FunctionObject, NAME)          \
-    F(arrayBufferPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_ARRAY(F, NAME) \
-    F(array, FunctionObject, NAME)          \
-    F(arrayPrototype, Object, NAME)         \
-    F(arrayIteratorPrototype, Object, NAME) \
-    F(arrayPrototypeValues, FunctionObject, NAME)
-#define GLOBALOBJECT_BUILTIN_ASYNCFROMSYNCITERATOR(F, NAME) \
-    F(asyncFromSyncIteratorPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_ASYNCFUNCTION(F, NAME) \
-    F(asyncFunction, FunctionObject, NAME)          \
-    F(asyncFunctionPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_ASYNCGENERATOR(F, NAME) \
-    F(asyncGenerator, Object, NAME)                  \
-    F(asyncGeneratorPrototype, Object, NAME)         \
-    F(asyncGeneratorFunction, FunctionObject, NAME)
-#define GLOBALOBJECT_BUILTIN_ASYNCITERATOR(F, NAME) \
-    F(asyncIteratorPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_BOOLEAN(F, NAME) \
-    F(boolean, FunctionObject, NAME)          \
-    F(booleanPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_DATAVIEW(F, NAME) \
-    F(dataView, FunctionObject, NAME)          \
-    F(dataViewPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_DATE(F, NAME) \
-    F(date, FunctionObject, NAME)          \
-    F(datePrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_ERROR(F, NAME)  \
-    F(error, FunctionObject, NAME)           \
-    F(errorPrototype, Object, NAME)          \
-    F(referenceError, FunctionObject, NAME)  \
-    F(referenceErrorPrototype, Object, NAME) \
-    F(typeError, FunctionObject, NAME)       \
-    F(typeErrorPrototype, Object, NAME)      \
-    F(rangeError, FunctionObject, NAME)      \
-    F(rangeErrorPrototype, Object, NAME)     \
-    F(syntaxError, FunctionObject, NAME)     \
-    F(syntaxErrorPrototype, Object, NAME)    \
-    F(uriError, FunctionObject, NAME)        \
-    F(uriErrorPrototype, Object, NAME)       \
-    F(evalError, FunctionObject, NAME)       \
-    F(evalErrorPrototype, Object, NAME)      \
-    F(aggregateError, FunctionObject, NAME)  \
-    F(aggregateErrorPrototype, Object, NAME) \
-    F(throwTypeError, FunctionObject, NAME)  \
-    F(throwerGetterSetterData, JSGetterSetter, NAME)
-#define GLOBALOBJECT_BUILTIN_EVAL(F, NAME) \
-    F(eval, FunctionObject, NAME)
-#define GLOBALOBJECT_BUILTIN_FUNCTION(F, NAME) \
-    F(function, FunctionObject, NAME)          \
-    F(functionPrototype, FunctionObject, NAME) \
-    F(functionApply, FunctionObject, NAME)
-#define GLOBALOBJECT_BUILTIN_GENERATOR(F, NAME) \
-    F(generatorFunction, FunctionObject, NAME)  \
-    F(generator, FunctionObject, NAME)          \
-    F(generatorPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_ARRAYBUFFER(F, objName) \
+    F(arrayBuffer, FunctionObject, objName)          \
+    F(arrayBufferPrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_ARRAY(F, objName) \
+    F(array, FunctionObject, objName)          \
+    F(arrayPrototype, Object, objName)         \
+    F(arrayIteratorPrototype, Object, objName) \
+    F(arrayPrototypeValues, FunctionObject, objName)
+#define GLOBALOBJECT_BUILTIN_ASYNCFROMSYNCITERATOR(F, objName) \
+    F(asyncFromSyncIteratorPrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_ASYNCFUNCTION(F, objName) \
+    F(asyncFunction, FunctionObject, objName)          \
+    F(asyncFunctionPrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_ASYNCGENERATOR(F, objName) \
+    F(asyncGenerator, Object, objName)                  \
+    F(asyncGeneratorPrototype, Object, objName)         \
+    F(asyncGeneratorFunction, FunctionObject, objName)
+#define GLOBALOBJECT_BUILTIN_BOOLEAN(F, objName) \
+    F(boolean, FunctionObject, objName)          \
+    F(booleanPrototype, Object, objName)         \
+    F(booleanProxyObject, BooleanObject, objName)
+#define GLOBALOBJECT_BUILTIN_DATAVIEW(F, objName) \
+    F(dataView, FunctionObject, objName)          \
+    F(dataViewPrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_DATE(F, objName) \
+    F(date, FunctionObject, objName)          \
+    F(datePrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_ERROR(F, objName)  \
+    F(error, FunctionObject, objName)           \
+    F(errorPrototype, Object, objName)          \
+    F(referenceError, FunctionObject, objName)  \
+    F(referenceErrorPrototype, Object, objName) \
+    F(typeError, FunctionObject, objName)       \
+    F(typeErrorPrototype, Object, objName)      \
+    F(rangeError, FunctionObject, objName)      \
+    F(rangeErrorPrototype, Object, objName)     \
+    F(syntaxError, FunctionObject, objName)     \
+    F(syntaxErrorPrototype, Object, objName)    \
+    F(uriError, FunctionObject, objName)        \
+    F(uriErrorPrototype, Object, objName)       \
+    F(evalError, FunctionObject, objName)       \
+    F(evalErrorPrototype, Object, objName)      \
+    F(aggregateError, FunctionObject, objName)  \
+    F(aggregateErrorPrototype, Object, objName) \
+    F(throwTypeError, FunctionObject, objName)  \
+    F(throwerGetterSetterData, JSGetterSetter, objName)
+#define GLOBALOBJECT_BUILTIN_FUNCTION(F, objName) \
+    F(function, FunctionObject, objName)          \
+    F(functionPrototype, FunctionObject, objName) \
+    F(functionApply, FunctionObject, objName)     \
+    F(callerAndArgumentsGetterSetter, FunctionObject, objName)
+#define GLOBALOBJECT_BUILTIN_GENERATOR(F, objName) \
+    F(generatorFunction, FunctionObject, objName)  \
+    F(generator, FunctionObject, objName)          \
+    F(generatorPrototype, Object, objName)
 //INTL
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-#define GLOBALOBJECT_BUILTIN_INTL(F, NAME)           \
-    F(intl, Object, NAME)                            \
-    F(intlCollator, FunctionObject, NAME)            \
-    F(intlDateTimeFormat, FunctionObject, NAME)      \
-    F(intlDateTimeFormatPrototype, Object, NAME)     \
-    F(intlNumberFormat, FunctionObject, NAME)        \
-    F(intlNumberFormatPrototype, Object, NAME)       \
-    F(intlRelativeTimeFormat, FunctionObject, NAME)  \
-    F(intlRelativeTimeFormatPrototype, Object, NAME) \
-    F(intlLocale, FunctionObject, NAME)              \
-    F(intlLocalePrototype, Object, NAME)             \
-    F(intlPluralRules, FunctionObject, NAME)         \
-    F(intlPluralRulesPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_INTL(F, objName)           \
+    F(intl, Object, objName)                            \
+    F(intlCollator, FunctionObject, objName)            \
+    F(intlDateTimeFormat, FunctionObject, objName)      \
+    F(intlDateTimeFormatPrototype, Object, objName)     \
+    F(intlNumberFormat, FunctionObject, objName)        \
+    F(intlNumberFormatPrototype, Object, objName)       \
+    F(intlRelativeTimeFormat, FunctionObject, objName)  \
+    F(intlRelativeTimeFormatPrototype, Object, objName) \
+    F(intlLocale, FunctionObject, objName)              \
+    F(intlLocalePrototype, Object, objName)             \
+    F(intlPluralRules, FunctionObject, objName)         \
+    F(intlPluralRulesPrototype, Object, objName)
 #else
-#define GLOBALOBJECT_BUILTIN_INTL(F, NAME)
+#define GLOBALOBJECT_BUILTIN_INTL(F, objName)
 #endif
-#define GLOBALOBJECT_BUILTIN_ITERATOR(F, NAME) \
-    F(iteratorPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_JSON(F, NAME) \
-    F(json, Object, NAME)                  \
-    F(jsonStringify, FunctionObject, NAME) \
-    F(jsonParse, FunctionObject, NAME)
-#define GLOBALOBJECT_BUILTIN_MAP(F, NAME) \
-    F(map, FunctionObject, NAME)          \
-    F(mapPrototype, Object, NAME)         \
-    F(mapIteratorPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_MATH(F, NAME) \
-    F(math, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_NUMBER(F, NAME) \
-    F(number, FunctionObject, NAME)          \
-    F(numberPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_OBJECT(F, NAME) \
-    F(object, FunctionObject, NAME)          \
-    F(objectCreate, FunctionObject, NAME)    \
-    F(objectFreeze, FunctionObject, NAME)    \
-    F(objectPrototype, Object, NAME)         \
-    F(objectPrototypeToString, FunctionObject, NAME)
-#define GLOBALOBJECT_BUILTIN_OTHERS(F, NAME)   \
-    F(stringProxyObject, StringObject, NAME)   \
-    F(numberProxyObject, NumberObject, NAME)   \
-    F(booleanProxyObject, BooleanObject, NAME) \
-    F(symbolProxyObject, SymbolObject, NAME)   \
-    F(bigIntProxyObject, BigIntObject, NAME)
-#define GLOBALOBJECT_BUILTIN_PROMISE(F, NAME) \
-    F(promise, FunctionObject, NAME)          \
-    F(promisePrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_PROXY(F, NAME) \
-    F(proxy, FunctionObject, NAME)
-#define GLOBALOBJECT_BUILTIN_REFLECT(F, NAME) \
-    F(reflect, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_REGEXP(F, NAME)       \
-    F(regexp, FunctionObject, NAME)                \
-    F(regexpExecMethod, FunctionObject, NAME)      \
-    F(regexpPrototype, Object, NAME)               \
-    F(regexpReplaceMethod, FunctionObject, NAME)   \
-    F(regexpStringIteratorPrototype, Object, NAME) \
-    F(regexpSplitMethod, FunctionObject, NAME)
-#define GLOBALOBJECT_BUILTIN_SET(F, NAME) \
-    F(set, FunctionObject, NAME)          \
-    F(setPrototype, Object, NAME)         \
-    F(setIteratorPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_STRING(F, NAME) \
-    F(string, FunctionObject, NAME)          \
-    F(stringPrototype, Object, NAME)         \
-    F(stringIteratorPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_SYMBOL(F, NAME) \
-    F(symbol, FunctionObject, NAME)          \
-    F(symbolPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_BIGINT(F, NAME) \
-    F(bigInt, FunctionObject, NAME)          \
-    F(bigIntPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_TYPEDARRAY(F, NAME) \
-    F(typedArray, FunctionObject, NAME)          \
-    F(typedArrayPrototype, Object, NAME)         \
-    F(int8Array, FunctionObject, NAME)           \
-    F(int8ArrayPrototype, Object, NAME)          \
-    F(uint8Array, FunctionObject, NAME)          \
-    F(uint8ArrayPrototype, Object, NAME)         \
-    F(uint8ClampedArray, FunctionObject, NAME)   \
-    F(uint8ClampedArrayPrototype, Object, NAME)  \
-    F(int16Array, FunctionObject, NAME)          \
-    F(int16ArrayPrototype, Object, NAME)         \
-    F(uint16Array, FunctionObject, NAME)         \
-    F(uint16ArrayPrototype, Object, NAME)        \
-    F(int32Array, FunctionObject, NAME)          \
-    F(int32ArrayPrototype, Object, NAME)         \
-    F(uint32Array, FunctionObject, NAME)         \
-    F(uint32ArrayPrototype, Object, NAME)        \
-    F(float32Array, FunctionObject, NAME)        \
-    F(float32ArrayPrototype, Object, NAME)       \
-    F(float64Array, FunctionObject, NAME)        \
-    F(float64ArrayPrototype, Object, NAME)       \
-    F(bigInt64Array, FunctionObject, NAME)       \
-    F(bigInt64ArrayPrototype, Object, NAME)      \
-    F(bigUint64Array, FunctionObject, NAME)      \
-    F(bigUint64ArrayPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_WEAKMAP(F, NAME) \
-    F(weakMap, FunctionObject, NAME)          \
-    F(weakMapPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_WEAKSET(F, NAME) \
-    F(weakSet, FunctionObject, NAME)          \
-    F(weakSetPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_WEAKREF(F, NAME) \
-    F(weakRef, FunctionObject, NAME)          \
-    F(weakRefPrototype, Object, NAME)
-#define GLOBALOBJECT_BUILTIN_FINALIZATIONREGISTRY(F, NAME) \
-    F(finalizationRegistry, FunctionObject, NAME)          \
-    F(finalizationRegistryPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_JSON(F, objName) \
+    F(json, Object, objName)                  \
+    F(jsonStringify, FunctionObject, objName) \
+    F(jsonParse, FunctionObject, objName)
+#define GLOBALOBJECT_BUILTIN_MAP(F, objName) \
+    F(map, FunctionObject, objName)          \
+    F(mapPrototype, Object, objName)         \
+    F(mapIteratorPrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_MATH(F, objName) \
+    F(math, Object, objName)
+#define GLOBALOBJECT_BUILTIN_NUMBER(F, objName) \
+    F(number, FunctionObject, objName)          \
+    F(numberPrototype, Object, objName)         \
+    F(numberProxyObject, NumberObject, objName)
+#define GLOBALOBJECT_BUILTIN_OBJECT(F, objName) \
+    F(object, FunctionObject, objName)          \
+    F(objectCreate, FunctionObject, objName)    \
+    F(objectFreeze, FunctionObject, objName)    \
+    F(objectPrototype, Object, objName)         \
+    F(objectPrototypeToString, FunctionObject, objName)
+#define GLOBALOBJECT_BUILTIN_OTHERS(F, objName) \
+    F(eval, FunctionObject, objName)            \
+    F(parseInt, FunctionObject, objName)        \
+    F(parseFloat, FunctionObject, objName)      \
+    F(arrayToString, FunctionObject, objName)   \
+    F(asyncIteratorPrototype, Object, objName)  \
+    F(iteratorPrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_PROMISE(F, objName) \
+    F(promise, FunctionObject, objName)          \
+    F(promisePrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_PROXY(F, objName) \
+    F(proxy, FunctionObject, objName)
+#define GLOBALOBJECT_BUILTIN_REFLECT(F, objName) \
+    F(reflect, Object, objName)
+#define GLOBALOBJECT_BUILTIN_REGEXP(F, objName)       \
+    F(regexp, FunctionObject, objName)                \
+    F(regexpExecMethod, FunctionObject, objName)      \
+    F(regexpPrototype, Object, objName)               \
+    F(regexpReplaceMethod, FunctionObject, objName)   \
+    F(regexpStringIteratorPrototype, Object, objName) \
+    F(regexpSplitMethod, FunctionObject, objName)
+#define GLOBALOBJECT_BUILTIN_SET(F, objName) \
+    F(set, FunctionObject, objName)          \
+    F(setPrototype, Object, objName)         \
+    F(setIteratorPrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_STRING(F, objName) \
+    F(string, FunctionObject, objName)          \
+    F(stringPrototype, Object, objName)         \
+    F(stringIteratorPrototype, Object, objName) \
+    F(stringProxyObject, StringObject, objName)
+#define GLOBALOBJECT_BUILTIN_SYMBOL(F, objName) \
+    F(symbol, FunctionObject, objName)          \
+    F(symbolPrototype, Object, objName)         \
+    F(symbolProxyObject, SymbolObject, objName)
+#define GLOBALOBJECT_BUILTIN_BIGINT(F, objName) \
+    F(bigInt, FunctionObject, objName)          \
+    F(bigIntPrototype, Object, objName)         \
+    F(bigIntProxyObject, BigIntObject, objName)
+#define GLOBALOBJECT_BUILTIN_TYPEDARRAY(F, objName) \
+    F(typedArray, FunctionObject, objName)          \
+    F(typedArrayPrototype, Object, objName)         \
+    F(int8Array, FunctionObject, objName)           \
+    F(int8ArrayPrototype, Object, objName)          \
+    F(uint8Array, FunctionObject, objName)          \
+    F(uint8ArrayPrototype, Object, objName)         \
+    F(uint8ClampedArray, FunctionObject, objName)   \
+    F(uint8ClampedArrayPrototype, Object, objName)  \
+    F(int16Array, FunctionObject, objName)          \
+    F(int16ArrayPrototype, Object, objName)         \
+    F(uint16Array, FunctionObject, objName)         \
+    F(uint16ArrayPrototype, Object, objName)        \
+    F(int32Array, FunctionObject, objName)          \
+    F(int32ArrayPrototype, Object, objName)         \
+    F(uint32Array, FunctionObject, objName)         \
+    F(uint32ArrayPrototype, Object, objName)        \
+    F(float32Array, FunctionObject, objName)        \
+    F(float32ArrayPrototype, Object, objName)       \
+    F(float64Array, FunctionObject, objName)        \
+    F(float64ArrayPrototype, Object, objName)       \
+    F(bigInt64Array, FunctionObject, objName)       \
+    F(bigInt64ArrayPrototype, Object, objName)      \
+    F(bigUint64Array, FunctionObject, objName)      \
+    F(bigUint64ArrayPrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_WEAKMAP(F, objName) \
+    F(weakMap, FunctionObject, objName)          \
+    F(weakMapPrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_WEAKSET(F, objName) \
+    F(weakSet, FunctionObject, objName)          \
+    F(weakSetPrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_WEAKREF(F, objName) \
+    F(weakRef, FunctionObject, objName)          \
+    F(weakRefPrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_FINALIZATIONREGISTRY(F, objName) \
+    F(finalizationRegistry, FunctionObject, objName)          \
+    F(finalizationRegistryPrototype, Object, objName)
 
 #if defined(ENABLE_THREADING)
-#define GLOBALOBJECT_BUILTIN_ATOMICS(F, NAME) \
-    F(atomics, Object, Name)
-#define GLOBALOBJECT_BUILTIN_SHAREDARRAYBUFFER(F, NAME) \
-    F(sharedArrayBuffer, FunctionObject, Name)          \
-    F(sharedArrayBufferPrototype, Object, Name)
+#define GLOBALOBJECT_BUILTIN_ATOMICS(F, objName) \
+    F(atomics, Object, objName)
+#define GLOBALOBJECT_BUILTIN_SHAREDARRAYBUFFER(F, objName) \
+    F(sharedArrayBuffer, FunctionObject, objName)          \
+    F(sharedArrayBufferPrototype, Object, objName)
 #else
-#define GLOBALOBJECT_BUILTIN_ATOMICS(F, NAME)
-#define GLOBALOBJECT_BUILTIN_SHAREDARRAYBUFFER(F, NAME)
+#define GLOBALOBJECT_BUILTIN_ATOMICS(F, objName)
+#define GLOBALOBJECT_BUILTIN_SHAREDARRAYBUFFER(F, objName)
 #endif
 
 //WebAssembly
 #if defined(ENABLE_WASM)
-#define GLOBALOBJECT_BUILTIN_WASM(F, NAME)     \
-    F(wasmModulePrototype, Object, Name)       \
-    F(wasmInstancePrototype, Object, Name)     \
-    F(wasmMemoryPrototype, Object, Name)       \
-    F(wasmTablePrototype, Object, Name)        \
-    F(wasmGlobalPrototype, Object, Name)       \
-    F(wasmCompileErrorPrototype, Object, NAME) \
-    F(wasmLinkErrorPrototype, Object, NAME)    \
-    F(wasmRuntimeErrorPrototype, Object, NAME)
+#define GLOBALOBJECT_BUILTIN_WASM(F, objName)     \
+    F(wasm, Object, objName)                      \
+    F(wasmModulePrototype, Object, objName)       \
+    F(wasmInstancePrototype, Object, objName)     \
+    F(wasmMemoryPrototype, Object, objName)       \
+    F(wasmTablePrototype, Object, objName)        \
+    F(wasmGlobalPrototype, Object, objName)       \
+    F(wasmCompileErrorPrototype, Object, objName) \
+    F(wasmLinkErrorPrototype, Object, objName)    \
+    F(wasmRuntimeErrorPrototype, Object, objName)
 #else
-#define GLOBALOBJECT_BUILTIN_WASM(F, NAME)
+#define GLOBALOBJECT_BUILTIN_WASM(F, objName)
 #endif
 
 
-#define GLOBALOBJECT_BUILTIN_LIST(F)                                     \
-    GLOBALOBJECT_BUILTIN_ARRAYBUFFER(F, ArrayBuffer)                     \
-    GLOBALOBJECT_BUILTIN_ARRAY(F, Array)                                 \
-    GLOBALOBJECT_BUILTIN_ASYNCFROMSYNCITERATOR(F, AsyncFromSyncIterator) \
-    GLOBALOBJECT_BUILTIN_ASYNCFUNCTION(F, AsyncFunction)                 \
-    GLOBALOBJECT_BUILTIN_ASYNCGENERATOR(F, AsyncGenerator)               \
-    GLOBALOBJECT_BUILTIN_ASYNCITERATOR(F, AsyncIterator)                 \
-    GLOBALOBJECT_BUILTIN_ATOMICS(F, Atomics)                             \
-    GLOBALOBJECT_BUILTIN_BOOLEAN(F, Boolean)                             \
-    GLOBALOBJECT_BUILTIN_DATAVIEW(F, DataView)                           \
-    GLOBALOBJECT_BUILTIN_DATE(F, Date)                                   \
-    GLOBALOBJECT_BUILTIN_ERROR(F, Error)                                 \
-    GLOBALOBJECT_BUILTIN_EVAL(F, Eval)                                   \
-    GLOBALOBJECT_BUILTIN_FUNCTION(F, Function)                           \
-    GLOBALOBJECT_BUILTIN_GENERATOR(F, Generator)                         \
-    GLOBALOBJECT_BUILTIN_INTL(F, Intl)                                   \
-    GLOBALOBJECT_BUILTIN_ITERATOR(F, Iterator)                           \
-    GLOBALOBJECT_BUILTIN_JSON(F, JSON)                                   \
-    GLOBALOBJECT_BUILTIN_MAP(F, Map)                                     \
-    GLOBALOBJECT_BUILTIN_MATH(F, Math)                                   \
-    GLOBALOBJECT_BUILTIN_NUMBER(F, Number)                               \
-    GLOBALOBJECT_BUILTIN_OBJECT(F, Object)                               \
-    GLOBALOBJECT_BUILTIN_OTHERS(F, Others)                               \
-    GLOBALOBJECT_BUILTIN_PROMISE(F, Promise)                             \
-    GLOBALOBJECT_BUILTIN_PROXY(F, Proxy)                                 \
-    GLOBALOBJECT_BUILTIN_REFLECT(F, Reflect)                             \
-    GLOBALOBJECT_BUILTIN_REGEXP(F, RegExp)                               \
-    GLOBALOBJECT_BUILTIN_SET(F, Set)                                     \
-    GLOBALOBJECT_BUILTIN_SHAREDARRAYBUFFER(F, SharedArrayBuffer)         \
-    GLOBALOBJECT_BUILTIN_STRING(F, String)                               \
-    GLOBALOBJECT_BUILTIN_SYMBOL(F, Symbol)                               \
-    GLOBALOBJECT_BUILTIN_BIGINT(F, BigInt)                               \
-    GLOBALOBJECT_BUILTIN_TYPEDARRAY(F, TypedArray)                       \
-    GLOBALOBJECT_BUILTIN_WEAKMAP(F, WeakMap)                             \
-    GLOBALOBJECT_BUILTIN_WEAKSET(F, WeakSet)                             \
-    GLOBALOBJECT_BUILTIN_WEAKREF(F, WeakRef)                             \
-    GLOBALOBJECT_BUILTIN_FINALIZATIONREGISTRY(F, FinalizationRegistry)   \
-    GLOBALOBJECT_BUILTIN_WASM(F, WebAssembly)
+#define GLOBALOBJECT_BUILTIN_OBJECT_LIST(F, ARG)         \
+    F(ARRAYBUFFER, ArrayBuffer, ARG)                     \
+    F(ARRAY, Array, ARG)                                 \
+    F(ASYNCFROMSYNCITERATOR, AsyncFromSyncIterator, ARG) \
+    F(ASYNCFUNCTION, AsyncFunction, ARG)                 \
+    F(ASYNCGENERATOR, AsyncGenerator, ARG)               \
+    F(ATOMICS, Atomics, ARG)                             \
+    F(BOOLEAN, Boolean, ARG)                             \
+    F(DATAVIEW, DataView, ARG)                           \
+    F(DATE, Date, ARG)                                   \
+    F(ERROR, Error, ARG)                                 \
+    F(FUNCTION, Function, ARG)                           \
+    F(GENERATOR, Generator, ARG)                         \
+    F(INTL, Intl, ARG)                                   \
+    F(JSON, JSON, ARG)                                   \
+    F(MAP, Map, ARG)                                     \
+    F(MATH, Math, ARG)                                   \
+    F(NUMBER, Number, ARG)                               \
+    F(OBJECT, Object, ARG)                               \
+    F(OTHERS, Others, ARG)                               \
+    F(PROMISE, Promise, ARG)                             \
+    F(PROXY, Proxy, ARG)                                 \
+    F(REFLECT, Reflect, ARG)                             \
+    F(REGEXP, RegExp, ARG)                               \
+    F(SET, Set, ARG)                                     \
+    F(SHAREDARRAYBUFFER, SharedArrayBuffer, ARG)         \
+    F(STRING, String, ARG)                               \
+    F(SYMBOL, Symbol, ARG)                               \
+    F(BIGINT, BigInt, ARG)                               \
+    F(TYPEDARRAY, TypedArray, ARG)                       \
+    F(WEAKMAP, WeakMap, ARG)                             \
+    F(WEAKSET, WeakSet, ARG)                             \
+    F(WEAKREF, WeakRef, ARG)                             \
+    F(FINALIZATIONREGISTRY, FinalizationRegistry, ARG)   \
+    F(WASM, WebAssembly, ARG)
+
+
+#define DECLARE_BUILTIN_ALL_LIST(OBJNAME, objName, ARG) \
+    GLOBALOBJECT_BUILTIN_##OBJNAME(ARG, objName)
+
+#define GLOBALOBJECT_BUILTIN_ALL_LIST(F) \
+    GLOBALOBJECT_BUILTIN_OBJECT_LIST(DECLARE_BUILTIN_ALL_LIST, F)
 
 
 Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
 class GlobalObject : public Object {
 public:
-    friend class ByteCodeInterpreter;
     friend class GlobalEnvironmentRecord;
-    friend class IdentifierNode;
 
     explicit GlobalObject(ExecutionState& state);
 
@@ -290,22 +294,6 @@ public:
         return true;
     }
 
-    void installBuiltins(ExecutionState& state);
-
-    Value eval(ExecutionState& state, const Value& arg);
-    // we get isInWithOperation as parameter because this affects bytecode
-    Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool inWithOperation);
-
-#define DECLARE_BUILTIN_FUNC(builtin, TYPE, NAME) \
-    TYPE* builtin()                               \
-    {                                             \
-        ASSERT(!!m_##builtin);                    \
-        return m_##builtin;                       \
-    }
-
-    GLOBALOBJECT_BUILTIN_LIST(DECLARE_BUILTIN_FUNC)
-#undef DECLARE_BUILTIN_FUNC
-
     virtual bool isInlineCacheable() override
     {
         return false;
@@ -313,6 +301,31 @@ public:
 
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
+
+    /*
+       Global builtin property getter method
+       If builtin property is not yet installed (m_##builtin is null), call install#objName method to install it
+       Installation is executed only once for each builtin object
+    */
+#define DECLARE_BUILTIN_GETTER_FUNC(builtin, TYPE, objName) \
+    TYPE* builtin()                                         \
+    {                                                       \
+        if (UNLIKELY(!m_##builtin)) {                       \
+            ExecutionState tempState(m_context);            \
+            install##objName(tempState);                    \
+        }                                                   \
+        ASSERT(!!m_##builtin);                              \
+        return m_##builtin;                                 \
+    }
+
+    GLOBALOBJECT_BUILTIN_ALL_LIST(DECLARE_BUILTIN_GETTER_FUNC)
+#undef DECLARE_BUILTIN_GETTER_FUNC
+
+    void initializeBuiltins(ExecutionState& state);
+
+    Value eval(ExecutionState& state, const Value& arg);
+    // we get isInWithOperation as parameter because this affects bytecode
+    Value evalLocal(ExecutionState& state, const Value& arg, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool inWithOperation);
 
     void* operator new(size_t size)
     {
@@ -323,56 +336,21 @@ public:
 private:
     Context* m_context;
 
-#define DECLARE_BUILTIN_VALUE(builtin, TYPE, NAME) \
+#define DECLARE_BUILTIN_MEMBER_VALUE(builtin, TYPE, objName) \
     TYPE* m_##builtin;
 
-    GLOBALOBJECT_BUILTIN_LIST(DECLARE_BUILTIN_VALUE)
-#undef DECLARE_BUILTIN_VALUE
+    GLOBALOBJECT_BUILTIN_ALL_LIST(DECLARE_BUILTIN_MEMBER_VALUE)
+#undef DECLARE_BUILTIN_MEMBER_VALUE
 
-    void installFunction(ExecutionState& state);
-    void installObject(ExecutionState& state);
-    void installError(ExecutionState& state);
-    void installSymbol(ExecutionState& state);
-    void installBigInt(ExecutionState& state);
-    void installString(ExecutionState& state);
-    void installNumber(ExecutionState& state);
-    void installBoolean(ExecutionState& state);
-    void installArray(ExecutionState& state);
-    void installMath(ExecutionState& state);
-    void installDate(ExecutionState& state);
-    void installRegExp(ExecutionState& state);
-    void installJSON(ExecutionState& state);
-#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-    void installIntl(ExecutionState& state);
-#endif
-    void installPromise(ExecutionState& state);
-    void installProxy(ExecutionState& state);
-    void installReflect(ExecutionState& state);
-    void installArrayBuffer(ExecutionState& state);
-    void installDataView(ExecutionState& state);
-    void installTypedArray(ExecutionState& state);
+#define DECLARE_BUILTIN_MEMBER_FUNC(OBJNAME, objName, ARG) \
+    void initialize##objName(ExecutionState& state);       \
+    void install##objName(ExecutionState& state);
+
+    GLOBALOBJECT_BUILTIN_OBJECT_LIST(DECLARE_BUILTIN_MEMBER_FUNC, )
+#undef DECLARE_BUILTIN_MEMBER_FUNC
+
     template <typename TA, int elementSize>
     FunctionObject* installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction);
-    void installIterator(ExecutionState& state);
-    void installMap(ExecutionState& state);
-    void installSet(ExecutionState& state);
-    void installWeakMap(ExecutionState& state);
-    void installWeakRef(ExecutionState& state);
-    void installWeakSet(ExecutionState& state);
-    void installFinalizationRegistry(ExecutionState& state);
-    void installGenerator(ExecutionState& state);
-    void installAsyncFunction(ExecutionState& state);
-    void installAsyncIterator(ExecutionState& state);
-    void installAsyncFromSyncIterator(ExecutionState& state);
-    void installAsyncGeneratorFunction(ExecutionState& state);
-#if defined(ENABLE_THREADING)
-    void installAtomics(ExecutionState& state);
-    void installSharedArrayBuffer(ExecutionState& state);
-#endif
-#if defined(ENABLE_WASM)
-    void installWASM(ExecutionState& state);
-#endif
-    void installOthers(ExecutionState& state);
 };
 } // namespace Escargot
 

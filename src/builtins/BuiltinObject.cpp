@@ -629,6 +629,122 @@ static Value builtinObjectEntries(ExecutionState& state, Value thisValue, size_t
     return Object::createArrayFromList(state, nameList.size(), nameList.data());
 }
 
+// Object.prototype.__defineGetter__ ( P, getter )
+static Value builtinDefineGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be ? ToObject(this value).
+    Object* O = thisValue.toObject(state);
+    // If IsCallable(getter) is false, throw a TypeError exception.
+    if (!argv[1].isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, true, state.context()->staticStrings().__defineGetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+    }
+    // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
+    ObjectPropertyDescriptor desc(JSGetterSetter(argv[1].asObject(), Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
+
+    // Let key be ? ToPropertyKey(P).
+    ObjectPropertyName key(state, argv[0]);
+
+// Perform ? DefinePropertyOrThrow(O, key, desc).
+#if defined(ENABLE_V8_LIKE_DEFINE_LOOKUP_GETTER_SETTER)
+    O->defineOwnProperty(state, key, desc);
+#else
+    O->defineOwnPropertyThrowsException(state, key, desc);
+#endif
+
+    // Return undefined.
+    return Value();
+}
+
+// Object.prototype.__defineSetter__ ( P, getter )
+static Value builtinDefineSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be ? ToObject(this value).
+    Object* O = thisValue.toObject(state);
+    // If IsCallable(getter) is false, throw a TypeError exception.
+    if (!argv[1].isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, true, state.context()->staticStrings().__defineSetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+    }
+    // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
+    ObjectPropertyDescriptor desc(JSGetterSetter(Value(Value::EmptyValue), argv[1].asObject()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
+
+    // Let key be ? ToPropertyKey(P).
+    ObjectPropertyName key(state, argv[0]);
+
+// Perform ? DefinePropertyOrThrow(O, key, desc).
+#if defined(ENABLE_V8_LIKE_DEFINE_LOOKUP_GETTER_SETTER)
+    O->defineOwnProperty(state, key, desc);
+#else
+    O->defineOwnPropertyThrowsException(state, key, desc);
+#endif
+
+    // Return undefined.
+    return Value();
+}
+
+// Object.prototype.__lookupGetter__ ( P, getter )
+static Value builtinLookupGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be ? ToObject(this value).
+    Object* O = thisValue.toObject(state);
+    // Let key be ? ToPropertyKey(P).
+    ObjectPropertyName key(state, argv[0]);
+
+    // Repeat,
+    while (O) {
+        // Let desc be ? O.[[GetOwnProperty]](key).
+        auto desc = O->getOwnProperty(state, key);
+
+        // If desc is not undefined, then
+        if (desc.hasValue()) {
+            // If IsAccessorDescriptor(desc) is true, return desc.[[Get]].
+            if (!desc.isDataProperty() && desc.jsGetterSetter()->hasGetter()) {
+                return desc.jsGetterSetter()->getter();
+            }
+            // Return undefined.
+            return Value();
+        }
+        // Set O to ? O.[[GetPrototypeOf]]().
+        O = O->getPrototypeObject(state);
+        // If O is null, return undefined.
+    }
+    return Value();
+}
+
+// Object.prototype.__lookupSetter__ ( P, getter )
+static Value builtinLookupSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be ? ToObject(this value).
+    Object* O = thisValue.toObject(state);
+    // Let key be ? ToPropertyKey(P).
+    ObjectPropertyName key(state, argv[0]);
+
+    // Repeat,
+    while (O) {
+        // Let desc be ? O.[[GetOwnProperty]](key).
+        auto desc = O->getOwnProperty(state, key);
+
+        // If desc is not undefined, then
+        if (desc.hasValue()) {
+            // If IsAccessorDescriptor(desc) is true, return desc.[[Set]].
+            if (!desc.isDataProperty() && desc.jsGetterSetter()->hasSetter()) {
+                return desc.jsGetterSetter()->setter();
+            }
+            // Return undefined.
+            return Value();
+        }
+        // Set O to ? O.[[GetPrototypeOf]]().
+        O = O->getPrototypeObject(state);
+        // If O is null, return undefined.
+    }
+    return Value();
+}
+
+void GlobalObject::initializeObject(ExecutionState& state)
+{
+    // Object should be installed at the start time
+    installObject(state);
+}
+
 void GlobalObject::installObject(ExecutionState& state)
 {
     const StaticStrings& strings = state.context()->staticStrings();
@@ -773,12 +889,38 @@ void GlobalObject::installObject(ExecutionState& state)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().propertyIsEnumerable),
                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().propertyIsEnumerable, builtinObjectPropertyIsEnumerable, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    auto defineLookupGetterSetterNativeFunctionFlag =
+#if defined(ENABLE_V8_LIKE_DEFINE_LOOKUP_GETTER_SETTER)
+        0;
+#else
+        NativeFunctionInfo::Strict;
+#endif
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.__defineGetter__),
+                                         ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                           NativeFunctionInfo(strings.__defineGetter__, builtinDefineGetter, 2, defineLookupGetterSetterNativeFunctionFlag)),
+                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.__defineSetter__),
+                                         ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                           NativeFunctionInfo(strings.__defineSetter__, builtinDefineSetter, 2, defineLookupGetterSetterNativeFunctionFlag)),
+                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.__lookupGetter__),
+                                         ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                           NativeFunctionInfo(strings.__lookupGetter__, builtinLookupGetter, 1, defineLookupGetterSetterNativeFunctionFlag)),
+                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.__lookupSetter__),
+                                         ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                           NativeFunctionInfo(strings.__lookupSetter__, builtinLookupSetter, 1, defineLookupGetterSetterNativeFunctionFlag)),
+                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter gs(
         new NativeFunctionObject(state, NativeFunctionInfo(strings.get__proto__, builtinObject__proto__Getter, 0, NativeFunctionInfo::Strict)),
         new NativeFunctionObject(state, NativeFunctionInfo(strings.set__proto__, builtinObject__proto__Setter, 1, NativeFunctionInfo::Strict)));
     ObjectPropertyDescriptor __proto__desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.__proto__), __proto__desc);
+
     defineOwnProperty(state, ObjectPropertyName(strings.Object),
                       ObjectPropertyDescriptor(m_object, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

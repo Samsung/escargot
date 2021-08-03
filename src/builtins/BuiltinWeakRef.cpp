@@ -55,6 +55,17 @@ static Value builtinWeakRefDeRef(ExecutionState& state, Value thisValue, size_t 
     return weakRef->targetAsValue();
 }
 
+void GlobalObject::initializeWeakRef(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->weakRef();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakRef), nativeData, Value(Value::EmptyValue));
+}
 
 void GlobalObject::installWeakRef(ExecutionState& state)
 {
@@ -73,7 +84,7 @@ void GlobalObject::installWeakRef(ExecutionState& state)
                                                          ObjectPropertyDescriptor(Value(state.context()->staticStrings().WeakRef.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_weakRef->setFunctionPrototype(state, m_weakRefPrototype);
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakRef),
-                      ObjectPropertyDescriptor(m_weakRef, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakRef),
+                        ObjectPropertyDescriptor(m_weakRef, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

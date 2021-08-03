@@ -505,6 +505,18 @@ static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size
     }
 }
 
+void GlobalObject::initializeDate(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->date();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Date), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installDate(ExecutionState& state)
 {
     m_date = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Date, builtinDateConstructor, 7), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -593,7 +605,7 @@ void GlobalObject::installDate(ExecutionState& state)
 
     m_date->setFunctionPrototype(state, m_datePrototype);
 
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Date),
-                      ObjectPropertyDescriptor(m_date, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Date),
+                        ObjectPropertyDescriptor(m_date, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

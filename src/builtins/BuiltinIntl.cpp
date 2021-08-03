@@ -1,4 +1,3 @@
-#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
 /*
  * Copyright (C) 2015 Andy VanWagoner (thetalecrafter@gmail.com)
  * Copyright (C) 2015 Sukolsak Sakshuwong (sukolsak@gmail.com)
@@ -61,6 +60,8 @@
 #include "intl/IntlRelativeTimeFormat.h"
 
 namespace Escargot {
+
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
 
 static Value builtinIntlCollatorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -928,14 +929,26 @@ static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisVal
     return Object::createArrayFromList(state, ll);
 }
 
+void GlobalObject::initializeIntl(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->intl();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Intl), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installIntl(ExecutionState& state)
 {
     m_intl = new Object(state);
     m_intl->setGlobalIntrinsicObject(state);
 
     const StaticStrings* strings = &state.context()->staticStrings();
-    defineOwnProperty(state, ObjectPropertyName(strings->Intl),
-                      ObjectPropertyDescriptor(m_intl, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(strings->Intl),
+                        ObjectPropertyDescriptor(m_intl, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_intlCollator = new NativeFunctionObject(state, NativeFunctionInfo(strings->Collator, builtinIntlCollatorConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlCollator->setGlobalIntrinsicObject(state);
@@ -1143,6 +1156,13 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->getCanonicalLocales),
                               ObjectPropertyDescriptor(getCanonicalLocales, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-} // namespace Escargot
+
+#else
+
+void GlobalObject::initializeIntl(ExecutionState& state)
+{
+    // dummy initialize function
+}
 
 #endif // ENABLE_ICU
+} // namespace Escargot

@@ -186,6 +186,18 @@ static Value builtinBigIntToLocaleString(ExecutionState& state, Value thisValue,
 #endif
 }
 
+void GlobalObject::initializeBigInt(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->bigInt();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().BigInt), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installBigInt(ExecutionState& state)
 {
     m_bigInt = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().BigInt, builtinBigIntConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -221,7 +233,10 @@ void GlobalObject::installBigInt(ExecutionState& state)
 
 
     m_bigInt->setFunctionPrototype(state, m_bigIntPrototype);
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().BigInt),
-                      ObjectPropertyDescriptor(m_bigInt, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_bigIntProxyObject = new BigIntObject(state, new BigInt(UINT64_C(0)));
+
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().BigInt),
+                        ObjectPropertyDescriptor(m_bigInt, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

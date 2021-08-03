@@ -123,6 +123,18 @@ static Value builtinSymbolDescriptionGetter(ExecutionState& state, Value thisVal
     return Value();
 }
 
+void GlobalObject::initializeSymbol(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->symbol();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Symbol), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installSymbol(ExecutionState& state)
 {
     m_symbol = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Symbol, builtinSymbolConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -168,7 +180,10 @@ void GlobalObject::installSymbol(ExecutionState& state)
     DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
 
     m_symbol->setFunctionPrototype(state, m_symbolPrototype);
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Symbol),
-                      ObjectPropertyDescriptor(m_symbol, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_symbolProxyObject = new SymbolObject(state, state.context()->vmInstance()->globalSymbols().iterator);
+
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Symbol),
+                        ObjectPropertyDescriptor(m_symbol, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

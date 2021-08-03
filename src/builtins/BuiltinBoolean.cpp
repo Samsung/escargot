@@ -61,6 +61,18 @@ static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+void GlobalObject::initializeBoolean(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->boolean();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Boolean), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installBoolean(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -82,7 +94,9 @@ void GlobalObject::installBoolean(ExecutionState& state)
 
     m_boolean->setFunctionPrototype(state, m_booleanPrototype);
 
-    defineOwnProperty(state, ObjectPropertyName(strings->Boolean),
-                      ObjectPropertyDescriptor(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_booleanProxyObject = new BooleanObject(state);
+
+    redefineOwnProperty(state, ObjectPropertyName(strings->Boolean),
+                        ObjectPropertyDescriptor(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

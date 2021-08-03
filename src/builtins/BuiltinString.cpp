@@ -1635,8 +1635,22 @@ static Value builtinStringIterator(ExecutionState& state, Value thisValue, size_
     return new StringIteratorObject(state, S);
 }
 
+void GlobalObject::initializeString(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->string();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().String), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installString(ExecutionState& state)
 {
+    ASSERT(!!m_iteratorPrototype);
+
     const StaticStrings* strings = &state.context()->staticStrings();
     m_string = new NativeFunctionObject(state, NativeFunctionInfo(strings->String, builtinStringConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_string->setGlobalIntrinsicObject(state);
@@ -1827,7 +1841,9 @@ void GlobalObject::installString(ExecutionState& state)
     m_stringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                                 ObjectPropertyDescriptor(Value(String::fromASCII("String Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    defineOwnProperty(state, ObjectPropertyName(strings->String),
-                      ObjectPropertyDescriptor(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_stringProxyObject = new StringObject(state);
+
+    redefineOwnProperty(state, ObjectPropertyName(strings->String),
+                        ObjectPropertyDescriptor(m_string, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot
