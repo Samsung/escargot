@@ -90,7 +90,7 @@ Context::Context(VMInstance* instance)
 {
     ExecutionState stateForInit(this);
     m_globalObjectProxy = m_globalObject = new GlobalObject(stateForInit);
-    m_globalObject->installBuiltins(stateForInit);
+    m_globalObject->initializeBuiltins(stateForInit);
 }
 
 void Context::throwException(ExecutionState& state, const Value& exception)

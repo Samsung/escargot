@@ -181,8 +181,22 @@ static Value builtinSetIteratorNext(ExecutionState& state, Value thisValue, size
     return iter->next(state);
 }
 
+void GlobalObject::initializeSet(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->set();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Set), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installSet(ExecutionState& state)
 {
+    ASSERT(!!m_iteratorPrototype);
+
     m_set = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Set, builtinSetConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_set->setGlobalIntrinsicObject(state);
 
@@ -241,7 +255,7 @@ void GlobalObject::installSet(ExecutionState& state)
                                                              ObjectPropertyDescriptor(Value(String::fromASCII("Set Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_set->setFunctionPrototype(state, m_setPrototype);
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Set),
-                      ObjectPropertyDescriptor(m_set, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Set),
+                        ObjectPropertyDescriptor(m_set, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

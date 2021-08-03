@@ -138,6 +138,18 @@ static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t ar
     return M;
 }
 
+void GlobalObject::initializeWeakMap(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->weakMap();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakMap), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installWeakMap(ExecutionState& state)
 {
     m_weakMap = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakMap, builtinWeakMapConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -163,7 +175,7 @@ void GlobalObject::installWeakMap(ExecutionState& state)
                                                          ObjectPropertyDescriptor(Value(state.context()->staticStrings().WeakMap.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_weakMap->setFunctionPrototype(state, m_weakMapPrototype);
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakMap),
-                      ObjectPropertyDescriptor(m_weakMap, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakMap),
+                        ObjectPropertyDescriptor(m_weakMap, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

@@ -257,8 +257,15 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
     return asyncFromSyncIteratorContinuation(state, result.asObject(), promiseCapability);
 }
 
+void GlobalObject::initializeAsyncFromSyncIterator(ExecutionState& state)
+{
+    // do nothing
+}
+
 void GlobalObject::installAsyncFromSyncIterator(ExecutionState& state)
 {
+    ASSERT(!!m_asyncIteratorPrototype);
+
     // https://www.ecma-international.org/ecma-262/10.0/#sec-%asyncfromsynciteratorprototype%-object
     m_asyncFromSyncIteratorPrototype = new Object(state, m_asyncIteratorPrototype);
     m_asyncFromSyncIteratorPrototype->setGlobalIntrinsicObject(state, true);

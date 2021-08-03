@@ -122,6 +122,18 @@ static Value builtinArrayBufferSlice(ExecutionState& state, Value thisValue, siz
     return newObject;
 }
 
+void GlobalObject::initializeArrayBuffer(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->arrayBuffer();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().ArrayBuffer), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installArrayBuffer(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -157,7 +169,7 @@ void GlobalObject::installArrayBuffer(ExecutionState& state)
 
     m_arrayBuffer->setFunctionPrototype(state, m_arrayBufferPrototype);
 
-    defineOwnProperty(state, ObjectPropertyName(strings->ArrayBuffer),
-                      ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(strings->ArrayBuffer),
+                        ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

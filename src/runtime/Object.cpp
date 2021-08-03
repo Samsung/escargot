@@ -1466,6 +1466,28 @@ void Object::markAsNonInlineCachable()
     ensureRareData()->m_isInlineCacheable = false;
 }
 
+void Object::redefineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
+{
+    ASSERT(!P.isIndexString());
+    ASSERT(desc.isDataProperty());
+    ASSERT(desc.isWritable());
+    ASSERT(desc.isConfigurable());
+
+    ObjectStructurePropertyName propertyName = P.toObjectStructurePropertyName(state);
+    auto findResult = m_structure->findProperty(propertyName);
+    ASSERT(findResult.first != SIZE_MAX);
+
+    size_t idx = findResult.first;
+    const ObjectStructureItem* item = findResult.second.value();
+    auto current = item->m_descriptor;
+    ASSERT(current.isDataProperty());
+    ASSERT(current.isWritable());
+    ASSERT(current.isConfigurable());
+
+    m_structure = m_structure->replacePropertyDescriptor(idx, desc.toObjectStructurePropertyDescriptor());
+    m_values[idx] = desc.value();
+}
+
 uint64_t Object::length(ExecutionState& state)
 {
     // ToLength(Get(obj, "length"))

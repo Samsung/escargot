@@ -46,10 +46,10 @@ namespace Escargot {
 GlobalObject::GlobalObject(ExecutionState& state)
     : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, Object::__ForGlobalBuiltin__)
     , m_context(state.context())
-#define INIT_BUILTIN_VALUE(builtin, TYPE, NAME) \
+#define INIT_BUILTIN_VALUE(builtin, TYPE, objName) \
     , m_##builtin(nullptr)
 
-          GLOBALOBJECT_BUILTIN_LIST(INIT_BUILTIN_VALUE)
+          GLOBALOBJECT_BUILTIN_ALL_LIST(INIT_BUILTIN_VALUE)
 #undef INIT_BUILTIN_VALUE
 {
     // m_objectPrototype should be initialized ahead of any other builtins
@@ -59,53 +59,20 @@ GlobalObject::GlobalObject(ExecutionState& state)
     Object::setGlobalIntrinsicObject(state);
 }
 
-void GlobalObject::installBuiltins(ExecutionState& state)
+void GlobalObject::initializeBuiltins(ExecutionState& state)
 {
     // m_objectPrototype has been initialized ahead of any other builtins
     ASSERT(!!m_objectPrototype);
 
-    installFunction(state);
-    installObject(state);
-    installIterator(state);
-    installError(state);
-    installSymbol(state);
-    installBigInt(state);
-    installString(state);
-    installNumber(state);
-    installBoolean(state);
-    installArray(state);
-    installMath(state);
-    installDate(state);
-    installRegExp(state);
-    installJSON(state);
-#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-    installIntl(state);
-#endif
-    installPromise(state);
-    installProxy(state);
-    installReflect(state);
-    installArrayBuffer(state);
-    installDataView(state);
-    installTypedArray(state);
-    installMap(state);
-    installSet(state);
-    installWeakMap(state);
-    installWeakRef(state);
-    installWeakSet(state);
-    installFinalizationRegistry(state);
-    installGenerator(state);
-    installAsyncFunction(state);
-    installAsyncIterator(state);
-    installAsyncFromSyncIterator(state);
-    installAsyncGeneratorFunction(state);
-#if defined(ENABLE_THREADING)
-    installAtomics(state);
-    installSharedArrayBuffer(state);
-#endif
-#if defined(ENABLE_WASM)
-    installWASM(state);
-#endif
-    installOthers(state);
+    /*
+       initialize all global builtin properties by calling initialize##objName method
+       Object, Function and other prerequisite builtins are installed ahead
+    */
+#define DECLARE_BUILTIN_INIT_FUNC(OBJNAME, objName, ARG) \
+    initialize##objName(state);
+
+    GLOBALOBJECT_BUILTIN_OBJECT_LIST(DECLARE_BUILTIN_INIT_FUNC, )
+#undef DECLARE_BUILTIN_INIT_FUNC
 }
 
 Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -678,7 +645,6 @@ static Value encode(ExecutionState& state, String* uriString, bool noComponent, 
         }
     }
 
-
     size_t newLen = escaped.size();
     auto ptr = escaped.takeBuffer();
     return new ASCIIString(ptr, newLen, ASCIIString::FromGCBufferTag);
@@ -697,7 +663,6 @@ static Value builtinEncodeURIComponent(ExecutionState& state, Value thisValue, s
         return Value();
     return encode(state, argv[0].toString(state), false, state.context()->staticStrings().encodeURIComponent.string());
 }
-
 
 void char2hex(char dec, URIBuilderString& result)
 {
@@ -730,7 +695,6 @@ void char2hex4digit(char16_t dec, URIBuilderString& result)
         result.pushBack(dig[i]);
     }
 }
-
 
 static Value builtinEscape(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -868,182 +832,21 @@ static Value builtinUnescape(ExecutionState& state, Value thisValue, size_t argc
     }
 }
 
-// Object.prototype.__defineGetter__ ( P, getter )
-static Value builtinDefineGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ? ToObject(this value).
-    Object* O = thisValue.toObject(state);
-    // If IsCallable(getter) is false, throw a TypeError exception.
-    if (!argv[1].isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, true, state.context()->staticStrings().__defineGetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+    // this builtin function is shared both for Array and TypedArray (prototype.toString property)
+    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, toString);
+    Value toString = thisObject->get(state, state.context()->staticStrings().join).value(state, thisObject);
+    if (!toString.isCallable()) {
+        toString = state.context()->globalObject()->objectPrototypeToString();
     }
-    // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
-    ObjectPropertyDescriptor desc(JSGetterSetter(argv[1].asObject(), Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
-
-    // Let key be ? ToPropertyKey(P).
-    ObjectPropertyName key(state, argv[0]);
-
-// Perform ? DefinePropertyOrThrow(O, key, desc).
-#if defined(ENABLE_V8_LIKE_DEFINE_LOOKUP_GETTER_SETTER)
-    O->defineOwnProperty(state, key, desc);
-#else
-    O->defineOwnPropertyThrowsException(state, key, desc);
-#endif
-
-    // Return undefined.
-    return Value();
+    return Object::call(state, toString, thisObject, 0, nullptr);
 }
 
-// Object.prototype.__defineSetter__ ( P, getter )
-static Value builtinDefineSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+void GlobalObject::initializeOthers(ExecutionState& state)
 {
-    // Let O be ? ToObject(this value).
-    Object* O = thisValue.toObject(state);
-    // If IsCallable(getter) is false, throw a TypeError exception.
-    if (!argv[1].isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::emptyString, true, state.context()->staticStrings().__defineSetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
-    }
-    // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
-    ObjectPropertyDescriptor desc(JSGetterSetter(Value(Value::EmptyValue), argv[1].asObject()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
-
-    // Let key be ? ToPropertyKey(P).
-    ObjectPropertyName key(state, argv[0]);
-
-// Perform ? DefinePropertyOrThrow(O, key, desc).
-#if defined(ENABLE_V8_LIKE_DEFINE_LOOKUP_GETTER_SETTER)
-    O->defineOwnProperty(state, key, desc);
-#else
-    O->defineOwnPropertyThrowsException(state, key, desc);
-#endif
-
-    // Return undefined.
-    return Value();
-}
-
-// Object.prototype.__lookupGetter__ ( P, getter )
-static Value builtinLookupGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    // Let O be ? ToObject(this value).
-    Object* O = thisValue.toObject(state);
-    // Let key be ? ToPropertyKey(P).
-    ObjectPropertyName key(state, argv[0]);
-
-    // Repeat,
-    while (O) {
-        // Let desc be ? O.[[GetOwnProperty]](key).
-        auto desc = O->getOwnProperty(state, key);
-
-        // If desc is not undefined, then
-        if (desc.hasValue()) {
-            // If IsAccessorDescriptor(desc) is true, return desc.[[Get]].
-            if (!desc.isDataProperty() && desc.jsGetterSetter()->hasGetter()) {
-                return desc.jsGetterSetter()->getter();
-            }
-            // Return undefined.
-            return Value();
-        }
-        // Set O to ? O.[[GetPrototypeOf]]().
-        O = O->getPrototypeObject(state);
-        // If O is null, return undefined.
-    }
-    return Value();
-}
-
-// Object.prototype.__lookupSetter__ ( P, getter )
-static Value builtinLookupSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    // Let O be ? ToObject(this value).
-    Object* O = thisValue.toObject(state);
-    // Let key be ? ToPropertyKey(P).
-    ObjectPropertyName key(state, argv[0]);
-
-    // Repeat,
-    while (O) {
-        // Let desc be ? O.[[GetOwnProperty]](key).
-        auto desc = O->getOwnProperty(state, key);
-
-        // If desc is not undefined, then
-        if (desc.hasValue()) {
-            // If IsAccessorDescriptor(desc) is true, return desc.[[Set]].
-            if (!desc.isDataProperty() && desc.jsGetterSetter()->hasSetter()) {
-                return desc.jsGetterSetter()->setter();
-            }
-            // Return undefined.
-            return Value();
-        }
-        // Set O to ? O.[[GetPrototypeOf]]().
-        O = O->getPrototypeObject(state);
-        // If O is null, return undefined.
-    }
-    return Value();
-}
-
-static Value builtinCallerAndArgumentsGetterSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    FunctionObject* targetFunction = nullptr;
-    bool needThrow = false;
-    if (thisValue.isCallable()) {
-        if (thisValue.isFunction()) {
-            targetFunction = thisValue.asFunction();
-            if (targetFunction->isScriptFunctionObject()) {
-                InterpretedCodeBlock* codeBlock = targetFunction->asScriptFunctionObject()->interpretedCodeBlock();
-                if (codeBlock->isStrict() || codeBlock->isArrowFunctionExpression() || codeBlock->isGenerator()) {
-                    needThrow = true;
-                }
-            } else {
-                ASSERT(targetFunction->isNativeFunctionObject());
-                if (targetFunction->asNativeFunctionObject()->nativeCodeBlock()->isStrict()) {
-                    needThrow = true;
-                }
-            }
-        } else if (thisValue.isObject()) {
-            auto object = thisValue.asObject();
-            if (object->isBoundFunctionObject()) {
-                needThrow = true;
-            }
-        }
-    } else if (!thisValue.isPrimitive() && !thisValue.isObject()) {
-        needThrow = true;
-    }
-
-    if (needThrow) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'caller' and 'arguments' restrict properties may not be accessed on strict mode functions or the arguments objects for calls to them");
-    }
-
-    bool inStrict = false;
-
-    ExecutionState* p = state.parent();
-    while (p) {
-        if (p->inStrictMode()) {
-            inStrict = true;
-            break;
-        }
-        p = p->parent();
-    }
-
-    if (targetFunction && !inStrict) {
-        bool foundTargetFunction = false;
-        ExecutionState* p = &state;
-        while (p) {
-            if (foundTargetFunction) {
-                auto callee = p->resolveCallee();
-                if (callee != targetFunction) {
-                    if (callee) {
-                        return Value(callee);
-                    } else {
-                        return Value(Value::Null);
-                    }
-                }
-            } else {
-                if (p->resolveCallee() == targetFunction) {
-                    foundTargetFunction = true;
-                }
-            }
-            p = p->parent();
-        }
-    }
-
-    return Value(Value::Null);
+    // Other prerequisite builtins should be installed at the start time
+    installOthers(state);
 }
 
 void GlobalObject::installOthers(ExecutionState& state)
@@ -1056,8 +859,10 @@ void GlobalObject::installOthers(ExecutionState& state)
     // $18.2.1 eval (x)
     m_eval = new NativeFunctionObject(state,
                                       NativeFunctionInfo(strings->eval, builtinEval, 1, NativeFunctionInfo::Strict));
+
     defineOwnProperty(state, ObjectPropertyName(strings->eval),
                       ObjectPropertyDescriptor(m_eval, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     // $18.2.2 isFinite(number)
     defineOwnProperty(state, ObjectPropertyName(strings->isFinite),
                       ObjectPropertyDescriptor(new NativeFunctionObject(state,
@@ -1068,25 +873,6 @@ void GlobalObject::installOthers(ExecutionState& state)
                       ObjectPropertyDescriptor(new NativeFunctionObject(state,
                                                                         NativeFunctionInfo(strings->isNaN, builtinIsNaN, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
-    FunctionObject* parseInt = new NativeFunctionObject(state, NativeFunctionInfo(strings->parseInt, builtinParseInt, 2, NativeFunctionInfo::Strict));
-    defineOwnProperty(state, ObjectPropertyName(strings->parseInt),
-                      ObjectPropertyDescriptor(parseInt,
-                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
-    m_number->defineOwnProperty(state, ObjectPropertyName(strings->parseInt),
-                                ObjectPropertyDescriptor(parseInt,
-                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
-    FunctionObject* parseFloat = new NativeFunctionObject(state, NativeFunctionInfo(strings->parseFloat, builtinParseFloat, 1, NativeFunctionInfo::Strict));
-    defineOwnProperty(state, ObjectPropertyName(strings->parseFloat),
-                      ObjectPropertyDescriptor(parseFloat,
-                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
-    m_number->defineOwnProperty(state, ObjectPropertyName(strings->parseFloat),
-                                ObjectPropertyDescriptor(parseFloat,
-                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
     defineOwnProperty(state, ObjectPropertyName(strings->encodeURI),
                       ObjectPropertyDescriptor(new NativeFunctionObject(state,
                                                                         NativeFunctionInfo(strings->encodeURI, builtinEncodeURI, 1, NativeFunctionInfo::Strict)),
@@ -1117,31 +903,33 @@ void GlobalObject::installOthers(ExecutionState& state)
                                                                         NativeFunctionInfo(strings->unescape, builtinUnescape, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    auto defineLookupGetterSetterNativeFunctionFlag =
-#if defined(ENABLE_V8_LIKE_DEFINE_LOOKUP_GETTER_SETTER)
-        0;
-#else
-        NativeFunctionInfo::Strict;
-#endif
-    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__defineGetter__),
-                                         ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                                           NativeFunctionInfo(strings->__defineGetter__, builtinDefineGetter, 2, defineLookupGetterSetterNativeFunctionFlag)),
-                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // shared builtin methods
+    m_parseInt = new NativeFunctionObject(state, NativeFunctionInfo(strings->parseInt, builtinParseInt, 2, NativeFunctionInfo::Strict));
+    defineOwnProperty(state, ObjectPropertyName(strings->parseInt),
+                      ObjectPropertyDescriptor(m_parseInt,
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__defineSetter__),
-                                         ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                                           NativeFunctionInfo(strings->__defineSetter__, builtinDefineSetter, 2, defineLookupGetterSetterNativeFunctionFlag)),
-                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_parseFloat = new NativeFunctionObject(state, NativeFunctionInfo(strings->parseFloat, builtinParseFloat, 1, NativeFunctionInfo::Strict));
+    defineOwnProperty(state, ObjectPropertyName(strings->parseFloat),
+                      ObjectPropertyDescriptor(m_parseFloat,
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__lookupGetter__),
-                                         ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                                           NativeFunctionInfo(strings->__lookupGetter__, builtinLookupGetter, 1, defineLookupGetterSetterNativeFunctionFlag)),
-                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayToString = new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinArrayToString, 0, NativeFunctionInfo::Strict));
 
-    m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings->__lookupSetter__),
-                                         ObjectPropertyDescriptor(new NativeFunctionObject(state,
-                                                                                           NativeFunctionInfo(strings->__lookupSetter__, builtinLookupSetter, 1, defineLookupGetterSetterNativeFunctionFlag)),
-                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // shared builtin objects
+    m_asyncIteratorPrototype = new Object(state);
+    m_asyncIteratorPrototype->setGlobalIntrinsicObject(state, true);
+    // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asynciteratorprototype-asynciterator
+    m_asyncIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().asyncIterator),
+                                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.asyncIterator]")), builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
+                                                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_iteratorPrototype = new Object(state);
+    m_iteratorPrototype->setGlobalIntrinsicObject(state, true);
+    // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-%iteratorprototype%-@@iterator
+    m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
+                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 #if defined(ESCARGOT_ENABLE_TEST)
     AtomicString isFunctionAllocatedOnStackFunctionName(state, "isFunctionAllocatedOnStack");
@@ -1174,23 +962,6 @@ void GlobalObject::installOthers(ExecutionState& state)
                                                                         NativeFunctionInfo(setPhaseName, builtinSetGCPhaseName, 1, NativeFunctionInfo::Strict)),
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 #endif
-
-    m_stringProxyObject = new StringObject(state);
-    m_numberProxyObject = new NumberObject(state);
-    m_booleanProxyObject = new BooleanObject(state);
-    m_symbolProxyObject = new SymbolObject(state, state.context()->vmInstance()->globalSymbols().iterator);
-    m_bigIntProxyObject = new BigIntObject(state, new BigInt(UINT64_C(0)));
-
-    // 8.2.2 - 12
-    // AddRestrictedFunctionProperties(funcProto, realmRec).
-    auto fn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().caller, builtinCallerAndArgumentsGetterSetter, 0, NativeFunctionInfo::Strict));
-    JSGetterSetter gs(fn, fn);
-    ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-    m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().caller), desc);
-    m_functionPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().arguments), desc);
-
-    m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().caller), desc);
-    m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().arguments), desc);
 
     // https://tc39.es/ecma262/#sec-globalthis
     // The initial value of globalThis is the well-known intrinsic object %GlobalThisValue%.

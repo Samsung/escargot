@@ -711,6 +711,18 @@ static Value builtinJSONStringify(ExecutionState& state, Value thisValue, size_t
     return Value();
 }
 
+void GlobalObject::initializeJSON(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->json();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().JSON), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installJSON(ExecutionState& state)
 {
     m_json = new Object(state);
@@ -719,8 +731,8 @@ void GlobalObject::installJSON(ExecutionState& state)
                                              ObjectPropertyDescriptor(Value(state.context()->staticStrings().JSON.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().JSON),
-                      ObjectPropertyDescriptor(m_json, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().JSON),
+                        ObjectPropertyDescriptor(m_json, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_jsonParse = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().parse, builtinJSONParse, 2, NativeFunctionInfo::Strict));
     m_json->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().parse),

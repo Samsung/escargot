@@ -59,8 +59,15 @@ static Value builtinGeneratorThrow(ExecutionState& state, Value thisValue, size_
     return GeneratorObject::generatorResumeAbrupt(state, thisValue, argc > 0 ? argv[0] : Value(), GeneratorObject::GeneratorAbruptType::Throw);
 }
 
+void GlobalObject::initializeGenerator(ExecutionState& state)
+{
+    // do nothing
+}
+
 void GlobalObject::installGenerator(ExecutionState& state)
 {
+    ASSERT(!!m_iteratorPrototype);
+
     // %GeneratorFunction% : The constructor of generator objects
     m_generatorFunction = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().GeneratorFunction, builtinGeneratorFunction, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_generatorFunction->setGlobalIntrinsicObject(state);
@@ -70,9 +77,17 @@ void GlobalObject::installGenerator(ExecutionState& state)
     m_generator->setGlobalIntrinsicObject(state, true);
     m_generatorFunction->setFunctionPrototype(state, m_generator);
 
-
     // 25.2.3.1 The initial value of GeneratorFunction.prototype.constructor is the intrinsic object %GeneratorFunction%.
     m_generator->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_generatorFunction, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    {
+        ASSERT(!!m_callerAndArgumentsGetterSetter);
+        JSGetterSetter gs(m_callerAndArgumentsGetterSetter, m_callerAndArgumentsGetterSetter);
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+
+        m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().caller), desc);
+        m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().arguments), desc);
+    }
 
     // %GeneratorPrototype% : The initial value of the prototype property of %Generator%
     m_generatorPrototype = new Object(state, m_iteratorPrototype);

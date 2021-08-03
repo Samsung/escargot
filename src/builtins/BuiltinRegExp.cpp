@@ -753,8 +753,22 @@ std::pair<Value, bool> RegExpStringIteratorObject::advance(ExecutionState& state
     return std::make_pair(match, false);
 }
 
+void GlobalObject::initializeRegExp(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->regexp();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().RegExp), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installRegExp(ExecutionState& state)
 {
+    ASSERT(!!m_iteratorPrototype);
+
     const StaticStrings* strings = &state.context()->staticStrings();
 
     m_regexp = new NativeFunctionObject(state, NativeFunctionInfo(strings->RegExp, builtinRegExpConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -921,7 +935,7 @@ void GlobalObject::installRegExp(ExecutionState& state)
     m_regexpStringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                                       ObjectPropertyDescriptor(Value(String::fromASCII("RegExp String Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    defineOwnProperty(state, ObjectPropertyName(strings->RegExp),
-                      ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(strings->RegExp),
+                        ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

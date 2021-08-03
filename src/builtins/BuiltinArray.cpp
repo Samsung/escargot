@@ -693,17 +693,6 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     return A;
 }
 
-
-static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, toString);
-    Value toString = thisObject->get(state, state.context()->staticStrings().join).value(state, thisObject);
-    if (!toString.isCallable()) {
-        toString = state.context()->globalObject()->objectPrototypeToString();
-    }
-    return Object::call(state, toString, thisObject, 0, nullptr);
-}
-
 static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, concat);
@@ -1860,8 +1849,23 @@ static Value builtinArrayAt(ExecutionState& state, Value thisValue, size_t argc,
     return obj->getIndexedProperty(state, Value(relativeStart)).value(state, thisValue);
 }
 
+void GlobalObject::initializeArray(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->array();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Array), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installArray(ExecutionState& state)
 {
+    ASSERT(!!m_iteratorPrototype);
+    ASSERT(!!m_arrayToString);
+
     m_array = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Array, builtinArrayConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_array->setGlobalIntrinsicObject(state);
 
@@ -1922,8 +1926,9 @@ void GlobalObject::installArray(ExecutionState& state)
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().shift, builtinArrayShift, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().reverse),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().reverse, builtinArrayReverse, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toString),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinArrayToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                       ObjectPropertyDescriptor(m_arrayToString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().map),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().map, builtinArrayMap, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().some),
@@ -1990,7 +1995,7 @@ void GlobalObject::installArray(ExecutionState& state)
     m_arrayIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                                ObjectPropertyDescriptor(Value(String::fromASCII("Array Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Array),
-                      ObjectPropertyDescriptor(m_array, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Array),
+                        ObjectPropertyDescriptor(m_array, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

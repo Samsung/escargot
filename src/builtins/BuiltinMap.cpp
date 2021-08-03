@@ -194,8 +194,22 @@ static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size
     return iter->next(state);
 }
 
+void GlobalObject::initializeMap(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->map();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Map), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installMap(ExecutionState& state)
 {
+    ASSERT(!!m_iteratorPrototype);
+
     m_map = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Map, builtinMapConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_map->setGlobalIntrinsicObject(state);
 
@@ -261,7 +275,7 @@ void GlobalObject::installMap(ExecutionState& state)
 
 
     m_map->setFunctionPrototype(state, m_mapPrototype);
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Map),
-                      ObjectPropertyDescriptor(m_map, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Map),
+                        ObjectPropertyDescriptor(m_map, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

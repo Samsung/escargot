@@ -1605,14 +1605,35 @@ FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicStr
     // 22.2.6.2 /TypedArray/.prototype.constructor
     taPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    defineOwnProperty(state, ObjectPropertyName(taName),
-                      ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(taName),
+                        ObjectPropertyDescriptor(taConstructor, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     return taConstructor;
 }
 
+void GlobalObject::initializeTypedArray(ExecutionState& state)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+
+#define INITIALIZE_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                                                                                                          \
+    {                                                                                                                                                                                                                               \
+        ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,                                                                                                              \
+                                                                                                    [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value { \
+                                                                                                        ASSERT(self->isGlobalObject());                                                                                             \
+                                                                                                        return self->asGlobalObject()->type##Array();                                                                               \
+                                                                                                    },                                                                                                                              \
+                                                                                                    nullptr);                                                                                                                       \
+        defineNativeDataAccessorProperty(state, ObjectPropertyName(strings->TYPE##Array), nativeData, Value(Value::EmptyValue));                                                                                                    \
+    }
+
+    FOR_EACH_TYPEDARRAY_TYPES(INITIALIZE_TYPEDARRAY)
+#undef INITIALIZE_TYPEDARRAY
+}
+
 void GlobalObject::installTypedArray(ExecutionState& state)
 {
+    ASSERT(!!m_arrayToString);
+
     const StaticStrings* strings = &state.context()->staticStrings();
 
     // %TypedArray%
@@ -1673,10 +1694,9 @@ void GlobalObject::installTypedArray(ExecutionState& state)
 
     // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.tostring
     // The initial value of the %TypedArray%.prototype.toString data property is the same built-in function object as the Array.prototype.toString method
-    ASSERT(!!m_arrayPrototype && m_arrayPrototype->hasOwnProperty(state, ObjectPropertyName(strings->toString)));
-    Value arrayToString = m_arrayPrototype->getOwnProperty(state, ObjectPropertyName(strings->toString)).value(state, m_arrayPrototype);
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
-                                                          ObjectPropertyDescriptor(arrayToString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                          ObjectPropertyDescriptor(m_arrayToString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->indexOf),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->indexOf, builtinTypedArrayIndexOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->lastIndexOf),

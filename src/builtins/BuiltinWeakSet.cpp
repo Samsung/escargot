@@ -126,6 +126,18 @@ static Value builtinWeakSetHas(ExecutionState& state, Value thisValue, size_t ar
     return Value(S->has(state, argv[0].asObject()));
 }
 
+void GlobalObject::initializeWeakSet(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->weakSet();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakSet), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installWeakSet(ExecutionState& state)
 {
     m_weakSet = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakSet, builtinWeakSetConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -149,7 +161,7 @@ void GlobalObject::installWeakSet(ExecutionState& state)
                                                          ObjectPropertyDescriptor(Value(state.context()->staticStrings().WeakSet.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_weakSet->setFunctionPrototype(state, m_weakSetPrototype);
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakSet),
-                      ObjectPropertyDescriptor(m_weakSet, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakSet),
+                        ObjectPropertyDescriptor(m_weakSet, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

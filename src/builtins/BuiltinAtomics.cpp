@@ -17,8 +17,6 @@
  *  USA
  */
 
-#if defined(ENABLE_THREADING)
-
 #include "Escargot.h"
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
@@ -33,6 +31,8 @@
 #endif
 
 namespace Escargot {
+
+#if defined(ENABLE_THREADING)
 
 enum class AtomicBinaryOps : uint8_t {
     ADD,
@@ -435,6 +435,18 @@ static Value builtinAtomicsXor(ExecutionState& state, Value thisValue, size_t ar
     return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::XOR);
 }
 
+void GlobalObject::initializeAtomics(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->atomics();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Atomics), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installAtomics(ExecutionState& state)
 {
     m_atomics = new Object(state);
@@ -470,9 +482,15 @@ void GlobalObject::installAtomics(ExecutionState& state)
     m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringXor),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringXor, builtinAtomicsXor, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Atomics),
-                      ObjectPropertyDescriptor(m_atomics, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Atomics),
+                        ObjectPropertyDescriptor(m_atomics, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
-} // namespace Escargot
+#else
+
+void GlobalObject::initializeAtomics(ExecutionState& state)
+{
+    // dummy initialize function
+}
 
 #endif
+} // namespace Escargot

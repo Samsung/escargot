@@ -154,6 +154,18 @@ static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisVa
     RELEASE_ASSERT_NOT_REACHED();
 }
 
+void GlobalObject::initializeDataView(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->dataView();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().DataView), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installDataView(ExecutionState& state)
 {
     m_dataView = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().DataView, builtinDataViewConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -205,7 +217,7 @@ void GlobalObject::installDataView(ExecutionState& state)
         m_dataViewPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteOffset), byteOffsetDesc);
     }
 
-    defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().DataView),
-                      ObjectPropertyDescriptor(m_dataView, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().DataView),
+                        ObjectPropertyDescriptor(m_dataView, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

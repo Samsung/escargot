@@ -941,13 +941,29 @@ DEFINE_ERROR_CTOR(WASMCompile, wasmCompile)
 DEFINE_ERROR_CTOR(WASMLink, wasmLink)
 DEFINE_ERROR_CTOR(WASMRuntime, wasmRuntime)
 
-void GlobalObject::installWASM(ExecutionState& state)
+void GlobalObject::initializeWebAssembly(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->wasm();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().WebAssembly), nativeData, Value(Value::EmptyValue));
+}
+
+void GlobalObject::installWebAssembly(ExecutionState& state)
 {
     // builtin Error should be installed ahead
-    ASSERT(!!this->error());
+    if (!m_error) {
+        error();
+    }
+    ASSERT(!!m_error);
 
     Object* wasm = new Object(state);
     wasm->setGlobalIntrinsicObject(state);
+    m_wasm = wasm;
 
     const StaticStrings* strings = &state.context()->staticStrings();
 
@@ -1124,8 +1140,22 @@ void GlobalObject::installWASM(ExecutionState& state)
     DEFINE_ERROR(wasmRuntime, WASMRuntime, Runtime)
 
 
-    defineOwnProperty(state, ObjectPropertyName(strings->WebAssembly),
-                      ObjectPropertyDescriptor(wasm, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(strings->WebAssembly),
+                        ObjectPropertyDescriptor(wasm, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+}
+} // namespace Escargot
+
+#else
+
+#include "Escargot.h"
+#include "runtime/GlobalObject.h"
+
+namespace Escargot {
+class ExecutionState;
+
+void GlobalObject::initializeWebAssembly(ExecutionState& state)
+{
+    // dummy initialize function
 }
 } // namespace Escargot
 

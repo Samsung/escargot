@@ -105,6 +105,18 @@ static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_
     return result;
 }
 
+void GlobalObject::initializeProxy(ExecutionState& state)
+{
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
+                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+                                                                                                    ASSERT(self->isGlobalObject());
+                                                                                                    return self->asGlobalObject()->proxy();
+                                                                                                },
+                                                                                                nullptr);
+
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Proxy), nativeData, Value(Value::EmptyValue));
+}
+
 void GlobalObject::installProxy(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -113,7 +125,7 @@ void GlobalObject::installProxy(ExecutionState& state)
 
     m_proxy->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->revocable), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->revocable, builtinProxyRevocable, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    defineOwnProperty(state, ObjectPropertyName(strings->Proxy),
-                      ObjectPropertyDescriptor(m_proxy, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    redefineOwnProperty(state, ObjectPropertyName(strings->Proxy),
+                        ObjectPropertyDescriptor(m_proxy, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot
