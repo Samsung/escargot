@@ -11,6 +11,23 @@ index 9b365e87..d770afa4 100644
                 memories.size());
    if (memories[memory].is_64) {
      return ReadU64Leb128(out_value, desc);
+diff --git src/common.h src/common.h
+index dbac0a89..1c0a57e8 100644
+--- src/common.h
++++ src/common.h
+@@ -66,11 +66,8 @@
+   char fixed_buf[WABT_DEFAULT_SNPRINTF_ALLOCA_BUFSIZE];                    \
+   char* buffer = fixed_buf;                                                \
+   size_t len = wabt_vsnprintf(fixed_buf, sizeof(fixed_buf), format, args); \
++  (void)len;                                                               \
+   va_end(args);                                                            \
+-  if (len + 1 > sizeof(fixed_buf)) {                                       \
+-    buffer = static_cast<char*>(alloca(len + 1));                          \
+-    len = wabt_vsnprintf(buffer, len + 1, format, args_copy);              \
+-  }                                                                        \
+   va_end(args_copy)
+ 
+ #define WABT_ENUM_COUNT(name) \
 diff --git src/interp/interp-wasm-c-api.cc src/interp/interp-wasm-c-api.cc
 index 75190feb..2a0c861d 100644
 --- src/interp/interp-wasm-c-api.cc
