@@ -741,8 +741,6 @@
     <test id="language/asi/S7.9_A5.7_T1"><reason>TODO</reason></test>
     <test id="language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-function"><reason>TODO</reason></test>
     <test id="language/block-scope/syntax/redeclaration/var-name-redeclaration-attempt-with-function"><reason>TODO</reason></test>
-    <test id="language/destructuring/binding/syntax/destructuring-array-parameters-function-arguments-length"><reason>TODO</reason></test>
-    <test id="language/destructuring/binding/syntax/destructuring-object-parameters-function-arguments-length"><reason>TODO</reason></test>
     <test id="language/eval-code/direct/arrow-fn-a-following-parameter-is-named-arguments-arrow-func-declare-arguments-assign"><reason>TODO</reason></test>
     <test id="language/eval-code/direct/arrow-fn-a-following-parameter-is-named-arguments-arrow-func-declare-arguments-assign-incl-def-param-arrow-arguments"><reason>TODO</reason></test>
     <test id="language/eval-code/direct/arrow-fn-a-preceding-parameter-is-named-arguments-arrow-func-declare-arguments-assign"><reason>TODO</reason></test>
