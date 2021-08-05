@@ -418,22 +418,29 @@ public:
 
         VectorWithInlineStorage<8, SyntaxNode, std::allocator<SyntaxNode>>& params = paramsResult.params;
         bool hasParameterOtherThanIdentifier = false;
+        bool seenDefaultParameter = false;
 
         for (size_t i = 0; i < params.size(); i++) {
             switch (params[i]->type()) {
-            case Identifier: {
-                if (!hasParameterOtherThanIdentifier) {
+            case Identifier:
+                if (LIKELY(!seenDefaultParameter)) {
                     this->currentScopeContext->m_functionLength++;
                 }
                 break;
-            }
             case AssignmentPattern:
-            case ArrayPattern:
-            case ObjectPattern:
-            case RestElement: {
+                seenDefaultParameter = true;
                 hasParameterOtherThanIdentifier = true;
                 break;
-            }
+            case ArrayPattern:
+            case ObjectPattern:
+                hasParameterOtherThanIdentifier = true;
+                if (LIKELY(!seenDefaultParameter)) {
+                    this->currentScopeContext->m_functionLength++;
+                }
+                break;
+            case RestElement:
+                hasParameterOtherThanIdentifier = true;
+                break;
             default: {
                 RELEASE_ASSERT_NOT_REACHED();
             }
