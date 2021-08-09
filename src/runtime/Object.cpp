@@ -87,6 +87,7 @@ ObjectRareData::ObjectRareData(Object* obj)
     , m_isArrayObjectLengthWritable(true)
     , m_isSpreadArrayObject(false)
     , m_isFinalizerRegistered(false)
+    , m_isInlineCacheable(true)
     , m_shouldUpdateEnumerateObject(false)
     , m_hasNonWritableLastIndexRegExpObject(false)
     , m_hasExtendedExtraData(false)
@@ -1460,6 +1461,11 @@ void Object::deleteOwnProperty(ExecutionState& state, size_t idx)
     // ASSERT(m_values.size() == m_structure->propertyCount());
 }
 
+void Object::markAsNonInlineCachable()
+{
+    ensureRareData()->m_isInlineCacheable = false;
+}
+
 uint64_t Object::length(ExecutionState& state)
 {
     // ToLength(Get(obj, "length"))
@@ -1640,6 +1646,10 @@ bool Object::defineNativeDataAccessorProperty(ExecutionState& state, const Objec
 
     m_structure = m_structure->addProperty(P.toObjectStructurePropertyName(state), ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(data));
     m_values.pushBack(objectInternalData, m_structure->propertyCount());
+
+    if (UNLIKELY(data->m_actsLikeJSGetterSetter)) {
+        markAsNonInlineCachable();
+    }
 
     return true;
 }

@@ -55,7 +55,7 @@ public:
 
     void inherit(Optional<FunctionTemplate*> parent)
     {
-        ASSERT(!m_cachedObjectStructure);
+        ASSERT(!m_cachedObjectStructure.m_objectStructure);
         ASSERT(parent->m_isConstructor);
         m_parent = parent;
     }

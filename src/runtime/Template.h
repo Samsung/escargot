@@ -158,7 +158,7 @@ public:
     virtual Object* instantiate(Context* ctx) = 0;
     bool didInstantiate() const
     {
-        return m_cachedObjectStructure;
+        return m_cachedObjectStructure.m_objectStructure;
     }
 
     virtual bool isObjectTemplate() const
@@ -173,17 +173,26 @@ public:
 
     Optional<ObjectStructure*> cachedObjectStructure()
     {
-        return m_cachedObjectStructure;
+        return m_cachedObjectStructure.m_objectStructure;
     }
 
 protected:
-    ObjectStructure* constructObjectStructure(Context* ctx, ObjectStructureItem* baseItems, size_t baseItemCount);
+    struct CachedObjectStructure {
+        ObjectStructure* m_objectStructure;
+        bool m_inlineCacheable;
+
+        CachedObjectStructure()
+            : m_objectStructure(nullptr)
+            , m_inlineCacheable(false)
+        {
+        }
+    };
+    CachedObjectStructure constructObjectStructure(Context* ctx, ObjectStructureItem* baseItems, size_t baseItemCount);
     void constructObjectPropertyValues(Context* ctx, ObjectPropertyValue* baseItems, size_t baseItemCount, ObjectPropertyValueVector& objectPropertyValues);
     void postProcessing(Object* instantiatedObject);
 
     Template()
         : m_instanceExtraData(nullptr)
-        , m_cachedObjectStructure(nullptr)
     {
     }
     virtual ~Template()
@@ -194,7 +203,7 @@ protected:
     {
         GC_set_bit(desc, GC_WORD_OFFSET(Template, m_properties));
         GC_set_bit(desc, GC_WORD_OFFSET(Template, m_instanceExtraData));
-        GC_set_bit(desc, GC_WORD_OFFSET(Template, m_cachedObjectStructure));
+        GC_set_bit(desc, GC_WORD_OFFSET(Template, m_cachedObjectStructure.m_objectStructure));
     }
 
     class TemplatePropertyData {
@@ -332,7 +341,7 @@ protected:
 
     Vector<std::pair<TemplatePropertyName, TemplatePropertyData>, GCUtil::gc_malloc_allocator<std::pair<TemplatePropertyName, TemplatePropertyData>>> m_properties;
     void* m_instanceExtraData;
-    ObjectStructure* m_cachedObjectStructure;
+    CachedObjectStructure m_cachedObjectStructure;
 };
 } // namespace Escargot
 

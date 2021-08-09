@@ -559,7 +559,7 @@ TEST(ObjectTemplate, Basic3)
         return true;
     };
 
-    tpl->setNativeDataAccessorProperty(StringRef::createFromASCII("asdf"), data);
+    tpl->setNativeDataAccessorProperty(StringRef::createFromASCII("asdf"), data, true);
 
     class TestNativeDataAccessorPropertyData2 : public ObjectRef::NativeDataAccessorPropertyData {
     public:
@@ -664,6 +664,27 @@ TEST(ObjectTemplate, Basic3)
         return ValueRef::createUndefined();
     },
                        obj, data2, tpl);
+
+    // inline cache test if actsLikeJSGetterSetter is true
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
+        state->context()->globalObject()->set(state, StringRef::createFromASCII("asdf"), obj);
+        return ValueRef::createUndefined();
+    },
+                       obj);
+
+    evalScript(g_context.get(), StringRef::createFromASCII("var t = {}; t.__proto__ = asdf;"
+        "for(let i = 0;i < 10; i++) { t.asdf = 3 }"), StringRef::createFromASCII("test"), false);
+
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
+        ValueRef* ret = state->context()->globalObject()->get(state, StringRef::createFromASCII("t"))
+            ->asObject()->get(state, StringRef::createFromASCII("asdf"));
+        EXPECT_TRUE(ret->toNumber(state) == 6);
+        state->context()->globalObject()->set(state, StringRef::createFromASCII("t"), ValueRef::createUndefined());
+        state->context()->globalObject()->set(state, StringRef::createFromASCII("asdf"), ValueRef::createUndefined());
+        return ValueRef::createUndefined();
+    },
+                       obj);
 }
 
 TEST(ObjectTemplate, Basic4)

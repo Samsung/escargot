@@ -44,7 +44,7 @@ bool Template::has(const TemplatePropertyName& name)
 
 bool Template::remove(const TemplatePropertyName& name)
 {
-    ASSERT(m_cachedObjectStructure == nullptr);
+    ASSERT(m_cachedObjectStructure.m_objectStructure == nullptr);
     for (size_t i = 0; i < m_properties.size(); i++) {
         if (m_properties[i].first == name) {
             m_properties.erase(i);
@@ -56,26 +56,26 @@ bool Template::remove(const TemplatePropertyName& name)
 
 void Template::set(const TemplatePropertyName& name, const TemplateData& data, bool isWritable, bool isEnumerable, bool isConfigurable)
 {
-    ASSERT(m_cachedObjectStructure == nullptr);
+    ASSERT(m_cachedObjectStructure.m_objectStructure == nullptr);
     remove(name);
     m_properties.pushBack(std::make_pair(name, TemplatePropertyData(data, isWritable, isEnumerable, isConfigurable)));
 }
 
 void Template::setAccessorProperty(const TemplatePropertyName& name, Optional<FunctionTemplate*> getter, Optional<FunctionTemplate*> setter, bool isEnumerable, bool isConfigurable)
 {
-    ASSERT(m_cachedObjectStructure == nullptr);
+    ASSERT(m_cachedObjectStructure.m_objectStructure == nullptr);
     remove(name);
     m_properties.pushBack(std::make_pair(name, TemplatePropertyData(getter, setter, isEnumerable, isConfigurable)));
 }
 
 void Template::setNativeDataAccessorProperty(const TemplatePropertyName& name, ObjectPropertyNativeGetterSetterData* nativeGetterSetterData, void* privateData)
 {
-    ASSERT(m_cachedObjectStructure == nullptr);
+    ASSERT(m_cachedObjectStructure.m_objectStructure == nullptr);
     remove(name);
     m_properties.pushBack(std::make_pair(name, TemplatePropertyData(nativeGetterSetterData, privateData)));
 }
 
-ObjectStructure* Template::constructObjectStructure(Context* ctx, ObjectStructureItem* baseItems, size_t baseItemCount)
+Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx, ObjectStructureItem* baseItems, size_t baseItemCount)
 {
     size_t propertyCount = m_properties.size() + baseItemCount;
     ObjectStructureItemTightVector structureItemVector;
@@ -87,6 +87,7 @@ ObjectStructure* Template::constructObjectStructure(Context* ctx, ObjectStructur
 
     bool hasIndexStringAsPropertyName = false;
     bool hasNonAtomicPropertyName = false;
+    bool isInlineNonCacheable = false;
     for (size_t i = baseItemCount; i < propertyCount; i++) {
         auto propertyIndex = i - baseItemCount;
         auto propertyName = m_properties[propertyIndex].first.toObjectStructurePropertyName(ctx);
@@ -102,6 +103,7 @@ ObjectStructure* Template::constructObjectStructure(Context* ctx, ObjectStructur
             desc = ObjectStructurePropertyDescriptor::createDataDescriptor(m_properties[propertyIndex].second.presentAttributes());
         } else if (type == Template::TemplatePropertyData::PropertyType::PropertyNativeAccessorData) {
             desc = ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(m_properties[propertyIndex].second.nativeAccessorData());
+            isInlineNonCacheable = isInlineNonCacheable | m_properties[propertyIndex].second.nativeAccessorData()->m_actsLikeJSGetterSetter;
         } else {
             ASSERT(type == Template::TemplatePropertyData::PropertyType::PropertyAccessorData);
             desc = ObjectStructurePropertyDescriptor::createAccessorDescriptor(m_properties[propertyIndex].second.presentAttributes());
@@ -116,7 +118,10 @@ ObjectStructure* Template::constructObjectStructure(Context* ctx, ObjectStructur
         newObjectStructure = new ObjectStructureWithTransition(std::move(structureItemVector), hasIndexStringAsPropertyName, hasNonAtomicPropertyName);
     }
 
-    return newObjectStructure;
+    CachedObjectStructure s;
+    s.m_objectStructure = newObjectStructure;
+    s.m_inlineCacheable = !isInlineNonCacheable;
+    return s;
 }
 
 void Template::constructObjectPropertyValues(Context* ctx, ObjectPropertyValue* baseItems, size_t baseItemCount, ObjectPropertyValueVector& objectPropertyValues)
@@ -150,6 +155,10 @@ void Template::postProcessing(Object* instantiatedObject)
 {
     if (m_instanceExtraData) {
         instantiatedObject->setExtraData(m_instanceExtraData);
+    }
+
+    if (!m_cachedObjectStructure.m_inlineCacheable) {
+        instantiatedObject->markAsNonInlineCachable();
     }
 }
 } // namespace Escargot

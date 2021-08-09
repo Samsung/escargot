@@ -261,7 +261,7 @@ private:
 
 Object* ObjectTemplate::instantiate(Context* ctx)
 {
-    if (!m_cachedObjectStructure) {
+    if (!m_cachedObjectStructure.m_objectStructure) {
         m_cachedObjectStructure = constructObjectStructure(ctx, nullptr, 0);
     }
     ObjectPropertyValueVector objectPropertyValues;
@@ -278,9 +278,9 @@ Object* ObjectTemplate::instantiate(Context* ctx)
     }
 
     if (m_namedPropertyHandler) {
-        result = new ObjectWithNamedPropertyHandler(m_cachedObjectStructure, std::move(objectPropertyValues), proto, m_namedPropertyHandler);
+        result = new ObjectWithNamedPropertyHandler(m_cachedObjectStructure.m_objectStructure, std::move(objectPropertyValues), proto, m_namedPropertyHandler);
     } else {
-        result = new Object(m_cachedObjectStructure, std::move(objectPropertyValues), proto);
+        result = new Object(m_cachedObjectStructure.m_objectStructure, std::move(objectPropertyValues), proto);
     }
 
     postProcessing(result);
@@ -335,6 +335,9 @@ bool ObjectTemplate::installTo(Context* ctx, Object* target)
             } else if (type == Template::TemplatePropertyData::PropertyType::PropertyNativeAccessorData) {
                 sender->target->defineNativeDataAccessorProperty(state, name, properties[i].second.nativeAccessorData(),
                                                                  Value(Value::FromPayload, (intptr_t)properties[i].second.nativeAccessorPrivateData()));
+                if (properties[i].second.nativeAccessorData()->m_actsLikeJSGetterSetter) {
+                    sender->target->markAsNonInlineCachable();
+                }
             } else {
                 ASSERT(type == Template::TemplatePropertyData::PropertyType::PropertyAccessorData);
                 Value getter = properties[i].second.accessorData().m_getterTemplate ? properties[i].second.accessorData().m_getterTemplate->instantiate(sender->ctx) : Value(Value::EmptyValue);

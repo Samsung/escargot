@@ -74,6 +74,7 @@ struct ObjectRareData : public PointerValue {
     bool m_isArrayObjectLengthWritable : 1;
     bool m_isSpreadArrayObject : 1;
     bool m_isFinalizerRegistered : 1;
+    bool m_isInlineCacheable : 1;
     bool m_shouldUpdateEnumerateObject : 1; // used only for Array Object when ArrayObject::deleteOwnProperty called
     bool m_hasNonWritableLastIndexRegExpObject : 1;
     bool m_hasExtendedExtraData : 1;
@@ -767,6 +768,7 @@ class Object : public PointerValue {
     friend class EnumerateObjectWithDestruction;
     friend class EnumerateObjectWithIteration;
     friend struct ObjectRareData;
+    friend class Template;
     friend class ObjectTemplate;
 
 public:
@@ -955,6 +957,9 @@ public:
 
     virtual bool isInlineCacheable()
     {
+        if (UNLIKELY(hasRareData())) {
+            return rareData()->m_isInlineCacheable;
+        }
         return true;
     }
 
@@ -1239,6 +1244,8 @@ protected:
     void setGlobalIntrinsicObject(ExecutionState& state, bool isPrototype = false);
 
     void deleteOwnProperty(ExecutionState& state, size_t idx);
+
+    void markAsNonInlineCachable();
 };
 } // namespace Escargot
 
