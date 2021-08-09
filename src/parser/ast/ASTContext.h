@@ -323,6 +323,11 @@ struct ASTScopeContext {
     NodeLOC m_bodyEndLOC;
 #endif
 
+#ifdef ESCARGOT_DEBUGGER
+    // This field is storing line info data for class field initializers
+    size_t m_debuggerLineStart;
+#endif /* ESCARGOT_DEBUGGER */
+
     // ASTScopeContext is allocated by ASTAllocator
     inline void *operator new(size_t size, ASTAllocator &allocator)
     {
@@ -695,6 +700,9 @@ struct ASTScopeContext {
 #else
         , m_bodyEndLOC(SIZE_MAX)
 #endif
+#ifdef ESCARGOT_DEBUGGER
+        , m_debuggerLineStart(SIZE_MAX)
+#endif /* ESCARGOT_DEBUGGER */
     {
     }
 };

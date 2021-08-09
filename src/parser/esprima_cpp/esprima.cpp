@@ -1612,7 +1612,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseClassStaticFieldInitializer(ASTBuilder& builder, const AtomicString& className)
+    ASTNode parseClassStaticFieldInitializer(ASTBuilder& builder, const AtomicString& className, size_t debuggerLineStart)
     {
         ASSERT(this->match(Substitution));
 
@@ -1625,7 +1625,7 @@ public:
         this->context->allowSuperProperty = true;
 
         MetaNode node = this->createNode();
-        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder, className);
+        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder, className, debuggerLineStart);
         this->consumeSemicolon();
 
         this->context->allowArguments = previousAllowArguments;
@@ -1635,7 +1635,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseClassFieldInitializer(ASTBuilder& builder)
+    ASTNode parseClassFieldInitializer(ASTBuilder& builder, size_t debuggerLineStart)
     {
         ASSERT(this->match(Substitution));
 
@@ -1647,7 +1647,7 @@ public:
         this->context->allowArguments = false;
         this->context->allowSuperProperty = true;
 
-        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder, AtomicString());
+        ASTNode expr = this->parseAssignmentExpressionAndWrapIntoArrowFunction(builder, AtomicString(), debuggerLineStart);
         this->consumeSemicolon();
 
         this->context->allowArguments = previousAllowArguments;
@@ -3410,8 +3410,10 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseAssignmentExpressionAndWrapIntoArrowFunction(ASTBuilder& builder, const AtomicString& paramName)
+    ASTNode parseAssignmentExpressionAndWrapIntoArrowFunction(ASTBuilder& builder, const AtomicString& paramName, size_t debuggerLineStart)
     {
+        UNUSED_VARIABLE(debuggerLineStart);
+
         ASTNode result;
         if (!this->isParsingSingleFunction) {
             BEGIN_FUNCTION_SCANNING(AtomicString());
@@ -3432,6 +3434,10 @@ public:
             this->currentScopeContext->m_allowSuperCall = this->context->allowSuperCall;
             this->currentScopeContext->m_allowSuperProperty = this->context->allowSuperProperty;
             this->currentScopeContext->m_allowArguments = this->context->allowArguments;
+#ifdef ESCARGOT_DEBUGGER
+            this->currentScopeContext->m_needRareData = true;
+            this->currentScopeContext->m_debuggerLineStart = debuggerLineStart;
+#endif /* ESCARGOT_DEBUGGER */
 
             this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
             auto lastContext = this->lastPoppedScopeContext;
@@ -5739,6 +5745,12 @@ public:
         bool isAsync = false;
         bool isPrivate = false;
 
+#ifdef ESCARGOT_DEBUGGER
+        size_t debuggerLineStart = token->lineNumber;
+#else /* !ESCARGOT_DEBUGGER */
+        size_t debuggerLineStart = 0;
+#endif /* ESCARGOT_DEBUGGER */
+
         if (this->match(Multiply)) {
             this->nextToken();
         } else {
@@ -5748,6 +5760,9 @@ public:
             if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply) || this->match(Hash)) && token->relatedSource(this->scanner->source) == "static") {
                 *token = this->lookahead;
                 isStatic = true;
+#ifdef ESCARGOT_DEBUGGER
+                debuggerLineStart = token->lineNumber;
+#endif /* ESCARGOT_DEBUGGER */
                 mayMethodStartNode = this->createNode();
                 computed = this->match(LeftSquareBracket);
                 if (this->match(Multiply)) {
@@ -5809,12 +5824,11 @@ public:
             } else if (this->match(Substitution)) {
                 if (isStatic) {
                     kind = ClassElementNode::Kind::Field;
-                    value = this->parseClassStaticFieldInitializer(builder, className);
+                    value = this->parseClassStaticFieldInitializer(builder, className, debuggerLineStart);
                 } else {
                     kind = ClassElementNode::Kind::Field;
-                    value = this->parseClassFieldInitializer(builder);
+                    value = this->parseClassFieldInitializer(builder, debuggerLineStart);
                 }
-
             } else if (this->match(SemiColon)) {
                 auto metaNode = this->createNode();
                 this->nextToken();

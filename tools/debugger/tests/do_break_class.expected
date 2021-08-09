@@ -1,0 +1,48 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_break_class.js:20
+(escargot-debugger) b do_break_class.js:37
+No breakpoint found, do you want to add a pending breakpoint? (y or [n])
+(escargot-debugger) b do_break_class.js:36
+Breakpoint 1 at tools/debugger/tests/do_break_class.js:36 (in function() at line:37, col:7)
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_break_class.js:36 (in function() at line:37, col:7)
+(escargot-debugger) bt
+tools/debugger/tests/do_break_class.js:37:6 [depth:0]
+tools/debugger/tests/do_break_class.js:22:14 [depth:1]
+(escargot-debugger) b do_break_class.js:66
+Breakpoint 2 at tools/debugger/tests/do_break_class.js:66 (in function() at line:66, col:24)
+Breakpoint 3 at tools/debugger/tests/do_break_class.js:66 (in function() at line:66, col:48)
+(escargot-debugger) c
+Stopped at breakpoint:2 tools/debugger/tests/do_break_class.js:66 (in function() at line:66, col:24)
+(escargot-debugger) c
+Stopped at breakpoint:3 tools/debugger/tests/do_break_class.js:66 (in function() at line:66, col:48)
+(escargot-debugger) bt
+tools/debugger/tests/do_break_class.js:66:47 [depth:0]
+tools/debugger/tests/do_break_class.js:46:29 [depth:1]
+(escargot-debugger) b do_break_class.js:69
+Breakpoint 4 at tools/debugger/tests/do_break_class.js:69
+(escargot-debugger) c
+Stopped at breakpoint:4 tools/debugger/tests/do_break_class.js:69
+(escargot-debugger) b do_break_class.js:26
+Breakpoint 5 at tools/debugger/tests/do_break_class.js:26 (in function() at line:28, col:7)
+(escargot-debugger) b do_break_class.js:50
+Breakpoint 6 at tools/debugger/tests/do_break_class.js:50 (in function() at line:50, col:16)
+(escargot-debugger) b do_break_class.js:55
+Breakpoint 7 at tools/debugger/tests/do_break_class.js:55 (in constructor() at line:53, col:3)
+(escargot-debugger) c
+Stopped at breakpoint:7 tools/debugger/tests/do_break_class.js:55 (in constructor() at line:53, col:3)
+(escargot-debugger) c
+Stopped at breakpoint:5 tools/debugger/tests/do_break_class.js:26 (in function() at line:28, col:7)
+(escargot-debugger) bt
+tools/debugger/tests/do_break_class.js:28:6 [depth:0]
+tools/debugger/tests/do_break_class.js:55:5 [depth:2] (in constructor)
+tools/debugger/tests/do_break_class.js:69:9 [depth:3]
+(escargot-debugger) c
+Stopped at breakpoint:6 tools/debugger/tests/do_break_class.js:50 (in function() at line:50, col:16)
+(escargot-debugger) bt
+tools/debugger/tests/do_break_class.js:50:15 [depth:0]
+tools/debugger/tests/do_break_class.js:55:5 [depth:1] (in constructor)
+tools/debugger/tests/do_break_class.js:69:9 [depth:2]
+(escargot-debugger) c
+Connection closed.

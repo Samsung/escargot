@@ -31,9 +31,6 @@ public:
     StatementNode()
         : Node()
         , m_nextSibling(nullptr)
-#ifdef ESCARGOT_DEBUGGER
-        , m_line(0)
-#endif /* ESCARGOT_DEBUGGER */
     {
     }
 
@@ -74,9 +71,6 @@ public:
 
 private:
     StatementNode* m_nextSibling;
-#ifdef ESCARGOT_DEBUGGER
-    size_t m_line;
-#endif /* ESCARGOT_DEBUGGER */
 };
 
 class StatementContainer {
