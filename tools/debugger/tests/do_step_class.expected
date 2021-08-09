@@ -1,0 +1,65 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_step_class.js:20
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:36 (in function() at line:37, col:7)
+(escargot-debugger) bt
+tools/debugger/tests/do_step_class.js:37:6 [depth:0]
+tools/debugger/tests/do_step_class.js:22:14 [depth:1]
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:40 (in function() at line:42, col:7)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:43 (in function() at line:43, col:23)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:43 (in function() at line:43, col:46)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:60 (in function() at line:61, col:7)
+(escargot-debugger) bt
+tools/debugger/tests/do_step_class.js:61:6 [depth:0]
+tools/debugger/tests/do_step_class.js:46:29 [depth:1]
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:64 (in function() at line:65, col:7)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:66 (in function() at line:66, col:24)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:66 (in function() at line:66, col:48)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:69
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:54 (in constructor() at line:53, col:3)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:55 (in constructor() at line:53, col:3)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:23 (in function() at line:24, col:7)
+(escargot-debugger) bt
+tools/debugger/tests/do_step_class.js:24:6 [depth:0]
+tools/debugger/tests/do_step_class.js:55:5 [depth:2] (in constructor)
+tools/debugger/tests/do_step_class.js:69:9 [depth:3]
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:26 (in function() at line:28, col:7)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:29 (in function() at line:29, col:15)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:29 (in function() at line:29, col:30)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:32 (in constructor() at line:31, col:3)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:33 (in constructor() at line:31, col:3)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:47 (in function() at line:48, col:7)
+(escargot-debugger) bt
+tools/debugger/tests/do_step_class.js:48:6 [depth:0]
+tools/debugger/tests/do_step_class.js:55:5 [depth:1] (in constructor)
+tools/debugger/tests/do_step_class.js:69:9 [depth:2]
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:50 (in function() at line:50, col:16)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:51 (in function() at line:51, col:16)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:51 (in function() at line:51, col:31)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:56 (in constructor() at line:53, col:3)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_step_class.js:57 (in constructor() at line:53, col:3)
+(escargot-debugger) s
+Connection closed.

@@ -173,16 +173,25 @@ struct InterpretedCodeBlockRareData : public gc {
     FunctionContextVarMap* m_identifierInfoMap;
     TightVector<Optional<ArrayObject*>, GCUtil::gc_malloc_allocator<Optional<ArrayObject*>>> m_taggedTemplateLiteralCache;
     AtomicStringTightVector* m_classPrivateNames;
+#ifdef ESCARGOT_DEBUGGER
+    size_t m_debuggerLineStart;
+#endif /* ESCARGOT_DEBUGGER */
 
     InterpretedCodeBlockRareData()
         : m_identifierInfoMap(nullptr)
         , m_classPrivateNames(nullptr)
+#ifdef ESCARGOT_DEBUGGER
+        , m_debuggerLineStart(SIZE_MAX)
+#endif /* ESCARGOT_DEBUGGER */
     {
     }
 
     InterpretedCodeBlockRareData(FunctionContextVarMap* map, AtomicStringTightVector* classPrivateNames)
         : m_identifierInfoMap(map)
         , m_classPrivateNames(classPrivateNames)
+#ifdef ESCARGOT_DEBUGGER
+        , m_debuggerLineStart(SIZE_MAX)
+#endif /* ESCARGOT_DEBUGGER */
     {
     }
 };
@@ -966,6 +975,9 @@ private:
         , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap, scopeCtx->m_classPrivateNames))
     {
         ASSERT(scopeCtx->m_needRareData);
+#ifdef ESCARGOT_DEBUGGER
+        m_rareData->m_debuggerLineStart = scopeCtx->m_debuggerLineStart;
+#endif /* ESCARGOT_DEBUGGER */
     }
 
     InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
@@ -973,6 +985,9 @@ private:
         , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap, scopeCtx->m_classPrivateNames))
     {
         ASSERT(scopeCtx->m_needRareData);
+#ifdef ESCARGOT_DEBUGGER
+        m_rareData->m_debuggerLineStart = scopeCtx->m_debuggerLineStart;
+#endif /* ESCARGOT_DEBUGGER */
     }
 
     InterpretedCodeBlockWithRareData(Context* ctx, Script* script)
