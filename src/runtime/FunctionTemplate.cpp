@@ -127,13 +127,13 @@ void FunctionTemplate::updateCallbackFunction(FunctionTemplateRef::NativeFunctio
 
 void FunctionTemplate::setName(AtomicString name)
 {
-    ASSERT(m_cachedObjectStructure == nullptr);
+    ASSERT(m_cachedObjectStructure.m_objectStructure == nullptr);
     m_name = name;
 }
 
 void FunctionTemplate::setLength(size_t length)
 {
-    ASSERT(m_cachedObjectStructure == nullptr);
+    ASSERT(m_cachedObjectStructure.m_objectStructure == nullptr);
     m_argumentCount = length;
 }
 
@@ -147,7 +147,7 @@ Object* FunctionTemplate::instantiate(Context* ctx)
     }
 
     const size_t functionDefaultPropertyCount = m_isConstructor ? ctx->defaultStructureForFunctionObject()->propertyCount() : ctx->defaultStructureForNotConstructorFunctionObject()->propertyCount();
-    if (!m_cachedObjectStructure) {
+    if (!m_cachedObjectStructure.m_objectStructure) {
         if (m_isConstructor) {
             // [prototype, name, length]
             ASSERT(functionDefaultPropertyCount == 3);
@@ -201,7 +201,8 @@ Object* FunctionTemplate::instantiate(Context* ctx)
     flags |= m_isStrict ? NativeFunctionInfo::Strict : 0;
     flags |= m_isConstructor ? NativeFunctionInfo::Constructor : 0;
 
-    FunctionTemplateNativeFunctionObject* result = new FunctionTemplateNativeFunctionObject(ctx, m_cachedObjectStructure, std::move(objectPropertyValues), NativeFunctionInfo(m_name, m_nativeFunctionData->m_nativeFunction, m_argumentCount, flags));
+    FunctionTemplateNativeFunctionObject* result = new FunctionTemplateNativeFunctionObject(ctx,
+                                                                                            m_cachedObjectStructure.m_objectStructure, std::move(objectPropertyValues), NativeFunctionInfo(m_name, m_nativeFunctionData->m_nativeFunction, m_argumentCount, flags));
     result->setInternalSlotAsPointer(FunctionTemplate::BuiltinFunctionSlot::CallTemplateFunctionDataIndex, m_nativeFunctionData);
 
     if (m_isConstructor) {
