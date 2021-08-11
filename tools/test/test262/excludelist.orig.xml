@@ -44,11 +44,6 @@
     <test id="built-ins/AsyncFromSyncIteratorPrototype/next/absent-value-not-passed"><reason>TODO</reason></test>
     <test id="built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed"><reason>TODO</reason></test>
     <test id="built-ins/AsyncFromSyncIteratorPrototype/return/return-null"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/isLockFree/bigint/expected-return-value"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/isLockFree/corner-cases"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/isLockFree/expected-return-value"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/isLockFree/length"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/isLockFree/name"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/notify/bad-range"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/notify/bigint/bad-range"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/notify/bigint/non-shared-bufferdata-count-evaluation-throws"><reason>TODO</reason></test>

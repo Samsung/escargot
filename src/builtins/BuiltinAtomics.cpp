@@ -435,6 +435,21 @@ static Value builtinAtomicsXor(ExecutionState& state, Value thisValue, size_t ar
     return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::XOR);
 }
 
+static Value builtinAtomicsIsLockFree(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    auto size = argv[0].toInteger(state);
+#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
+    if (size == 1 || size == 2 || size == 4 || size == 8) {
+        return Value(true);
+    }
+    return Value(false);
+#else
+    // spec want to do toInteger operation
+    size;
+    return Value(false);
+#endif
+}
+
 void GlobalObject::initializeAtomics(ExecutionState& state)
 {
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
@@ -481,6 +496,9 @@ void GlobalObject::installAtomics(ExecutionState& state)
 
     m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringXor),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringXor, builtinAtomicsXor, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().isLockFree),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isLockFree, builtinAtomicsIsLockFree, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Atomics),
                         ObjectPropertyDescriptor(m_atomics, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
