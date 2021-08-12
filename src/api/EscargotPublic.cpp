@@ -2261,8 +2261,11 @@ GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTraceD
                 locData = iterMap->second;
             }
 
+            InterpretedCodeBlock* codeBlock = byteCodeBlock->codeBlock();
             size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
             stackTraceData[i].second.loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock, locData);
+            stackTraceData[i].second.src = codeBlock->script()->srcName();
+            stackTraceData[i].second.sourceCode = codeBlock->script()->sourceCode();
         }
 
         Evaluator::StackTraceData t;
