@@ -168,6 +168,11 @@ public:
         m_platform->hostImportModuleDynamically(toRef(relatedContext), toRef(referrer), toRef(src), toRef(promise));
     }
 
+    virtual bool canBlockExecution(Context* relatedContext) override
+    {
+        return m_platform->canBlockExecution(toRef(relatedContext));
+    }
+
     virtual void* allocateThreadLocalCustomData() override
     {
         return m_platform->allocateThreadLocalCustomData();

@@ -20,6 +20,10 @@
 #ifndef __EscargotGlobal__
 #define __EscargotGlobal__
 
+#if defined(ENABLE_THREADING)
+#include <mutex>
+#endif
+
 #if defined(ENABLE_THREADING) && !defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
 #define ENABLE_ATOMICS_GLOBAL_LOCK
 #endif
@@ -49,6 +53,20 @@ public:
     {
         return g_atomicsLock;
     }
+#endif
+
+#if defined(ENABLE_THREADING)
+    struct Waiter {
+        void* m_blockAddress;
+        std::mutex m_mutex;
+        std::condition_variable m_waiter;
+        std::mutex m_conditionVariableMutex;
+        std::atomic_uint m_waiterCount;
+    };
+
+    static std::mutex g_waiterMutex;
+    static std::vector<Waiter*> g_waiter;
+    static Waiter* waiter(void* blockAddress);
 #endif
 };
 

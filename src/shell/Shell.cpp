@@ -540,6 +540,18 @@ static ValueRef* builtin262AgentSleep(ExecutionStateRef* state, ValueRef* thisVa
 
 class ShellPlatform : public PlatformRef {
 public:
+    bool m_canBlock;
+
+    ShellPlatform()
+        : m_canBlock(true)
+    {
+    }
+
+    void setCanBlock(bool b)
+    {
+        m_canBlock = b;
+    }
+
     virtual void markJSJobEnqueued(ContextRef* relatedContext) override
     {
         // ignore. we always check pending job after eval script
@@ -599,6 +611,11 @@ public:
     {
         LoadModuleResult loadedModuleResult = onLoadModule(relatedContext, referrer, src);
         notifyHostImportModuleDynamicallyResult(relatedContext, referrer, src, promise, loadedModuleResult);
+    }
+
+    virtual bool canBlockExecution(ContextRef* relatedContext) override
+    {
+        return m_canBlock;
     }
 
     virtual void* allocateThreadLocalCustomData() override
@@ -913,7 +930,8 @@ int main(int argc, char* argv[])
     mallopt(M_MMAP_MAX, 1024 * 1024);
 #endif
 
-    Globals::initialize(new ShellPlatform());
+    ShellPlatform* platform = new ShellPlatform();
+    Globals::initialize(platform);
 
     Memory::setGCFrequency(24);
 
@@ -938,6 +956,10 @@ int main(int argc, char* argv[])
                 }
                 if (strcmp(argv[i], "--module") == 0) {
                     seenModule = true;
+                    continue;
+                }
+                if (strcmp(argv[i], "--canblock-is-false") == 0) {
+                    platform->setCanBlock(false);
                     continue;
                 }
                 if (strstr(argv[i], "--filename-as=") == argv[i]) {

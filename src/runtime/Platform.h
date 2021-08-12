@@ -48,6 +48,8 @@ public:
     virtual void didLoadModule(Context* relatedContext, Optional<Script*> whereRequestFrom, Script* loadedModule) = 0;
     virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, PromiseObject* promise) = 0;
 
+    virtual bool canBlockExecution(Context* relatedContext) = 0;
+
     // ThreadLocal custom data (g_customData)
     virtual void* allocateThreadLocalCustomData() = 0;
     virtual void deallocateThreadLocalCustomData() = 0;

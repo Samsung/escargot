@@ -768,6 +768,15 @@ namespace Escargot {
 #define FOR_EACH_LAZY_INTL_STATIC_STRING(F)
 #endif
 
+#if defined(ENABLE_THREADING)
+#define FOR_EACH_LAZY_THREADING_STATIC_STRING(F) \
+    F(NotEqual, "not-equal")                     \
+    F(Ok, "ok")                                  \
+    F(TimedOut, "timed-out")
+#else
+#define FOR_EACH_LAZY_THREADING_STATIC_STRING(F)
+#endif
+
 class StaticStrings {
 public:
     StaticStrings(AtomicStringMap* atomicStringMap)
@@ -890,6 +899,7 @@ public:
 #define DECLARE_LAZY_STATIC_STRING(Name, unused) AtomicString lazy##Name();
     FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_THREADING_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 #undef DECLARE_LAZY_STATIC_STRING
 
     void initStaticStrings();
@@ -905,6 +915,7 @@ protected:
 #define DECLARE_LAZY_STATIC_STRING(Name, unused) AtomicString m_lazy##Name;
     FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_THREADING_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 #undef DECLARE_LAZY_STATIC_STRING
 };
 } // namespace Escargot
