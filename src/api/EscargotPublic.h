@@ -1888,6 +1888,11 @@ public:
     }
     void notifyHostImportModuleDynamicallyResult(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise, LoadModuleResult loadModuleResult);
 
+    virtual bool canBlockExecution(ContextRef* relatedContext)
+    {
+        return true;
+    }
+
     // ThreadLocal custom data
     // PlatformRef should not have any member variables
     // Instead, user could allocate thread-local values through following methods

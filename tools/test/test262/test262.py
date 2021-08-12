@@ -391,14 +391,21 @@ class TestCase(object):
 
     source = self.GetSource()
     is_module = False
+    can_block_is_false = False
 
     if "flags" in self.testRecord:
       is_module = "module" in self.testRecord["flags"]
+      can_block_is_false = "CanBlockIsFalse" in self.testRecord["flags"]
 
     if is_module:
       is_module = "--module "
     else:
       is_module = ""
+
+    if can_block_is_false:
+      can_block_is_false = "--canblock-is-false "
+    else:
+      can_block_is_false = ""
 
     tmp.Write(source)
     tmp.Close()
@@ -407,7 +414,8 @@ class TestCase(object):
       'driver_path': driver_tmp.name,
       'path': tmp.name,
       'test_case_path': self.full_path,
-      'is_module': is_module
+      'is_module': is_module,
+      'can_block_is_false': can_block_is_false
     })
 
     (code, out, err) = self.Execute(command)
@@ -610,7 +618,7 @@ class TestSuite(object):
 
   def Run(self, command_template, tests, print_summary, full_summary, logname, junitfile):
     if not "{{path}}" in command_template:
-      command_template += " {{driver_path}} {{is_module}}--filename-as={{test_case_path}} {{path}}"
+      command_template += " {{driver_path}} {{can_block_is_false}}{{is_module}}--filename-as={{test_case_path}} {{path}}"
     cases = self.EnumerateTests(tests)
     if len(cases) == 0:
       ReportError("No tests to run")

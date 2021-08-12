@@ -227,6 +227,7 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <condition_variable>
 #endif
 
 extern "C" {

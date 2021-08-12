@@ -30,6 +30,10 @@ Platform* Global::g_platform;
 #if defined(ENABLE_ATOMICS_GLOBAL_LOCK)
 SpinLock Global::g_atomicsLock;
 #endif
+#if defined(ENABLE_THREADING)
+std::mutex Global::g_waiterMutex;
+std::vector<Global::Waiter*> Global::g_waiter;
+#endif
 
 void Global::initialize(Platform* platform)
 {
@@ -57,6 +61,14 @@ void Global::finalize()
     static bool called_once = true;
     RELEASE_ASSERT(called_once && inited);
 
+
+#if defined(ENABLE_THREADING)
+    for (size_t i = 0; i < g_waiter.size(); i++) {
+        delete g_waiter[i];
+    }
+    std::vector<Waiter*>().swap(g_waiter);
+#endif
+
     delete g_platform;
     g_platform = nullptr;
 
@@ -69,5 +81,23 @@ Platform* Global::platform()
     ASSERT(inited && !!g_platform);
     return g_platform;
 }
+
+#if defined(ENABLE_THREADING)
+Global::Waiter* Global::waiter(void* blockAddress)
+{
+    std::lock_guard<std::mutex> guard(g_waiterMutex);
+    for (size_t i = 0; i < g_waiter.size(); i++) {
+        if (g_waiter[i]->m_blockAddress == blockAddress) {
+            return g_waiter[i];
+        }
+    }
+
+    Waiter* w = new Waiter();
+    w->m_blockAddress = blockAddress;
+    g_waiter.push_back(w);
+
+    return w;
+}
+#endif
 
 } // namespace Escargot

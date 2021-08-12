@@ -25,6 +25,7 @@
 #include "runtime/TypedArrayInlines.h"
 #include "runtime/Global.h"
 #include "runtime/BigInt.h"
+#include "runtime/Platform.h"
 
 #if !defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS) && !defined(ENABLE_ATOMICS_GLOBAL_LOCK)
 #error "without builtin atomic functions, we need to atomics global lock for implementing atomics builtin"
@@ -435,6 +436,164 @@ static Value builtinAtomicsXor(ExecutionState& state, Value thisValue, size_t ar
     return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::XOR);
 }
 
+static Value builtinAtomicsWait(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // https://tc39.es/ecma262/#sec-atomics.wait
+    // 25.4.12 Atomics.wait ( typedArray, index, value, timeout )
+    // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray, true).
+    ArrayBuffer* buffer = validateIntegerTypedArray(state, argv[0], true);
+    TypedArrayObject* typedArray = argv[0].asObject()->asTypedArrayObject();
+    // 2. If IsSharedArrayBuffer(buffer) is false, throw a TypeError exception.
+    if (!buffer->isSharedArrayBufferObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Atomics.wait expects SharedArrayBuffer");
+    }
+    // 3. Let indexedPosition be ? ValidateAtomicAccess(typedArray, index).
+    size_t indexedPosition = validateAtomicAccess(state, typedArray, argv[1]);
+    // 4. Let arrayTypeName be typedArray.[[TypedArrayName]].
+    auto arrayTypeName = typedArray->typedArrayType();
+    // 5. If arrayTypeName is "BigInt64Array", let v be ? ToBigInt64(value).
+    Value v;
+    if (arrayTypeName == TypedArrayType::BigInt64) {
+        v = argv[2].toBigInt(state);
+    } else {
+        // 6. Otherwise, let v be ? ToInt32(value).
+        v = Value(argv[2].toInt32(state));
+    }
+    // 7. Let q be ? ToNumber(timeout).
+    double q = argv[3].toNumber(state);
+    // 8. If q is NaN or +∞𝔽, let t be +∞; else if q is -∞𝔽, let t be 0; else let t be max(ℝ(q), 0).
+    double t;
+    if (std::isnan(q) || q == std::numeric_limits<double>::infinity()) {
+        t = std::numeric_limits<double>::infinity();
+    } else if (q == -std::numeric_limits<double>::infinity()) {
+        t = 0;
+    } else {
+        t = std::max(q, 0.0);
+    }
+    // 9. Let B be AgentCanSuspend().
+    // 10. If B is false, throw a TypeError exception.
+    if (!Global::platform()->canBlockExecution(state.context())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot suspend this thread");
+    }
+    // 11. Let block be buffer.[[ArrayBufferData]].
+    void* blockAddress = reinterpret_cast<int32_t*>(buffer->data()) + indexedPosition;
+    // 12. Let WL be GetWaiterList(block, indexedPosition).
+    Global::Waiter* WL = Global::waiter(blockAddress);
+    // 13. Perform EnterCriticalSection(WL).
+    WL->m_mutex.lock();
+    // 14. Let elementType be the Element Type value in Table 63 for arrayTypeName.
+    // 15. Let w be ! GetValueFromBuffer(buffer, indexedPosition, elementType, true, SeqCst).
+    Value w(Value::ForceUninitialized);
+#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
+    uint8_t* rawStart = buffer->data() + indexedPosition;
+    uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
+    switch (arrayTypeName) {
+    case TypedArrayType::Int32:
+        atomicLoad<int32_t>(rawStart, rawBytes);
+        break;
+    case TypedArrayType::BigInt64:
+        atomicLoad<int64_t>(rawStart, rawBytes);
+        break;
+    default:
+        RELEASE_ASSERT_NOT_REACHED();
+        break;
+    }
+    w = TypedArrayHelper::rawBytesToNumber(state, arrayTypeName, rawBytes);
+#else
+    {
+        std::lock_guard<SpinLock> guard(Global::atomicsLock());
+        w = buffer->getValueFromBuffer(state, indexedPosition, arrayTypeName);
+    }
+#endif
+    // 16. If v ≠ w, then
+    if (!v.equalsTo(state, w)) {
+        // a. Perform LeaveCriticalSection(WL).
+        WL->m_mutex.unlock();
+        // b. Return the String "not-equal".
+        return Value(state.context()->staticStrings().lazyNotEqual().string());
+    }
+    // 17. Let W be AgentSignifier().
+    // 18. Perform AddWaiter(WL, W).
+    // 19. Let notified be SuspendAgent(WL, W, t).
+    bool notified = true;
+    std::unique_lock<std::mutex> ul(WL->m_conditionVariableMutex);
+    WL->m_waiterCount++;
+    WL->m_mutex.unlock();
+    if (t == std::numeric_limits<double>::infinity()) {
+        WL->m_waiter.wait(ul);
+    } else {
+        notified = WL->m_waiter.wait_for(ul, std::chrono::milliseconds((int64_t)t)) == std::cv_status::no_timeout;
+    }
+    WL->m_mutex.lock();
+    // 20. If notified is true, then
+    //     a. Assert: W is not on the list of waiters in WL.
+    // 21. Else,
+    //     a. Perform RemoveWaiter(WL, W).
+    if (!notified) {
+        WL->m_waiterCount--;
+    }
+    // 22. Perform LeaveCriticalSection(WL).
+    WL->m_mutex.unlock();
+    // 23. If notified is true, return the String "ok".
+    if (notified) {
+        return Value(state.context()->staticStrings().lazyOk().string());
+    }
+    // 24. Return the String "timed-out".
+    return Value(state.context()->staticStrings().lazyTimedOut().string());
+}
+
+static Value builtinAtomicsNotify(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // https://tc39.es/ecma262/#sec-atomics.notify
+    // Atomics.notify ( typedArray, index, count )
+    // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray, true).
+    ArrayBuffer* buffer = validateIntegerTypedArray(state, argv[0], true);
+    TypedArrayObject* typedArray = argv[0].asObject()->asTypedArrayObject();
+    // 2. Let indexedPosition be ? ValidateAtomicAccess(typedArray, index).
+    size_t indexedPosition = validateAtomicAccess(state, typedArray, argv[1]);
+    double c;
+    // 3. If count is undefined, let c be +∞.
+    if (argv[2].isUndefined()) {
+        c = std::numeric_limits<double>::infinity();
+    } else {
+        // 4. Else,
+        // a. Let intCount be ? ToIntegerOrInfinity(count).
+        auto intCount = argv[2].toInteger(state);
+        // b. Let c be max(intCount, 0).
+        c = std::max(intCount, 0.0);
+    }
+    // 5. Let block be buffer.[[ArrayBufferData]].
+    void* blockAddress = reinterpret_cast<int32_t*>(buffer->data()) + indexedPosition;
+    // 6. Let arrayTypeName be typedArray.[[TypedArrayName]].
+    // 7. If IsSharedArrayBuffer(buffer) is false, return +0𝔽.
+    if (!buffer->isSharedArrayBufferObject()) {
+        return Value(0);
+    }
+    // 8. Let WL be GetWaiterList(block, indexedPosition).
+    Global::Waiter* WL = Global::waiter(blockAddress);
+    // 9. Let n be 0.
+    double n = 0;
+    // 10. Perform EnterCriticalSection(WL).
+    WL->m_mutex.lock();
+    double count = std::min((double)WL->m_waiterCount, c);
+    WL->m_waiterCount -= count;
+    // 11. Let S be RemoveWaiters(WL, c).
+    // 12. Repeat, while S is not an empty List,
+    //     a. Let W be the first agent in S.
+    //     b. Remove W from the front of S.
+    //     c. Perform NotifyWaiter(WL, W).
+    //     d. Set n to n + 1.
+    for (n = 0; n < count; n++) {
+        WL->m_mutex.unlock();
+        WL->m_waiter.notify_one();
+        WL->m_mutex.lock();
+    }
+    // 13. Perform LeaveCriticalSection(WL).
+    WL->m_mutex.unlock();
+    // 14. Return 𝔽(n).
+    return Value(n);
+}
+
 static Value builtinAtomicsIsLockFree(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto size = argv[0].toInteger(state);
@@ -499,6 +658,12 @@ void GlobalObject::installAtomics(ExecutionState& state)
 
     m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().isLockFree),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isLockFree, builtinAtomicsIsLockFree, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().wait),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().wait, builtinAtomicsWait, 4, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().notify),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().notify, builtinAtomicsNotify, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Atomics),
                         ObjectPropertyDescriptor(m_atomics, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
