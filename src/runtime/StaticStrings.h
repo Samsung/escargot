@@ -208,6 +208,8 @@ namespace Escargot {
     F(finally)                    \
     F(find)                       \
     F(findIndex)                  \
+    F(findLast)                   \
+    F(findLastIndex)              \
     F(fixed)                      \
     F(flags)                      \
     F(flat)                       \

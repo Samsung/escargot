@@ -1837,7 +1837,7 @@ static Value builtinArrayIteratorNext(ExecutionState& state, Value thisValue, si
 
 static Value builtinArrayAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(obj, Array, entries);
+    RESOLVE_THIS_BINDING_TO_OBJECT(obj, Array, at);
     size_t len = obj->length(state);
     double relativeStart = argv[0].toInteger(state);
     if (relativeStart < 0) {
@@ -1847,6 +1847,78 @@ static Value builtinArrayAt(ExecutionState& state, Value thisValue, size_t argc,
         return Value();
     }
     return obj->getIndexedProperty(state, Value(relativeStart)).value(state, thisValue);
+}
+
+static Value builtinArrayFindLast(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // https://tc39.es/proposal-array-find-from-last/index.html#sec-array.prototype.findlast
+    Value predicate = argv[0];
+    Value thisArg = argc > 1 ? argv[1] : Value();
+    // 1. Let O be ? ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, findLast);
+    // 2. Let len be ? LengthOfArrayLike(O).
+    int64_t len = static_cast<int64_t>(O->length(state));
+    // 3. If IsCallable(predicate) is false, throw a TypeError exception.
+    if (!predicate.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().findLast.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+    }
+    // 4. Let k be len - 1.
+    int64_t k = len - 1;
+    // 5. Repeat, while k ≥ 0,
+    while (k >= 0) {
+        // a. Let Pk be ! ToString(𝔽(k)).
+        // b. Let kValue be ? Get(O, Pk).
+        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        // c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue, 𝔽(k), O »)).
+        Value predicateArgv[] = {
+            kValue, Value(k), Value(O)
+        };
+        bool testResult = Object::call(state, predicate, thisArg, 3, predicateArgv).toBoolean(state);
+        // d. If testResult is true, return kValue.
+        if (testResult) {
+            return kValue;
+        }
+        // e. Set k to k - 1.
+        k--;
+    }
+
+    return Value();
+}
+
+static Value builtinArrayFindLastIndex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // https://tc39.es/proposal-array-find-from-last/index.html#sec-array.prototype.findlastindex
+    Value predicate = argv[0];
+    Value thisArg = argc > 1 ? argv[1] : Value();
+    // 1. Let O be ? ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, findLastIndex);
+    // 2. Let len be ? LengthOfArrayLike(O).
+    int64_t len = static_cast<int64_t>(O->length(state));
+    // 3. If IsCallable(predicate) is false, throw a TypeError exception.
+    if (!predicate.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().findLastIndex.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+    }
+    // 4. Let k be len - 1.
+    int64_t k = len - 1;
+    // 5. Repeat, while k ≥ 0,
+    while (k >= 0) {
+        // a. Let Pk be ! ToString(𝔽(k)).
+        // b. Let kValue be ? Get(O, Pk).
+        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        // c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue, 𝔽(k), O »)).
+        Value predicateArgv[] = {
+            kValue, Value(k), Value(O)
+        };
+        bool testResult = Object::call(state, predicate, thisArg, 3, predicateArgv).toBoolean(state);
+        // d. If testResult is true, return kValue.
+        if (testResult) {
+            return Value(k);
+        }
+        // e. Set k to k - 1.
+        k--;
+    }
+
+    return Value(-1);
 }
 
 void GlobalObject::initializeArray(ExecutionState& state)
@@ -1951,7 +2023,10 @@ void GlobalObject::installArray(ExecutionState& state)
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().flatMap, builtinArrayFlatMap, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().at),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().at, builtinArrayAt, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().findLast),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().findLast, builtinArrayFindLast, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().findLastIndex),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().findLastIndex, builtinArrayFindLastIndex, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     Object* blackList = new Object(state);
     blackList->markThisObjectDontNeedStructureTransitionTable();
@@ -1961,6 +2036,8 @@ void GlobalObject::installArray(ExecutionState& state)
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().entries), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().fill), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().find), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().findLast), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().findLastIndex), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().findIndex), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().keys), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().values), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
