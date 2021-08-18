@@ -60,7 +60,8 @@ ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(Execu
 
 Value ScriptClassConstructorFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
 {
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
+    ExecutionState newState(m_codeBlock->context(), &state, static_cast<LexicalEnvironment*>(nullptr), argc, argv, m_codeBlock->asInterpretedCodeBlock()->isStrict());
+    ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
     return Value();
 }
 
