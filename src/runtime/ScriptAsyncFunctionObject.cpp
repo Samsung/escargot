@@ -77,7 +77,9 @@ Value ScriptAsyncFunctionObject::call(ExecutionState& state, const Value& thisVa
 
 Value ScriptAsyncFunctionObject::construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget)
 {
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Async function cannot be invoked with 'new'");
+    ExecutionState newState(m_codeBlock->context(), &state,
+                            static_cast<LexicalEnvironment*>(nullptr), argc, argv, m_codeBlock->asInterpretedCodeBlock()->isStrict());
+    ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "Async function cannot be invoked with 'new'");
     ASSERT_NOT_REACHED();
     return Value();
 }
