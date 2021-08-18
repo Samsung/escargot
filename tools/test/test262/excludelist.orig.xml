@@ -106,9 +106,6 @@
     <test id="built-ins/ArrayBuffer/prototype/transfer/this-is-detached"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/transfer/this-is-not-arraybuffer-object"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/transfer/this-is-not-object"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncFromSyncIteratorPrototype/next/absent-value-not-passed"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncFromSyncIteratorPrototype/return/return-null"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/waitAsync/bad-range"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/waitAsync/bigint/bad-range"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/waitAsync/bigint/false-for-timeout"><reason>TODO</reason></test>
@@ -1846,7 +1843,6 @@
     <test id="language/statements/do-while/tco-body"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/async-func-decl-dstr-array-elem-target-simple-strict"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/head-lhs-async"><reason>TODO</reason></test>
-    <test id="language/statements/for-await-of/iterator-close-non-throw-get-method-is-null"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/iterator-close-throw-get-method-abrupt"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/iterator-close-throw-get-method-non-callable"><reason>TODO</reason></test>
     <test id="language/statements/for-in/dstr/array-elem-nested-array-invalid"><reason>TODO</reason></test>
