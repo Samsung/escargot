@@ -102,7 +102,7 @@ static Value asyncFromSyncIteratorContinuation(ExecutionState& state, Object* re
 
 static Value builtinAsyncFromSyncIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // https://www.ecma-international.org/ecma-262/10.0/#sec-%asyncfromsynciteratorprototype%.next
+    // https://tc39.es/ecma262/#sec-%asyncfromsynciteratorprototype%.next
     // Let O be the this value.
     Value& O = thisValue;
     // Let promiseCapability be ! NewPromiseCapability(%Promise%).
@@ -121,7 +121,11 @@ static Value builtinAsyncFromSyncIteratorNext(ExecutionState& state, Value thisV
     Object* result;
     try {
         // Let result be IteratorNext(syncIteratorRecord, value).
-        result = IteratorObject::iteratorNext(state, syncIteratorRecord, argv[0]);
+        // If value is present, then
+        //   a. Let result be IteratorNext(syncIteratorRecord, value).
+        // Else,
+        //   a. Let result be IteratorNext(syncIteratorRecord).
+        result = IteratorObject::iteratorNext(state, syncIteratorRecord, argc ? argv[0] : Value(Value::EmptyValue));
     } catch (const Value& thrownValue) {
         // IfAbruptRejectPromise(result, promiseCapability).
         Value argv = thrownValue;
@@ -134,7 +138,7 @@ static Value builtinAsyncFromSyncIteratorNext(ExecutionState& state, Value thisV
 
 static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // https://www.ecma-international.org/ecma-262/10.0/#sec-%asyncfromsynciteratorprototype%.return
+    // https://tc39.es/ecma262/#sec-%asyncfromsynciteratorprototype%.return
     Value value = argv[0];
     // Let O be the this value.
     Value& O = thisValue;
@@ -172,10 +176,17 @@ static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thi
         return promiseCapability.m_promise;
     }
 
-    // Let result be Call(return, syncIterator, « value »).
     Value result;
     try {
-        result = Object::call(state, returnVariable, syncIterator, 1, &value);
+        // If value is present, then
+        //   a. Let result be Call(return, syncIterator, « value »).
+        // Else,
+        //   a. Let result be Call(return, syncIterator).
+        if (argc) {
+            result = Object::call(state, returnVariable, syncIterator, 1, &value);
+        } else {
+            result = Object::call(state, returnVariable, syncIterator, 0, nullptr);
+        }
     } catch (const Value& thrownValue) {
         // IfAbruptRejectPromise(return, promiseCapability).
         Value argv = thrownValue;
