@@ -116,39 +116,60 @@ static std::string grandfatheredLangTag(const std::string& locale)
 
 static std::string intlPreferredLanguageTag(const std::string& tag)
 {
-    // 78 possible replacements
+    // languageAlias element in
+    // https://www.unicode.org/repos/cldr/trunk/common/supplemental/supplementalMetadata.xml
+    if (tag == "cmn")
+        return "zh";
+    if (tag == "ces")
+        return "cs";
+    if (tag == "heb")
+        return "he";
+    if (tag == "xsj")
+        return "suj";
     if (tag == "aar")
         return "aa";
+
+    // legacy
+    if (tag == "tl")
+        return "fil";
+
+    // 92 possible replacements
     if (tag == "aam")
         return "aas";
     if (tag == "adp")
         return "dz";
+    if (tag == "asd")
+        return "snz";
     if (tag == "aue")
         return "ktz";
     if (tag == "ayx")
         return "nun";
     if (tag == "bgm")
         return "bcg";
+    if (tag == "bic")
+        return "bir";
     if (tag == "bjd")
         return "drl";
+    if (tag == "blg")
+        return "iba";
     if (tag == "ccq")
         return "rki";
-    if (tag == "ces")
-        return "cs";
     if (tag == "cjr")
         return "mom";
     if (tag == "cka")
         return "cmr";
     if (tag == "cmk")
         return "xch";
-    if (tag == "cmn")
-        return "zh";
     if (tag == "coy")
         return "pij";
     if (tag == "cqu")
         return "quh";
+    if (tag == "dit")
+        return "dif";
     if (tag == "drh")
         return "khk";
+    if (tag == "drr")
+        return "kzk";
     if (tag == "drw")
         return "prs";
     if (tag == "gav")
@@ -157,12 +178,12 @@ static std::string intlPreferredLanguageTag(const std::string& tag)
         return "vaj";
     if (tag == "ggn")
         return "gvr";
+    if (tag == "gli")
+        return "kzk";
     if (tag == "gti")
         return "nyc";
     if (tag == "guv")
         return "duz";
-    if (tag == "heb")
-        return "he";
     if (tag == "hrr")
         return "jal";
     if (tag == "ibi")
@@ -195,12 +216,16 @@ static std::string intlPreferredLanguageTag(const std::string& tag)
         return "yam";
     if (tag == "kxe")
         return "tvd";
+    if (tag == "kxl")
+        return "kru";
     if (tag == "kzj")
         return "dtp";
     if (tag == "kzt")
         return "dtp";
     if (tag == "lii")
         return "raq";
+    if (tag == "llo")
+        return "ngt";
     if (tag == "lmm")
         return "rmx";
     if (tag == "meg")
@@ -211,18 +236,26 @@ static std::string intlPreferredLanguageTag(const std::string& tag)
         return "mry";
     if (tag == "mwj")
         return "vaj";
+    if (tag == "myd")
+        return "aog";
     if (tag == "myt")
         return "mry";
     if (tag == "nad")
         return "xny";
     if (tag == "ncp")
         return "kdz";
+    if (tag == "nns")
+        return "nbr";
     if (tag == "nnx")
         return "ngv";
     if (tag == "nts")
         return "pij";
+    if (tag == "nxu")
+        return "bpp";
     if (tag == "oun")
         return "vaj";
+    if (tag == "pat")
+        return "kxr";
     if (tag == "pcr")
         return "adx";
     if (tag == "pmc")
@@ -245,6 +278,8 @@ static std::string intlPreferredLanguageTag(const std::string& tag)
         return "dtp";
     if (tag == "thc")
         return "tpo";
+    if (tag == "thw")
+        return "ola";
     if (tag == "thx")
         return "oyb";
     if (tag == "tie")
@@ -269,8 +304,8 @@ static std::string intlPreferredLanguageTag(const std::string& tag)
         return "acn";
     if (tag == "xkh")
         return "waw";
-    if (tag == "xsj")
-        return "suj";
+    if (tag == "xrq")
+        return "dmw";
     if (tag == "ybd")
         return "rki";
     if (tag == "yma")
@@ -281,16 +316,20 @@ static std::string intlPreferredLanguageTag(const std::string& tag)
         return "zom";
     if (tag == "yuu")
         return "yug";
+    if (tag == "zir")
+        return "scv";
     return "";
 }
 
 static std::string intlRedundantLanguageTag(const std::string& tag)
 {
-    // 24 possible replacements
+    // non-iana
     if (tag == "hy-arevela")
         return "hy";
     if (tag == "hy-arevmda")
         return "hyw";
+
+    // 24 possible replacements
     if (tag == "ja-Latn-hepburn-heploc")
         return "ja-Latn-alalc97";
     if (tag == "sgn-BR")
@@ -307,8 +346,8 @@ static std::string intlRedundantLanguageTag(const std::string& tag)
         return "fsl";
     if (tag == "sgn-GB")
         return "bfi";
-    if (tag == "gss")
-        return "sgn-GR";
+    if (tag == "sgn-GR")
+        return "gss";
     if (tag == "sgn-IE")
         return "isg";
     if (tag == "sgn-IT")
@@ -349,7 +388,7 @@ std::string Intl::preferredLanguage(const std::string& language)
 
 static std::string intlPreferredExtlangTag(const std::string& tag)
 {
-    // 235 possible replacements
+    // 245 possible replacements
     if (tag == "aao")
         return "ar";
     if (tag == "abh")
@@ -452,6 +491,8 @@ static std::string intlPreferredExtlangTag(const std::string& tag)
         return "zh";
     if (tag == "cmn")
         return "zh";
+    if (tag == "cnp")
+        return "zh";
     if (tag == "coa")
         return "ms";
     if (tag == "cpx")
@@ -470,9 +511,13 @@ static std::string intlPreferredExtlangTag(const std::string& tag)
         return "sgn";
     if (tag == "csn")
         return "sgn";
+    if (tag == "csp")
+        return "zh";
     if (tag == "csq")
         return "sgn";
     if (tag == "csr")
+        return "sgn";
+    if (tag == "csx")
         return "sgn";
     if (tag == "czh")
         return "zh";
@@ -487,6 +532,8 @@ static std::string intlPreferredExtlangTag(const std::string& tag)
     if (tag == "dup")
         return "ms";
     if (tag == "ecs")
+        return "sgn";
+    if (tag == "ehs")
         return "sgn";
     if (tag == "esl")
         return "sgn";
@@ -566,6 +613,8 @@ static std::string intlPreferredExtlangTag(const std::string& tag)
         return "sgn";
     if (tag == "jhs")
         return "sgn";
+    if (tag == "jks")
+        return "sgn";
     if (tag == "jls")
         return "sgn";
     if (tag == "jos")
@@ -596,15 +645,21 @@ static std::string intlPreferredExtlangTag(const std::string& tag)
         return "ms";
     if (tag == "lls")
         return "sgn";
+    if (tag == "lsb")
+        return "sgn";
     if (tag == "lsg")
         return "sgn";
     if (tag == "lsl")
+        return "sgn";
+    if (tag == "lsn")
         return "sgn";
     if (tag == "lso")
         return "sgn";
     if (tag == "lsp")
         return "sgn";
     if (tag == "lst")
+        return "sgn";
+    if (tag == "lsv")
         return "sgn";
     if (tag == "lsy")
         return "sgn";
@@ -730,6 +785,8 @@ static std::string intlPreferredExtlangTag(const std::string& tag)
         return "sgn";
     if (tag == "sqs")
         return "sgn";
+    if (tag == "sqx")
+        return "sgn";
     if (tag == "ssh")
         return "ar";
     if (tag == "ssp")
@@ -807,6 +864,8 @@ static std::string intlPreferredExtlangTag(const std::string& tag)
     if (tag == "yhs")
         return "sgn";
     if (tag == "ysl")
+        return "sgn";
+    if (tag == "ysm")
         return "sgn";
     if (tag == "yue")
         return "zh";
@@ -924,6 +983,21 @@ Intl::CanonicalizedLangunageTag Intl::canonicalizeLanguageTag(const std::string&
     std::transform(language.begin(), language.end(), language.begin(), tolower);
     result.language = language;
     language = Intl::preferredLanguage(language);
+
+    // test legacy cases
+    // https://github.com/unicode-org/cldr/blob/master/common/supplemental/supplementalMetadata.xml
+    if (result.language == "sh") {
+        language = result.language = "sr";
+        if (!result.script.length()) {
+            result.script = "Latn";
+        }
+    } else if (result.language == "cnr") {
+        language = result.language = "sr";
+        if (!result.region.length()) {
+            result.region = "ME";
+        }
+    }
+
     canonical.appendString(String::fromUTF8(language.data(), language.length()));
 
     // Check for extlang.
@@ -951,6 +1025,7 @@ Intl::CanonicalizedLangunageTag Intl::canonicalizeLanguageTag(const std::string&
 
     // Check for script.
     // script = 4ALPHA
+    bool isScriptAddToCanonical = false;
     if (currentIndex < numParts) {
         std::string script = parts[currentIndex];
         unsigned scriptLength = script.length();
@@ -963,11 +1038,18 @@ Intl::CanonicalizedLangunageTag Intl::canonicalizeLanguageTag(const std::string&
             script = script.substr(1, 3);
             result.script += script;
             canonical.appendString(String::fromUTF8(script.data(), script.length()));
+            isScriptAddToCanonical = true;
         }
+    }
+
+    if (!isScriptAddToCanonical && result.script.length()) {
+        canonical.appendString("-");
+        canonical.appendString(String::fromUTF8(result.script.data(), result.script.length()));
     }
 
     // Check for region.
     // region = 2ALPHA / 3DIGIT
+    bool isRegionAddToCanonical = false;
     if (currentIndex < numParts) {
         std::string region = parts[currentIndex];
         unsigned regionLength = region.length();
@@ -980,7 +1062,13 @@ Intl::CanonicalizedLangunageTag Intl::canonicalizeLanguageTag(const std::string&
             result.region = region;
             auto preffered = preferredRegion(region);
             canonical.appendString(String::fromUTF8(preffered.data(), preffered.length()));
+            isRegionAddToCanonical = true;
         }
+    }
+
+    if (!isRegionAddToCanonical && result.region.length()) {
+        canonical.appendString("-");
+        canonical.appendString(String::fromUTF8(result.region.data(), result.region.length()));
     }
 
     // Check for variant.
