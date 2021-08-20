@@ -1051,8 +1051,6 @@
     <test id="intl402/DisplayNames/prototype/resolvedOptions/return-object"><reason>TODO</reason></test>
     <test id="intl402/DisplayNames/prototype/resolvedOptions/this-not-object-throws"><reason>TODO</reason></test>
     <test id="intl402/DisplayNames/prototype/resolvedOptions/this-object-lacks-internal-throws"><reason>TODO</reason></test>
-    <test id="intl402/Intl/getCanonicalLocales/canonicalized-tags"><reason>TODO</reason></test>
-    <test id="intl402/Intl/getCanonicalLocales/complex-language-subtag-replacement"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/complex-region-subtag-replacement"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/preferred-grandfathered"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/transformed-ext-canonical"><reason>TODO</reason></test>
