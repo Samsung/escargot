@@ -1674,29 +1674,27 @@ static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t 
 // Array.prototype.find ( predicate [ , thisArg ] )#
 static Value builtinArrayFind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
+    Value predicate = argv[0];
+    Value thisArg = argc > 1 ? argv[1] : Value();
     // Let O be ? ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, find);
     // Let len be ? ToLength(? Get(O, "length")).
-    double len = O->length(state);
+    uint64_t len = O->length(state);
     // If IsCallable(predicate) is false, throw a TypeError exception.
-    if (!argv[0].isCallable()) {
+    if (!predicate.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().find.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
-    Value T;
-    // If thisArg was supplied, let T be thisArg; else let T be undefined.
-    if (argc >= 2) {
-        T = argv[1];
-    }
+
     // Let k be 0.
-    double k = 0;
+    uint64_t k = 0;
     // Repeat, while k < len
     while (k < len) {
         // Let Pk be ! ToString(k).
         // Let kValue be ? Get(O, Pk).
         Value kValue = O->get(state, ObjectPropertyName(state, Value(k))).value(state, O);
-        // Let testResult be ToBoolean(? Call(predicate, T, « kValue, k, O »)).
+        // Let testResult be ToBoolean(? Call(predicate, thisArg, « kValue, k, O »)).
         Value v[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, argv[0], T, 3, v).toBoolean(state);
+        bool testResult = Object::call(state, argv[0], thisArg, 3, v).toBoolean(state);
         // If testResult is true, return kValue.
         if (testResult) {
             return kValue;
@@ -1711,29 +1709,27 @@ static Value builtinArrayFind(ExecutionState& state, Value thisValue, size_t arg
 // Array.prototype.findIndex ( predicate [ , thisArg ] )#
 static Value builtinArrayFindIndex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
+    Value predicate = argv[0];
+    Value thisArg = argc > 1 ? argv[1] : Value();
     // Let O be ? ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, findIndex);
     // Let len be ? ToLength(? Get(O, "length")).
-    double len = O->length(state);
+    uint64_t len = O->length(state);
     // If IsCallable(predicate) is false, throw a TypeError exception.
-    if (!argv[0].isCallable()) {
+    if (!predicate.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().findIndex.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
-    Value T;
-    // If thisArg was supplied, let T be thisArg; else let T be undefined.
-    if (argc >= 2) {
-        T = argv[1];
-    }
+
     // Let k be 0.
-    double k = 0;
+    uint64_t k = 0;
     // Repeat, while k < len
     while (k < len) {
         // Let Pk be ! ToString(k).
         // Let kValue be ? Get(O, Pk).
         Value kValue = O->get(state, ObjectPropertyName(state, Value(k))).value(state, O);
-        // Let testResult be ToBoolean(? Call(predicate, T, « kValue, k, O »)).
+        // Let testResult be ToBoolean(? Call(predicate, thisArg, « kValue, k, O »)).
         Value v[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, argv[0], T, 3, v).toBoolean(state);
+        bool testResult = Object::call(state, argv[0], thisArg, 3, v).toBoolean(state);
         // If testResult is true, return k.
         if (testResult) {
             return Value(k);
