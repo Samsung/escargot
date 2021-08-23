@@ -269,6 +269,7 @@ namespace Escargot {
     F(groups)                     \
     F(has)                        \
     F(hasInstance)                \
+    F(hasOwn)                     \
     F(hasOwnProperty)             \
     F(hourCycle)                  \
     F(hypot)                      \
