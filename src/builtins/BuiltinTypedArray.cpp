@@ -1069,6 +1069,8 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
 
 static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
+    Value predicate = argv[0];
+    Value thisArg = argc > 1 ? argv[1] : Value();
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, find);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
@@ -1077,30 +1079,22 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
     // Array.prototype.find as defined in 22.1.3.8 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asTypedArrayObject()->arrayLength();
+    size_t len = O->asTypedArrayObject()->arrayLength();
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
-    Value predicate = argv[0];
     if (!predicate.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().find.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
-    // If thisArg was supplied, let T be thisArg; else let T be undefined.
-    Value T;
-    if (argc > 1) {
-        T = argv[1];
-    }
-
     // Let k be 0.
     size_t k = 0;
-    Value kValue;
     // Repeat, while k < len
     while (k < len) {
         // Let kValue be Get(O, Pk).
-        kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
-        // Let testResult be ToBoolean(Call(predicate, T, «kValue, k, O»)).
+        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        // Let testResult be ToBoolean(Call(predicate, thisArg, «kValue, k, O»)).
         Value args[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, predicate, T, 3, args).toBoolean(state);
+        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean(state);
         // If testResult is true, return kValue.
         if (testResult) {
             return kValue;
@@ -1114,6 +1108,8 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
 
 static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
+    Value predicate = argv[0];
+    Value thisArg = argc > 1 ? argv[1] : Value();
     // Let O be ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, findIndex);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
@@ -1122,36 +1118,104 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
     // Array.prototype.findIndex as defined in 22.1.3.9 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asTypedArrayObject()->arrayLength();
+    size_t len = O->asTypedArrayObject()->arrayLength();
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
-    Value predicate = argv[0];
     if (!predicate.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findIndex.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
-    // If thisArg was supplied, let T be thisArg; else let T be undefined.
-    Value T;
-    if (argc > 1) {
-        T = argv[1];
-    }
-
     // Let k be 0.
     size_t k = 0;
-    Value kValue;
     // Repeat, while k < len
     while (k < len) {
         // Let kValue be ? Get(O, Pk).
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
-        // Let testResult be ToBoolean(? Call(predicate, T, « kValue, k, O »)).
+        // Let testResult be ToBoolean(? Call(predicate, thisArg, « kValue, k, O »)).
         Value args[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, predicate, T, 3, args).toBoolean(state);
+        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean(state);
         // If testResult is true, return k.
         if (testResult) {
             return Value(k);
         }
         // Increase k by 1.
         k++;
+    }
+    // Return -1
+    return Value(-1);
+}
+
+static Value builtinTypedArrayFindLast(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value predicate = argv[0];
+    Value thisArg = argc > 1 ? argv[1] : Value();
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, find);
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, O);
+
+    // Let len be O.[[ArrayLength]].
+    int64_t len = static_cast<int64_t>(O->asTypedArrayObject()->arrayLength());
+
+    // If IsCallable(predicate) is false, throw a TypeError exception.
+    if (!predicate.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findLast.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+    }
+
+    // Let k be len - 1.
+    int64_t k = len - 1;
+    Value kValue;
+    // Repeat, while k >= 0
+    while (k >= 0) {
+        // Let kValue be Get(O, Pk).
+        kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        // Let testResult be ToBoolean(Call(predicate, thisArg, «kValue, k, O»)).
+        Value args[] = { kValue, Value(k), O };
+        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean(state);
+        // If testResult is true, return kValue.
+        if (testResult) {
+            return kValue;
+        }
+        // Set k to k - 1.
+        k--;
+    }
+    // Return undefined.
+    return Value();
+}
+
+static Value builtinTypedArrayFindLastIndex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value predicate = argv[0];
+    Value thisArg = argc > 1 ? argv[1] : Value();
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, findIndex);
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, O);
+
+    // Let len be O.[[ArrayLength]].
+    int64_t len = static_cast<int64_t>(O->asTypedArrayObject()->arrayLength());
+
+    // If IsCallable(predicate) is false, throw a TypeError exception.
+    if (!predicate.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findIndex.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+    }
+
+    // Let k be len - 1.
+    int64_t k = len - 1;
+    Value kValue;
+    // Repeat, while k >= 0
+    while (k >= 0) {
+        // Let kValue be ? Get(O, Pk).
+        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        // Let testResult be ToBoolean(? Call(predicate, thisArg, « kValue, k, O »)).
+        Value args[] = { kValue, Value(k), O };
+        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean(state);
+        // If testResult is true, return k.
+        if (testResult) {
+            return Value(k);
+        }
+        // Set k to k - 1.
+        k--;
     }
     // Return -1
     return Value(-1);
@@ -1675,6 +1739,10 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->find, builtinTypedArrayFind, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->findIndex),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->findIndex, builtinTypedArrayFindIndex, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->findLast),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->findLast, builtinTypedArrayFindLast, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->findLastIndex),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->findLastIndex, builtinTypedArrayFindLastIndex, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->forEach),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->forEach, builtinTypedArrayForEach, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->join),
