@@ -156,6 +156,13 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
     return strings->lazyObjectObjectToString().string();
 }
 
+static Value builtinObjectHasOwn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Object* obj = argv[0].toObject(state);
+    Value key = argv[1].toPropertyKey(state);
+    return Value(obj->hasOwnProperty(state, ObjectPropertyName(state, key)));
+}
+
 static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value key = argv[0].toPrimitive(state, Value::PrimitiveTypeHint::PreferString);
@@ -868,6 +875,10 @@ void GlobalObject::installObject(ExecutionState& state)
     m_object->defineOwnProperty(state, ObjectPropertyName(strings.entries),
                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings.entries, builtinObjectEntries, 1, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // Object.hasOwn
+    m_object->defineOwnProperty(state, ObjectPropertyName(strings.hasOwn),
+                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings.hasOwn, builtinObjectHasOwn, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $19.1.3.2 Object.prototype.hasOwnProperty(V)
     m_objectPrototype->defineOwnProperty(state, ObjectPropertyName(strings.hasOwnProperty),
