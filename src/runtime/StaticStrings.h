@@ -161,6 +161,7 @@ namespace Escargot {
     F(callee)                     \
     F(caller)                     \
     F(caseFirst)                  \
+    F(cause)                      \
     F(cbrt)                       \
     F(ceil)                       \
     F(charAt)                     \

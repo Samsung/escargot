@@ -26,6 +26,22 @@
 
 namespace Escargot {
 
+static void installErrorCause(ExecutionState& state, Object* obj, const Value& options)
+{
+    const AtomicString& causeString = state.context()->staticStrings().cause;
+    // 1. If Type(options) is Object and ? HasProperty(options, "cause") is true, then
+    if (options.isObject()) {
+        auto res = options.asObject()->hasProperty(state, ObjectPropertyName(causeString));
+        if (res) {
+            // Let cause be ? Get(options, "cause").
+            Value cause = res.value(state, ObjectPropertyName(causeString), options);
+            // Perform ! CreateNonEnumerableDataPropertyOrThrow(O, "cause", cause).
+            obj->defineOwnPropertyThrowsExceptionWhenStrictMode(state, causeString,
+                                                                ObjectPropertyDescriptor(cause, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+        }
+    }
+}
+
 static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
@@ -42,6 +58,9 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
         obj->defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
                                                             ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     }
+
+    Value options = argc > 1 ? argv[1] : Value();
+    installErrorCause(state, obj, options);
     return obj;
 }
 
@@ -60,6 +79,8 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
             obj->defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,                                                                                                                                                      \
                                                                 ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent))); \
         }                                                                                                                                                                                                                                                             \
+        Value options = argc > 1 ? argv[1] : Value();                                                                                                                                                                                                                 \
+        installErrorCause(state, obj, options);                                                                                                                                                                                                                       \
         return obj;                                                                                                                                                                                                                                                   \
     }
 
@@ -90,6 +111,10 @@ static Value builtinAggregateErrorConstructor(ExecutionState& state, Value thisV
         O->defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
                                                           ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     }
+
+    // Perform ? InstallErrorCause(O, options).
+    Value options = argc > 2 ? argv[2] : Value();
+    installErrorCause(state, O, options);
 
     // Let errorsList be ? IterableToList(errors).
     auto errorsList = IteratorObject::iterableToList(state, argv[0]);
