@@ -234,17 +234,12 @@
     <test id="built-ins/DataView/prototype/setUint32/resizable-buffer"><reason>TODO</reason></test>
     <test id="built-ins/DataView/prototype/setUint8/resizable-buffer"><reason>TODO</reason></test>
     <test id="built-ins/Date/UTC/fp-evaluation-order"><reason>TODO</reason></test>
-    <test id="built-ins/Error/cause_abrupt"><reason>TODO</reason></test>
-    <test id="built-ins/Error/cause_property"><reason>TODO</reason></test>
-    <test id="built-ins/Error/constructor"><reason>TODO</reason></test>
     <test id="built-ins/Function/internals/Construct/derived-this-uninitialized-realm"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/toString/line-terminator-normalisation-CR"><reason>TODO</reason></test>
     <test id="built-ins/GeneratorFunction/prototype/not-callable"><reason>TODO</reason></test>
     <test id="built-ins/JSON/parse/reviver-call-order"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/value-bigint-tojson-receiver"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/value-string-escape-unicode"><reason>TODO</reason></test>
-    <test id="built-ins/NativeErrors/AggregateError/cause-property"><reason>TODO</reason></test>
-    <test id="built-ins/NativeErrors/cause_property_native_error"><reason>TODO</reason></test>
     <test id="built-ins/Object/freeze/proxy-with-defineProperty-handler"><reason>TODO</reason></test>
     <test id="built-ins/Object/seal/proxy-with-defineProperty-handler"><reason>TODO</reason></test>
     <test id="built-ins/Realm/constructor"><reason>TODO</reason></test>
