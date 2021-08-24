@@ -3784,7 +3784,7 @@ NEVER_INLINE void ByteCodeInterpreter::defineObjectGetterSetter(ExecutionState& 
     }
     ObjectPropertyDescriptor desc(*gs, code->m_presentAttribute);
     Object* object = registerFile[code->m_objectRegisterIndex].toObject(state);
-    object->defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, pName), desc);
+    object->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, pName), desc);
 }
 
 ALWAYS_INLINE Value ByteCodeInterpreter::incrementOperation(ExecutionState& state, const Value& value)

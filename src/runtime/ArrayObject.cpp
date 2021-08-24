@@ -329,7 +329,7 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
     auto length = arrayLength(state);
     for (size_t i = 0; i < length; i++) {
         if (!m_fastModeData[i].isEmpty()) {
-            defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor(m_fastModeData[i], ObjectPropertyDescriptor::AllPresent));
+            defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor(m_fastModeData[i], ObjectPropertyDescriptor::AllPresent));
         }
     }
 

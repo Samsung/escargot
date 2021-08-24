@@ -908,13 +908,6 @@ public:
         }
     }
 
-    void defineOwnPropertyThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
-    {
-        if (!defineOwnProperty(state, P, desc) && state.inStrictMode()) {
-            throwCannotDefineError(state, P.toObjectStructurePropertyName(state));
-        }
-    }
-
     void deleteOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P)
     {
         if (!deleteOwnProperty(state, P)) {

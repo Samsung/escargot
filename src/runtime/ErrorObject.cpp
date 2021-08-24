@@ -134,8 +134,8 @@ ErrorObject::ErrorObject(ExecutionState& state, Object* proto, String* errorMess
     , m_stackTraceData(nullptr)
 {
     if (errorMessage->length()) {
-        defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
-                                                       ObjectPropertyDescriptor(errorMessage, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+        defineOwnPropertyThrowsException(state, state.context()->staticStrings().message,
+                                         ObjectPropertyDescriptor(errorMessage, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     }
 }
 
