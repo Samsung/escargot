@@ -36,8 +36,8 @@ static void installErrorCause(ExecutionState& state, Object* obj, const Value& o
             // Let cause be ? Get(options, "cause").
             Value cause = res.value(state, ObjectPropertyName(causeString), options);
             // Perform ! CreateNonEnumerableDataPropertyOrThrow(O, "cause", cause).
-            obj->defineOwnPropertyThrowsExceptionWhenStrictMode(state, causeString,
-                                                                ObjectPropertyDescriptor(cause, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+            obj->defineOwnPropertyThrowsException(state, causeString,
+                                                  ObjectPropertyDescriptor(cause, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
         }
     }
 }
@@ -55,8 +55,8 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
 
     Value message = argv[0];
     if (!message.isUndefined()) {
-        obj->defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
-                                                            ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+        obj->defineOwnPropertyThrowsException(state, state.context()->staticStrings().message,
+                                              ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     }
 
     Value options = argc > 1 ? argv[1] : Value();
@@ -64,24 +64,24 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
     return obj;
 }
 
-#define DEFINE_ERROR_CTOR(errorName, lowerCaseErrorName)                                                                                                                                                                                                              \
-    static Value builtin##errorName##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)                                                                                                                  \
-    {                                                                                                                                                                                                                                                                 \
-        if (!newTarget.hasValue()) {                                                                                                                                                                                                                                  \
-            newTarget = state.resolveCallee();                                                                                                                                                                                                                        \
-        }                                                                                                                                                                                                                                                             \
-        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {                                                                                                               \
-            return constructorRealm->globalObject()->lowerCaseErrorName##ErrorPrototype();                                                                                                                                                                            \
-        });                                                                                                                                                                                                                                                           \
-        ErrorObject* obj = new errorName##ErrorObject(state, proto, String::emptyString);                                                                                                                                                                             \
-        Value message = argv[0];                                                                                                                                                                                                                                      \
-        if (!message.isUndefined()) {                                                                                                                                                                                                                                 \
-            obj->defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,                                                                                                                                                      \
-                                                                ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent))); \
-        }                                                                                                                                                                                                                                                             \
-        Value options = argc > 1 ? argv[1] : Value();                                                                                                                                                                                                                 \
-        installErrorCause(state, obj, options);                                                                                                                                                                                                                       \
-        return obj;                                                                                                                                                                                                                                                   \
+#define DEFINE_ERROR_CTOR(errorName, lowerCaseErrorName)                                                                                                                                                                                                \
+    static Value builtin##errorName##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)                                                                                                    \
+    {                                                                                                                                                                                                                                                   \
+        if (!newTarget.hasValue()) {                                                                                                                                                                                                                    \
+            newTarget = state.resolveCallee();                                                                                                                                                                                                          \
+        }                                                                                                                                                                                                                                               \
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {                                                                                                 \
+            return constructorRealm->globalObject()->lowerCaseErrorName##ErrorPrototype();                                                                                                                                                              \
+        });                                                                                                                                                                                                                                             \
+        ErrorObject* obj = new errorName##ErrorObject(state, proto, String::emptyString);                                                                                                                                                               \
+        Value message = argv[0];                                                                                                                                                                                                                        \
+        if (!message.isUndefined()) {                                                                                                                                                                                                                   \
+            obj->defineOwnPropertyThrowsException(state, state.context()->staticStrings().message,                                                                                                                                                      \
+                                                  ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent))); \
+        }                                                                                                                                                                                                                                               \
+        Value options = argc > 1 ? argv[1] : Value();                                                                                                                                                                                                   \
+        installErrorCause(state, obj, options);                                                                                                                                                                                                         \
+        return obj;                                                                                                                                                                                                                                     \
     }
 
 DEFINE_ERROR_CTOR(Reference, reference);
@@ -108,8 +108,8 @@ static Value builtinAggregateErrorConstructor(ExecutionState& state, Value thisV
         // Let msg be ? ToString(message).
         // Let msgDesc be the PropertyDescriptor { [[Value]]: msg, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
         // Perform ! DefinePropertyOrThrow(O, "message", msgDesc).
-        O->defineOwnPropertyThrowsExceptionWhenStrictMode(state, state.context()->staticStrings().message,
-                                                          ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+        O->defineOwnPropertyThrowsException(state, state.context()->staticStrings().message,
+                                            ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     }
 
     // Perform ? InstallErrorCause(O, options).
@@ -119,8 +119,8 @@ static Value builtinAggregateErrorConstructor(ExecutionState& state, Value thisV
     // Let errorsList be ? IterableToList(errors).
     auto errorsList = IteratorObject::iterableToList(state, argv[0]);
     // Perform ! DefinePropertyOrThrow(O, "errors", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: ! CreateArrayFromList(errorsList) }).
-    O->defineOwnPropertyThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, String::fromASCII("errors")),
-                                                      ObjectPropertyDescriptor(Value(Object::createArrayFromList(state, errorsList.size(), errorsList.data())), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    O->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("errors")),
+                                        ObjectPropertyDescriptor(Value(Object::createArrayFromList(state, errorsList.size(), errorsList.data())), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     // Return O.
     return O;
 }

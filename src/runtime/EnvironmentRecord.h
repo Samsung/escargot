@@ -240,13 +240,13 @@ public:
             ObjectPropertyDescriptor::PresentAttribute attribute = (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent);
             if (canDelete)
                 attribute = (ObjectPropertyDescriptor::PresentAttribute)(attribute | ObjectPropertyDescriptor::ConfigurablePresent);
-            m_bindingObject->defineOwnPropertyThrowsExceptionWhenStrictMode(state, name, ObjectPropertyDescriptor(Value(), attribute));
+            m_bindingObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(Value(), attribute));
         }
     }
 
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
     {
-        m_bindingObject->defineOwnPropertyThrowsExceptionWhenStrictMode(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
+        m_bindingObject->defineOwnPropertyThrowsException(state, name, ObjectPropertyDescriptor(V, ObjectPropertyDescriptor::AllPresent));
     }
 
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
