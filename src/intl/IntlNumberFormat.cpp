@@ -142,29 +142,6 @@ static Value defaultNumberOption(ExecutionState& state, Value value, double mini
     }
 }
 
-static double getNumberOption(ExecutionState& state, Object* options, String* property, double minimum, double maximum, double fallback)
-{
-    // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.10
-
-    // Let value be the result of calling the [[Get]] internal method of options with argument property.
-    Value value = options->get(state, ObjectPropertyName(state, property)).value(state, options);
-    // If value is not undefined, then
-    if (!value.isUndefined()) {
-        // Let value be ToNumber(value).
-        double doubleValue = value.toNumber(state);
-        // If value is NaN or less than minimum or greater than maximum, throw a RangeError exception.
-        if (std::isnan(doubleValue) || doubleValue < minimum || maximum < doubleValue) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Got invalid number option value");
-        }
-        // Return floor(value).
-        return floor(doubleValue);
-    } else {
-        // Else return fallback.
-        return fallback;
-    }
-}
-
-
 Object* IntlNumberFormat::create(ExecutionState& state, Context* realm, Value locales, Value options)
 {
     Object* numberFormat = new Object(state, realm->globalObject()->intlNumberFormatPrototype());
@@ -525,7 +502,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
 
     // Perform ? SetNumberFormatDigitOptions(numberFormat, options, mnfdDefault, mxfdDefault, notation).
     // Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21, 1).
-    double mnid = getNumberOption(state, options.asObject(), state.context()->staticStrings().lazyMinimumIntegerDigits().string(), 1, 21, 1);
+    double mnid = Intl::getNumberOption(state, options.asObject(), state.context()->staticStrings().lazyMinimumIntegerDigits().string(), 1, 21, 1);
     // Let mnfd be ? Get(options, "minimumFractionDigits").
     Value mnfd;
     auto g = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()));

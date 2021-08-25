@@ -47,6 +47,8 @@ public:
         BooleanValue
     };
     static Value getOption(ExecutionState& state, Object* options, Value property, OptionValueType type, Value* values, size_t valuesLength, const Value& fallback);
+    template <typename T>
+    static T getNumberOption(ExecutionState& state, Object* options, String* property, double minimum, double maximum, const T& fallback);
     static std::string preferredLanguage(const std::string& language);
     static String* icuLocaleToBCP47Tag(String* string);
     static std::vector<std::string> calendarsForLocale(String* locale);

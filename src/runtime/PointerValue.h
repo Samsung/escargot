@@ -75,6 +75,7 @@ class SharedArrayBufferObject;
 #if defined(ENABLE_INTL)
 class IntlLocaleObject;
 class IntlPluralRulesObject;
+class IntlDateTimeFormatObject;
 class IntlRelativeTimeFormatObject;
 #endif
 #if defined(ENABLE_WASM)
@@ -427,6 +428,11 @@ public:
     }
 
     virtual bool isIntlPluralRulesObject() const
+    {
+        return false;
+    }
+
+    virtual bool isIntlDateTimeFormatObject() const
     {
         return false;
     }
@@ -786,6 +792,12 @@ public:
     {
         ASSERT(isIntlPluralRulesObject());
         return (IntlPluralRulesObject*)this;
+    }
+
+    IntlDateTimeFormatObject* asIntlDateTimeFormatObject()
+    {
+        ASSERT(isIntlDateTimeFormatObject());
+        return (IntlDateTimeFormatObject*)this;
     }
 
     IntlRelativeTimeFormatObject* asIntlRelativeTimeFormatObject()

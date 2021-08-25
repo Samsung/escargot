@@ -107,6 +107,7 @@ namespace RuntimeICUBinder {
     F(udat_format, int32_t (*)(const UDateFormat*, UDate, UChar*, int32_t, UFieldPosition*, UErrorCode*), int32_t)                                                                             \
     F(udat_formatForFields, int32_t (*)(const UDateFormat* format, UDate, UChar*, int32_t, UFieldPositionIterator*, UErrorCode*), int32_t)                                                     \
     F(udat_getCalendar, const UCalendar* (*)(const UDateFormat* fmt), const UCalendar*)                                                                                                        \
+    F(udat_toPattern, int32_t (*)(const UDateFormat     *fmt, UBool          localized, UChar           *result, int32_t         resultLength, UErrorCode      *status), int32_t) \
     F(uenum_count, int32_t (*)(UEnumeration * en, UErrorCode * status), int32_t)                                                                                                               \
     F(uenum_unext, const UChar* (*)(UEnumeration * en, int32_t * resultLength, UErrorCode * status), const UChar*)                                                                             \
     F(uenum_next, const char* (*)(UEnumeration * en, int32_t * resultLength, UErrorCode * status), const char*)                                                                                \
@@ -122,6 +123,7 @@ namespace RuntimeICUBinder {
     F(udatpg_open, UDateTimePatternGenerator* (*)(const char* locale, UErrorCode* pErrorCode), UDateTimePatternGenerator*)                                                                     \
     F(udatpg_getBestPattern, int32_t (*)(UDateTimePatternGenerator * dtpg, const UChar* skeleton, int32_t length, UChar* bestPattern, int32_t capacity, UErrorCode* pErrorCode), int32_t)      \
     F(udatpg_getBestPatternWithOptions, int32_t (*)(UDateTimePatternGenerator*, const UChar*, int32_t, UDateTimePatternMatchOptions, UChar*, int32_t, UErrorCode*), int32_t)                   \
+    F(udatpg_getSkeleton, int32_t (*)(UDateTimePatternGenerator *unusedDtpg, const UChar *pattern, int32_t length, UChar *skeleton, int32_t capacity, UErrorCode *pErrorCode), int32_t)                   \
     F(unum_countAvailable, int32_t (*)(), int32_t)                                                                                                                                             \
     F(unum_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                                \
     F(unum_open, UNumberFormat* (*)(UNumberFormatStyle style, const UChar* pattern, int32_t patternLength, const char* locale, UParseError* parseErr, UErrorCode* status), UNumberFormat*)     \
