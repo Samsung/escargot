@@ -835,31 +835,7 @@ void ByteCodeGenerator::printByteCode(Context* context, ByteCodeBlock* block)
         }
 
         printf("]\n");
-
-        char* code = block->m_code.data();
-        size_t idx = 0;
-        size_t end = block->m_code.size();
-
-        while (idx < end) {
-            ByteCode* currentCode = (ByteCode*)(code + idx);
-
-            currentCode->dumpCode(idx, (const char*)code);
-
-            if (currentCode->m_orgOpcode == ExecutionPauseOpcode) {
-                if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::Yield) {
-                    idx += ((ExecutionPause*)currentCode)->m_yieldData.m_tailDataLength;
-                } else if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::Await) {
-                    idx += ((ExecutionPause*)currentCode)->m_awaitData.m_tailDataLength;
-                } else if (((ExecutionPause*)currentCode)->m_reason == ExecutionPause::GeneratorsInitialize) {
-                    idx += ((ExecutionPause*)currentCode)->m_asyncGeneratorInitializeData.m_tailDataLength;
-                } else {
-                    ASSERT_NOT_REACHED();
-                }
-            }
-
-            idx += byteCodeLengths[currentCode->m_orgOpcode];
-        }
-
+        ByteCode::dumpCode(block->m_code.data(), block->m_code.size());
         printf("dumpBytecode...<<<<<<<<<<<<<<<<<<<<<<\n");
     }
 }

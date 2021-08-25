@@ -30,6 +30,10 @@
 namespace Escargot {
 
 OpcodeTable g_opcodeTable;
+#ifndef NDEBUG
+// Represent start code position which is used for bytecode dump
+MAY_THREAD_LOCAL size_t g_dumpCodeStartPosition;
+#endif
 
 OpcodeTable::OpcodeTable()
 {
@@ -40,38 +44,61 @@ OpcodeTable::OpcodeTable()
 }
 
 #ifndef NDEBUG
-void ByteCode::dumpCode(size_t pos, const char* byteCodeStart)
+void ByteCode::dumpCode(const char* byteCodeStart, const size_t endPos)
 {
-    printf("%d\t\t", (int)pos);
+    // set the start code position
+    g_dumpCodeStartPosition = (size_t)byteCodeStart;
 
-    const char* opcodeName = NULL;
-    switch (m_orgOpcode) {
+    size_t curPos = 0;
+    while (curPos < endPos) {
+        ByteCode* curCode = (ByteCode*)(byteCodeStart + curPos);
+
+        printf("%d\t\t", (int)curPos);
+
+        const char* opcodeName = nullptr;
+        switch (curCode->m_orgOpcode) {
 #define RETURN_BYTECODE_NAME(name, pushCount, popCount) \
     case name##Opcode:                                  \
-        ((name*)this)->dump(byteCodeStart);             \
+        ((name*)curCode)->dump();                       \
         opcodeName = #name;                             \
         break;
-        FOR_EACH_BYTECODE_OP(RETURN_BYTECODE_NAME)
+            FOR_EACH_BYTECODE_OP(RETURN_BYTECODE_NAME)
 #undef RETURN_BYTECODE_NAME
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+
+        printf(" | %s ", opcodeName);
+        printf("(line: %d:%d)\n", (int)curCode->m_loc.line, (int)curCode->m_loc.column);
+
+        if (curCode->m_orgOpcode == ExecutionPauseOpcode) {
+            if (((ExecutionPause*)curCode)->m_reason == ExecutionPause::Yield) {
+                curPos += ((ExecutionPause*)curCode)->m_yieldData.m_tailDataLength;
+            } else if (((ExecutionPause*)curCode)->m_reason == ExecutionPause::Await) {
+                curPos += ((ExecutionPause*)curCode)->m_awaitData.m_tailDataLength;
+            } else if (((ExecutionPause*)curCode)->m_reason == ExecutionPause::GeneratorsInitialize) {
+                curPos += ((ExecutionPause*)curCode)->m_asyncGeneratorInitializeData.m_tailDataLength;
+            } else {
+                ASSERT_NOT_REACHED();
+            }
+        }
+
+        curPos += byteCodeLengths[curCode->m_orgOpcode];
     }
-
-    printf(" | %s ", opcodeName);
-    printf("(line: %d:%d)\n", (int)m_loc.line, (int)m_loc.column);
 }
 
-int ByteCode::dumpJumpPosition(size_t pos, const char* byteCodeStart)
+int ByteCode::dumpJumpPosition(size_t pos)
 {
-    return (int)(pos - (size_t)byteCodeStart);
+    ASSERT(!!g_dumpCodeStartPosition && pos > g_dumpCodeStartPosition);
+    return (int)(pos - g_dumpCodeStartPosition);
 }
 
-void GetGlobalVariable::dump(const char* byteCodeStart)
+void GetGlobalVariable::dump()
 {
     printf("get global variable r%d <- global.%s", (int)m_registerIndex, m_slot->m_propertyName.string()->toUTF8StringData().data());
 }
 
-void SetGlobalVariable::dump(const char* byteCodeStart)
+void SetGlobalVariable::dump()
 {
     printf("set global variable global.%s <- r%d", m_slot->m_propertyName.string()->toUTF8StringData().data(), (int)m_registerIndex);
 }
