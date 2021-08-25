@@ -243,7 +243,6 @@ static Value builtinAtomicsCompareExchange(ExecutionState& state, Value thisValu
 #if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
     uint8_t* replacementBytes = ALLOCA(8, uint8_t, state);
     TypedArrayHelper::numberToRawBytes(state, type, replacement, replacementBytes);
-    bool ret;
     switch (type) {
     case TypedArrayType::Int8:
         atomicCompareExchange<int8_t>(rawStart, expectedBytes, replacementBytes);
@@ -316,7 +315,7 @@ static Value builtinAtomicsLoad(ExecutionState& state, Value thisValue, size_t a
     TypedArrayType type = TA->typedArrayType();
 
 #if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-    uint8_t* rawStart = TA->buffer()->data() + indexedPosition;
+    uint8_t* rawStart = buffer->data() + indexedPosition;
     uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
     switch (type) {
     case TypedArrayType::Int8:
@@ -384,7 +383,7 @@ static Value builtinAtomicsStore(ExecutionState& state, Value thisValue, size_t 
     }
 
 #if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-    uint8_t* rawStart = TA->buffer()->data() + indexedPosition;
+    uint8_t* rawStart = buffer->data() + indexedPosition;
     uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
     TypedArrayHelper::numberToRawBytes(state, type, v, rawBytes);
 
