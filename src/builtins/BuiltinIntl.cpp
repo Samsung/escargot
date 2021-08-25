@@ -182,48 +182,44 @@ static Value builtinIntlDateTimeFormatConstructor(ExecutionState& state, Value t
     Object* proto = Object::getPrototypeFromConstructor(state, newTargetVariable, [](ExecutionState& state, Context* realm) -> Object* {
         return realm->globalObject()->intlDateTimeFormatPrototype();
     });
-    Object* dateTimeFormat = new Object(state, proto);
-    IntlDateTimeFormat::initialize(state, dateTimeFormat, locales, options);
+    Object* dateTimeFormat = new IntlDateTimeFormatObject(state, proto, locales, options);
     return dateTimeFormat;
 }
 
 static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     FunctionObject* callee = state.resolveCallee();
-    if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedDateTimeFormat()))) {
+    if (!callee->internalSlot() || !callee->internalSlot()->isIntlDateTimeFormatObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
 
-    Object* dateTimeFormat = callee->asObject();
+    IntlDateTimeFormatObject* dateTimeFormat = callee->internalSlot()->asIntlDateTimeFormatObject();
     double value;
     if (argc == 0 || argv[0].isUndefined()) {
         value = DateObject::currentTime();
     } else {
         value = argv[0].toNumber(state);
     }
-    auto result = IntlDateTimeFormat::format(state, dateTimeFormat, value);
+    auto result = dateTimeFormat->format(state, value);
 
     return Value(new UTF16String(result.data(), result.length()));
 }
 
 static Value builtinIntlDateTimeFormatFormatGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedDateTimeFormat()))) {
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlDateTimeFormatObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
 
-    Object* internalSlot = thisValue.asObject()->internalSlot();
-    FunctionObject* fn;
-    auto g = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().format));
-    if (g.hasValue()) {
-        fn = g.value(state, internalSlot).asFunction();
-    } else {
-        fn = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinIntlDateTimeFormatFormat, 1, NativeFunctionInfo::Strict));
-        internalSlot->set(state, ObjectPropertyName(state.context()->staticStrings().format), Value(fn), internalSlot);
-        fn->setInternalSlot(internalSlot);
+    IntlDateTimeFormatObject* dtf = thisValue.asObject()->asIntlDateTimeFormatObject();
+
+    if (!dtf->internalSlot()) {
+        FunctionObject* formatFunction = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinIntlDateTimeFormatFormat, 1, NativeFunctionInfo::Strict));
+        formatFunction->setInternalSlot(dtf);
+        dtf->setInternalSlot(formatFunction);
     }
 
-    return fn;
+    return dtf->internalSlot();
 }
 
 static Value builtinIntlDateTimeFormatFormatToParts(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -231,9 +227,10 @@ static Value builtinIntlDateTimeFormatFormatToParts(ExecutionState& state, Value
     // Let dtf be this value.
     // If Type(dtf) is not Object, throw a TypeError exception.
     // If dtf does not have an [[InitializedDateTimeFormat]] internal slot, throw a TypeError exception.
-    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedDateTimeFormat()))) {
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlDateTimeFormatObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
+    IntlDateTimeFormatObject* dtf = thisValue.asObject()->asIntlDateTimeFormatObject();
     Value date = argv[0];
     double x;
     // If date is undefined, then
@@ -246,7 +243,7 @@ static Value builtinIntlDateTimeFormatFormatToParts(ExecutionState& state, Value
         x = date.toNumber(state);
     }
     // Return ? FormatDateTimeToParts(dtf, x).
-    return IntlDateTimeFormat::formatToParts(state, thisValue.asObject(), x);
+    return dtf->formatToParts(state, x);
 }
 
 static void setFormatOpt(ExecutionState& state, Object* internalSlot, Object* result, const char* pName)
@@ -263,28 +260,41 @@ static void setFormatOpt(ExecutionState& state, Object* internalSlot, Object* re
 
 static Value builtinIntlDateTimeFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().lazyInitializedDateTimeFormat()))) {
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlDateTimeFormatObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
     }
-    Object* internalSlot = thisValue.asObject()->internalSlot();
-
+    IntlDateTimeFormatObject* intlDateTimeFormatObject = thisValue.asObject()->asIntlDateTimeFormatObject();
     Object* result = new Object(state);
 
-    setFormatOpt(state, internalSlot, result, "locale");
-    setFormatOpt(state, internalSlot, result, "calendar");
-    setFormatOpt(state, internalSlot, result, "numberingSystem");
-    setFormatOpt(state, internalSlot, result, "timeZone");
-    setFormatOpt(state, internalSlot, result, "hourCycle");
-    setFormatOpt(state, internalSlot, result, "hour12");
-    setFormatOpt(state, internalSlot, result, "weekday");
-    setFormatOpt(state, internalSlot, result, "era");
-    setFormatOpt(state, internalSlot, result, "year");
-    setFormatOpt(state, internalSlot, result, "month");
-    setFormatOpt(state, internalSlot, result, "day");
-    setFormatOpt(state, internalSlot, result, "hour");
-    setFormatOpt(state, internalSlot, result, "minute");
-    setFormatOpt(state, internalSlot, result, "second");
-    setFormatOpt(state, internalSlot, result, "timeZoneName");
+#define SET_RESULT(name)                                                                                                                                                         \
+    {                                                                                                                                                                            \
+        Value v(intlDateTimeFormatObject->name());                                                                                                                               \
+        if (!v.isUndefined()) {                                                                                                                                                  \
+            const char s[] = #name;                                                                                                                                              \
+            result->defineOwnProperty(state, ObjectPropertyName(state, String::fromASCII(s, sizeof(s) - 1)), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent)); \
+        }                                                                                                                                                                        \
+    }
+
+    SET_RESULT(locale);
+    SET_RESULT(calendar);
+    SET_RESULT(numberingSystem);
+    SET_RESULT(timeZone);
+    SET_RESULT(hourCycle);
+    SET_RESULT(hour12);
+    SET_RESULT(weekday);
+    SET_RESULT(era);
+    SET_RESULT(year);
+    SET_RESULT(month);
+    SET_RESULT(day);
+    SET_RESULT(dayPeriod);
+    SET_RESULT(hour);
+    SET_RESULT(minute);
+    SET_RESULT(second);
+    SET_RESULT(fractionalSecondDigits);
+    SET_RESULT(timeZoneName);
+    SET_RESULT(dateStyle);
+    SET_RESULT(timeStyle);
+#undef SET_RESULT
 
     return Value(result);
 }
@@ -990,9 +1000,12 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlNumberFormatPrototype = m_intlNumberFormat->getFunctionPrototype(state).asObject();
     m_intlNumberFormatPrototype->setGlobalIntrinsicObject(state, true);
 
-    formatFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->getFormat, builtinIntlNumberFormatFormatGetter, 0, NativeFunctionInfo::Strict));
-    m_intlNumberFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().format,
-                                                   ObjectPropertyDescriptor(JSGetterSetter(formatFunction, Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    {
+        formatFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->getFormat, builtinIntlNumberFormatFormatGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(formatFunction, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlNumberFormatPrototype->defineOwnProperty(state, ObjectPropertyName(state, strings->format), desc);
+    }
 
     m_intlNumberFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().formatToParts,
                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->formatToParts, builtinIntlNumberFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));

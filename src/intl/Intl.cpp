@@ -1896,6 +1896,33 @@ Value Intl::getOption(ExecutionState& state, Object* options, Value property, In
     }
 }
 
+template <typename T>
+T Intl::getNumberOption(ExecutionState& state, Object* options, String* property, double minimum, double maximum, const T& fallback)
+{
+    // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.10
+
+    // Let value be the result of calling the [[Get]] internal method of options with argument property.
+    Value value = options->get(state, ObjectPropertyName(state, property)).value(state, options);
+    // If value is not undefined, then
+    if (!value.isUndefined()) {
+        // Let value be ToNumber(value).
+        double doubleValue = value.toNumber(state);
+        // If value is NaN or less than minimum or greater than maximum, throw a RangeError exception.
+        if (std::isnan(doubleValue) || doubleValue < minimum || maximum < doubleValue) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Got invalid number option value");
+        }
+        // Return floor(value).
+        return T(floor(doubleValue));
+    } else {
+        // Else return fallback.
+        return fallback;
+    }
+}
+
+template Value Intl::getNumberOption(ExecutionState& state, Object* options, String* property, double minimum, double maximum, const Value& fallback);
+template double Intl::getNumberOption(ExecutionState& state, Object* options, String* property, double minimum, double maximum, const double& fallback);
+template int Intl::getNumberOption(ExecutionState& state, Object* options, String* property, double minimum, double maximum, const int& fallback);
+
 static std::vector<std::string> initAvailableNumberingSystems()
 {
     std::vector<std::string> availableNumberingSystems;

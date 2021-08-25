@@ -94,6 +94,7 @@
 #define udat_formatForFields RuntimeICUBinder::ICU::instance().udat_formatForFields
 #define udat_close RuntimeICUBinder::ICU::instance().udat_close
 #define udat_getCalendar RuntimeICUBinder::ICU::instance().udat_getCalendar
+#define udat_toPattern RuntimeICUBinder::ICU::instance().udat_toPattern
 
 #define uenum_count RuntimeICUBinder::ICU::instance().uenum_count
 #define uenum_unext RuntimeICUBinder::ICU::instance().uenum_unext
@@ -120,6 +121,7 @@
 #define udatpg_open RuntimeICUBinder::ICU::instance().udatpg_open
 #define udatpg_getBestPattern RuntimeICUBinder::ICU::instance().udatpg_getBestPattern
 #define udatpg_getBestPatternWithOptions RuntimeICUBinder::ICU::instance().udatpg_getBestPatternWithOptions
+#define udatpg_getSkeleton RuntimeICUBinder::ICU::instance().udatpg_getSkeleton
 
 #define ubrk_open RuntimeICUBinder::ICU::instance().ubrk_open
 #define ubrk_openRules RuntimeICUBinder::ICU::instance().ubrk_openRules
