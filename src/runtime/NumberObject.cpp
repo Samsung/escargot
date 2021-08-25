@@ -469,7 +469,7 @@ char* NumberObject::toStringWithRadix(ExecutionState& state, RadixBuffer& buffer
                 // examine the remainder to determine whether we should be considering rounding
                 // up or down. If remainder is precisely 0.5 rounding is to even.
                 int dComparePoint5 = fraction.comparePoint5();
-                if (dComparePoint5 > 0 || (!dComparePoint5 && ((radix & 1) ? isOddInOddRadix : digit & 1))) {
+                if (dComparePoint5 > 0 || (!dComparePoint5 && ((radix & 1) ? isOddInOddRadix : (digit & 1)))) {
                     // Check for rounding up; are we closer to the value we'd round off to than
                     // the next IEEE value would be?
                     if (fraction.sumGreaterThanOne(halfDeltaNext)) {
@@ -503,7 +503,7 @@ char* NumberObject::toStringWithRadix(ExecutionState& state, RadixBuffer& buffer
 
             while (true) {
                 int dComparePoint5 = fraction.comparePoint5();
-                if (dComparePoint5 > 0 || (!dComparePoint5 && ((radix & 1) ? isOddInOddRadix : digit & 1))) {
+                if (dComparePoint5 > 0 || (!dComparePoint5 && ((radix & 1) ? isOddInOddRadix : (digit & 1)))) {
                     if (fraction.sumGreaterThanOne(halfDelta)) {
                         needsRoundingUp = true;
                         break;

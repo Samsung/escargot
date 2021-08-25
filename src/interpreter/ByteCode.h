@@ -222,8 +222,8 @@ public:
     ByteCodeLOC m_loc;
     Opcode m_orgOpcode;
 
-    void dumpCode(size_t pos, const char* byteCodeStart);
-    int dumpJumpPosition(size_t pos, const char* byteCodeStart);
+    static void dumpCode(const char* byteCodeStart, const size_t endPos);
+    static int dumpJumpPosition(size_t pos);
 #endif
 };
 
@@ -239,7 +239,7 @@ public:
     Value m_value;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("load r%d <- ", (int)m_registerIndex);
         Value v = m_value;
@@ -278,7 +278,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("r%d <- new.target", (int)m_registerIndex);
     }
@@ -299,7 +299,7 @@ public:
     AtomicString m_name;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("load r%d <- %s", (int)m_registerIndex, m_name.string()->toUTF8StringData().data());
     }
@@ -318,7 +318,7 @@ public:
     AtomicString m_name;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("store %s <- r%d", m_name.string()->toUTF8StringData().data(), (int)m_registerIndex);
     }
@@ -340,7 +340,7 @@ public:
     AtomicString m_name;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("initialize %s <- r%d", m_name.string()->toUTF8StringData().data(), (int)m_registerIndex);
     }
@@ -363,7 +363,7 @@ public:
     ByteCodeRegisterIndex m_index;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("load r%d <- heap[%d][%d]", (int)m_registerIndex, (int)m_upperIndex, (int)m_index);
     }
@@ -384,7 +384,7 @@ public:
     ByteCodeRegisterIndex m_index;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("store heap[%d][%d] <- r%d", (int)m_upperIndex, (int)m_index, (int)m_registerIndex);
     }
@@ -403,7 +403,7 @@ public:
     ByteCodeRegisterIndex m_index;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("initialize heap[0][%d] <- r%d", (int)m_index, (int)m_registerIndex);
     }
@@ -424,7 +424,7 @@ public:
     ByteCodeRegisterIndex m_homeObjectRegisterIndex;
     InterpretedCodeBlock* m_codeBlock;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("create ");
         if (m_codeBlock->isArrowFunctionExpression()) {
@@ -630,7 +630,7 @@ public:
         }; // SetStaticPrivateFieldData
     };
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         if (m_stage == Stage::CreateClass) {
             if (m_superClassRegisterIndex == REGISTER_LIMIT) {
@@ -674,7 +674,7 @@ public:
 
     ByteCodeRegisterIndex m_registerIndex;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("Create RestElement -> r%d", (int)m_registerIndex);
     }
@@ -693,7 +693,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex : REGISTER_INDEX_IN_BIT;
     bool m_isCall : 1;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         if (m_isCall) {
             printf("super constructor -> r%d", (int)m_dstIndex);
@@ -741,7 +741,7 @@ public:
     };
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         if (m_type == Super) {
             printf("set object complex(r%d).r%d <- r%d", (int)m_objectRegisterIndex, (int)m_propertyNameIndex, (int)m_loadRegisterIndex);
@@ -790,7 +790,7 @@ public:
     };
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         if (m_type == Super) {
             printf("get object r%d <- complex(r%d).r%d", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, (int)m_propertyNameIndex);
@@ -813,7 +813,7 @@ public:
 
     ByteCodeRegisterIndex m_dstIndex;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("load this binding -> r%d", (int)m_dstIndex);
     }
@@ -824,7 +824,7 @@ public:
 #define DEFINE_BINARY_OPERATION_DUMP(name)
 #else
 #define DEFINE_BINARY_OPERATION_DUMP(name)                                                     \
-    void dump(const char* byteCodeStart)                                                       \
+    void dump()                                                                                \
     {                                                                                          \
         printf(name " r%d <- r%d , r%d", (int)m_dstIndex, (int)m_srcIndex0, (int)m_srcIndex1); \
     }
@@ -877,7 +877,7 @@ public:
     }
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("breakpointDisabled");
     }
@@ -892,7 +892,7 @@ public:
     }
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("breakpointEnabled");
     }
@@ -910,7 +910,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("createobject -> r%d", (int)m_registerIndex);
     }
@@ -930,7 +930,7 @@ public:
     size_t m_length;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("createarray -> r%d", (int)m_registerIndex);
     }
@@ -950,7 +950,7 @@ public:
     ByteCodeRegisterIndex m_argumentIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("create spread array object(r%d) -> r%d", (int)m_argumentIndex, (int)m_registerIndex);
     }
@@ -972,7 +972,7 @@ public:
     ByteCodeRegisterIndex m_storeRegisterIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("get object r%d <- r%d[r%d]", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex);
     }
@@ -994,7 +994,7 @@ public:
     ByteCodeRegisterIndex m_loadRegisterIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("set object r%d[r%d] <- r%d", (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex, (int)m_loadRegisterIndex);
     }
@@ -1020,7 +1020,7 @@ public:
     bool m_redefineFunctionOrClassName : 1;
 #ifndef NDEBUG
 
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("object define own property r%d[r%d] <- r%d", (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex, (int)m_loadRegisterIndex);
     }
@@ -1046,7 +1046,7 @@ public:
     ObjectPropertyDescriptor::PresentAttribute m_presentAttribute : 8;
 #ifndef NDEBUG
 
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("object define own property with name r%d.%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
     }
@@ -1073,7 +1073,7 @@ public:
     ByteCodeRegisterIndex m_loadRegisterIndexs[ARRAY_DEFINE_OPERATION_MERGE_COUNT];
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("array define own property r%d[%d - %d] <- ", (int)m_objectRegisterIndex, (int)m_baseIndex, (int)(m_baseIndex + m_count));
         for (int i = 0; i < m_count; i++) {
@@ -1101,7 +1101,7 @@ public:
     ByteCodeRegisterIndex m_loadRegisterIndexs[ARRAY_DEFINE_OPERATION_MERGE_COUNT];
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("array define own property by spread element r%d[ - ] <- ", (int)m_objectRegisterIndex);
         for (int i = 0; i < m_count; i++) {
@@ -1166,7 +1166,7 @@ public:
     ByteCodeRegisterIndex m_storeRegisterIndex;
     ObjectStructurePropertyName m_propertyName;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("get object r%d <- r%d.%s", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, m_propertyName.plainString()->toUTF8StringData().data());
     }
@@ -1220,7 +1220,7 @@ public:
     bool m_isLength : 1;
     uint16_t m_missCount : 16;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("set object r%d.%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.plainString()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
     }
@@ -1240,7 +1240,7 @@ public:
     GlobalVariableAccessCacheItem* m_slot;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart);
+    void dump();
 #endif
 };
 
@@ -1257,7 +1257,7 @@ public:
     GlobalVariableAccessCacheItem* m_slot;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart);
+    void dump();
 #endif
 };
 
@@ -1274,7 +1274,7 @@ public:
     AtomicString m_variableName;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("initialize global variable %s <- r%d", m_variableName.string()->toUTF8StringData().data(), (int)m_registerIndex);
     }
@@ -1294,7 +1294,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex1;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("mov r%d <- r%d", (int)m_registerIndex1, (int)m_registerIndex0);
     }
@@ -1314,7 +1314,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("to number r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -1334,7 +1334,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("increment r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -1356,7 +1356,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("to numeric increment(r%d) -> r%d, r%d", (int)m_srcIndex, (int)m_storeIndex, (int)m_dstIndex);
     }
@@ -1376,7 +1376,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("decrement r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -1398,7 +1398,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("to numeric decrement(r%d) -> r%d, r%d", (int)m_srcIndex, (int)m_storeIndex, (int)m_dstIndex);
     }
@@ -1418,7 +1418,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("unary minus r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -1438,7 +1438,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("unary not r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -1458,7 +1458,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("unary bitwise not r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -1480,7 +1480,7 @@ public:
     AtomicString m_id;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("unary typeof r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
     }
@@ -1505,7 +1505,7 @@ public:
     AtomicString m_id;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("unary delete r%d <- r%d r%d %s", (int)m_dstIndex, (int)m_srcIndex0, (int)m_srcIndex1, m_id.string()->toUTF8StringData().data());
     }
@@ -1527,7 +1527,7 @@ public:
     ByteCodeRegisterIndex m_dstIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("template operation(+) r%d <- r%d + r%d", (int)m_dstIndex, (int)m_src0Index, (int)m_src1Index);
     }
@@ -1551,9 +1551,9 @@ public:
     size_t m_jumpPosition;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
-        printf("jump %d", dumpJumpPosition(m_jumpPosition, byteCodeStart));
+        printf("jump %d", dumpJumpPosition(m_jumpPosition));
     }
 #endif
 };
@@ -1674,7 +1674,7 @@ public:
     size_t m_recordIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("jump complex");
     }
@@ -1700,9 +1700,9 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
-        printf("jump if r%d is true -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+        printf("jump if r%d is true -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition));
     }
 #endif
 };
@@ -1727,12 +1727,12 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         if (m_shouldNegate) {
-            printf("jump if r%d is not undefined nor null -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+            printf("jump if r%d is not undefined nor null -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition));
         } else {
-            printf("jump if r%d is undefined or null -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+            printf("jump if r%d is undefined or null -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition));
         }
     }
 #endif
@@ -1749,9 +1749,9 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
-        printf("jump if r%d is false -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+        printf("jump if r%d is false -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition));
     }
 #endif
 };
@@ -1774,7 +1774,7 @@ public:
     bool m_switched; // left and right operands are switched
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         char* op;
         if (m_switched) {
@@ -1790,7 +1790,7 @@ public:
                 op = (char*)"less than";
             }
         }
-        printf("jump if r%d is not %s r%d -> %d", (int)m_leftIndex, op, (int)m_rightIndex, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+        printf("jump if r%d is not %s r%d -> %d", (int)m_leftIndex, op, (int)m_rightIndex, dumpJumpPosition(m_jumpPosition));
     }
 #endif
 };
@@ -1812,7 +1812,7 @@ public:
     bool m_shouldNegate; // condition should meet NOT EQUAL
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         char* op;
         if (m_isStrict) {
@@ -1828,7 +1828,7 @@ public:
                 op = (char*)"equal";
             }
         }
-        printf("jump if r%d is %s to r%d -> %d", (int)m_registerIndex0, op, (int)m_registerIndex1, dumpJumpPosition(m_jumpPosition, byteCodeStart));
+        printf("jump if r%d is %s to r%d -> %d", (int)m_registerIndex0, op, (int)m_registerIndex1, dumpJumpPosition(m_jumpPosition));
     }
 #endif
 };
@@ -1849,7 +1849,7 @@ public:
     uint16_t m_argumentCount;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("call r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
@@ -1875,7 +1875,7 @@ public:
     uint16_t m_argumentCount;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("call r%d <- r%d,r%d(r%d-r%d)", (int)m_resultIndex, (int)m_receiverIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
@@ -1941,7 +1941,7 @@ public:
     ByteCodeRegisterIndex m_resultIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         if (m_kind == Kind::InWithScope) {
             printf("call(complex inWith) r%d <- %s(r%d-r%d)", (int)m_resultIndex, m_calleeName.string()->toNonGCUTF8StringData().data(), (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
@@ -1971,7 +1971,7 @@ public:
     ExecutionPauser* m_pauser;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("execution resume");
     }
@@ -2034,7 +2034,7 @@ public:
     };
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("execution pause ");
 
@@ -2065,7 +2065,7 @@ public:
     uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("new r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
@@ -2088,7 +2088,7 @@ public:
     uint16_t m_argumentCount;
     ByteCodeRegisterIndex m_resultIndex;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("new(spread) r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
     }
@@ -2107,7 +2107,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
     uint16_t m_paramIndex;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("get parameter r%d <- argv[%d]", (int)m_registerIndex, (int)m_paramIndex);
     }
@@ -2124,7 +2124,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("return r%d", (int)m_registerIndex);
     }
@@ -2151,7 +2151,7 @@ public:
     size_t m_tryCatchEndPosition;
     size_t m_finallyEndPosition;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("try (hasCatch:%d, save catched value to:r%d, hasFinalizer:%d)", (int)m_hasCatch, (int)m_catchedValueRegisterIndex, (int)m_hasFinalizer);
     }
@@ -2166,7 +2166,7 @@ public:
     }
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("close lexical environment");
     }
@@ -2183,7 +2183,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("throw r%d", (int)m_registerIndex);
     }
@@ -2204,7 +2204,7 @@ public:
     AtomicString m_templateDataString;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("throw static error %s", m_errorMessage);
     }
@@ -2234,7 +2234,7 @@ public:
     bool m_isDestruction : 1;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("create enumerate object r%d <- r%d", (int)m_dataRegisterIndex, (int)m_objectRegisterIndex);
     }
@@ -2258,7 +2258,7 @@ public:
     ByteCodeRegisterIndex m_dataRegisterIndex;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("get enumerate key r%d r%d", (int)m_registerIndex, (int)m_dataRegisterIndex);
     }
@@ -2276,7 +2276,7 @@ public:
     ByteCodeRegisterIndex m_registerIndex;
     size_t m_exitPosition;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("check if key is last r%d", (int)m_registerIndex);
     }
@@ -2294,7 +2294,7 @@ public:
     ByteCodeRegisterIndex m_dataRegisterIndex;
     ByteCodeRegisterIndex m_keyRegisterIndex;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("mark enumerate key r%d to enumerate object r%d", (int)m_keyRegisterIndex, (int)m_dataRegisterIndex);
     }
@@ -2420,7 +2420,7 @@ public:
     }
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         if (m_operation == Operation::GetIterator) {
             printf("get iterator(r%d) -> r%d", (int)m_getIteratorData.m_srcObjectRegisterIndex, (int)m_getIteratorData.m_dstIteratorRecordIndex);
@@ -2475,7 +2475,7 @@ public:
     AtomicString m_propertyName;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("get method r%d.%s -> r%d", (int)m_objectRegisterIndex, m_propertyName.string()->toNonGCUTF8StringData().data(), (int)m_resultRegisterIndex);
     }
@@ -2496,7 +2496,7 @@ public:
     String* m_body;
     String* m_option;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("load regexp %s -> r%d", m_body->toUTF8StringData().data(), (int)m_registerIndex);
     }
@@ -2521,7 +2521,7 @@ public:
     ByteCodeRegisterIndex m_withOrThisRegisterIndex : 16;
     size_t m_endPostion;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("open lexical env r%d(%d)", (int)m_withOrThisRegisterIndex, (int)m_kind);
     }
@@ -2547,7 +2547,7 @@ public:
     bool m_isGetter : 1; // other case, this is setter
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         if (m_isGetter) {
             printf("object define getter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
@@ -2572,7 +2572,7 @@ public:
     ByteCodeRegisterIndex m_iterOrEnumIndex;
     ByteCodeRegisterIndex m_dstIndex;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("binding rest element(r%d) -> r%d", (int)m_iterOrEnumIndex, (int)m_dstIndex);
     }
@@ -2591,7 +2591,7 @@ public:
     size_t m_blockEndPosition;
     InterpretedCodeBlock::BlockInfo* m_blockInfo;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("block operation (%p) -> end %d", m_blockInfo, (int)m_blockEndPosition);
     }
@@ -2608,7 +2608,7 @@ public:
 
     InterpretedCodeBlock::BlockInfo* m_blockInfo;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("replace block lexical env operation (%p)", m_blockInfo);
     }
@@ -2653,7 +2653,7 @@ public:
     };
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         if (m_operaton == TestCacheOperation) {
             printf("tagged template operation operation (test cache %d)", (int)m_testCacheOperationData.m_cacheIndex);
@@ -2672,7 +2672,7 @@ public:
     }
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("ensure arguments object");
     }
@@ -2689,7 +2689,7 @@ public:
     }
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("r%d <- resolve name address (%s)", (int)m_registerIndex, m_name.string()->toNonGCUTF8StringData().data());
     }
@@ -2713,7 +2713,7 @@ public:
     AtomicString m_name;
 
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("store with address r%d, %s <- r%d", (int)m_addressRegisterIndex, m_name.string()->toUTF8StringData().data(), (int)m_valueRegisterIndex);
     }
@@ -2730,7 +2730,7 @@ public:
 
     ByteCodeRegisterIndex m_registerIndex;
 #ifndef NDEBUG
-    void dump(const char* byteCodeStart)
+    void dump()
     {
         printf("end(return with r[%d])", (int)m_registerIndex);
     }
