@@ -7962,6 +7962,38 @@ typedef struct UFormattedRelativeDateTime UFormattedRelativeDateTime;
 
 #endif
 
+// uldnames.h
+/**
+ * Enum used in LocaleDisplayNames::createInstance.
+ * @stable ICU 4.4
+ */
+typedef enum {
+    /**
+     * Use standard names when generating a locale name,
+     * e.g. en_GB displays as 'English (United Kingdom)'.
+     * @stable ICU 4.4
+     */
+    ULDN_STANDARD_NAMES = 0,
+    /**
+     * Use dialect names, when generating a locale name,
+     * e.g. en_GB displays as 'British English'.
+     * @stable ICU 4.4
+     */
+    ULDN_DIALECT_NAMES
+} UDialectHandling;
+
+/**
+ * Opaque C service object type for the locale display names API
+ * @stable ICU 4.4
+ */
+struct ULocaleDisplayNames;
+
+/**
+ * C typedef for struct ULocaleDisplayNames.
+ * @stable ICU 4.4
+ */
+typedef struct ULocaleDisplayNames ULocaleDisplayNames;
+
 // uversion.h
 
 /** Maximum length of the copyright string.

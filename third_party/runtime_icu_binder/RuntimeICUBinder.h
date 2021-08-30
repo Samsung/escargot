@@ -80,7 +80,13 @@ namespace RuntimeICUBinder {
     F(ublock_getCode, UBlockCode (*)(UChar32 c), UBlockCode)                                                                                                               \
     F(uscript_getScript, UScriptCode (*)(UChar32 codepoint, UErrorCode * err), UScriptCode)                                                                                \
     F(uscript_hasScript, UBool (*)(UChar32 c, UScriptCode sc), UBool)                                                                                                      \
-    F(uscript_getShortName, const char* (*)(UScriptCode scriptCode), const char*)
+    F(uscript_getShortName, const char* (*)(UScriptCode scriptCode), const char*)                                                                                          \
+    F(uldn_open, ULocaleDisplayNames* (*)(const char* locale, UDialectHandling dialectHandling, UErrorCode* pErrorCode), ULocaleDisplayNames*)                             \
+    F(uldn_openForContext, ULocaleDisplayNames* (*)(const char* locale, UDisplayContext* contexts, int32_t length, UErrorCode* pErrorCode), ULocaleDisplayNames*)          \
+    F(uldn_localeDisplayName, int32_t (*)(const ULocaleDisplayNames* ldn, const char* locale, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)      \
+    F(uldn_languageDisplayName, int32_t (*)(const ULocaleDisplayNames* ldn, const char* lang, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)      \
+    F(uldn_scriptDisplayName, int32_t (*)(const ULocaleDisplayNames* ldn, const char* lang, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)        \
+    F(uldn_keyValueDisplayName, int32_t (*)(const ULocaleDisplayNames* ldn, const char* key, const char* value, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)
 
 #define FOR_EACH_UC_VOID_OP(F)                                                                                                                                                                          \
     F(u_getVersion, void (*)(UVersionInfo versionArray), void)                                                                                                                                          \
@@ -90,7 +96,8 @@ namespace RuntimeICUBinder {
     F(ucnv_fromUnicode, void (*)(UConverter * converter, char** target, const char* targetLimit, const UChar** source, const UChar* sourceLimit, int32_t* offsets, UBool flush, UErrorCode* err), void) \
     F(ubidi_close, void (*)(UBiDi * pBiDi), void)                                                                                                                                                       \
     F(ubidi_setPara, void (*)(UBiDi * pBiDi, const UChar* text, int32_t length, UBiDiLevel paraLevel, UBiDiLevel* embeddingLevels, UErrorCode* pErrorCode), void)                                       \
-    F(ubidi_getLogicalRun, void (*)(const UBiDi* pBiDi, int32_t logicalPosition, int32_t* pLogicalLimit, UBiDiLevel* pLevel), void)
+    F(ubidi_getLogicalRun, void (*)(const UBiDi* pBiDi, int32_t logicalPosition, int32_t* pLogicalLimit, UBiDiLevel* pLevel), void)                                                                     \
+    F(uldn_close, void (*)(ULocaleDisplayNames * ldn), void)
 
 #define FOR_EACH_I18N_OP(F)                                                                                                                                                                    \
     F(vzone_openID, VZone* (*)(const UChar*, int32_t), VZone*)                                                                                                                                 \
@@ -107,7 +114,7 @@ namespace RuntimeICUBinder {
     F(udat_format, int32_t (*)(const UDateFormat*, UDate, UChar*, int32_t, UFieldPosition*, UErrorCode*), int32_t)                                                                             \
     F(udat_formatForFields, int32_t (*)(const UDateFormat* format, UDate, UChar*, int32_t, UFieldPositionIterator*, UErrorCode*), int32_t)                                                     \
     F(udat_getCalendar, const UCalendar* (*)(const UDateFormat* fmt), const UCalendar*)                                                                                                        \
-    F(udat_toPattern, int32_t (*)(const UDateFormat     *fmt, UBool          localized, UChar           *result, int32_t         resultLength, UErrorCode      *status), int32_t) \
+    F(udat_toPattern, int32_t (*)(const UDateFormat* fmt, UBool localized, UChar* result, int32_t resultLength, UErrorCode* status), int32_t)                                                  \
     F(uenum_count, int32_t (*)(UEnumeration * en, UErrorCode * status), int32_t)                                                                                                               \
     F(uenum_unext, const UChar* (*)(UEnumeration * en, int32_t * resultLength, UErrorCode * status), const UChar*)                                                                             \
     F(uenum_next, const char* (*)(UEnumeration * en, int32_t * resultLength, UErrorCode * status), const char*)                                                                                \
@@ -123,7 +130,7 @@ namespace RuntimeICUBinder {
     F(udatpg_open, UDateTimePatternGenerator* (*)(const char* locale, UErrorCode* pErrorCode), UDateTimePatternGenerator*)                                                                     \
     F(udatpg_getBestPattern, int32_t (*)(UDateTimePatternGenerator * dtpg, const UChar* skeleton, int32_t length, UChar* bestPattern, int32_t capacity, UErrorCode* pErrorCode), int32_t)      \
     F(udatpg_getBestPatternWithOptions, int32_t (*)(UDateTimePatternGenerator*, const UChar*, int32_t, UDateTimePatternMatchOptions, UChar*, int32_t, UErrorCode*), int32_t)                   \
-    F(udatpg_getSkeleton, int32_t (*)(UDateTimePatternGenerator *unusedDtpg, const UChar *pattern, int32_t length, UChar *skeleton, int32_t capacity, UErrorCode *pErrorCode), int32_t)                   \
+    F(udatpg_getSkeleton, int32_t (*)(UDateTimePatternGenerator * unusedDtpg, const UChar* pattern, int32_t length, UChar* skeleton, int32_t capacity, UErrorCode* pErrorCode), int32_t)       \
     F(unum_countAvailable, int32_t (*)(), int32_t)                                                                                                                                             \
     F(unum_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                                \
     F(unum_open, UNumberFormat* (*)(UNumberFormatStyle style, const UChar* pattern, int32_t patternLength, const char* locale, UParseError* parseErr, UErrorCode* status), UNumberFormat*)     \

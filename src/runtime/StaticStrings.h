@@ -51,6 +51,7 @@ namespace Escargot {
     F(DataView)                   \
     F(Date)                       \
     F(DateTimeFormat)             \
+    F(DisplayNames)               \
     F(E)                          \
     F(EPSILON)                    \
     F(Empty)                      \
@@ -700,12 +701,14 @@ namespace Escargot {
     F(Day, "day")                                           \
     F(DayPeriod, "dayPeriod")                               \
     F(Decimal, "decimal")                                   \
+    F(Dialect, "dialect")                                   \
     F(Engineering, "engineering")                           \
     F(Era, "era")                                           \
     F(ExceptZero, "exceptZero")                             \
     F(ExponentInteger, "exponentInteger")                   \
     F(ExponentMinusSign, "exponentMinusSign")               \
     F(ExponentSeparator, "exponentSeparator")               \
+    F(Fallback, "fallback")                                 \
     F(FormatMatcher, "formatMatcher")                       \
     F(Fraction, "fraction")                                 \
     F(FractionalSecond, "fractionalSecond")                 \
@@ -725,6 +728,7 @@ namespace Escargot {
     F(Integer, "integer")                                   \
     F(Kf, "kf")                                             \
     F(Kn, "kn")                                             \
+    F(LanguageDisplay, "languageDisplay")                   \
     F(Literal, "literal")                                   \
     F(LocaleMatcher, "localeMatcher")                       \
     F(Long, "long")                                         \
@@ -742,6 +746,7 @@ namespace Escargot {
     F(Narrow, "narrow")                                     \
     F(NarrowSymbol, "narrowSymbol")                         \
     F(Never, "never")                                       \
+    F(None, "none")                                         \
     F(Notation, "notation")                                 \
     F(Ordinal, "ordinal")                                   \
     F(Percent, "percent")                                   \
@@ -875,6 +880,7 @@ public:
     AtomicString intlDotCollator;
     AtomicString intlDotLocale;
     AtomicString intlDotRelativeTimeFormat;
+    AtomicString intlDotDisplayNames;
     AtomicString set__proto__;
     AtomicString symbolMatch;
     AtomicString symbolMatchAll;
