@@ -58,6 +58,7 @@
 #include "intl/IntlPluralRules.h"
 #include "intl/IntlLocale.h"
 #include "intl/IntlRelativeTimeFormat.h"
+#include "intl/IntlDisplayNames.h"
 
 namespace Escargot {
 
@@ -931,6 +932,39 @@ static Value builtinIntlRelativeTimeFormatFormatToParts(ExecutionState& state, V
     return thisValue.asObject()->asIntlRelativeTimeFormatObject()->formatToParts(state, value, unit);
 }
 
+static Value builtinIntlDisplayNamesConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // https://402.ecma-international.org/8.0/#sec-Intl.DisplayNames
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+    }
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* realm) -> Object* {
+        return realm->globalObject()->intlDisplayNamesPrototype();
+    });
+    return new IntlDisplayNamesObject(state, proto, argv[0], argv[1]);
+}
+
+static Value builtinIntlDisplayNamesResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlDisplayNamesObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    IntlDisplayNamesObject* r = thisValue.asObject()->asIntlDisplayNamesObject();
+
+    Object* options = new Object(state);
+
+    auto& staticStrings = state.context()->staticStrings();
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(staticStrings.lazySmallLetterLocale()), ObjectPropertyDescriptor(r->locale(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(staticStrings.lazyStyle()), ObjectPropertyDescriptor(r->style(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(staticStrings.lazyType()), ObjectPropertyDescriptor(r->type(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(staticStrings.lazyFallback()), ObjectPropertyDescriptor(r->fallback(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(staticStrings.lazyLanguageDisplay()), ObjectPropertyDescriptor(r->languageDisplay(), ObjectPropertyDescriptor::AllPresent));
+    return options;
+}
+
 static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let ll be ? CanonicalizeLocaleList(locales).
@@ -1147,6 +1181,19 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlRelativeTimeFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlRelativeTimeFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
+    m_intlDisplayNames = new NativeFunctionObject(state, NativeFunctionInfo(strings->DisplayNames, builtinIntlDisplayNamesConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_intlDisplayNames->setGlobalIntrinsicObject(state);
+
+    m_intlDisplayNamesPrototype = m_intlDisplayNames->getFunctionPrototype(state).asObject();
+    m_intlDisplayNamesPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_intlDisplayNamesPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                                  ObjectPropertyDescriptor(Value(strings->intlDotDisplayNames.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_intlDisplayNamesPrototype->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
+                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlDisplayNamesResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->Collator),
                               ObjectPropertyDescriptor(m_intlCollator, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -1164,6 +1211,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->RelativeTimeFormat),
                               ObjectPropertyDescriptor(m_intlRelativeTimeFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_intl->defineOwnProperty(state, ObjectPropertyName(strings->DisplayNames),
+                              ObjectPropertyDescriptor(m_intlDisplayNames, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     FunctionObject* getCanonicalLocales = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCanonicalLocales, builtinIntlGetCanonicalLocales, 1, NativeFunctionInfo::Strict));
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->getCanonicalLocales),

@@ -106,6 +106,8 @@ class FunctionObject;
     F(intlNumberFormatPrototype, Object, objName)       \
     F(intlRelativeTimeFormat, FunctionObject, objName)  \
     F(intlRelativeTimeFormatPrototype, Object, objName) \
+    F(intlDisplayNames, FunctionObject, objName)        \
+    F(intlDisplayNamesPrototype, Object, objName)       \
     F(intlLocale, FunctionObject, objName)              \
     F(intlLocalePrototype, Object, objName)             \
     F(intlPluralRules, FunctionObject, objName)         \

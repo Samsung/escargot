@@ -215,4 +215,12 @@
 #define ufmtval_getString RuntimeICUBinder::ICU::instance().ufmtval_getString
 #define ufmtval_nextPosition RuntimeICUBinder::ICU::instance().ufmtval_nextPosition
 
+#define uldn_open RuntimeICUBinder::ICU::instance().uldn_open
+#define uldn_openForContext RuntimeICUBinder::ICU::instance().uldn_openForContext
+#define uldn_localeDisplayName RuntimeICUBinder::ICU::instance().uldn_localeDisplayName
+#define uldn_languageDisplayName RuntimeICUBinder::ICU::instance().uldn_languageDisplayName
+#define uldn_scriptDisplayName RuntimeICUBinder::ICU::instance().uldn_scriptDisplayName
+#define uldn_keyValueDisplayName RuntimeICUBinder::ICU::instance().uldn_keyValueDisplayName
+#define uldn_close RuntimeICUBinder::ICU::instance().uldn_close
+
 #endif

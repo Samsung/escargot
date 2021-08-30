@@ -77,6 +77,7 @@ class IntlLocaleObject;
 class IntlPluralRulesObject;
 class IntlDateTimeFormatObject;
 class IntlRelativeTimeFormatObject;
+class IntlDisplayNamesObject;
 #endif
 #if defined(ENABLE_WASM)
 class WASMModuleObject;
@@ -438,6 +439,11 @@ public:
     }
 
     virtual bool isIntlRelativeTimeFormatObject() const
+    {
+        return false;
+    }
+
+    virtual bool isIntlDisplayNamesObject() const
     {
         return false;
     }
@@ -804,6 +810,12 @@ public:
     {
         ASSERT(isIntlRelativeTimeFormatObject());
         return (IntlRelativeTimeFormatObject*)this;
+    }
+
+    IntlDisplayNamesObject* asIntlDisplayNamesObject()
+    {
+        ASSERT(isIntlDisplayNamesObject());
+        return (IntlDisplayNamesObject*)this;
     }
 #endif
 
