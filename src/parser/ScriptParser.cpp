@@ -503,7 +503,12 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
 void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)
 {
 #ifdef ESCARGOT_DEBUGGER
-    ASSERT(m_context->debugger() == nullptr || !m_context->debugger()->enabled());
+    // When the debugger is enabled, lazy compilation is disabled, so the functions are compiled
+    // during parsing, and this function is never called. However, implicit class constructors
+    // has no source code, and still compiled later. These functions are ignored by the debugger.
+    if (m_context->debugger() != nullptr) {
+        m_context->debugger()->setParsingEnabled(false);
+    }
 #endif /* ESCARGOT_DEBUGGER */
 
     GC_disable();
@@ -530,6 +535,12 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     // reset ASTAllocator
     m_context->astAllocator().reset();
     GC_enable();
+
+#ifdef ESCARGOT_DEBUGGER
+    if (m_context->debugger() != nullptr) {
+        m_context->debugger()->setParsingEnabled(true);
+    }
+#endif /* ESCARGOT_DEBUGGER */
 }
 
 #ifdef ESCARGOT_DEBUGGER

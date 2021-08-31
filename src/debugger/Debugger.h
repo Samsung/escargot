@@ -173,6 +173,16 @@ public:
         return m_enabled;
     }
 
+    bool parsingEnabled()
+    {
+        return m_parsingEnabled;
+    }
+
+    void setParsingEnabled(bool value)
+    {
+        m_parsingEnabled = value;
+    }
+
     bool pendingWait(void)
     {
         return m_pendingWait;
@@ -216,6 +226,7 @@ public:
 protected:
     Debugger()
         : m_enabled(false)
+        , m_parsingEnabled(false)
         , m_debuggerEnabled(nullptr)
         , m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
         , m_pendingWait(false)
@@ -232,6 +243,7 @@ protected:
     virtual void close(void) = 0;
 
     bool m_enabled;
+    bool m_parsingEnabled;
     bool* m_debuggerEnabled;
 
 private:

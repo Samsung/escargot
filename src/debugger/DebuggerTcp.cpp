@@ -372,6 +372,7 @@ bool DebuggerTcp::init(const char*)
     }
 
     m_enabled = true;
+    m_parsingEnabled = true;
     m_receiveBufferFill = 0;
     m_messageLength = 0;
     return true;

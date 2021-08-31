@@ -443,10 +443,13 @@ class Debugger(object):
             elif buffer_type in [ESCARGOT_MESSAGE_BACKTRACE,
                                  ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE]:
                 backtrace_info = struct.unpack(self.byte_order + self.pointer_format + self.idx_format + self.idx_format + self.idx_format, data[1:])
-                function = self.function_list[backtrace_info[0]]
-                result = "%s:%d:%d [depth:%d]" % (function.source_name, backtrace_info[1], backtrace_info[2],backtrace_info[3])
-                if function.name != "":
-                    result += " (in %s)" % (function.name)
+                function = self.function_list.get(backtrace_info[0])
+                if function is not None:
+                    result = "%s:%d:%d [depth:%d]" % (function.source_name, backtrace_info[1], backtrace_info[2], backtrace_info[3])
+                    if function.name != "":
+                        result += " (in %s)" % (function.name)
+                else:
+                    result = "unknown dynamic function:%d:%d [depth:%d]" % (backtrace_info[1], backtrace_info[2], backtrace_info[3])
 
                 if buffer_type == ESCARGOT_MESSAGE_BACKTRACE:
                     return DebuggerAction(DebuggerAction.TEXT, result + "\n")

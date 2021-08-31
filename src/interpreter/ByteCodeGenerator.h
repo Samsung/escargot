@@ -54,12 +54,14 @@ struct ClassContextInformation {
 
 #ifdef ESCARGOT_DEBUGGER
 struct ByteCodeBreakpointContext {
+    bool m_parsingEnabled;
     size_t m_lastBreakpointLineOffset;
     size_t m_lastBreakpointIndexOffset;
     std::vector<Debugger::BreakpointLocation> m_breakpointLocations;
 
-    ByteCodeBreakpointContext()
-        : m_lastBreakpointLineOffset(0)
+    ByteCodeBreakpointContext(bool parsingEnabled)
+        : m_parsingEnabled(parsingEnabled)
+        , m_lastBreakpointLineOffset(0)
         , m_lastBreakpointIndexOffset(0)
     {
     }
