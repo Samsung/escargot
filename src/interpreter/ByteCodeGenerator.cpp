@@ -135,8 +135,10 @@ void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
 
 void ByteCodeGenerateContext::insertBreakpointAt(size_t line, Node* node)
 {
-    m_breakpointContext->m_breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
-    m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
+    if (m_breakpointContext->m_parsingEnabled) {
+        m_breakpointContext->m_breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
+        m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
+    }
 }
 
 #endif /* ESCARGOT_DEBUGGER */
@@ -183,7 +185,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
     ByteCodeGenerateContext ctx(codeBlock, block, codeBlock->isGlobalScope(), codeBlock->isEvalCode(), inWithFromRuntime || codeBlock->inWith(), nData);
 
 #ifdef ESCARGOT_DEBUGGER
-    ByteCodeBreakpointContext breakpointContext;
+    ByteCodeBreakpointContext breakpointContext(context->debugger() && context->debugger()->parsingEnabled());
     ctx.m_breakpointContext = &breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */
 
@@ -210,7 +212,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
         ast->generateStatementByteCode(block, &ctx);
 
 #ifdef ESCARGOT_DEBUGGER
-        if (context->debugger() && context->debugger()->enabled()) {
+        if (context->debugger() && context->debugger()->enabled() && breakpointContext.m_parsingEnabled) {
             context->debugger()->sendBreakpointLocations(breakpointContext.m_breakpointLocations);
         }
 #endif /* ESCARGOT_DEBUGGER */
@@ -279,7 +281,7 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
     ctx.m_locData = locData;
 
 #ifdef ESCARGOT_DEBUGGER
-    ByteCodeBreakpointContext breakpointContext;
+    ByteCodeBreakpointContext breakpointContext(context->debugger()->parsingEnabled());
     ctx.m_breakpointContext = &breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */
 
