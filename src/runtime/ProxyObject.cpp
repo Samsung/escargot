@@ -503,7 +503,7 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
     Value trapResultArray;
     Value arguments[] = { target };
     trapResultArray = Object::call(state, trap, handler, 1, arguments);
-    auto trapResult = Object::createListFromArrayLike(state, trapResultArray, ((uint8_t)ElementTypes::String | (uint8_t)ElementTypes::Symbol));
+    auto trapResult = Object::createListFromArrayLike(state, trapResultArray, (static_cast<uint8_t>(ElementTypes::String) | static_cast<uint8_t>(ElementTypes::Symbol)));
 
     // If trapResult contains any duplicate entries, throw a TypeError exception
     for (size_t i = 0; i < trapResult.size(); i++) {
