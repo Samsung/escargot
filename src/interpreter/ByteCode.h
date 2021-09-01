@@ -223,7 +223,7 @@ public:
     Opcode m_orgOpcode;
 
     static void dumpCode(const char* byteCodeStart, const size_t endPos);
-    static int dumpJumpPosition(size_t pos);
+    static size_t dumpJumpPosition(size_t pos);
 #endif
 };
 
@@ -241,7 +241,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("load r%d <- ", (int)m_registerIndex);
+        printf("load r%u <- ", m_registerIndex);
         Value v = m_value;
         if (v.isNumber()) {
             printf("%lf", v.asNumber());
@@ -280,7 +280,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("r%d <- new.target", (int)m_registerIndex);
+        printf("r%u <- new.target", m_registerIndex);
     }
 #endif
 };
@@ -301,7 +301,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("load r%d <- %s", (int)m_registerIndex, m_name.string()->toUTF8StringData().data());
+        printf("load r%u <- %s", m_registerIndex, m_name.string()->toUTF8StringData().data());
     }
 #endif
 };
@@ -320,7 +320,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("store %s <- r%d", m_name.string()->toUTF8StringData().data(), (int)m_registerIndex);
+        printf("store %s <- r%u", m_name.string()->toUTF8StringData().data(), m_registerIndex);
     }
 #endif
 };
@@ -342,7 +342,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("initialize %s <- r%d", m_name.string()->toUTF8StringData().data(), (int)m_registerIndex);
+        printf("initialize %s <- r%u", m_name.string()->toUTF8StringData().data(), m_registerIndex);
     }
 #endif
 };
@@ -365,7 +365,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("load r%d <- heap[%d][%d]", (int)m_registerIndex, (int)m_upperIndex, (int)m_index);
+        printf("load r%u <- heap[%u][%u]", m_registerIndex, m_upperIndex, m_index);
     }
 #endif
 };
@@ -386,7 +386,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("store heap[%d][%d] <- r%d", (int)m_upperIndex, (int)m_index, (int)m_registerIndex);
+        printf("store heap[%u][%u] <- r%u", m_upperIndex, m_index, m_registerIndex);
     }
 #endif
 };
@@ -405,7 +405,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("initialize heap[0][%d] <- r%d", (int)m_index, (int)m_registerIndex);
+        printf("initialize heap[0][%u] <- r%u", m_index, m_registerIndex);
     }
 #endif
 };
@@ -430,7 +430,7 @@ public:
         if (m_codeBlock->isArrowFunctionExpression()) {
             printf("arrow");
         }
-        printf("function %s -> r%d", m_codeBlock->functionName().string()->toUTF8StringData().data(), (int)m_registerIndex);
+        printf("function %s -> r%u", m_codeBlock->functionName().string()->toUTF8StringData().data(), m_registerIndex);
     }
 #endif
 };
@@ -634,31 +634,31 @@ public:
     {
         if (m_stage == Stage::CreateClass) {
             if (m_superClassRegisterIndex == REGISTER_LIMIT) {
-                printf("create class r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_classPrototypeRegisterIndex);
+                printf("create class r%u { r%u }", m_classConstructorRegisterIndex, m_classPrototypeRegisterIndex);
             } else {
-                printf("create class r%d : r%d { r%d }", (int)m_classConstructorRegisterIndex, (int)m_superClassRegisterIndex, (int)m_classPrototypeRegisterIndex);
+                printf("create class r%u : r%u { r%u }", m_classConstructorRegisterIndex, m_superClassRegisterIndex, m_classPrototypeRegisterIndex);
             }
         } else if (m_stage == Stage::SetFieldSize) {
-            printf("set field size r%d -> %d,%d", (int)m_classConstructorRegisterIndex, (int)m_fieldSize, (int)m_staticFieldSize);
+            printf("set field size r%u -> %u,%u", m_classConstructorRegisterIndex, m_fieldSize, m_staticFieldSize);
         } else if (m_stage == Stage::InitField) {
-            printf("init field r%d[%d, r%d]", (int)m_classConstructorRegisterIndex, (int)m_initFieldIndex, (int)m_propertyInitRegisterIndex);
+            printf("init field r%u[%u, r%u]", m_classConstructorRegisterIndex, m_initFieldIndex, m_propertyInitRegisterIndex);
         } else if (m_stage == Stage::InitPrivateField) {
-            printf("init private field r%d[%d, r%d] type %d", (int)m_classConstructorRegisterIndex, (int)m_initPrivateFieldIndex, (int)m_privatePropertyInitRegisterIndex, (int)m_initPrivateFieldType);
+            printf("init private field r%u[%u, r%u] type %u", m_classConstructorRegisterIndex, m_initPrivateFieldIndex, m_privatePropertyInitRegisterIndex, m_initPrivateFieldType);
         } else if (m_stage == Stage::SetFieldData) {
-            printf("set field data r%d[%d] = r%d", (int)m_classConstructorRegisterIndex, (int)m_setFieldIndex, (int)m_propertySetRegisterIndex);
+            printf("set field data r%u[%u] = r%u", m_classConstructorRegisterIndex, m_setFieldIndex, m_propertySetRegisterIndex);
         } else if (m_stage == Stage::SetPrivateFieldData) {
-            printf("set private field data r%d[%d] = r%d type %d", (int)m_classConstructorRegisterIndex, (int)m_setPrivateFieldIndex, (int)m_privatePropertySetRegisterIndex, (int)m_setPrivateFieldType);
+            printf("set private field data r%u[%u] = r%u type %u", m_classConstructorRegisterIndex, m_setPrivateFieldIndex, m_privatePropertySetRegisterIndex, m_setPrivateFieldType);
         } else if (m_stage == Stage::InitStaticField) {
-            printf("init static field r%d.r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPropertyInitRegisterIndex);
+            printf("init static field r%u.r%u", m_classConstructorRegisterIndex, m_staticPropertyInitRegisterIndex);
         } else if (m_stage == Stage::InitStaticPrivateField) {
-            printf("init private static field r%d.r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPrivatePropertyInitRegisterIndex);
+            printf("init private static field r%u.r%u", m_classConstructorRegisterIndex, m_staticPrivatePropertyInitRegisterIndex);
         } else if (m_stage == Stage::SetStaticFieldData) {
-            printf("set static field r%d.? = r%d", (int)m_classConstructorRegisterIndex, (int)m_staticPropertySetRegisterIndex);
+            printf("set static field r%u.? = r%u", m_classConstructorRegisterIndex, m_staticPropertySetRegisterIndex);
         } else if (m_stage == Stage::SetStaticPrivateFieldData) {
-            printf("set static private field r%d.? = r%d(%d)", (int)m_classConstructorRegisterIndex, (int)m_staticPrivatePropertySetRegisterIndex, (int)m_setStaticPrivateFieldType);
+            printf("set static private field r%u.? = r%u(%u)", m_classConstructorRegisterIndex, m_staticPrivatePropertySetRegisterIndex, m_setStaticPrivateFieldType);
         } else {
             ASSERT(m_stage == Stage::CleanupStaticData);
-            printf("cleanup static field data r%d", (int)m_classConstructorRegisterIndex);
+            printf("cleanup static field data r%u", m_classConstructorRegisterIndex);
         }
     }
 #endif
@@ -676,7 +676,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("Create RestElement -> r%d", (int)m_registerIndex);
+        printf("Create RestElement -> r%u", m_registerIndex);
     }
 #endif
 };
@@ -696,9 +696,9 @@ public:
     void dump()
     {
         if (m_isCall) {
-            printf("super constructor -> r%d", (int)m_dstIndex);
+            printf("super constructor -> r%u", m_dstIndex);
         } else {
-            printf("super property -> r%d", (int)m_dstIndex);
+            printf("super property -> r%u", m_dstIndex);
         }
     }
 #endif
@@ -744,11 +744,11 @@ public:
     void dump()
     {
         if (m_type == Super) {
-            printf("set object complex(r%d).r%d <- r%d", (int)m_objectRegisterIndex, (int)m_propertyNameIndex, (int)m_loadRegisterIndex);
+            printf("set object complex(r%u).r%u <- r%u", m_objectRegisterIndex, m_propertyNameIndex, m_loadRegisterIndex);
         } else {
             ASSERT(m_type == Private || m_type == PrivateWithoutOuterClass);
-            printf("set object complex(r%d).#%s <- r%d %s", (int)m_objectRegisterIndex,
-                   m_propertyName.string()->toNonGCUTF8StringData().data(), (int)m_loadRegisterIndex,
+            printf("set object complex(r%u).#%s <- r%u %s", m_objectRegisterIndex,
+                   m_propertyName.string()->toNonGCUTF8StringData().data(), m_loadRegisterIndex,
                    m_type == Private ? "refer outer class" : "");
         }
     }
@@ -793,10 +793,10 @@ public:
     void dump()
     {
         if (m_type == Super) {
-            printf("get object r%d <- complex(r%d).r%d", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, (int)m_propertyNameIndex);
+            printf("get object r%u <- complex(r%u).r%u", m_storeRegisterIndex, m_objectRegisterIndex, m_propertyNameIndex);
         } else {
             ASSERT(m_type == Private || m_type == PrivateWithoutOuterClass);
-            printf("get object r%d <- complex(r%d).#%s %s", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex,
+            printf("get object r%u <- complex(r%u).#%s %s", m_storeRegisterIndex, m_objectRegisterIndex,
                    m_propertyName.string()->toNonGCUTF8StringData().data(), m_type == Private ? "refer outer class" : "");
         }
     }
@@ -815,7 +815,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("load this binding -> r%d", (int)m_dstIndex);
+        printf("load this binding -> r%u", m_dstIndex);
     }
 #endif
 };
@@ -823,10 +823,10 @@ public:
 #ifdef NDEBUG
 #define DEFINE_BINARY_OPERATION_DUMP(name)
 #else
-#define DEFINE_BINARY_OPERATION_DUMP(name)                                                     \
-    void dump()                                                                                \
-    {                                                                                          \
-        printf(name " r%d <- r%d , r%d", (int)m_dstIndex, (int)m_srcIndex0, (int)m_srcIndex1); \
+#define DEFINE_BINARY_OPERATION_DUMP(name)                                      \
+    void dump()                                                                 \
+    {                                                                           \
+        printf(name " r%u <- r%u , r%u", m_dstIndex, m_srcIndex0, m_srcIndex1); \
     }
 #endif
 
@@ -912,7 +912,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("createobject -> r%d", (int)m_registerIndex);
+        printf("createobject -> r%u", m_registerIndex);
     }
 #endif
 };
@@ -932,7 +932,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("createarray -> r%d", (int)m_registerIndex);
+        printf("createarray -> r%u", m_registerIndex);
     }
 #endif
 };
@@ -952,7 +952,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("create spread array object(r%d) -> r%d", (int)m_argumentIndex, (int)m_registerIndex);
+        printf("create spread array object(r%u) -> r%u", m_argumentIndex, m_registerIndex);
     }
 #endif
 };
@@ -974,7 +974,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("get object r%d <- r%d[r%d]", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex);
+        printf("get object r%u <- r%u[r%u]", m_storeRegisterIndex, m_objectRegisterIndex, m_propertyRegisterIndex);
     }
 #endif
 };
@@ -996,7 +996,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("set object r%d[r%d] <- r%d", (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex, (int)m_loadRegisterIndex);
+        printf("set object r%u[r%u] <- r%u", m_objectRegisterIndex, m_propertyRegisterIndex, m_loadRegisterIndex);
     }
 #endif
 };
@@ -1022,7 +1022,7 @@ public:
 
     void dump()
     {
-        printf("object define own property r%d[r%d] <- r%d", (int)m_objectRegisterIndex, (int)m_propertyRegisterIndex, (int)m_loadRegisterIndex);
+        printf("object define own property r%u[r%u] <- r%u", m_objectRegisterIndex, m_propertyRegisterIndex, m_loadRegisterIndex);
     }
 #endif
 };
@@ -1048,7 +1048,7 @@ public:
 
     void dump()
     {
-        printf("object define own property with name r%d.%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
+        printf("object define own property with name r%u.%s <- r%u", m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data(), m_loadRegisterIndex);
     }
 #endif
 };
@@ -1075,12 +1075,12 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("array define own property r%d[%d - %d] <- ", (int)m_objectRegisterIndex, (int)m_baseIndex, (int)(m_baseIndex + m_count));
+        printf("array define own property r%u[%u - %u] <- ", m_objectRegisterIndex, m_baseIndex, (m_baseIndex + m_count));
         for (int i = 0; i < m_count; i++) {
             if (m_loadRegisterIndexs[i] == REGISTER_LIMIT) {
                 printf(", ");
             } else {
-                printf("r%d, ", m_loadRegisterIndexs[i]);
+                printf("r%u, ", m_loadRegisterIndexs[i]);
             }
         }
     }
@@ -1103,12 +1103,12 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("array define own property by spread element r%d[ - ] <- ", (int)m_objectRegisterIndex);
+        printf("array define own property by spread element r%u[ - ] <- ", m_objectRegisterIndex);
         for (int i = 0; i < m_count; i++) {
             if (m_loadRegisterIndexs[i] == REGISTER_LIMIT) {
                 printf(", ");
             } else {
-                printf("r%d, ", m_loadRegisterIndexs[i]);
+                printf("r%u, ", m_loadRegisterIndexs[i]);
             }
         }
     }
@@ -1168,7 +1168,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("get object r%d <- r%d.%s", (int)m_storeRegisterIndex, (int)m_objectRegisterIndex, m_propertyName.plainString()->toUTF8StringData().data());
+        printf("get object r%u <- r%u.%s", m_storeRegisterIndex, m_objectRegisterIndex, m_propertyName.plainString()->toUTF8StringData().data());
     }
 #endif
 };
@@ -1222,7 +1222,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("set object r%d.%s <- r%d", (int)m_objectRegisterIndex, m_propertyName.plainString()->toUTF8StringData().data(), (int)m_loadRegisterIndex);
+        printf("set object r%u.%s <- r%u", m_objectRegisterIndex, m_propertyName.plainString()->toUTF8StringData().data(), m_loadRegisterIndex);
     }
 #endif
 };
@@ -1276,7 +1276,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("initialize global variable %s <- r%d", m_variableName.string()->toUTF8StringData().data(), (int)m_registerIndex);
+        printf("initialize global variable %s <- r%u", m_variableName.string()->toUTF8StringData().data(), m_registerIndex);
     }
 #endif
 };
@@ -1296,7 +1296,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("mov r%d <- r%d", (int)m_registerIndex1, (int)m_registerIndex0);
+        printf("mov r%u <- r%u", m_registerIndex1, m_registerIndex0);
     }
 #endif
 };
@@ -1316,7 +1316,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("to number r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
+        printf("to number r%u <- r%u", m_dstIndex, m_srcIndex);
     }
 #endif
 };
@@ -1336,7 +1336,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("increment r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
+        printf("increment r%u <- r%u", m_dstIndex, m_srcIndex);
     }
 #endif
 };
@@ -1358,7 +1358,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("to numeric increment(r%d) -> r%d, r%d", (int)m_srcIndex, (int)m_storeIndex, (int)m_dstIndex);
+        printf("to numeric increment(r%u) -> r%u, r%u", m_srcIndex, m_storeIndex, m_dstIndex);
     }
 #endif
 };
@@ -1378,7 +1378,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("decrement r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
+        printf("decrement r%u <- r%u", m_dstIndex, m_srcIndex);
     }
 #endif
 };
@@ -1400,7 +1400,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("to numeric decrement(r%d) -> r%d, r%d", (int)m_srcIndex, (int)m_storeIndex, (int)m_dstIndex);
+        printf("to numeric decrement(r%u) -> r%u, r%u", m_srcIndex, m_storeIndex, m_dstIndex);
     }
 #endif
 };
@@ -1420,7 +1420,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("unary minus r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
+        printf("unary minus r%u <- r%u", m_dstIndex, m_srcIndex);
     }
 #endif
 };
@@ -1440,7 +1440,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("unary not r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
+        printf("unary not r%u <- r%u", m_dstIndex, m_srcIndex);
     }
 #endif
 };
@@ -1460,7 +1460,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("unary bitwise not r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
+        printf("unary bitwise not r%u <- r%u", m_dstIndex, m_srcIndex);
     }
 #endif
 };
@@ -1482,7 +1482,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("unary typeof r%d <- r%d", (int)m_dstIndex, (int)m_srcIndex);
+        printf("unary typeof r%u <- r%u", m_dstIndex, m_srcIndex);
     }
 #endif
 };
@@ -1507,7 +1507,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("unary delete r%d <- r%d r%d %s", (int)m_dstIndex, (int)m_srcIndex0, (int)m_srcIndex1, m_id.string()->toUTF8StringData().data());
+        printf("unary delete r%u <- r%u r%u %s", m_dstIndex, m_srcIndex0, m_srcIndex1, m_id.string()->toUTF8StringData().data());
     }
 #endif
 };
@@ -1529,7 +1529,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("template operation(+) r%d <- r%d + r%d", (int)m_dstIndex, (int)m_src0Index, (int)m_src1Index);
+        printf("template operation(+) r%u <- r%u + r%u", m_dstIndex, m_src0Index, m_src1Index);
     }
 #endif
 };
@@ -1553,7 +1553,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("jump %d", dumpJumpPosition(m_jumpPosition));
+        printf("jump %zu", dumpJumpPosition(m_jumpPosition));
     }
 #endif
 };
@@ -1702,7 +1702,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("jump if r%d is true -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition));
+        printf("jump if r%u is true -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
     }
 #endif
 };
@@ -1730,9 +1730,9 @@ public:
     void dump()
     {
         if (m_shouldNegate) {
-            printf("jump if r%d is not undefined nor null -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition));
+            printf("jump if r%u is not undefined nor null -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
         } else {
-            printf("jump if r%d is undefined or null -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition));
+            printf("jump if r%u is undefined or null -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
         }
     }
 #endif
@@ -1751,7 +1751,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("jump if r%d is false -> %d", (int)m_registerIndex, dumpJumpPosition(m_jumpPosition));
+        printf("jump if r%u is false -> %zu", m_registerIndex, dumpJumpPosition(m_jumpPosition));
     }
 #endif
 };
@@ -1790,7 +1790,7 @@ public:
                 op = (char*)"less than";
             }
         }
-        printf("jump if r%d is not %s r%d -> %d", (int)m_leftIndex, op, (int)m_rightIndex, dumpJumpPosition(m_jumpPosition));
+        printf("jump if r%u is not %s r%u -> %zu", m_leftIndex, op, m_rightIndex, dumpJumpPosition(m_jumpPosition));
     }
 #endif
 };
@@ -1828,7 +1828,7 @@ public:
                 op = (char*)"equal";
             }
         }
-        printf("jump if r%d is %s to r%d -> %d", (int)m_registerIndex0, op, (int)m_registerIndex1, dumpJumpPosition(m_jumpPosition));
+        printf("jump if r%u is %s to r%u -> %zu", m_registerIndex0, op, m_registerIndex1, dumpJumpPosition(m_jumpPosition));
     }
 #endif
 };
@@ -1851,7 +1851,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("call r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+        printf("call r%u <- r%u(r%u-r%u)", m_resultIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
     }
 #endif
 };
@@ -1877,7 +1877,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("call r%d <- r%d,r%d(r%d-r%d)", (int)m_resultIndex, (int)m_receiverIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+        printf("call r%u <- r%u,r%u(r%u-r%u)", m_resultIndex, m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
     }
 #endif
 };
@@ -1944,12 +1944,12 @@ public:
     void dump()
     {
         if (m_kind == Kind::InWithScope) {
-            printf("call(complex inWith) r%d <- %s(r%d-r%d)", (int)m_resultIndex, m_calleeName.string()->toNonGCUTF8StringData().data(), (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+            printf("call(complex inWith) r%u <- %s(r%u-r%u)", m_resultIndex, m_calleeName.string()->toNonGCUTF8StringData().data(), m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
         } else {
             if (m_receiverOrThisIndex != REGISTER_LIMIT) {
-                printf("call(complex %d) r%d <- r%d,r%d(r%d-r%d)", (int)m_kind, (int)m_resultIndex, (int)m_receiverOrThisIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+                printf("call(complex %u) r%u <- r%u,r%u(r%u-r%u)", m_kind, m_resultIndex, m_receiverOrThisIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
             } else {
-                printf("call(complex %d) r%d <- r%d(r%d-r%d)", (int)m_kind, (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+                printf("call(complex %u) r%u <- r%u(r%u-r%u)", m_kind, m_resultIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
             }
         }
     }
@@ -2039,9 +2039,9 @@ public:
         printf("execution pause ");
 
         if (m_reason == Reason::Yield) {
-            printf("yield r%d r%d r%d", (int)m_yieldData.m_yieldIndex, (int)m_yieldData.m_dstIndex, (int)m_yieldData.m_dstStateIndex);
+            printf("yield r%u r%u r%u", m_yieldData.m_yieldIndex, m_yieldData.m_dstIndex, m_yieldData.m_dstStateIndex);
         } else if (m_reason == Reason::Await) {
-            printf("await r%d r%d r%d", (int)m_awaitData.m_awaitIndex, (int)m_awaitData.m_dstIndex, (int)m_awaitData.m_dstStateIndex);
+            printf("await r%u r%u r%u", m_awaitData.m_awaitIndex, m_awaitData.m_dstIndex, m_awaitData.m_dstStateIndex);
         } else if (m_reason == Reason::GeneratorsInitialize) {
             printf("generators initialize ");
         }
@@ -2067,7 +2067,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("new r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+        printf("new r%u <- r%u(r%u-r%u)", m_resultIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
     }
 #endif
 };
@@ -2090,7 +2090,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("new(spread) r%d <- r%d(r%d-r%d)", (int)m_resultIndex, (int)m_calleeIndex, (int)m_argumentsStartIndex, (int)m_argumentsStartIndex + (int)m_argumentCount);
+        printf("new(spread) r%u <- r%u(r%u-r%u)", m_resultIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
     }
 #endif
 };
@@ -2109,7 +2109,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("get parameter r%d <- argv[%d]", (int)m_registerIndex, (int)m_paramIndex);
+        printf("get parameter r%u <- argv[%u]", m_registerIndex, m_paramIndex);
     }
 #endif
 };
@@ -2126,7 +2126,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("return r%d", (int)m_registerIndex);
+        printf("return r%u", m_registerIndex);
     }
 #endif
 };
@@ -2153,7 +2153,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("try (hasCatch:%d, save catched value to:r%d, hasFinalizer:%d)", (int)m_hasCatch, (int)m_catchedValueRegisterIndex, (int)m_hasFinalizer);
+        printf("try (hasCatch:%u, save catched value to:r%u, hasFinalizer:%u)", m_hasCatch, m_catchedValueRegisterIndex, m_hasFinalizer);
     }
 #endif
 };
@@ -2185,7 +2185,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("throw r%d", (int)m_registerIndex);
+        printf("throw r%u", m_registerIndex);
     }
 #endif
 };
@@ -2236,7 +2236,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("create enumerate object r%d <- r%d", (int)m_dataRegisterIndex, (int)m_objectRegisterIndex);
+        printf("create enumerate object r%u <- r%u", m_dataRegisterIndex, m_objectRegisterIndex);
     }
 #endif
 };
@@ -2260,7 +2260,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("get enumerate key r%d r%d", (int)m_registerIndex, (int)m_dataRegisterIndex);
+        printf("get enumerate key r%u r%u", m_registerIndex, m_dataRegisterIndex);
     }
 #endif
 };
@@ -2278,7 +2278,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("check if key is last r%d", (int)m_registerIndex);
+        printf("check if key is last r%u", m_registerIndex);
     }
 #endif
 };
@@ -2296,7 +2296,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("mark enumerate key r%d to enumerate object r%d", (int)m_keyRegisterIndex, (int)m_dataRegisterIndex);
+        printf("mark enumerate key r%u to enumerate object r%u", m_keyRegisterIndex, m_dataRegisterIndex);
     }
 #endif
 };
@@ -2423,21 +2423,21 @@ public:
     void dump()
     {
         if (m_operation == Operation::GetIterator) {
-            printf("get iterator(r%d) -> r%d", (int)m_getIteratorData.m_srcObjectRegisterIndex, (int)m_getIteratorData.m_dstIteratorRecordIndex);
+            printf("get iterator(r%u) -> r%u", m_getIteratorData.m_srcObjectRegisterIndex, m_getIteratorData.m_dstIteratorRecordIndex);
         } else if (m_operation == Operation::IteratorClose) {
-            printf("iterator close(r%d, r%d)", (int)m_iteratorCloseData.m_iterRegisterIndex, (int)m_iteratorCloseData.m_execeptionRegisterIndexIfExists);
+            printf("iterator close(r%u, r%u)", m_iteratorCloseData.m_iterRegisterIndex, m_iteratorCloseData.m_execeptionRegisterIndexIfExists);
         } else if (m_operation == Operation::IteratorBind) {
-            printf("iterator bind(r%d) -> r%d", (int)m_iteratorBindData.m_iterRegisterIndex, (int)m_iteratorBindData.m_registerIndex);
+            printf("iterator bind(r%u) -> r%u", m_iteratorBindData.m_iterRegisterIndex, m_iteratorBindData.m_registerIndex);
         } else if (m_operation == Operation::IteratorTestDone) {
-            printf("iterator test done iteratorRecord(%d)->m_done -> r%d", (int)m_iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex,
-                   (int)m_iteratorTestDoneData.m_dstRegisterIndex);
+            printf("iterator test done iteratorRecord(%u)->m_done -> r%u", m_iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex,
+                   m_iteratorTestDoneData.m_dstRegisterIndex);
         } else if (m_operation == Operation::IteratorNext) {
-            printf("iterator next r%d.[[next]](r%d) -> r%d", (int)m_iteratorNextData.m_iteratorRecordRegisterIndex,
-                   (int)m_iteratorNextData.m_valueRegisterIndex, (int)m_iteratorNextData.m_returnRegisterIndex);
+            printf("iterator next r%u.[[next]](r%u) -> r%u", m_iteratorNextData.m_iteratorRecordRegisterIndex,
+                   m_iteratorNextData.m_valueRegisterIndex, m_iteratorNextData.m_returnRegisterIndex);
         } else if (m_operation == Operation::IteratorTestResultIsObject) {
-            printf("iterator test result is object r%d", (int)m_iteratorTestResultIsObjectData.m_valueRegisterIndex);
+            printf("iterator test result is object r%u", m_iteratorTestResultIsObjectData.m_valueRegisterIndex);
         } else if (m_operation == Operation::IteratorValue) {
-            printf("iterator value r%d -> r%d", (int)m_iteratorValueData.m_srcRegisterIndex, (int)m_iteratorValueData.m_dstRegisterIndex);
+            printf("iterator value r%u -> r%u", m_iteratorValueData.m_srcRegisterIndex, m_iteratorValueData.m_dstRegisterIndex);
         } else if (m_operation == Operation::IteratorCheckOngoingExceptionOnAsyncIteratorClose) {
             printf("iterator check ongoing exception");
         } else {
@@ -2477,7 +2477,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("get method r%d.%s -> r%d", (int)m_objectRegisterIndex, m_propertyName.string()->toNonGCUTF8StringData().data(), (int)m_resultRegisterIndex);
+        printf("get method r%u.%s -> r%u", m_objectRegisterIndex, m_propertyName.string()->toNonGCUTF8StringData().data(), m_resultRegisterIndex);
     }
 #endif
 };
@@ -2498,7 +2498,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("load regexp %s -> r%d", m_body->toUTF8StringData().data(), (int)m_registerIndex);
+        printf("load regexp %s -> r%u", m_body->toUTF8StringData().data(), m_registerIndex);
     }
 #endif
 };
@@ -2523,7 +2523,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("open lexical env r%d(%d)", (int)m_withOrThisRegisterIndex, (int)m_kind);
+        printf("open lexical env r%u(%u)", m_withOrThisRegisterIndex, m_kind);
     }
 #endif
 };
@@ -2550,9 +2550,9 @@ public:
     void dump()
     {
         if (m_isGetter) {
-            printf("object define getter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
+            printf("object define getter r%u[r%u] = r%u", m_objectRegisterIndex, m_objectPropertyNameRegisterIndex, m_objectPropertyValueRegisterIndex);
         } else {
-            printf("object define setter r%d[r%d] = r%d", (int)m_objectRegisterIndex, (int)m_objectPropertyNameRegisterIndex, (int)m_objectPropertyValueRegisterIndex);
+            printf("object define setter r%u[r%u] = r%u", m_objectRegisterIndex, m_objectPropertyNameRegisterIndex, m_objectPropertyValueRegisterIndex);
         }
     }
 #endif
@@ -2574,7 +2574,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("binding rest element(r%d) -> r%d", (int)m_iterOrEnumIndex, (int)m_dstIndex);
+        printf("binding rest element(r%u) -> r%u", m_iterOrEnumIndex, m_dstIndex);
     }
 #endif
 };
@@ -2593,7 +2593,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("block operation (%p) -> end %d", m_blockInfo, (int)m_blockEndPosition);
+        printf("block operation (%p) -> end %zu", m_blockInfo, m_blockEndPosition);
     }
 #endif
 };
@@ -2656,9 +2656,9 @@ public:
     void dump()
     {
         if (m_operaton == TestCacheOperation) {
-            printf("tagged template operation operation (test cache %d)", (int)m_testCacheOperationData.m_cacheIndex);
+            printf("tagged template operation operation (test cache %zu)", m_testCacheOperationData.m_cacheIndex);
         } else {
-            printf("tagged template operation operation (fill cache %d)", (int)m_testCacheOperationData.m_cacheIndex);
+            printf("tagged template operation operation (fill cache %zu)", m_testCacheOperationData.m_cacheIndex);
         }
     }
 #endif
@@ -2691,7 +2691,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("r%d <- resolve name address (%s)", (int)m_registerIndex, m_name.string()->toNonGCUTF8StringData().data());
+        printf("r%u <- resolve name address (%s)", m_registerIndex, m_name.string()->toNonGCUTF8StringData().data());
     }
 #endif
 
@@ -2715,7 +2715,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("store with address r%d, %s <- r%d", (int)m_addressRegisterIndex, m_name.string()->toUTF8StringData().data(), (int)m_valueRegisterIndex);
+        printf("store with address r%u, %s <- r%u", m_addressRegisterIndex, m_name.string()->toUTF8StringData().data(), m_valueRegisterIndex);
     }
 #endif
 };
@@ -2732,7 +2732,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("end(return with r[%d])", (int)m_registerIndex);
+        printf("end(return with r[%u])", m_registerIndex);
     }
 #endif
 };
