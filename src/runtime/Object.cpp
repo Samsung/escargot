@@ -1408,48 +1408,61 @@ ArrayObject* Object::createArrayFromList(ExecutionState& state, const ValueVecto
 
 ValueVector Object::createListFromArrayLike(ExecutionState& state, Value obj, uint8_t elementTypes)
 {
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-createlistfromarraylike
+    // https://tc39.es/ecma262/#sec-createlistfromarraylike
     auto strings = &state.context()->staticStrings();
 
-    // 1. ReturnIfAbrupt(obj).
-    // 2. If elementTypes was not passed, let elementTypes be (Undefined, Null, Boolean, String, Symbol, Number, Object).
-
-    // 3. If Type(obj) is not Object, throw a TypeError exception.
+    // If elementTypes is not present, set elementTypes to « Undefined, Null, Boolean, String, Symbol, Number, BigInt, Object ».
+    // If Type(obj) is not Object, throw a TypeError exception.
     if (!obj.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->object.string(), false, String::emptyString, "%s: obj is not Object");
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_FirstArgumentNotObject);
     }
 
-    // 4. Let len be ToLength(Get(obj, "length")).
-    // 5. ReturnIfAbrupt(len).
+    // Let len be ? LengthOfArrayLike(obj).
     Object* o = obj.asObject();
     auto len = o->length(state);
 
-    // Honorate "length" property: If length>2^32-1, throw a RangeError exception.
-    if (len > ((1LL << 32LL) - 1LL)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
-    }
-
-    // 6. Let list be an empty List.
+    // Let list be an empty List.
+    // Let index be 0.
     ValueVector list;
-    // 7. Let index be 0.
     uint64_t index = 0;
-    //8. Repeat while index < len
+    bool allTypes = (elementTypes == static_cast<uint8_t>(ElementTypes::ALL));
+
+    // Repeat while index < len
     while (index < len) {
-        // b. Let next be Get(obj, indexName).
-        // c. ReturnIfAbrupt(next).
+        // Let next be Get(obj, indexName).
         Value next = o->getIndexedProperty(state, Value(index)).value(state, o);
 
-        // d. If Type(next) is not an element of elementTypes, throw a TypeError exception.
-        if (!(((elementTypes & (uint8_t)ElementTypes::Undefined) && next.isUndefined()) || ((elementTypes & (uint8_t)ElementTypes::Null) && next.isNull()) || ((elementTypes & (uint8_t)ElementTypes::Boolean) && next.isBoolean()) || ((elementTypes & (uint8_t)ElementTypes::String) && next.isString()) || ((elementTypes & (uint8_t)ElementTypes::Symbol) && next.isSymbol()) || ((elementTypes & (uint8_t)ElementTypes::Number) && next.isNumber()) || ((elementTypes & (uint8_t)ElementTypes::Object) && next.isObject()))) {
+        // If Type(next) is not an element of elementTypes, throw a TypeError exception.
+        bool validType = false;
+        if (next.isUndefined()) {
+            validType = allTypes || (elementTypes & static_cast<uint8_t>(ElementTypes::Undefined));
+        } else if (next.isNull()) {
+            validType = allTypes || (elementTypes & static_cast<uint8_t>(ElementTypes::Null));
+        } else if (next.isBoolean()) {
+            validType = allTypes || (elementTypes & static_cast<uint8_t>(ElementTypes::Boolean));
+        } else if (next.isString()) {
+            validType = allTypes || (elementTypes & static_cast<uint8_t>(ElementTypes::String));
+        } else if (next.isSymbol()) {
+            validType = allTypes || (elementTypes & static_cast<uint8_t>(ElementTypes::Symbol));
+        } else if (next.isNumber()) {
+            validType = allTypes || (elementTypes & static_cast<uint8_t>(ElementTypes::Number));
+        } else if (next.isBigInt()) {
+            validType = allTypes || (elementTypes & static_cast<uint8_t>(ElementTypes::BigInt));
+        } else if (next.isObject()) {
+            validType = allTypes || (elementTypes & static_cast<uint8_t>(ElementTypes::Object));
+        }
+
+        if (UNLIKELY(!validType)) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->object.string(), false, String::emptyString, "%s: Type(next) is not an element of elementTypes");
         }
-        // e. Append next as the last element of list.
+
+        // Append next as the last element of list.
         list.pushBack(next);
-        // f. Set index to index + 1.
+        // Set index to index + 1.
         index++;
     }
 
-    // 9. Return list.
+    // Return list.
     return list;
 }
 

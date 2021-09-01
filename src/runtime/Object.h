@@ -757,8 +757,9 @@ enum class ElementTypes : uint8_t {
     String = 1 << 3,
     Symbol = 1 << 4,
     Number = 1 << 5,
-    Object = 1 << 6,
-    ALL = Undefined | Null | Boolean | String | Symbol | Number | Object
+    BigInt = 1 << 6,
+    Object = 1 << 7,
+    ALL = Undefined | Null | Boolean | String | Symbol | Number | BigInt | Object
 };
 
 class Object : public PointerValue {
@@ -1080,7 +1081,7 @@ public:
     static void throwCannotDeleteError(ExecutionState& state, const ObjectStructurePropertyName& P);
     static ArrayObject* createArrayFromList(ExecutionState& state, const uint64_t& size, const Value* buffer);
     static ArrayObject* createArrayFromList(ExecutionState& state, const ValueVector& elements);
-    static ValueVector createListFromArrayLike(ExecutionState& state, Value obj, uint8_t types = (uint8_t)ElementTypes::ALL);
+    static ValueVector createListFromArrayLike(ExecutionState& state, Value obj, uint8_t types = static_cast<uint8_t>(ElementTypes::ALL));
     static ValueVectorWithInlineStorage enumerableOwnProperties(ExecutionState& state, Object* object, EnumerableOwnPropertiesType kind);
 
     // this function differ with defineOwnProperty.
