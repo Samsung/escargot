@@ -87,6 +87,8 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
 
 void ArrayBufferObject::attachBuffer(BackingStore* backingStore)
 {
+    // BackingStore should not be Shared Data Block
+    ASSERT(!backingStore->isShared());
     detachArrayBuffer();
 
     m_mayPointsSharedBackingStore = true;

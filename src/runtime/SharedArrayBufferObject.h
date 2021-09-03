@@ -61,6 +61,7 @@ private:
 class SharedArrayBufferObject : public ArrayBuffer {
 public:
     SharedArrayBufferObject(ExecutionState& state, Object* proto, size_t byteLength);
+    SharedArrayBufferObject(ExecutionState& state, Object* proto, BackingStore* backingStore);
     SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedArrayBufferObjectBackingStoreData* data);
 
     static SharedArrayBufferObject* allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength);

@@ -66,6 +66,19 @@ SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* 
     m_backingStore = new BackingStore(buffer, byteLength, backingStoreDeleter, internalData, true);
 }
 
+SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, BackingStore* backingStore)
+    : ArrayBuffer(state, proto)
+{
+    // BackingStore should be valid and shared
+    ASSERT(!!backingStore && backingStore->isShared());
+
+    m_mayPointsSharedBackingStore = true;
+    m_backingStore = backingStore;
+
+    SharedArrayBufferObjectBackingStoreData* internalData = (SharedArrayBufferObjectBackingStoreData*)backingStore->deleterData();
+    internalData->ref();
+}
+
 SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedArrayBufferObjectBackingStoreData* data)
     : ArrayBuffer(state, proto)
 {
