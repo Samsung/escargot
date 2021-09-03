@@ -2946,8 +2946,18 @@ SharedArrayBufferObjectRef* SharedArrayBufferObjectRef::create(ExecutionStateRef
 {
     return toRef(new SharedArrayBufferObject(*toImpl(state), toImpl(state)->context()->globalObject()->sharedArrayBufferPrototype(), byteLength));
 }
+
+SharedArrayBufferObjectRef* create(ExecutionStateRef* state, BackingStoreRef* backingStore)
+{
+    return toRef(new SharedArrayBufferObject(*toImpl(state), toImpl(state)->context()->globalObject()->sharedArrayBufferPrototype(), toImpl(backingStore)));
+}
 #else
 SharedArrayBufferObjectRef* SharedArrayBufferObjectRef::create(ExecutionStateRef* state, size_t byteLength)
+{
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+SharedArrayBufferObjectRef* create(ExecutionStateRef* state, BackingStoreRef* backingStore)
 {
     RELEASE_ASSERT_NOT_REACHED();
 }

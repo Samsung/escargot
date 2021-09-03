@@ -1509,6 +1509,7 @@ public:
 class ESCARGOT_EXPORT SharedArrayBufferObjectRef : public ArrayBufferRef {
 public:
     static SharedArrayBufferObjectRef* create(ExecutionStateRef* state, size_t bytelength);
+    static SharedArrayBufferObjectRef* create(ExecutionStateRef* state, BackingStoreRef* backingStore);
 };
 
 class ESCARGOT_EXPORT ArrayBufferViewRef : public ObjectRef {
