@@ -1988,18 +1988,29 @@ static bool is38Alphanum(const std::string& str)
     return false;
 }
 
-static bool is38AlphanumList(const std::string& str)
+static bool is38AlphanumList(const std::string& str, bool allowUnderScore = false)
 {
     std::size_t found = str.find("-");
     if (found == std::string::npos) {
+        if (allowUnderScore) {
+            found = str.find("_");
+            if (found != std::string::npos) {
+                return is38Alphanum(str.substr(0, found)) && is38AlphanumList(str.substr(found + 1), allowUnderScore);
+            }
+        }
         return is38Alphanum(str);
     }
-    return is38Alphanum(str.substr(0, found)) && is38AlphanumList(str.substr(found + 1));
+    return is38Alphanum(str.substr(0, found)) && is38AlphanumList(str.substr(found + 1), allowUnderScore);
 }
 
 bool Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(String* value)
 {
     return is38AlphanumList(value->toNonGCUTF8StringData());
+}
+
+bool Intl::isValidUnicodeLocaleIdentifier(String* value)
+{
+    return is38AlphanumList(value->toNonGCUTF8StringData(), true);
 }
 
 void Intl::convertICUNumberFieldToEcmaNumberField(std::vector<NumberFieldItem>& fields, double x, const UTF16StringDataNonGCStd& resultString)

@@ -698,6 +698,7 @@ namespace Escargot {
     F(DataLocale, "dataLocale")                             \
     F(Date, "date")                                         \
     F(DateStyle, "dateStyle")                               \
+    F(DateTimeField, "dateTimeField")                       \
     F(Day, "day")                                           \
     F(DayPeriod, "dayPeriod")                               \
     F(Decimal, "decimal")                                   \
@@ -878,9 +879,9 @@ public:
     AtomicString getbyteLength;
     AtomicString getbyteOffset;
     AtomicString intlDotCollator;
+    AtomicString intlDotDisplayNames;
     AtomicString intlDotLocale;
     AtomicString intlDotRelativeTimeFormat;
-    AtomicString intlDotDisplayNames;
     AtomicString set__proto__;
     AtomicString symbolMatch;
     AtomicString symbolMatchAll;

@@ -946,6 +946,16 @@ static Value builtinIntlDisplayNamesConstructor(ExecutionState& state, Value thi
     return new IntlDisplayNamesObject(state, proto, argv[0], argv[1]);
 }
 
+static Value builtinIntlDisplayNamesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlDisplayNamesObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    IntlDisplayNamesObject* r = thisValue.asObject()->asIntlDisplayNamesObject();
+    return r->of(state, argv[0]);
+}
+
 static Value builtinIntlDisplayNamesResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlDisplayNamesObject()) {
@@ -1189,6 +1199,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlDisplayNamesPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                                   ObjectPropertyDescriptor(Value(strings->intlDotDisplayNames.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_intlDisplayNamesPrototype->defineOwnProperty(state, state.context()->staticStrings().of,
+                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->of, builtinIntlDisplayNamesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlDisplayNamesPrototype->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlDisplayNamesResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));

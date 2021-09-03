@@ -30,6 +30,8 @@ class IntlDisplayNamesObject : public Object {
 public:
     IntlDisplayNamesObject(ExecutionState& state, Object* proto, Value locales, Value options);
 
+    Value of(ExecutionState& state, const Value& code);
+
     virtual bool isIntlDisplayNamesObject() const override
     {
         return true;

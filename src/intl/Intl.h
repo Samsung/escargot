@@ -72,6 +72,7 @@ public:
     static CanonicalizedLangunageTag isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(const std::string& locale);
     static String* getLocaleForStringLocaleConvertCase(ExecutionState& state, Value locales);
 
+    static bool isValidUnicodeLocaleIdentifier(String* value);
     // test string is `(3*8alphanum) *("-" (3*8alphanum))` sequence
     static bool isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(String* value);
 
@@ -82,6 +83,24 @@ public:
     };
     static void convertICUNumberFieldToEcmaNumberField(std::vector<NumberFieldItem>& fields, double x, const UTF16StringDataNonGCStd& resultString);
     static String* icuNumberFieldToString(ExecutionState& state, int32_t fieldName, double d);
+
+#define INTL_ICU_STRING_BUFFER_OPERATION(icuFnName, ...)                                                     \
+    ([&]() -> std::pair<UErrorCode, UTF16StringDataNonGCStd> {                                               \
+        UTF16StringDataNonGCStd output;                                                                      \
+        UErrorCode status = U_ZERO_ERROR;                                                                    \
+        const size_t defaultStringBufferSize = 32;                                                           \
+        output.resize(defaultStringBufferSize);                                                              \
+        status = U_ZERO_ERROR;                                                                               \
+        auto resultLength = icuFnName(__VA_ARGS__, (UChar*)output.data(), defaultStringBufferSize, &status); \
+        if (U_SUCCESS(status)) {                                                                             \
+            output.resize(resultLength);                                                                     \
+        } else if (status == U_BUFFER_OVERFLOW_ERROR) {                                                      \
+            status = U_ZERO_ERROR;                                                                           \
+            output.resize(resultLength);                                                                     \
+            icuFnName(__VA_ARGS__, (UChar*)output.data(), resultLength, &status);                            \
+        }                                                                                                    \
+        return std::make_pair(status, output);                                                               \
+    })()
 };
 } // namespace Escargot
 

@@ -122,6 +122,7 @@
 #define udatpg_getBestPattern RuntimeICUBinder::ICU::instance().udatpg_getBestPattern
 #define udatpg_getBestPatternWithOptions RuntimeICUBinder::ICU::instance().udatpg_getBestPatternWithOptions
 #define udatpg_getSkeleton RuntimeICUBinder::ICU::instance().udatpg_getSkeleton
+#define udatpg_getFieldDisplayName RuntimeICUBinder::ICU::instance().udatpg_getFieldDisplayName
 
 #define ubrk_open RuntimeICUBinder::ICU::instance().ubrk_open
 #define ubrk_openRules RuntimeICUBinder::ICU::instance().ubrk_openRules
@@ -190,6 +191,7 @@
 #define ufieldpositer_next RuntimeICUBinder::ICU::instance().ufieldpositer_next
 #define ufieldpositer_close RuntimeICUBinder::ICU::instance().ufieldpositer_close
 
+#define ucurr_getName RuntimeICUBinder::ICU::instance().ucurr_getName
 #define ucurr_getDefaultFractionDigits RuntimeICUBinder::ICU::instance().ucurr_getDefaultFractionDigits
 #define ucurr_getDefaultFractionDigitsForUsage RuntimeICUBinder::ICU::instance().ucurr_getDefaultFractionDigitsForUsage
 
@@ -218,6 +220,7 @@
 #define uldn_open RuntimeICUBinder::ICU::instance().uldn_open
 #define uldn_openForContext RuntimeICUBinder::ICU::instance().uldn_openForContext
 #define uldn_localeDisplayName RuntimeICUBinder::ICU::instance().uldn_localeDisplayName
+#define uldn_regionDisplayName RuntimeICUBinder::ICU::instance().uldn_regionDisplayName
 #define uldn_languageDisplayName RuntimeICUBinder::ICU::instance().uldn_languageDisplayName
 #define uldn_scriptDisplayName RuntimeICUBinder::ICU::instance().uldn_scriptDisplayName
 #define uldn_keyValueDisplayName RuntimeICUBinder::ICU::instance().uldn_keyValueDisplayName
