@@ -114,9 +114,9 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(getbyteLength, "get byteLength");
     INIT_STATIC_STRING(getbyteOffset, "get byteOffset");
     INIT_STATIC_STRING(intlDotCollator, "Intl.Collator");
+    INIT_STATIC_STRING(intlDotDisplayNames, "Intl.DisplayNames");
     INIT_STATIC_STRING(intlDotLocale, "Intl.Locale");
     INIT_STATIC_STRING(intlDotRelativeTimeFormat, "Intl.RelativeTimeFormat");
-    INIT_STATIC_STRING(intlDotDisplayNames, "Intl.DisplayNames");
     INIT_STATIC_STRING(set__proto__, "set __proto__");
     INIT_STATIC_STRING(symbolMatch, "[Symbol.match]");
     INIT_STATIC_STRING(symbolMatchAll, "[Symbol.matchAll]");

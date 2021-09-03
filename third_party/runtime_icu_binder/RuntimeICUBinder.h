@@ -85,6 +85,7 @@ namespace RuntimeICUBinder {
     F(uldn_openForContext, ULocaleDisplayNames* (*)(const char* locale, UDisplayContext* contexts, int32_t length, UErrorCode* pErrorCode), ULocaleDisplayNames*)          \
     F(uldn_localeDisplayName, int32_t (*)(const ULocaleDisplayNames* ldn, const char* locale, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)      \
     F(uldn_languageDisplayName, int32_t (*)(const ULocaleDisplayNames* ldn, const char* lang, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)      \
+    F(uldn_regionDisplayName, int32_t (*)(const ULocaleDisplayNames* ldn, const char* region, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)      \
     F(uldn_scriptDisplayName, int32_t (*)(const ULocaleDisplayNames* ldn, const char* lang, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)        \
     F(uldn_keyValueDisplayName, int32_t (*)(const ULocaleDisplayNames* ldn, const char* key, const char* value, UChar* result, int32_t maxResultSize, UErrorCode* pErrorCode), int32_t)
 
@@ -131,6 +132,7 @@ namespace RuntimeICUBinder {
     F(udatpg_getBestPattern, int32_t (*)(UDateTimePatternGenerator * dtpg, const UChar* skeleton, int32_t length, UChar* bestPattern, int32_t capacity, UErrorCode* pErrorCode), int32_t)      \
     F(udatpg_getBestPatternWithOptions, int32_t (*)(UDateTimePatternGenerator*, const UChar*, int32_t, UDateTimePatternMatchOptions, UChar*, int32_t, UErrorCode*), int32_t)                   \
     F(udatpg_getSkeleton, int32_t (*)(UDateTimePatternGenerator * unusedDtpg, const UChar* pattern, int32_t length, UChar* skeleton, int32_t capacity, UErrorCode* pErrorCode), int32_t)       \
+    F(udatpg_getFieldDisplayName, int32_t (*)(const UDateTimePatternGenerator*, UDateTimePatternField, UDateTimePGDisplayWidth, UChar*, int32_t, UErrorCode*), int32_t)                        \
     F(unum_countAvailable, int32_t (*)(), int32_t)                                                                                                                                             \
     F(unum_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                                \
     F(unum_open, UNumberFormat* (*)(UNumberFormatStyle style, const UChar* pattern, int32_t patternLength, const char* locale, UParseError* parseErr, UErrorCode* status), UNumberFormat*)     \
@@ -160,6 +162,7 @@ namespace RuntimeICUBinder {
     F(unumf_resultToString, int32_t (*)(const UFormattedNumber* uresult, UChar* buffer, int32_t bufferCapacity, UErrorCode* ec), int32_t)                                                      \
     F(ufieldpositer_open, UFieldPositionIterator* (*)(UErrorCode * status), UFieldPositionIterator*)                                                                                           \
     F(ufieldpositer_next, int32_t (*)(UFieldPositionIterator * fpositer, int32_t * beginIndex, int32_t * endIndex), int32_t)                                                                   \
+    F(ucurr_getName, const UChar* (*)(const UChar* currency, const char* locale, UCurrNameStyle nameStyle, UBool* isChoiceFormat, int32_t* len, UErrorCode* ec), const UChar*)                 \
     F(ucurr_getDefaultFractionDigits, int32_t (*)(const UChar* currency, UErrorCode* ec), int32_t)                                                                                             \
     F(ucurr_getDefaultFractionDigitsForUsage, int32_t (*)(const UChar* currency, const UCurrencyUsage usage, UErrorCode* ec), int32_t)                                                         \
     F(ureldatefmt_open, URelativeDateTimeFormatter* (*)(const char*, UNumberFormat*, UDateRelativeDateTimeFormatterStyle, UDisplayContext, UErrorCode*), URelativeDateTimeFormatter*)          \

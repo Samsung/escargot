@@ -970,10 +970,6 @@
     <test id="intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle-timeStyle"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/toStringTag/toString"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/toStringTag/toStringTag"><reason>TODO</reason></test>
-    <test id="intl402/DisplayNames/prototype/of/type-calendar-invalid"><reason>TODO</reason></test>
-    <test id="intl402/DisplayNames/prototype/of/type-calendar-valid"><reason>TODO</reason></test>
-    <test id="intl402/DisplayNames/prototype/of/type-datetimefield-invalid"><reason>TODO</reason></test>
-    <test id="intl402/DisplayNames/prototype/of/type-datetimefield-valid"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/complex-region-subtag-replacement"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/preferred-grandfathered"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/transformed-ext-canonical"><reason>TODO</reason></test>
