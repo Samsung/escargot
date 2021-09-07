@@ -61,7 +61,6 @@ static const size_t indexOfExtensionKeyCa = 0;
 static const size_t indexOfExtensionKeyNu = 1;
 static const size_t indexOfExtensionKeyHc = 2;
 static const double minECMAScriptTime = -8.64E15;
-static const size_t defaultStringBufferSize = 32;
 
 std::vector<std::string> Intl::calendarsForLocale(String* locale)
 {
@@ -671,16 +670,9 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
             return;
         }
 
-        patternBuffer.resize(defaultStringBufferSize);
-        status = U_ZERO_ERROR;
-        auto patternLength = udat_toPattern(dateFormatFromStyle.get(), false, (UChar*)patternBuffer.data(), patternBuffer.size(), &status);
-        patternBuffer.resize(patternLength);
-        if (status == U_BUFFER_OVERFLOW_ERROR) {
-            status = U_ZERO_ERROR;
-            patternBuffer.resize(patternLength);
-            udat_toPattern(dateFormatFromStyle.get(), false, (UChar*)patternBuffer.data(), patternBuffer.size(), &status);
-        }
-        if (U_FAILURE(status)) {
+        auto toPatternResult = INTL_ICU_STRING_BUFFER_OPERATION(udat_toPattern, dateFormatFromStyle.get(), false);
+        patternBuffer = std::move(toPatternResult.second);
+        if (U_FAILURE(toPatternResult.first)) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
             return;
         }
@@ -706,21 +698,13 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
             }
             std::string extractedHourCycle = readHourCycleFromPattern(patternBuffer);
             if (extractedHourCycle.size() && (extractedHourCycle == "h11" || extractedHourCycle == "h12") != specifiedHour12) {
-                UTF16StringDataNonGCStd skeleton;
-                skeleton.resize(defaultStringBufferSize);
-                status = U_ZERO_ERROR;
-                auto resultLength = udatpg_getSkeleton(nullptr, (UChar*)patternBuffer.data(), patternBuffer.size(), (UChar*)skeleton.data(), skeleton.size(), &status);
-                skeleton.resize(resultLength);
-                if (status == U_BUFFER_OVERFLOW_ERROR) {
-                    status = U_ZERO_ERROR;
-                    skeleton.resize(resultLength);
-                    udatpg_getSkeleton(nullptr, (UChar*)patternBuffer.data(), patternBuffer.size(), (UChar*)skeleton.data(), skeleton.size(), &status);
-                }
-                if (U_FAILURE(status)) {
+                auto getSkeletonResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getSkeleton, nullptr, (UChar*)patternBuffer.data(), patternBuffer.size());
+                if (U_FAILURE(getSkeletonResult.first)) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
                     return;
                 }
 
+                UTF16StringDataNonGCStd skeleton = std::move(getSkeletonResult.second);
                 for (size_t i = 0; i < skeleton.size(); i++) {
                     auto ch = skeleton[i];
                     if (ch == 'h' || ch == 'H' || ch == 'j') {
@@ -732,19 +716,12 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
                     }
                 }
 
-                patternBuffer.resize(defaultStringBufferSize);
-                status = U_ZERO_ERROR;
-                auto patternLength = udatpg_getBestPatternWithOptions(generator.get(), (UChar*)skeleton.data(), skeleton.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH, (UChar*)patternBuffer.data(), patternBuffer.size(), &status);
-                patternBuffer.resize(patternLength);
-                if (status == U_BUFFER_OVERFLOW_ERROR) {
-                    status = U_ZERO_ERROR;
-                    patternBuffer.resize(patternLength);
-                    udatpg_getBestPatternWithOptions(generator.get(), (UChar*)skeleton.data(), skeleton.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH, (UChar*)patternBuffer.data(), patternBuffer.size(), &status);
-                }
-                if (U_FAILURE(status)) {
+                auto getBestPatternWithOptionsResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getBestPatternWithOptions, generator.get(), (UChar*)skeleton.data(), skeleton.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH);
+                if (U_FAILURE(getBestPatternWithOptionsResult.first)) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
                     return;
                 }
+                patternBuffer = std::move(getBestPatternWithOptionsResult.second);
             }
         }
 
@@ -756,19 +733,12 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
         // Else,
         // Let bestFormat be BestFitFormatMatcher(opt, formats).
         skeleton = skeletonBuilder.finalize()->toUTF16StringData();
-        patternBuffer.resize(defaultStringBufferSize);
-        status = U_ZERO_ERROR;
-        auto patternLength = udatpg_getBestPatternWithOptions(generator.get(), (UChar*)skeleton.data(), skeleton.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH, (UChar*)patternBuffer.data(), patternBuffer.size(), &status);
-        patternBuffer.resize(patternLength);
-        if (status == U_BUFFER_OVERFLOW_ERROR) {
-            status = U_ZERO_ERROR;
-            patternBuffer.resize(patternLength);
-            udatpg_getBestPatternWithOptions(generator.get(), (UChar*)skeleton.data(), skeleton.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH, (UChar*)patternBuffer.data(), patternBuffer.size(), &status);
-        }
-        if (U_FAILURE(status)) {
+        auto getBestPatternWithOptionsResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getBestPatternWithOptions, generator.get(), (UChar*)skeleton.data(), skeleton.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH);
+        if (U_FAILURE(getBestPatternWithOptionsResult.first)) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
             return;
         }
+        patternBuffer = std::move(getBestPatternWithOptionsResult.second);
     }
 
     // If dateTimeFormat.[[Hour]] is not undefined, then
@@ -776,16 +746,9 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     if (hasHourOption) {
         // Let hcDefault be dataLocaleData.[[hourCycle]].
         UTF16StringDataNonGCStd patternBuffer;
-        patternBuffer.resize(defaultStringBufferSize);
-        status = U_ZERO_ERROR;
-        auto patternLength = udatpg_getBestPattern(generator.get(), u"jjmm", 4, (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
-        patternBuffer.resize(patternLength);
-        if (status == U_BUFFER_OVERFLOW_ERROR) {
-            status = U_ZERO_ERROR;
-            patternBuffer.resize(patternLength);
-            udatpg_getBestPattern(generator.get(), u"jjmm", 4, (UChar*)patternBuffer.data(), patternLength, &status);
-        }
-        ASSERT(U_SUCCESS(status));
+        auto getBestPatternResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getBestPattern, generator.get(), u"jjmm", 4);
+        ASSERT(U_SUCCESS(getBestPatternResult.first));
+        patternBuffer = std::move(getBestPatternResult.second);
         auto hcDefault = readHourCycleFromPattern(patternBuffer);
         // Let hc be dateTimeFormat.[[HourCycle]].
         auto hc = m_hourCycle;
@@ -1011,20 +974,12 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
 
     // Delegate remaining steps to ICU.
     UErrorCode status = U_ZERO_ERROR;
-    UTF16StringDataNonGCStd result;
-    result.resize(defaultStringBufferSize);
-    auto resultLength = udat_format(udat, x, (UChar*)result.data(), result.size(), nullptr, &status);
-    result.resize(resultLength);
-
-    if (status == U_BUFFER_OVERFLOW_ERROR) {
-        status = U_ZERO_ERROR;
-        udat_format(udat, x, (UChar*)result.data(), resultLength, nullptr, &status);
-    }
-    if (U_FAILURE(status)) {
+    auto formatResult = INTL_ICU_STRING_BUFFER_OPERATION_COMPLEX(udat_format, nullptr, m_icuDateFormat, x);
+    if (U_FAILURE(formatResult.first)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format date value");
     }
 
-    return result;
+    return formatResult.second;
 }
 
 ArrayObject* IntlDateTimeFormatObject::formatToParts(ExecutionState& state, double x)
@@ -1040,23 +995,14 @@ ArrayObject* IntlDateTimeFormatObject::formatToParts(ExecutionState& state, doub
 
     ArrayObject* result = new ArrayObject(state);
 
-    UDateFormat* udat = (UDateFormat*)m_icuDateFormat;
-
     UErrorCode status = U_ZERO_ERROR;
 
     UFieldPositionIterator* fpositer;
     fpositer = ufieldpositer_open(&status);
     ASSERT(U_SUCCESS(status));
 
-    UTF16StringDataNonGCStd resultString;
-    resultString.resize(defaultStringBufferSize);
-    auto resultLength = udat_formatForFields(udat, x, (UChar*)resultString.data(), resultString.size(), fpositer, &status);
-    resultString.resize(resultLength);
-
-    if (status == U_BUFFER_OVERFLOW_ERROR) {
-        status = U_ZERO_ERROR;
-        udat_formatForFields(udat, x, (UChar*)resultString.data(), resultLength, fpositer, &status);
-    }
+    auto formatResult = INTL_ICU_STRING_BUFFER_OPERATION_COMPLEX(udat_formatForFields, fpositer, m_icuDateFormat, x);
+    UTF16StringDataNonGCStd resultString = std::move(formatResult.second);
 
     struct FieldItem {
         int32_t start;

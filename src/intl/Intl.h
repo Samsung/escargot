@@ -101,6 +101,24 @@ public:
         }                                                                                                    \
         return std::make_pair(status, output);                                                               \
     })()
+
+#define INTL_ICU_STRING_BUFFER_OPERATION_COMPLEX(icuFnName, extra, ...)                                             \
+    ([&]() -> std::pair<UErrorCode, UTF16StringDataNonGCStd> {                                                      \
+        UTF16StringDataNonGCStd output;                                                                             \
+        UErrorCode status = U_ZERO_ERROR;                                                                           \
+        const size_t defaultStringBufferSize = 32;                                                                  \
+        output.resize(defaultStringBufferSize);                                                                     \
+        status = U_ZERO_ERROR;                                                                                      \
+        auto resultLength = icuFnName(__VA_ARGS__, (UChar*)output.data(), defaultStringBufferSize, extra, &status); \
+        if (U_SUCCESS(status)) {                                                                                    \
+            output.resize(resultLength);                                                                            \
+        } else if (status == U_BUFFER_OVERFLOW_ERROR) {                                                             \
+            status = U_ZERO_ERROR;                                                                                  \
+            output.resize(resultLength);                                                                            \
+            icuFnName(__VA_ARGS__, (UChar*)output.data(), resultLength, extra, &status);                            \
+        }                                                                                                           \
+        return std::make_pair(status, output);                                                                      \
+    })()
 };
 } // namespace Escargot
 
