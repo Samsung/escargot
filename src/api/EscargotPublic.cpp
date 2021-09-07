@@ -2238,6 +2238,21 @@ GlobalObjectRef* ExecutionStateRef::resolveCallerLexicalGlobalObject()
     return toRef(ctx->globalObject());
 }
 
+bool ExecutionStateRef::onTry()
+{
+    return toImpl(this)->onTry();
+}
+
+bool ExecutionStateRef::onCatch()
+{
+    return toImpl(this)->onCatch();
+}
+
+bool ExecutionStateRef::onFinally()
+{
+    return toImpl(this)->onFinally();
+}
+
 void ExecutionStateRef::throwException(ValueRef* value)
 {
     ExecutionState* imp = toImpl(this);

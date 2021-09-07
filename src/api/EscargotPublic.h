@@ -603,6 +603,10 @@ public:
     GCManagedVector<FunctionObjectRef*> resolveCallstack(); // resolve list of callee
     GlobalObjectRef* resolveCallerLexicalGlobalObject(); // resolve caller's lexical global object
 
+    bool onTry();
+    bool onCatch();
+    bool onFinally();
+
     void throwException(ValueRef* value);
 
     GCManagedVector<Evaluator::StackTraceData> computeStackTraceData();

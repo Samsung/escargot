@@ -1402,3 +1402,42 @@ TEST(Serializer, Basic9)
     v2 = SerializerRef::deserializeFrom(g_context.get(), istream);
     EXPECT_TRUE(v2->asString()->equals(v1->asString()));
 }
+
+TEST(ExecutionState, TryCatchFinally)
+{
+    Evaluator::execute(g_context, [](ExecutionStateRef *state) -> ValueRef* {
+        FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(g_context.get(), "test"),
+            [](ExecutionStateRef *state, ValueRef *thisValue, size_t argc, ValueRef **argv, bool isConstructCall) -> ValueRef* {
+            OptionalRef<ExecutionStateRef> e = state;
+                if (argv[0]->asNumber() == 1) {
+                    while (e) {
+                        if (e->onTry()) {
+                            return ValueRef::createUndefined();
+                        }
+                        e = e->parent();
+                    }
+                } else if (argv[0]->asNumber() == 2) {
+                    while (e) {
+                        if (e->onCatch()) {
+                            return ValueRef::createUndefined();
+                        }
+                        e = e->parent();
+                    }
+                } else {
+                    while (e) {
+                        if (e->onFinally()) {
+                            return ValueRef::createUndefined();
+                        }
+                        e = e->parent();
+                    }
+                }
+                EXPECT_TRUE(false);
+                return ValueRef::createUndefined();
+            }, 1, true, false);
+        FunctionObjectRef *buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+        g_context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("tryCatchTest"), buildFunctionObjectRef, true, true, true);
+        return ValueRef::createUndefined();
+    });
+
+    evalScript(g_context.get(), StringRef::createFromASCII("try { tryCatchTest(1); throw 1; } catch(e) { tryCatchTest(2) } finally{ tryCatchTest(3) }"), StringRef::createFromASCII("test.js"), false);
+}

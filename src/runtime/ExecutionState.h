@@ -75,6 +75,9 @@ public:
         , m_inStrictMode(false)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
+        , m_onTry(false)
+        , m_onCatch(false)
+        , m_onFinally(false)
         , m_argc(0)
         , m_argv(nullptr)
     {
@@ -98,6 +101,9 @@ public:
         , m_inStrictMode(inStrictMode)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
+        , m_onTry(false)
+        , m_onCatch(false)
+        , m_onFinally(false)
         , m_argc(parent->argc())
         , m_argv(parent->argv())
     {
@@ -113,6 +119,9 @@ public:
         , m_inStrictMode(false)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
+        , m_onTry(false)
+        , m_onCatch(false)
+        , m_onFinally(false)
         , m_argc(0)
         , m_argv(nullptr)
     {
@@ -128,6 +137,9 @@ public:
         , m_inStrictMode(inStrictMode)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
+        , m_onTry(false)
+        , m_onCatch(false)
+        , m_onFinally(false)
         , m_argc(argc)
         , m_argv(argv)
     {
@@ -143,6 +155,9 @@ public:
         , m_inStrictMode(inStrictMode)
         , m_isNativeFunctionObjectExecutionContext(true)
         , m_inExecutionStopState(false)
+        , m_onTry(false)
+        , m_onCatch(false)
+        , m_onFinally(false)
         , m_argc(argc)
         , m_argv(argv)
     {
@@ -161,6 +176,9 @@ public:
         , m_inStrictMode(inStrictMode)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
+        , m_onTry(false)
+        , m_onCatch(false)
+        , m_onFinally(false)
         , m_argc(argc)
         , m_argv(argv)
     {
@@ -233,14 +251,29 @@ public:
         }
     }
 
-    bool inStrictMode()
+    bool inStrictMode() const
     {
         return m_inStrictMode;
     }
 
-    bool inExecutionStopState()
+    bool inExecutionStopState() const
     {
         return m_inExecutionStopState;
+    }
+
+    bool onTry() const
+    {
+        return m_onTry;
+    }
+
+    bool onCatch() const
+    {
+        return m_onCatch;
+    }
+
+    bool onFinally() const
+    {
+        return m_onFinally;
     }
 
     // callee is pauser && isNotInEvalCode
@@ -306,10 +339,13 @@ private:
     bool m_inStrictMode : 1;
     bool m_isNativeFunctionObjectExecutionContext : 1;
     bool m_inExecutionStopState : 1;
+    bool m_onTry : 1;
+    bool m_onCatch : 1;
+    bool m_onFinally : 1;
 #ifdef ESCARGOT_32
-    size_t m_argc : 27;
+    size_t m_argc : 24;
 #else
-    size_t m_argc : 59;
+    size_t m_argc : 56;
 #endif
     Value* m_argv;
 };
