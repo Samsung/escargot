@@ -881,6 +881,7 @@ public:
     AtomicString intlDotCollator;
     AtomicString intlDotDisplayNames;
     AtomicString intlDotLocale;
+    AtomicString intlDotPluralRules;
     AtomicString intlDotRelativeTimeFormat;
     AtomicString set__proto__;
     AtomicString symbolMatch;

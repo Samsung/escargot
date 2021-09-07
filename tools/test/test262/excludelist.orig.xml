@@ -1110,8 +1110,6 @@
     <test id="intl402/NumberFormat/prototype/formatToParts/percent-en-US"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/toStringTag/configurable"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/toStringTag/prop-desc"><reason>TODO</reason></test>
-    <test id="intl402/PluralRules/prototype/toStringTag/toString"><reason>TODO</reason></test>
-    <test id="intl402/PluralRules/prototype/toStringTag/toStringTag"><reason>TODO</reason></test>
     <test id="intl402/RelativeTimeFormat/prototype/format/pl-pl-style-long"><reason>TODO</reason></test>
     <test id="intl402/RelativeTimeFormat/prototype/format/pl-pl-style-narrow"><reason>TODO</reason></test>
     <test id="intl402/RelativeTimeFormat/prototype/format/pl-pl-style-short"><reason>TODO</reason></test>
