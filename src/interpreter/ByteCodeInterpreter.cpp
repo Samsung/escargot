@@ -83,6 +83,25 @@ private:
     size_t* m_oldAddress;
 };
 
+template <typename T>
+class ExecutionStateVariableChanger {
+public:
+    ExecutionStateVariableChanger(ExecutionState& state, T changer)
+        : m_state(state)
+        , m_changer(changer)
+    {
+        m_changer(m_state, true);
+    }
+    ~ExecutionStateVariableChanger()
+    {
+        m_changer(m_state, false);
+    }
+
+private:
+    ExecutionState& m_state;
+    T m_changer;
+};
+
 Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile)
 {
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
@@ -2585,6 +2604,10 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
 
     if (LIKELY(!code->m_isCatchResumeProcess && !code->m_isFinallyResumeProcess)) {
         try {
+            ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
+                state.m_onTry = in;
+            });
+
             size_t newPc = programCounter + sizeof(TryOperation);
             interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
             if (newState->inExecutionStopState()) {
@@ -2633,6 +2656,9 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
                 stackTraceData.clear();
                 registerFile[code->m_catchedValueRegisterIndex] = val;
                 try {
+                    ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
+                        state.m_onCatch = in;
+                    });
                     interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile);
                     if (newState->inExecutionStopState()) {
                         return Value();
@@ -2645,6 +2671,9 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
         }
     } else if (code->m_isCatchResumeProcess) {
         try {
+            ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
+                state.m_onCatch = in;
+            });
             interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, programCounter + sizeof(TryOperation)), registerFile);
             if (UNLIKELY(newState->inExecutionStopState() || newState->parent()->inExecutionStopState())) {
                 return Value();
@@ -2659,6 +2688,9 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
     }
 
     if (code->m_isFinallyResumeProcess) {
+        ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
+            state.m_onFinally = in;
+        });
         interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, programCounter + sizeof(TryOperation)), registerFile);
         if (newState->inExecutionStopState() || newState->parent()->inExecutionStopState()) {
             return Value();
@@ -2675,7 +2707,9 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
             newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
             newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
         }
-
+        ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
+            state.m_onFinally = in;
+        });
         interpret(newState, byteCodeBlock, code->m_tryCatchEndPosition, registerFile);
         if (newState->inExecutionStopState()) {
             return Value();
