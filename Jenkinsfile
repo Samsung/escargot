@@ -35,10 +35,6 @@ def isPr() {
                 }
             }
 
-            stage('Check tidy') {
-                sh 'python tools/check_tidy.py'
-            }
-
             stage('Submodule update') {
                 sh 'git submodule update --init test third_party/GCutil'
             }

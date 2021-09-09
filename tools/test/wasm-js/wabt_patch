@@ -1,35 +1,19 @@
 diff --git src/binary-reader.cc src/binary-reader.cc
-index 9b365e87..d770afa4 100644
+index e1a7a336..d373770d 100644
 --- src/binary-reader.cc
 +++ src/binary-reader.cc
-@@ -628,7 +628,7 @@ Result BinaryReader::ReadAddress(Address* out_value,
-                                  Index memory,
-                                  const char* desc) {
-   ERROR_UNLESS(memory < memories.size(),
--               "load/store memory %u out of range %lu", memory,
-+               "load/store memory %u out of range %zu", memory,
-                memories.size());
-   if (memories[memory].is_64) {
-     return ReadU64Leb128(out_value, desc);
-diff --git src/common.h src/common.h
-index dbac0a89..1c0a57e8 100644
---- src/common.h
-+++ src/common.h
-@@ -66,11 +66,8 @@
-   char fixed_buf[WABT_DEFAULT_SNPRINTF_ALLOCA_BUFSIZE];                    \
-   char* buffer = fixed_buf;                                                \
-   size_t len = wabt_vsnprintf(fixed_buf, sizeof(fixed_buf), format, args); \
-+  (void)len;                                                               \
-   va_end(args);                                                            \
--  if (len + 1 > sizeof(fixed_buf)) {                                       \
--    buffer = static_cast<char*>(alloca(len + 1));                          \
--    len = wabt_vsnprintf(buffer, len + 1, format, args_copy);              \
--  }                                                                        \
-   va_end(args_copy)
+@@ -2181,8 +2181,7 @@ Result BinaryReader::ReadTypeSection(Offset section_size) {
+     } else {
+       uint8_t type;
+       CHECK_RESULT(ReadU8(&type, "type form"));
+-      ERROR_UNLESS(type == 0x60, "unexpected type form (got " PRItypecode ")",
+-                   WABT_PRINTF_TYPE_CODE(type));
++      ERROR_UNLESS(type == 0x60, "unexpected type form (got " "%#x" ")", type);
+       form = Type::Func;
+     }
  
- #define WABT_ENUM_COUNT(name) \
 diff --git src/interp/interp-wasm-c-api.cc src/interp/interp-wasm-c-api.cc
-index 75190feb..2a0c861d 100644
+index 4df66b89..2edc17d9 100644
 --- src/interp/interp-wasm-c-api.cc
 +++ src/interp/interp-wasm-c-api.cc
 @@ -626,6 +626,11 @@ own wasm_store_t* wasm_store_new(wasm_engine_t* engine) {
@@ -52,7 +36,7 @@ index 75190feb..2a0c861d 100644
 +                                const wasm_func_t* func) {
 +  auto&& funcs = instance->As<Instance>()->funcs();
 +
-+  assert(func.size() < wasm_limits_max_default);
++  assert(funcs.size() < wasm_limits_max_default);
 +  for (size_t i = 0; i < funcs.size(); ++i) {
 +    if (funcs[i] == func->I.ref()) {
 +      return i;

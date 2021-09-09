@@ -603,7 +603,7 @@ static Value builtinAtomicsIsLockFree(ExecutionState& state, Value thisValue, si
     return Value(false);
 #else
     // spec want to do toInteger operation
-    size;
+    UNUSED_VARIABLE(size);
     return Value(false);
 #endif
 }

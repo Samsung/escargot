@@ -807,7 +807,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     }
 
     // check and get 'value' property from the first argument
-    wasm_valkind_t valuetype;
+    wasm_valkind_t valuetype = WASM_ANYREF;
     {
         // Let valuetype be ToValueType(descriptor["value"]).
         Value valTypeValue = wasmGetValueFromObjectProperty(state, desc, strings->value, strings->toString).second;
