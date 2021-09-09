@@ -87,8 +87,10 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(getBaseName, "get baseName");
     INIT_STATIC_STRING(getBuffer, "get buffer");
     INIT_STATIC_STRING(getCalendar, "get calendar");
+    INIT_STATIC_STRING(getCalendars, "get calendars");
     INIT_STATIC_STRING(getCaseFirst, "get caseFirst");
     INIT_STATIC_STRING(getCollation, "get collation");
+    INIT_STATIC_STRING(getCollations, "get collations");
     INIT_STATIC_STRING(getCompare, "get compare");
     INIT_STATIC_STRING(getDescription, "get description");
     INIT_STATIC_STRING(getDotAll, "get dotAll");
@@ -96,11 +98,13 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(getFormat, "get format");
     INIT_STATIC_STRING(getGlobal, "get global");
     INIT_STATIC_STRING(getHourCycle, "get hourCycle");
+    INIT_STATIC_STRING(getHourCycles, "get hourCycles");
     INIT_STATIC_STRING(getIgnoreCase, "get ignoreCase");
     INIT_STATIC_STRING(getLanguage, "get language");
     INIT_STATIC_STRING(getLength, "get length");
     INIT_STATIC_STRING(getMultiline, "get multiline");
     INIT_STATIC_STRING(getNumberingSystem, "get numberingSystem");
+    INIT_STATIC_STRING(getNumberingSystems, "get numberingSystems");
     INIT_STATIC_STRING(getNumeric, "get numeric");
     INIT_STATIC_STRING(getRegion, "get region");
     INIT_STATIC_STRING(getScript, "get script");
@@ -109,7 +113,10 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(getSticky, "get sticky");
     INIT_STATIC_STRING(getSymbolSpecies, "get [Symbol.species]");
     INIT_STATIC_STRING(getSymbolToStringTag, "get [Symbol.toStringTag]");
+    INIT_STATIC_STRING(getTextInfo, "get textInfo");
+    INIT_STATIC_STRING(getTimeZones, "get timeZones");
     INIT_STATIC_STRING(getUnicode, "get unicode");
+    INIT_STATIC_STRING(getWeekInfo, "get weekInfo");
     INIT_STATIC_STRING(get__proto__, "get __proto__");
     INIT_STATIC_STRING(getbyteLength, "get byteLength");
     INIT_STATIC_STRING(getbyteOffset, "get byteOffset");

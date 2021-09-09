@@ -68,6 +68,7 @@ namespace RuntimeICUBinder {
     F(uloc_toLanguageTag, int32_t (*)(const char* localeID, char* langtag, int32_t langtagCapacity, UBool strict, UErrorCode* err), int32_t)                               \
     F(uloc_addLikelySubtags, int32_t (*)(const char* localeID, char* maximizedLocaleID, int32_t maximizedLocaleIDCapacity, UErrorCode* err), int32_t)                      \
     F(uloc_minimizeSubtags, int32_t (*)(const char* localeID, char* minimizedLocaleID, int32_t minimizedLocaleIDCapacity, UErrorCode* err), int32_t)                       \
+    F(uloc_getCharacterOrientation, ULayoutType (*)(const char* localeID, UErrorCode* err), ULayoutType)                                                                   \
     F(uloc_countAvailable, int32_t (*)(), int32_t)                                                                                                                         \
     F(uloc_getAvailable, const char* (*)(int32_t n), const char*)                                                                                                          \
     F(ucnv_open, UConverter* (*)(const char* converterName, UErrorCode* err), UConverter*)                                                                                 \
@@ -124,10 +125,14 @@ namespace RuntimeICUBinder {
     F(unumsys_isAlgorithmic, UBool (*)(const UNumberingSystem* unumsys), UBool)                                                                                                                \
     F(unumsys_getName, const char* (*)(const UNumberingSystem* unumsys), const char*)                                                                                                          \
     F(unumsys_open, UNumberingSystem* (*)(const char* locale, UErrorCode* status), UNumberingSystem*)                                                                                          \
+    F(ucal_open, UCalendar* (*)(const UChar* zoneID, int32_t len, const char* locale, UCalendarType type, UErrorCode* status), UCalendar*)                                                     \
     F(ucal_getKeywordValuesForLocale, UEnumeration* (*)(const char* key, const char* locale, UBool commonlyUsed, UErrorCode* status), UEnumeration*)                                           \
+    F(ucal_openTimeZoneIDEnumeration, UEnumeration* (*)(USystemTimeZoneType zoneType, const char* region, const int32_t* rawOffset, UErrorCode* ec), UEnumeration*)                            \
     F(ucal_openTimeZones, UEnumeration* (*)(UErrorCode * ec), UEnumeration*)                                                                                                                   \
     F(ucal_getCanonicalTimeZoneID, int32_t (*)(const UChar* id, int32_t len, UChar* result, int32_t resultCapacity, UBool* isSystemID, UErrorCode* status), int32_t)                           \
     F(ucal_getType, const char* (*)(const UCalendar* cal, UErrorCode* status), const char*)                                                                                                    \
+    F(ucal_getAttribute, int32_t (*)(const UCalendar* cal, UCalendarAttribute attr), int32_t)                                                                                                  \
+    F(ucal_getDayOfWeekType, UCalendarWeekdayType (*)(const UCalendar* cal, UCalendarDaysOfWeek dayOfWeek, UErrorCode* status), UCalendarWeekdayType)                                          \
     F(udatpg_open, UDateTimePatternGenerator* (*)(const char* locale, UErrorCode* pErrorCode), UDateTimePatternGenerator*)                                                                     \
     F(udatpg_getBestPattern, int32_t (*)(UDateTimePatternGenerator * dtpg, const UChar* skeleton, int32_t length, UChar* bestPattern, int32_t capacity, UErrorCode* pErrorCode), int32_t)      \
     F(udatpg_getBestPatternWithOptions, int32_t (*)(UDateTimePatternGenerator*, const UChar*, int32_t, UDateTimePatternMatchOptions, UChar*, int32_t, UErrorCode*), int32_t)                   \
@@ -184,6 +189,7 @@ namespace RuntimeICUBinder {
     F(ucol_setAttribute, void (*)(UCollator * coll, UColAttribute attr, UColAttributeValue value, UErrorCode * status), void)                                        \
     F(ucol_close, void (*)(UCollator * coll), void)                                                                                                                  \
     F(unumsys_close, void (*)(UNumberingSystem*), void)                                                                                                              \
+    F(ucal_close, void (*)(UCalendar * cal), void)                                                                                                                   \
     F(ucal_setGregorianChange, void (*)(UCalendar * cal, UDate date, UErrorCode * pErrorCode), void)                                                                 \
     F(udatpg_close, void (*)(UDateTimePatternGenerator * zone), void)                                                                                                \
     F(unum_close, void (*)(UNumberFormat*), void)                                                                                                                    \

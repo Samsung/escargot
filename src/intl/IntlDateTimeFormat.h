@@ -39,7 +39,7 @@ public:
     UTF16StringDataNonGCStd format(ExecutionState& state, double x);
     ArrayObject* formatToParts(ExecutionState& state, double x);
     static Value toDateTimeOptions(ExecutionState& state, Value options, Value required, Value defaults);
-
+    static std::string readHourCycleFromPattern(const UTF16StringDataNonGCStd& patternString);
     String* locale() const
     {
         return m_locale;

@@ -247,10 +247,8 @@ static Value builtinIntlDateTimeFormatFormatToParts(ExecutionState& state, Value
     return dtf->formatToParts(state, x);
 }
 
-static void setFormatOpt(ExecutionState& state, Object* internalSlot, Object* result, const char* pName)
+static void setFormatOpt(ExecutionState& state, Object* internalSlot, Object* result, String* prop)
 {
-    String* prop = String::fromASCII(pName);
-
     ObjectGetResult r;
     r = internalSlot->get(state, ObjectPropertyName(state, prop));
 
@@ -392,23 +390,23 @@ static Value builtinIntlNumberFormatResolvedOptions(ExecutionState& state, Value
     Object* internalSlot = thisValue.asObject()->internalSlot();
     Object* result = new Object(state);
 
-    setFormatOpt(state, internalSlot, result, "locale");
-    setFormatOpt(state, internalSlot, result, "numberingSystem");
-    setFormatOpt(state, internalSlot, result, "style");
-    setFormatOpt(state, internalSlot, result, "currency");
-    setFormatOpt(state, internalSlot, result, "currencyDisplay");
-    setFormatOpt(state, internalSlot, result, "currencySign");
-    setFormatOpt(state, internalSlot, result, "unit");
-    setFormatOpt(state, internalSlot, result, "unitDisplay");
-    setFormatOpt(state, internalSlot, result, "minimumIntegerDigits");
-    setFormatOpt(state, internalSlot, result, "minimumFractionDigits");
-    setFormatOpt(state, internalSlot, result, "maximumFractionDigits");
-    setFormatOpt(state, internalSlot, result, "minimumSignificantDigits");
-    setFormatOpt(state, internalSlot, result, "maximumSignificantDigits");
-    setFormatOpt(state, internalSlot, result, "useGrouping");
-    setFormatOpt(state, internalSlot, result, "notation");
-    setFormatOpt(state, internalSlot, result, "compactDisplay");
-    setFormatOpt(state, internalSlot, result, "signDisplay");
+    setFormatOpt(state, internalSlot, result, String::fromASCII("locale"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("numberingSystem"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("style"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("currency"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("currencyDisplay"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("currencySign"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("unit"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("unitDisplay"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("minimumIntegerDigits"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("minimumFractionDigits"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("maximumFractionDigits"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("minimumSignificantDigits"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("maximumSignificantDigits"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("useGrouping"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("notation"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("compactDisplay"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("signDisplay"));
     return result;
 }
 
@@ -841,6 +839,62 @@ static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, s
     return new IntlLocaleObject(state, sb.finalize(), nullptr);
 }
 
+static Value builtinIntlLocaleCalendarsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+    return thisValue.asObject()->asIntlLocaleObject()->calendars(state);
+}
+
+static Value builtinIntlLocaleCollationsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+    return thisValue.asObject()->asIntlLocaleObject()->collations(state);
+}
+
+static Value builtinIntlLocaleHourCyclesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+    return thisValue.asObject()->asIntlLocaleObject()->hourCycles(state);
+}
+
+static Value builtinIntlLocaleNumberingSystemsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+    return thisValue.asObject()->asIntlLocaleObject()->numberingSystems(state);
+}
+
+static Value builtinIntlLocaleTextInfoGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+    return thisValue.asObject()->asIntlLocaleObject()->textInfo(state);
+}
+
+static Value builtinIntlLocaleWeekInfoGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+    return thisValue.asObject()->asIntlLocaleObject()->weekInfo(state);
+}
+
+static Value builtinIntlLocaleTimeZonesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+    return thisValue.asObject()->asIntlLocaleObject()->timeZones(state);
+}
+
 static Value builtinIntlRelativeTimeFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
@@ -1000,7 +1054,7 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intl = new Object(state);
     m_intl->setGlobalIntrinsicObject(state);
 
-    const StaticStrings* strings = &state.context()->staticStrings();
+    StaticStrings* strings = &state.context()->staticStrings();
     redefineOwnProperty(state, ObjectPropertyName(strings->Intl),
                         ObjectPropertyDescriptor(m_intl, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -1169,6 +1223,55 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlLocalePrototype->defineOwnProperty(state, state.context()->staticStrings().minimize,
                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->minimize, builtinIntlLocaleMinimize, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCalendars, builtinIntlLocaleCalendarsGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, strings->lazyCalendars()), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCollations, builtinIntlLocaleCollationsGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, strings->lazyCollations()), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getHourCycles, builtinIntlLocaleHourCyclesGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, strings->lazyHourCycles()), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getNumberingSystems, builtinIntlLocaleNumberingSystemsGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, strings->lazyNumberingSystems()), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getTextInfo, builtinIntlLocaleTextInfoGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, strings->lazyTextInfo()), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getWeekInfo, builtinIntlLocaleWeekInfoGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, strings->lazyWeekInfo()), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getTimeZones, builtinIntlLocaleTimeZonesGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, strings->lazyTimeZones()), desc);
+    }
 
     m_intlRelativeTimeFormat = new NativeFunctionObject(state, NativeFunctionInfo(strings->RelativeTimeFormat, builtinIntlRelativeTimeFormatConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlRelativeTimeFormat->setGlobalIntrinsicObject(state);

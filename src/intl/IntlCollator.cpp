@@ -80,16 +80,7 @@ static std::vector<std::string> sortLocaleData(String* locale, size_t keyIndex)
                     continue;
 
                 // Map keyword values to BCP 47 equivalents.
-                if (!strcmp(collation, "dictionary"))
-                    collation = "dict";
-                else if (!strcmp(collation, "gb2312han"))
-                    collation = "gb2312";
-                else if (!strcmp(collation, "phonebook"))
-                    collation = "phonebk";
-                else if (!strcmp(collation, "traditional"))
-                    collation = "trad";
-
-                keyLocaleData.push_back(std::string(collation));
+                keyLocaleData.push_back(Intl::convertICUCollationKeywordToBCP47KeywordIfNeeds(collation));
             }
             uenum_close(enumeration);
         }
