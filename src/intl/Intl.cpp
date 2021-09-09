@@ -1317,6 +1317,32 @@ String* Intl::icuLocaleToBCP47Tag(String* string)
     return sb.finalize();
 }
 
+std::string Intl::convertICUCalendarKeywordToBCP47KeywordIfNeeds(const std::string& icuCalendar)
+{
+    if (icuCalendar == std::string("gregorian")) {
+        return "gregory";
+    } else if (icuCalendar == std::string("islamic-civil")) {
+        return "islamicc";
+    } else if (icuCalendar == std::string("ethiopic-amete-alem")) {
+        return "ethioaa";
+    }
+    return icuCalendar;
+}
+
+std::string Intl::convertICUCollationKeywordToBCP47KeywordIfNeeds(const std::string& icuCollation)
+{
+    if (icuCollation == std::string("dictionary")) {
+        return "dict";
+    } else if (icuCollation == std::string("gb2312han")) {
+        return "gb2312";
+    } else if (icuCollation == std::string("phonebook")) {
+        return "phonebk";
+    } else if (icuCollation == std::string("traditional")) {
+        return "trad";
+    }
+    return icuCollation;
+}
+
 static String* defaultLocale(ExecutionState& state)
 {
     String* localeString = String::fromUTF8(state.context()->vmInstance()->locale().data(), state.context()->vmInstance()->locale().length());

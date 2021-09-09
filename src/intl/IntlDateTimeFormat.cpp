@@ -75,16 +75,7 @@ std::vector<std::string> Intl::calendarsForLocale(String* locale)
         ASSERT(U_SUCCESS(status));
         status = U_ZERO_ERROR;
         std::string calendar = std::string(availableName, nameLength);
-        // Ensure aliases used in language tag are allowed.
-        if (calendar == std::string("gregorian")) {
-            keyLocaleData.push_back(std::string("gregory"));
-        } else if (calendar == std::string("islamic-civil")) {
-            keyLocaleData.push_back(std::string("islamicc"));
-        } else if (calendar == std::string("ethiopic-amete-alem")) {
-            keyLocaleData.push_back(std::string("ethioaa"));
-        } else {
-            keyLocaleData.push_back(calendar);
-        }
+        keyLocaleData.push_back(Intl::convertICUCalendarKeywordToBCP47KeywordIfNeeds(calendar));
     }
     uenum_close(calendars);
 
@@ -196,7 +187,7 @@ static String* defaultTimeZone(ExecutionState& state)
     return String::fromUTF8(state.context()->vmInstance()->timezoneID().data(), state.context()->vmInstance()->timezoneID().length());
 }
 
-static std::string readHourCycleFromPattern(const UTF16StringDataNonGCStd& patternString)
+std::string IntlDateTimeFormatObject::readHourCycleFromPattern(const UTF16StringDataNonGCStd& patternString)
 {
     bool inQuote = false;
     for (size_t i = 0; i < patternString.length(); i++) {
@@ -973,7 +964,6 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
     UDateFormat* udat = (UDateFormat*)m_icuDateFormat;
 
     // Delegate remaining steps to ICU.
-    UErrorCode status = U_ZERO_ERROR;
     auto formatResult = INTL_ICU_STRING_BUFFER_OPERATION_COMPLEX(udat_format, nullptr, m_icuDateFormat, x);
     if (U_FAILURE(formatResult.first)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format date value");

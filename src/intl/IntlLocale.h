@@ -91,6 +91,14 @@ public:
         return true;
     }
 
+    Value calendars(ExecutionState& state);
+    Value collations(ExecutionState& state);
+    Value hourCycles(ExecutionState& state);
+    Value numberingSystems(ExecutionState& state);
+    Value textInfo(ExecutionState& state);
+    Value weekInfo(ExecutionState& state);
+    Value timeZones(ExecutionState& state);
+
 protected:
     String* m_language;
     String* m_script;

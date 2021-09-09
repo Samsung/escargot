@@ -5889,6 +5889,104 @@ enum USystemTimeZoneType {
 /** @stable ICU 4.8 */
 typedef enum USystemTimeZoneType USystemTimeZoneType;
 
+/**
+ * Types of UCalendar attributes
+ * @stable ICU 2.0
+ */
+enum UCalendarAttribute {
+    /**
+   * Lenient parsing
+   * @stable ICU 2.0
+   */
+    UCAL_LENIENT,
+    /**
+   * First day of week
+   * @stable ICU 2.0
+   */
+    UCAL_FIRST_DAY_OF_WEEK,
+    /**
+   * Minimum number of days in first week
+   * @stable ICU 2.0
+   */
+    UCAL_MINIMAL_DAYS_IN_FIRST_WEEK,
+    /**
+   * The behavior for handling wall time repeating multiple times
+   * at negative time zone offset transitions
+   * @stable ICU 49
+   */
+    UCAL_REPEATED_WALL_TIME,
+    /**
+   * The behavior for handling skipped wall time at positive time
+   * zone offset transitions.
+   * @stable ICU 49
+   */
+    UCAL_SKIPPED_WALL_TIME
+};
+
+/** @stable ICU 2.0 */
+typedef enum UCalendarAttribute UCalendarAttribute;
+
+/**
+ * Options for handling ambiguous wall time at time zone
+ * offset transitions.
+ * @stable ICU 49
+ */
+enum UCalendarWallTimeOption {
+    /**
+     * An ambiguous wall time to be interpreted as the latest.
+     * This option is valid for UCAL_REPEATED_WALL_TIME and
+     * UCAL_SKIPPED_WALL_TIME.
+     * @stable ICU 49
+     */
+    UCAL_WALLTIME_LAST,
+    /**
+     * An ambiguous wall time to be interpreted as the earliest.
+     * This option is valid for UCAL_REPEATED_WALL_TIME and
+     * UCAL_SKIPPED_WALL_TIME.
+     * @stable ICU 49
+     */
+    UCAL_WALLTIME_FIRST,
+    /**
+     * An ambiguous wall time to be interpreted as the next valid
+     * wall time. This option is valid for UCAL_SKIPPED_WALL_TIME.
+     * @stable ICU 49
+     */
+    UCAL_WALLTIME_NEXT_VALID
+};
+/** @stable ICU 49 */
+typedef enum UCalendarWallTimeOption UCalendarWallTimeOption;
+
+/** Weekday types, as returned by ucal_getDayOfWeekType().
+ * @stable ICU 4.4
+ */
+enum UCalendarWeekdayType {
+    /**
+   * Designates a full weekday (no part of the day is included in the weekend).
+   * @stable ICU 4.4
+   */
+    UCAL_WEEKDAY,
+    /**
+   * Designates a full weekend day (the entire day is included in the weekend).
+   * @stable ICU 4.4
+   */
+    UCAL_WEEKEND,
+    /**
+   * Designates a day that starts as a weekday and transitions to the weekend.
+   * Call ucal_getWeekendTransition() to get the time of transition.
+   * @stable ICU 4.4
+   */
+    UCAL_WEEKEND_ONSET,
+    /**
+   * Designates a day that starts as the weekend and transitions to a weekday.
+   * Call ucal_getWeekendTransition() to get the time of transition.
+   * @stable ICU 4.4
+   */
+    UCAL_WEEKEND_CEASE
+};
+
+/** @stable ICU 4.4 */
+typedef enum UCalendarWeekdayType UCalendarWeekdayType;
+
 // udatpg.h
 typedef void *UDateTimePatternGenerator;
 
@@ -6583,6 +6681,19 @@ typedef enum {
     ULOC_DATA_LOCALE_TYPE_LIMIT = 3
 #endif // U_HIDE_DEPRECATED_API
 } ULocDataLocaleType;
+
+/**
+ * enums for the  return value for the character and line orientation
+ * functions.
+ * @stable ICU 4.0
+ */
+typedef enum {
+    ULOC_LAYOUT_LTR = 0, /* left-to-right. */
+    ULOC_LAYOUT_RTL = 1, /* right-to-left. */
+    ULOC_LAYOUT_TTB = 2, /* top-to-bottom. */
+    ULOC_LAYOUT_BTT = 3, /* bottom-to-top. */
+    ULOC_LAYOUT_UNKNOWN
+} ULayoutType;
 
 // ubrk.h
 struct UBreakIterator;

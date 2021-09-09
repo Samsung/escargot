@@ -1,4 +1,28 @@
-#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+/*
+ * Copyright (C) 2020 Sony Interactive Entertainment Inc.
+ * Copyright (C) 2021 Apple Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS''
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE.
+ */
 /*
  * Copyright (c) 2020-present Samsung Electronics Co., Ltd
  *
@@ -18,12 +42,16 @@
  *  USA
  */
 
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+
 #include "Escargot.h"
 #include "runtime/Context.h"
 #include "runtime/ExecutionState.h"
 #include "runtime/Value.h"
+#include "runtime/ArrayObject.h"
 #include "Intl.h"
 #include "IntlLocale.h"
+#include "IntlDateTimeFormat.h"
 
 namespace Escargot {
 
@@ -366,6 +394,269 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
     }
 
     m_locale = localeBuilder.finalize();
+}
+
+Value IntlLocaleObject::calendars(ExecutionState& state)
+{
+    ValueVector resultVector;
+    if (m_calendar) {
+        resultVector.pushBack(m_calendar.value());
+    } else {
+        UErrorCode status = U_ZERO_ERROR;
+        LocalResourcePointer<UEnumeration> calendars(
+            ucal_getKeywordValuesForLocale("calendar", m_locale->toNonGCUTF8StringData().data(), true, &status),
+            [](UEnumeration* fmt) { uenum_close(fmt); });
+
+        if (!U_SUCCESS(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            return Value();
+        }
+
+        const char* buffer;
+        int32_t bufferLength = 0;
+        while ((buffer = uenum_next(calendars.get(), &bufferLength, &status)) && U_SUCCESS(status)) {
+            std::string calendar(buffer, bufferLength);
+            calendar = Intl::convertICUCalendarKeywordToBCP47KeywordIfNeeds(calendar);
+            resultVector.pushBack(String::fromUTF8(calendar.data(), calendar.size()));
+        }
+
+        if (!U_SUCCESS(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            return Value();
+        }
+    }
+
+    return Object::createArrayFromList(state, resultVector);
+}
+
+Value IntlLocaleObject::collations(ExecutionState& state)
+{
+    ValueVector resultVector;
+    if (m_collation) {
+        resultVector.pushBack(m_collation.value());
+    } else {
+        UErrorCode status = U_ZERO_ERROR;
+        LocalResourcePointer<UEnumeration> collations(
+            ucol_getKeywordValuesForLocale("collation", m_locale->toNonGCUTF8StringData().data(), true, &status),
+            [](UEnumeration* f) { uenum_close(f); });
+
+        if (!U_SUCCESS(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            return Value();
+        }
+
+        const char* buffer;
+        int32_t bufferLength = 0;
+        while ((buffer = uenum_next(collations.get(), &bufferLength, &status)) && U_SUCCESS(status)) {
+            // https://tc39.es/proposal-intl-locale-info/#sec-collations-of-locale
+            // Let list be a List of 1 or more unique collation identifiers,
+            // which must be lower case String values conforming to the type sequence from UTS 35 Unicode Locale Identifier,
+            // section 3.2, sorted in descending preference of those in common use for string comparison in locale.
+            // The values "standard" and "search" must be excluded from list.
+            std::string collation(buffer, bufferLength);
+            if (collation == "standard" || collation == "search") {
+                continue;
+            }
+            collation = Intl::convertICUCollationKeywordToBCP47KeywordIfNeeds(collation);
+            resultVector.pushBack(String::fromUTF8(collation.data(), collation.size()));
+        }
+
+        if (!U_SUCCESS(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            return Value();
+        }
+    }
+
+    return Object::createArrayFromList(state, resultVector);
+}
+
+Value IntlLocaleObject::hourCycles(ExecutionState& state)
+{
+    ValueVector resultVector;
+    if (m_hourCycle) {
+        resultVector.pushBack(m_hourCycle.value());
+    } else {
+        UErrorCode status = U_ZERO_ERROR;
+        LocalResourcePointer<UDateTimePatternGenerator> generator(udatpg_open(m_locale->toNonGCUTF8StringData().data(), &status),
+                                                                  [](UDateTimePatternGenerator* d) { udatpg_close(d); });
+        if (!U_SUCCESS(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            return Value();
+        }
+
+        UChar skeleton[] = { 'j', 0 };
+        auto getBestPatternWithOptionsResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getBestPatternWithOptions, generator.get(), skeleton, 1, UDATPG_MATCH_HOUR_FIELD_LENGTH);
+        if (U_FAILURE(getBestPatternWithOptionsResult.first)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            return Value();
+        }
+
+        auto hc = IntlDateTimeFormatObject::readHourCycleFromPattern(getBestPatternWithOptionsResult.second);
+        if (hc.size()) {
+            resultVector.pushBack(String::fromUTF8(hc.data(), hc.size()));
+        }
+    }
+
+    return Object::createArrayFromList(state, resultVector);
+}
+
+Value IntlLocaleObject::numberingSystems(ExecutionState& state)
+{
+    ValueVector resultVector;
+    if (m_numberingSystem) {
+        resultVector.pushBack(m_numberingSystem.value());
+    } else {
+        UErrorCode status = U_ZERO_ERROR;
+        LocalResourcePointer<UNumberingSystem> numberingSystem(
+            unumsys_open(m_locale->toNonGCUTF8StringData().data(), &status),
+            [](UNumberingSystem* p) { unumsys_close(p); });
+
+        if (!U_SUCCESS(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            return Value();
+        }
+
+        const char* u8Name = unumsys_getName(numberingSystem.get());
+        resultVector.pushBack(String::fromUTF8(u8Name, strlen(u8Name)));
+    }
+
+    return Object::createArrayFromList(state, resultVector);
+}
+
+Value IntlLocaleObject::textInfo(ExecutionState& state)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    ULayoutType layout = uloc_getCharacterOrientation(m_locale->toNonGCUTF8StringData().data(), &status);
+    if (!U_SUCCESS(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+        return Value();
+    }
+
+    Value layoutValue;
+    if (layout == ULOC_LAYOUT_LTR) {
+        layoutValue = String::fromASCII("ltr");
+    } else if (layout == ULOC_LAYOUT_RTL) {
+        layoutValue = String::fromASCII("rtl");
+    } else if (layout == ULOC_LAYOUT_TTB) {
+        layoutValue = String::fromASCII("ttb");
+    } else {
+        ASSERT(layout == ULOC_LAYOUT_BTT);
+        layoutValue = String::fromASCII("btt");
+    }
+
+    Object* result = new Object(state);
+    result->set(state, ObjectPropertyName(state, String::fromASCII("direction")), layoutValue, result);
+    return result;
+}
+
+Value IntlLocaleObject::weekInfo(ExecutionState& state)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UCalendar> calendar(ucal_open(nullptr, 0, m_locale->toNonGCUTF8StringData().data(), UCAL_DEFAULT, &status),
+                                             [](UCalendar* d) { ucal_close(d); });
+    if (!U_SUCCESS(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+        return Value();
+    }
+
+    int32_t firstDayOfWeek = ucal_getAttribute(calendar.get(), UCAL_FIRST_DAY_OF_WEEK);
+    int32_t minimalDays = ucal_getAttribute(calendar.get(), UCAL_MINIMAL_DAYS_IN_FIRST_WEEK);
+
+    auto canonicalizeDayOfWeekType = [](UCalendarWeekdayType type) {
+        switch (type) {
+        // UCAL_WEEKEND_ONSET is a day that starts as a weekday and transitions to the weekend. It means this is WeekDay.
+        case UCAL_WEEKEND_ONSET:
+        case UCAL_WEEKDAY:
+            return UCAL_WEEKDAY;
+        // UCAL_WEEKEND_CEASE is a day that starts as the weekend and transitions to a weekday. It means this is WeekEnd.
+        case UCAL_WEEKEND_CEASE:
+        case UCAL_WEEKEND:
+            return UCAL_WEEKEND;
+        default:
+            return UCAL_WEEKEND;
+        }
+    };
+
+    UCalendarWeekdayType previous = canonicalizeDayOfWeekType(ucal_getDayOfWeekType(calendar.get(), UCAL_SATURDAY, &status));
+    if (!U_SUCCESS(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+        return Value();
+    }
+
+    int32_t weekendStart = 0;
+    int32_t weekendEnd = 0;
+    for (int32_t day = UCAL_SUNDAY; day <= UCAL_SATURDAY; ++day) {
+        UCalendarWeekdayType type = canonicalizeDayOfWeekType(ucal_getDayOfWeekType(calendar.get(), static_cast<UCalendarDaysOfWeek>(day), &status));
+        if (!U_SUCCESS(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            return Value();
+        }
+        if (previous != type) {
+            switch (type) {
+            case UCAL_WEEKDAY: // WeekEnd => WeekDay
+                if (day == UCAL_SUNDAY)
+                    weekendEnd = UCAL_SATURDAY;
+                else
+                    weekendEnd = day - 1;
+                break;
+            case UCAL_WEEKEND: // WeekDay => WeekEnd
+                weekendStart = day;
+                break;
+            default:
+                ASSERT_NOT_REACHED();
+                break;
+            }
+        }
+        previous = type;
+    }
+
+    auto convertUCalendarDaysOfWeekToMondayBasedDay = [](int32_t day) -> int32_t {
+        // Convert from
+        //     Sunday => 1
+        //     Saturday => 7
+        // to
+        //     Monday => 1
+        //     Sunday => 7
+        if (day == UCAL_SUNDAY)
+            return 7;
+        return day - 1;
+    };
+
+    Object* result = new Object(state);
+    result->set(state, ObjectPropertyName(state, String::fromASCII("firstDay")), Value(convertUCalendarDaysOfWeekToMondayBasedDay(firstDayOfWeek)), result);
+    result->set(state, ObjectPropertyName(state, String::fromASCII("weekendStart")), Value(convertUCalendarDaysOfWeekToMondayBasedDay(weekendStart)), result);
+    result->set(state, ObjectPropertyName(state, String::fromASCII("weekendEnd")), Value(convertUCalendarDaysOfWeekToMondayBasedDay(weekendEnd)), result);
+    result->set(state, ObjectPropertyName(state, String::fromASCII("minimalDays")), Value(minimalDays), result);
+    return result;
+}
+
+Value IntlLocaleObject::timeZones(ExecutionState& state)
+{
+    if (!m_region->length()) {
+        return Value();
+    }
+
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UEnumeration> enumeration(ucal_openTimeZoneIDEnumeration(UCAL_ZONE_TYPE_CANONICAL, m_region->toNonGCUTF8StringData().data(), nullptr, &status),
+                                                   [](UEnumeration* d) { uenum_close(d); });
+    if (!U_SUCCESS(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+        return Value();
+    }
+
+    ValueVector resultVector;
+    int32_t length;
+    const char* collation;
+    while ((collation = uenum_next(enumeration.get(), &length, &status)) && U_SUCCESS(status)) {
+        resultVector.pushBack(String::fromUTF8(collation, length));
+    }
+
+    if (!U_SUCCESS(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+        return Value();
+    }
+
+    return Object::createArrayFromList(state, resultVector);
 }
 
 } // namespace Escargot

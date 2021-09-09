@@ -44,6 +44,7 @@
 #define uloc_toLanguageTag RuntimeICUBinder::ICU::instance().uloc_toLanguageTag
 #define uloc_addLikelySubtags RuntimeICUBinder::ICU::instance().uloc_addLikelySubtags
 #define uloc_minimizeSubtags RuntimeICUBinder::ICU::instance().uloc_minimizeSubtags
+#define uloc_getCharacterOrientation RuntimeICUBinder::ICU::instance().uloc_getCharacterOrientation
 #define uloc_countAvailable RuntimeICUBinder::ICU::instance().uloc_countAvailable
 #define uloc_getAvailable RuntimeICUBinder::ICU::instance().uloc_getAvailable
 
@@ -111,10 +112,15 @@
 
 #define uiter_setString RuntimeICUBinder::ICU::instance().uiter_setString
 
+#define ucal_open RuntimeICUBinder::ICU::instance().ucal_open
+#define ucal_close RuntimeICUBinder::ICU::instance().ucal_close
 #define ucal_getKeywordValuesForLocale RuntimeICUBinder::ICU::instance().ucal_getKeywordValuesForLocale
+#define ucal_openTimeZoneIDEnumeration RuntimeICUBinder::ICU::instance().ucal_openTimeZoneIDEnumeration
 #define ucal_openTimeZones RuntimeICUBinder::ICU::instance().ucal_openTimeZones
 #define ucal_getCanonicalTimeZoneID RuntimeICUBinder::ICU::instance().ucal_getCanonicalTimeZoneID
 #define ucal_getType RuntimeICUBinder::ICU::instance().ucal_getType
+#define ucal_getAttribute RuntimeICUBinder::ICU::instance().ucal_getAttribute
+#define ucal_getDayOfWeekType RuntimeICUBinder::ICU::instance().ucal_getDayOfWeekType
 #define ucal_setGregorianChange RuntimeICUBinder::ICU::instance().ucal_setGregorianChange
 
 #define udatpg_close RuntimeICUBinder::ICU::instance().udatpg_close

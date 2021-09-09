@@ -612,11 +612,6 @@ ASCIIStringData dtoa(double number)
     return ASCIIStringData(str.data(), str.length());
 }
 
-String* String::fromASCII(const char* src)
-{
-    return new ASCIIString(src, strlen(src));
-}
-
 String* String::fromASCII(const char* src, size_t len)
 {
     return new ASCIIString(src, len);

@@ -288,7 +288,12 @@ public:
         return false;
     }
 
-    static String* fromASCII(const char* s);
+    template <const size_t srcLen>
+    static String* fromASCII(const char (&src)[srcLen])
+    {
+        return fromASCII(src, srcLen - 1);
+    }
+
     static String* fromASCII(const char* s, size_t len);
     static String* fromCharCode(char32_t code);
     static String* fromDouble(double v);

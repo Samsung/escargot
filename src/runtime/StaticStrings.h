@@ -685,9 +685,11 @@ namespace Escargot {
     F(Base, "base")                                         \
     F(Basic, "basic")                                       \
     F(BestFit, "best fit")                                  \
+    F(Calendars, "calendars")                               \
     F(Cardinal, "cardinal")                                 \
     F(Case, "case")                                         \
     F(Code, "code")                                         \
+    F(Collations, "collations")                             \
     F(Compact, "compact")                                   \
     F(CompactDisplay, "compactDisplay")                     \
     F(CompareFunction, "compareFunction")                   \
@@ -722,6 +724,7 @@ namespace Escargot {
     F(H24, "h24")                                           \
     F(Hour, "hour")                                         \
     F(Hour12, "hour12")                                     \
+    F(HourCycles, "hourCycles")                             \
     F(IgnorePunctuation, "ignorePunctuation")               \
     F(InitializedCollator, "initializedCollator")           \
     F(InitializedIntlObject, "initializedIntlObject")       \
@@ -749,6 +752,7 @@ namespace Escargot {
     F(Never, "never")                                       \
     F(None, "none")                                         \
     F(Notation, "notation")                                 \
+    F(NumberingSystems, "numberingSystems")                 \
     F(Ordinal, "ordinal")                                   \
     F(Percent, "percent")                                   \
     F(PercentSign, "percentSign")                           \
@@ -764,9 +768,11 @@ namespace Escargot {
     F(SmallLetterNaN, "nan")                                \
     F(Standard, "standard")                                 \
     F(Style, "style")                                       \
+    F(TextInfo, "textInfo")                                 \
     F(Time, "time")                                         \
     F(TimeStyle, "timeStyle")                               \
     F(TimeZone, "timeZone")                                 \
+    F(TimeZones, "timeZones")                               \
     F(TimeZoneName, "timeZoneName")                         \
     F(TwoDigit, "2-digit")                                  \
     F(Type, "type")                                         \
@@ -778,6 +784,7 @@ namespace Escargot {
     F(Variant, "variant")                                   \
     F(Week, "week")                                         \
     F(Weekday, "weekday")                                   \
+    F(WeekInfo, "weekInfo")                                 \
     F(Year, "year")
 #else
 #define FOR_EACH_LAZY_INTL_STATIC_STRING(F)
@@ -852,8 +859,10 @@ public:
     AtomicString getBaseName;
     AtomicString getBuffer;
     AtomicString getCalendar;
+    AtomicString getCalendars;
     AtomicString getCaseFirst;
     AtomicString getCollation;
+    AtomicString getCollations;
     AtomicString getCompare;
     AtomicString getDescription;
     AtomicString getDotAll;
@@ -861,11 +870,13 @@ public:
     AtomicString getFormat;
     AtomicString getGlobal;
     AtomicString getHourCycle;
+    AtomicString getHourCycles;
     AtomicString getIgnoreCase;
     AtomicString getLanguage;
     AtomicString getLength;
     AtomicString getMultiline;
     AtomicString getNumberingSystem;
+    AtomicString getNumberingSystems;
     AtomicString getNumeric;
     AtomicString getRegion;
     AtomicString getScript;
@@ -874,7 +885,10 @@ public:
     AtomicString getSticky;
     AtomicString getSymbolSpecies;
     AtomicString getSymbolToStringTag;
+    AtomicString getTextInfo;
+    AtomicString getTimeZones;
     AtomicString getUnicode;
+    AtomicString getWeekInfo;
     AtomicString get__proto__;
     AtomicString getbyteLength;
     AtomicString getbyteOffset;
