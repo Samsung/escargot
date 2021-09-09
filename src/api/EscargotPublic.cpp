@@ -2868,15 +2868,36 @@ RegExpObjectRef::RegExpObjectOption RegExpObjectRef::option()
     return (RegExpObjectRef::RegExpObjectOption)toImpl(this)->option();
 }
 
-BackingStoreRef* BackingStoreRef::create(size_t byteLength)
+BackingStoreRef* BackingStoreRef::createDefaultNonSharedBackingStore(size_t byteLength)
 {
-    return toRef(new BackingStore(byteLength));
+    return toRef(BackingStore::createDefaultNonSharedBackingStore(byteLength));
 }
 
-BackingStoreRef* BackingStoreRef::create(void* data, size_t byteLength, BackingStoreRef::BackingStoreRefDeleterCallback callback, void* callbackData)
+BackingStoreRef* BackingStoreRef::createNonSharedBackingStore(void* data, size_t byteLength, BackingStoreRef::BackingStoreRefDeleterCallback callback, void* callbackData)
 {
-    return toRef(new BackingStore(data, byteLength, (BackingStoreDeleterCallback)callback, callbackData));
+    return toRef(BackingStore::createNonSharedBackingStore(data, byteLength, (BackingStoreDeleterCallback)callback, callbackData));
 }
+
+#if defined(ENABLE_THREADING)
+BackingStoreRef* BackingStoreRef::createDefaultSharedBackingStore(size_t byteLength)
+{
+    return toRef(BackingStore::createDefaultSharedBackingStore(byteLength));
+}
+
+BackingStoreRef* BackingStoreRef::createSharedBackingStore(BackingStoreRef* backingStore)
+{
+    return toRef(BackingStore::createSharedBackingStore(toImpl(backingStore)->sharedDataBlockInfo()));
+}
+#else
+BackingStoreRef* BackingStoreRef::createDefaultSharedBackingStore(size_t byteLength)
+{
+    RELEASE_ASSERT_NOT_REACHED();
+}
+BackingStoreRef* BackingStoreRef::createSharedBackingStore(BackingStoreRef* backingStore)
+{
+    RELEASE_ASSERT_NOT_REACHED();
+}
+#endif
 
 void* BackingStoreRef::data()
 {

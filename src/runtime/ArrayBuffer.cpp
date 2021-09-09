@@ -31,7 +31,6 @@ unsigned TypedArrayHelper::elementSizeTable[11] = { 1, 2, 4, 1, 2, 4, 1, 4, 8, 8
 
 ArrayBuffer::ArrayBuffer(ExecutionState& state, Object* proto)
     : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
-    , m_mayPointsSharedBackingStore(false)
 {
 }
 

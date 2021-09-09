@@ -1478,14 +1478,24 @@ class ESCARGOT_EXPORT BackingStoreRef {
     friend class ArrayBufferObject;
 
 public:
-    static BackingStoreRef* create(size_t byteLength);
     typedef void (*BackingStoreRefDeleterCallback)(void* data, size_t length,
                                                    void* deleterData);
-    static BackingStoreRef* create(void* data, size_t byteLength, BackingStoreRefDeleterCallback callback, void* callbackData);
+
+    // create default NonSharedBackingStore allocated by platform allocator
+    static BackingStoreRef* createDefaultNonSharedBackingStore(size_t byteLength);
+    // create customized NonSharedBackingStore allocated by other allocator
+    static BackingStoreRef* createNonSharedBackingStore(void* data, size_t byteLength, BackingStoreRefDeleterCallback callback, void* callbackData);
+
+    // Note) SharedBackingStore is allocated for each worker(thread) and its internal data block is actually shared among workers.
+    // Also, SharedBackingStore's internal data block is allocated only by platform allocator now.
+    // create default SharedBackingStore allocated by platform allocator
+    static BackingStoreRef* createDefaultSharedBackingStore(size_t byteLength);
+    // create SharedBackingStore by sharing with already created one
+    static BackingStoreRef* createSharedBackingStore(BackingStoreRef* backingStore);
 
     void* data();
     size_t byteLength();
-    // Indicates whether the backing store is Shared Data Block (for SharedArrayBuffer)
+    // Indicates whether the backing store is SharedDataBlock(for SharedArrayBuffer)
     bool isShared();
     void reallocate(size_t newByteLength);
 };

@@ -55,7 +55,7 @@ std::unique_ptr<SerializedValue> Serializer::serialize(const Value& value)
 #if defined(ENABLE_THREADING)
         if (value.asObject()->isSharedArrayBufferObject()) {
             return std::unique_ptr<SerializedValue>(new SerializedSharedArrayBufferObjectValue(
-                static_cast<SharedArrayBufferObjectBackingStoreData*>(value.asObject()->asSharedArrayBufferObject()->backingStore()->deleterData())));
+                value.asObject()->asSharedArrayBufferObject()->backingStore()->sharedDataBlockInfo()));
         }
 #endif
     }

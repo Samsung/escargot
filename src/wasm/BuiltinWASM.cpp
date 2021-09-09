@@ -452,8 +452,8 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     // Note) wasm_memory_data with zero size returns null pointer
     // predefined temporal address is allocated for this case
     void* dataBlock = initial == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memaddr);
-    BackingStore* backingStore = new BackingStore(dataBlock, wasm_memory_data_size(memaddr),
-                                                  [](void* data, size_t length, void* deleterData) {}, nullptr);
+    BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, wasm_memory_data_size(memaddr),
+                                                                           [](void* data, size_t length, void* deleterData) {}, nullptr);
     buffer->attachBuffer(backingStore);
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyMemoryPrototype%").
@@ -529,8 +529,8 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
     size_t dataSize = wasm_memory_data_size(memaddr);
     void* dataBlock = dataSize == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memaddr);
 
-    BackingStore* backingStore = new BackingStore(dataBlock, dataSize,
-                                                  [](void* data, size_t length, void* deleterData) {}, nullptr);
+    BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, dataSize,
+                                                                           [](void* data, size_t length, void* deleterData) {}, nullptr);
     buffer->attachBuffer(backingStore);
 
     // Set memory.[[BufferObject]] to buffer.
@@ -557,8 +557,8 @@ static Value builtinWASMMemoryBufferGetter(ExecutionState& state, Value thisValu
         size_t dataSize = wasm_memory_data_size(memoryObj->memory());
         void* dataBlock = dataSize == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memoryObj->memory());
 
-        BackingStore* backingStore = new BackingStore(dataBlock, dataSize,
-                                                      [](void* data, size_t length, void* deleterData) {}, nullptr);
+        BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, dataSize,
+                                                                               [](void* data, size_t length, void* deleterData) {}, nullptr);
         buffer->attachBuffer(backingStore);
 
         memoryObj->setBuffer(buffer);

@@ -24,83 +24,122 @@
 
 namespace Escargot {
 
-void* BackingStore::operator new(size_t size)
-{
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        // only mark m_deleterData
-        GC_word obj_bitmap[GC_BITMAP_SIZE(BackingStore)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(BackingStore, m_deleterData));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(BackingStore));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
-static void defaultPlatformBackingStoreDeleter(void* data, size_t length, void* deleterData)
+static void backingStorePlatformDeleter(void* data, size_t length, void* deleterData)
 {
     if (!!data) {
         Global::platform()->onFreeArrayBufferObjectDataBuffer(data, length);
     }
 }
 
-BackingStore::~BackingStore()
+BackingStore* BackingStore::createDefaultNonSharedBackingStore(size_t byteLength)
 {
-    // Shared Data Block should not be deleted explicitly
-    ASSERT(!m_isShared);
-    m_deleter(m_data, m_byteLength, m_deleterData);
-    GC_REGISTER_FINALIZER_NO_ORDER(this, nullptr, nullptr, nullptr, nullptr);
-    m_data = nullptr;
-    m_byteLength = 0;
-    m_deleter = defaultPlatformBackingStoreDeleter;
-    m_deleterData = nullptr;
-    m_isAllocatedByPlatformAllocator = true;
+    return new NonSharedBackingStore(
+        Global::platform()->onMallocArrayBufferObjectDataBuffer(byteLength),
+        byteLength, backingStorePlatformDeleter, nullptr, true);
 }
 
-BackingStore::BackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData,
-                           bool isShared)
-    : m_isShared(isShared)
-    , m_isAllocatedByPlatformAllocator(false)
-    , m_data(data)
+BackingStore* BackingStore::createNonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData)
+{
+    return new NonSharedBackingStore(data, byteLength, callback, callbackData, false);
+}
+
+NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData, bool isAllocatedByPlatform)
+    : m_data(data)
     , m_byteLength(byteLength)
     , m_deleter(callback)
     , m_deleterData(callbackData)
+    , m_isAllocatedByPlatform(isAllocatedByPlatform)
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
-        BackingStore* self = (BackingStore*)obj;
+        NonSharedBackingStore* self = (NonSharedBackingStore*)obj;
         self->m_deleter(self->m_data, self->m_byteLength, self->m_deleterData);
     },
                                    nullptr, nullptr, nullptr);
 }
 
-BackingStore::BackingStore(size_t byteLength)
-    : BackingStore(Global::platform()->onMallocArrayBufferObjectDataBuffer(byteLength), byteLength,
-                   defaultPlatformBackingStoreDeleter, nullptr, false)
+void* NonSharedBackingStore::operator new(size_t size)
 {
-    m_isAllocatedByPlatformAllocator = true;
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        // only mark m_deleterData
+        GC_word obj_bitmap[GC_BITMAP_SIZE(NonSharedBackingStore)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NonSharedBackingStore, m_deleterData));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(NonSharedBackingStore));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-void BackingStore::reallocate(size_t newByteLength)
+void NonSharedBackingStore::reallocate(size_t newByteLength)
 {
-    // Shared Data Block should not be reallocated
-    ASSERT(!m_isShared);
-
     if (m_byteLength == newByteLength) {
         return;
     }
 
-    if (m_isAllocatedByPlatformAllocator) {
+    if (m_isAllocatedByPlatform) {
         m_data = Global::platform()->onReallocArrayBufferObjectDataBuffer(m_data, m_byteLength, newByteLength);
         m_byteLength = newByteLength;
     } else {
+        // Note) even if BackingStore was previously allocated by other allocator,
+        // newly reallocate it with default Platform allocator
         m_deleter(m_data, m_byteLength, m_deleterData);
         m_data = Global::platform()->onMallocArrayBufferObjectDataBuffer(newByteLength);
-        m_deleter = defaultPlatformBackingStoreDeleter;
+        m_deleter = backingStorePlatformDeleter;
         m_deleterData = nullptr;
         m_byteLength = newByteLength;
-        m_isAllocatedByPlatformAllocator = true;
+        m_isAllocatedByPlatform = true;
     }
 }
+
+#if defined(ENABLE_THREADING)
+BackingStore* BackingStore::createDefaultSharedBackingStore(size_t byteLength)
+{
+    SharedDataBlockInfo* sharedInfo = new SharedDataBlockInfo(
+        Global::platform()->onMallocArrayBufferObjectDataBuffer(byteLength),
+        byteLength);
+    return new SharedBackingStore(sharedInfo);
+}
+
+BackingStore* BackingStore::createSharedBackingStore(SharedDataBlockInfo* sharedInfo)
+{
+    ASSERT(sharedInfo->hasValidReference());
+    return new SharedBackingStore(sharedInfo);
+}
+
+void SharedDataBlockInfo::deref()
+{
+    ASSERT(hasValidReference());
+
+    auto oldValue = m_refCount.fetch_sub(1);
+    if (oldValue == 1) {
+        Global::platform()->onFreeArrayBufferObjectDataBuffer(m_data, m_byteLength);
+        m_data = nullptr;
+        m_byteLength = 0;
+
+        delete this;
+        return;
+    }
+}
+
+SharedBackingStore::SharedBackingStore(SharedDataBlockInfo* sharedInfo)
+    : m_sharedDataBlockInfo(sharedInfo)
+{
+    // increase reference count
+    sharedInfo->ref();
+
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+        SharedBackingStore* self = (SharedBackingStore*)obj;
+        self->sharedDataBlockInfo()->deref();
+    },
+                                   nullptr, nullptr, nullptr);
+}
+
+void* SharedBackingStore::operator new(size_t size)
+{
+    // SharedBackingStore does not have any GC member
+    return GC_MALLOC_ATOMIC(size);
+}
+#endif
 
 } // namespace Escargot

@@ -82,7 +82,7 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
         GC_invoke_finalizers();
     }
 
-    m_backingStore = new BackingStore(byteLength);
+    m_backingStore = BackingStore::createDefaultNonSharedBackingStore(byteLength);
 }
 
 void ArrayBufferObject::attachBuffer(BackingStore* backingStore)
@@ -91,23 +91,12 @@ void ArrayBufferObject::attachBuffer(BackingStore* backingStore)
     ASSERT(!backingStore->isShared());
     detachArrayBuffer();
 
-    m_mayPointsSharedBackingStore = true;
     m_backingStore = backingStore;
 }
 
 void ArrayBufferObject::detachArrayBuffer()
 {
-#if defined(ENABLE_THREADING)
-    // this check looks redundant, but it is necessary because SharedArrayBuffer cannot detach the buffer
-    ASSERT(!isSharedArrayBufferObject());
-#endif
-
-    if (m_backingStore && !m_mayPointsSharedBackingStore) {
-        // if backingstore is definitely not shared, we deallocate the backingstore immediately.
-        delete m_backingStore.value();
-    }
     m_backingStore.reset();
-    m_mayPointsSharedBackingStore = false;
 }
 
 void* ArrayBufferObject::operator new(size_t size)
