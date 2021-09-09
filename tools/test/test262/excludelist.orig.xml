@@ -982,8 +982,6 @@
     <test id="intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-timezone"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/unicode-ext-key-with-digit"><reason>TODO</reason></test>
-    <test id="intl402/Intl/toStringTag/toString"><reason>TODO</reason></test>
-    <test id="intl402/Intl/toStringTag/toStringTag"><reason>TODO</reason></test>
     <test id="intl402/ListFormat/constructor/constructor/locales-invalid"><reason>TODO</reason></test>
     <test id="intl402/ListFormat/constructor/constructor/locales-valid"><reason>TODO</reason></test>
     <test id="intl402/ListFormat/constructor/constructor/newtarget-undefined"><reason>TODO</reason></test>
