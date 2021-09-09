@@ -27,27 +27,10 @@
 
 namespace Escargot {
 
-static void backingStoreDeleter(void* data, size_t length, void* deleterData)
-{
-    SharedArrayBufferObjectBackingStoreData* internalData = (SharedArrayBufferObjectBackingStoreData*)deleterData;
-    internalData->deref();
-}
-
-void SharedArrayBufferObjectBackingStoreData::deref()
-{
-    auto oldValue = m_refCount.fetch_sub(1);
-    if (oldValue == 1) {
-        Global::platform()->onFreeArrayBufferObjectDataBuffer(m_data, m_byteLength);
-        delete this;
-    }
-}
-
 SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, size_t byteLength)
     : ArrayBuffer(state, proto)
 {
     ASSERT(byteLength < ArrayBuffer::maxArrayBufferSize);
-
-    m_mayPointsSharedBackingStore = true;
 
     const size_t ratio = std::max((size_t)GC_get_free_space_divisor() / 6, (size_t)1);
     if (byteLength > (GC_get_heap_size() / ratio)) {
@@ -60,10 +43,7 @@ SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* 
         GC_invoke_finalizers();
     }
 
-    void* buffer = Global::platform()->onMallocArrayBufferObjectDataBuffer(byteLength);
-    SharedArrayBufferObjectBackingStoreData* internalData = new SharedArrayBufferObjectBackingStoreData(buffer, byteLength);
-
-    m_backingStore = new BackingStore(buffer, byteLength, backingStoreDeleter, internalData, true);
+    m_backingStore = BackingStore::createDefaultSharedBackingStore(byteLength);
 }
 
 SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, BackingStore* backingStore)
@@ -72,19 +52,13 @@ SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* 
     // BackingStore should be valid and shared
     ASSERT(!!backingStore && backingStore->isShared());
 
-    m_mayPointsSharedBackingStore = true;
-    m_backingStore = backingStore;
-
-    SharedArrayBufferObjectBackingStoreData* internalData = (SharedArrayBufferObjectBackingStoreData*)backingStore->deleterData();
-    internalData->ref();
+    m_backingStore = BackingStore::createSharedBackingStore(backingStore->sharedDataBlockInfo());
 }
 
-SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedArrayBufferObjectBackingStoreData* data)
+SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedDataBlockInfo* sharedInfo)
     : ArrayBuffer(state, proto)
 {
-    data->ref();
-    m_mayPointsSharedBackingStore = true;
-    m_backingStore = new BackingStore(data->data(), data->byteLength(), backingStoreDeleter, data, true);
+    m_backingStore = BackingStore::createSharedBackingStore(sharedInfo);
 }
 
 SharedArrayBufferObject* SharedArrayBufferObject::allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength)
@@ -98,9 +72,7 @@ SharedArrayBufferObject* SharedArrayBufferObject::allocateSharedArrayBuffer(Exec
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
     }
 
-    SharedArrayBufferObject* obj = new SharedArrayBufferObject(state, proto, byteLength);
-
-    return obj;
+    return new SharedArrayBufferObject(state, proto, byteLength);
 }
 
 void* SharedArrayBufferObject::operator new(size_t size)

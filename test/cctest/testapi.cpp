@@ -973,7 +973,7 @@ TEST(FunctionTemplate, Basic4)
 TEST(BackingStore, Basic1)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
-        auto bs = BackingStoreRef::create(1024);
+        auto bs = BackingStoreRef::createDefaultNonSharedBackingStore(1024);
         EXPECT_FALSE(bs->isShared());
         EXPECT_TRUE(bs->byteLength() == 1024);
         auto abo = ArrayBufferObjectRef::create(state);
@@ -996,7 +996,7 @@ TEST(BackingStore, Basic1)
         EXPECT_TRUE(abo->byteLength() == 1024);
 
         // there is no error
-        bs = BackingStoreRef::create(calloc(1024, 1), 1024, [](void* data, size_t length, void* deleterData) {
+        bs = BackingStoreRef::createNonSharedBackingStore(calloc(1024, 1), 1024, [](void* data, size_t length, void* deleterData) {
             free(data);
         },
                                      nullptr);

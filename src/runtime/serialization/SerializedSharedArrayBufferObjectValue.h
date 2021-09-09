@@ -53,11 +53,11 @@ protected:
     {
         size_t ptr;
         inputStream >> ptr;
-        SharedArrayBufferObjectBackingStoreData* data = reinterpret_cast<SharedArrayBufferObjectBackingStoreData*>(ptr);
+        SharedDataBlockInfo* data = reinterpret_cast<SharedDataBlockInfo*>(ptr);
         return std::unique_ptr<SerializedValue>(new SerializedSharedArrayBufferObjectValue(data));
     }
 
-    SerializedSharedArrayBufferObjectValue(SharedArrayBufferObjectBackingStoreData* bufferData)
+    SerializedSharedArrayBufferObjectValue(SharedDataBlockInfo* bufferData)
         : m_bufferData(bufferData)
     {
         m_bufferData->ref();
@@ -68,7 +68,7 @@ protected:
         m_bufferData->deref();
     }
 
-    SharedArrayBufferObjectBackingStoreData* m_bufferData;
+    SharedDataBlockInfo* m_bufferData;
 };
 
 } // namespace Escargot

@@ -54,9 +54,6 @@ public:
 
     Optional<BackingStore*> backingStore()
     {
-        if (m_backingStore) {
-            m_mayPointsSharedBackingStore = true;
-        }
         return m_backingStore;
     }
 
@@ -110,7 +107,6 @@ protected:
         GC_set_bit(desc, GC_WORD_OFFSET(ArrayBuffer, m_backingStore));
     }
 
-    bool m_mayPointsSharedBackingStore;
     Optional<BackingStore*> m_backingStore;
 };
 

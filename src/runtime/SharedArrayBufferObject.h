@@ -26,43 +26,11 @@
 
 namespace Escargot {
 
-class SharedArrayBufferObjectBackingStoreData {
-public:
-    SharedArrayBufferObjectBackingStoreData(void* data, size_t byteLength)
-        : m_data(data)
-        , m_byteLength(byteLength)
-        , m_refCount(1)
-    {
-    }
-
-    void* data() const
-    {
-        return m_data;
-    }
-
-    size_t byteLength() const
-    {
-        return m_byteLength;
-    }
-
-    void ref()
-    {
-        m_refCount++;
-    }
-
-    void deref();
-
-private:
-    void* m_data;
-    size_t m_byteLength;
-    std::atomic<size_t> m_refCount;
-};
-
 class SharedArrayBufferObject : public ArrayBuffer {
 public:
     SharedArrayBufferObject(ExecutionState& state, Object* proto, size_t byteLength);
     SharedArrayBufferObject(ExecutionState& state, Object* proto, BackingStore* backingStore);
-    SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedArrayBufferObjectBackingStoreData* data);
+    SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedDataBlockInfo* sharedInfo);
 
     static SharedArrayBufferObject* allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength);
 
