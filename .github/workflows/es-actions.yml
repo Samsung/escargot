@@ -10,6 +10,20 @@ env:
   RUNNER: tools/run-tests.py
 
 jobs:
+  check_tidy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '2.7'
+    - name: Install Packages
+      run: sudo apt install -y clang-format-6.0
+    - name: Test
+      run: tools/check_tidy.py
+
   clang_build:
     runs-on: ubuntu-latest
     steps:
@@ -18,13 +32,22 @@ jobs:
         submodules: true
     - name: Install Packages
       run: sudo apt install -y ninja-build gcc-multilib g++-multilib
-    - name: Build
-      env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja
+    - name: Patch WABT
+      working-directory: ./third_party/wasm/wabt
       run: |
-        CC=clang CXX=clang++ cmake -H. -Bout/clang/x86 -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
-        CC=clang CXX=clang++ cmake -H. -Bout/clang/x64 -DESCARGOT_ARCH=x64 $BUILD_OPTIONS
+        cp ../../../tools/test/wasm-js/wabt_patch .
+        patch -p0 < wabt_patch
+    - name: Build x86
+      env:
+        BUILD_OPTIONS: -DESCARGOT_ARCH=x86 -DESCARGOT_HOST=linux -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+      run: |
+        CC=clang CXX=clang++ cmake -H. -Bout/clang/x86 $BUILD_OPTIONS
         ninja -Cout/clang/x86
+    - name: Build x64
+      env:
+        BUILD_OPTIONS: -DESCARGOT_ARCH=x64 -DESCARGOT_HOST=linux -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+      run: |
+        CC=clang CXX=clang++ cmake -H. -Bout/clang/x64 $BUILD_OPTIONS
         ninja -Cout/clang/x64
 
   release_x86_test:

@@ -44,6 +44,9 @@ void Heap::finalize()
     for (size_t i = 0; i < 5; i++) {
         GC_gcollect_and_unmap();
     }
+
+    // After full gc, remove all registered gc callbacks
+    GC_remove_all_event_callbacks();
 }
 
 void Heap::printGCHeapUsage()
