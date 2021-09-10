@@ -799,12 +799,23 @@ namespace Escargot {
 #define FOR_EACH_LAZY_THREADING_STATIC_STRING(F)
 #endif
 
+#define ESCARGOT_ASCII_TABLE_MAX 256
+#define ESCARGOT_STRINGS_NUMBERS_MAX 128
+
 class StaticStrings {
 public:
     StaticStrings(AtomicStringMap* atomicStringMap)
         : dtoaCacheSize(5)
         , m_atomicStringMap(atomicStringMap)
     {
+        asciiTable = new (malloc(sizeof(AtomicString) * ESCARGOT_ASCII_TABLE_MAX)) AtomicString[ESCARGOT_ASCII_TABLE_MAX];
+        numbers = new (malloc(sizeof(AtomicString) * ESCARGOT_STRINGS_NUMBERS_MAX)) AtomicString[ESCARGOT_STRINGS_NUMBERS_MAX];
+    }
+
+    ~StaticStrings()
+    {
+        free(asciiTable);
+        free(numbers);
     }
 
     // keyword string
@@ -915,11 +926,9 @@ public:
     AtomicString WebAssemblyDotTable;
 #endif
 
-#define ESCARGOT_ASCII_TABLE_MAX 256
-    AtomicString asciiTable[ESCARGOT_ASCII_TABLE_MAX];
 
-#define ESCARGOT_STRINGS_NUMBERS_MAX 128
-    AtomicString numbers[ESCARGOT_STRINGS_NUMBERS_MAX];
+    AtomicString* asciiTable;
+    AtomicString* numbers;
 
 #define DECLARE_STATIC_STRING(name) AtomicString name;
     FOR_EACH_STATIC_STRING(DECLARE_STATIC_STRING);
