@@ -291,6 +291,7 @@ public:
     template <const size_t srcLen>
     static String* fromASCII(const char (&src)[srcLen])
     {
+        ASSERT(srcLen - 1 == strlen(src));
         return fromASCII(src, srcLen - 1);
     }
 
