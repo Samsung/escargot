@@ -176,7 +176,7 @@ void SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
         if (!alreadyExists) {
             if (!callee && es && es->lexicalEnvironment()) {
                 // can be null on module outer env
-                InterpretedCodeBlock* cb;
+                InterpretedCodeBlock* cb = nullptr;
                 if (es->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
                     cb = es->lexicalEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
                 } else {

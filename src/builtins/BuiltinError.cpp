@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/Context.h"
+#include "runtime/VMInstance.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/ToStringRecursionPreventer.h"
@@ -61,6 +62,11 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
 
     Value options = argc > 1 ? argv[1] : Value();
     installErrorCause(state, obj, options);
+
+    if (UNLIKELY(state.context()->vmInstance()->isErrorCreationCallbackRegistered())) {
+        state.context()->vmInstance()->triggerErrorCreationCallback(state, obj);
+    }
+
     return obj;
 }
 
@@ -81,6 +87,9 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
         }                                                                                                                                                                                                                                               \
         Value options = argc > 1 ? argv[1] : Value();                                                                                                                                                                                                   \
         installErrorCause(state, obj, options);                                                                                                                                                                                                         \
+        if (UNLIKELY(state.context()->vmInstance()->isErrorCreationCallbackRegistered())) {                                                                                                                                                             \
+            state.context()->vmInstance()->triggerErrorCreationCallback(state, obj);                                                                                                                                                                    \
+        }                                                                                                                                                                                                                                               \
         return obj;                                                                                                                                                                                                                                     \
     }
 
@@ -121,6 +130,11 @@ static Value builtinAggregateErrorConstructor(ExecutionState& state, Value thisV
     // Perform ! DefinePropertyOrThrow(O, "errors", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: ! CreateArrayFromList(errorsList) }).
     O->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("errors")),
                                         ObjectPropertyDescriptor(Value(Object::createArrayFromList(state, errorsList.size(), errorsList.data())), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+
+    if (UNLIKELY(state.context()->vmInstance()->isErrorCreationCallbackRegistered())) {
+        state.context()->vmInstance()->triggerErrorCreationCallback(state, O);
+    }
+
     // Return O.
     return O;
 }
