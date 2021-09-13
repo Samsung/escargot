@@ -625,6 +625,12 @@ public:
     typedef void (*OnVMInstanceDelete)(VMInstanceRef* instance);
     void setOnVMInstanceDelete(OnVMInstanceDelete cb);
 
+    // register ErrorCreationCallback which is triggered when each Error constructor (e.g. new TypeError()) invoked
+    // parameter `err` is newly created ErrorObject
+    typedef void (*ErrorCreationCallback)(ExecutionStateRef* state, ErrorObjectRef* err);
+    void registerErrorCreationCallback(ErrorCreationCallback cb);
+    void unregisterErrorCreationCallback();
+
     enum PromiseHookType {
         Init,
         Resolve,
@@ -1355,7 +1361,8 @@ public:
         SyntaxError,
         RangeError,
         URIError,
-        EvalError
+        EvalError,
+        AggregateError,
     };
     static ErrorObjectRef* create(ExecutionStateRef* state, ErrorObjectRef::Code code, StringRef* errorMessage);
 };

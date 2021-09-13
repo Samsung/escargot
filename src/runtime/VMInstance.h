@@ -218,6 +218,31 @@ public:
         m_onVMInstanceDestroyData = data;
     }
 
+    bool isErrorCreationCallbackRegistered()
+    {
+        return !!m_errorCreationCallback;
+    }
+
+    void registerErrorCreationCallback(void (*ErrorCreationCallback)(ExecutionState& state, ErrorObject* err, void* cb), void* callbackPublic)
+    {
+        m_errorCreationCallback = ErrorCreationCallback;
+        m_errorCreationCallbackPublic = callbackPublic;
+    }
+
+    void unregisterErrorCreationCallback()
+    {
+        m_errorCreationCallback = nullptr;
+        m_errorCreationCallbackPublic = nullptr;
+    }
+
+    void triggerErrorCreationCallback(ExecutionState& state, ErrorObject* error)
+    {
+        ASSERT(!!m_errorCreationCallback);
+        if (m_errorCreationCallbackPublic) {
+            m_errorCreationCallback(state, error, m_errorCreationCallbackPublic);
+        }
+    }
+
     // PromiseHook is triggered for each Promise event
     // Third party app registers PromiseHook when it is necessary
     bool isPromiseHookRegistered()
@@ -310,6 +335,9 @@ private:
     static void gcEventCallback(GC_EventType t, void* data);
     void (*m_onVMInstanceDestroy)(VMInstance* instance, void* data);
     void* m_onVMInstanceDestroyData;
+
+    void (*m_errorCreationCallback)(ExecutionState& state, ErrorObject* err, void* cb);
+    void* m_errorCreationCallbackPublic;
 
     // PromiseHook is triggered for each Promise event
     // Third party app registers PromiseHook when it is necessary

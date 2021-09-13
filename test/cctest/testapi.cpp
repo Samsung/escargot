@@ -673,12 +673,12 @@ TEST(ObjectTemplate, Basic3)
                        obj);
 
     evalScript(g_context.get(), StringRef::createFromASCII("var t = {}; t.__proto__ = asdf;"
-        "for(let i = 0;i < 10; i++) { t.asdf = 3 }"), StringRef::createFromASCII("test"), false);
+                                                           "for(let i = 0;i < 10; i++) { t.asdf = 3 }"),
+               StringRef::createFromASCII("test"), false);
 
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
-        ValueRef* ret = state->context()->globalObject()->get(state, StringRef::createFromASCII("t"))
-            ->asObject()->get(state, StringRef::createFromASCII("asdf"));
+        ValueRef* ret = state->context()->globalObject()->get(state, StringRef::createFromASCII("t"))->asObject()->get(state, StringRef::createFromASCII("asdf"));
         EXPECT_TRUE(ret->toNumber(state) == 6);
         state->context()->globalObject()->set(state, StringRef::createFromASCII("t"), ValueRef::createUndefined());
         state->context()->globalObject()->set(state, StringRef::createFromASCII("asdf"), ValueRef::createUndefined());
@@ -1150,6 +1150,40 @@ TEST(EnumerateObjectOwnProperties, Basic1)
     });
 }
 
+TEST(ErrorCreationCallback, Basic1)
+{
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        // Register ErrorCreationCallback
+        g_instance.get()->registerErrorCreationCallback([](ExecutionStateRef* state, ErrorObjectRef* err) -> void {
+            // compute stack trace data
+            auto stackTraceVector = state->computeStackTraceData();
+
+            // save stack info
+            ObjectRef* result = ObjectRef::create(state);
+            result->set(state, StringRef::createFromASCII("src"), stackTraceVector[1].src);
+            result->set(state, StringRef::createFromASCII("functionName"), stackTraceVector[1].functionName);
+
+            g_context.get()->globalObject()->set(state, StringRef::createFromASCII("errorCBResult"), result);
+        });
+        return ValueRef::createUndefined();
+    });
+
+    auto result = evalScript(g_context.get(), StringRef::createFromASCII("function test() { return new TypeError(); } test();"), StringRef::createFromASCII("testErrorCreationCallback.js"), false);
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        ValueRef* cbResult = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("errorCBResult"));
+        EXPECT_TRUE(cbResult->isObject());
+        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("src"))->asString()->equalsWithASCIIString("testErrorCreationCallback.js", 28));
+        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("functionName"))->asString()->equalsWithASCIIString("test", 4));
+
+        EXPECT_TRUE(g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("errorCBResult")));
+
+        // Unregister ErrorCreationCallback
+        g_instance.get()->unregisterErrorCreationCallback();
+        return ValueRef::createUndefined();
+    });
+}
+
 TEST(PromiseHook, Basic1)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
@@ -1281,8 +1315,8 @@ TEST(PromiseHook, Basic2)
         p->fulfill(state, ValueRef::create(1));
 
         // execute pending jobs
-        while(g_instance.get()->hasPendingJob()) {
-           g_instance.get()->executePendingJob(); 
+        while (g_instance.get()->hasPendingJob()) {
+            g_instance.get()->executePendingJob();
         }
 
         ValueRef* initProperty = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("hookInit"));
@@ -1405,36 +1439,37 @@ TEST(Serializer, Basic9)
 
 TEST(ExecutionState, TryCatchFinally)
 {
-    Evaluator::execute(g_context, [](ExecutionStateRef *state) -> ValueRef* {
+    Evaluator::execute(g_context, [](ExecutionStateRef* state) -> ValueRef* {
         FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(g_context.get(), "test"),
-            [](ExecutionStateRef *state, ValueRef *thisValue, size_t argc, ValueRef **argv, bool isConstructCall) -> ValueRef* {
-            OptionalRef<ExecutionStateRef> e = state;
-                if (argv[0]->asNumber() == 1) {
-                    while (e) {
-                        if (e->onTry()) {
-                            return ValueRef::createUndefined();
-                        }
-                        e = e->parent();
-                    }
-                } else if (argv[0]->asNumber() == 2) {
-                    while (e) {
-                        if (e->onCatch()) {
-                            return ValueRef::createUndefined();
-                        }
-                        e = e->parent();
-                    }
-                } else {
-                    while (e) {
-                        if (e->onFinally()) {
-                            return ValueRef::createUndefined();
-                        }
-                        e = e->parent();
-                    }
-                }
-                EXPECT_TRUE(false);
-                return ValueRef::createUndefined();
-            }, 1, true, false);
-        FunctionObjectRef *buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+                                                                 [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
+                                                                     OptionalRef<ExecutionStateRef> e = state;
+                                                                     if (argv[0]->asNumber() == 1) {
+                                                                         while (e) {
+                                                                             if (e->onTry()) {
+                                                                                 return ValueRef::createUndefined();
+                                                                             }
+                                                                             e = e->parent();
+                                                                         }
+                                                                     } else if (argv[0]->asNumber() == 2) {
+                                                                         while (e) {
+                                                                             if (e->onCatch()) {
+                                                                                 return ValueRef::createUndefined();
+                                                                             }
+                                                                             e = e->parent();
+                                                                         }
+                                                                     } else {
+                                                                         while (e) {
+                                                                             if (e->onFinally()) {
+                                                                                 return ValueRef::createUndefined();
+                                                                             }
+                                                                             e = e->parent();
+                                                                         }
+                                                                     }
+                                                                     EXPECT_TRUE(false);
+                                                                     return ValueRef::createUndefined();
+                                                                 },
+                                                                 1, true, false);
+        FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
         g_context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("tryCatchTest"), buildFunctionObjectRef, true, true, true);
         return ValueRef::createUndefined();
     });
