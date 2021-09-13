@@ -232,4 +232,12 @@
 #define uldn_keyValueDisplayName RuntimeICUBinder::ICU::instance().uldn_keyValueDisplayName
 #define uldn_close RuntimeICUBinder::ICU::instance().uldn_close
 
+#define ulistfmt_openForType RuntimeICUBinder::ICU::instance().ulistfmt_openForType
+#define ulistfmt_close RuntimeICUBinder::ICU::instance().ulistfmt_close
+#define ulistfmt_format RuntimeICUBinder::ICU::instance().ulistfmt_format
+#define ulistfmt_formatStringsToResult RuntimeICUBinder::ICU::instance().ulistfmt_formatStringsToResult
+#define ulistfmt_openResult RuntimeICUBinder::ICU::instance().ulistfmt_openResult
+#define ulistfmt_resultAsValue RuntimeICUBinder::ICU::instance().ulistfmt_resultAsValue
+#define ulistfmt_closeResult RuntimeICUBinder::ICU::instance().ulistfmt_closeResult
+
 #endif

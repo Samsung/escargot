@@ -110,6 +110,8 @@ class FunctionObject;
     F(intlDisplayNamesPrototype, Object, objName)       \
     F(intlLocale, FunctionObject, objName)              \
     F(intlLocalePrototype, Object, objName)             \
+    F(intlListFormat, FunctionObject, objName)          \
+    F(intlListFormatPrototype, Object, objName)         \
     F(intlPluralRules, FunctionObject, objName)         \
     F(intlPluralRulesPrototype, Object, objName)
 #else

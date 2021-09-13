@@ -251,6 +251,7 @@ public:
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlNumberFormatAvailableLocales();
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlRelativeTimeFormatAvailableLocales();
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlDisplayNamesAvailableLocales();
+    const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlListFormatAvailableLocales();
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlPluralRulesAvailableLocales();
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& caseMappingAvailableLocales();
 #endif

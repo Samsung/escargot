@@ -59,6 +59,7 @@
 #include "intl/IntlLocale.h"
 #include "intl/IntlRelativeTimeFormat.h"
 #include "intl/IntlDisplayNames.h"
+#include "intl/IntlListFormat.h"
 
 namespace Escargot {
 
@@ -1029,6 +1030,74 @@ static Value builtinIntlDisplayNamesResolvedOptions(ExecutionState& state, Value
     return options;
 }
 
+static Value builtinIntlListFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+    }
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* realm) -> Object* {
+        return realm->globalObject()->intlListFormatPrototype();
+    });
+    if (argc >= 2) {
+        return new IntlListFormatObject(state, proto, argv[0], argv[1]);
+    } else if (argc >= 1) {
+        return new IntlListFormatObject(state, proto, argv[0], Value());
+    } else {
+        return new IntlListFormatObject(state, proto, Value(), Value());
+    }
+}
+
+static Value builtinIntlListFormatSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value locales = argv[0];
+    Value options;
+    if (argc >= 2) {
+        options = argv[1];
+    }
+    const auto& availableLocales = state.context()->vmInstance()->intlListFormatAvailableLocales();
+    ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
+    return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
+}
+
+static Value builtinIntlListFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlListFormatObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    IntlListFormatObject* r = thisValue.asObject()->asIntlListFormatObject();
+
+    Object* options = new Object(state);
+
+    auto& staticStrings = state.context()->staticStrings();
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(staticStrings.lazySmallLetterLocale()), ObjectPropertyDescriptor(r->locale(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(staticStrings.lazyType()), ObjectPropertyDescriptor(r->type(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(staticStrings.lazyStyle()), ObjectPropertyDescriptor(r->style(), ObjectPropertyDescriptor::AllPresent));
+    return options;
+}
+
+static Value builtinIntlListFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlListFormatObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    IntlListFormatObject* r = thisValue.asObject()->asIntlListFormatObject();
+    return r->format(state, argv[0]);
+}
+
+static Value builtinIntlListFormatFormatToParts(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlListFormatObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+    }
+
+    IntlListFormatObject* r = thisValue.asObject()->asIntlListFormatObject();
+    return r->formatToParts(state, argv[0]);
+}
+
 static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let ll be ? CanonicalizeLocaleList(locales).
@@ -1309,6 +1378,27 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlDisplayNamesPrototype->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlDisplayNamesResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
+    m_intlListFormat = new NativeFunctionObject(state, NativeFunctionInfo(strings->ListFormat, builtinIntlListFormatConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_intlListFormat->setGlobalIntrinsicObject(state);
+
+    m_intlListFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
+                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlListFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlListFormatPrototype = m_intlListFormat->getFunctionPrototype(state).asObject();
+    m_intlListFormatPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_intlListFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlListFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlListFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().format,
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlListFormatFormat, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlListFormatPrototype->defineOwnProperty(state, state.context()->staticStrings().formatToParts,
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->formatToParts, builtinIntlListFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlListFormatPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                                ObjectPropertyDescriptor(Value(strings->intlDotListFormat.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_intl->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                              ObjectPropertyDescriptor(Value(state.context()->staticStrings().Intl.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -1332,6 +1422,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->DisplayNames),
                               ObjectPropertyDescriptor(m_intlDisplayNames, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_intl->defineOwnProperty(state, ObjectPropertyName(strings->ListFormat),
+                              ObjectPropertyDescriptor(m_intlListFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     FunctionObject* getCanonicalLocales = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCanonicalLocales, builtinIntlGetCanonicalLocales, 1, NativeFunctionInfo::Strict));
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->getCanonicalLocales),
