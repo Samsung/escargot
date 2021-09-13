@@ -179,7 +179,11 @@ namespace RuntimeICUBinder {
     F(ucfpos_getCategory, int32_t (*)(const UConstrainedFieldPosition* ucfpos, UErrorCode* ec), int32_t)                                                                                       \
     F(ucfpos_getField, int32_t (*)(const UConstrainedFieldPosition* ucfpos, UErrorCode* ec), int32_t)                                                                                          \
     F(ufmtval_getString, const UChar* (*)(const UFormattedValue* ufmtval, int32_t* pLength, UErrorCode* ec), const UChar*)                                                                     \
-    F(ufmtval_nextPosition, UBool (*)(const UFormattedValue* ufmtval, UConstrainedFieldPosition* ucfpos, UErrorCode* ec), UBool)
+    F(ufmtval_nextPosition, UBool (*)(const UFormattedValue* ufmtval, UConstrainedFieldPosition* ucfpos, UErrorCode* ec), UBool)                                                               \
+    F(ulistfmt_openForType, UListFormatter* (*)(const char* locale, UListFormatterType type, UListFormatterWidth width, UErrorCode* status), UListFormatter*)                                  \
+    F(ulistfmt_format, int32_t (*)(const UListFormatter* listfmt, const UChar* const strings[], const int32_t*, int32_t, UChar*, int32_t, UErrorCode*), int32_t)                               \
+    F(ulistfmt_openResult, UFormattedList* (*)(UErrorCode * ec), UFormattedList*)                                                                                                              \
+    F(ulistfmt_resultAsValue, const UFormattedValue* (*)(const UFormattedList* uresult, UErrorCode* ec), const UFormattedValue*)
 
 #define FOR_EACH_I18N_VOID_OP(F)                                                                                                                                     \
     F(udat_close, void (*)(UDateFormat * format), void)                                                                                                              \
@@ -218,7 +222,10 @@ namespace RuntimeICUBinder {
     F(ucfpos_close, void (*)(UConstrainedFieldPosition * ucfpos), void)                                                                                              \
     F(ucfpos_constrainCategory, void (*)(UConstrainedFieldPosition * ucfpos, int32_t category, UErrorCode * ec), void)                                               \
     F(ucfpos_constrainField, void (*)(UConstrainedFieldPosition * ucfpos, int32_t category, int32_t field, UErrorCode * ec), void)                                   \
-    F(ucfpos_getIndexes, void (*)(const UConstrainedFieldPosition* ucfpos, int32_t* pStart, int32_t* pLimit, UErrorCode* ec), void)
+    F(ucfpos_getIndexes, void (*)(const UConstrainedFieldPosition* ucfpos, int32_t* pStart, int32_t* pLimit, UErrorCode* ec), void)                                  \
+    F(ulistfmt_close, void (*)(UListFormatter * listfmt), void)                                                                                                      \
+    F(ulistfmt_formatStringsToResult, void (*)(const UListFormatter*, const UChar* const[], const int32_t*, int32_t, UFormattedList*, UErrorCode*), void)            \
+    F(ulistfmt_closeResult, void (*)(UFormattedList * uresult), void)
 
 #define FOR_EACH_I18N_STICKY_OP(F) \
     F(vzone_getOffset3)

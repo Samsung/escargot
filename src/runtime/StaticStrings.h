@@ -310,6 +310,7 @@ namespace Escargot {
     F(length)                     \
     F(let)                        \
     F(link)                       \
+    F(ListFormat)                 \
     F(load)                       \
     F(localeCompare)              \
     F(log)                        \
@@ -692,6 +693,7 @@ namespace Escargot {
     F(Compact, "compact")                                   \
     F(CompactDisplay, "compactDisplay")                     \
     F(CompareFunction, "compareFunction")                   \
+    F(Conjunction, "conjunction")                           \
     F(Currency, "currency")                                 \
     F(CurrencyDisplay, "currencyDisplay")                   \
     F(CurrencySign, "currencySign")                         \
@@ -704,6 +706,7 @@ namespace Escargot {
     F(DayPeriod, "dayPeriod")                               \
     F(Decimal, "decimal")                                   \
     F(Dialect, "dialect")                                   \
+    F(Disjunction, "disjunction")                           \
     F(Engineering, "engineering")                           \
     F(Era, "era")                                           \
     F(ExceptZero, "exceptZero")                             \
@@ -904,6 +907,7 @@ public:
     AtomicString getbyteOffset;
     AtomicString intlDotCollator;
     AtomicString intlDotDisplayNames;
+    AtomicString intlDotListFormat;
     AtomicString intlDotLocale;
     AtomicString intlDotPluralRules;
     AtomicString intlDotRelativeTimeFormat;

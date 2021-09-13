@@ -122,6 +122,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(getbyteOffset, "get byteOffset");
     INIT_STATIC_STRING(intlDotCollator, "Intl.Collator");
     INIT_STATIC_STRING(intlDotDisplayNames, "Intl.DisplayNames");
+    INIT_STATIC_STRING(intlDotListFormat, "Intl.ListFormat");
     INIT_STATIC_STRING(intlDotLocale, "Intl.Locale");
     INIT_STATIC_STRING(intlDotPluralRules, "Intl.PluralRules");
     INIT_STATIC_STRING(intlDotRelativeTimeFormat, "Intl.RelativeTimeFormat");

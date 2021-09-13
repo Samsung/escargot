@@ -8105,6 +8105,107 @@ struct ULocaleDisplayNames;
  */
 typedef struct ULocaleDisplayNames ULocaleDisplayNames;
 
+// ulistformatter.h
+
+/**
+ * \file
+ * \brief C API: Format a list in a locale-appropriate way.
+ *
+ * A UListFormatter is used to format a list of items in a locale-appropriate way,
+ * using data from CLDR.
+ * Example: Input data ["Alice", "Bob", "Charlie", "Delta"] will be formatted
+ * as "Alice, Bob, Charlie, and Delta" in English.
+ */
+
+/**
+ * Opaque UListFormatter object for use in C
+ * @stable ICU 55
+ */
+struct UListFormatter;
+typedef struct UListFormatter UListFormatter; /**< C typedef for struct UListFormatter. @stable ICU 55 */
+
+struct UFormattedList;
+/**
+ * Opaque struct to contain the results of a UListFormatter operation.
+ * @stable ICU 64
+ */
+typedef struct UFormattedList UFormattedList;
+
+/**
+ * FieldPosition and UFieldPosition selectors for format fields
+ * defined by ListFormatter.
+ * @stable ICU 63
+ */
+typedef enum UListFormatterField {
+    /**
+     * The literal text in the result which came from the resources.
+     * @stable ICU 63
+     */
+    ULISTFMT_LITERAL_FIELD,
+    /**
+     * The element text in the result which came from the input strings.
+     * @stable ICU 63
+     */
+    ULISTFMT_ELEMENT_FIELD
+} UListFormatterField;
+
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Type of meaning expressed by the list.
+ *
+ * @draft ICU 67
+ */
+typedef enum UListFormatterType {
+    /**
+     * Conjunction formatting, e.g. "Alice, Bob, Charlie, and Delta".
+     *
+     * @draft ICU 67
+     */
+    ULISTFMT_TYPE_AND,
+
+    /**
+     * Disjunction (or alternative, or simply one of) formatting, e.g.
+     * "Alice, Bob, Charlie, or Delta".
+     *
+     * @draft ICU 67
+     */
+    ULISTFMT_TYPE_OR,
+
+    /**
+     * Formatting of a list of values with units, e.g. "5 pounds, 12 ounces".
+     *
+     * @draft ICU 67
+     */
+    ULISTFMT_TYPE_UNITS
+} UListFormatterType;
+
+/**
+ * Verbosity level of the list patterns.
+ *
+ * @draft ICU 67
+ */
+typedef enum UListFormatterWidth {
+    /**
+     * Use list formatting with full words (no abbreviations) when possible.
+     *
+     * @draft ICU 67
+     */
+    ULISTFMT_WIDTH_WIDE,
+
+    /**
+     * Use list formatting of typical length.
+     * @draft ICU 67
+     */
+    ULISTFMT_WIDTH_SHORT,
+
+    /**
+     * Use list formatting of the shortest possible length.
+     * @draft ICU 67
+     */
+    ULISTFMT_WIDTH_NARROW,
+} UListFormatterWidth;
+#endif /* U_HIDE_DRAFT_API */
+
 // uversion.h
 
 /** Maximum length of the copyright string.
