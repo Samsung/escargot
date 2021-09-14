@@ -210,8 +210,6 @@ public:
         ASSERT(isModuleEnvironmentRecord());
         return reinterpret_cast<ModuleEnvironmentRecord*>(this);
     }
-
-protected:
 };
 
 class ObjectEnvironmentRecord : public EnvironmentRecord {
@@ -412,33 +410,6 @@ public:
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
-};
-
-class DeclarativeEnvironmentWithHomeObject : public DeclarativeEnvironmentRecord {
-public:
-    DeclarativeEnvironmentWithHomeObject(Object* homeObject)
-        : DeclarativeEnvironmentRecord()
-        , m_homeObject(homeObject)
-    {
-    }
-
-    virtual Value getSuperBase(ExecutionState& state) override
-    {
-        return m_homeObject->getPrototype(state);
-    }
-
-    virtual bool hasSuperBinding() override
-    {
-        return true;
-    }
-
-    virtual bool hasThisBinding() override
-    {
-        return true;
-    }
-
-private:
-    Object* m_homeObject;
 };
 
 class DeclarativeEnvironmentRecordIndexed : public DeclarativeEnvironmentRecord {

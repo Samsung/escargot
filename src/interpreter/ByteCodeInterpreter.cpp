@@ -2821,7 +2821,7 @@ NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& 
         } else {
             if (!heritagePresent) {
                 Value argv[] = { String::emptyString, String::emptyString };
-                auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, false);
+                auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, false, false);
                 functionSource.codeBlock->setAsClassConstructor();
                 constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(),
                                                                        functionSource.codeBlock, functionSource.outerEnvironment, proto,
@@ -2829,7 +2829,7 @@ NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& 
             } else {
                 Value argv[] = { state.context()->staticStrings().lazyDotDotDotArgs().string(),
                                  state.context()->staticStrings().lazySuperDotDotDotArgs().string() };
-                auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, true);
+                auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, true, false);
                 functionSource.codeBlock->setAsClassConstructor();
                 functionSource.codeBlock->setAsDerivedClassConstructor();
                 constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(),

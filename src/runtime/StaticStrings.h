@@ -656,7 +656,6 @@ namespace Escargot {
     F(DotDotDotArgs, "...args")                      \
     F(EvalInput, "eval input")                       \
     F(Fulfilled, "fulfilled")                        \
-    F(FunctionInput, "function input")               \
     F(ObjectArgumentsToString, "[object Arguments]") \
     F(ObjectArrayToString, "[object Array]")         \
     F(ObjectBooleanToString, "[object Boolean]")     \

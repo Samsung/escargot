@@ -49,11 +49,37 @@ FunctionObject* ExecutionState::resolveCallee()
     ExecutionState* es = this;
     while (es) {
         if (es->lexicalEnvironment()) {
-            if (es->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                return es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
+            EnvironmentRecord* record = es->lexicalEnvironment()->record();
+            if (record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                return record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
             }
         } else if (es->m_isNativeFunctionObjectExecutionContext) {
             return es->m_calledNativeFunctionObject;
+        }
+
+        es = es->parent();
+    }
+
+    return nullptr;
+}
+
+Optional<Script*> ExecutionState::resolveOuterScript()
+{
+    // get outer script through lexical environment chain
+    ExecutionState* es = this->parent();
+    while (es) {
+        if (es->lexicalEnvironment()) {
+            EnvironmentRecord* record = es->lexicalEnvironment()->record();
+            if (record->isDeclarativeEnvironmentRecord()) {
+                DeclarativeEnvironmentRecord* declarativeRecord = record->asDeclarativeEnvironmentRecord();
+                if (declarativeRecord->isFunctionEnvironmentRecord()) {
+                    return declarativeRecord->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->asInterpretedCodeBlock()->script();
+                } else if (declarativeRecord->isModuleEnvironmentRecord()) {
+                    return declarativeRecord->asModuleEnvironmentRecord()->script();
+                }
+            } else if (record->isGlobalEnvironmentRecord()) {
+                return record->asGlobalEnvironmentRecord()->globalCodeBlock()->script();
+            }
         }
 
         es = es->parent();
