@@ -32,6 +32,7 @@ class Value;
 class CodeBlock;
 class ExecutionPauser;
 class Object;
+class Script;
 class GeneratorObject;
 class FunctionObject;
 class NativeFunctionObject;
@@ -280,6 +281,8 @@ public:
     bool inPauserScope();
 
     FunctionObject* resolveCallee();
+
+    Optional<Script*> resolveOuterScript();
 
     bool isLocalEvalCode()
     {

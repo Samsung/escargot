@@ -74,7 +74,7 @@ FunctionObject::FunctionObject(ObjectStructure* structure, ObjectPropertyValueVe
 {
 }
 
-FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall)
+FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool findSrcName)
 {
     StringBuilder src, srcToTest;
     if (useStrict) {
@@ -161,7 +161,16 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
     ScriptParser parser(state.context());
     String* scriptSource = src.finalize(&state);
 
-    Script* script = parser.initializeScript(scriptSource, state.context()->staticStrings().lazyFunctionInput().string(), nullptr, false, false, false, false, false, allowSuperCall, false, true, false).scriptThrowsExceptionIfParseError(state);
+    String* srcName = String::emptyString;
+    // find srcName through outer script
+    if (findSrcName) {
+        auto script = state.resolveOuterScript();
+        if (script) {
+            srcName = script->srcName();
+        }
+    }
+
+    Script* script = parser.initializeScript(scriptSource, srcName, nullptr, false, false, false, false, false, allowSuperCall, false, true, false).scriptThrowsExceptionIfParseError(state);
     InterpretedCodeBlock* cb = script->topCodeBlock()->childBlockAt(0);
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, script->topCodeBlock(), state.context()->globalObject(), state.context()->globalDeclarativeRecord(), state.context()->globalDeclarativeStorage()), nullptr);
 
