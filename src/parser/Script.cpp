@@ -331,11 +331,11 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
 
         // https://www.ecma-international.org/ecma-262/#sec-toplevelmoduleevaluationjob
         auto result = moduleLinking(state);
-        if (result.gotExecption) {
+        if (result.gotException) {
             throw result.value;
         }
         result = moduleEvaluate(state);
-        if (result.gotExecption) {
+        if (result.gotException) {
             throw result.value;
         }
         return result.value;
@@ -616,7 +616,7 @@ Script::ModuleExecutionResult Script::moduleLinking(ExecutionState& state)
     // Let result be InnerModuleInstantiation(module, stack, 0).
     ModuleExecutionResult result = innerModuleLinking(state, stack, 0);
     // If result is an abrupt completion, then
-    if (result.gotExecption) {
+    if (result.gotException) {
         // For each module m in stack, do
         for (size_t i = 0; i < stack.size(); i++) {
             // Assert: m.[[Status]] is "linking".
@@ -680,7 +680,7 @@ Script::ModuleExecutionResult Script::innerModuleLinking(ExecutionState& state, 
         // NOTE: Instantiate must be completed successfully prior to invoking this method, so every requested module is guaranteed to resolve successfully.
         // Set index to ? innerModuleInstantiation(requiredModule, stack, index).
         auto result = requiredModule->innerModuleLinking(state, stack, index);
-        if (result.gotExecption) {
+        if (result.gotException) {
             return result;
         }
         index = result.value.asNumber();
@@ -768,7 +768,7 @@ Script::ModuleExecutionResult Script::moduleEvaluate(ExecutionState& state)
     // Let result be InnerModuleEvaluation(module, stack, 0).
     auto result = innerModuleEvaluation(state, stack, 0);
     // If result is an abrupt completion, then
-    if (result.gotExecption) {
+    if (result.gotException) {
         // For each module m in stack, do
         for (size_t i = 0; i < stack.size(); i++) {
             // Assert: m.[[Status]] is "evaluating".
@@ -847,7 +847,7 @@ Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& stat
         // NOTE: Instantiate must be completed successfully prior to invoking this method, so every requested module is guaranteed to resolve successfully.
         // Set index to ? InnerModuleEvaluation(requiredModule, stack, index).
         auto result = requiredModule->innerModuleEvaluation(state, stack, index);
-        if (result.gotExecption) {
+        if (result.gotException) {
             return result;
         }
         index = result.value.asNumber();
@@ -902,7 +902,7 @@ Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& stat
     } else {
         // Otherwise, perform ? module.ExecuteModule().
         auto result = moduleExecute(state);
-        if (result.gotExecption) {
+        if (result.gotException) {
             return result;
         }
     }
@@ -1068,14 +1068,14 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
     }
 
     Value resultValue;
-    bool gotExecption = false;
+    bool gotException = false;
 
     if (LIKELY(!m_topCodeBlock->isAsync())) {
         try {
             ByteCodeInterpreter::interpret(newState, byteCodeBlock, 0, registerFile);
         } catch (const Value& e) {
             resultValue = e;
-            gotExecption = true;
+            gotException = true;
         }
 
         clearStack<512>();
@@ -1091,7 +1091,7 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
         resultValue = ExecutionPauser::start(*newState, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async);
     }
 
-    return ModuleExecutionResult(gotExecption, resultValue);
+    return ModuleExecutionResult(gotException, resultValue);
 }
 
 // https://tc39.es/proposal-top-level-await/#sec-async-module-execution-fulfilled
@@ -1133,7 +1133,7 @@ void Script::asyncModuleFulfilled(ExecutionState& state, Script* module)
                 // Let result be m.ExecuteModule().
                 auto result = m->moduleExecute(state);
                 // If result is a normal completion,
-                if (!result.gotExecption) {
+                if (!result.gotException) {
                     // Perform ! AsyncModuleExecutionFulfilled(m).
                     asyncModuleFulfilled(state, m);
                 } else {

@@ -237,11 +237,11 @@ private:
     AtomicStringVector exportedNames(ExecutionState& state, std::vector<Script*>& exportStarSet);
 
     struct ModuleExecutionResult {
-        bool gotExecption;
+        bool gotException;
         Value value;
 
-        ModuleExecutionResult(bool gotExecption, Value value)
-            : gotExecption(gotExecption)
+        ModuleExecutionResult(bool gotException, Value value)
+            : gotException(gotException)
             , value(value)
         {
         }
@@ -262,7 +262,7 @@ private:
     Value moduleInitializeEnvironment(ExecutionState& state);
 
     // https://tc39.es/ecma262/#sec-source-text-module-record-execute-module
-    // returns gotExecption and Value
+    // returns gotException and Value
     ModuleExecutionResult moduleExecute(ExecutionState& state, Optional<PromiseReaction::Capability> capability = nullptr);
 
     // https://tc39.es/proposal-top-level-await/#sec-execute-async-module
