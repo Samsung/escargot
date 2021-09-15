@@ -25,6 +25,8 @@
 #ifdef ESCARGOT_DEBUGGER
 namespace Escargot {
 
+#define ESCARGOT_DEBUGGER_MAX_STACK_TRACE_LENGTH 8
+
 /* WebSocket max length encoded in one byte. */
 #define ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH 125
 #define ESCARGOT_DEBUGGER_VERSION 1
@@ -168,6 +170,21 @@ public:
         uint32_t offset;
     };
 
+    struct SavedStackTraceData : public gc {
+        ByteCodeBlock* byteCodeBlock;
+        uint32_t line;
+        uint32_t column;
+
+        SavedStackTraceData(ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column)
+            : byteCodeBlock(byteCodeBlock)
+            , line(line)
+            , column(column)
+        {
+        }
+    };
+
+    typedef Vector<SavedStackTraceData, GCUtil::gc_malloc_allocator<SavedStackTraceData>> SavedStackTraceDataVector;
+
     bool enabled()
     {
         return m_enabled;
@@ -222,6 +239,7 @@ public:
     void releaseFunction(const void* ptr);
     String* getClientSource(String** sourceName);
     void waitForResolvingPendingBreakpoints();
+    static SavedStackTraceDataVector* saveStackTrace(ExecutionState& state);
 
 protected:
     Debugger()

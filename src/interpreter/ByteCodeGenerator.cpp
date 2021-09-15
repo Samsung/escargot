@@ -261,7 +261,7 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
     ctx.m_locData = locData;
 
 #ifdef ESCARGOT_DEBUGGER
-    ByteCodeBreakpointContext breakpointContext(context->debugger()->parsingEnabled());
+    ByteCodeBreakpointContext breakpointContext(context->debugger() && context->debugger()->parsingEnabled());
     ctx.m_breakpointContext = &breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */
 

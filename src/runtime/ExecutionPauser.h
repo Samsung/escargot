@@ -22,6 +22,7 @@
 
 #include "runtime/Object.h"
 #include "runtime/PromiseObject.h"
+#include "debugger/Debugger.h"
 
 namespace Escargot {
 
@@ -84,6 +85,13 @@ public:
         return m_sourceObject;
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    Debugger::SavedStackTraceDataVector* savedStackTrace()
+    {
+        return m_savedStackTrace;
+    }
+#endif /* ESCARGOT_DEBUGGER */
+
 private:
     ExecutionState* m_executionState;
     Object* m_sourceObject;
@@ -97,6 +105,9 @@ private:
     ByteCodeRegisterIndex m_resumeValueIndex;
     ByteCodeRegisterIndex m_resumeStateIndex;
     PromiseReaction::Capability m_promiseCapability; // async function needs this
+#ifdef ESCARGOT_DEBUGGER
+    Debugger::SavedStackTraceDataVector* m_savedStackTrace;
+#endif /* ESCARGOT_DEBUGGER */
 };
 } // namespace Escargot
 

@@ -76,7 +76,7 @@ public:
 
     SandBoxResult run(const std::function<Value()>& scriptRunner); // for capsule script executing with try-catch
     SandBoxResult run(Value (*runner)(ExecutionState&, void*), void* data);
-    static void createStackTraceData(StackTraceDataVector& stackTraceData, ExecutionState& state);
+    static ExecutionState* createStackTraceData(StackTraceDataVector& stackTraceData, ExecutionState& state, bool stopAtPause = false);
     void throwException(ExecutionState& state, Value exception);
     void rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, const StackTraceDataVector& stackTraceData);
 

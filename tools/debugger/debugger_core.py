@@ -286,6 +286,7 @@ class Debugger(object):
         self.frame_index = 0
         self.scope_vars = ""
         self.scopes = ""
+        self.no_scope = 4294967295
         self.client_sources = []
         self.last_breakpoint_hit = None
         self.next_breakpoint_index = 0
@@ -444,12 +445,17 @@ class Debugger(object):
                                  ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE]:
                 backtrace_info = struct.unpack(self.byte_order + self.pointer_format + self.idx_format + self.idx_format + self.idx_format, data[1:])
                 function = self.function_list.get(backtrace_info[0])
+
+                depth = ""
+                if backtrace_info[3] != self.no_scope:
+                    depth = " [depth:%d]" % backtrace_info[3]
+
                 if function is not None:
-                    result = "%s:%d:%d [depth:%d]" % (function.source_name, backtrace_info[1], backtrace_info[2], backtrace_info[3])
+                    result = "%s:%d:%d%s" % (function.source_name, backtrace_info[1], backtrace_info[2], depth)
                     if function.name != "":
                         result += " (in %s)" % (function.name)
                 else:
-                    result = "unknown dynamic function:%d:%d [depth:%d]" % (backtrace_info[1], backtrace_info[2], backtrace_info[3])
+                    result = "unknown dynamic function:%d:%d%s" % (backtrace_info[1], backtrace_info[2], depth)
 
                 if buffer_type == ESCARGOT_MESSAGE_BACKTRACE:
                     return DebuggerAction(DebuggerAction.TEXT, result + "\n")
