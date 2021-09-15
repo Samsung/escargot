@@ -290,9 +290,20 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
 {
     SandBox::StackTraceDataVector stackTraceData;
 
-    SandBox::createStackTraceData(stackTraceData, *state);
+    ExecutionState* pause = SandBox::createStackTraceData(stackTraceData, *state, true);
 
-    uint32_t total = (uint32_t)stackTraceData.size();
+    uint32_t size = (uint32_t)stackTraceData.size();
+    uint32_t total = 0;
+
+    for (uint32_t i = 0; i < size; i++) {
+        if ((size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
+            total++;
+        }
+    }
+
+    if (pause != nullptr) {
+        total += (uint32_t)pause->pauseSource()->savedStackTrace()->size();
+    }
 
     if (getTotal && !send(ESCARGOT_MESSAGE_BACKTRACE_TOTAL, &total, sizeof(uint32_t))) {
         return;
@@ -307,31 +318,61 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
     }
 
     ByteCodeLOCDataMap locMap;
-    for (uint32_t i = minDepth; i < maxDepth; i++) {
-        if ((size_t)stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
-            ByteCodeBlock* byteCodeBlock = stackTraceData[i].second.loc.actualCodeBlock;
-            size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
+    uint32_t counter = 0;
 
-            ByteCodeLOCData* locData;
-            auto iterMap = locMap.find(byteCodeBlock);
-            if (iterMap == locMap.end()) {
-                locData = new ByteCodeLOCData();
-                locMap.insert(std::make_pair(byteCodeBlock, locData));
-            } else {
-                locData = iterMap->second;
+    for (uint32_t i = 0; i < size && counter < maxDepth; i++) {
+        if ((size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
+            if (++counter <= minDepth) {
+                continue;
             }
 
-            ExtendedNodeLOC loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock, locData);
+            ByteCodeBlock* byteCodeBlock = stackTraceData[i].second.loc.actualCodeBlock;
+            uint32_t line, column;
 
-            sendBacktraceInfo(ESCARGOT_MESSAGE_BACKTRACE, byteCodeBlock, (uint32_t)loc.line, (uint32_t)loc.column, (uint32_t)stackTraceData[i].second.executionStateDepth);
+            if ((size_t)stackTraceData[i].second.loc.index == SIZE_MAX) {
+                size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
+
+                ByteCodeLOCData* locData;
+                auto iterMap = locMap.find(byteCodeBlock);
+                if (iterMap == locMap.end()) {
+                    locData = new ByteCodeLOCData();
+                    locMap.insert(std::make_pair(byteCodeBlock, locData));
+                } else {
+                    locData = iterMap->second;
+                }
+
+                ExtendedNodeLOC loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock, locData);
+                line = (uint32_t)loc.line;
+                column = (uint32_t)loc.column;
+            } else {
+                line = (uint32_t)stackTraceData[i].second.loc.line;
+                column = (uint32_t)stackTraceData[i].second.loc.column;
+            }
+
+            sendBacktraceInfo(ESCARGOT_MESSAGE_BACKTRACE, byteCodeBlock, line, column, (uint32_t)stackTraceData[i].second.executionStateDepth);
 
             if (!enabled()) {
                 return;
             }
         }
     }
+
     for (auto iter = locMap.begin(); iter != locMap.end(); iter++) {
         delete iter->second;
+    }
+
+    if (pause != nullptr) {
+        SavedStackTraceData* savedStackTracePtr = pause->pauseSource()->savedStackTrace()->begin();
+        SavedStackTraceData* savedStackTraceEnd = pause->pauseSource()->savedStackTrace()->end();
+
+        while (counter < maxDepth && savedStackTracePtr < savedStackTraceEnd) {
+            if (++counter <= minDepth) {
+                continue;
+            }
+
+            sendBacktraceInfo(ESCARGOT_MESSAGE_BACKTRACE, savedStackTracePtr->byteCodeBlock, savedStackTracePtr->line, savedStackTracePtr->column, UINT32_MAX);
+            savedStackTracePtr++;
+        }
     }
 
     sendType(ESCARGOT_MESSAGE_BACKTRACE_END);
@@ -824,6 +865,66 @@ void Debugger::waitForResolvingPendingBreakpoints()
             break;
         }
     }
+}
+
+Debugger::SavedStackTraceDataVector* Debugger::saveStackTrace(ExecutionState& state)
+{
+    SavedStackTraceDataVector* savedStackTrace = new SavedStackTraceDataVector();
+    SandBox::StackTraceDataVector stackTraceData;
+    ByteCodeLOCDataMap locMap;
+    uint32_t counter = 0;
+
+    ExecutionState* pause = SandBox::createStackTraceData(stackTraceData, state, true);
+    uint32_t total = (uint32_t)stackTraceData.size();
+
+    for (uint32_t i = 0; i < total && counter < ESCARGOT_DEBUGGER_MAX_STACK_TRACE_LENGTH; i++) {
+        if ((size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
+            ByteCodeBlock* byteCodeBlock = stackTraceData[i].second.loc.actualCodeBlock;
+            uint32_t line, column;
+
+            counter++;
+
+            if ((size_t)stackTraceData[i].second.loc.index == SIZE_MAX) {
+                size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
+
+                ByteCodeLOCData* locData;
+                auto iterMap = locMap.find(byteCodeBlock);
+                if (iterMap == locMap.end()) {
+                    locData = new ByteCodeLOCData();
+                    locMap.insert(std::make_pair(byteCodeBlock, locData));
+                } else {
+                    locData = iterMap->second;
+                }
+
+                ExtendedNodeLOC loc = byteCodeBlock->computeNodeLOCFromByteCode(state.context(), byteCodePosition, byteCodeBlock->m_codeBlock, locData);
+
+                line = (uint32_t)loc.line;
+                column = (uint32_t)loc.column;
+            } else {
+                line = (uint32_t)stackTraceData[i].second.loc.line;
+                column = (uint32_t)stackTraceData[i].second.loc.column;
+            }
+
+            savedStackTrace->push_back(SavedStackTraceData(byteCodeBlock, line, column));
+        }
+    }
+
+    for (auto iter = locMap.begin(); iter != locMap.end(); iter++) {
+        delete iter->second;
+    }
+
+    if (pause != nullptr) {
+        SavedStackTraceData* savedStackTracePtr = pause->pauseSource()->savedStackTrace()->begin();
+        SavedStackTraceData* savedStackTraceEnd = pause->pauseSource()->savedStackTrace()->end();
+
+        while (counter < ESCARGOT_DEBUGGER_MAX_STACK_TRACE_LENGTH && savedStackTracePtr < savedStackTraceEnd) {
+            savedStackTrace->push_back(SavedStackTraceData(savedStackTracePtr->byteCodeBlock, savedStackTracePtr->line, savedStackTracePtr->column));
+            savedStackTracePtr++;
+            counter++;
+        }
+    }
+
+    return savedStackTrace;
 }
 
 Debugger* createDebugger(const char* options, bool* debuggerEnabled)

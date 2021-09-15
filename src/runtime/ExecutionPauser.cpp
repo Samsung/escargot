@@ -68,6 +68,9 @@ ExecutionPauser::ExecutionPauser(ExecutionState& state, Object* sourceObject, Ex
     , m_pauseValue(nullptr)
     , m_resumeValueIndex(REGISTER_LIMIT)
     , m_resumeStateIndex(REGISTER_LIMIT)
+#ifdef ESCARGOT_DEBUGGER
+    , m_savedStackTrace(nullptr)
+#endif /* ESCARGOT_DEBUGGER */
 {
 }
 
@@ -167,6 +170,12 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             es = new ExecutionState(&state, env, false);
         }
         result = ByteCodeInterpreter::interpret(es, self->m_byteCodeBlock, startPos, self->m_registerFile);
+
+#ifdef ESCARGOT_DEBUGGER
+        if (from != Generator && self->m_savedStackTrace == nullptr) {
+            self->m_savedStackTrace = Debugger::saveStackTrace(state);
+        }
+#endif /* ESCARGOT_DEBUGGER */
 
         if (self->m_pauseValue) {
             PauseValue* exitValue = self->m_pauseValue;
