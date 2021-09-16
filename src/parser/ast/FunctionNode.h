@@ -48,6 +48,8 @@ public:
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(0);
             blockContext = codeBlock->pushLexicalBlock(context, bi, this);
 
+            generateFunctionNameByteCode(codeBlock, context);
+
             m_params->generateStatementByteCode(codeBlock, context);
 
             addExecutionPauseIfNeeds(codeBlock, context);
@@ -66,6 +68,8 @@ public:
                 blockContext = codeBlock->pushLexicalBlock(context, bi, this, false);
             }
 
+            generateFunctionNameByteCode(codeBlock, context);
+
             m_params->generateStatementByteCode(codeBlock, context);
 
             addExecutionPauseIfNeeds(codeBlock, context);
@@ -80,6 +84,28 @@ public:
             if (m_body->lexicalBlockIndex() != LEXICAL_BLOCK_INDEX_MAX) {
                 codeBlock->finalizeLexicalBlock(context, blockContext);
                 context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
+            }
+        }
+    }
+
+    void generateFunctionNameByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context)
+    {
+        InterpretedCodeBlock* codeBlock = block->codeBlock();
+        AtomicString name = codeBlock->functionName();
+        if (name.string()->length()) {
+            if (UNLIKELY(codeBlock->isFunctionNameExplicitlyDeclared())) {
+                if (codeBlock->canUseIndexedVariableStorage()) {
+                    if (!codeBlock->isFunctionNameSaveOnHeap()) {
+                        auto r = context->getRegister();
+                        block->pushCode(LoadLiteral(ByteCodeLOC(0), r, Value()), context, nullptr);
+                        block->pushCode(Move(ByteCodeLOC(0), r, REGULAR_REGISTER_LIMIT + 1), context, nullptr);
+                        context->giveUpRegister();
+                    }
+                }
+            } else if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap() && !name.string()->equals("arguments"))) {
+                context->m_isVarDeclaredBindingInitialization = true;
+                IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(codeBlock->functionName());
+                id->generateStoreByteCode(block, context, REGULAR_REGISTER_LIMIT + 1, true);
             }
         }
     }
