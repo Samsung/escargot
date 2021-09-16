@@ -195,11 +195,16 @@ public:
                         }
                     } else {
                         if (isLexicallyDeclaredBindingInitialization || isVarDeclaredBindingInitialization) {
-                            ASSERT(info.m_upperIndex == 0);
-                            codeBlock->pushCode(InitializeByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_index), context, this);
-                        } else {
-                            codeBlock->pushCode(StoreByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_upperIndex, info.m_index), context, this);
+                            if (LIKELY(info.m_upperIndex == 0)) {
+                                codeBlock->pushCode(InitializeByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_index), context, this);
+                                return;
+                            }
+
+                            // it is for the case that function name of function expression should be initialized on the heap with other lexical variables
+                            ASSERT(m_name == codeBlock->codeBlock()->functionName() && codeBlock->codeBlock()->isFunctionExpression() && codeBlock->codeBlock()->isFunctionNameSaveOnHeap());
                         }
+
+                        codeBlock->pushCode(StoreByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_upperIndex, info.m_index), context, this);
                     }
                 }
             }
