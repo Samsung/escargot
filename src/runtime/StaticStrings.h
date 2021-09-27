@@ -74,6 +74,7 @@ namespace Escargot {
     F(LN2)                        \
     F(LOG10E)                     \
     F(LOG2E)                      \
+    F(ListFormat)                 \
     F(Locale)                     \
     F(MAX_SAFE_INTEGER)           \
     F(MAX_VALUE)                  \
@@ -310,7 +311,6 @@ namespace Escargot {
     F(length)                     \
     F(let)                        \
     F(link)                       \
-    F(ListFormat)                 \
     F(load)                       \
     F(localeCompare)              \
     F(log)                        \

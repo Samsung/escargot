@@ -31,14 +31,6 @@
 
 namespace Escargot {
 
-static const char* const intlListFormatRelevantExtensionKeys[0] = {};
-static size_t intlListFormatRelevantExtensionKeysLength = 0;
-
-static std::vector<std::string> localeDataListFormat(String* locale, size_t keyIndex)
-{
-    return std::vector<std::string>();
-}
-
 IntlListFormatObject::IntlListFormatObject(ExecutionState& state, Object* proto, Value locales, Value options)
     : Object(state, proto)
 {
@@ -73,7 +65,7 @@ IntlListFormatObject::IntlListFormatObject(ExecutionState& state, Object* proto,
     // Let localeData be %ListFormat%.[[LocaleData]].
     // Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]], requestedLocales, opt, %ListFormat%.[[RelevantExtensionKeys]], localeData).
     const auto& availableLocales = state.context()->vmInstance()->intlListFormatAvailableLocales();
-    StringMap r = Intl::resolveLocale(state, availableLocales, requestedLocales, opt, intlListFormatRelevantExtensionKeys, intlListFormatRelevantExtensionKeysLength, localeDataListFormat);
+    StringMap r = Intl::resolveLocale(state, availableLocales, requestedLocales, opt, nullptr, 0, nullptr);
 
     // Set listFormat.[[Locale]] to r.[[locale]].
     m_locale = r.at("locale");

@@ -28,14 +28,6 @@
 
 namespace Escargot {
 
-static const char* const intlDisplayNamesRelevantExtensionKeys[0] = {};
-static size_t intlDisplayNamesRelevantExtensionKeysLength = 0;
-
-static std::vector<std::string> localeDataDisplayNames(String* locale, size_t keyIndex)
-{
-    return std::vector<std::string>();
-}
-
 IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* proto, Value locales, Value options)
     : Object(state, proto)
 {
@@ -69,7 +61,7 @@ IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* pr
     opt.insert(std::make_pair("localeMatcher", matcher.asString()));
     // Let r be ResolveLocale(%DisplayNames%.[[AvailableLocales]], requestedLocales, opt, %DisplayNames%.[[RelevantExtensionKeys]]).
     const auto& availableLocales = state.context()->vmInstance()->intlDisplayNamesAvailableLocales();
-    StringMap r = Intl::resolveLocale(state, availableLocales, requestedLocales, opt, intlDisplayNamesRelevantExtensionKeys, intlDisplayNamesRelevantExtensionKeysLength, localeDataDisplayNames);
+    StringMap r = Intl::resolveLocale(state, availableLocales, requestedLocales, opt, nullptr, 0, nullptr);
 
     // Let style be ? GetOption(options, "style", "string", « "narrow", "short", "long" », "long").
     Value styleValues[] = { staticStrings.lazyNarrow().string(), staticStrings.lazyShort().string(), staticStrings.lazyLong().string() };
