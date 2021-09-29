@@ -59,6 +59,7 @@ class DoubleInEncodedValue;
 class JSGetterSetter;
 class IteratorRecord;
 class IteratorObject;
+class GenericIteratorObject;
 class MapObject;
 class SetObject;
 class WeakMapObject;
@@ -349,6 +350,11 @@ public:
     }
 
     virtual bool isIteratorObject() const
+    {
+        return false;
+    }
+
+    virtual bool isGenericIteratorObject() const
     {
         return false;
     }
@@ -718,6 +724,12 @@ public:
     {
         ASSERT(isIteratorObject());
         return (IteratorObject*)this;
+    }
+
+    GenericIteratorObject* asGenericIteratorObject()
+    {
+        ASSERT(isGenericIteratorObject());
+        return (GenericIteratorObject*)this;
     }
 
     MapObject* asMapObject()

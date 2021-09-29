@@ -309,6 +309,58 @@ public:
 PersistentRefHolder<VMInstanceRef> g_instance;
 PersistentRefHolder<ContextRef> g_context;
 
+ValueRef* builtinPrint(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argc >= 1) {
+        StringRef* printMsg;
+        if (argv[0]->isSymbol()) {
+            printMsg = argv[0]->asSymbol()->symbolDescriptiveString();
+            puts(printMsg->toStdUTF8String().data());
+            state->context()->printDebugger(printMsg);
+        } else {
+            printMsg = argv[0]->toString(state);
+            puts(printMsg->toStdUTF8String().data());
+            state->context()->printDebugger(printMsg->toString(state));
+        }
+    } else {
+        puts("undefined");
+    }
+    return ValueRef::createUndefined();
+}
+
+ValueRef* builtinTestAssert(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argc >= 2) {
+        EXPECT_TRUE(argv[0]->equalsTo(state, argv[1]));
+    }
+    return ValueRef::createUndefined();
+}
+
+PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance)
+{
+    PersistentRefHolder<ContextRef> context = ContextRef::create(instance);
+
+    Evaluator::execute(context, [](ExecutionStateRef* state) -> ValueRef* {
+        ContextRef* context = state->context();
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "print"), builtinPrint, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("print"), buildFunctionObjectRef, true, true, true);
+        }
+
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "testAssert"), builtinTestAssert, 2, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("testAssert"), buildFunctionObjectRef, true, true, true);
+        }
+
+        return ValueRef::createUndefined();
+    });
+
+    return context;
+}
+
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);
@@ -318,7 +370,7 @@ int main(int argc, char* argv[])
     Memory::setGCFrequency(24);
 
     g_instance = VMInstanceRef::create();
-    g_context = ContextRef::create(g_instance.get());
+    g_context = createEscargotContext(g_instance.get());
 
     RUN_ALL_TESTS();
 
@@ -1522,4 +1574,42 @@ TEST(ExecutionState, TryCatchFinally)
     });
 
     evalScript(g_context.get(), StringRef::createFromASCII("try { tryCatchTest(1); throw 1; } catch(e) { tryCatchTest(2) } finally{ tryCatchTest(3) }"), StringRef::createFromASCII("test.js"), false);
+}
+
+TEST(IteratorObject, GenericIterator)
+{
+    std::vector<int> sampleData = { 0, 1, 2};
+    struct IteratorData {
+        std::vector<int>& data;
+        size_t index;
+
+        IteratorData(std::vector<int>& data)
+            : data(data)
+            , index(0)
+        {
+        }
+    };
+
+    IteratorData d(sampleData);
+
+    Evaluator::execute(g_context, [](ExecutionStateRef *state, IteratorData* data) -> ValueRef* {
+        GenericIteratorObjectRef* o = GenericIteratorObjectRef::create(state, [](ExecutionStateRef* state, void* data) -> std::pair<ValueRef*, bool> {
+            IteratorData* d = (IteratorData*)data;
+            if (d->index >= d->data.size()) {
+                return std::make_pair(ValueRef::createUndefined(), true);
+            }
+            return std::make_pair(ValueRef::create(d->data[d->index++]), false);
+        }, data);
+        g_context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("genericIteratorTest"), o, true, true, true);
+        return ValueRef::createUndefined();
+    }, &d);
+
+    evalScript(g_context.get(), StringRef::createFromASCII(R"(
+    {
+        let idx = 0;
+        for(let xx of genericIteratorTest) {
+            testAssert(xx, idx++)
+        }
+    }
+)"), StringRef::createFromASCII("test.js"), false);
 }

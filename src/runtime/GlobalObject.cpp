@@ -843,6 +843,16 @@ static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t
     return Object::call(state, toString, thisObject, 0, nullptr);
 }
 
+Value builtinGenericIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isGenericIteratorObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, String::fromASCII("Iterator"), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    IteratorObject* iter = thisValue.asObject()->asIteratorObject();
+    return iter->next(state);
+}
+
 void GlobalObject::initializeOthers(ExecutionState& state)
 {
     // Other prerequisite builtins should be installed at the start time
@@ -930,6 +940,14 @@ void GlobalObject::installOthers(ExecutionState& state)
     m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
                                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_genericIteratorPrototype = new Object(state, m_iteratorPrototype);
+    m_genericIteratorPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_genericIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
+                                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinGenericIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_genericIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                                 ObjectPropertyDescriptor(Value(String::fromASCII("Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
 #if defined(ESCARGOT_ENABLE_TEST)
     AtomicString isFunctionAllocatedOnStackFunctionName(state, "isFunctionAllocatedOnStack");

@@ -92,10 +92,7 @@ public:
 
     Value next(ExecutionState& state);
 
-    virtual std::pair<Value, bool> advance(ExecutionState& state)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
+    virtual std::pair<Value, bool> advance(ExecutionState& state) = 0;
 
     static IteratorRecord* getIterator(ExecutionState& state, const Value& obj, const bool sync = true, const Value& func = Value(Value::EmptyValue));
     static Object* iteratorNext(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& value = Value(Value::EmptyValue));

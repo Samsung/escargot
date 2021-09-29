@@ -57,6 +57,7 @@
     F(ErrorObject)                              \
     F(FinalizationRegistryObject)               \
     F(FunctionObject)                           \
+    F(GenericIteratorObject)                    \
     F(GlobalObject)                             \
     F(GlobalObjectProxyObject)                  \
     F(IteratorObject)                           \
@@ -1338,8 +1339,15 @@ public:
 
 class ESCARGOT_EXPORT IteratorObjectRef : public ObjectRef {
 public:
-    static IteratorObjectRef* create(ExecutionStateRef* state);
     ValueRef* next(ExecutionStateRef* state);
+};
+
+class ESCARGOT_EXPORT GenericIteratorObjectRef : public IteratorObjectRef {
+public:
+    // returns result and done pair
+    typedef std::pair<ValueRef*, bool> (*GenericIteratorObjectRefCallback)(ExecutionStateRef* state, void* data);
+
+    static GenericIteratorObjectRef* create(ExecutionStateRef* state, GenericIteratorObjectRefCallback callback, void* callbackData);
 };
 
 class ESCARGOT_EXPORT ArrayObjectRef : public ObjectRef {
