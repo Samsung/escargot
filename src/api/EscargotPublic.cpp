@@ -2664,14 +2664,39 @@ bool ValueRef::instanceOf(ExecutionStateRef* state, const ValueRef* other) const
     return toImpl(this).instanceOf(*toImpl(state), toImpl(other));
 }
 
-IteratorObjectRef* IteratorObjectRef::create(ExecutionStateRef* state)
-{
-    return toRef(new IteratorObject(*toImpl(state)));
-}
-
 ValueRef* IteratorObjectRef::next(ExecutionStateRef* state)
 {
     return toRef(toImpl(this)->next(*toImpl(state)));
+}
+
+class GenericIteratorObject : public IteratorObject {
+public:
+    GenericIteratorObject(ExecutionState& state, GenericIteratorObjectRef::GenericIteratorObjectRefCallback callback, void* callbackData)
+        : IteratorObject(state, state.context()->globalObject()->genericIteratorPrototype())
+        , m_callback(callback)
+        , m_callbackData(callbackData)
+    {
+    }
+
+    virtual bool isGenericIteratorObject() const override
+    {
+        return true;
+    }
+
+    virtual std::pair<Value, bool> advance(ExecutionState& state) override
+    {
+        auto ret = m_callback(toRef(&state), m_callbackData);
+        return std::make_pair(toImpl(ret.first), ret.second);
+    }
+
+private:
+    GenericIteratorObjectRef::GenericIteratorObjectRefCallback m_callback;
+    void* m_callbackData;
+};
+
+GenericIteratorObjectRef* GenericIteratorObjectRef::create(ExecutionStateRef* state, GenericIteratorObjectRefCallback callback, void* callbackData)
+{
+    return toRef(new GenericIteratorObject(*toImpl(state), callback, callbackData));
 }
 
 ArrayObjectRef* ArrayObjectRef::create(ExecutionStateRef* state)

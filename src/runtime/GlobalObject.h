@@ -143,7 +143,9 @@ class FunctionObject;
     F(parseFloat, FunctionObject, objName)      \
     F(arrayToString, FunctionObject, objName)   \
     F(asyncIteratorPrototype, Object, objName)  \
-    F(iteratorPrototype, Object, objName)
+    F(iteratorPrototype, Object, objName)       \
+    F(genericIteratorPrototype, Object, objName)
+
 #define GLOBALOBJECT_BUILTIN_PROMISE(F, objName) \
     F(promise, FunctionObject, objName)          \
     F(promisePrototype, Object, objName)
