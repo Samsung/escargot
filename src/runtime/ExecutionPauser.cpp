@@ -169,10 +169,27 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             }
             es = new ExecutionState(&state, env, false);
         }
+
+#ifdef ESCARGOT_DEBUGGER
+        Debugger* debugger = state.context()->debugger();
+        ExecutionState* activeSavedStackTraceExecutionState = ESCARGOT_DEBUGGER_NO_STACK_TRACE_RESTORE;
+        Debugger::SavedStackTraceDataVector* activeSavedStackTrace = nullptr;
+
+        if (debugger != nullptr && self->m_savedStackTrace != nullptr) {
+            activeSavedStackTraceExecutionState = debugger->activeSavedStackTraceExecutionState();
+            activeSavedStackTrace = debugger->activeSavedStackTrace();
+            debugger->setActiveSavedStackTrace(&state, self->m_savedStackTrace);
+        }
+#endif /* ESCARGOT_DEBUGGER */
+
         result = ByteCodeInterpreter::interpret(es, self->m_byteCodeBlock, startPos, self->m_registerFile);
 
 #ifdef ESCARGOT_DEBUGGER
-        if (from != Generator && self->m_savedStackTrace == nullptr) {
+        if (activeSavedStackTraceExecutionState != ESCARGOT_DEBUGGER_NO_STACK_TRACE_RESTORE) {
+            debugger->setActiveSavedStackTrace(activeSavedStackTraceExecutionState, activeSavedStackTrace);
+        }
+
+        if (from != Generator && self->m_savedStackTrace == nullptr && debugger != nullptr && debugger->enabled()) {
             self->m_savedStackTrace = Debugger::saveStackTrace(state);
         }
 #endif /* ESCARGOT_DEBUGGER */

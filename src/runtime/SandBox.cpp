@@ -136,14 +136,20 @@ SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
     return result;
 }
 
-ExecutionState* SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, ExecutionState& state, bool stopAtPause)
+bool SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, ExecutionState& state, bool stopAtPause)
 {
     UNUSED_VARIABLE(stopAtPause);
 
     ExecutionState* pstate = &state;
 #ifdef ESCARGOT_DEBUGGER
     uint32_t executionStateDepthIndex = 0;
+    ExecutionState* activeSavedStackTraceExecutionState = nullptr;
+
+    if (stopAtPause && state.context()->debugger() != nullptr) {
+        activeSavedStackTraceExecutionState = state.context()->debugger()->activeSavedStackTraceExecutionState();
+    }
 #endif /* ESCARGOT_DEBUGGER */
+
     while (pstate) {
         FunctionObject* callee = pstate->resolveCallee();
         ExecutionState* es = pstate;
@@ -264,8 +270,8 @@ ExecutionState* SandBox::createStackTraceData(StackTraceDataVector& stackTraceDa
         }
 
 #ifdef ESCARGOT_DEBUGGER
-        if (stopAtPause && pstate->hasRareData() && pstate->pauseSource() != nullptr && pstate->pauseSource()->savedStackTrace() != nullptr) {
-            return pstate;
+        if (pstate == activeSavedStackTraceExecutionState) {
+            return true;
         }
 #endif /* ESCARGOT_DEBUGGER */
 
@@ -275,7 +281,7 @@ ExecutionState* SandBox::createStackTraceData(StackTraceDataVector& stackTraceDa
 #endif /* ESCARGOT_DEBUGGER */
     }
 
-    return nullptr;
+    return false;
 }
 
 void SandBox::throwException(ExecutionState& state, Value exception)

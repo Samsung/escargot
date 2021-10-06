@@ -290,7 +290,7 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
 {
     SandBox::StackTraceDataVector stackTraceData;
 
-    ExecutionState* pause = SandBox::createStackTraceData(stackTraceData, *state, true);
+    bool hasSavedStackTrace = SandBox::createStackTraceData(stackTraceData, *state, true);
 
     uint32_t size = (uint32_t)stackTraceData.size();
     uint32_t total = 0;
@@ -301,8 +301,8 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
         }
     }
 
-    if (pause != nullptr) {
-        total += (uint32_t)pause->pauseSource()->savedStackTrace()->size();
+    if (hasSavedStackTrace) {
+        total += (uint32_t)m_activeSavedStackTrace->size();
     }
 
     if (getTotal && !send(ESCARGOT_MESSAGE_BACKTRACE_TOTAL, &total, sizeof(uint32_t))) {
@@ -361,9 +361,9 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
         delete iter->second;
     }
 
-    if (pause != nullptr) {
-        SavedStackTraceData* savedStackTracePtr = pause->pauseSource()->savedStackTrace()->begin();
-        SavedStackTraceData* savedStackTraceEnd = pause->pauseSource()->savedStackTrace()->end();
+    if (hasSavedStackTrace) {
+        SavedStackTraceData* savedStackTracePtr = m_activeSavedStackTrace->begin();
+        SavedStackTraceData* savedStackTraceEnd = m_activeSavedStackTrace->end();
 
         while (counter < maxDepth && savedStackTracePtr < savedStackTraceEnd) {
             if (++counter <= minDepth) {
@@ -874,7 +874,7 @@ Debugger::SavedStackTraceDataVector* Debugger::saveStackTrace(ExecutionState& st
     ByteCodeLOCDataMap locMap;
     uint32_t counter = 0;
 
-    ExecutionState* pause = SandBox::createStackTraceData(stackTraceData, state, true);
+    bool hasSavedStackTrace = SandBox::createStackTraceData(stackTraceData, state, true);
     uint32_t total = (uint32_t)stackTraceData.size();
 
     for (uint32_t i = 0; i < total && counter < ESCARGOT_DEBUGGER_MAX_STACK_TRACE_LENGTH; i++) {
@@ -913,9 +913,10 @@ Debugger::SavedStackTraceDataVector* Debugger::saveStackTrace(ExecutionState& st
         delete iter->second;
     }
 
-    if (pause != nullptr) {
-        SavedStackTraceData* savedStackTracePtr = pause->pauseSource()->savedStackTrace()->begin();
-        SavedStackTraceData* savedStackTraceEnd = pause->pauseSource()->savedStackTrace()->end();
+    if (hasSavedStackTrace) {
+        Debugger* debugger = state.context()->debugger();
+        SavedStackTraceData* savedStackTracePtr = debugger->activeSavedStackTrace()->begin();
+        SavedStackTraceData* savedStackTraceEnd = debugger->activeSavedStackTrace()->end();
 
         while (counter < ESCARGOT_DEBUGGER_MAX_STACK_TRACE_LENGTH && savedStackTracePtr < savedStackTraceEnd) {
             savedStackTrace->push_back(SavedStackTraceData(savedStackTracePtr->byteCodeBlock, savedStackTracePtr->line, savedStackTracePtr->column));

@@ -32,8 +32,9 @@ namespace Escargot {
 #define ESCARGOT_DEBUGGER_VERSION 1
 #define ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY 10
 #define ESCARGOT_DEBUGGER_IN_WAIT_MODE (nullptr)
-#define ESCARGOT_DEBUGGER_IN_EVAL_MODE ((ExecutionState*)0x1)
-#define ESCARGOT_DEBUGGER_ALWAYS_STOP ((ExecutionState*)0x2)
+#define ESCARGOT_DEBUGGER_IN_EVAL_MODE (reinterpret_cast<ExecutionState*>(0x1))
+#define ESCARGOT_DEBUGGER_ALWAYS_STOP (reinterpret_cast<ExecutionState*>(0x2))
+#define ESCARGOT_DEBUGGER_NO_STACK_TRACE_RESTORE (reinterpret_cast<ExecutionState*>(0x1))
 #define ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH 128
 
 class Object;
@@ -219,6 +220,22 @@ public:
         }
     }
 
+    void setActiveSavedStackTrace(ExecutionState* state, SavedStackTraceDataVector* trace)
+    {
+        m_activeSavedStackTraceExecutionState = state;
+        m_activeSavedStackTrace = trace;
+    }
+
+    ExecutionState* activeSavedStackTraceExecutionState()
+    {
+        return m_activeSavedStackTraceExecutionState;
+    }
+
+    SavedStackTraceDataVector* activeSavedStackTrace()
+    {
+        return m_activeSavedStackTrace;
+    }
+
     static inline void updateStopState(Debugger* debugger, ExecutionState* state, ExecutionState* newState)
     {
         if (debugger != nullptr && debugger->m_stopState == state) {
@@ -252,6 +269,8 @@ protected:
         , m_stopState(ESCARGOT_DEBUGGER_ALWAYS_STOP)
         , m_clientSourceData(nullptr)
         , m_clientSourceName(nullptr)
+        , m_activeSavedStackTraceExecutionState(nullptr)
+        , m_activeSavedStackTrace(nullptr)
     {
     }
 
@@ -315,6 +334,8 @@ private:
     String* m_clientSourceName;
     Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
     Vector<Object*, GCUtil::gc_malloc_allocator<Object*>> m_activeObjects;
+    ExecutionState* m_activeSavedStackTraceExecutionState;
+    SavedStackTraceDataVector* m_activeSavedStackTrace;
 };
 
 Debugger* createDebugger(const char* options, bool* debuggerEnabled);

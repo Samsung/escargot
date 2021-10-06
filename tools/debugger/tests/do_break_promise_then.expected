@@ -1,0 +1,27 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_break_promise_then.js:20
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_break_promise_then.js:21
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_break_promise_then.js:27
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_break_promise_then.js:41
+(escargot-debugger) b do_break_promise_then.js:24
+Breakpoint 1 at tools/debugger/tests/do_break_promise_then.js:24 (in f() at line:23, col:1)
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_break_promise_then.js:24 (in f() at line:23, col:1)
+(escargot-debugger) bt
+tools/debugger/tests/do_break_promise_then.js:24:5 [depth:0] (in f)
+tools/debugger/tests/do_break_promise_then.js:29:9 [depth:1]
+tools/debugger/tests/do_break_promise_then.js:28:5
+tools/debugger/tests/do_break_promise_then.js:27:1
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_break_promise_then.js:24 (in f() at line:23, col:1)
+(escargot-debugger) bt
+tools/debugger/tests/do_break_promise_then.js:24:5 [depth:0] (in f)
+tools/debugger/tests/do_break_promise_then.js:34:5 [depth:1] (in g)
+tools/debugger/tests/do_break_promise_then.js:38:5 (in h)
+tools/debugger/tests/do_break_promise_then.js:41:1
+(escargot-debugger) c
+Connection closed.

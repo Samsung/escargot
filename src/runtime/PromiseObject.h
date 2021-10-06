@@ -21,6 +21,7 @@
 #define __EscargotPromiseObject__
 
 #include "runtime/Object.h"
+#include "debugger/Debugger.h"
 
 namespace Escargot {
 
@@ -34,6 +35,9 @@ public:
             : m_promise(nullptr)
             , m_resolveFunction(nullptr)
             , m_rejectFunction(nullptr)
+#ifdef ESCARGOT_DEBUGGER
+            , m_savedStackTrace(nullptr)
+#endif /* ESCARGOT_DEBUGGER */
         {
         }
 
@@ -47,6 +51,9 @@ public:
         Object* m_promise;
         Object* m_resolveFunction;
         Object* m_rejectFunction;
+#ifdef ESCARGOT_DEBUGGER
+        Debugger::SavedStackTraceDataVector* m_savedStackTrace;
+#endif /* ESCARGOT_DEBUGGER */
     };
 
     PromiseReaction()
