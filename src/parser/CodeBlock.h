@@ -199,9 +199,7 @@ struct InterpretedCodeBlockRareData : public gc {
 typedef TightVector<InterpretedCodeBlock*, GCUtil::gc_malloc_allocator<InterpretedCodeBlock*>> InterpretedCodeBlockVector;
 
 class InterpretedCodeBlock : public CodeBlock {
-    friend class Script;
     friend class ScriptParser;
-    friend class VMInstance;
     friend int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr);
 #if defined(ENABLE_CODE_CACHE)
     friend class CodeCacheWriter;
@@ -361,6 +359,16 @@ public:
     ByteCodeBlock* byteCodeBlock()
     {
         return m_byteCodeBlock;
+    }
+
+    void setByteCodeBlock(ByteCodeBlock* block)
+    {
+#ifndef NDEBUG
+        if (!!m_byteCodeBlock) {
+            ASSERT(!block);
+        }
+#endif
+        m_byteCodeBlock = block;
     }
 
     InterpretedCodeBlock* parent()

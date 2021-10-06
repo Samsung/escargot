@@ -76,6 +76,8 @@ class VMInstance : public gc {
     friend class VMInstanceRef;
     friend class ScriptParser;
     friend class SandBox;
+    friend void vmMarkStartCallback(void* data);
+    friend void vmReclaimEndCallback(void* data);
 
 public:
     enum PromiseHookType {
@@ -146,6 +148,11 @@ public:
     // [lastIndex]
     static Value regexpLastIndexNativeGetter(ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea);
     static bool regexpLastIndexNativeSetter(ExecutionState& state, Object* self, const Value& receiver, EncodedValue& privateDataFromObjectPrivateArea, const Value& setterInputData);
+
+    bool inIdleMode() const
+    {
+        return m_inIdleMode;
+    }
 
     bool didSomePrototypeObjectDefineIndexedProperty()
     {
@@ -297,7 +304,7 @@ private:
     SandBox* m_currentSandBox;
 
     bool m_isFinalized;
-    bool m_inEnterIdleMode;
+    bool m_inIdleMode;
     // this flag should affect VM-wide array object
     bool m_didSomePrototypeObjectDefineIndexedProperty;
 #ifdef ESCARGOT_DEBUGGER

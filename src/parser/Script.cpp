@@ -457,10 +457,10 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         clearStack<512>();
 
         // we give up program bytecodeblock after first excution for reducing memory usage
-        m_topCodeBlock->m_byteCodeBlock = nullptr;
+        m_topCodeBlock->setByteCodeBlock(nullptr);
     } else {
         ScriptAsyncFunctionObject* fakeFunctionObject = new ScriptAsyncFunctionObject(state, state.context()->globalObject()->asyncFunctionPrototype(), m_topCodeBlock, nullptr);
-        auto ep = new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->m_byteCodeBlock);
+        auto ep = new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->byteCodeBlock());
         newState->setPauseSource(ep);
         ep->m_promiseCapability = PromiseObject::newPromiseCapability(*newState, newState->context()->globalObject()->promise());
         resultValue = ExecutionPauser::start(*newState, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async);
@@ -1081,11 +1081,11 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
         clearStack<512>();
 
         // we give up program bytecodeblock after first excution for reducing memory usage
-        m_topCodeBlock->m_byteCodeBlock = nullptr;
+        m_topCodeBlock->setByteCodeBlock(nullptr);
     } else {
         ASSERT(capability);
         ScriptAsyncFunctionObject* fakeFunctionObject = new ScriptAsyncFunctionObject(state, state.context()->globalObject()->asyncFunctionPrototype(), m_topCodeBlock, nullptr);
-        auto ep = new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->m_byteCodeBlock);
+        auto ep = new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->byteCodeBlock());
         newState->setPauseSource(ep);
         ep->m_promiseCapability = capability.value();
         resultValue = ExecutionPauser::start(*newState, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async);
