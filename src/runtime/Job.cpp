@@ -37,6 +37,18 @@ SandBox::SandBoxResult PromiseReactionJob::run()
         context->vmInstance()->triggerPromiseHook(state, VMInstance::PromiseHookType::Before, promise, Value());
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    Debugger* debugger = state.context()->debugger();
+    ExecutionState* activeSavedStackTraceExecutionState = ESCARGOT_DEBUGGER_NO_STACK_TRACE_RESTORE;
+    Debugger::SavedStackTraceDataVector* activeSavedStackTrace = nullptr;
+
+    if (debugger != nullptr && m_reaction.m_capability.m_savedStackTrace != nullptr) {
+        activeSavedStackTraceExecutionState = debugger->activeSavedStackTraceExecutionState();
+        activeSavedStackTrace = debugger->activeSavedStackTrace();
+        debugger->setActiveSavedStackTrace(&state, m_reaction.m_capability.m_savedStackTrace);
+    }
+#endif /* ESCARGOT_DEBUGGER */
+
     // https://www.ecma-international.org/ecma-262/10.0/#sec-promisereactionjob
     SandBox sandbox(context);
     SandBox::SandBoxResult result = sandbox.run([&]() -> Value {
@@ -73,6 +85,12 @@ SandBox::SandBoxResult PromiseReactionJob::run()
         }
         return res.result;
     });
+
+#ifdef ESCARGOT_DEBUGGER
+    if (activeSavedStackTraceExecutionState != ESCARGOT_DEBUGGER_NO_STACK_TRACE_RESTORE) {
+        debugger->setActiveSavedStackTrace(activeSavedStackTraceExecutionState, activeSavedStackTrace);
+    }
+#endif /* ESCARGOT_DEBUGGER */
 
     if (UNLIKELY(context->vmInstance()->isPromiseHookRegistered())) {
         Object* promiseTarget = m_reaction.m_capability.m_promise;

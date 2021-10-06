@@ -182,6 +182,12 @@ Optional<Object*> PromiseObject::then(ExecutionState& state, Value onFulfilledVa
 
     PromiseReaction::Capability capability = resultCapability.hasValue() ? resultCapability.value() : PromiseReaction::Capability(nullptr, nullptr, nullptr);
 
+#ifdef ESCARGOT_DEBUGGER
+    if (state.context()->debugger() != nullptr && state.context()->debugger()->enabled()) {
+        capability.m_savedStackTrace = Debugger::saveStackTrace(state);
+    }
+#endif /* ESCARGOT_DEBUGGER */
+
     switch (this->state()) {
     case PromiseObject::PromiseState::Pending: {
         appendReaction(onFulfilled, onRejected, capability);
