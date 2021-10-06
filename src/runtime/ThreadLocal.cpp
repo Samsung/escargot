@@ -37,9 +37,91 @@ MAY_THREAD_LOCAL bf_context_t ThreadLocal::g_bfContext;
 #if defined(ENABLE_WASM)
 MAY_THREAD_LOCAL WASMContext ThreadLocal::g_wasmContext;
 #endif
+MAY_THREAD_LOCAL GCEventListenerSet* ThreadLocal::g_gcEventListenerSet;
 MAY_THREAD_LOCAL ASTAllocator* ThreadLocal::g_astAllocator;
 MAY_THREAD_LOCAL WTF::BumpPointerAllocator* ThreadLocal::g_bumpPointerAllocator;
 MAY_THREAD_LOCAL void* ThreadLocal::g_customData;
+
+GCEventListenerSet::EventListenerVector* GCEventListenerSet::ensureMarkStartListeners()
+{
+    if (!m_markStartListeners) {
+        m_markStartListeners = new GCEventListenerSet::EventListenerVector();
+    }
+    return m_markStartListeners.value();
+}
+
+GCEventListenerSet::EventListenerVector* GCEventListenerSet::ensureMarkEndListeners()
+{
+    if (!m_markEndListeners) {
+        m_markEndListeners = new GCEventListenerSet::EventListenerVector();
+    }
+    return m_markEndListeners.value();
+}
+
+GCEventListenerSet::EventListenerVector* GCEventListenerSet::ensureReclaimStartListeners()
+{
+    if (!m_reclaimStartListeners) {
+        m_reclaimStartListeners = new GCEventListenerSet::EventListenerVector();
+    }
+    return m_reclaimStartListeners.value();
+}
+
+GCEventListenerSet::EventListenerVector* GCEventListenerSet::ensureReclaimEndListeners()
+{
+    if (!m_reclaimEndListeners) {
+        m_reclaimEndListeners = new GCEventListenerSet::EventListenerVector();
+    }
+    return m_reclaimEndListeners.value();
+}
+
+void GCEventListenerSet::reset()
+{
+    if (m_markStartListeners) {
+        delete m_markStartListeners.value();
+        m_markStartListeners.reset();
+    }
+    if (m_markEndListeners) {
+        delete m_markEndListeners.value();
+        m_markEndListeners.reset();
+    }
+    if (m_reclaimStartListeners) {
+        delete m_reclaimStartListeners.value();
+        m_reclaimStartListeners.reset();
+    }
+    if (m_reclaimEndListeners) {
+        delete m_reclaimEndListeners.value();
+        m_reclaimEndListeners.reset();
+    }
+}
+
+static void genericGCEventListener(GC_EventType evtType)
+{
+    GCEventListenerSet& list = ThreadLocal::gcEventListenerSet();
+    Optional<GCEventListenerSet::EventListenerVector*> listeners;
+
+    switch (evtType) {
+    case GC_EVENT_MARK_START:
+        listeners = list.markStartListeners();
+        break;
+    case GC_EVENT_MARK_END:
+        listeners = list.markEndListeners();
+        break;
+    case GC_EVENT_RECLAIM_START:
+        listeners = list.reclaimStartListeners();
+        break;
+    case GC_EVENT_RECLAIM_END:
+        listeners = list.reclaimEndListeners();
+        break;
+    default:
+        break;
+    }
+
+    if (listeners) {
+        for (size_t i = 0; i < listeners->size(); i++) {
+            listeners->at(i).first(listeners->at(i).second);
+        }
+    }
+}
 
 void ThreadLocal::initialize()
 {
@@ -65,6 +147,11 @@ void ThreadLocal::initialize()
     g_wasmContext.store = wasm_store_new(g_wasmContext.engine);
     g_wasmContext.lastGCCheckTime = 0;
 #endif
+
+    // g_gcEventListenerSet
+    g_gcEventListenerSet = new GCEventListenerSet();
+    // in addition, register genericGCEventListener here too
+    GC_set_on_collection_event(genericGCEventListener);
 
     // g_astAllocator
     g_astAllocator = new ASTAllocator();
@@ -108,6 +195,10 @@ void ThreadLocal::finalize()
     g_wasmContext.engine = nullptr;
     g_wasmContext.lastGCCheckTime = 0;
 #endif
+
+    // g_gcEventListenerSet
+    delete g_gcEventListenerSet;
+    g_gcEventListenerSet = nullptr;
 
     // g_astAllocator
     delete g_astAllocator;

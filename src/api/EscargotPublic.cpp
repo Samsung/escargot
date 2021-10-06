@@ -370,19 +370,69 @@ size_t Memory::totalSize()
     return GC_get_total_bytes();
 }
 
-static Memory::OnGCEventListener g_gcEventListener;
-static void gcEventListener(GC_EventType evtType, void*)
+void Memory::addGCEventListener(GCEventType type, OnGCEventListener l, void* data)
 {
-    if (GC_EVENT_RECLAIM_END == evtType && g_gcEventListener) {
-        g_gcEventListener();
+    GCEventListenerSet& list = ThreadLocal::gcEventListenerSet();
+    GCEventListenerSet::EventListenerVector* listeners = nullptr;
+
+    switch (type) {
+    case MARK_START:
+        listeners = list.ensureMarkStartListeners();
+        break;
+    case MARK_END:
+        listeners = list.ensureMarkEndListeners();
+        break;
+    case RECLAIM_START:
+        listeners = list.ensureReclaimStartListeners();
+        break;
+    case RECLAIM_END:
+        listeners = list.ensureReclaimEndListeners();
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+        break;
     }
+
+#ifndef NDEBUG
+    auto iter = std::find(listeners->begin(), listeners->end(), std::make_pair(l, data));
+    ASSERT(iter == listeners->end());
+#endif
+
+    listeners->push_back(std::make_pair(l, data));
 }
 
-void Memory::setGCEventListener(OnGCEventListener l)
+bool Memory::removeGCEventListener(GCEventType type, OnGCEventListener l, void* data)
 {
-    g_gcEventListener = l;
-    GC_remove_event_callback(gcEventListener, nullptr);
-    GC_add_event_callback(gcEventListener, nullptr);
+    GCEventListenerSet& list = ThreadLocal::gcEventListenerSet();
+    Optional<GCEventListenerSet::EventListenerVector*> listeners;
+
+    switch (type) {
+    case MARK_START:
+        listeners = list.markStartListeners();
+        break;
+    case MARK_END:
+        listeners = list.markEndListeners();
+        break;
+    case RECLAIM_START:
+        listeners = list.reclaimStartListeners();
+        break;
+    case RECLAIM_END:
+        listeners = list.reclaimEndListeners();
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+        break;
+    }
+
+    if (listeners) {
+        auto iter = std::find(listeners->begin(), listeners->end(), std::make_pair(l, data));
+        if (iter != listeners->end()) {
+            listeners->erase(iter);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // I store ref count as EncodedValue. this can prevent what bdwgc can see ref count as address (EncodedValue store integer value as odd)

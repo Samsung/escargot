@@ -171,8 +171,17 @@ public:
     static size_t heapSize(); // Return the number of bytes in the heap.  Excludes bdwgc private data structures. Excludes the unmapped memory
     static size_t totalSize(); // Return the total number of bytes allocated in this process
 
-    typedef void (*OnGCEventListener)();
-    static void setGCEventListener(OnGCEventListener l);
+    enum GCEventType {
+        MARK_START,
+        MARK_END,
+        RECLAIM_START,
+        RECLAIM_END,
+    };
+    // pointer `data` is not a GC object
+    typedef void (*OnGCEventListener)(void* data);
+    static void addGCEventListener(GCEventType type, OnGCEventListener l, void* data);
+    static bool removeGCEventListener(GCEventType type, OnGCEventListener l, void* data);
+
     // NOTE bdwgc(c/c++ gc library escargot use) allocate at least N/GC_free_space_divisor bytes between collections
     // (Allocated memory by GC x 2) / (Frequency parameter value)
     // Increasing this value may use less space but there is more collection event

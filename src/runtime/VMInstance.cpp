@@ -136,72 +136,6 @@ void VMInstance::compressStringsIfNeeds(uint64_t currentTickCount)
 }
 #endif
 
-void VMInstance::gcEventCallback(GC_EventType t, void* data)
-{
-    VMInstance* self = (VMInstance*)data;
-
-#ifdef ESCARGOT_DEBUGGER
-    const bool debuggerEnabled = self->m_debuggerEnabled;
-#else /* !ESCARGOT_DEBUGGER */
-    const bool debuggerEnabled = false;
-#endif /* ESCARGOT_DEBUGGER */
-
-    if (t == GC_EventType::GC_EVENT_MARK_START && LIKELY(!debuggerEnabled)) {
-        if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX || UNLIKELY(self->m_inEnterIdleMode)) {
-            self->m_regexpCache->clear();
-        }
-
-        auto& currentCodeSizeTotal = self->compiledByteCodeSize();
-        if (currentCodeSizeTotal > SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX || UNLIKELY(self->m_inEnterIdleMode)) {
-            currentCodeSizeTotal = std::numeric_limits<size_t>::max();
-            auto& v = self->compiledByteCodeBlocks();
-            for (size_t i = 0; i < v.size(); i++) {
-                auto cb = v[i]->m_codeBlock;
-                if (LIKELY(!cb->isAsync() && !cb->isGenerator())) {
-                    v[i]->m_codeBlock->m_byteCodeBlock = nullptr;
-                }
-            }
-        }
-    } else if (t == GC_EventType::GC_EVENT_RECLAIM_END) {
-#if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_WASM)
-        auto currentTick = fastTickCount();
-#if defined(ENABLE_COMPRESSIBLE_STRING)
-        if (currentTick - self->m_lastCompressibleStringsTestTime > ESCARGOT_COMPRESSIBLE_COMPRESS_GC_CHECK_INTERVAL) {
-            self->compressStringsIfNeeds(currentTick);
-            self->m_lastCompressibleStringsTestTime = currentTick;
-        }
-#endif
-#if defined(ENABLE_WASM)
-        if (currentTick - ThreadLocal::wasmLastGCCheckTime() > ESCARGOT_WASM_GC_CHECK_INTERVAL) {
-            ThreadLocal::wasmGC(currentTick);
-        }
-#endif
-#endif
-        auto& currentCodeSizeTotal = self->compiledByteCodeSize();
-
-        if (currentCodeSizeTotal == std::numeric_limits<size_t>::max()) {
-            GC_invoke_finalizers();
-
-            // we need to check this because ~VMInstance can be called by GC_invoke_finalizers
-            if (!self->m_isFinalized) {
-                currentCodeSizeTotal = 0;
-                auto& v = self->compiledByteCodeBlocks();
-                for (size_t i = 0; i < v.size(); i++) {
-                    v[i]->m_codeBlock->m_byteCodeBlock = v[i];
-                    currentCodeSizeTotal += v[i]->memoryAllocatedSize();
-                }
-            }
-        }
-    }
-    /*
-    if (t == GC_EventType::GC_EVENT_RECLAIM_END) {
-        printf("Done GC: HeapSize: [%f MB , %f MB]\n", GC_get_memory_use() / 1024.f / 1024.f, GC_get_heap_size() / 1024.f / 1024.f);
-        printf("bytecode Size %f KiB codeblock count %zu\n", self->compiledByteCodeSize() / 1024.f, self->m_compiledByteCodeBlocks.size());
-        printf("regexp cache size %zu\n", self->m_regexpCache->size());
-    }
-    */
-}
-
 void* VMInstance::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
@@ -254,6 +188,78 @@ void* VMInstance::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
+void vmMarkStartCallback(void* data)
+{
+    VMInstance* self = (VMInstance*)data;
+
+#ifdef ESCARGOT_DEBUGGER
+    if (!self->m_debuggerEnabled) {
+#endif
+        if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX || UNLIKELY(self->inIdleMode())) {
+            self->m_regexpCache->clear();
+        }
+
+        auto& currentCodeSizeTotal = self->compiledByteCodeSize();
+        if (currentCodeSizeTotal > SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX || UNLIKELY(self->inIdleMode())) {
+            currentCodeSizeTotal = std::numeric_limits<size_t>::max();
+
+            auto& v = self->compiledByteCodeBlocks();
+            for (size_t i = 0; i < v.size(); i++) {
+                auto cb = v[i]->m_codeBlock;
+                if (LIKELY(!cb->isAsync() && !cb->isGenerator())) {
+                    v[i]->m_codeBlock->setByteCodeBlock(nullptr);
+                }
+            }
+        }
+#ifdef ESCARGOT_DEBUGGER
+    }
+#endif
+}
+
+void vmReclaimEndCallback(void* data)
+{
+    VMInstance* self = (VMInstance*)data;
+
+#if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_WASM)
+    auto currentTick = fastTickCount();
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+    if (currentTick - self->m_lastCompressibleStringsTestTime > ESCARGOT_COMPRESSIBLE_COMPRESS_GC_CHECK_INTERVAL) {
+        self->compressStringsIfNeeds(currentTick);
+        self->m_lastCompressibleStringsTestTime = currentTick;
+    }
+#endif
+#if defined(ENABLE_WASM)
+    if (currentTick - ThreadLocal::wasmLastGCCheckTime() > ESCARGOT_WASM_GC_CHECK_INTERVAL) {
+        ThreadLocal::wasmGC(currentTick);
+    }
+#endif
+#endif
+
+    auto& currentCodeSizeTotal = self->compiledByteCodeSize();
+
+    if (currentCodeSizeTotal == std::numeric_limits<size_t>::max()) {
+        GC_invoke_finalizers();
+
+        // we need to check this because ~VMInstance can be called by GC_invoke_finalizers
+        if (!self->m_isFinalized) {
+            currentCodeSizeTotal = 0;
+            auto& v = self->compiledByteCodeBlocks();
+            for (size_t i = 0; i < v.size(); i++) {
+                v[i]->m_codeBlock->setByteCodeBlock(v[i]);
+                currentCodeSizeTotal += v[i]->memoryAllocatedSize();
+            }
+        }
+    }
+
+    /*
+    if (t == GC_EventType::GC_EVENT_RECLAIM_END) {
+        printf("Done GC: HeapSize: [%f MB , %f MB]\n", GC_get_memory_use() / 1024.f / 1024.f, GC_get_heap_size() / 1024.f / 1024.f);
+        printf("bytecode Size %f KiB codeblock count %zu\n", self->compiledByteCodeSize() / 1024.f, self->m_compiledByteCodeBlocks.size());
+        printf("regexp cache size %zu\n", self->regexpCache()->size());
+    }
+    */
+}
+
 VMInstance::~VMInstance()
 {
     {
@@ -278,11 +284,29 @@ VMInstance::~VMInstance()
         }
     }
 #endif
+
     m_isFinalized = true;
-    GC_remove_event_callback(gcEventCallback, this);
+
+    // remove gc event callback
+    {
+        GCEventListenerSet& list = ThreadLocal::gcEventListenerSet();
+        Optional<GCEventListenerSet::EventListenerVector*> msListeners = list.markStartListeners();
+        ASSERT(msListeners.hasValue());
+        auto iter = std::find(msListeners->begin(), msListeners->end(), std::make_pair(vmMarkStartCallback, static_cast<void*>(this)));
+        ASSERT(iter != msListeners->end());
+        msListeners->erase(iter);
+
+        Optional<GCEventListenerSet::EventListenerVector*> reListeners = list.reclaimEndListeners();
+        ASSERT(reListeners.hasValue());
+        iter = std::find(reListeners->begin(), reListeners->end(), std::make_pair(vmReclaimEndCallback, static_cast<void*>(this)));
+        ASSERT(iter != reListeners->end());
+        reListeners->erase(iter);
+    }
+
     if (m_onVMInstanceDestroy) {
         m_onVMInstanceDestroy(this, m_onVMInstanceDestroyData);
     }
+
     clearCachesRelatedWithContext();
 #ifdef ENABLE_ICU
     vzone_close(m_timezone);
@@ -297,7 +321,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     : m_staticStrings(&m_atomicStringMap)
     , m_currentSandBox(nullptr)
     , m_isFinalized(false)
-    , m_inEnterIdleMode(false)
+    , m_inIdleMode(false)
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
 #ifdef ESCARGOT_DEBUGGER
     , m_debuggerEnabled(false)
@@ -366,7 +390,10 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     }
 #endif
 
-    GC_add_event_callback(gcEventCallback, this);
+    // add gc event callback
+    GCEventListenerSet& list = ThreadLocal::gcEventListenerSet();
+    list.ensureMarkStartListeners()->push_back(std::make_pair(vmMarkStartCallback, this));
+    list.ensureReclaimEndListeners()->push_back(std::make_pair(vmReclaimEndCallback, this));
 
 #define DECLARE_GLOBAL_SYMBOLS(name) m_globalSymbols.name = new Symbol(new ASCIIStringFromExternalMemory("Symbol." #name, sizeof("Symbol." #name) - 1));
     DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
@@ -511,7 +538,7 @@ void VMInstance::clearCachesRelatedWithContext()
 
 void VMInstance::enterIdleMode()
 {
-    m_inEnterIdleMode = true;
+    m_inIdleMode = true;
 
     // user can call this function many times without many performance concern
     if (GC_get_bytes_since_gc() > 4096) {
@@ -544,7 +571,7 @@ void VMInstance::enterIdleMode()
     }
 #endif
 
-    m_inEnterIdleMode = false;
+    m_inIdleMode = false;
 }
 
 void VMInstance::somePrototypeObjectDefineIndexedProperty(ExecutionState& state)

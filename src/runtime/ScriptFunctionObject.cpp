@@ -75,6 +75,7 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
     state.context()->scriptParser().generateFunctionByteCode(state, interpretedCodeBlock(), stackRemainApprox);
 
     auto& currentCodeSizeTotal = state.context()->vmInstance()->compiledByteCodeSize();
+    ASSERT(currentCodeSizeTotal < std::numeric_limits<size_t>::max());
     currentCodeSizeTotal += interpretedCodeBlock()->byteCodeBlock()->memoryAllocatedSize();
 }
 
