@@ -440,7 +440,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     } else {
         registerFile = CustomAllocator<Value>().allocate(registerFileSize);
         // we need to reset allocated memory because customAllocator read it
-        memset(registerFile, 0, sizeof(Value) * registerFileSize);
+        memset(static_cast<void*>(registerFile), 0, sizeof(Value) * registerFileSize);
     }
     registerFile[0] = Value();
     Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
@@ -1055,7 +1055,7 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
     } else {
         registerFile = CustomAllocator<Value>().allocate(registerFileSize);
         // we need to reset allocated memory because customAllocator read it
-        memset(registerFile, 0, sizeof(Value) * registerFileSize);
+        memset(static_cast<void*>(registerFile), 0, sizeof(Value) * registerFileSize);
     }
 
     registerFile[0] = Value();

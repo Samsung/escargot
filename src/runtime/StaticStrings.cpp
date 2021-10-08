@@ -150,7 +150,7 @@ void StaticStrings::initStaticStrings()
 #undef INIT_STATIC_NUMBER
 
     for (unsigned i = 0; i < ESCARGOT_ASCII_TABLE_MAX / 2; i++) {
-        const char c = (const char)i;
+        const char c = static_cast<char>(i);
         asciiTable[i].init(atomicStringMap, &c, 1);
     }
 
