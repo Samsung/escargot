@@ -101,7 +101,12 @@ size_t ByteCodeGenerateContext::calculateBreakpointLineOffset(size_t index, Exte
     size_t lastLineOffset = m_breakpointContext->m_lastBreakpointLineOffset;
     index -= sourceElementStart.index;
 
-    ASSERT(index >= m_breakpointContext->m_lastBreakpointIndexOffset);
+    // if cache is invalid, we should recalulate {index, lineOffset} from begin
+    if (UNLIKELY(index < m_breakpointContext->m_lastBreakpointIndexOffset)) {
+        m_breakpointContext->m_lastBreakpointLineOffset = m_breakpointContext->m_lastBreakpointIndexOffset = 0;
+        lastLineOffset = 0;
+    }
+
     for (size_t i = m_breakpointContext->m_lastBreakpointIndexOffset; i < index; i++) {
         char16_t c = src.charAt(i);
         if (EscargotLexer::isLineTerminator(c)) {
