@@ -854,26 +854,26 @@ public:
     {
         return createFromASCII(str, N - 1);
     }
-    static StringRef* createFromASCII(const char* s, size_t len);
+    static StringRef* createFromASCII(const char* s, size_t stringLength);
     template <size_t N>
     static StringRef* createFromUTF8(const char (&str)[N])
     {
         return createFromUTF8(str, N - 1);
     }
-    static StringRef* createFromUTF8(const char* s, size_t len, bool maybeASCII = true);
-    static StringRef* createFromUTF16(const char16_t* s, size_t len);
-    static StringRef* createFromLatin1(const unsigned char* s, size_t len);
+    static StringRef* createFromUTF8(const char* s, size_t byteLength, bool maybeASCII = true);
+    static StringRef* createFromUTF16(const char16_t* s, size_t stringLength);
+    static StringRef* createFromLatin1(const unsigned char* s, size_t stringLength);
 
-    static StringRef* createExternalFromASCII(const char* s, size_t len);
-    static StringRef* createExternalFromLatin1(const unsigned char* s, size_t len);
-    static StringRef* createExternalFromUTF16(const char16_t* s, size_t len);
+    static StringRef* createExternalFromASCII(const char* s, size_t stringLength);
+    static StringRef* createExternalFromLatin1(const unsigned char* s, size_t stringLength);
+    static StringRef* createExternalFromUTF16(const char16_t* s, size_t stringLength);
 
     // you can use these functions only if you enabled string compression
     static bool isCompressibleStringEnabled();
-    static StringRef* createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t len, bool maybeASCII = true);
-    static StringRef* createFromUTF16ToCompressibleString(VMInstanceRef* instance, const char16_t* s, size_t len);
-    static StringRef* createFromASCIIToCompressibleString(VMInstanceRef* instance, const char* s, size_t len);
-    static StringRef* createFromLatin1ToCompressibleString(VMInstanceRef* instance, const unsigned char* s, size_t len);
+    static StringRef* createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t byteLength, bool maybeASCII = true);
+    static StringRef* createFromUTF16ToCompressibleString(VMInstanceRef* instance, const char16_t* s, size_t stringLength);
+    static StringRef* createFromASCIIToCompressibleString(VMInstanceRef* instance, const char* s, size_t stringLength);
+    static StringRef* createFromLatin1ToCompressibleString(VMInstanceRef* instance, const unsigned char* s, size_t stringLength);
     static void* allocateStringDataBufferForCompressibleString(size_t byteLength);
     static void deallocateStringDataBufferForCompressibleString(void* ptr, size_t byteLength);
     static StringRef* createFromAlreadyAllocatedBufferToCompressibleString(VMInstanceRef* instance, void* buffer, size_t stringLen, bool is8Bit /* is ASCII or Latin1 */);
@@ -881,7 +881,7 @@ public:
     // you can use these functions only if you enabled reloadable string
     static bool isReloadableStringEnabled();
     static StringRef* createReloadableString(VMInstanceRef* instance,
-                                             bool is8BitString, size_t len, void* callbackData,
+                                             bool is8BitString, size_t stringLength, void* callbackData,
                                              void* (*loadCallback)(void* callbackData), // you should returns string buffer
                                              void (*unloadCallback)(void* memoryPtr, void* callbackData)); // you should free memoryPtr
 
@@ -899,7 +899,7 @@ public:
     RopeStringRef* asRopeString();
 
     bool equals(StringRef* src);
-    bool equalsWithASCIIString(const char* buf, size_t len);
+    bool equalsWithASCIIString(const char* buf, size_t stringLength);
 
     StringRef* substring(size_t from, size_t to);
 
