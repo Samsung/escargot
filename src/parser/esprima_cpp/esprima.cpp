@@ -5816,7 +5816,7 @@ public:
                 kind = ClassElementNode::Kind::Method;
                 bool allowSuperCall = false;
                 if (hasSuperClass) {
-                    if (keyNode && builder.isPropertyKey(keyNode, "constructor")) {
+                    if (builder.isPropertyKey(keyNode, "constructor")) {
                         allowSuperCall = true;
                     }
                 }

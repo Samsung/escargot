@@ -45,6 +45,9 @@ public:
             : m_promise(promise)
             , m_resolveFunction(resolveFunction)
             , m_rejectFunction(rejectFunction)
+#ifdef ESCARGOT_DEBUGGER
+            , m_savedStackTrace(nullptr)
+#endif /* ESCARGOT_DEBUGGER */
         {
         }
 

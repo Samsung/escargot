@@ -961,8 +961,6 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
 
     x = Value(x).toInteger(state);
 
-    UDateFormat* udat = (UDateFormat*)m_icuDateFormat;
-
     // Delegate remaining steps to ICU.
     auto formatResult = INTL_ICU_STRING_BUFFER_OPERATION_COMPLEX(udat_format, nullptr, m_icuDateFormat, x);
     if (U_FAILURE(formatResult.first)) {

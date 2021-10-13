@@ -42,7 +42,7 @@ public:
     {
         if (m_value.isPointerValue()) {
             if (LIKELY(m_value.asPointerValue()->isString())) {
-                if (LIKELY(m_value.asPointerValue()->asString()->length())) {
+                if (LIKELY(m_value.asPointerValue()->asString()->length() > 0)) {
                     codeBlock->m_stringLiteralData.pushBack(m_value.asPointerValue()->asString());
                 } else {
                     // change the value as empty string
