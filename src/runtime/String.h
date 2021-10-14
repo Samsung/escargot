@@ -74,6 +74,7 @@ bool isdigit(char32_t ch);
 class ASCIIString;
 class Latin1String;
 class UTF16String;
+class ReloadableString;
 class RopeString;
 class StringView;
 class VMInstance;
@@ -265,6 +266,12 @@ public:
     virtual bool isReloadableString()
     {
         return false;
+    }
+
+    ReloadableString* asReloadableString()
+    {
+        ASSERT(isReloadableString());
+        return (ReloadableString*)this;
     }
 
     virtual bool isRopeString()

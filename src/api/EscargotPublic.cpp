@@ -2111,6 +2111,22 @@ FunctionObjectRef* FunctionObjectRef::createBuiltinFunction(ExecutionStateRef* s
     return createFunction(state, info, true);
 }
 
+FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* stateRef, AtomicStringRef* functionName, size_t argumentCount, ValueRef** argumentNameArray, ValueRef* body)
+{
+    ExecutionState& state = *toImpl(stateRef);
+    Value* newArgv = ALLOCA(sizeof(Value) * argumentCount, Value, state);
+    for (size_t i = 0; i < argumentCount; i++) {
+        newArgv[i] = toImpl(argumentNameArray[i]);
+    }
+
+    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, toImpl(functionName), argumentCount, newArgv, toImpl(body), false, false, false, false);
+
+    Object* proto = state.context()->globalObject()->functionPrototype();
+    ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false, false);
+
+    return toRef(result);
+}
+
 ValueRef* FunctionObjectRef::getFunctionPrototype(ExecutionStateRef* state)
 {
     FunctionObject* o = toImpl(this);
