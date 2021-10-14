@@ -202,7 +202,7 @@ jobs:
         dpkg -X libicu-dev_67.1-6ubuntu2_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Build
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=cctest -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_THREADING=1 -DESCARGOT_OUTPUT=cctest -GNinja
       run: |
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/usr/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu"

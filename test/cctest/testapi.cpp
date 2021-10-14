@@ -1060,6 +1060,17 @@ TEST(BackingStore, Basic1)
     });
 }
 
+TEST(SharedArrayBufferObject, Basic1)
+{
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        auto bs = BackingStoreRef::createDefaultSharedBackingStore(10);
+        auto sa = SharedArrayBufferObjectRef::create(state, bs);
+        EXPECT_TRUE(sa->byteLength() == 10);
+
+        return ValueRef::createUndefined();
+    });
+}
+
 TEST(ObjectPropertyDescriptor, Basic1)
 {
     {
