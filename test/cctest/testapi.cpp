@@ -1624,3 +1624,53 @@ TEST(IteratorObject, GenericIterator)
     }
 )"), StringRef::createFromASCII("test.js"), false);
 }
+
+TEST(ReloadableString, Basic)
+{
+    char reloadableStringTestSource[] = "let x = 'test String'";
+    EXPECT_TRUE(StringRef::isReloadableStringEnabled());
+
+    struct Data {
+        char* string;
+        bool flag;
+    };
+
+    Data d;
+    d.string = reloadableStringTestSource;
+    d.flag = false;
+
+    StringRef* string = StringRef::createReloadableString(g_context->vmInstance(), true, strlen(reloadableStringTestSource), &d, [](void *callbackData) -> void* {
+        Data* d = static_cast<Data*>(callbackData);
+        const char* reloadableStringTestSource = static_cast<const char*>(d->string);
+        size_t len = strlen(reloadableStringTestSource);
+        void* ptr = malloc(len);
+        memcpy(ptr, reloadableStringTestSource, len);
+        d->flag = true;
+        return ptr;
+    }, [](void *memoryPtr, void *callbackData) {
+        Data* d = static_cast<Data*>(callbackData);
+        d->flag = false;
+        free(memoryPtr);
+    });
+
+    EXPECT_FALSE(d.flag);
+    string->length();
+    EXPECT_FALSE(d.flag);
+    string->charAt(0);
+    EXPECT_TRUE(d.flag);
+    EXPECT_TRUE(string->equalsWithASCIIString(reloadableStringTestSource, strlen(reloadableStringTestSource)));
+    g_context->vmInstance()->enterIdleMode();
+    EXPECT_FALSE(d.flag);
+
+    Evaluator::execute(g_context, [](ExecutionStateRef *state, StringRef* string, Data* d) -> ValueRef* {
+        ValueRef* argv[1] = { StringRef::createFromASCII("asdf") };
+        EXPECT_FALSE(d->flag);
+        auto fn = FunctionObjectRef::create(state, AtomicStringRef::create(state->context(), "test"), 1, argv, string);
+        EXPECT_TRUE(fn->toString(state)->toStdUTF8String() == "function test(asdf\n) {\nlet x = 'test String'\n}");
+        EXPECT_TRUE(d->flag);
+        g_context->vmInstance()->enterIdleMode();
+        EXPECT_FALSE(d->flag);
+
+        return ValueRef::createUndefined();
+    }, string, &d);
+}

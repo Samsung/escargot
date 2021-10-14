@@ -21,6 +21,7 @@
 #include "FunctionObject.h"
 #include "runtime/VMInstance.h"
 #include "runtime/Context.h"
+#include "runtime/ReloadableString.h"
 #include "interpreter/ByteCode.h"
 #include "parser/ast/ProgramNode.h"
 #include "parser/ScriptParser.h"
@@ -154,13 +155,97 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
             ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is unbalanced braces(}) in Function Constructor input");
         }
     }
-    src.appendString("\n) {\n");
-    src.appendString(source);
-    src.appendString("\n}");
+
+    String* scriptSource;
+#if defined(ENABLE_RELOADABLE_STRING)
+    if (UNLIKELY(source->isReloadableString())) {
+        src.appendString("\n) {\n");
+        String* head = src.finalize(&state);
+
+        bool is8Bit = head->has8BitContent() && source->has8BitContent();
+        const char tail[] = "\n}";
+        class ReloadableStringData : public gc {
+        public:
+            ReloadableStringData(String* head, ReloadableString* source)
+                : m_head(head)
+                , m_source(source)
+                , m_dest(nullptr)
+            {
+            }
+
+            String* m_head;
+            ReloadableString* m_source;
+            ReloadableString* m_dest;
+        };
+
+        ReloadableStringData* data = new ReloadableStringData(head, source->asReloadableString());
+
+        scriptSource = new ReloadableString(state.context()->vmInstance(), is8Bit, head->length() + source->length() + sizeof(tail) - 1,
+                                            data, [](void* callbackData) -> void* {
+                ReloadableStringData* data = reinterpret_cast<ReloadableStringData*>(callbackData);
+                bool is8Bit = data->m_dest->has8BitContent();
+
+                char* dest = reinterpret_cast<char*>(malloc((data->m_dest->length() + 1) * (is8Bit ? 1 : 2)));
+                char* ptr = dest;
+
+                auto fillDestBuffer = [](char* ptr, String* src, bool is8Bit) -> char* {
+                    auto bad = src->bufferAccessData();
+                    if (is8Bit) {
+                        for (size_t i = 0; i < bad.length; i ++) {
+                            ptr[i] = bad.charAt(i);
+                        }
+                        ptr += bad.length;
+                    } else {
+                        char16_t* ptrAs16 = (char16_t*)ptr;
+                        for (size_t i = 0; i < bad.length; i++) {
+                            ptrAs16[i] = bad.charAt(i);
+                        }
+                        ptr += (bad.length * 2);
+                    }
+                    return ptr;
+                };
+
+                ptr = fillDestBuffer(ptr, data->m_head, is8Bit);
+                ptr = fillDestBuffer(ptr, data->m_source, is8Bit);
+                // unload original source immediately
+                data->m_source->unload();
+
+                const char tail[] = "\n}";
+                size_t tailLength = sizeof(tail) - 1;
+                if (is8Bit) {
+                    for (size_t i = 0; i < tailLength; i ++) {
+                        ptr[i] = tail[i];
+                    }
+                    ptr += tailLength;
+                } else {
+                    char16_t* ptrAs16 = (char16_t*)ptr;
+                    for (size_t i = 0; i < tailLength; i ++) {
+                        ptrAs16[i] = tail[i];
+                    }
+                    ptr += (tailLength * 2);
+                }
+
+                *ptr = 0;
+                if (!is8Bit) {
+                    ptr++;
+                    *ptr = 0;
+                }
+
+                return dest; }, [](void* memoryPtr, void* callbackData) { free(memoryPtr); });
+
+        data->m_dest = scriptSource->asReloadableString();
+
+    } else {
+#endif
+        src.appendString("\n) {\n");
+        src.appendString(source);
+        src.appendString("\n}");
+        scriptSource = src.finalize(&state);
+#if defined(ENABLE_RELOADABLE_STRING)
+    }
+#endif
 
     ScriptParser parser(state.context());
-    String* scriptSource = src.finalize(&state);
-
     String* srcName = String::emptyString;
     // find srcName through outer script
     if (findSrcName) {
