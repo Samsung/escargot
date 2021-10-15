@@ -963,33 +963,96 @@ TEST(FunctionTemplate, Basic2)
 
 TEST(FunctionTemplate, Basic3)
 {
-    auto ft = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "parent"), 0,
-                                          true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
-                                              return ValueRef::createUndefined();
-                                          });
-    ft->prototypeTemplate()->set(StringRef::createFromASCII("asdf1"), ValueRef::create(1), true, true, true);
+    auto super = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "super"), 0,
+                                             true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
+                                                 return ValueRef::createUndefined();
+                                             });
 
-    auto ftchild = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "asdf"), 2,
-                                               true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
-                                                   return ValueRef::create(123);
-                                               });
-    auto ftchildobj = ftchild->instanceTemplate();
-    ftchildobj->set(StringRef::createFromASCII("asdf"), ValueRef::create(0), true, true, true);
+    ObjectRef::NativeDataAccessorPropertyData* nativeAccessorData = new ObjectRef::NativeDataAccessorPropertyData(true, false, false,
+                                                                                                                  [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) -> ValueRef* {
+                                                                                                                      return ValueRef::create(12);
+                                                                                                                  },
+                                                                                                                  nullptr);
 
-    ftchild->prototypeTemplate()->set(StringRef::createFromASCII("asdf2"), ValueRef::create(2), true, true, true);
-    ftchild->inherit(ft);
+    super->prototypeTemplate()->set(StringRef::createFromASCII("b_p1"), ValueRef::create(3.14), true, true, true);
+    super->instanceTemplate()->set(StringRef::createFromASCII("b_i1"), ValueRef::create(3), true, true, true);
+    super->instanceTemplate()->setNativeDataAccessorProperty(StringRef::createFromASCII("b_ia"), nativeAccessorData, true);
 
-    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionTemplateRef* ftchild) -> ValueRef* {
-        ObjectRef* ref = ftchild->instanceTemplate()->instantiate(state->context());
+    auto base = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "base"), 2,
+                                            true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
+                                                return ValueRef::create(123);
+                                            });
+    // inherit super
+    base->inherit(super);
 
-        EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("asdf"))->equalsTo(state, ValueRef::create(0)));
-        EXPECT_TRUE(ref->hasOwnProperty(state, StringRef::createFromASCII("asdf")));
-        EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("asdf1"))->equalsTo(state, ValueRef::create(1)));
-        EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("asdf2"))->equalsTo(state, ValueRef::create(2)));
+    base->prototypeTemplate()->set(StringRef::createFromASCII("v1"), ValueRef::create(20.1), true, true, true);
+    base->instanceTemplate()->set(StringRef::createFromASCII("v2"), ValueRef::create(0), true, true, true);
+
+    // test __proto__ chain
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionTemplateRef* super, FunctionTemplateRef* base) -> ValueRef* {
+        ObjectRef* super1 = super->instantiate(state->context());
+        ObjectRef* base1 = base->instantiate(state->context());
+
+        // base1.prototype.__proto__ == super1.prototype
+        EXPECT_TRUE(base1->asFunctionObject()->getFunctionPrototype(state)->asObject()->getPrototype(state) == super1->asFunctionObject()->getFunctionPrototype(state));
+        return ValueRef::createUndefined();
+    },
+                       super, base);
+
+    // test super's instance
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionTemplateRef* super) -> ValueRef* {
+        ObjectRef* ref = super->instantiate(state->context());
+
+        // ref.b_p1
+        EXPECT_FALSE(ref->hasOwnProperty(state, StringRef::createFromASCII("b_p1")));
+        // ref.b_i1
+        EXPECT_FALSE(ref->hasOwnProperty(state, StringRef::createFromASCII("b_i1")));
+        // ref.b_ia
+        EXPECT_FALSE(ref->hasOwnProperty(state, StringRef::createFromASCII("b_ia")));
+        // ref.prototype.b_p1
+        EXPECT_TRUE(ref->asFunctionObject()->getFunctionPrototype(state)->asObject()->hasOwnProperty(state, StringRef::createFromASCII("b_p1")));
+        // ref.prototype.b_i1
+        EXPECT_FALSE(ref->asFunctionObject()->getFunctionPrototype(state)->asObject()->hasOwnProperty(state, StringRef::createFromASCII("b_i1")));
+        // ref.prototype.b_ia
+        EXPECT_FALSE(ref->asFunctionObject()->getFunctionPrototype(state)->asObject()->hasOwnProperty(state, StringRef::createFromASCII("b_ia")));
 
         return ValueRef::createUndefined();
     },
-                       ftchild);
+                       super);
+
+    // test super's new instance
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionTemplateRef* super) -> ValueRef* {
+        ObjectRef* ref = super->instanceTemplate()->instantiate(state->context());
+
+        EXPECT_FALSE(ref->hasOwnProperty(state, StringRef::createFromASCII("b_p1")));
+        EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("b_p1"))->equalsTo(state, ValueRef::create(3.14)));
+        EXPECT_TRUE(ref->hasOwnProperty(state, StringRef::createFromASCII("b_i1")));
+        EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("b_i1"))->equalsTo(state, ValueRef::create(3)));
+        EXPECT_TRUE(ref->hasOwnProperty(state, StringRef::createFromASCII("b_ia")));
+        EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("b_ia"))->equalsTo(state, ValueRef::create(12)));
+
+        return ValueRef::createUndefined();
+    },
+                       super);
+
+    // test base's new instance
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionTemplateRef* base) -> ValueRef* {
+        ObjectRef* ref = base->instanceTemplate()->instantiate(state->context());
+
+        EXPECT_FALSE(ref->hasOwnProperty(state, StringRef::createFromASCII("b_p1")));
+        EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("b_p1"))->equalsTo(state, ValueRef::create(3.14)));
+        EXPECT_FALSE(ref->hasOwnProperty(state, StringRef::createFromASCII("b_i1")));
+        EXPECT_TRUE(ref->hasOwnProperty(state, StringRef::createFromASCII("b_ia")));
+        EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("b_ia"))->equalsTo(state, ValueRef::create(12)));
+
+        EXPECT_FALSE(ref->hasOwnProperty(state, StringRef::createFromASCII("v1")));
+        EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("v1"))->equalsTo(state, ValueRef::create(20.1)));
+        EXPECT_TRUE(ref->hasOwnProperty(state, StringRef::createFromASCII("v2")));
+        EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("v2"))->equalsTo(state, ValueRef::create(0)));
+
+        return ValueRef::createUndefined();
+    },
+                       base);
 }
 
 TEST(FunctionTemplate, Basic4)
@@ -1589,7 +1652,7 @@ TEST(ExecutionState, TryCatchFinally)
 
 TEST(IteratorObject, GenericIterator)
 {
-    std::vector<int> sampleData = { 0, 1, 2};
+    std::vector<int> sampleData = { 0, 1, 2 };
     struct IteratorData {
         std::vector<int>& data;
         size_t index;
@@ -1603,17 +1666,19 @@ TEST(IteratorObject, GenericIterator)
 
     IteratorData d(sampleData);
 
-    Evaluator::execute(g_context, [](ExecutionStateRef *state, IteratorData* data) -> ValueRef* {
+    Evaluator::execute(g_context, [](ExecutionStateRef* state, IteratorData* data) -> ValueRef* {
         GenericIteratorObjectRef* o = GenericIteratorObjectRef::create(state, [](ExecutionStateRef* state, void* data) -> std::pair<ValueRef*, bool> {
             IteratorData* d = (IteratorData*)data;
             if (d->index >= d->data.size()) {
                 return std::make_pair(ValueRef::createUndefined(), true);
             }
             return std::make_pair(ValueRef::create(d->data[d->index++]), false);
-        }, data);
+        },
+                                                                       data);
         g_context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("genericIteratorTest"), o, true, true, true);
         return ValueRef::createUndefined();
-    }, &d);
+    },
+                       &d);
 
     evalScript(g_context.get(), StringRef::createFromASCII(R"(
     {
@@ -1622,7 +1687,8 @@ TEST(IteratorObject, GenericIterator)
             testAssert(xx, idx++)
         }
     }
-)"), StringRef::createFromASCII("test.js"), false);
+)"),
+               StringRef::createFromASCII("test.js"), false);
 }
 
 TEST(ReloadableString, Basic)

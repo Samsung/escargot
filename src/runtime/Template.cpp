@@ -75,6 +75,22 @@ void Template::setNativeDataAccessorProperty(const TemplatePropertyName& name, O
     m_properties.pushBack(std::make_pair(name, TemplatePropertyData(nativeGetterSetterData, privateData)));
 }
 
+void Template::addNativeDataAccessorProperties(Template* other)
+{
+    // add all AccessorProperties from other ObjectTemplate
+    // it is used for Template inheritance
+    ASSERT(this->isObjectTemplate() && other->isObjectTemplate());
+
+    auto& fromProperties = other->m_properties;
+
+    for (size_t i = 0; i < fromProperties.size(); i++) {
+        auto type = fromProperties[i].second.propertyType();
+        if (type == Template::TemplatePropertyData::PropertyType::PropertyNativeAccessorData) {
+            m_properties.pushBack(std::make_pair(fromProperties[i].first, fromProperties[i].second));
+        }
+    }
+}
+
 Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx, ObjectStructureItem* baseItems, size_t baseItemCount)
 {
     size_t propertyCount = m_properties.size() + baseItemCount;

@@ -262,6 +262,10 @@ private:
 Object* ObjectTemplate::instantiate(Context* ctx)
 {
     if (!m_cachedObjectStructure.m_objectStructure) {
+        if (m_constructor && m_constructor->isConstructor() && m_constructor->parent()) {
+            // for inheritance, ObjectTemplate inherits its parent's AccessorProperties of InstanceTemplate
+            addNativeDataAccessorProperties(m_constructor->parent()->instanceTemplate());
+        }
         m_cachedObjectStructure = constructObjectStructure(ctx, nullptr, 0);
     }
     ObjectPropertyValueVector objectPropertyValues;

@@ -206,8 +206,9 @@ Object* FunctionTemplate::instantiate(Context* ctx)
     result->setInternalSlotAsPointer(FunctionTemplate::BuiltinFunctionSlot::CallTemplateFunctionDataIndex, m_nativeFunctionData);
 
     if (m_isConstructor) {
+        // set `constructor` property in prototype object
         auto idx = m_prototypeTemplate->cachedObjectStructure()->findProperty(ctx->staticStrings().constructor).first;
-        result->uncheckedGetOwnDataProperty(ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).asPointerValue()->asObject()->uncheckedSetOwnDataProperty(idx, result);
+        functionPrototype->uncheckedSetOwnDataProperty(idx, result);
 
         struct Sender {
             FunctionTemplate* functionTemplate;
@@ -220,6 +221,8 @@ Object* FunctionTemplate::instantiate(Context* ctx)
             Sender* s = (Sender*)data;
             s->prototype->markAsPrototypeObject(state);
             if (s->functionTemplate->parent()) {
+                // for FunctionTemplate::inherit
+                // set parent's prototype on prototype.__proto__
                 s->prototype->setPrototype(state, s->functionTemplate->parent()->instantiate(state.context())->asFunctionObject()->getFunctionPrototype(state));
             }
             return Value();

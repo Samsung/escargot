@@ -187,6 +187,8 @@ protected:
         {
         }
     };
+
+    void addNativeDataAccessorProperties(Template* other);
     CachedObjectStructure constructObjectStructure(Context* ctx, ObjectStructureItem* baseItems, size_t baseItemCount);
     void constructObjectPropertyValues(Context* ctx, ObjectPropertyValue* baseItems, size_t baseItemCount, ObjectPropertyValueVector& objectPropertyValues);
     void postProcessing(Object* instantiatedObject);
