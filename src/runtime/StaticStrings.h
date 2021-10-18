@@ -321,6 +321,7 @@ namespace Escargot {
     F(match)                      \
     F(matchAll)                   \
     F(max)                        \
+    F(maxByteLength)              \
     F(maximize)                   \
     F(message)                    \
     F(min)                        \
@@ -364,6 +365,8 @@ namespace Escargot {
     F(repeat)                     \
     F(replace)                    \
     F(replaceAll)                 \
+    F(resizable)                  \
+    F(resize)                     \
     F(resolve)                    \
     F(resolvedOptions)            \
     F(reverse)                    \
@@ -455,6 +458,7 @@ namespace Escargot {
     F(toTimeString)               \
     F(toUTCString)                \
     F(toUpperCase)                \
+    F(transfer)                   \
     F(trim)                       \
     F(trimEnd)                    \
     F(trimLeft)                   \
@@ -905,6 +909,8 @@ public:
     AtomicString get__proto__;
     AtomicString getbyteLength;
     AtomicString getbyteOffset;
+    AtomicString getmaxByteLength;
+    AtomicString getresizable;
     AtomicString intlDotCollator;
     AtomicString intlDotDisplayNames;
     AtomicString intlDotListFormat;

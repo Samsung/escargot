@@ -32,10 +32,11 @@ public:
     explicit ArrayBufferObject(ExecutionState& state);
     explicit ArrayBufferObject(ExecutionState& state, Object* proto);
 
-    static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength);
+    static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength, Optional<uint64_t> maxByteLength = Optional<uint64_t>());
     static ArrayBufferObject* cloneArrayBuffer(ExecutionState& state, ArrayBuffer* srcBuffer, size_t srcByteOffset, uint64_t srcLength, Object* constructor);
 
     void allocateBuffer(ExecutionState& state, size_t bytelength);
+    void allocateResizableBuffer(ExecutionState& state, size_t bytelength, size_t maxByteLength);
     void attachBuffer(BackingStore* backingStore);
     void detachArrayBuffer();
 
@@ -43,6 +44,8 @@ public:
     {
         return true;
     }
+
+    bool isResizableArrayBuffer() const;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;

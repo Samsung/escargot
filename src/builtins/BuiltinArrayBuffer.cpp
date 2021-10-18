@@ -34,11 +34,24 @@ static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValu
     }
 
     uint64_t byteLength = argv[0].toIndex(state);
-    if (byteLength == Value::InvalidIndexValue) {
+    if (UNLIKELY(byteLength == Value::InvalidIndexValue)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
     }
 
-    return ArrayBufferObject::allocateArrayBuffer(state, newTarget.value(), byteLength);
+    Optional<uint64_t> maxByteLength;
+    // Let requestedMaxByteLength be ? GetArrayBufferMaxByteLengthOption(options).
+    if (UNLIKELY((argc > 1) && argv[1].isObject())) {
+        Object* options = argv[1].asObject();
+        Value maxLengthValue = options->get(state, ObjectPropertyName(state.context()->staticStrings().maxByteLength)).value(state, options);
+        if (!maxLengthValue.isUndefined()) {
+            maxByteLength = maxLengthValue.toIndex(state);
+            if (UNLIKELY((maxByteLength.value() == Value::InvalidIndexValue) || (byteLength > maxByteLength.value()))) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+            }
+        }
+    }
+
+    return ArrayBufferObject::allocateArrayBuffer(state, newTarget.value(), byteLength, maxByteLength);
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-arraybuffer.isview
@@ -56,19 +69,22 @@ static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, si
     return Value(false);
 }
 
-// https://www.ecma-international.org/ecma-262/10.0/#sec-get-arraybuffer.prototype.bytelength
-static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    if (!thisValue.isObject() || !thisValue.asObject()->isArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().getbyteLength.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+
+#define RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                  \
+    if (!thisValue.isObject() || !thisValue.asObject()->isArrayBuffer()) {                                                                                                                                                                               \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                    \
+                                                                                                                                                                                                                                                         \
+    ArrayBuffer* NAME = thisValue.asObject()->asArrayBuffer();                                                                                                                                                                                           \
+    if (obj->isSharedArrayBufferObject()) {                                                                                                                                                                                                              \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
     }
 
-    ArrayBufferObject* obj = thisValue.asObject()->asArrayBufferObject();
-#if defined(ENABLE_THREADING)
-    if (obj->isSharedArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().getbyteLength.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
-    }
-#endif
+
+// https://262.ecma-international.org/#sec-get-arraybuffer.prototype.bytelength
+static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, getbyteLength);
 
     if (obj->isDetachedBuffer()) {
         return Value(0);
@@ -77,19 +93,74 @@ static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thi
     return Value(obj->byteLength());
 }
 
-// https://www.ecma-international.org/ecma-262/10.0/#sec-arraybuffer.prototype.slice
-static Value builtinArrayBufferSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinArrayBufferMaxByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, getmaxByteLength);
+
+    if (obj->isDetachedBuffer()) {
+        return Value(0);
     }
 
-    ArrayBufferObject* obj = thisValue.asObject()->asArrayBufferObject();
-#if defined(ENABLE_THREADING)
-    if (obj->isSharedArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    if (obj->isResizableArrayBuffer()) {
+        return Value(obj->maxByteLength());
     }
-#endif
+
+    return Value(obj->byteLength());
+}
+
+static Value builtinArrayBufferResizableGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, getresizable);
+
+    return Value(obj->isResizableArrayBuffer());
+}
+
+static Value builtinArrayBufferResize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, resize);
+    obj->throwTypeErrorIfDetached(state);
+
+    if (!obj->isResizableArrayBuffer()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().resize.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    double newByteLength = argv[0].toInteger(state);
+    if (newByteLength < 0 || newByteLength > obj->maxByteLength()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().resize.string(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+    }
+
+    obj->backingStore()->resize(static_cast<size_t>(newByteLength));
+
+    return Value();
+}
+
+static Value builtinArrayBufferTransfer(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, transfer);
+    obj->throwTypeErrorIfDetached(state);
+
+    double newByteLength = obj->byteLength();
+    if (argc > 0 && !argv[0].isUndefined()) {
+        newByteLength = argv[0].toInteger(state);
+    }
+
+    Value arguments[] = { Value(newByteLength) };
+    ArrayBuffer* newValue = Object::construct(state, state.context()->globalObject()->arrayBuffer(), 1, arguments).asObject()->asArrayBuffer();
+
+    // Let copyLength be min(newByteLength, O.[[ArrayBufferByteLength]]).
+    // Perform CopyDataBlockBytes(toBlock, 0, fromBlock, 0, copyLength).
+    newValue->fillData(obj->data(), std::min(newByteLength, static_cast<double>(obj->byteLength())));
+
+    obj->asArrayBufferObject()->detachArrayBuffer();
+
+    return newValue;
+}
+
+// https://262.ecma-international.org/#sec-arraybuffer.prototype.slice
+static Value builtinArrayBufferSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, slice);
+
     obj->throwTypeErrorIfDetached(state);
 
     double len = obj->byteLength();
@@ -102,11 +173,11 @@ static Value builtinArrayBufferSlice(ExecutionState& state, Value thisValue, siz
     Value constructor = obj->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
     Value arguments[] = { Value(newLen) };
     Object* newValue = Object::construct(state, constructor, 1, arguments).toObject(state);
-    if (!newValue->isArrayBufferObject()) {
+    if (!newValue->isArrayBuffer()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
     }
 
-    ArrayBufferObject* newObject = newValue->asArrayBufferObject();
+    ArrayBuffer* newObject = newValue->asArrayBuffer();
     newObject->throwTypeErrorIfDetached(state);
 
     if (newObject == obj) {
@@ -153,17 +224,36 @@ void GlobalObject::installArrayBuffer(ExecutionState& state)
                                                              ObjectPropertyDescriptor(Value(strings->ArrayBuffer.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
-        JSGetterSetter gs(
+        JSGetterSetter speciesGS(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
-        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_arrayBuffer->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
+        ObjectPropertyDescriptor speciesDesc(speciesGS, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_arrayBuffer->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), speciesDesc);
+
+        JSGetterSetter byteLengthGS(
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinArrayBufferByteLengthGetter, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor byteLengthDesc(byteLengthGS, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
+
+        JSGetterSetter maxByteLengthGS(
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->getmaxByteLength, builtinArrayBufferMaxByteLengthGetter, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor maxByteLengthDesc(maxByteLengthGS, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->maxByteLength), maxByteLengthDesc);
+
+        JSGetterSetter resizableGS(
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->getresizable, builtinArrayBufferResizableGetter, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor resizableDesc(resizableGS, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->resizable), resizableDesc);
     }
 
-    JSGetterSetter gs(
-        new NativeFunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinArrayBufferByteLengthGetter, 0, NativeFunctionInfo::Strict)),
-        Value(Value::EmptyValue));
-    ObjectPropertyDescriptor byteLengthDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-    m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
+    m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->resize),
+                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resize, builtinArrayBufferResize, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->transfer),
+                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->transfer, builtinArrayBufferTransfer, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->slice),
                                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinArrayBufferSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

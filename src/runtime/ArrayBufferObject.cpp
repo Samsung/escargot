@@ -25,20 +25,33 @@
 
 namespace Escargot {
 
-ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength)
+ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength, Optional<uint64_t> maxByteLength)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-allocatearraybuffer
     Object* proto = Object::getPrototypeFromConstructor(state, constructor, [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->arrayBufferPrototype();
     });
 
-    if (byteLength >= ArrayBuffer::maxArrayBufferSize) {
+    if (UNLIKELY(byteLength >= ArrayBuffer::maxArrayBufferSize)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
     }
 
     ArrayBufferObject* obj = new ArrayBufferObject(state, proto);
-    obj->allocateBuffer(state, byteLength);
 
+    if (UNLIKELY(maxByteLength.hasValue())) {
+        ASSERT(byteLength <= maxByteLength.value());
+        uint64_t maxLength = maxByteLength.value();
+        if (UNLIKELY(maxLength >= ArrayBuffer::maxArrayBufferSize)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+        }
+
+        // allocate default resizable non-shared BackingStore
+        obj->allocateResizableBuffer(state, byteLength, maxLength);
+        return obj;
+    }
+
+    // allocate default non-shared BackingStore
+    obj->allocateBuffer(state, byteLength);
     return obj;
 }
 
@@ -83,6 +96,27 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
     }
 
     m_backingStore = BackingStore::createDefaultNonSharedBackingStore(byteLength);
+}
+
+void ArrayBufferObject::allocateResizableBuffer(ExecutionState& state, size_t byteLength, size_t maxByteLength)
+{
+    detachArrayBuffer();
+
+    ASSERT(byteLength <= maxByteLength);
+    ASSERT(maxByteLength < ArrayBuffer::maxArrayBufferSize);
+
+    const size_t ratio = std::max((size_t)GC_get_free_space_divisor() / 6, (size_t)1);
+    if (maxByteLength > (GC_get_heap_size() / ratio)) {
+        size_t n = 0;
+        size_t times = maxByteLength / (GC_get_heap_size() / ratio) / 3;
+        do {
+            GC_gcollect_and_unmap();
+            n += 1;
+        } while (n < times);
+        GC_invoke_finalizers();
+    }
+
+    m_backingStore = BackingStore::createDefaultResizableNonSharedBackingStore(byteLength, maxByteLength);
 }
 
 void ArrayBufferObject::attachBuffer(BackingStore* backingStore)
