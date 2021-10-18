@@ -73,6 +73,12 @@ public:
         return 0;
     }
 
+    ALWAYS_INLINE size_t maxByteLength()
+    {
+        ASSERT(m_backingStore && m_backingStore->isResizable());
+        return m_backingStore->maxByteLength();
+    }
+
     // $24.1.1.6
     Value getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian = true);
 
@@ -82,6 +88,14 @@ public:
     ALWAYS_INLINE bool isDetachedBuffer()
     {
         return (data() == nullptr);
+    }
+
+    ALWAYS_INLINE bool isResizableArrayBuffer() const
+    {
+        if (LIKELY(m_backingStore)) {
+            return m_backingStore->isResizable();
+        }
+        return false;
     }
 
     ALWAYS_INLINE void throwTypeErrorIfDetached(ExecutionState& state)

@@ -38,6 +38,14 @@ BackingStore* BackingStore::createDefaultNonSharedBackingStore(size_t byteLength
         byteLength, backingStorePlatformDeleter, nullptr, true);
 }
 
+BackingStore* BackingStore::createDefaultResizableNonSharedBackingStore(size_t byteLength, size_t maxByteLength)
+{
+    // Resizable BackingStore is allocated by Platform only
+    return new NonSharedBackingStore(
+        Global::platform()->onMallocArrayBufferObjectDataBuffer(byteLength),
+        byteLength, backingStorePlatformDeleter, maxByteLength, true);
+}
+
 BackingStore* BackingStore::createNonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData)
 {
     return new NonSharedBackingStore(data, byteLength, callback, callbackData, false);
@@ -49,10 +57,28 @@ NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, Back
     , m_deleter(callback)
     , m_deleterData(callbackData)
     , m_isAllocatedByPlatform(isAllocatedByPlatform)
+    , m_isResizable(false)
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         NonSharedBackingStore* self = (NonSharedBackingStore*)obj;
         self->m_deleter(self->m_data, self->m_byteLength, self->m_deleterData);
+    },
+                                   nullptr, nullptr, nullptr);
+}
+
+NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, size_t maxByteLength, bool isAllocatedByPlatform)
+    : m_data(data)
+    , m_byteLength(byteLength)
+    , m_deleter(callback)
+    , m_maxByteLength(maxByteLength)
+    , m_isAllocatedByPlatform(isAllocatedByPlatform)
+    , m_isResizable(true)
+{
+    ASSERT(isAllocatedByPlatform);
+
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+        NonSharedBackingStore* self = (NonSharedBackingStore*)obj;
+        self->m_deleter(self->m_data, self->m_maxByteLength, nullptr);
     },
                                    nullptr, nullptr, nullptr);
 }
@@ -69,6 +95,13 @@ void* NonSharedBackingStore::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+void NonSharedBackingStore::resize(size_t newByteLength)
+{
+    ASSERT(m_isResizable && newByteLength <= m_maxByteLength);
+
+    m_byteLength = newByteLength;
 }
 
 void NonSharedBackingStore::reallocate(size_t newByteLength)

@@ -29,6 +29,7 @@ using BackingStoreDeleterCallback = void (*)(void* data, size_t length, void* de
 class BackingStore : public gc {
 public:
     static BackingStore* createDefaultNonSharedBackingStore(size_t byteLength);
+    static BackingStore* createDefaultResizableNonSharedBackingStore(size_t byteLength, size_t maxByteLength);
     static BackingStore* createNonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData);
 
 #if defined(ENABLE_THREADING)
@@ -42,8 +43,33 @@ public:
     virtual void* data() const = 0;
     virtual size_t byteLength() const = 0;
     virtual void* deleterData() const = 0;
-    virtual SharedDataBlockInfo* sharedDataBlockInfo() const = 0;
-    virtual void reallocate(size_t newByteLength) = 0;
+
+    virtual size_t maxByteLength() const
+    {
+        ASSERT_NOT_REACHED();
+        return 0;
+    }
+
+    virtual SharedDataBlockInfo* sharedDataBlockInfo() const
+    {
+        ASSERT_NOT_REACHED();
+        return nullptr;
+    }
+
+    virtual bool isResizable() const
+    {
+        return false;
+    }
+
+    virtual void resize(size_t newByteLength)
+    {
+        ASSERT_NOT_REACHED();
+    }
+
+    virtual void reallocate(size_t newByteLength)
+    {
+        ASSERT_NOT_REACHED();
+    }
 
     void* operator new(size_t size) = delete;
     void* operator new[](size_t size) = delete;
@@ -73,12 +99,18 @@ public:
         return m_deleterData;
     }
 
-    virtual SharedDataBlockInfo* sharedDataBlockInfo() const override
+    virtual size_t maxByteLength() const override
     {
-        ASSERT_NOT_REACHED();
-        return nullptr;
+        ASSERT(m_isResizable);
+        return m_maxByteLength;
     }
 
+    virtual bool isResizable() const override
+    {
+        return m_isResizable;
+    }
+
+    virtual void resize(size_t newByteLength) override;
     virtual void reallocate(size_t newByteLength) override;
 
     void* operator new(size_t size);
@@ -86,12 +118,17 @@ public:
 
 private:
     NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData, bool isAllocatedByPlatform);
+    NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, size_t maxByteLength, bool isAllocatedByPlatform);
 
     void* m_data;
     size_t m_byteLength;
     BackingStoreDeleterCallback m_deleter;
-    void* m_deleterData;
+    union {
+        void* m_deleterData;
+        size_t m_maxByteLength;
+    };
     bool m_isAllocatedByPlatform;
+    bool m_isResizable;
 };
 
 #if defined(ENABLE_THREADING)
@@ -165,11 +202,6 @@ public:
     {
         ASSERT(!!m_sharedDataBlockInfo && m_sharedDataBlockInfo->hasValidReference());
         return m_sharedDataBlockInfo;
-    }
-
-    virtual void reallocate(size_t newByteLength) override
-    {
-        ASSERT_NOT_REACHED();
     }
 
     void* operator new(size_t size);
