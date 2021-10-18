@@ -1705,19 +1705,17 @@ TEST(ReloadableString, Basic)
     d.string = reloadableStringTestSource;
     d.flag = false;
 
-    StringRef* string = StringRef::createReloadableString(g_context->vmInstance(), true, strlen(reloadableStringTestSource), &d, [](void *callbackData) -> void* {
+    StringRef* string = StringRef::createReloadableString(g_context->vmInstance(), true, strlen(reloadableStringTestSource), &d, [](void* callbackData) -> void* {
         Data* d = static_cast<Data*>(callbackData);
         const char* reloadableStringTestSource = static_cast<const char*>(d->string);
         size_t len = strlen(reloadableStringTestSource);
         void* ptr = malloc(len);
         memcpy(ptr, reloadableStringTestSource, len);
         d->flag = true;
-        return ptr;
-    }, [](void *memoryPtr, void *callbackData) {
+        return ptr; }, [](void* memoryPtr, void* callbackData) {
         Data* d = static_cast<Data*>(callbackData);
         d->flag = false;
-        free(memoryPtr);
-    });
+        free(memoryPtr); });
 
     EXPECT_FALSE(d.flag);
     string->length();
@@ -1728,7 +1726,7 @@ TEST(ReloadableString, Basic)
     g_context->vmInstance()->enterIdleMode();
     EXPECT_FALSE(d.flag);
 
-    Evaluator::execute(g_context, [](ExecutionStateRef *state, StringRef* string, Data* d) -> ValueRef* {
+    Evaluator::execute(g_context, [](ExecutionStateRef* state, StringRef* string, Data* d) -> ValueRef* {
         ValueRef* argv[1] = { StringRef::createFromASCII("asdf") };
         EXPECT_FALSE(d->flag);
         auto fn = FunctionObjectRef::create(state, AtomicStringRef::create(state->context(), "test"), 1, argv, string);
@@ -1738,5 +1736,6 @@ TEST(ReloadableString, Basic)
         EXPECT_FALSE(d->flag);
 
         return ValueRef::createUndefined();
-    }, string, &d);
+    },
+                       string, &d);
 }
