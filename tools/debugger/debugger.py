@@ -188,7 +188,10 @@ class DebuggerPrompt(Cmd):
 
     def do_object(self, args):
         """ Get object by index """
-        write(self.debugger.object(args))
+        if not args:
+            write("Error: Argument expected")
+        else:
+            write(self.debugger.object(args))
         self.stop = True
 
     def do_dump(self, args):
