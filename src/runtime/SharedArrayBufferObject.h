@@ -29,10 +29,11 @@ namespace Escargot {
 class SharedArrayBufferObject : public ArrayBuffer {
 public:
     SharedArrayBufferObject(ExecutionState& state, Object* proto, size_t byteLength);
+    SharedArrayBufferObject(ExecutionState& state, Object* proto, size_t byteLength, size_t maxByteLength);
     SharedArrayBufferObject(ExecutionState& state, Object* proto, BackingStore* backingStore);
     SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedDataBlockInfo* sharedInfo);
 
-    static SharedArrayBufferObject* allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength);
+    static SharedArrayBufferObject* allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength, Optional<uint64_t> maxByteLength);
 
     virtual bool isSharedArrayBufferObject() const override
     {

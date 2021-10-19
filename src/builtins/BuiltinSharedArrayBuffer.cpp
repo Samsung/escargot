@@ -40,27 +40,58 @@ static Value builtinSharedArrayBufferConstructor(ExecutionState& state, Value th
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
     }
 
-    return SharedArrayBufferObject::allocateSharedArrayBuffer(state, newTarget.value(), byteLength);
+    Optional<uint64_t> maxByteLength;
+    // Let requestedMaxByteLength be ? GetArrayBufferMaxByteLengthOption(options).
+    if (UNLIKELY((argc > 1) && argv[1].isObject())) {
+        Object* options = argv[1].asObject();
+        Value maxLengthValue = options->get(state, ObjectPropertyName(state.context()->staticStrings().maxByteLength)).value(state, options);
+        if (!maxLengthValue.isUndefined()) {
+            maxByteLength = maxLengthValue.toIndex(state);
+            if (UNLIKELY((maxByteLength.value() == Value::InvalidIndexValue) || (byteLength > maxByteLength.value()))) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+            }
+        }
+    }
+
+    return SharedArrayBufferObject::allocateSharedArrayBuffer(state, newTarget.value(), byteLength, maxByteLength);
 }
+
+#define RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                            \
+    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isSharedArrayBufferObject())) {                                                                                                                                                         \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                    \
+                                                                                                                                                                                                                                                         \
+    SharedArrayBufferObject* NAME = thisValue.asObject()->asSharedArrayBufferObject();
 
 // https://262.ecma-international.org/#sec-get-sharedarraybuffer.prototype.bytelength
 static Value builtinSharedArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isSharedArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().getbyteLength.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
-    }
-    SharedArrayBufferObject* obj = thisValue.asObject()->asSharedArrayBufferObject();
+    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(obj, SharedArrayBuffer, getbyteLength);
     return Value(obj->byteLength());
+}
+
+static Value builtinSharedArrayBufferMaxByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(obj, SharedArrayBuffer, getmaxByteLength);
+
+    if (obj->isResizableArrayBuffer()) {
+        return Value(obj->maxByteLength());
+    }
+
+    return Value(obj->byteLength());
+}
+
+static Value builtinSharedArrayBufferGrowableGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(obj, SharedArrayBuffer, getgrowable);
+    return Value(obj->isResizableArrayBuffer());
 }
 
 // https://262.ecma-international.org/#sec-sharedarraybuffer.prototype.slice
 static Value builtinSharedArrayBufferSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!thisValue.isObject() || !thisValue.asObject()->isSharedArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
-    }
+    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(O, SharedArrayBuffer, slice);
 
-    SharedArrayBufferObject* O = thisValue.asObject()->asSharedArrayBufferObject();
     double len = O->byteLength();
     double relativeStart = argv[0].toInteger(state);
     size_t first = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, len);
@@ -111,17 +142,31 @@ void GlobalObject::installSharedArrayBuffer(ExecutionState& state)
                                                                    ObjectPropertyDescriptor(Value(strings->SharedArrayBuffer.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
-        JSGetterSetter gs(
+        JSGetterSetter speciesGS(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
-        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_sharedArrayBuffer->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
+        ObjectPropertyDescriptor speciesDesc(speciesGS, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_sharedArrayBuffer->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), speciesDesc);
+
+        JSGetterSetter byteLengthGS(
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinSharedArrayBufferByteLengthGetter, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor byteLengthDesc(byteLengthGS, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
+
+        JSGetterSetter maxByteLengthGS(
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->getmaxByteLength, builtinSharedArrayBufferMaxByteLengthGetter, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor maxByteLengthDesc(maxByteLengthGS, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->maxByteLength), maxByteLengthDesc);
+
+        JSGetterSetter growableGS(
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->getgrowable, builtinSharedArrayBufferGrowableGetter, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor growableDesc(growableGS, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->growable), growableDesc);
     }
 
-    JSGetterSetter gs(
-        new NativeFunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinSharedArrayBufferByteLengthGetter, 0, NativeFunctionInfo::Strict)),
-        Value(Value::EmptyValue));
-    ObjectPropertyDescriptor byteLengthDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-    m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
+
     m_sharedArrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->slice),
                                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinSharedArrayBufferSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

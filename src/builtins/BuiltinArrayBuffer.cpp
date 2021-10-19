@@ -71,15 +71,11 @@ static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, si
 
 
 #define RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                  \
-    if (!thisValue.isObject() || !thisValue.asObject()->isArrayBuffer()) {                                                                                                                                                                               \
+    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isArrayBuffer() || thisValue.asObject()->isSharedArrayBufferObject())) {                                                                                                                \
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
     }                                                                                                                                                                                                                                                    \
                                                                                                                                                                                                                                                          \
-    ArrayBuffer* NAME = thisValue.asObject()->asArrayBuffer();                                                                                                                                                                                           \
-    if (obj->isSharedArrayBufferObject()) {                                                                                                                                                                                                              \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }
-
+    ArrayBuffer* NAME = thisValue.asObject()->asArrayBuffer();
 
 // https://262.ecma-international.org/#sec-get-arraybuffer.prototype.bytelength
 static Value builtinArrayBufferByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

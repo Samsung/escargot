@@ -120,6 +120,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(get__proto__, "get __proto__");
     INIT_STATIC_STRING(getbyteLength, "get byteLength");
     INIT_STATIC_STRING(getbyteOffset, "get byteOffset");
+    INIT_STATIC_STRING(getgrowable, "get growable");
     INIT_STATIC_STRING(getmaxByteLength, "get maxByteLength");
     INIT_STATIC_STRING(getresizable, "get resizable");
     INIT_STATIC_STRING(intlDotCollator, "Intl.Collator");

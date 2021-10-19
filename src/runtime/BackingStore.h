@@ -34,6 +34,7 @@ public:
 
 #if defined(ENABLE_THREADING)
     static BackingStore* createDefaultSharedBackingStore(size_t byteLength);
+    static BackingStore* createDefaultGrowableSharedBackingStore(size_t byteLength, size_t maxByteLength);
     // SharedBackingStore is newly created by sharing with already created one
     static BackingStore* createSharedBackingStore(SharedDataBlockInfo* sharedInfo);
 #endif
@@ -42,23 +43,14 @@ public:
     virtual bool isShared() const = 0;
     virtual void* data() const = 0;
     virtual size_t byteLength() const = 0;
+    virtual size_t maxByteLength() const = 0;
     virtual void* deleterData() const = 0;
-
-    virtual size_t maxByteLength() const
-    {
-        ASSERT_NOT_REACHED();
-        return 0;
-    }
+    virtual bool isResizable() const = 0;
 
     virtual SharedDataBlockInfo* sharedDataBlockInfo() const
     {
         ASSERT_NOT_REACHED();
         return nullptr;
-    }
-
-    virtual bool isResizable() const
-    {
-        return false;
     }
 
     virtual void resize(size_t newByteLength)
@@ -94,15 +86,15 @@ public:
         return m_byteLength;
     }
 
-    virtual void* deleterData() const override
-    {
-        return m_deleterData;
-    }
-
     virtual size_t maxByteLength() const override
     {
         ASSERT(m_isResizable);
         return m_maxByteLength;
+    }
+
+    virtual void* deleterData() const override
+    {
+        return m_deleterData;
     }
 
     virtual bool isResizable() const override
@@ -141,6 +133,19 @@ public:
     {
     }
 
+    virtual ~SharedDataBlockInfo() {}
+
+    virtual bool isGrowable() const
+    {
+        return false;
+    }
+
+    virtual size_t maxByteLength() const
+    {
+        ASSERT_NOT_REACHED();
+        return 0;
+    }
+
     void* data() const
     {
         ASSERT(hasValidReference());
@@ -165,10 +170,32 @@ public:
         return (m_refCount.load() > 0);
     }
 
-private:
+protected:
     void* m_data;
     size_t m_byteLength;
     std::atomic<size_t> m_refCount;
+};
+
+class GrowableSharedDataBlockInfo : public SharedDataBlockInfo {
+public:
+    GrowableSharedDataBlockInfo(void* data, size_t byteLength, size_t maxByteLength)
+        : SharedDataBlockInfo(data, byteLength)
+        , m_maxByteLength(maxByteLength)
+    {
+    }
+
+    virtual bool isGrowable() const override
+    {
+        return true;
+    }
+
+    virtual size_t maxByteLength() const override
+    {
+        return m_maxByteLength;
+    }
+
+private:
+    size_t m_maxByteLength;
 };
 
 class SharedBackingStore : public BackingStore {
@@ -192,6 +219,12 @@ public:
         return m_sharedDataBlockInfo->byteLength();
     }
 
+    virtual size_t maxByteLength() const override
+    {
+        ASSERT(!!m_sharedDataBlockInfo && m_sharedDataBlockInfo->hasValidReference());
+        return m_sharedDataBlockInfo->maxByteLength();
+    }
+
     virtual void* deleterData() const override
     {
         ASSERT_NOT_REACHED();
@@ -202,6 +235,11 @@ public:
     {
         ASSERT(!!m_sharedDataBlockInfo && m_sharedDataBlockInfo->hasValidReference());
         return m_sharedDataBlockInfo;
+    }
+
+    virtual bool isResizable() const override
+    {
+        return m_sharedDataBlockInfo->isGrowable();
     }
 
     void* operator new(size_t size);
