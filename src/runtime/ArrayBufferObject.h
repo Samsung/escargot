@@ -45,8 +45,6 @@ public:
         return true;
     }
 
-    bool isResizableArrayBuffer() const;
-
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 };

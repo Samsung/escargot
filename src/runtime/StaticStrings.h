@@ -270,6 +270,7 @@ namespace Escargot {
     F(global)                     \
     F(globalThis)                 \
     F(groups)                     \
+    F(growable)                   \
     F(has)                        \
     F(hasInstance)                \
     F(hasOwn)                     \
@@ -909,6 +910,7 @@ public:
     AtomicString get__proto__;
     AtomicString getbyteLength;
     AtomicString getbyteOffset;
+    AtomicString getgrowable;
     AtomicString getmaxByteLength;
     AtomicString getresizable;
     AtomicString intlDotCollator;

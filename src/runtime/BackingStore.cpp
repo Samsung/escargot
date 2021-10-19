@@ -101,6 +101,10 @@ void NonSharedBackingStore::resize(size_t newByteLength)
 {
     ASSERT(m_isResizable && newByteLength <= m_maxByteLength);
 
+    if (m_byteLength < newByteLength) {
+        memset(static_cast<uint8_t*>(m_data) + m_byteLength, 0, newByteLength - m_byteLength);
+    }
+
     m_byteLength = newByteLength;
 }
 
@@ -134,6 +138,14 @@ BackingStore* BackingStore::createDefaultSharedBackingStore(size_t byteLength)
     return new SharedBackingStore(sharedInfo);
 }
 
+BackingStore* BackingStore::createDefaultGrowableSharedBackingStore(size_t byteLength, size_t maxByteLength)
+{
+    SharedDataBlockInfo* sharedInfo = new GrowableSharedDataBlockInfo(
+        Global::platform()->onMallocArrayBufferObjectDataBuffer(maxByteLength),
+        byteLength, maxByteLength);
+    return new SharedBackingStore(sharedInfo);
+}
+
 BackingStore* BackingStore::createSharedBackingStore(SharedDataBlockInfo* sharedInfo)
 {
     ASSERT(sharedInfo->hasValidReference());
@@ -146,7 +158,12 @@ void SharedDataBlockInfo::deref()
 
     auto oldValue = m_refCount.fetch_sub(1);
     if (oldValue == 1) {
-        Global::platform()->onFreeArrayBufferObjectDataBuffer(m_data, m_byteLength);
+        if (isGrowable()) {
+            Global::platform()->onFreeArrayBufferObjectDataBuffer(m_data, maxByteLength());
+        } else {
+            Global::platform()->onFreeArrayBufferObjectDataBuffer(m_data, m_byteLength);
+        }
+
         m_data = nullptr;
         m_byteLength = 0;
 
