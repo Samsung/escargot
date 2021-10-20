@@ -1036,7 +1036,7 @@ public:
     void operator delete[](void* obj) = delete;
 
 private:
-    friend class ObjectWithNamedPropertyHandler;
+    friend class ObjectWithPropertyHandler;
     ObjectPropertyDescriptorRef(void* src);
 
     void* m_privateData;
@@ -1728,10 +1728,10 @@ public:
     void* instanceExtraData();
 };
 
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerGetterCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName);
+typedef OptionalRef<ValueRef> (*TemplatePropertyHandlerGetterCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName);
 // if intercepted you may returns non-empty value.
 // the returned value will be use futuer operation(you can return true, or false)
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerSetterCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName, ValueRef* value);
+typedef OptionalRef<ValueRef> (*TemplatePropertyHandlerSetterCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName, ValueRef* value);
 enum TemplatePropertyAttribute {
     TemplatePropertyAttributeNotExist = 1 << 0,
     TemplatePropertyAttributeExist = 1 << 1,
@@ -1739,34 +1739,34 @@ enum TemplatePropertyAttribute {
     TemplatePropertyAttributeEnumerable = 1 << 3,
     TemplatePropertyAttributeConfigurable = 1 << 4,
 };
-typedef TemplatePropertyAttribute (*TemplateNamedPropertyHandlerQueryCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName);
+typedef TemplatePropertyAttribute (*TemplatePropertyHandlerQueryCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName);
 // if intercepted you may returns non-empty value.
 // the returned value will be use futuer operation(you can return true, or false)
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDeleteCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName);
-typedef ValueVectorRef* (*TemplateNamedPropertyHandlerEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data);
+typedef OptionalRef<ValueRef> (*TemplatePropertyHandlerDeleteCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName);
+typedef ValueVectorRef* (*TemplatePropertyHandlerEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data);
 // if intercepted you may returns non-empty value.
 // the returned value will be use futuer operation(you can return true, or false)
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName, const ObjectPropertyDescriptorRef& desc);
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerGetPropertyDescriptorCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName);
+typedef OptionalRef<ValueRef> (*TemplatePropertyHandlerDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName, const ObjectPropertyDescriptorRef& desc);
+typedef OptionalRef<ValueRef> (*TemplatePropertyHandlerGetPropertyDescriptorCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName);
 
-struct ESCARGOT_EXPORT ObjectTemplateNamedPropertyHandlerData {
-    TemplateNamedPropertyHandlerGetterCallback getter;
-    TemplateNamedPropertyHandlerSetterCallback setter;
-    TemplateNamedPropertyHandlerQueryCallback query;
-    TemplateNamedPropertyHandlerDeleteCallback deleter;
-    TemplateNamedPropertyHandlerEnumerationCallback enumerator;
-    TemplateNamedPropertyHandlerDefineOwnPropertyCallback definer;
-    TemplateNamedPropertyHandlerGetPropertyDescriptorCallback descriptor;
+struct ESCARGOT_EXPORT ObjectTemplatePropertyHandlerData {
+    TemplatePropertyHandlerGetterCallback getter;
+    TemplatePropertyHandlerSetterCallback setter;
+    TemplatePropertyHandlerQueryCallback query;
+    TemplatePropertyHandlerDeleteCallback deleter;
+    TemplatePropertyHandlerEnumerationCallback enumerator;
+    TemplatePropertyHandlerDefineOwnPropertyCallback definer;
+    TemplatePropertyHandlerGetPropertyDescriptorCallback descriptor;
     void* data;
 
-    ObjectTemplateNamedPropertyHandlerData(
-        TemplateNamedPropertyHandlerGetterCallback getter = nullptr,
-        TemplateNamedPropertyHandlerSetterCallback setter = nullptr,
-        TemplateNamedPropertyHandlerQueryCallback query = nullptr,
-        TemplateNamedPropertyHandlerDeleteCallback deleter = nullptr,
-        TemplateNamedPropertyHandlerEnumerationCallback enumerator = nullptr,
-        TemplateNamedPropertyHandlerDefineOwnPropertyCallback definer = nullptr,
-        TemplateNamedPropertyHandlerGetPropertyDescriptorCallback descriptor = nullptr,
+    ObjectTemplatePropertyHandlerData(
+        TemplatePropertyHandlerGetterCallback getter = nullptr,
+        TemplatePropertyHandlerSetterCallback setter = nullptr,
+        TemplatePropertyHandlerQueryCallback query = nullptr,
+        TemplatePropertyHandlerDeleteCallback deleter = nullptr,
+        TemplatePropertyHandlerEnumerationCallback enumerator = nullptr,
+        TemplatePropertyHandlerDefineOwnPropertyCallback definer = nullptr,
+        TemplatePropertyHandlerGetPropertyDescriptorCallback descriptor = nullptr,
         void* data = nullptr)
         : getter(getter)
         , setter(setter)
@@ -1790,8 +1790,8 @@ public:
 class ESCARGOT_EXPORT ObjectTemplateRef : public TemplateRef {
 public:
     static ObjectTemplateRef* create();
-    void setNamedPropertyHandler(const ObjectTemplateNamedPropertyHandlerData& data);
-    void removeNamedPropertyHandler();
+    void setNamedPropertyHandler(const ObjectTemplatePropertyHandlerData& data);
+    void removePropertyHandler();
 
     // returns function template if object template is instance template of function template
     OptionalRef<FunctionTemplateRef> constructor();

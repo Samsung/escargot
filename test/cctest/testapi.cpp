@@ -743,7 +743,7 @@ TEST(ObjectTemplate, Basic4)
 {
     ObjectTemplateRef* tpl = ObjectTemplateRef::create();
 
-    ObjectTemplateNamedPropertyHandlerData handler;
+    ObjectTemplatePropertyHandlerData handler;
     handler.getter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
         if (propertyName->isString() && propertyName->asString()->equalsWithASCIIString("aaa", 3)) {
             return (ValueRef*)self->extraData();
@@ -861,7 +861,7 @@ TEST(ObjectTemplate, Basic4)
 
 
     ObjectTemplateRef* tpl2 = ObjectTemplateRef::create();
-    ObjectTemplateNamedPropertyHandlerData handler2;
+    ObjectTemplatePropertyHandlerData handler2;
     handler2.getter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
         return OptionalRef<ValueRef>();
     };

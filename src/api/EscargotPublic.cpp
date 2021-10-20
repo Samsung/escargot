@@ -1383,7 +1383,7 @@ public:
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        Value PV = P.toPlainValue(state);
+        Value PV = P.toPlainValue();
         if (!PV.isSymbol()) {
             auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(PV));
             if (result.m_value.hasValue()) {
@@ -1396,7 +1396,7 @@ public:
     {
         // Only value type supported
         if (desc.isValuePresent()) {
-            Value PV = P.toPlainValue(state);
+            Value PV = P.toPlainValue();
             if (!PV.isSymbol() && m_defineOwnPropertyCallback(toRef(&state), toRef(this), toRef(PV), toRef(desc.value()))) {
                 return true;
             }
@@ -1405,11 +1405,11 @@ public:
     }
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        Value PV = P.toPlainValue(state);
+        Value PV = P.toPlainValue();
         if (!PV.isSymbol()) {
-            auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toPlainValue(state)));
+            auto result = m_getOwnPropetyCallback(toRef(&state), toRef(this), toRef(P.toPlainValue()));
             if (result.m_value.hasValue()) {
-                return m_deleteOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toPlainValue(state)));
+                return m_deleteOwnPropertyCallback(toRef(&state), toRef(this), toRef(P.toPlainValue()));
             }
         }
         return Object::deleteOwnProperty(state, P);
@@ -1723,7 +1723,7 @@ void ObjectRef::enumerateObjectOwnProperties(ExecutionStateRef* state, const std
     toImpl(this)->enumeration(*toImpl(state), [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         const std::function<bool(ExecutionStateRef * state, ValueRef * propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>* cb
             = (const std::function<bool(ExecutionStateRef * state, ValueRef * propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>*)data;
-        return (*cb)(toRef(&state), toRef(name.toPlainValue(state)), desc.isWritable(), desc.isEnumerable(), desc.isConfigurable());
+        return (*cb)(toRef(&state), toRef(name.toPlainValue()), desc.isWritable(), desc.isEnumerable(), desc.isConfigurable());
     },
                               (void*)&cb, shouldSkipSymbolKey);
 }
@@ -3565,14 +3565,14 @@ ObjectTemplateRef* ObjectTemplateRef::create()
     return toRef(new ObjectTemplate());
 }
 
-void ObjectTemplateRef::setNamedPropertyHandler(const ObjectTemplateNamedPropertyHandlerData& data)
+void ObjectTemplateRef::setNamedPropertyHandler(const ObjectTemplatePropertyHandlerData& data)
 {
     toImpl(this)->setNamedPropertyHandler(data);
 }
 
-void ObjectTemplateRef::removeNamedPropertyHandler()
+void ObjectTemplateRef::removePropertyHandler()
 {
-    toImpl(this)->removeNamedPropertyHandler();
+    toImpl(this)->removePropertyHandler();
 }
 
 OptionalRef<FunctionTemplateRef> ObjectTemplateRef::constructor()

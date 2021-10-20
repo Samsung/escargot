@@ -231,7 +231,7 @@ public:
         return objectStructurePropertyName().tryToUseAsIndexProperty();
     }
 
-    Value toPlainValue(ExecutionState&) const
+    Value toPlainValue() const
     {
         if (isUIntType()) {
             return Value(uintValue());

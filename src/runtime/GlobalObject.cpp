@@ -129,7 +129,7 @@ ObjectHasPropertyResult GlobalObject::hasProperty(ExecutionState& state, const O
             }
             target = target->getPrototypeObject(state);
         }
-        Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, P.toPlainValue(state));
+        Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, P.toPlainValue());
         if (!virtialIdResult.isEmpty()) {
             return ObjectHasPropertyResult(ObjectGetResult(virtialIdResult, true, true, true));
         }
@@ -150,7 +150,7 @@ ObjectGetResult GlobalObject::getOwnProperty(ExecutionState& state, const Object
             }
             target = target->getPrototypeObject(state);
         }
-        Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, P.toPlainValue(state));
+        Value virtialIdResult = state.context()->virtualIdentifierCallback()(state, P.toPlainValue());
         if (!virtialIdResult.isEmpty())
             return ObjectGetResult(virtialIdResult, true, true, true);
     }
