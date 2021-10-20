@@ -29,124 +29,102 @@
 
 namespace Escargot {
 
-void* ObjectTemplate::operator new(size_t size)
-{
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word objBitmap[GC_BITMAP_SIZE(ObjectTemplate)] = { 0 };
-        Template::fillGCDescriptor(objBitmap);
-        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectTemplate, m_constructor));
-        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectTemplate, m_namedPropertyHandler));
-        descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(ObjectTemplate));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
-ObjectTemplate::ObjectTemplate(Optional<FunctionTemplate*> constructor)
-    : m_constructor(constructor)
-    , m_namedPropertyHandler(nullptr)
-{
-}
-
-class ObjectWithNamedPropertyHandler : public Object {
+class ObjectWithPropertyHandler : public Object {
 public:
-    ObjectWithNamedPropertyHandler(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto, ObjectTemplateNamedPropertyHandlerData* data)
-        : Object(structure, std::move(values), proto)
-        , m_data(data)
-    {
-    }
+    virtual bool isValidPropertyName(const ObjectPropertyName& P) = 0;
 
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        if (!P.isIndexString() && m_data->getter) {
-            OptionalRef<ValueRef> ret(m_data->getter(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                                     toRef(P.toPropertyKeyValue())));
+        if (isValidPropertyName(P) && m_propertyHandler->getter) {
+            auto ret = m_propertyHandler->getter(toRef(&state), toRef(this), toRef(this), m_propertyHandler->data,
+                                                 toRef(P.toPlainValue()));
 
-            if (ret) {
-                if (m_data->query) {
-                    auto attr = m_data->query(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                              toRef(P.toPropertyKeyValue()));
+            if (ret.hasValue()) {
+                if (m_propertyHandler->query) {
+                    auto attr = m_propertyHandler->query(toRef(&state), toRef(this), toRef(this), m_propertyHandler->data,
+                                                         toRef(P.toPlainValue()));
                     return ObjectGetResult(toImpl(ret.value()), attr & TemplatePropertyAttribute::TemplatePropertyAttributeWritable, attr & TemplatePropertyAttribute::TemplatePropertyAttributeEnumerable, attr & TemplatePropertyAttribute::TemplatePropertyAttributeConfigurable);
                 } else {
                     return ObjectGetResult(toImpl(ret.value()), true, true, true);
                 }
             }
         }
+
         return Object::getOwnProperty(state, P);
     }
 
     virtual Value getOwnPropertyDescriptor(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        if (m_data->descriptor) {
-            auto ret = m_data->descriptor(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                          toRef(P.toPropertyKeyValue()));
+        if (isValidPropertyName(P) && m_propertyHandler->descriptor) {
+            auto ret = m_propertyHandler->descriptor(toRef(&state), toRef(this), toRef(this), m_propertyHandler->data,
+                                                     toRef(P.toPlainValue()));
             if (ret.hasValue()) {
                 return toImpl(ret.value());
-            } else {
-                return Object::getOwnPropertyDescriptor(state, P);
             }
-        } else {
-            return Object::getOwnPropertyDescriptor(state, P);
         }
+
+        return Object::getOwnPropertyDescriptor(state, P);
     }
 
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override
     {
-        if (!P.isIndexString()) {
-            if (m_data->definer) {
-                auto ret = m_data->definer(toRef(&state), toRef(this), toRef(this), m_data->data, toRef(P.toPropertyKeyValue()), ObjectPropertyDescriptorRef((void*)&desc));
+        if (isValidPropertyName(P)) {
+            if (m_propertyHandler->definer) {
+                auto ret = m_propertyHandler->definer(toRef(&state), toRef(this), toRef(this), m_propertyHandler->data, toRef(P.toPlainValue()), ObjectPropertyDescriptorRef((void*)&desc));
                 if (ret.hasValue()) {
                     return ret.value()->toBoolean(toRef(&state));
                 }
-            } else if (m_data->setter && desc.isValuePresent() && desc.isWritable() && desc.isEnumerable() && desc.isConfigurable()) {
-                auto ret = m_data->setter(toRef(&state), toRef(this), toRef(this), m_data->data, toRef(P.toPropertyKeyValue()), toRef(desc.value()));
+            } else if (m_propertyHandler->setter && desc.isValuePresent() && desc.isWritable() && desc.isEnumerable() && desc.isConfigurable()) {
+                auto ret = m_propertyHandler->setter(toRef(&state), toRef(this), toRef(this), m_propertyHandler->data, toRef(P.toPlainValue()), toRef(desc.value()));
                 if (ret.hasValue()) {
                     return ret.value()->toBoolean(toRef(&state));
                 }
             }
         }
+
         return Object::defineOwnProperty(state, P, desc);
     }
 
-    virtual bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& propertyName) override
+    virtual bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        if (m_data->query) {
-            auto attr = m_data->query(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                      toRef(propertyName.toPropertyKeyValue()));
+        if (isValidPropertyName(P) && m_propertyHandler->query) {
+            auto attr = m_propertyHandler->query(toRef(&state), toRef(this), toRef(this), m_propertyHandler->data,
+                                                 toRef(P.toPlainValue()));
             return attr & TemplatePropertyAttributeExist;
         }
-        return Object::hasOwnProperty(state, propertyName);
+
+        return Object::hasOwnProperty(state, P);
     }
 
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        if (m_data->query) {
-            auto attr = m_data->query(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                      toRef(P.toPropertyKeyValue()));
-            if (attr & TemplatePropertyAttributeExist) {
-                bool isWritable = attr & TemplatePropertyAttribute::TemplatePropertyAttributeWritable;
-                bool isEnumerable = attr & TemplatePropertyAttribute::TemplatePropertyAttributeEnumerable;
-                bool isConfigurable = attr & TemplatePropertyAttribute::TemplatePropertyAttributeConfigurable;
+        if (isValidPropertyName(P)) {
+            if (m_propertyHandler->query) {
+                auto attr = m_propertyHandler->query(toRef(&state), toRef(this), toRef(this), m_propertyHandler->data,
+                                                     toRef(P.toPlainValue()));
+                if (attr & TemplatePropertyAttributeExist) {
+                    bool isWritable = attr & TemplatePropertyAttribute::TemplatePropertyAttributeWritable;
+                    bool isEnumerable = attr & TemplatePropertyAttribute::TemplatePropertyAttributeEnumerable;
+                    bool isConfigurable = attr & TemplatePropertyAttribute::TemplatePropertyAttributeConfigurable;
 
-                Value v;
-                if (m_data->getter) {
-                    OptionalRef<ValueRef> ret = (m_data->getter(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                                                toRef(P.toPropertyKeyValue())));
-                    if (ret) {
-                        v = toImpl(ret.value());
+                    Value v;
+                    if (m_propertyHandler->getter) {
+                        OptionalRef<ValueRef> ret = m_propertyHandler->getter(toRef(&state), toRef(this), toRef(this), m_propertyHandler->data,
+                                                                              toRef(P.toPlainValue()));
+                        if (ret.hasValue()) {
+                            v = toImpl(ret.value());
+                        }
                     }
-                }
 
-                ObjectHasPropertyResult result(ObjectGetResult(v, isWritable, isEnumerable, isConfigurable));
-                return result;
-            }
-        } else if (m_data->getter) {
-            OptionalRef<ValueRef> ret = (m_data->getter(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                                        toRef(P.toPropertyKeyValue())));
-            if (ret) {
-                return ObjectGetResult(toImpl(ret.value()), true, true, true);
+                    ObjectHasPropertyResult result(ObjectGetResult(v, isWritable, isEnumerable, isConfigurable));
+                    return result;
+                }
+            } else if (m_propertyHandler->getter) {
+                OptionalRef<ValueRef> ret = m_propertyHandler->getter(toRef(&state), toRef(this), toRef(this), m_propertyHandler->data,
+                                                                      toRef(P.toPlainValue()));
+                if (ret.hasValue()) {
+                    return ObjectGetResult(toImpl(ret.value()), true, true, true);
+                }
             }
         }
 
@@ -155,33 +133,36 @@ public:
 
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
-        if (m_data->deleter) {
-            auto ret = m_data->deleter(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                       toRef(P.toPropertyKeyValue()));
+        if (isValidPropertyName(P) && m_propertyHandler->deleter) {
+            auto ret = m_propertyHandler->deleter(toRef(&state), toRef(this), toRef(this), m_propertyHandler->data,
+                                                  toRef(P.toPlainValue()));
             if (ret.hasValue()) {
                 return ret.value()->toBoolean(toRef(&state));
             }
         }
+
         return Object::deleteOwnProperty(state, P);
     }
 
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) override
     {
-        if (m_data->enumerator) {
-            auto ret = m_data->enumerator(toRef(&state), toRef(this), toRef(this), m_data->data);
-            if (m_data->query) {
+        if (m_propertyHandler->enumerator) {
+            auto ret = m_propertyHandler->enumerator(toRef(&state), toRef(this), toRef(this), m_propertyHandler->data);
+            if (m_propertyHandler->query) {
                 for (size_t i = 0; i < ret->size(); i++) {
                     if (shouldSkipSymbolKey && ret->at(i)->isSymbol()) {
                         continue;
                     }
 
-                    auto attr = m_data->query(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                              ret->at(i));
+                    auto attr = m_propertyHandler->query(toRef(&state), toRef(this), toRef(this), m_propertyHandler->data,
+                                                         ret->at(i));
 
                     ObjectStructurePropertyDescriptor desc = ObjectStructurePropertyDescriptor::createDataDescriptor(
                         (ObjectStructurePropertyDescriptor::PresentAttribute)(
                             ((attr & TemplatePropertyAttribute::TemplatePropertyAttributeWritable) ? ObjectStructurePropertyDescriptor::WritablePresent : 0) | ((attr & TemplatePropertyAttribute::TemplatePropertyAttributeEnumerable) ? ObjectStructurePropertyDescriptor::EnumerablePresent : 0) | ((attr & TemplatePropertyAttribute::TemplatePropertyAttributeConfigurable) ? ObjectStructurePropertyDescriptor::ConfigurablePresent : 0)));
-                    callback(state, this, ObjectPropertyName(state, toImpl(ret->at(i))), desc, data);
+                    if (!callback(state, this, ObjectPropertyName(state, toImpl(ret->at(i))), desc, data)) {
+                        return;
+                    }
                 }
             } else {
                 for (size_t i = 0; i < ret->size(); i++) {
@@ -189,40 +170,45 @@ public:
                         continue;
                     }
                     ObjectStructurePropertyDescriptor desc = ObjectStructurePropertyDescriptor::createDataDescriptor();
-                    callback(state, this, ObjectPropertyName(state, toImpl(ret->at(i))), desc, data);
+                    if (!callback(state, this, ObjectPropertyName(state, toImpl(ret->at(i))), desc, data)) {
+                        return;
+                    }
                 }
             }
         }
+
         Object::enumeration(state, callback, data, shouldSkipSymbolKey);
     }
 
     virtual ObjectGetResult get(ExecutionState& state, const ObjectPropertyName& P, const Value& receiver) override
     {
-        if (!P.isIndexString()) {
-            OptionalRef<ValueRef> ret(m_data->getter(toRef(&state), toRef(this), toRef(receiver), m_data->data,
-                                                     toRef(P.toPropertyKeyValue())));
+        if (isValidPropertyName(P)) {
+            auto ret = m_propertyHandler->getter(toRef(&state), toRef(this), toRef(receiver), m_propertyHandler->data,
+                                                 toRef(P.toPlainValue()));
 
-            if (ret) {
-                if (m_data->query) {
-                    auto attr = m_data->query(toRef(&state), toRef(this), toRef(receiver), m_data->data,
-                                              toRef(P.toPropertyKeyValue()));
+            if (ret.hasValue()) {
+                if (m_propertyHandler->query) {
+                    auto attr = m_propertyHandler->query(toRef(&state), toRef(this), toRef(receiver), m_propertyHandler->data,
+                                                         toRef(P.toPlainValue()));
                     return ObjectGetResult(toImpl(ret.value()), attr & TemplatePropertyAttribute::TemplatePropertyAttributeWritable, attr & TemplatePropertyAttribute::TemplatePropertyAttributeEnumerable, attr & TemplatePropertyAttribute::TemplatePropertyAttributeConfigurable);
                 } else {
                     return ObjectGetResult(toImpl(ret.value()), true, true, true);
                 }
             }
         }
+
         return Object::get(state, P, receiver);
     }
 
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver) override
     {
-        if (m_data->setter && !P.isIndexString()) {
-            auto ret = m_data->setter(toRef(&state), toRef(this), toRef(receiver), m_data->data, toRef(P.toPropertyKeyValue()), toRef(v));
+        if (isValidPropertyName(P) && m_propertyHandler->setter) {
+            auto ret = m_propertyHandler->setter(toRef(&state), toRef(this), toRef(receiver), m_propertyHandler->data, toRef(P.toPlainValue()), toRef(v));
             if (ret.hasValue()) {
                 return ret.value()->toBoolean(toRef(&state));
             }
         }
+
         return Object::set(state, P, v, receiver);
     }
 
@@ -236,9 +222,50 @@ public:
         return false;
     }
 
-private:
-    ObjectTemplateNamedPropertyHandlerData* m_data;
+protected:
+    ObjectWithPropertyHandler(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto, ObjectTemplatePropertyHandlerData* data)
+        : Object(structure, std::move(values), proto)
+        , m_propertyHandler(data)
+    {
+        ASSERT(!!m_propertyHandler);
+    }
+
+    ObjectTemplatePropertyHandlerData* m_propertyHandler;
 };
+
+class ObjectWithNamedPropertyHandler : public ObjectWithPropertyHandler {
+public:
+    ObjectWithNamedPropertyHandler(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto, ObjectTemplatePropertyHandlerData* data)
+        : ObjectWithPropertyHandler(structure, std::forward<ObjectPropertyValueVector>(values), proto, data)
+    {
+    }
+
+    virtual bool isValidPropertyName(const ObjectPropertyName& P) override
+    {
+        return !P.isIndexString();
+    }
+};
+
+void* ObjectTemplate::operator new(size_t size)
+{
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word objBitmap[GC_BITMAP_SIZE(ObjectTemplate)] = { 0 };
+        Template::fillGCDescriptor(objBitmap);
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectTemplate, m_constructor));
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(ObjectTemplate, m_propertyHandler));
+        descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(ObjectTemplate));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+ObjectTemplate::ObjectTemplate(Optional<FunctionTemplate*> constructor)
+    : m_constructor(constructor)
+    , m_propertyHandler(nullptr)
+{
+}
 
 Object* ObjectTemplate::instantiate(Context* ctx)
 {
@@ -262,8 +289,8 @@ Object* ObjectTemplate::instantiate(Context* ctx)
         proto = ctx->globalObject()->objectPrototype();
     }
 
-    if (m_namedPropertyHandler) {
-        result = new ObjectWithNamedPropertyHandler(m_cachedObjectStructure.m_objectStructure, std::move(objectPropertyValues), proto, m_namedPropertyHandler);
+    if (m_propertyHandler) {
+        result = new ObjectWithNamedPropertyHandler(m_cachedObjectStructure.m_objectStructure, std::move(objectPropertyValues), proto, m_propertyHandler);
     } else {
         result = new Object(m_cachedObjectStructure.m_objectStructure, std::move(objectPropertyValues), proto);
     }
@@ -345,13 +372,16 @@ bool ObjectTemplate::installTo(Context* ctx, Object* target)
     return result.error.isEmpty();
 }
 
-void ObjectTemplate::setNamedPropertyHandler(const ObjectTemplateNamedPropertyHandlerData& data)
+void ObjectTemplate::setNamedPropertyHandler(const ObjectTemplatePropertyHandlerData& data)
 {
-    m_namedPropertyHandler = new (GC) ObjectTemplateNamedPropertyHandlerData(data);
+    ASSERT(!m_propertyHandler);
+    m_propertyHandler = new (GC) ObjectTemplatePropertyHandlerData(data);
 }
 
-void ObjectTemplate::removeNamedPropertyHandler()
+void ObjectTemplate::removePropertyHandler()
 {
-    m_namedPropertyHandler = nullptr;
+    ASSERT(!m_propertyHandler);
+    GC_FREE(m_propertyHandler);
+    m_propertyHandler = nullptr;
 }
 } // namespace Escargot

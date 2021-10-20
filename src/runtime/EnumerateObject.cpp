@@ -128,7 +128,7 @@ void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, E
 
     m_object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         auto properties = (Properties*)data;
-        auto value = name.toPlainValue(state);
+        auto value = name.toPlainValue();
         if (desc.isEnumerable()) {
             Value::ValueIndex nameAsIndexValue;
             if (value.isSymbol()) {
@@ -229,7 +229,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
             target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
                 EData* eData = (EData*)data;
                 if (desc.isEnumerable()) {
-                    String* key = name.toPlainValue(state).toString(state);
+                    String* key = name.toPlainValue().toString(state);
                     auto iter = eData->keyStringSet->find(key);
                     if (iter == eData->keyStringSet->end()) {
                         eData->keyStringSet->insert(key);
@@ -238,7 +238,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
                 } else if (self == eData->obj) {
                     // 12.6.4 The values of [[Enumerable]] attributes are not considered
                     // when determining if a property of a prototype object is shadowed by a previous object on the prototype chain.
-                    String* key = name.toPlainValue(state).toString(state);
+                    String* key = name.toPlainValue().toString(state);
                     ASSERT(eData->keyStringSet->find(key) == eData->keyStringSet->end());
                     eData->keyStringSet->insert(key);
                 }
@@ -255,7 +255,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
 
         m_object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
             auto properties = (Properties*)data;
-            auto value = name.toPlainValue(state);
+            auto value = name.toPlainValue();
             if (desc.isEnumerable()) {
                 Value::ValueIndex nameAsIndexValue;
                 if (name.isIndexString() && (nameAsIndexValue = value.toIndex(state)) != Value::InvalidIndexValue) {

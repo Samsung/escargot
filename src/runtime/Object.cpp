@@ -1564,7 +1564,7 @@ void Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t 
             int64_t index;
             Data* e = (Data*)data;
             int64_t* ret = e->ret;
-            Value key = name.toPlainValue(state);
+            Value key = name.toPlainValue();
             index = key.toNumber(state);
             if ((uint64_t)index != Value::InvalidIndexValue) {
                 if (index > *e->cur && *ret > index) {
@@ -1599,7 +1599,7 @@ void Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t
             int64_t index;
             Data* e = (Data*)data;
             int64_t* ret = e->ret;
-            Value key = name.toPlainValue(state);
+            Value key = name.toPlainValue();
             index = key.toNumber(state);
             if ((uint64_t)index != Value::InvalidIndexValue) {
                 if (index < *e->cur) {
