@@ -135,9 +135,6 @@
 #if defined(COMPILER_MSVC)
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
-#ifndef NDEBUG
-#define _ITERATOR_DEBUG_LEVEL 0
-#endif
 #endif
 
 #ifndef ATTRIBUTE_NO_SANITIZE_ADDRESS
@@ -222,6 +219,10 @@
 #include <unordered_set>
 #include <vector>
 #include <random>
+
+#if defined(COMPILER_MSVC)
+#include <stddef.h>
+#endif
 
 #if defined(ENABLE_THREADING)
 #include <thread>

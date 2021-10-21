@@ -116,7 +116,7 @@ def run_sunspider_js(engine, arch):
 
 @runner('octane', default=True)
 def run_octane(engine, arch):
-    max_retry_count = 3
+    max_retry_count = 5
     try_count = 0
     last_error = None
     while try_count < max_retry_count:

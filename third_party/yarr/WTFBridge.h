@@ -477,7 +477,7 @@ using String = ::JSC::Yarr::String;
 #define WTFMove std::move
 
 // NOTE there is no make_unique in c++11
-// if we use c++14, we should remove this
+#if (__cplusplus < 201402L)
 namespace std {
 template <typename T, typename... Ts>
 std::unique_ptr<T> make_unique(Ts&&... params)
@@ -485,6 +485,7 @@ std::unique_ptr<T> make_unique(Ts&&... params)
     return std::unique_ptr<T>(new T(std::forward<Ts>(params)...));
 }
 }
+#endif
 
 #include "ASCIICType.h"
 

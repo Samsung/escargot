@@ -429,7 +429,7 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
     }
 
     size_t resultSize = results.size();
-    for (uint i = 0; i < resultSize; i++) {
+    for (size_t i = 0; i < resultSize; i++) {
         Object* result = results[i].toObject(state);
         size_t nCaptures = result->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, result).toLength(state) - 1;
 

@@ -22,32 +22,32 @@
     <ProjectGuid>{FA76F553-5978-4E00-81B0-F35D58029CDE}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>escargot</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugShell|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseShell|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -88,10 +88,11 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;GC_DEBUG;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ENABLE_ICU;ENABLE_INTL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\icu\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\windows\icu\include;.\..\..\..\..\third_party\libbf;.\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <FloatingPointModel>Strict</FloatingPointModel>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/Oy- /Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -99,7 +100,8 @@
       <StackReserveSize>4194304</StackReserveSize>
     </Link>
     <PreBuildEvent>
-      <Command>xcopy  /Y /F .\..\..\..\..\third_party\icu\bin\*.dll $(SolutionDir)\Debug\</Command>
+      <Command>xcopy  /Y /F .\..\..\..\..\third_party\windows\icu\bin\*.dll $(SolutionDir)\Debug\
+xcopy   /Y /F .\..\..\..\..\third_party\windows\icu\source\data\out\*.dat $(SolutionDir)\Debug\</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugShell|Win32'">
@@ -108,11 +110,12 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ENABLE_ICU;ESCARGOT_SHELL;ENABLE_INTL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\icu\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;GC_DEBUG;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ENABLE_ICU;ESCARGOT_SHELL;ENABLE_INTL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\windows\icu\include;.\..\..\..\..\third_party\libbf;.\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <FloatingPointModel>Strict</FloatingPointModel>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/Oy- /Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -122,7 +125,8 @@
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command>xcopy  /Y /F  .\..\..\..\..\third_party\icu\bin\*.dll $(SolutionDir)\Debug\</Command>
+      <Command>xcopy  /Y /F  .\..\..\..\..\third_party\windows\icu\bin\*.dll $(SolutionDir)\Debug\
+xcopy   /Y /F .\..\..\..\..\third_party\windows\icu\source\data\out\*.dat $(SolutionDir)\Debug\</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -135,12 +139,13 @@
       </FunctionLevelLinking>
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ENABLE_ICU;ENABLE_INTL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\icu\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\windows\icu\include;.\..\..\..\..\third_party\libbf;.\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Strict</FloatingPointModel>
+      <AdditionalOptions>/Oy- /Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -150,7 +155,8 @@
       <StackReserveSize>4194304</StackReserveSize>
     </Link>
     <PreBuildEvent>
-      <Command>xcopy   /Y /F .\..\..\..\..\third_party\icu\bin\*.dll $(SolutionDir)\Release\</Command>
+      <Command>xcopy   /Y /F .\..\..\..\..\third_party\windows\icu\bin\*.dll $(SolutionDir)\Release\
+xcopy   /Y /F .\..\..\..\..\third_party\windows\icu\source\data\out\*.dat $(SolutionDir)\Release\</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseShell|Win32'">
@@ -162,10 +168,10 @@
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;ESCARGOT_EXPORTS;ESCARGOT;ESCARGOT_ENABLE_TYPEDARRAY;ESCARGOT_ENABLE_PROMISE;ESCARGOT_32;ESCARGOT_SHELL;ENABLE_ICU;ENABLE_INTL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\icu\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\..\..\..\..\src;.\..\..\..\..\third_party\GCutil;.\..\..\..\..\third_party\GCutil\bdwgc\include;.\..\..\..\..\third_party\checked_arithmetic;.\..\..\..\..\third_party\double_conversion;.\..\..\..\..\third_party\rapidjson\include;.\..\..\..\..\third_party\yarr;.\..\..\..\..\third_party\windows\icu\include;.\..\..\..\..\third_party\libbf;.\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <FloatingPointModel>Strict</FloatingPointModel>
-      <AdditionalOptions>/Oy- %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Oy- /Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -179,93 +185,12 @@
       <StackReserveSize>4194304</StackReserveSize>
     </Link>
     <PreBuildEvent>
-      <Command>xcopy   /Y /F  .\..\..\..\..\third_party\icu\bin\*.dll $(SolutionDir)\Release\ </Command>
+      <Command>xcopy   /Y /F  .\..\..\..\..\third_party\windows\icu\bin\*.dll $(SolutionDir)\Release\ 
+xcopy   /Y /F .\..\..\..\..\third_party\windows\icu\source\data\out\*.dat $(SolutionDir)\Release\</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\src\api\EscargotPublic.cpp" />
-    <ClCompile Include="..\..\..\..\src\heap\CustomAllocator.cpp" />
-    <ClCompile Include="..\..\..\..\src\heap\Heap.cpp" />
-    <ClCompile Include="..\..\..\..\src\heap\LeakCheckerBridge.cpp" />
-    <ClCompile Include="..\..\..\..\src\interpreter\ByteCode.cpp" />
-    <ClCompile Include="..\..\..\..\src\interpreter\ByteCodeGenerator.cpp" />
-    <ClCompile Include="..\..\..\..\src\interpreter\ByteCodeInterpreter.cpp" />
-    <ClCompile Include="..\..\..\..\src\parser\ast\Node.cpp" />
-    <ClCompile Include="..\..\..\..\src\parser\CodeBlock.cpp" />
-    <ClCompile Include="..\..\..\..\src\parser\esprima_cpp\esprima.cpp" />
-    <ClCompile Include="..\..\..\..\src\parser\Script.cpp" />
-    <ClCompile Include="..\..\..\..\src\parser\ScriptParser.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\ArgumentsObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\ArrayBufferObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\ArrayObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\AtomicString.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\BooleanObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\Context.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\DateObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\Environment.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\EnvironmentRecord.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\ErrorObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\ExecutionContext.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\ExecutionState.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\FunctionObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinArray.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinBoolean.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinDataView.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinDate.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinError.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinFunction.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinIntl.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinIterator.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinJSON.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinMap.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinMath.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinNumber.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinPromise.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinProxy.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinRegExp.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinSet.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinString.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinSymbol.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinTypedArray.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinWeakMap.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalObjectBuiltinWeakSet.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\GlobalRegExpFunctionObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\IEEE754.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\IteratorObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\Job.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\JobQueue.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\MapObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\NumberObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\Object.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\ObjectStructure.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\ObjectStructurePropertyDescriptor.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\PromiseObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\PropertyName.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\ProxyObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\RegExpObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\RopeString.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\SandBox.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\SetObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\SmallValue.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\StaticStrings.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\String.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\StringBuilder.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\StringObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\StringView.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\Symbol.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\SymbolObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\ToStringRecursionPreventer.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\TypedArrayObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\Value.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\VMInstance.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\WeakMapObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\runtime\WeakSetObject.cpp" />
-    <ClCompile Include="..\..\..\..\src\shell\GlobalObjectBuiltinTestFunctions.cpp" />
-    <ClCompile Include="..\..\..\..\src\shell\Shell.cpp" />
-    <ClCompile Include="..\..\..\..\src\util\BasicString.cpp" />
-    <ClCompile Include="..\..\..\..\src\util\Vector.cpp" />
+    <ClCompile Include="..\..\..\..\src\**\*.cpp" />
     <ClCompile Include="..\..\..\..\third_party\double_conversion\bignum-dtoa.cc" />
     <ClCompile Include="..\..\..\..\third_party\double_conversion\bignum.cc" />
     <ClCompile Include="..\..\..\..\third_party\double_conversion\cached-powers.cc" />
@@ -274,15 +199,24 @@
     <ClCompile Include="..\..\..\..\third_party\double_conversion\fast-dtoa.cc" />
     <ClCompile Include="..\..\..\..\third_party\double_conversion\fixed-dtoa.cc" />
     <ClCompile Include="..\..\..\..\third_party\double_conversion\strtod.cc" />
+    <ClCompile Include="..\..\..\..\third_party\libbf\cutils.c" />
+    <ClCompile Include="..\..\..\..\third_party\libbf\libbf.c" />
     <ClCompile Include="..\..\..\..\third_party\yarr\OSAllocatorPosix.cpp" />
     <ClCompile Include="..\..\..\..\third_party\yarr\OSAllocatorWin.cpp" />
     <ClCompile Include="..\..\..\..\third_party\yarr\PageBlock.cpp" />
     <ClCompile Include="..\..\..\..\third_party\yarr\YarrCanonicalizeUCS2.cpp" />
+    <ClCompile Include="..\..\..\..\third_party\yarr\YarrCanonicalizeUnicode.cpp" />
+    <ClCompile Include="..\..\..\..\third_party\yarr\YarrErrorCode.cpp" />
     <ClCompile Include="..\..\..\..\third_party\yarr\YarrInterpreter.cpp" />
     <ClCompile Include="..\..\..\..\third_party\yarr\YarrPattern.cpp" />
+    <ClCompile Include="..\..\..\..\third_party\yarr\YarrUnicodeProperties.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\src\api\EscargotPublic.h" />
+    <ClInclude Include="..\..\..\..\src\codecache\CodeCache.h" />
+    <ClInclude Include="..\..\..\..\src\codecache\CodeCacheReaderWriter.h" />
+    <ClInclude Include="..\..\..\..\src\debugger\Debugger.h" />
+    <ClInclude Include="..\..\..\..\src\debugger\DebuggerTcp.h" />
     <ClInclude Include="..\..\..\..\src\Escargot.h" />
     <ClInclude Include="..\..\..\..\src\heap\CustomAllocator.h" />
     <ClInclude Include="..\..\..\..\src\heap\Heap.h" />
@@ -461,88 +395,67 @@
     <ProjectReference Include="..\..\..\..\third_party\GCutil\windows\GCutil\GCutil.vcxproj">
       <Project>{06a2482c-2546-4b7b-ae77-6daf4b6c3f72}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\common\common.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\common\common.vcxproj">
       <Project>{73c0a65b-d1f2-4de1-b3a6-15dad2c23f3d}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\data\makedata.vcxproj">
-      <Project>{d9df7f2f-93b7-4810-b5cd-96f4f33c079b}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\extra\uconv\uconv.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\extra\uconv\uconv.vcxproj">
       <Project>{dba4088d-f6f9-4f8f-8820-082a4765c16c}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\i18n\i18n.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\i18n\i18n.vcxproj">
       <Project>{0178b127-6269-407d-b112-93877bb62776}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\io\io.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\io\io.vcxproj">
       <Project>{c2b04507-2521-4801-bf0d-5fd79d6d518c}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\samples\cal\cal.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\samples\cal\cal.vcxproj">
       <Project>{f7659d77-09cf-4fe9-acee-927287aa9509}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\samples\date\date.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\samples\date\date.vcxproj">
       <Project>{38b5751a-c6f9-4409-950c-f4f9da17275f}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\stubdata\stubdata.vcxproj">
-      <Project>{203ec78a-0531-43f0-a636-285439bde025}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\test\cintltst\cintltst.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\test\cintltst\cintltst.vcxproj">
       <Project>{3d1246ae-1b32-479b-beca-aefa97be2321}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\test\intltest\intltest.vcxproj">
-      <Project>{73632960-b3a6-464d-83a3-4b43365f19b8}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\test\iotest\iotest.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\test\iotest\iotest.vcxproj">
       <Project>{e4993e82-d68a-46ca-bae0-9d35e172e46f}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\ctestfw\ctestfw.vcxproj">
-      <Project>{eca6b435-b4fa-4f9f-bf95-f451d078fc47}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\genbrk\genbrk.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\genbrk\genbrk.vcxproj">
       <Project>{c2be5000-7501-4e87-9724-b8d82494fae6}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\genccode\genccode.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\genccode\genccode.vcxproj">
       <Project>{fdd3c4f2-9805-44eb-9a77-bc1c1c95b547}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\gencfu\gencfu.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\gencfu\gencfu.vcxproj">
       <Project>{691ee0c0-dc57-4a48-8aee-8ed75eb3a057}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\gencmn\gencmn.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\gencmn\gencmn.vcxproj">
       <Project>{a8d36f8d-09e6-4174-91c3-7beaa9c3f04f}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\gencnval\gencnval.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\gencnval\gencnval.vcxproj">
       <Project>{8b41752b-5a52-41e4-b7e0-07921c0cc6bf}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\gendict\gendict.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\gendict\gendict.vcxproj">
       <Project>{9d4211f7-2c77-439c-82f0-30a4e43ba569}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\gennorm2\gennorm2.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\gennorm2\gennorm2.vcxproj">
       <Project>{c7891a65-80ab-4245-912e-5f1e17b0e6c4}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\genrb\derb.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\genrb\derb.vcxproj">
       <Project>{d3065adb-8820-4cc7-9b6c-9510833961a3}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\genrb\genrb.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\genrb\genrb.vcxproj">
       <Project>{97521d06-ec47-45d4-8bd0-9e16b3f93b2a}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\gensprep\gensprep.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\gensprep\gensprep.vcxproj">
       <Project>{631c23ce-6c1d-4875-88f0-85e0a42b36ea}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\gentest\gentest.vcxproj">
-      <Project>{77c78066-746f-4ea6-b3fe-b8c8a4a97891}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\icuinfo\icuinfo.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\icuinfo\icuinfo.vcxproj">
       <Project>{e7611f49-f088-4175-9446-6111444e72c8}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\icupkg\icupkg.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\icupkg\icupkg.vcxproj">
       <Project>{62d4b15d-7a90-4ecb-ba19-5e021d6a21bc}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\makeconv\makeconv.vcxproj">
-      <Project>{f5ad9738-1a3d-4906-b9c4-a7d9ce33dc2c}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\pkgdata\pkgdata.vcxproj">
-      <Project>{4c8454fe-81d3-4ca3-9927-29ba96f03dac}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\..\third_party\icu\source\tools\toolutil\toolutil.vcxproj">
+    <ProjectReference Include="..\..\..\..\third_party\windows\icu\source\tools\toolutil\toolutil.vcxproj">
       <Project>{6b231032-3cb5-4eed-9210-810d666a23a0}</Project>
     </ProjectReference>
   </ItemGroup>

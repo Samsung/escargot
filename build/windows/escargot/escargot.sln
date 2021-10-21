@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2036
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31729.503
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "escargot", "escargot\escargot.vcxproj", "{FA76F553-5978-4E00-81B0-F35D58029CDE}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -19,13 +19,13 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GCutil", "..\..\..\third_pa
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D293E94D-BFE8-4B0C-A885-2318F51E4C49}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cal", "..\..\..\third_party\icu\source\samples\cal\cal.vcxproj", "{F7659D77-09CF-4FE9-ACEE-927287AA9509}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cal", "..\..\..\third_party\windows\icu\source\samples\cal\cal.vcxproj", "{F7659D77-09CF-4FE9-ACEE-927287AA9509}"
 	ProjectSection(ProjectDependencies) = postProject
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cintltst", "..\..\..\third_party\icu\source\test\cintltst\cintltst.vcxproj", "{3D1246AE-1B32-479B-BECA-AEFA97BE2321}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cintltst", "..\..\..\third_party\windows\icu\source\test\cintltst\cintltst.vcxproj", "{3D1246AE-1B32-479B-BECA-AEFA97BE2321}"
 	ProjectSection(ProjectDependencies) = postProject
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
@@ -33,24 +33,24 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cintltst", "..\..\..\third_
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "common", "..\..\..\third_party\icu\source\common\common.vcxproj", "{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "common", "..\..\..\third_party\windows\icu\source\common\common.vcxproj", "{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}"
 	ProjectSection(ProjectDependencies) = postProject
 		{203EC78A-0531-43F0-A636-285439BDE025} = {203EC78A-0531-43F0-A636-285439BDE025}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ctestfw", "..\..\..\third_party\icu\source\tools\ctestfw\ctestfw.vcxproj", "{ECA6B435-B4FA-4F9F-BF95-F451D078FC47}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ctestfw", "..\..\..\third_party\windows\icu\source\tools\ctestfw\ctestfw.vcxproj", "{ECA6B435-B4FA-4F9F-BF95-F451D078FC47}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "date", "..\..\..\third_party\icu\source\samples\date\date.vcxproj", "{38B5751A-C6F9-4409-950C-F4F9DA17275F}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "date", "..\..\..\third_party\windows\icu\source\samples\date\date.vcxproj", "{38B5751A-C6F9-4409-950C-F4F9DA17275F}"
 	ProjectSection(ProjectDependencies) = postProject
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "derb", "..\..\..\third_party\icu\source\tools\genrb\derb.vcxproj", "{D3065ADB-8820-4CC7-9B6C-9510833961A3}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "derb", "..\..\..\third_party\windows\icu\source\tools\genrb\derb.vcxproj", "{D3065ADB-8820-4CC7-9B6C-9510833961A3}"
 	ProjectSection(ProjectDependencies) = postProject
 		{C2B04507-2521-4801-BF0D-5FD79D6D518C} = {C2B04507-2521-4801-BF0D-5FD79D6D518C}
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
@@ -58,50 +58,50 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "derb", "..\..\..\third_part
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "genbrk", "..\..\..\third_party\icu\source\tools\genbrk\genbrk.vcxproj", "{C2BE5000-7501-4E87-9724-B8D82494FAE6}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "genbrk", "..\..\..\third_party\windows\icu\source\tools\genbrk\genbrk.vcxproj", "{C2BE5000-7501-4E87-9724-B8D82494FAE6}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "genccode", "..\..\..\third_party\icu\source\tools\genccode\genccode.vcxproj", "{FDD3C4F2-9805-44EB-9A77-BC1C1C95B547}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "genccode", "..\..\..\third_party\windows\icu\source\tools\genccode\genccode.vcxproj", "{FDD3C4F2-9805-44EB-9A77-BC1C1C95B547}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gencmn", "..\..\..\third_party\icu\source\tools\gencmn\gencmn.vcxproj", "{A8D36F8D-09E6-4174-91C3-7BEAA9C3F04F}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gencmn", "..\..\..\third_party\windows\icu\source\tools\gencmn\gencmn.vcxproj", "{A8D36F8D-09E6-4174-91C3-7BEAA9C3F04F}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gencnval", "..\..\..\third_party\icu\source\tools\gencnval\gencnval.vcxproj", "{8B41752B-5A52-41E4-B7E0-07921C0CC6BF}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gencnval", "..\..\..\third_party\windows\icu\source\tools\gencnval\gencnval.vcxproj", "{8B41752B-5A52-41E4-B7E0-07921C0CC6BF}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "genrb", "..\..\..\third_party\icu\source\tools\genrb\genrb.vcxproj", "{97521D06-EC47-45D4-8BD0-9E16B3F93B2A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "genrb", "..\..\..\third_party\windows\icu\source\tools\genrb\genrb.vcxproj", "{97521D06-EC47-45D4-8BD0-9E16B3F93B2A}"
 	ProjectSection(ProjectDependencies) = postProject
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gentest", "..\..\..\third_party\icu\source\tools\gentest\gentest.vcxproj", "{77C78066-746F-4EA6-B3FE-B8C8A4A97891}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gentest", "..\..\..\third_party\windows\icu\source\tools\gentest\gentest.vcxproj", "{77C78066-746F-4EA6-B3FE-B8C8A4A97891}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{ECA6B435-B4FA-4F9F-BF95-F451D078FC47} = {ECA6B435-B4FA-4F9F-BF95-F451D078FC47}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "i18n", "..\..\..\third_party\icu\source\i18n\i18n.vcxproj", "{0178B127-6269-407D-B112-93877BB62776}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "i18n", "..\..\..\third_party\windows\icu\source\i18n\i18n.vcxproj", "{0178B127-6269-407D-B112-93877BB62776}"
 	ProjectSection(ProjectDependencies) = postProject
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "intltest", "..\..\..\third_party\icu\source\test\intltest\intltest.vcxproj", "{73632960-B3A6-464D-83A3-4B43365F19B8}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "intltest", "..\..\..\third_party\windows\icu\source\test\intltest\intltest.vcxproj", "{73632960-B3A6-464D-83A3-4B43365F19B8}"
 	ProjectSection(ProjectDependencies) = postProject
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
@@ -109,49 +109,50 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "intltest", "..\..\..\third_
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "makeconv", "..\..\..\third_party\icu\source\tools\makeconv\makeconv.vcxproj", "{F5AD9738-1A3D-4906-B9C4-A7D9CE33DC2C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "makeconv", "..\..\..\third_party\windows\icu\source\tools\makeconv\makeconv.vcxproj", "{F5AD9738-1A3D-4906-B9C4-A7D9CE33DC2C}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "makedata", "..\..\..\third_party\icu\source\data\makedata.vcxproj", "{D9DF7F2F-93B7-4810-B5CD-96F4F33C079B}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "makedata", "..\..\..\third_party\windows\icu\source\data\makedata.vcxproj", "{D9DF7F2F-93B7-4810-B5CD-96F4F33C079B}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pkgdata", "..\..\..\third_party\icu\source\tools\pkgdata\pkgdata.vcxproj", "{4C8454FE-81D3-4CA3-9927-29BA96F03DAC}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pkgdata", "..\..\..\third_party\windows\icu\source\tools\pkgdata\pkgdata.vcxproj", "{4C8454FE-81D3-4CA3-9927-29BA96F03DAC}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "stubdata", "..\..\..\third_party\icu\source\stubdata\stubdata.vcxproj", "{203EC78A-0531-43F0-A636-285439BDE025}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "stubdata", "..\..\..\third_party\windows\icu\source\stubdata\stubdata.vcxproj", "{203EC78A-0531-43F0-A636-285439BDE025}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "toolutil", "..\..\..\third_party\icu\source\tools\toolutil\toolutil.vcxproj", "{6B231032-3CB5-4EED-9210-810D666A23A0}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "toolutil", "..\..\..\third_party\windows\icu\source\tools\toolutil\toolutil.vcxproj", "{6B231032-3CB5-4EED-9210-810D666A23A0}"
 	ProjectSection(ProjectDependencies) = postProject
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "uconv", "..\..\..\third_party\icu\source\extra\uconv\uconv.vcxproj", "{DBA4088D-F6F9-4F8F-8820-082A4765C16C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "uconv", "..\..\..\third_party\windows\icu\source\extra\uconv\uconv.vcxproj", "{DBA4088D-F6F9-4F8F-8820-082A4765C16C}"
 	ProjectSection(ProjectDependencies) = postProject
+		{97521D06-EC47-45D4-8BD0-9E16B3F93B2A} = {97521D06-EC47-45D4-8BD0-9E16B3F93B2A}
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 		{D3065ADB-8820-4CC7-9B6C-9510833961A3} = {D3065ADB-8820-4CC7-9B6C-9510833961A3}
 		{4C8454FE-81D3-4CA3-9927-29BA96F03DAC} = {4C8454FE-81D3-4CA3-9927-29BA96F03DAC}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "io", "..\..\..\third_party\icu\source\io\io.vcxproj", "{C2B04507-2521-4801-BF0D-5FD79D6D518C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "io", "..\..\..\third_party\windows\icu\source\io\io.vcxproj", "{C2B04507-2521-4801-BF0D-5FD79D6D518C}"
 	ProjectSection(ProjectDependencies) = postProject
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gensprep", "..\..\..\third_party\icu\source\tools\gensprep\gensprep.vcxproj", "{631C23CE-6C1D-4875-88F0-85E0A42B36EA}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gensprep", "..\..\..\third_party\windows\icu\source\tools\gensprep\gensprep.vcxproj", "{631C23CE-6C1D-4875-88F0-85E0A42B36EA}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iotest", "..\..\..\third_party\icu\source\test\iotest\iotest.vcxproj", "{E4993E82-D68A-46CA-BAE0-9D35E172E46F}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iotest", "..\..\..\third_party\windows\icu\source\test\iotest\iotest.vcxproj", "{E4993E82-D68A-46CA-BAE0-9D35E172E46F}"
 	ProjectSection(ProjectDependencies) = postProject
 		{C2B04507-2521-4801-BF0D-5FD79D6D518C} = {C2B04507-2521-4801-BF0D-5FD79D6D518C}
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
@@ -159,32 +160,32 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iotest", "..\..\..\third_pa
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "icupkg", "..\..\..\third_party\icu\source\tools\icupkg\icupkg.vcxproj", "{62D4B15D-7A90-4ECB-BA19-5E021D6A21BC}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "icupkg", "..\..\..\third_party\windows\icu\source\tools\icupkg\icupkg.vcxproj", "{62D4B15D-7A90-4ECB-BA19-5E021D6A21BC}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gendict", "..\..\..\third_party\icu\source\tools\gendict\gendict.vcxproj", "{9D4211F7-2C77-439C-82F0-30A4E43BA569}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gendict", "..\..\..\third_party\windows\icu\source\tools\gendict\gendict.vcxproj", "{9D4211F7-2C77-439C-82F0-30A4E43BA569}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gencfu", "..\..\..\third_party\icu\source\tools\gencfu\gencfu.vcxproj", "{691EE0C0-DC57-4A48-8AEE-8ED75EB3A057}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gencfu", "..\..\..\third_party\windows\icu\source\tools\gencfu\gencfu.vcxproj", "{691EE0C0-DC57-4A48-8AEE-8ED75EB3A057}"
 	ProjectSection(ProjectDependencies) = postProject
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gennorm2", "..\..\..\third_party\icu\source\tools\gennorm2\gennorm2.vcxproj", "{C7891A65-80AB-4245-912E-5F1E17B0E6C4}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gennorm2", "..\..\..\third_party\windows\icu\source\tools\gennorm2\gennorm2.vcxproj", "{C7891A65-80AB-4245-912E-5F1E17B0E6C4}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "icuinfo", "..\..\..\third_party\icu\source\tools\icuinfo\icuinfo.vcxproj", "{E7611F49-F088-4175-9446-6111444E72C8}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "icuinfo", "..\..\..\third_party\windows\icu\source\tools\icuinfo\icuinfo.vcxproj", "{E7611F49-F088-4175-9446-6111444E72C8}"
 	ProjectSection(ProjectDependencies) = postProject
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
@@ -192,21 +193,21 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "icuinfo", "..\..\..\third_p
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testplug", "..\..\..\third_party\icu\source\tools\icuinfo\testplug.vcxproj", "{659D0C08-D4ED-4BF3-B02B-2D8D4B5A7A7A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testplug", "..\..\..\third_party\windows\icu\source\tools\icuinfo\testplug.vcxproj", "{659D0C08-D4ED-4BF3-B02B-2D8D4B5A7A7A}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6B231032-3CB5-4EED-9210-810D666A23A0} = {6B231032-3CB5-4EED-9210-810D666A23A0}
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "makedata_uwp", "..\..\..\third_party\icu\source\data\makedata_uwp.vcxproj", "{B1D53358-37BD-48BC-B27C-68BAF1E78508}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "makedata_uwp", "..\..\..\third_party\windows\icu\source\data\makedata_uwp.vcxproj", "{B1D53358-37BD-48BC-B27C-68BAF1E78508}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "i18n_uwp", "..\..\..\third_party\icu\source\i18n\i18n_uwp.vcxproj", "{6786C051-383B-47E0-9E82-B8B994E06A25}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "i18n_uwp", "..\..\..\third_party\windows\icu\source\i18n\i18n_uwp.vcxproj", "{6786C051-383B-47E0-9E82-B8B994E06A25}"
 	ProjectSection(ProjectDependencies) = postProject
 		{0178B127-6269-407D-B112-93877BB62776} = {0178B127-6269-407D-B112-93877BB62776}
 		{C10CF34B-3F79-430E-AD38-5A32DC0589C2} = {C10CF34B-3F79-430E-AD38-5A32DC0589C2}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "common_uwp", "..\..\..\third_party\icu\source\common\common_uwp.vcxproj", "{C10CF34B-3F79-430E-AD38-5A32DC0589C2}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "common_uwp", "..\..\..\third_party\windows\icu\source\common\common_uwp.vcxproj", "{C10CF34B-3F79-430E-AD38-5A32DC0589C2}"
 	ProjectSection(ProjectDependencies) = postProject
 		{73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D} = {73C0A65B-D1F2-4DE1-B3A6-15DAD2C23F3D}
 	EndProjectSection

@@ -235,7 +235,7 @@ void* PlatformRef::threadLocalCustomData()
     return ThreadLocal::customData();
 }
 
-bool thread_local Globals::g_globalsInited = false;
+thread_local bool g_globalsInited;
 void Globals::initialize(PlatformRef* platform)
 {
     // initialize global value or context including thread-local variables
@@ -570,7 +570,7 @@ StringRef* StringRef::createFromAlreadyAllocatedBufferToCompressibleString(VMIns
 }
 
 #else
-StringRef* StringRef::createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t len)
+StringRef* StringRef::createFromUTF8ToCompressibleString(VMInstanceRef* instance, const char* s, size_t len, bool maybeASCII)
 {
     ESCARGOT_LOG_ERROR("If you want to use this function, you should enable string compression");
     RELEASE_ASSERT_NOT_REACHED();

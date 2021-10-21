@@ -35,7 +35,22 @@
 #include "codecache/CodeCache.h"
 #endif
 
+#if defined(OS_WINDOWS)
+#include <Windows.h>
+#include <intrin.h>
+NT_TIB* getTIB()
+{
+#ifdef _M_IX86
+    return (NT_TIB*)__readfsdword(0x18);
+#elif _M_AMD64
+    return (NT_TIB*)__readgsqword(0x30);
+#else
+#error unsupported architecture
+#endif
+}
+#else
 #include <pthread.h>
+#endif
 
 namespace Escargot {
 
@@ -345,6 +360,9 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     },
                                    nullptr, nullptr, nullptr);
 
+#if defined(OS_WINDOWS)
+    m_stackStartAddress = getTIB()->StackBase;
+#else
     pthread_attr_t attr;
     RELEASE_ASSERT(pthread_getattr_np(pthread_self(), &attr) == 0);
 
@@ -354,7 +372,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
 #ifdef STACK_GROWS_DOWN
     m_stackStartAddress = (char*)m_stackStartAddress + size;
 #endif
-
+#endif
     // test stack base property aligned
     RELEASE_ASSERT(((size_t)m_stackStartAddress) % sizeof(size_t) == 0);
 

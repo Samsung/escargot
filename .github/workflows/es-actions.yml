@@ -24,6 +24,19 @@ jobs:
     - name: Test
       run: tools/check_tidy.py
 
+  windows_build:
+    runs-on: windows-2019
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.3
+    - name: Build Win32 Release
+      run: |
+        cd build/windows/escargot
+        msbuild escargot.sln /p:configuration=release /p:platform=win32
+
   clang_build:
     runs-on: ubuntu-latest
     steps:

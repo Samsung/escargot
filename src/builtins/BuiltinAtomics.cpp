@@ -27,13 +27,13 @@
 #include "runtime/BigInt.h"
 #include "runtime/Platform.h"
 
-#if !defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS) && !defined(ENABLE_ATOMICS_GLOBAL_LOCK)
-#error "without builtin atomic functions, we need to atomics global lock for implementing atomics builtin"
-#endif
-
 namespace Escargot {
 
 #if defined(ENABLE_THREADING)
+
+#if !defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS) && !defined(ENABLE_ATOMICS_GLOBAL_LOCK)
+#error "without builtin atomic functions, we need to atomics global lock for implementing atomics builtin"
+#endif
 
 enum class AtomicBinaryOps : uint8_t {
     ADD,
