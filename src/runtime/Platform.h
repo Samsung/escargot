@@ -53,6 +53,12 @@ public:
     // ThreadLocal custom data (g_customData)
     virtual void* allocateThreadLocalCustomData() = 0;
     virtual void deallocateThreadLocalCustomData() = 0;
+
+#ifdef ESCARGOT_USE_CUSTOM_LOGGING
+    // customized logging
+    virtual void customInfoLogger(const char* format, va_list arg) = 0;
+    virtual void customErrorLogger(const char* format, va_list arg) = 0;
+#endif
 };
 } // namespace Escargot
 

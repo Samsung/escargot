@@ -1945,6 +1945,19 @@ public:
         // do nothing
     }
 
+#ifdef ESCARGOT_USE_CUSTOM_LOGGING
+    // default custom logger
+    virtual void customInfoLogger(const char* format, va_list arg)
+    {
+        vfprintf(stdout, format, arg);
+    }
+
+    virtual void customErrorLogger(const char* format, va_list arg)
+    {
+        vfprintf(stderr, format, arg);
+    }
+#endif
+
     void* threadLocalCustomData();
 };
 

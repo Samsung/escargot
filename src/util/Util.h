@@ -115,9 +115,6 @@ private:
     uint64_t m_start;
     const char* m_msg;
 };
-} // namespace Escargot
-
-namespace Escargot {
 
 namespace detail {
 

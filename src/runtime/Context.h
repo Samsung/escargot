@@ -24,7 +24,6 @@
 #include "runtime/GlobalObject.h"
 #include "runtime/RegExpObject.h"
 #include "runtime/StaticStrings.h"
-#include "runtime/String.h"
 
 namespace Escargot {
 

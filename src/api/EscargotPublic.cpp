@@ -183,6 +183,18 @@ public:
         m_platform->deallocateThreadLocalCustomData();
     }
 
+#ifdef ESCARGOT_USE_CUSTOM_LOGGING
+    virtual void customInfoLogger(const char* format, va_list arg) override
+    {
+        m_platform->customInfoLogger(format, arg);
+    }
+
+    virtual void customErrorLogger(const char* format, va_list arg) override
+    {
+        m_platform->customErrorLogger(format, arg);
+    }
+#endif
+
 private:
     PlatformRef* m_platform;
 };
