@@ -173,7 +173,7 @@ struct ByteCodeLOC {
     }
 };
 
-#if defined(NDEBUG) && defined(ESCARGOT_32)
+#if defined(NDEBUG) && defined(ESCARGOT_32) && !defined(COMPILER_MSVC)
 #define BYTECODE_SIZE_CHECK_IN_32BIT(codeName, size) COMPILE_ASSERT(sizeof(codeName) == size, "");
 #else
 #define BYTECODE_SIZE_CHECK_IN_32BIT(CodeName, Size)

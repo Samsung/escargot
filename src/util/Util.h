@@ -55,7 +55,7 @@ inline void* currentStackPointer()
 inline void* currentStackPointer()
 {
     volatile int temp;
-    return &temp;
+    return (void*)&temp;
 }
 #else
 #error

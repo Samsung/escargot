@@ -2035,25 +2035,30 @@ void Object::addFinalizer(ObjectFinalizer fn, void* data)
     if (!rareData()->m_isFinalizerRegistered) {
         rareData()->m_isFinalizerRegistered = true;
 
+#define FINALIZER_CALLBACK()                                     \
+    Object* self = (Object*)obj;                                 \
+    auto r = self->ensureObjectExtendedExtraData();              \
+    for (size_t i = 0; i < r->m_finalizer.size(); i++) {         \
+        r->m_finalizer[i].first(self, r->m_finalizer[i].second); \
+    }
+
 #ifndef NDEBUG
         GC_finalization_proc of = nullptr;
         void* od = nullptr;
-#endif
-
-        GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
-            Object* self = (Object*)obj;
-            auto r = self->ensureObjectExtendedExtraData();
-            for (size_t i = 0; i < r->m_finalizer.size(); i++) {
-                r->m_finalizer[i].first(self, r->m_finalizer[i].second);
-            }
-        },
-#ifdef NDEBUG
-                                       nullptr, nullptr, nullptr);
-#else
-                                       nullptr, &of, &od);
-#endif
+        GC_REGISTER_FINALIZER_NO_ORDER(
+            this, [](void* obj, void*) {
+                FINALIZER_CALLBACK()
+            },
+            nullptr, &of, &od);
         ASSERT(!of);
         ASSERT(!od);
+#else
+        GC_REGISTER_FINALIZER_NO_ORDER(
+            this, [](void* obj, void*) {
+                FINALIZER_CALLBACK()
+            },
+            nullptr, nullptr, nullptr);
+#endif
     }
     r->m_finalizer.pushBack(std::make_pair(fn, data));
 }

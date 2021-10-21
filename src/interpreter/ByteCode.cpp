@@ -114,6 +114,24 @@ ByteCodeBlock::ByteCodeBlock()
     // This constructor is used to allocate a ByteCodeBlock on the stack
 }
 
+static void clearByteCodeBlock(ByteCodeBlock* self)
+{
+#ifdef ESCARGOT_DEBUGGER
+    Debugger* debugger = self->m_codeBlock->context()->debugger();
+    if (debugger && debugger->enabled()) {
+        debugger->releaseFunction(self->m_code.data());
+    }
+#endif
+    self->m_code.clear();
+    self->m_numeralLiteralData.clear();
+    self->m_jumpFlowRecordData.clear();
+
+    if (!self->m_isOwnerMayFreed) {
+        auto& v = self->m_codeBlock->context()->vmInstance()->compiledByteCodeBlocks();
+        v.erase(std::find(v.begin(), v.end(), self));
+    }
+}
+
 ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     : m_shouldClearStack(false)
     , m_isOwnerMayFreed(false)
@@ -125,22 +143,7 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     v.push_back(this);
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         ByteCodeBlock* self = (ByteCodeBlock*)obj;
-
-#ifdef ESCARGOT_DEBUGGER
-        Debugger* debugger = self->m_codeBlock->context()->debugger();
-        if (debugger && debugger->enabled()) {
-            debugger->releaseFunction(self->m_code.data());
-        }
-#endif /* ESCARGOT_DEBUGGER */
-
-        self->m_code.clear();
-        self->m_numeralLiteralData.clear();
-        self->m_jumpFlowRecordData.clear();
-
-        if (!self->m_isOwnerMayFreed) {
-            auto& v = self->m_codeBlock->context()->vmInstance()->compiledByteCodeBlocks();
-            v.erase(std::find(v.begin(), v.end(), self));
-        }
+        clearByteCodeBlock(self);
     },
                                    nullptr, nullptr, nullptr);
 }

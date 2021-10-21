@@ -368,11 +368,6 @@ inline bool isASCIISpace(char c)
     return c <= ' ' && (c == ' ' || (c <= 0xD && c >= 0x9));
 }
 
-inline bool isASCIIDigit(char c)
-{
-    return c >= '0' && c <= '9';
-}
-
 inline static void skipSpacesAndComments(const char*& s)
 {
     int nesting = 0;

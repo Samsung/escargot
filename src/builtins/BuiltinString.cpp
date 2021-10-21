@@ -603,7 +603,7 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
     StringBuilder builder;
     String* replacement = String::emptyString;
     // For each element p of matchPositions, do
-    for (uint i = 0; i < matchPositions.size(); i++) {
+    for (size_t i = 0; i < matchPositions.size(); i++) {
         size_t p = matchPositions[i];
         builder.appendSubString(string, endOfLastMatch, p);
         // If functionalReplace is true, then

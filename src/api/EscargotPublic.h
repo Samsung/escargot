@@ -125,8 +125,6 @@ ESCARGOT_REF_LIST(DECLARE_REF_CLASS);
 #undef DECLARE_REF_CLASS
 
 class ESCARGOT_EXPORT Globals {
-    static thread_local bool g_globalsInited;
-
 public:
     // Escargot has thread-independent Globals.
     // Users should call initialize, finalize once in the main program
@@ -533,7 +531,7 @@ inline auto applyTupleIntoArgumentsOfVariadicTemplateFunction(F&& f, T&& t)
 
 class ESCARGOT_EXPORT Evaluator {
 public:
-    struct LOC {
+    struct ESCARGOT_EXPORT LOC {
         size_t line;
         size_t column;
         size_t index;
@@ -546,7 +544,7 @@ public:
         }
     };
 
-    struct StackTraceData {
+    struct ESCARGOT_EXPORT StackTraceData {
         StringRef* src;
         StringRef* sourceCode;
         LOC loc;
@@ -558,7 +556,7 @@ public:
         StackTraceData();
     };
 
-    struct EvaluatorResult {
+    struct ESCARGOT_EXPORT EvaluatorResult {
         EvaluatorResult();
         EvaluatorResult(const EvaluatorResult& src);
         const EvaluatorResult& operator=(EvaluatorResult& src);
@@ -912,7 +910,7 @@ public:
 
     // don't store this sturct or string buffer
     // this is only for temporary access
-    struct StringBufferAccessDataRef {
+    struct ESCARGOT_EXPORT StringBufferAccessDataRef {
         bool has8BitContent;
         size_t length;
         const void* buffer;
@@ -1314,7 +1312,7 @@ public:
         PublicFunctionIndex = 0,
     };
 
-    struct NativeFunctionInfo {
+    struct ESCARGOT_EXPORT NativeFunctionInfo {
         bool m_isStrict;
         bool m_isConstructor;
         AtomicStringRef* m_name;
@@ -1482,7 +1480,7 @@ public:
         DotAll = 1 << 5,
     };
 
-    struct RegexMatchResult {
+    struct ESCARGOT_EXPORT RegexMatchResult {
         struct RegexMatchResultPiece {
             unsigned m_start, m_end;
         };
@@ -1846,7 +1844,7 @@ public:
 
 class ESCARGOT_EXPORT ScriptParserRef {
 public:
-    struct InitializeScriptResult {
+    struct ESCARGOT_EXPORT InitializeScriptResult {
         bool isSuccessful()
         {
             return script.hasValue();
@@ -1910,7 +1908,7 @@ public:
 
     // Module
     // client needs cache module map<absolute_module_path, ScriptRef*>
-    struct LoadModuleResult {
+    struct ESCARGOT_EXPORT LoadModuleResult {
         LoadModuleResult(ScriptRef* result);
         LoadModuleResult(ErrorObjectRef::Code errorCode, StringRef* errorMessage);
 

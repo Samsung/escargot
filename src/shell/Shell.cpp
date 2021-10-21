@@ -24,8 +24,13 @@
 #include <sstream>
 
 #include <sys/timeb.h>
+#if defined(_MSC_VER)
+#include <stdlib.h>
+#define realpath(N, R) _fullpath((R), (N), _MAX_PATH)
+#else
 #include <sys/time.h>
 #include <unistd.h>
+#endif
 
 #include "api/EscargotPublic.h"
 #include "malloc.h"
