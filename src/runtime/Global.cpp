@@ -100,4 +100,21 @@ Global::Waiter* Global::waiter(void* blockAddress)
 }
 #endif
 
+#ifdef ESCARGOT_USE_CUSTOM_LOGGING
+void customEscargotInfoLogger(const char* format, ...)
+{
+    va_list arg;
+    va_start(arg, format);
+    Global::platform()->customInfoLogger(format, arg);
+    va_end(arg);
+}
+
+void customEscargotErrorLogger(const char* format, ...)
+{
+    va_list arg;
+    va_start(arg, format);
+    Global::platform()->customErrorLogger(format, arg);
+    va_end(arg);
+}
+#endif
 } // namespace Escargot

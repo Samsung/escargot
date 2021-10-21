@@ -317,6 +317,17 @@ typedef int32_t UChar32;
 #define FALSE 0
 #endif
 
+#ifdef ESCARGOT_USE_CUSTOM_LOGGING
+// use customized logging
+#include <stdarg.h>
+namespace Escargot {
+void customEscargotInfoLogger(const char* format, ...);
+void customEscargotErrorLogger(const char* format, ...);
+} // namespace Escargot
+#define ESCARGOT_LOG_INFO(...) ::Escargot::customEscargotInfoLogger(__VA_ARGS__);
+#define ESCARGOT_LOG_ERROR(...) ::Escargot::customEscargotErrorLogger(__VA_ARGS__);
+#else
+// use default logging
 #define ESCARGOT_LOG_INFO(...) fprintf(stdout, __VA_ARGS__);
 #define ESCARGOT_LOG_ERROR(...) fprintf(stderr, __VA_ARGS__);
 
@@ -332,6 +343,7 @@ typedef int32_t UChar32;
 #undef ESCARGOT_LOG_ERROR
 #define ESCARGOT_LOG_INFO(...) dlog_print(DLOG_INFO, "Escargot", __VA_ARGS__);
 #define ESCARGOT_LOG_ERROR(...) dlog_print(DLOG_ERROR, "Escargot", __VA_ARGS__);
+#endif
 #endif
 
 #ifndef CRASH
