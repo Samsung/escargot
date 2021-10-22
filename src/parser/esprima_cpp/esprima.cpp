@@ -3154,6 +3154,8 @@ public:
                     this->lookahead.lineStart = this->scanner->lineStart;
                     this->nextToken();
 
+                    this->context->firstCoverInitializedNameError.reset();
+
                     // increase subCodeBlockIndex because parsing of an internal function is skipped
                     this->subCodeBlockIndex++;
 
