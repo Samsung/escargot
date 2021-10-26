@@ -3450,25 +3450,25 @@ FinalizationRegistryObjectRef* FinalizationRegistryObjectRef::create(ExecutionSt
     return toRef(new FinalizationRegistryObject(*toImpl(state), toImpl(cleanupCallback), toImpl(realm)));
 }
 
-void TemplateRef::set(const TemplatePropertyNameRef& name, ValueRef* data, bool isWritable, bool isEnumerable, bool isConfigurable)
+void TemplateRef::set(ValueRef* propertyName, ValueRef* data, bool isWritable, bool isEnumerable, bool isConfigurable)
 {
-    toImpl(this)->set(TemplatePropertyName(toImpl(name.value())), toImpl(data), isWritable, isEnumerable, isConfigurable);
+    toImpl(this)->set(toImpl(propertyName), toImpl(data), isWritable, isEnumerable, isConfigurable);
 }
 
-void TemplateRef::set(const TemplatePropertyNameRef& name, TemplateRef* data, bool isWritable, bool isEnumerable, bool isConfigurable)
+void TemplateRef::set(ValueRef* propertyName, TemplateRef* data, bool isWritable, bool isEnumerable, bool isConfigurable)
 {
-    toImpl(this)->set(TemplatePropertyName(toImpl(name.value())), toImpl(data), isWritable, isEnumerable, isConfigurable);
+    toImpl(this)->set(toImpl(propertyName), toImpl(data), isWritable, isEnumerable, isConfigurable);
 }
 
-void TemplateRef::setAccessorProperty(const TemplatePropertyNameRef& name, OptionalRef<FunctionTemplateRef> getter, OptionalRef<FunctionTemplateRef> setter, bool isEnumerable, bool isConfigurable)
+void TemplateRef::setAccessorProperty(ValueRef* propertyName, OptionalRef<FunctionTemplateRef> getter, OptionalRef<FunctionTemplateRef> setter, bool isEnumerable, bool isConfigurable)
 {
     Optional<FunctionTemplate*> getterImpl(toImpl(getter.get()));
     Optional<FunctionTemplate*> setterImpl(toImpl(setter.get()));
 
-    toImpl(this)->setAccessorProperty(TemplatePropertyName(toImpl(name.value())), getterImpl, setterImpl, isEnumerable, isConfigurable);
+    toImpl(this)->setAccessorProperty(toImpl(propertyName), getterImpl, setterImpl, isEnumerable, isConfigurable);
 }
 
-void TemplateRef::setNativeDataAccessorProperty(const TemplatePropertyNameRef& name, ObjectRef::NativeDataAccessorPropertyGetter getter, ObjectRef::NativeDataAccessorPropertySetter setter,
+void TemplateRef::setNativeDataAccessorProperty(ValueRef* propertyName, ObjectRef::NativeDataAccessorPropertyGetter getter, ObjectRef::NativeDataAccessorPropertySetter setter,
                                                 bool isWritable, bool isEnumerable, bool isConfigurable, bool actsLikeJSGetterSetter)
 {
     ObjectRef::NativeDataAccessorPropertyData* publicData = new ObjectRef::NativeDataAccessorPropertyData(isWritable, isEnumerable, isConfigurable, getter, setter);
@@ -3492,10 +3492,10 @@ void TemplateRef::setNativeDataAccessorProperty(const TemplatePropertyNameRef& n
         };
     }
 
-    toImpl(this)->setNativeDataAccessorProperty(TemplatePropertyName(toImpl(name.value())), innerData, publicData);
+    toImpl(this)->setNativeDataAccessorProperty(toImpl(propertyName), innerData, publicData);
 }
 
-void TemplateRef::setNativeDataAccessorProperty(const TemplatePropertyNameRef& name, ObjectRef::NativeDataAccessorPropertyData* publicData, bool actsLikeJSGetterSetter)
+void TemplateRef::setNativeDataAccessorProperty(ValueRef* propertyName, ObjectRef::NativeDataAccessorPropertyData* publicData, bool actsLikeJSGetterSetter)
 {
     ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(publicData->m_isWritable, publicData->m_isEnumerable, publicData->m_isConfigurable,
                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
@@ -3517,17 +3517,17 @@ void TemplateRef::setNativeDataAccessorProperty(const TemplatePropertyNameRef& n
         };
     }
 
-    toImpl(this)->setNativeDataAccessorProperty(TemplatePropertyName(toImpl(name.value())), innerData, publicData);
+    toImpl(this)->setNativeDataAccessorProperty(toImpl(propertyName), innerData, publicData);
 }
 
-bool TemplateRef::has(const TemplatePropertyNameRef& name)
+bool TemplateRef::has(ValueRef* propertyName)
 {
-    return toImpl(this)->has(TemplatePropertyName(toImpl(name.value())));
+    return toImpl(this)->has(toImpl(propertyName));
 }
 
-bool TemplateRef::remove(const TemplatePropertyNameRef& name)
+bool TemplateRef::remove(ValueRef* propertyName)
 {
-    return toImpl(this)->remove(TemplatePropertyName(toImpl(name.value())));
+    return toImpl(this)->remove(toImpl(propertyName));
 }
 
 ObjectRef* TemplateRef::instantiate(ContextRef* ctx)

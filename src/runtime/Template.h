@@ -30,81 +30,6 @@ class Template;
 class ObjectTemplate;
 class FunctionTemplate;
 
-class TemplatePropertyName {
-public:
-    TemplatePropertyName(const AtomicString& s)
-        : m_ptr(s.string())
-    {
-    }
-
-    TemplatePropertyName(String* s)
-        : m_ptr(s)
-    {
-    }
-
-    TemplatePropertyName(Symbol* s)
-        : m_ptr(s)
-    {
-    }
-
-    TemplatePropertyName(PointerValue* s)
-        : m_ptr(s)
-    {
-        ASSERT(s->isString() || s->isSymbol());
-    }
-
-    ObjectStructurePropertyName toObjectStructurePropertyName(Context* c);
-
-    bool equals(const TemplatePropertyName& src)
-    {
-        // fast path
-        if (m_ptr == src.m_ptr) {
-            return true;
-        }
-
-        if (m_ptr->isSymbol() || src.m_ptr->isSymbol()) {
-            return false;
-        }
-
-        return m_ptr->asString()->equals(src.m_ptr->asString());
-    }
-
-    bool operator==(const TemplatePropertyName& src)
-    {
-        return equals(src);
-    }
-
-    bool operator!=(const TemplatePropertyName& src)
-    {
-        return !equals(src);
-    }
-
-    bool isString()
-    {
-        return m_ptr->isString();
-    }
-
-    String* asString()
-    {
-        ASSERT(isString());
-        return m_ptr->asString();
-    }
-
-    bool isSymbol()
-    {
-        return m_ptr->isString();
-    }
-
-    Symbol* asSymbol()
-    {
-        ASSERT(isSymbol());
-        return m_ptr->asSymbol();
-    }
-
-private:
-    PointerValue* m_ptr;
-};
-
 class TemplateData : public gc {
     friend class Template;
 
@@ -136,15 +61,17 @@ private:
 
 // don't modify template after create object
 // it is not intented operation
+// Note) only String or Symbol type is allowed for `propertyName`
+// otherwise, it will abort
 class Template : public gc {
 public:
-    void set(const TemplatePropertyName& name, const TemplateData& data, bool isWritable, bool isEnumerable, bool isConfigurable);
-    void setAccessorProperty(const TemplatePropertyName& name, Optional<FunctionTemplate*> getter, Optional<FunctionTemplate*> setter, bool isEnumerable, bool isConfigurable);
-    void setNativeDataAccessorProperty(const TemplatePropertyName& name, ObjectPropertyNativeGetterSetterData* nativeGetterSetterData, void* privateData);
+    void set(const Value& propertyName, const TemplateData& data, bool isWritable, bool isEnumerable, bool isConfigurable);
+    void setAccessorProperty(const Value& propertyName, Optional<FunctionTemplate*> getter, Optional<FunctionTemplate*> setter, bool isEnumerable, bool isConfigurable);
+    void setNativeDataAccessorProperty(const Value& propertyName, ObjectPropertyNativeGetterSetterData* nativeGetterSetterData, void* privateData);
 
-    bool has(const TemplatePropertyName& name);
+    bool has(const Value& propertyName);
     // return true if removed
-    bool remove(const TemplatePropertyName& name);
+    bool remove(const Value& propertyName);
 
     void setInstanceExtraData(void* ptr)
     {
@@ -341,7 +268,8 @@ protected:
     };
     static_assert(sizeof(TemplatePropertyData) == sizeof(size_t) * 3, "");
 
-    Vector<std::pair<TemplatePropertyName, TemplatePropertyData>, GCUtil::gc_malloc_allocator<std::pair<TemplatePropertyName, TemplatePropertyData>>> m_properties;
+    // internally, property name is stored as ObjectStructurePropertyName because it only requires the size of `size_t` (4 or 8 bytes) which is memory-efficient
+    Vector<std::pair<ObjectStructurePropertyName, TemplatePropertyData>, GCUtil::gc_malloc_allocator<std::pair<ObjectStructurePropertyName, TemplatePropertyData>>> m_properties;
     void* m_instanceExtraData;
     CachedObjectStructure m_cachedObjectStructure;
 };

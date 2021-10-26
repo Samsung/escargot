@@ -25,13 +25,17 @@
 
 namespace Escargot {
 
+class Template;
+
 #define OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS 1
 
 class ObjectStructurePropertyName {
+    friend Template;
+
 public:
     ObjectStructurePropertyName(const AtomicString& atomicString)
     {
-        m_data = ((size_t)atomicString.string() + OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS);
+        m_data = ((size_t)atomicString.string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
         ASSERT(m_data);
     }
 
@@ -40,7 +44,10 @@ public:
         m_data = (size_t)symbol;
     }
 
+    ObjectStructurePropertyName();
+    // same as `ToPropertyKey` https://262.ecma-international.org/#sec-topropertykey
     ObjectStructurePropertyName(ExecutionState& state, const Value& value);
+
     size_t hashValue() const
     {
         if (LIKELY(hasAtomicString())) {
@@ -169,6 +176,9 @@ public:
 
 private:
     size_t m_data;
+
+    // used only for Template case
+    ObjectStructurePropertyName(const Value& value);
 
 protected:
     ALWAYS_INLINE bool hasSymbol() const
