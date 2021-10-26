@@ -23,30 +23,23 @@
 
 namespace Escargot {
 
-ObjectStructurePropertyName TemplatePropertyName::toObjectStructurePropertyName(Context* c)
+bool Template::has(const Value& propertyName)
 {
-    if (m_ptr->isString()) {
-        return ObjectStructurePropertyName(AtomicString(c, m_ptr->asString()));
-    } else {
-        return ObjectStructurePropertyName(m_ptr->asSymbol());
-    }
-}
-
-bool Template::has(const TemplatePropertyName& name)
-{
+    ObjectStructurePropertyName pName(propertyName);
     for (size_t i = 0; i < m_properties.size(); i++) {
-        if (m_properties[i].first == name) {
+        if (m_properties[i].first == pName) {
             return true;
         }
     }
     return false;
 }
 
-bool Template::remove(const TemplatePropertyName& name)
+bool Template::remove(const Value& propertyName)
 {
     ASSERT(m_cachedObjectStructure.m_objectStructure == nullptr);
+    ObjectStructurePropertyName pName(propertyName);
     for (size_t i = 0; i < m_properties.size(); i++) {
-        if (m_properties[i].first == name) {
+        if (m_properties[i].first == pName) {
             m_properties.erase(i);
             return true;
         }
@@ -54,25 +47,25 @@ bool Template::remove(const TemplatePropertyName& name)
     return false;
 }
 
-void Template::set(const TemplatePropertyName& name, const TemplateData& data, bool isWritable, bool isEnumerable, bool isConfigurable)
+void Template::set(const Value& propertyName, const TemplateData& data, bool isWritable, bool isEnumerable, bool isConfigurable)
 {
     ASSERT(m_cachedObjectStructure.m_objectStructure == nullptr);
-    remove(name);
-    m_properties.pushBack(std::make_pair(name, TemplatePropertyData(data, isWritable, isEnumerable, isConfigurable)));
+    remove(propertyName);
+    m_properties.pushBack(std::make_pair(ObjectStructurePropertyName(propertyName), TemplatePropertyData(data, isWritable, isEnumerable, isConfigurable)));
 }
 
-void Template::setAccessorProperty(const TemplatePropertyName& name, Optional<FunctionTemplate*> getter, Optional<FunctionTemplate*> setter, bool isEnumerable, bool isConfigurable)
+void Template::setAccessorProperty(const Value& propertyName, Optional<FunctionTemplate*> getter, Optional<FunctionTemplate*> setter, bool isEnumerable, bool isConfigurable)
 {
     ASSERT(m_cachedObjectStructure.m_objectStructure == nullptr);
-    remove(name);
-    m_properties.pushBack(std::make_pair(name, TemplatePropertyData(getter, setter, isEnumerable, isConfigurable)));
+    remove(propertyName);
+    m_properties.pushBack(std::make_pair(ObjectStructurePropertyName(propertyName), TemplatePropertyData(getter, setter, isEnumerable, isConfigurable)));
 }
 
-void Template::setNativeDataAccessorProperty(const TemplatePropertyName& name, ObjectPropertyNativeGetterSetterData* nativeGetterSetterData, void* privateData)
+void Template::setNativeDataAccessorProperty(const Value& propertyName, ObjectPropertyNativeGetterSetterData* nativeGetterSetterData, void* privateData)
 {
     ASSERT(m_cachedObjectStructure.m_objectStructure == nullptr);
-    remove(name);
-    m_properties.pushBack(std::make_pair(name, TemplatePropertyData(nativeGetterSetterData, privateData)));
+    remove(propertyName);
+    m_properties.pushBack(std::make_pair(ObjectStructurePropertyName(propertyName), TemplatePropertyData(nativeGetterSetterData, privateData)));
 }
 
 void Template::addNativeDataAccessorProperties(Template* other)
@@ -106,7 +99,16 @@ Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx,
     bool isInlineNonCacheable = false;
     for (size_t i = baseItemCount; i < propertyCount; i++) {
         auto propertyIndex = i - baseItemCount;
-        auto propertyName = m_properties[propertyIndex].first.toObjectStructurePropertyName(ctx);
+        auto propertyNameValue = m_properties[propertyIndex].first.toValue();
+
+        ObjectStructurePropertyName propertyName;
+        if (propertyNameValue.isString()) {
+            propertyName = ObjectStructurePropertyName(AtomicString(ctx, propertyNameValue.asString()));
+        } else {
+            ASSERT(propertyNameValue.isSymbol());
+            propertyName = ObjectStructurePropertyName(propertyNameValue.asSymbol());
+        }
+
         if (!hasIndexStringAsPropertyName) {
             hasIndexStringAsPropertyName |= propertyName.isIndexString();
         }

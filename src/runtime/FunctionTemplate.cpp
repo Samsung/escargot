@@ -180,8 +180,8 @@ Object* FunctionTemplate::instantiate(Context* ctx)
     Object* functionPrototype = nullptr;
     if (m_isConstructor) {
         // [prototype, name, length]
-        if (!m_prototypeTemplate->has(ctx->staticStrings().constructor)) {
-            m_prototypeTemplate->set(ctx->staticStrings().constructor, Value(), true, false, true);
+        if (!m_prototypeTemplate->has(ctx->staticStrings().constructor.string())) {
+            m_prototypeTemplate->set(ctx->staticStrings().constructor.string(), Value(), true, false, true);
         }
 
         ObjectPropertyValue baseValues[3];

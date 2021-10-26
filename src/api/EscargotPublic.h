@@ -1701,40 +1701,22 @@ public:
     static FinalizationRegistryObjectRef* create(ExecutionStateRef* state, ObjectRef* cleanupCallback, ContextRef* realm);
 };
 
-class ESCARGOT_EXPORT TemplatePropertyNameRef {
-public:
-    TemplatePropertyNameRef(StringRef* name = StringRef::emptyString())
-        : m_ptr(name)
-    {
-    }
-    TemplatePropertyNameRef(SymbolRef* name)
-        : m_ptr(name)
-    {
-    }
-
-    PointerValueRef* value() const
-    {
-        return m_ptr;
-    }
-
-private:
-    PointerValueRef* m_ptr;
-};
-
 // don't modify template after instantiate object
 // it is not intented operation
+// Note) only String or Symbol type is allowed for `propertyName`
+// because TemplateRef is set without ExecutionStateRef, so property name conversion is impossible.
 class ESCARGOT_EXPORT TemplateRef {
 public:
-    void set(const TemplatePropertyNameRef& name, ValueRef* data, bool isWritable, bool isEnumerable, bool isConfigurable);
-    void set(const TemplatePropertyNameRef& name, TemplateRef* data, bool isWritable, bool isEnumerable, bool isConfigurable);
-    void setAccessorProperty(const TemplatePropertyNameRef& name, OptionalRef<FunctionTemplateRef> getter, OptionalRef<FunctionTemplateRef> setter, bool isEnumerable, bool isConfigurable);
-    void setNativeDataAccessorProperty(const TemplatePropertyNameRef& name, ObjectRef::NativeDataAccessorPropertyGetter getter, ObjectRef::NativeDataAccessorPropertySetter setter,
+    void set(ValueRef* propertyName, ValueRef* data, bool isWritable, bool isEnumerable, bool isConfigurable);
+    void set(ValueRef* propertyName, TemplateRef* data, bool isWritable, bool isEnumerable, bool isConfigurable);
+    void setAccessorProperty(ValueRef* propertyName, OptionalRef<FunctionTemplateRef> getter, OptionalRef<FunctionTemplateRef> setter, bool isEnumerable, bool isConfigurable);
+    void setNativeDataAccessorProperty(ValueRef* propertyName, ObjectRef::NativeDataAccessorPropertyGetter getter, ObjectRef::NativeDataAccessorPropertySetter setter,
                                        bool isWritable, bool isEnumerable, bool isConfigurable, bool actsLikeJSGetterSetter = false);
-    void setNativeDataAccessorProperty(const TemplatePropertyNameRef& name, ObjectRef::NativeDataAccessorPropertyData* data, bool actsLikeJSGetterSetter = false);
+    void setNativeDataAccessorProperty(ValueRef* propertyName, ObjectRef::NativeDataAccessorPropertyData* data, bool actsLikeJSGetterSetter = false);
 
-    bool has(const TemplatePropertyNameRef& name);
+    bool has(ValueRef* propertyName);
     // return true if removed
-    bool remove(const TemplatePropertyNameRef& name);
+    bool remove(ValueRef* propertyName);
 
     ObjectRef* instantiate(ContextRef* ctx);
     bool didInstantiate();
@@ -1746,10 +1728,10 @@ public:
     void* instanceExtraData();
 };
 
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerGetterCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName);
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerGetterCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName);
 // if intercepted you may returns non-empty value.
 // the returned value will be use futuer operation(you can return true, or false)
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerSetterCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName, ValueRef* value);
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerSetterCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName, ValueRef* value);
 enum TemplatePropertyAttribute {
     TemplatePropertyAttributeNotExist = 1 << 0,
     TemplatePropertyAttributeExist = 1 << 1,
@@ -1757,16 +1739,15 @@ enum TemplatePropertyAttribute {
     TemplatePropertyAttributeEnumerable = 1 << 3,
     TemplatePropertyAttributeConfigurable = 1 << 4,
 };
-typedef TemplatePropertyAttribute (*TemplateNamedPropertyHandlerQueryCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName);
+typedef TemplatePropertyAttribute (*TemplateNamedPropertyHandlerQueryCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName);
 // if intercepted you may returns non-empty value.
 // the returned value will be use futuer operation(you can return true, or false)
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDeleteCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName);
-typedef GCManagedVector<TemplatePropertyNameRef> TemplateNamedPropertyHandlerEnumerationCallbackResultVector;
-typedef TemplateNamedPropertyHandlerEnumerationCallbackResultVector (*TemplateNamedPropertyHandlerEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data);
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDeleteCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName);
+typedef ValueVectorRef* (*TemplateNamedPropertyHandlerEnumerationCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data);
 // if intercepted you may returns non-empty value.
 // the returned value will be use futuer operation(you can return true, or false)
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName, const ObjectPropertyDescriptorRef& desc);
-typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerGetPropertyDescriptorCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, const TemplatePropertyNameRef& propertyName);
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerDefineOwnPropertyCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName, const ObjectPropertyDescriptorRef& desc);
+typedef OptionalRef<ValueRef> (*TemplateNamedPropertyHandlerGetPropertyDescriptorCallback)(ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName);
 
 struct ESCARGOT_EXPORT ObjectTemplateNamedPropertyHandlerData {
     TemplateNamedPropertyHandlerGetterCallback getter;

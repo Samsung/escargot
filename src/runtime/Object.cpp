@@ -38,6 +38,22 @@ namespace Escargot {
 COMPILE_ASSERT(OBJECT_PROPERTY_NAME_UINT32_VIAS == (OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS << 1), "");
 COMPILE_ASSERT(OBJECT_PROPERTY_NAME_UINT32_VIAS <= (1 << 3), "");
 
+ObjectStructurePropertyName::ObjectStructurePropertyName()
+    : m_data(((size_t)AtomicString().string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS)
+{
+}
+
+ObjectStructurePropertyName::ObjectStructurePropertyName(const Value& value)
+{
+    // accept string or symbol value only
+    ASSERT(value.isString() || value.isSymbol());
+    if (value.isString()) {
+        m_data = reinterpret_cast<size_t>(value.asString());
+    } else {
+        m_data = reinterpret_cast<size_t>(value.asSymbol());
+    }
+}
+
 ObjectStructurePropertyName::ObjectStructurePropertyName(ExecutionState& state, const Value& valueIn)
 {
     Value value = valueIn.toPrimitive(state, Value::PreferString);

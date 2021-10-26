@@ -58,35 +58,16 @@ public:
     {
     }
 
-    static TemplatePropertyNameRef toTemplatePropertyNameRef(const ObjectPropertyName& P)
-    {
-        auto name = P.objectStructurePropertyName();
-        ASSERT(name.isPlainString() || name.isSymbol());
-        if (name.isPlainString()) {
-            return TemplatePropertyNameRef(toRef(name.plainString()));
-        }
-        return TemplatePropertyNameRef(toRef(name.symbol()));
-    }
-
-    static ObjectPropertyName toObjectPropertyName(ExecutionState& state, const TemplatePropertyNameRef& nameRef)
-    {
-        if (nameRef.value()->isString()) {
-            return ObjectPropertyName(state, Value(toImpl(nameRef.value()->asString())));
-        } else {
-            return ObjectPropertyName(toImpl(nameRef.value()->asSymbol()));
-        }
-    }
-
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {
         if (!P.isIndexString() && m_data->getter) {
             OptionalRef<ValueRef> ret(m_data->getter(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                                     TemplatePropertyNameRef(toTemplatePropertyNameRef(P))));
+                                                     toRef(P.toPropertyKeyValue())));
 
             if (ret) {
                 if (m_data->query) {
                     auto attr = m_data->query(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                              TemplatePropertyNameRef(toTemplatePropertyNameRef(P)));
+                                              toRef(P.toPropertyKeyValue()));
                     return ObjectGetResult(toImpl(ret.value()), attr & TemplatePropertyAttribute::TemplatePropertyAttributeWritable, attr & TemplatePropertyAttribute::TemplatePropertyAttributeEnumerable, attr & TemplatePropertyAttribute::TemplatePropertyAttributeConfigurable);
                 } else {
                     return ObjectGetResult(toImpl(ret.value()), true, true, true);
@@ -100,7 +81,7 @@ public:
     {
         if (m_data->descriptor) {
             auto ret = m_data->descriptor(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                          TemplatePropertyNameRef(toTemplatePropertyNameRef(P)));
+                                          toRef(P.toPropertyKeyValue()));
             if (ret.hasValue()) {
                 return toImpl(ret.value());
             } else {
@@ -115,12 +96,12 @@ public:
     {
         if (!P.isIndexString()) {
             if (m_data->definer) {
-                auto ret = m_data->definer(toRef(&state), toRef(this), toRef(this), m_data->data, TemplatePropertyNameRef(toTemplatePropertyNameRef(P)), ObjectPropertyDescriptorRef((void*)&desc));
+                auto ret = m_data->definer(toRef(&state), toRef(this), toRef(this), m_data->data, toRef(P.toPropertyKeyValue()), ObjectPropertyDescriptorRef((void*)&desc));
                 if (ret.hasValue()) {
                     return ret.value()->toBoolean(toRef(&state));
                 }
             } else if (m_data->setter && desc.isValuePresent() && desc.isWritable() && desc.isEnumerable() && desc.isConfigurable()) {
-                auto ret = m_data->setter(toRef(&state), toRef(this), toRef(this), m_data->data, TemplatePropertyNameRef(toTemplatePropertyNameRef(P)), toRef(desc.value()));
+                auto ret = m_data->setter(toRef(&state), toRef(this), toRef(this), m_data->data, toRef(P.toPropertyKeyValue()), toRef(desc.value()));
                 if (ret.hasValue()) {
                     return ret.value()->toBoolean(toRef(&state));
                 }
@@ -133,7 +114,7 @@ public:
     {
         if (m_data->query) {
             auto attr = m_data->query(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                      TemplatePropertyNameRef(toTemplatePropertyNameRef(propertyName)));
+                                      toRef(propertyName.toPropertyKeyValue()));
             return attr & TemplatePropertyAttributeExist;
         }
         return Object::hasOwnProperty(state, propertyName);
@@ -143,7 +124,7 @@ public:
     {
         if (m_data->query) {
             auto attr = m_data->query(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                      TemplatePropertyNameRef(toTemplatePropertyNameRef(P)));
+                                      toRef(P.toPropertyKeyValue()));
             if (attr & TemplatePropertyAttributeExist) {
                 bool isWritable = attr & TemplatePropertyAttribute::TemplatePropertyAttributeWritable;
                 bool isEnumerable = attr & TemplatePropertyAttribute::TemplatePropertyAttributeEnumerable;
@@ -152,7 +133,7 @@ public:
                 Value v;
                 if (m_data->getter) {
                     OptionalRef<ValueRef> ret = (m_data->getter(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                                                TemplatePropertyNameRef(toTemplatePropertyNameRef(P))));
+                                                                toRef(P.toPropertyKeyValue())));
                     if (ret) {
                         v = toImpl(ret.value());
                     }
@@ -163,7 +144,7 @@ public:
             }
         } else if (m_data->getter) {
             OptionalRef<ValueRef> ret = (m_data->getter(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                                        TemplatePropertyNameRef(toTemplatePropertyNameRef(P))));
+                                                        toRef(P.toPropertyKeyValue())));
             if (ret) {
                 return ObjectGetResult(toImpl(ret.value()), true, true, true);
             }
@@ -176,7 +157,7 @@ public:
     {
         if (m_data->deleter) {
             auto ret = m_data->deleter(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                       TemplatePropertyNameRef(toTemplatePropertyNameRef(P)));
+                                       toRef(P.toPropertyKeyValue()));
             if (ret.hasValue()) {
                 return ret.value()->toBoolean(toRef(&state));
             }
@@ -189,26 +170,26 @@ public:
         if (m_data->enumerator) {
             auto ret = m_data->enumerator(toRef(&state), toRef(this), toRef(this), m_data->data);
             if (m_data->query) {
-                for (size_t i = 0; i < ret.size(); i++) {
-                    if (shouldSkipSymbolKey && ret[i].value()->isSymbol()) {
+                for (size_t i = 0; i < ret->size(); i++) {
+                    if (shouldSkipSymbolKey && ret->at(i)->isSymbol()) {
                         continue;
                     }
 
                     auto attr = m_data->query(toRef(&state), toRef(this), toRef(this), m_data->data,
-                                              TemplatePropertyNameRef(ret[i]));
+                                              ret->at(i));
 
                     ObjectStructurePropertyDescriptor desc = ObjectStructurePropertyDescriptor::createDataDescriptor(
                         (ObjectStructurePropertyDescriptor::PresentAttribute)(
                             ((attr & TemplatePropertyAttribute::TemplatePropertyAttributeWritable) ? ObjectStructurePropertyDescriptor::WritablePresent : 0) | ((attr & TemplatePropertyAttribute::TemplatePropertyAttributeEnumerable) ? ObjectStructurePropertyDescriptor::EnumerablePresent : 0) | ((attr & TemplatePropertyAttribute::TemplatePropertyAttributeConfigurable) ? ObjectStructurePropertyDescriptor::ConfigurablePresent : 0)));
-                    callback(state, this, toObjectPropertyName(state, ret[i]), desc, data);
+                    callback(state, this, ObjectPropertyName(state, toImpl(ret->at(i))), desc, data);
                 }
             } else {
-                for (size_t i = 0; i < ret.size(); i++) {
-                    if (shouldSkipSymbolKey && ret[i].value()->isSymbol()) {
+                for (size_t i = 0; i < ret->size(); i++) {
+                    if (shouldSkipSymbolKey && ret->at(i)->isSymbol()) {
                         continue;
                     }
                     ObjectStructurePropertyDescriptor desc = ObjectStructurePropertyDescriptor::createDataDescriptor();
-                    callback(state, this, toObjectPropertyName(state, ret[i]), desc, data);
+                    callback(state, this, ObjectPropertyName(state, toImpl(ret->at(i))), desc, data);
                 }
             }
         }
@@ -219,12 +200,12 @@ public:
     {
         if (!P.isIndexString()) {
             OptionalRef<ValueRef> ret(m_data->getter(toRef(&state), toRef(this), toRef(receiver), m_data->data,
-                                                     TemplatePropertyNameRef(toTemplatePropertyNameRef(P))));
+                                                     toRef(P.toPropertyKeyValue())));
 
             if (ret) {
                 if (m_data->query) {
                     auto attr = m_data->query(toRef(&state), toRef(this), toRef(receiver), m_data->data,
-                                              TemplatePropertyNameRef(toTemplatePropertyNameRef(P)));
+                                              toRef(P.toPropertyKeyValue()));
                     return ObjectGetResult(toImpl(ret.value()), attr & TemplatePropertyAttribute::TemplatePropertyAttributeWritable, attr & TemplatePropertyAttribute::TemplatePropertyAttributeEnumerable, attr & TemplatePropertyAttribute::TemplatePropertyAttributeConfigurable);
                 } else {
                     return ObjectGetResult(toImpl(ret.value()), true, true, true);
@@ -237,7 +218,7 @@ public:
     virtual bool set(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver) override
     {
         if (m_data->setter && !P.isIndexString()) {
-            auto ret = m_data->setter(toRef(&state), toRef(this), toRef(receiver), m_data->data, TemplatePropertyNameRef(toTemplatePropertyNameRef(P)), toRef(v));
+            auto ret = m_data->setter(toRef(&state), toRef(this), toRef(receiver), m_data->data, toRef(P.toPropertyKeyValue()), toRef(v));
             if (ret.hasValue()) {
                 return ret.value()->toBoolean(toRef(&state));
             }
@@ -313,8 +294,15 @@ bool ObjectTemplate::installTo(Context* ctx, Object* target)
         size_t propertyCount = sender->self->m_properties.size();
         auto properties = sender->self->m_properties;
         for (size_t i = 0; i < propertyCount; i++) {
-            ObjectPropertyName name(properties[i].first.toObjectStructurePropertyName(sender->ctx));
+            auto propertyNameValue = properties[i].first.toValue();
+            ObjectStructurePropertyName name;
 
+            if (propertyNameValue.isString()) {
+                name = ObjectStructurePropertyName(AtomicString(state, propertyNameValue.asString()));
+            } else {
+                ASSERT(propertyNameValue.isSymbol());
+                name = ObjectStructurePropertyName(propertyNameValue.asSymbol());
+            }
             auto a = properties[i].second.presentAttributes();
             int attr = 0;
 
