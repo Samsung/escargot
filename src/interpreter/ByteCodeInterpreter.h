@@ -90,14 +90,14 @@ private:
     static void instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile);
     static void deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile);
-    enum BitwiseOperationKind {
+    enum BitwiseOperationKind : unsigned {
         And,
         Or,
         Xor,
     };
     static Value bitwiseOperationSlowCase(ExecutionState& state, const Value& a, const Value& b, BitwiseOperationKind kind);
     static Value bitwiseNotOperationSlowCase(ExecutionState& state, const Value& a);
-    enum ShiftOperationKind {
+    enum ShiftOperationKind : unsigned {
         Left,
         SignedRight,
         UnsignedRight,

@@ -32,7 +32,7 @@ class GeneratorObject : public Object {
     friend class ExecutionPauser;
 
 public:
-    enum GeneratorState {
+    enum GeneratorState : unsigned {
         SuspendedStart,
         SuspendedYield,
         Executing,
@@ -40,7 +40,7 @@ public:
         CompletedThrow,
     };
 
-    enum GeneratorAbruptType {
+    enum GeneratorAbruptType : unsigned {
         Return,
         Throw
     };
