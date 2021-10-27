@@ -212,7 +212,7 @@ public:
         bool m_isStackAllocated : 1;
         bool m_isMutable : 1;
         bool m_isGlobalLexicalVariable : 1;
-        enum DeclarationType {
+        enum DeclarationType : unsigned {
             VarDeclared,
             LexicallyDeclared,
         };

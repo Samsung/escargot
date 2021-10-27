@@ -449,7 +449,7 @@ static Value builtinObjectGetOwnPropertyDescriptors(ExecutionState& state, Value
     return descriptors;
 }
 
-enum class GetOwnPropertyKeysType {
+enum class GetOwnPropertyKeysType : unsigned {
     String,
     Symbol
 };

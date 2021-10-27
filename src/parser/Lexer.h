@@ -31,7 +31,7 @@ struct ParserContext;
 
 namespace EscargotLexer {
 
-enum Token {
+enum Token : uint8_t {
     EOFToken,
     IdentifierToken,
     BooleanLiteralToken,

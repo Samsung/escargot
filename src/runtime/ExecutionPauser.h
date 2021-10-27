@@ -38,13 +38,13 @@ public:
 
     ExecutionPauser(ExecutionState& state, Object* sourceObject, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk);
 
-    enum PauseReason {
+    enum PauseReason : unsigned {
         Yield,
         Await,
         GeneratorsInitialize
     };
 
-    enum ResumeState {
+    enum ResumeState : unsigned {
         Normal,
         Throw,
         Return

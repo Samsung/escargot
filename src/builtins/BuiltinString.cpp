@@ -88,7 +88,7 @@ static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t
         pos = val.toInteger(state);
     }
     if (pos == std::numeric_limits<double>::infinity() || std::isnan(pos)) {
-        pos = std::numeric_limits<double>::quiet_NaN();
+        return Value(-1);
     }
     if (pos == -std::numeric_limits<double>::infinity()) {
         pos = 0;

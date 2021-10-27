@@ -65,7 +65,7 @@ private:
 
 class SetIteratorObject : public IteratorObject {
 public:
-    enum Type {
+    enum Type : unsigned {
         TypeKey,
         TypeValue,
         TypeKeyValue

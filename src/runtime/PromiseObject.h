@@ -78,7 +78,7 @@ public:
 
 class PromiseObject : public Object {
 public:
-    enum PromiseState {
+    enum PromiseState : size_t {
         Pending,
         FulFilled,
         Rejected
