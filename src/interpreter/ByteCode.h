@@ -262,7 +262,7 @@ public:
 
 class MetaPropertyOperation : public ByteCode {
 public:
-    enum Type : unsigned {
+    enum Type ENSURE_ENUM_UNSIGNED {
         NewTarget,
         ImportMeta
     };
@@ -437,7 +437,7 @@ public:
 
 class InitializeClass : public ByteCode {
 public:
-    enum Stage : unsigned {
+    enum Stage ENSURE_ENUM_UNSIGNED {
         CreateClass,
         SetFieldSize,
         InitField,
@@ -708,7 +708,7 @@ BYTECODE_SIZE_CHECK_IN_32BIT(SuperReference, sizeof(size_t) * 2);
 
 class ComplexSetObjectOperation : public ByteCode {
 public:
-    enum Type : unsigned {
+    enum Type ENSURE_ENUM_UNSIGNED {
         Super,
         Private,
         PrivateWithoutOuterClass
@@ -757,7 +757,7 @@ public:
 
 class ComplexGetObjectOperation : public ByteCode {
 public:
-    enum Type : unsigned {
+    enum Type ENSURE_ENUM_UNSIGNED {
         Super,
         Private,
         PrivateWithoutOuterClass
@@ -1884,7 +1884,7 @@ public:
 
 class CallFunctionComplexCase : public ByteCode {
 public:
-    enum Kind : unsigned {
+    enum Kind ENSURE_ENUM_UNSIGNED {
         WithSpreadElement,
         MayBuiltinApply,
         MayBuiltinEval,
@@ -1980,7 +1980,7 @@ public:
 
 class ExecutionPause : public ByteCode {
 public:
-    enum Reason : unsigned {
+    enum Reason ENSURE_ENUM_UNSIGNED {
         Yield,
         Await,
         GeneratorsInitialize
@@ -2303,7 +2303,7 @@ public:
 
 class IteratorOperation : public ByteCode {
 public:
-    enum Operation : unsigned {
+    enum Operation ENSURE_ENUM_UNSIGNED {
         GetIterator,
         IteratorClose,
         IteratorBind,
@@ -2505,7 +2505,7 @@ public:
 
 class OpenLexicalEnvironment : public ByteCode {
 public:
-    enum Kind : unsigned {
+    enum Kind ENSURE_ENUM_UNSIGNED {
         WithStatement,
         ResumeExecution
     };
@@ -2617,7 +2617,7 @@ public:
 
 class TaggedTemplateOperation : public ByteCode {
 public:
-    enum Operation : unsigned {
+    enum Operation ENSURE_ENUM_UNSIGNED {
         TestCacheOperation,
         FillCacheOperation
     };
