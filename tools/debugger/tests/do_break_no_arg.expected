@@ -1,0 +1,13 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_break_no_arg.js:24
+(escargot-debugger) b
+Error: Argument expected
+(escargot-debugger) b
+Error: Argument expected
+(escargot-debugger) b
+Error: Argument expected
+(escargot-debugger) b
+Error: Argument expected
+(escargot-debugger) c
+Connection closed.
