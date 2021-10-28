@@ -512,6 +512,8 @@ public:
     // Scanner always allocated on the stack
     MAKE_STACK_ALLOCATED();
 
+    void resetSource(StringView code);
+
     ScanState saveState()
     {
         return ScanState(this->index, this->lineNumber, this->lineStart);

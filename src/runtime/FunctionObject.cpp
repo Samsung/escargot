@@ -75,112 +75,99 @@ FunctionObject::FunctionObject(ObjectStructure* structure, ObjectPropertyValueVe
 {
 }
 
-FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argumentValueArrayCount, Value* argumentValueArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool findSrcName)
+FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyValue, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource)
 {
-    StringBuilder src, srcToTest;
+    StringBuilder src, parameters;
     if (useStrict) {
         src.appendString("'use strict'; ");
     }
 
     if (isGenerator && isAsync) {
         src.appendString("async function* ");
-        srcToTest.appendString("async function* ");
     } else if (isGenerator) {
         src.appendString("function* ");
-        srcToTest.appendString("function* ");
     } else if (isAsync) {
         src.appendString("async function ");
-        srcToTest.appendString("async function ");
     } else {
         src.appendString("function ");
-        srcToTest.appendString("function ");
     }
 
+    // function name
     src.appendString(functionName.string());
-    src.appendString("(");
-    srcToTest.appendString(functionName.string());
-    srcToTest.appendString("(");
 
-    for (size_t i = 0; i < argumentValueArrayCount; i++) {
-        String* p = argumentValueArray[i].toString(state);
-        src.appendString(p);
-        srcToTest.appendString(p);
-        if (i != argumentValueArrayCount - 1) {
-            src.appendString(",");
-            srcToTest.appendString(",");
+    {
+        // function parameters
+        parameters.appendString("(");
+        for (size_t i = 0; i < argCount; i++) {
+            String* p = argArray[i].toString(state);
+            parameters.appendString(p);
+            if (i != argCount - 1) {
+                parameters.appendString(",");
+            }
+        }
+        parameters.appendString("\n)");
+    }
 
-            for (size_t j = 0; j < p->length(); j++) {
-                char16_t c = p->charAt(j);
-                if (c == '}' || c == '{' || c == ')' || c == '(') {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");
-                }
+    String* parameterStr = parameters.finalize(&state);
+    String* originBodyStr = bodyValue.toString(state);
+    String* bodyStr = String::emptyString;
+
+    {
+        StringBuilder body;
+        body.appendString(" {\n");
+        body.appendString(originBodyStr);
+        body.appendString("\n}");
+        bodyStr = body.finalize(&state);
+
+        // simple syntax check for dynamic generated function except internal source
+        if (!isInternalSource) {
+            GC_disable();
+            try {
+                esprima::simpleSyntaxCheckFunctionElements(state.context(), parameterStr, bodyStr, useStrict, isGenerator, isAsync);
+
+                // reset ASTAllocator
+                state.context()->astAllocator().reset();
+                GC_enable();
+            } catch (esprima::Error* syntaxError) {
+                String* errorMessage = syntaxError->message;
+                // reset ASTAllocator
+                state.context()->astAllocator().reset();
+                GC_enable();
+                delete syntaxError;
+
+                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, errorMessage);
             }
         }
     }
 
-    GC_disable();
-
-    try {
-        srcToTest.appendString("\n) { }");
-        String* cur = srcToTest.finalize(&state);
-        esprima::parseProgram(state.context(), StringView(cur, 0, cur->length()), nullptr, false, false, false, SIZE_MAX, false, false, true, true);
-
-        // reset ASTAllocator
-        state.context()->astAllocator().reset();
-        GC_enable();
-    } catch (esprima::Error* orgError) {
-        // reset ASTAllocator
-        state.context()->astAllocator().reset();
-        GC_enable();
-
-        delete orgError;
-
-        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is a script parse error in parameter name");
-    }
-
-    String* source = bodyString.toString(state);
-
-    auto data = source->bufferAccessData();
-
-    for (size_t i = 0; i < data.length; i++) {
-        char16_t c;
-        if (data.has8BitContent) {
-            c = ((LChar*)data.buffer)[i];
-        } else {
-            c = ((char16_t*)data.buffer)[i];
-        }
-        if (c == '{') {
-            break;
-        } else if (c == '}') {
-            ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "there is unbalanced braces(}) in Function Constructor input");
-        }
-    }
-
     String* scriptSource;
-#if defined(ENABLE_RELOADABLE_STRING)
-    if (UNLIKELY(source->isReloadableString())) {
-        src.appendString("\n) {\n");
-        String* head = src.finalize(&state);
 
-        bool is8Bit = head->has8BitContent() && source->has8BitContent();
+#if defined(ENABLE_RELOADABLE_STRING)
+    if (UNLIKELY(originBodyStr->isReloadableString())) {
+        src.appendString(parameterStr);
+        src.appendString(" {\n");
+
+        String* headStr = src.finalize(&state);
+
+        bool is8Bit = headStr->has8BitContent() && originBodyStr->has8BitContent();
         const char tail[] = "\n}";
         class ReloadableStringData : public gc {
         public:
-            ReloadableStringData(String* head, ReloadableString* source)
+            ReloadableStringData(String* head, ReloadableString* body)
                 : m_head(head)
-                , m_source(source)
+                , m_body(body)
                 , m_dest(nullptr)
             {
             }
 
             String* m_head;
-            ReloadableString* m_source;
+            ReloadableString* m_body;
             ReloadableString* m_dest;
         };
 
-        ReloadableStringData* data = new ReloadableStringData(head, source->asReloadableString());
+        ReloadableStringData* data = new ReloadableStringData(headStr, originBodyStr->asReloadableString());
 
-        scriptSource = new ReloadableString(state.context()->vmInstance(), is8Bit, head->length() + source->length() + sizeof(tail) - 1,
+        scriptSource = new ReloadableString(state.context()->vmInstance(), is8Bit, headStr->length() + originBodyStr->length() + sizeof(tail) - 1,
                                             data, [](void* callbackData) -> void* {
                 ReloadableStringData* data = reinterpret_cast<ReloadableStringData*>(callbackData);
                 bool is8Bit = data->m_dest->has8BitContent();
@@ -206,9 +193,9 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
                 };
 
                 ptr = fillDestBuffer(ptr, data->m_head, is8Bit);
-                ptr = fillDestBuffer(ptr, data->m_source, is8Bit);
-                // unload original source immediately
-                data->m_source->unload();
+                ptr = fillDestBuffer(ptr, data->m_body, is8Bit);
+                // unload original body source immediately
+                data->m_body->unload();
 
                 const char tail[] = "\n}";
                 size_t tailLength = sizeof(tail) - 1;
@@ -237,9 +224,8 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
 
     } else {
 #endif
-        src.appendString("\n) {\n");
-        src.appendString(source);
-        src.appendString("\n}");
+        src.appendString(parameterStr);
+        src.appendString(bodyStr);
         scriptSource = src.finalize(&state);
 #if defined(ENABLE_RELOADABLE_STRING)
     }
@@ -247,8 +233,8 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
 
     ScriptParser parser(state.context());
     String* srcName = String::emptyString;
-    // find srcName through outer script
-    if (findSrcName) {
+    // find srcName through outer script except internal source
+    if (!isInternalSource) {
         auto script = state.resolveOuterScript();
         if (script) {
             srcName = script->srcName();

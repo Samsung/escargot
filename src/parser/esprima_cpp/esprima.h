@@ -70,6 +70,7 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
 
 ASTClassInfo* generateClassInfoFrom(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock);
 
+void simpleSyntaxCheckFunctionElements(::Escargot::Context* ctx, String* parameters, String* body, bool isStrict, bool isGenerator, bool isAsync);
 } // namespace esprima
 } // namespace Escargot
 
