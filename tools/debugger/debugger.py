@@ -76,7 +76,10 @@ class DebuggerPrompt(Cmd):
 
     def do_break(self, args):
         """ Insert breakpoints on the given lines or functions """
-        write(self.debugger.set_break(args))
+        if not args:
+            write("Error: Argument expected\n")
+        else:
+            write(self.debugger.set_break(args))
     do_b = do_break
 
     def do_list(self, _):
