@@ -251,6 +251,12 @@ public:
         this->setMarkers(startLoc);
     }
 
+    void resetSource(StringView code)
+    {
+        this->scanner->resetSource(code);
+        this->setMarkers(ExtendedNodeLOC(1, 0, 0));
+    }
+
     bool inGlobalSourceCodeParsing()
     {
         return !this->isParsingSingleFunction && this->currentScopeContext->m_nodeType == ASTNodeType::Program;
@@ -6899,6 +6905,45 @@ public:
 
         return this->finalize(node, builder.createFunctionNode(params, body, std::move(this->numeralLiteralVector)));
     }
+
+    template <class ASTBuilder>
+    void simpleSyntaxCheckFunctionParameters(ASTBuilder& builder)
+    {
+        MetaNode paramsStart = this->createNode();
+        this->expect(LeftParenthesis);
+
+        Scanner::SmallScannerResult firstRestricted;
+        ParseFormalParametersResult formalParameters;
+
+        this->parseFormalParameters(builder, formalParameters, &firstRestricted);
+
+        if (this->startMarker.index < this->scanner->length) {
+            this->throwUnexpectedToken(this->lookahead);
+        }
+    }
+
+    template <class ASTBuilder>
+    void simpleSyntaxCheckFunctionBody(ASTBuilder& builder)
+    {
+        MetaNode bodyStart = this->createNode();
+        ASTStatementContainer body = builder.createStatementContainer();
+
+        this->expect(LeftBrace);
+        this->parseDirectivePrologues(builder, body);
+
+        while (this->startMarker.index < this->scanner->length) {
+            if (this->match(RightBrace)) {
+                break;
+            }
+            this->parseStatementListItem(builder);
+        }
+
+        this->expect(RightBrace);
+
+        if (this->startMarker.index < this->scanner->length) {
+            this->throwUnexpectedToken(this->lookahead);
+        }
+    }
 };
 
 ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ASTClassInfo* outerClassInfo, bool isModule, bool strictFromOutside,
@@ -6981,6 +7026,49 @@ ASTClassInfo* generateClassInfoFrom(::Escargot::Context* ctx, InterpretedCodeBlo
         c = c->parent();
     }
     return ret;
+}
+
+void simpleSyntaxCheckFunctionElements(::Escargot::Context* ctx, String* parameters, String* body, bool isStrict, bool isGenerator, bool isAsync)
+{
+    // this method simply checks that each parameter and body has valid format
+    // other checks like duplicated parameter namkes are checked through initializeScript method
+
+    // GC should be disabled during the syntax check process
+    ASSERT(GC_is_disabled());
+    ASSERT(ctx->astAllocator().isInitialized());
+
+    Parser parser(ctx, StringView(parameters), nullptr, false, SIZE_MAX);
+#if defined(ESCARGOT_SMALL_CONFIG)
+    NodeGenerator checker(ctx->astAllocator(), false);
+#else
+    SyntaxChecker checker;
+#endif
+
+    parser.trackUsingNames = false;
+    parser.context->inFunctionBody = true;
+    parser.context->allowLexicalDeclaration = true;
+    parser.context->allowSuperCall = true;
+    parser.context->allowSuperProperty = true;
+    parser.context->allowNewTarget = true;
+    parser.context->allowYield = isGenerator;
+    parser.context->await = isAsync;
+    parser.context->strict = isStrict;
+
+    parser.pushScopeContext(new (ctx->astAllocator()) ASTScopeContext(ctx->astAllocator(), isStrict));
+
+    Parser::ParserBlockContext blockContext;
+    parser.openBlock(blockContext);
+
+    // check parameters
+    parser.simpleSyntaxCheckFunctionParameters(checker);
+
+    // reset source to function body before checking the body string
+    parser.resetSource(StringView(body));
+
+    // check body
+    parser.simpleSyntaxCheckFunctionBody(checker);
+
+    parser.closeBlock(blockContext);
 }
 
 } // namespace esprima

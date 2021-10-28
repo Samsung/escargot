@@ -1730,7 +1730,11 @@ TEST(ReloadableString, Basic)
         ValueRef* argv[1] = { StringRef::createFromASCII("asdf") };
         EXPECT_FALSE(d->flag);
         auto fn = FunctionObjectRef::create(state, AtomicStringRef::create(state->context(), "test"), 1, argv, string);
+        // body string(string) is unloaded right after function creation because body string is no longer necessary when function creation finished
+        EXPECT_FALSE(d->flag);
         EXPECT_TRUE(fn->toString(state)->toStdUTF8String() == "function test(asdf\n) {\nlet x = 'test String'\n}");
+        EXPECT_FALSE(d->flag);
+        string->charAt(0);
         EXPECT_TRUE(d->flag);
         g_context->vmInstance()->enterIdleMode();
         EXPECT_FALSE(d->flag);

@@ -686,6 +686,17 @@ Scanner::Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::Pars
     // trackComment = false;
 }
 
+void Scanner::resetSource(StringView code)
+{
+    this->source = ParserStringView(code, 0, code.length());
+    this->sourceAsNormalView = code;
+    this->sourceCodeAccessData = code.bufferAccessData();
+    this->length = code.length();
+    this->index = 0;
+    this->lineNumber = 1;
+    this->lineStart = 0;
+}
+
 void Scanner::skipSingleLine()
 {
     while (!this->eof()) {
