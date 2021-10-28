@@ -176,6 +176,21 @@
 #define NOMINMAX
 #endif
 
+/*
+we need to mark enum as unsigned if needs.
+because processing enum in msvc is little different
+
+ex) enum Type { A, B };
+struct Foo { Type type: 1; };
+Foo f; f.type = 1;
+if (f.type == Type::B) { puts("failed in msvc."); }
+*/
+#if defined(COMPILER_MSVC)
+#define ENSURE_ENUM_UNSIGNED : unsigned int
+#else
+#define ENSURE_ENUM_UNSIGNED
+#endif
+
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define HAVE_BUILTIN_ATOMIC_FUNCTIONS
 #endif
