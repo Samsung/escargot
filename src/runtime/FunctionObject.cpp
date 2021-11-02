@@ -110,37 +110,7 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
 
     String* parameterStr = parameters.finalize(&state);
     String* originBodyStr = bodyValue.toString(state);
-    String* bodyStr = String::emptyString;
-
-    {
-        StringBuilder body;
-        body.appendString(" {\n");
-        body.appendString(originBodyStr);
-        body.appendString("\n}");
-        bodyStr = body.finalize(&state);
-
-        // simple syntax check for dynamic generated function except internal source
-        if (!isInternalSource) {
-            GC_disable();
-            try {
-                esprima::simpleSyntaxCheckFunctionElements(state.context(), parameterStr, bodyStr, useStrict, isGenerator, isAsync);
-
-                // reset ASTAllocator
-                state.context()->astAllocator().reset();
-                GC_enable();
-            } catch (esprima::Error* syntaxError) {
-                String* errorMessage = syntaxError->message;
-                // reset ASTAllocator
-                state.context()->astAllocator().reset();
-                GC_enable();
-                delete syntaxError;
-
-                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, errorMessage);
-            }
-        }
-    }
-
-    String* scriptSource;
+    String* scriptSource = nullptr;
 
 #if defined(ENABLE_RELOADABLE_STRING)
     if (UNLIKELY(originBodyStr->isReloadableString())) {
@@ -221,15 +191,43 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
                 return dest; }, [](void* memoryPtr, void* callbackData) { free(memoryPtr); });
 
         data->m_dest = scriptSource->asReloadableString();
-
-    } else {
+    } else
 #endif
+    {
+        StringBuilder body;
+        body.appendString(" {\n");
+        body.appendString(originBodyStr);
+        body.appendString("\n}");
+        String* bodyStr = body.finalize(&state);
+
+#if defined(ESCARGOT_ENABLE_TEST)
+        // simple syntax check for dynamic generated function except internal source
+        // to check rare erratic formats e.g. Function('){ function foo(', '}')
+        // this check is enabled only for test mode because it requires double-parsing which may affect the overall performance
+        if (!isInternalSource) {
+            GC_disable();
+            try {
+                esprima::simpleSyntaxCheckFunctionElements(state.context(), parameterStr, bodyStr, useStrict, isGenerator, isAsync);
+
+                // reset ASTAllocator
+                state.context()->astAllocator().reset();
+                GC_enable();
+            } catch (esprima::Error* syntaxError) {
+                String* errorMessage = syntaxError->message;
+                // reset ASTAllocator
+                state.context()->astAllocator().reset();
+                GC_enable();
+                delete syntaxError;
+
+                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, errorMessage);
+            }
+        }
+#endif
+
         src.appendString(parameterStr);
         src.appendString(bodyStr);
         scriptSource = src.finalize(&state);
-#if defined(ENABLE_RELOADABLE_STRING)
     }
-#endif
 
     ScriptParser parser(state.context());
     String* srcName = String::emptyString;
