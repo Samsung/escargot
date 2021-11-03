@@ -88,6 +88,9 @@ public:
 };
 
 struct StringBufferAccessData {
+    // should be allocated on the stack
+    MAKE_STACK_ALLOCATED();
+
     bool has8BitContent;
     size_t length;
     union {
@@ -657,10 +660,6 @@ public:
     void* operator new(size_t size, GCPlacement p)
     {
         return gc::operator new(size, p);
-    }
-    void* operator new(size_t, void* ptr)
-    {
-        return ptr;
     }
     void* operator new[](size_t size) = delete;
 };

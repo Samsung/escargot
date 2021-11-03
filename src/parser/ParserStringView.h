@@ -159,8 +159,6 @@ protected:
             m_bufferData.buffer = ((char16_t*)srcData.buffer) + start;
         }
     }
-
-private:
 };
 
 } // namespace Escargot

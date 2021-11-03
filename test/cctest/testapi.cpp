@@ -1718,6 +1718,8 @@ TEST(ReloadableString, Basic)
         free(memoryPtr); });
 
     EXPECT_FALSE(d.flag);
+    EXPECT_TRUE(string->has8BitContent());
+    EXPECT_FALSE(d.flag);
     string->length();
     EXPECT_FALSE(d.flag);
     string->charAt(0);
@@ -1733,6 +1735,8 @@ TEST(ReloadableString, Basic)
         // body string(string) is unloaded right after function creation because body string is no longer necessary when function creation finished
         EXPECT_FALSE(d->flag);
         EXPECT_TRUE(fn->toString(state)->toStdUTF8String() == "function test(asdf\n) {\nlet x = 'test String'\n}");
+        EXPECT_FALSE(d->flag);
+        EXPECT_TRUE(fn->toString(state)->has8BitContent());
         EXPECT_FALSE(d->flag);
         string->charAt(0);
         EXPECT_TRUE(d->flag);
