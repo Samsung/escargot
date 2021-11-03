@@ -142,52 +142,48 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
                 ReloadableStringData* data = reinterpret_cast<ReloadableStringData*>(callbackData);
                 bool is8Bit = data->m_dest->has8BitContent();
 
-                char* dest = reinterpret_cast<char*>(malloc((data->m_dest->length() + 1) * (is8Bit ? 1 : 2)));
-                char* ptr = dest;
+                char* dest = reinterpret_cast<char*>(malloc((data->m_dest->length()) * (is8Bit ? 1 : 2)));
 
-                auto fillDestBuffer = [](char* ptr, String* src, bool is8Bit) -> char* {
-                    auto bad = src->bufferAccessData();
-                    if (is8Bit) {
-                        for (size_t i = 0; i < bad.length; i ++) {
-                            ptr[i] = bad.charAt(i);
-                        }
-                        ptr += bad.length;
-                    } else {
-                        char16_t* ptrAs16 = (char16_t*)ptr;
-                        for (size_t i = 0; i < bad.length; i++) {
-                            ptrAs16[i] = bad.charAt(i);
-                        }
-                        ptr += (bad.length * 2);
-                    }
-                    return ptr;
-                };
+                auto headAccessData = data->m_head->bufferAccessData();
+                auto bodyAccessData = data->m_body->bufferAccessData();
 
-                ptr = fillDestBuffer(ptr, data->m_head, is8Bit);
-                ptr = fillDestBuffer(ptr, data->m_body, is8Bit);
-                // unload original body source immediately
-                data->m_body->unload();
-
-                const char tail[] = "\n}";
-                size_t tailLength = sizeof(tail) - 1;
                 if (is8Bit) {
-                    for (size_t i = 0; i < tailLength; i ++) {
-                        ptr[i] = tail[i];
-                    }
-                    ptr += tailLength;
+                    ASSERT(headAccessData.has8BitContent && bodyAccessData.has8BitContent);
+                    char* ptr = dest;
+                    memcpy(ptr, headAccessData.bufferAs8Bit, headAccessData.length);
+                    ptr += headAccessData.length;
+                    memcpy(ptr, bodyAccessData.bufferAs8Bit, bodyAccessData.length);
+                    ptr += bodyAccessData.length;
+                    ptr[0] = '\n';
+                    ptr[1] = '}';
                 } else {
-                    char16_t* ptrAs16 = (char16_t*)ptr;
-                    for (size_t i = 0; i < tailLength; i ++) {
-                        ptrAs16[i] = tail[i];
+                    char16_t* ptr = reinterpret_cast<char16_t*>(dest);
+                    if (headAccessData.has8BitContent) {
+                        for (size_t i = 0; i < headAccessData.length; i++) {
+                            ptr[i] = headAccessData.charAt(i);
+                        }
+                    } else {
+                        memcpy(ptr, headAccessData.bufferAs16Bit, headAccessData.length * 2);
                     }
-                    ptr += (tailLength * 2);
+                    ptr += headAccessData.length;
+
+                    if (bodyAccessData.has8BitContent) {
+                        for (size_t i = 0; i < bodyAccessData.length; i++) {
+                            ptr[i] = bodyAccessData.charAt(i);
+                        }
+                    } else {
+                        memcpy(ptr, bodyAccessData.bufferAs16Bit, bodyAccessData.length * 2);
+                    }
+                    ptr += bodyAccessData.length;
+
+                    ptr[0] = '\n';
+                    ptr[1] = '}';
                 }
 
-                *ptr = 0;
-                if (!is8Bit) {
-                    ptr++;
-                    *ptr = 0;
-                }
-
+                // unload original body source immediately
+                // set nullptr to unload body string
+                bodyAccessData.buffer = nullptr;
+                data->m_body->unload();
                 return dest; }, [](void* memoryPtr, void* callbackData) { free(memoryPtr); });
 
         data->m_dest = scriptSource->asReloadableString();
