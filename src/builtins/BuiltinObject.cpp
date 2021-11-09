@@ -159,15 +159,14 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
 static Value builtinObjectHasOwn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Object* obj = argv[0].toObject(state);
-    Value key = argv[1].toPropertyKey(state);
-    return Value(obj->hasOwnProperty(state, ObjectPropertyName(state, key)));
+    return Value(obj->hasOwnProperty(state, ObjectPropertyName(state, argv[1])));
 }
 
 static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value key = argv[0].toPrimitive(state, Value::PrimitiveTypeHint::PreferString);
+    ObjectPropertyName key(state, argv[0]);
     Object* obj = thisValue.toObject(state);
-    return Value(obj->hasOwnProperty(state, ObjectPropertyName(state, key)));
+    return Value(obj->hasOwnProperty(state, key));
 }
 
 static Value objectDefineProperties(ExecutionState& state, Value object, Value properties)
@@ -289,13 +288,13 @@ static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, 
 static Value builtinObjectPropertyIsEnumerable(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let P be toPropertyKey(V).
-    Value P = argv[0].toPropertyKey(state);
+    ObjectPropertyName P(state, argv[0]);
 
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, propertyIsEnumerable);
 
     // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with argument name.
-    ObjectGetResult desc = O->getOwnProperty(state, ObjectPropertyName(state, P));
+    ObjectGetResult desc = O->getOwnProperty(state, P);
 
     // If desc is undefined, return false.
     if (!desc.hasValue())
@@ -425,12 +424,10 @@ static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value 
 {
     // Let obj be ToObject(O).
     Object* O = argv[0].toObject(state);
-    // Let key be ? ToPropertyKey(P).
-    Value key = argv[1].toPropertyKey(state);
 
     // Let desc be ? obj.[[GetOwnProperty]](key).
     // Return FromPropertyDescriptor(desc).
-    return O->getOwnPropertyDescriptor(state, ObjectPropertyName(state, key));
+    return O->getOwnPropertyDescriptor(state, ObjectPropertyName(state, argv[1]));
 }
 
 // https://262.ecma-international.org/#sec-object.getownpropertydescriptors
