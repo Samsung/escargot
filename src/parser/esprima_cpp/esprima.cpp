@@ -5124,9 +5124,6 @@ public:
             return this->finalize(node, builder.createFunctionDeclarationNode(subCodeBlockIndex, fnName));
         }
 
-        MetaNode paramsStart = this->createNode();
-        this->expect(LeftParenthesis);
-
         // https://www.ecma-international.org/ecma-262/10.0/#sec-web-compat-functiondeclarationinstantiation
         bool isTopScope = this->currentScopeContext->m_functionBodyBlockIndex == this->lexicalBlockIndex;
         if (!isTopScope) {
@@ -5192,6 +5189,9 @@ public:
             }
         }
         this->insertUsingName(fnName);
+
+        // parameter list
+        this->expect(LeftParenthesis);
 
         BEGIN_FUNCTION_SCANNING(fnName);
 
@@ -5328,7 +5328,7 @@ public:
             return this->finalize(node, builder.createFunctionExpressionNode(subCodeBlockIndex, fnName));
         }
 
-        MetaNode paramsStart = this->createNode();
+        // parameter list
         this->expect(LeftParenthesis);
 
         BEGIN_FUNCTION_SCANNING(fnName);
@@ -6909,7 +6909,6 @@ public:
     template <class ASTBuilder>
     void simpleSyntaxCheckFunctionParameters(ASTBuilder& builder)
     {
-        MetaNode paramsStart = this->createNode();
         this->expect(LeftParenthesis);
 
         Scanner::SmallScannerResult firstRestricted;
@@ -6925,7 +6924,6 @@ public:
     template <class ASTBuilder>
     void simpleSyntaxCheckFunctionBody(ASTBuilder& builder)
     {
-        MetaNode bodyStart = this->createNode();
         ASTStatementContainer body = builder.createStatementContainer();
 
         this->expect(LeftBrace);

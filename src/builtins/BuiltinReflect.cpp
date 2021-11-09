@@ -86,13 +86,13 @@ static Value builtinReflectDefineProperty(ExecutionState& state, Value thisValue
     }
 
     // 2. Let key be ToPropertyKey(propertyKey).
-    Value key = argv[1].toPropertyKey(state);
+    ObjectPropertyName key(state, argv[1]);
 
     // 3. Let desc be ToPropertyDescriptor(attributes).
     ObjectPropertyDescriptor desc(state, argv[2].asObject());
 
     // 6. Return target.[[DefineOwnProperty]](key, desc).
-    return Value(target.asObject()->defineOwnProperty(state, ObjectPropertyName(state, key), desc));
+    return Value(target.asObject()->defineOwnProperty(state, key, desc));
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.deleteproperty
@@ -107,10 +107,10 @@ static Value builtinReflectDeleteProperty(ExecutionState& state, Value thisValue
     }
 
     // 2. Let key be ToPropertyKey(propertyKey).
-    Value key = argv[1].toPropertyKey(state);
+    ObjectPropertyName key(state, argv[1]);
 
     // 4. Return target.[[Delete]](key).
-    return Value(target.asObject()->deleteOwnProperty(state, ObjectPropertyName(state, key)));
+    return Value(target.asObject()->deleteOwnProperty(state, key));
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.get
@@ -125,14 +125,14 @@ static Value builtinReflectGet(ExecutionState& state, Value thisValue, size_t ar
     }
 
     // 2. Let key be ToPropertyKey(propertyKey).
-    Value key = argv[1].toPropertyKey(state);
+    ObjectPropertyName key(state, argv[1]);
 
     // 4. If receiver is not present, then
     // 4.a. Let receiver be target.
     Value receiver = argc > 2 ? argv[2] : target;
 
     // 5. Return target.[[Get]](key, receiver).
-    return target.asObject()->get(state, ObjectPropertyName(state, key)).value(state, receiver);
+    return target.asObject()->get(state, key).value(state, receiver);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.getownpropertydescriptor
@@ -147,10 +147,10 @@ static Value builtinReflectGetOwnPropertyDescriptor(ExecutionState& state, Value
     }
 
     // 2. Let key be ToPropertyKey(propertyKey).
-    Value key = argv[1].toPropertyKey(state);
+    ObjectPropertyName key(state, argv[1]);
 
     // 4. Let desc be target.[[GetOwnProperty]](key).
-    ObjectGetResult desc = target.asObject()->getOwnProperty(state, ObjectPropertyName(state, key));
+    ObjectGetResult desc = target.asObject()->getOwnProperty(state, key);
 
     // 6. Return FromPropertyDescriptor(desc).
     return desc.fromPropertyDescriptor(state, target.asObject());
@@ -183,10 +183,10 @@ static Value builtinReflectHas(ExecutionState& state, Value thisValue, size_t ar
     }
 
     // 2. Let key be ToPropertyKey(propertyKey).
-    Value key = argv[1].toPropertyKey(state);
+    ObjectPropertyName key(state, argv[1]);
 
     // 4. Return target.[[HasProperty]](key).
-    return Value(target.asObject()->hasProperty(state, ObjectPropertyName(state, key)));
+    return Value(target.asObject()->hasProperty(state, key));
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.isextensible
@@ -249,14 +249,14 @@ static Value builtinReflectSet(ExecutionState& state, Value thisValue, size_t ar
     }
 
     // 2. Let key be ToPropertyKey(propertyKey).
-    Value key = argv[1].toPropertyKey(state);
+    ObjectPropertyName key(state, argv[1]);
 
     // 4. If receiver is not present, then
     // 4.a. Let receiver be target.
     Value receiver = argc > 3 ? argv[3] : target;
 
     // 5. Return target.[[Set]](key, V, receiver).
-    return Value(target.asObject()->set(state, ObjectPropertyName(state, key), argv[2], receiver));
+    return Value(target.asObject()->set(state, key, argv[2], receiver));
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-reflect.setprototypeof
