@@ -1,0 +1,18 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_pending_breakpoints_unavailable.js:20
+(escargot-debugger) b not_existing_func
+No breakpoint found, do you want to add a pending breakpoint? (y or [n])
+Pending breakpoint 1 at not_existing_func()
+(escargot-debugger) b 22
+No breakpoint found, do you want to add a pending breakpoint? (y or [n])
+Pending breakpoint 2 at 22()
+(escargot-debugger) n
+Stopped at tools/debugger/tests/do_pending_breakpoints_unavailable.js:21
+(escargot-debugger) n
+Stopped at tools/debugger/tests/do_pending_breakpoints_unavailable.js:22
+(escargot-debugger) b not_existing.js:6
+No breakpoint found, do you want to add a pending breakpoint? (y or [n])
+Pending breakpoint 3 at not_existing.js:6
+(escargot-debugger) n
+Connection closed.
