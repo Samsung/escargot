@@ -836,7 +836,7 @@ bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byt
                 break;
             }
             m_pendingWait = buffer[1];
-            return false;
+            return true;
         }
         case ESCARGOT_DEBUGGER_PENDING_RESUME: {
             if (!m_waitForResume || length != 1) {
