@@ -25,7 +25,8 @@
 namespace Escargot {
 
 class FunctionTemplate;
-struct ObjectTemplatePropertyHandlerData;
+class ObjectTemplatePropertyHandlerData;
+struct ObjectTemplatePropertyHandlerConfiguration;
 
 class ObjectTemplate : public Template {
 public:
@@ -50,12 +51,15 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-    void setNamedPropertyHandler(const ObjectTemplatePropertyHandlerData& data);
-    void removePropertyHandler();
+    void setNamedPropertyHandler(const ObjectTemplatePropertyHandlerConfiguration& data);
+    void setIndexedPropertyHandler(const ObjectTemplatePropertyHandlerConfiguration& data);
+    void removeNamedPropertyHandler();
+    void removeIndexedPropertyHandler();
 
 private:
     Optional<FunctionTemplate*> m_constructor;
-    ObjectTemplatePropertyHandlerData* m_propertyHandler;
+    ObjectTemplatePropertyHandlerData* m_namedPropertyHandler;
+    ObjectTemplatePropertyHandlerData* m_indexedPropertyHandler;
 };
 } // namespace Escargot
 

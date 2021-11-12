@@ -3565,14 +3565,24 @@ ObjectTemplateRef* ObjectTemplateRef::create()
     return toRef(new ObjectTemplate());
 }
 
-void ObjectTemplateRef::setNamedPropertyHandler(const ObjectTemplatePropertyHandlerData& data)
+void ObjectTemplateRef::setNamedPropertyHandler(const ObjectTemplatePropertyHandlerConfiguration& data)
 {
     toImpl(this)->setNamedPropertyHandler(data);
 }
 
-void ObjectTemplateRef::removePropertyHandler()
+void ObjectTemplateRef::setIndexedPropertyHandler(const ObjectTemplatePropertyHandlerConfiguration& data)
 {
-    toImpl(this)->removePropertyHandler();
+    toImpl(this)->setIndexedPropertyHandler(data);
+}
+
+void ObjectTemplateRef::removeNamedPropertyHandler()
+{
+    toImpl(this)->removeNamedPropertyHandler();
+}
+
+void ObjectTemplateRef::removeIndexedPropertyHandler()
+{
+    toImpl(this)->removeIndexedPropertyHandler();
 }
 
 OptionalRef<FunctionTemplateRef> ObjectTemplateRef::constructor()
