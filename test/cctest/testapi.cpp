@@ -743,7 +743,7 @@ TEST(ObjectTemplate, Basic4)
 {
     ObjectTemplateRef* tpl = ObjectTemplateRef::create();
 
-    ObjectTemplatePropertyHandlerData handler;
+    ObjectTemplatePropertyHandlerConfiguration handler;
     handler.getter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
         if (propertyName->isString() && propertyName->asString()->equalsWithASCIIString("aaa", 3)) {
             return (ValueRef*)self->extraData();
@@ -768,14 +768,14 @@ TEST(ObjectTemplate, Basic4)
         return OptionalRef<ValueRef>();
     };
 
-    handler.query = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> TemplatePropertyAttribute {
+    handler.query = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> ObjectTemplatePropertyAttribute {
         if (propertyName->isString() && propertyName->asString()->equalsWithASCIIString("aaa", 3)) {
-            return (TemplatePropertyAttribute)(TemplatePropertyAttribute::TemplatePropertyAttributeWritable | TemplatePropertyAttribute::TemplatePropertyAttributeEnumerable | TemplatePropertyAttribute::TemplatePropertyAttributeConfigurable);
+            return (ObjectTemplatePropertyAttribute)(ObjectTemplatePropertyAttribute::PropertyAttributeWritable | ObjectTemplatePropertyAttribute::PropertyAttributeEnumerable | ObjectTemplatePropertyAttribute::PropertyAttributeConfigurable);
         }
         if (propertyName->isString() && propertyName->asString()->equalsWithASCIIString("ccc", 3)) {
-            return (TemplatePropertyAttribute)(TemplatePropertyAttribute::TemplatePropertyAttributeWritable);
+            return (ObjectTemplatePropertyAttribute)(ObjectTemplatePropertyAttribute::PropertyAttributeWritable);
         }
-        return TemplatePropertyAttribute::TemplatePropertyAttributeNotExist;
+        return ObjectTemplatePropertyAttribute::PropertyAttributeNotExist;
     };
 
     handler.enumerator = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data) -> ValueVectorRef* {
@@ -861,7 +861,7 @@ TEST(ObjectTemplate, Basic4)
 
 
     ObjectTemplateRef* tpl2 = ObjectTemplateRef::create();
-    ObjectTemplatePropertyHandlerData handler2;
+    ObjectTemplatePropertyHandlerConfiguration handler2;
     handler2.getter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
         return OptionalRef<ValueRef>();
     };
@@ -878,6 +878,404 @@ TEST(ObjectTemplate, Basic4)
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
         EXPECT_FALSE(obj->defineDataProperty(state, StringRef::createFromASCII("ttt"), ValueRef::create(111), false, false, false));
+        return ValueRef::createUndefined();
+    },
+                       obj);
+}
+
+TEST(ObjectTemplate, Basic5)
+{
+    ObjectTemplateRef* tpl = ObjectTemplateRef::create();
+
+    ObjectTemplatePropertyHandlerConfiguration handler;
+    handler.getter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
+        uint32_t indexProperty = propertyName->tryToUseAsIndexProperty(state);
+        EXPECT_TRUE(indexProperty != ValueRef::InvalidIndexPropertyValue);
+        if (indexProperty == 1) {
+            return (ValueRef*)self->extraData();
+        }
+        if (indexProperty == 3) {
+            return ValueRef::create(555.555);
+        }
+        return OptionalRef<ValueRef>();
+    };
+
+    handler.setter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName, ValueRef* value) -> OptionalRef<ValueRef> {
+        uint32_t indexProperty = propertyName->tryToUseAsIndexProperty(state);
+        EXPECT_TRUE(indexProperty != ValueRef::InvalidIndexPropertyValue);
+        if (indexProperty == 1) {
+            self->setExtraData(value);
+            return OptionalRef<ValueRef>(ValueRef::create(true));
+        }
+        if (indexProperty == 3) {
+            self->setExtraData(ValueRef::create(123));
+            return OptionalRef<ValueRef>(ValueRef::create(true));
+        }
+        return OptionalRef<ValueRef>();
+    };
+
+    handler.query = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> ObjectTemplatePropertyAttribute {
+        uint32_t indexProperty = propertyName->tryToUseAsIndexProperty(state);
+        EXPECT_TRUE(indexProperty != ValueRef::InvalidIndexPropertyValue);
+        if (indexProperty == 1) {
+            return (ObjectTemplatePropertyAttribute)(ObjectTemplatePropertyAttribute::PropertyAttributeWritable | ObjectTemplatePropertyAttribute::PropertyAttributeEnumerable | ObjectTemplatePropertyAttribute::PropertyAttributeConfigurable);
+        }
+        if (indexProperty == 3) {
+            return (ObjectTemplatePropertyAttribute)(ObjectTemplatePropertyAttribute::PropertyAttributeWritable);
+        }
+        return ObjectTemplatePropertyAttribute::PropertyAttributeNotExist;
+    };
+
+    handler.enumerator = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data) -> ValueVectorRef* {
+        ValueVectorRef* v = ValueVectorRef::create(2);
+        v->set(0, StringRef::createFromASCII("1"));
+        v->set(1, ValueRef::create(3));
+        return v;
+    };
+
+    handler.deleter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
+        uint32_t indexProperty = propertyName->tryToUseAsIndexProperty(state);
+        EXPECT_TRUE(indexProperty != ValueRef::InvalidIndexPropertyValue);
+        if (indexProperty == 4) {
+            return OptionalRef<ValueRef>(ValueRef::create(false));
+        }
+
+        return OptionalRef<ValueRef>();
+    };
+
+    handler.descriptor = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
+        uint32_t indexProperty = propertyName->tryToUseAsIndexProperty(state);
+        EXPECT_TRUE(indexProperty != ValueRef::InvalidIndexPropertyValue);
+        if (indexProperty == 5) {
+            ObjectRef* desc = ObjectRef::create(state);
+            desc->set(state, StringRef::createFromASCII("value"), ValueRef::createNull());
+            return desc;
+        }
+
+        return OptionalRef<ValueRef>();
+    };
+
+    tpl->setIndexedPropertyHandler(handler);
+
+    ObjectRef* obj = tpl->instantiate(g_context.get());
+    obj->setExtraData(ValueRef::create(123));
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
+        EXPECT_TRUE(obj->set(state, StringRef::createFromASCII("1"), ValueRef::createNull()));
+        ValueRef* one = obj->get(state, ValueRef::create(1));
+        EXPECT_TRUE(one->isNull());
+
+        ValueRef* two = obj->get(state, ValueRef::create(2));
+        EXPECT_TRUE(two->isUndefined());
+
+        EXPECT_TRUE(obj->defineDataProperty(state, ValueRef::create(3), ValueRef::create(333), true, true, true));
+        ValueRef* threeResult = obj->get(state, StringRef::createFromASCII("1"));
+        EXPECT_TRUE(threeResult->equalsTo(state, ValueRef::create(123)));
+
+        ValueRef* desc = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("1"));
+
+        ValueRef* json = state->context()->globalObject()->jsonStringify()->call(state, ValueRef::createUndefined(), 1, &desc);
+        EXPECT_TRUE(json->toString(state)->toStdUTF8String() == "{\"value\":123,\"writable\":true,\"enumerable\":true,\"configurable\":true}");
+
+        desc = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("3"));
+        json = state->context()->globalObject()->jsonStringify()->call(state, ValueRef::createUndefined(), 1, &desc);
+        EXPECT_TRUE(json->toString(state)->toStdUTF8String() == "{\"value\":555.555,\"writable\":true,\"enumerable\":false,\"configurable\":false}");
+
+        int pcnt = 0;
+        obj->enumerateObjectOwnProperties(state, [&](ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable) -> bool {
+            if (pcnt == 0) {
+                EXPECT_TRUE(propertyName->tryToUseAsIndexProperty(state) == 1);
+                EXPECT_TRUE(isWritable);
+                EXPECT_TRUE(isEnumerable);
+                EXPECT_TRUE(isConfigurable);
+            } else if (pcnt == 1) {
+                EXPECT_TRUE(propertyName->tryToUseAsIndexProperty(state) == 3);
+                EXPECT_TRUE(isWritable);
+                EXPECT_TRUE(!isEnumerable);
+                EXPECT_TRUE(!isConfigurable);
+            }
+            pcnt++;
+            return true;
+        });
+
+        EXPECT_TRUE(pcnt == 2);
+
+        EXPECT_TRUE(obj->deleteOwnProperty(state, StringRef::createFromASCII("6")));
+        EXPECT_FALSE(obj->deleteOwnProperty(state, ValueRef::create(4)));
+
+        auto descObj = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("5"));
+        EXPECT_TRUE(descObj->isObject());
+        EXPECT_TRUE(descObj->asObject()->get(state, StringRef::createFromASCII("value"))->isNull());
+
+        return ValueRef::createUndefined();
+    },
+                       obj);
+
+
+    ObjectTemplateRef* tpl2 = ObjectTemplateRef::create();
+    ObjectTemplatePropertyHandlerConfiguration handler2;
+    handler2.getter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
+        return OptionalRef<ValueRef>();
+    };
+    handler2.definer = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName, const ObjectPropertyDescriptorRef& desc) -> OptionalRef<ValueRef> {
+        uint32_t indexProperty = propertyName->tryToUseAsIndexProperty(state);
+        EXPECT_TRUE(indexProperty != ValueRef::InvalidIndexPropertyValue);
+        if (indexProperty == 100) {
+            return OptionalRef<ValueRef>(ValueRef::create(false));
+        }
+        return OptionalRef<ValueRef>();
+    };
+
+    tpl2->setIndexedPropertyHandler(handler2);
+
+    obj = tpl2->instantiate(g_context.get());
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
+        EXPECT_FALSE(obj->defineDataProperty(state, StringRef::createFromASCII("100"), ValueRef::create(111), false, false, false));
+        return ValueRef::createUndefined();
+    },
+                       obj);
+}
+
+TEST(ObjectTemplate, Basic6)
+{
+    ObjectTemplateRef* tpl = ObjectTemplateRef::create();
+
+    ObjectTemplatePropertyHandlerConfiguration handler1;
+    handler1.getter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
+        if (propertyName->isString() && propertyName->asString()->equalsWithASCIIString("aaa", 3)) {
+            return (ValueRef*)self->extraData();
+        }
+        if (propertyName->isString() && propertyName->asString()->equalsWithASCIIString("ccc", 3)) {
+            return ValueRef::create(555.555);
+        }
+        return OptionalRef<ValueRef>();
+    };
+
+    handler1.setter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName, ValueRef* value) -> OptionalRef<ValueRef> {
+        if (propertyName->isString() && propertyName->asString()->equalsWithASCIIString("aaa", 3)) {
+            self->setExtraData(value);
+            return OptionalRef<ValueRef>(ValueRef::create(true));
+        }
+
+        if (propertyName->isString() && propertyName->asString()->equalsWithASCIIString("ccc", 3)) {
+            self->setExtraData(ValueRef::create(123));
+            return OptionalRef<ValueRef>(ValueRef::create(true));
+        }
+
+        return OptionalRef<ValueRef>();
+    };
+
+    handler1.query = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> ObjectTemplatePropertyAttribute {
+        if (propertyName->isString() && propertyName->asString()->equalsWithASCIIString("aaa", 3)) {
+            return (ObjectTemplatePropertyAttribute)(ObjectTemplatePropertyAttribute::PropertyAttributeWritable | ObjectTemplatePropertyAttribute::PropertyAttributeEnumerable | ObjectTemplatePropertyAttribute::PropertyAttributeConfigurable);
+        }
+        if (propertyName->isString() && propertyName->asString()->equalsWithASCIIString("ccc", 3)) {
+            return (ObjectTemplatePropertyAttribute)(ObjectTemplatePropertyAttribute::PropertyAttributeWritable);
+        }
+        return ObjectTemplatePropertyAttribute::PropertyAttributeNotExist;
+    };
+
+    handler1.enumerator = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data) -> ValueVectorRef* {
+        ValueVectorRef* v = ValueVectorRef::create(2);
+        v->set(0, StringRef::createFromASCII("aaa"));
+        v->set(1, StringRef::createFromASCII("ccc"));
+        return v;
+    };
+
+    handler1.deleter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
+        if (propertyName->isString() && propertyName->asString()->equalsWithASCIIString("ddd", 3)) {
+            return OptionalRef<ValueRef>(ValueRef::create(false));
+        }
+
+        return OptionalRef<ValueRef>();
+    };
+
+    handler1.descriptor = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
+        if (propertyName->isString() && propertyName->asString()->equalsWithASCIIString("eee", 3)) {
+            ObjectRef* desc = ObjectRef::create(state);
+            desc->set(state, StringRef::createFromASCII("value"), ValueRef::createNull());
+            return desc;
+        }
+
+        return OptionalRef<ValueRef>();
+    };
+
+    ObjectTemplatePropertyHandlerConfiguration handler2;
+    handler2.getter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
+        uint32_t indexProperty = propertyName->tryToUseAsIndexProperty(state);
+        EXPECT_TRUE(indexProperty != ValueRef::InvalidIndexPropertyValue);
+        if (indexProperty == 1) {
+            return (ValueRef*)self->extraData();
+        }
+        if (indexProperty == 3) {
+            return ValueRef::create(555.555);
+        }
+        return OptionalRef<ValueRef>();
+    };
+
+    handler2.setter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName, ValueRef* value) -> OptionalRef<ValueRef> {
+        uint32_t indexProperty = propertyName->tryToUseAsIndexProperty(state);
+        EXPECT_TRUE(indexProperty != ValueRef::InvalidIndexPropertyValue);
+        if (indexProperty == 1) {
+            self->setExtraData(value);
+            return OptionalRef<ValueRef>(ValueRef::create(true));
+        }
+        if (indexProperty == 3) {
+            self->setExtraData(ValueRef::create(123));
+            return OptionalRef<ValueRef>(ValueRef::create(true));
+        }
+        return OptionalRef<ValueRef>();
+    };
+
+    handler2.query = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> ObjectTemplatePropertyAttribute {
+        uint32_t indexProperty = propertyName->tryToUseAsIndexProperty(state);
+        EXPECT_TRUE(indexProperty != ValueRef::InvalidIndexPropertyValue);
+        if (indexProperty == 1) {
+            return (ObjectTemplatePropertyAttribute)(ObjectTemplatePropertyAttribute::PropertyAttributeWritable | ObjectTemplatePropertyAttribute::PropertyAttributeEnumerable | ObjectTemplatePropertyAttribute::PropertyAttributeConfigurable);
+        }
+        if (indexProperty == 3) {
+            return (ObjectTemplatePropertyAttribute)(ObjectTemplatePropertyAttribute::PropertyAttributeWritable);
+        }
+        return ObjectTemplatePropertyAttribute::PropertyAttributeNotExist;
+    };
+
+    handler2.enumerator = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data) -> ValueVectorRef* {
+        ValueVectorRef* v = ValueVectorRef::create(2);
+        v->set(0, StringRef::createFromASCII("1"));
+        v->set(1, ValueRef::create(3));
+        return v;
+    };
+
+    handler2.deleter = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
+        uint32_t indexProperty = propertyName->tryToUseAsIndexProperty(state);
+        EXPECT_TRUE(indexProperty != ValueRef::InvalidIndexPropertyValue);
+        if (indexProperty == 4) {
+            return OptionalRef<ValueRef>(ValueRef::create(false));
+        }
+
+        return OptionalRef<ValueRef>();
+    };
+
+    handler2.descriptor = [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, void* data, ValueRef* propertyName) -> OptionalRef<ValueRef> {
+        uint32_t indexProperty = propertyName->tryToUseAsIndexProperty(state);
+        EXPECT_TRUE(indexProperty != ValueRef::InvalidIndexPropertyValue);
+        if (indexProperty == 5) {
+            ObjectRef* desc = ObjectRef::create(state);
+            desc->set(state, StringRef::createFromASCII("value"), ValueRef::createNull());
+            return desc;
+        }
+
+        return OptionalRef<ValueRef>();
+    };
+
+    tpl->setNamedPropertyHandler(handler1);
+    tpl->setIndexedPropertyHandler(handler2);
+
+    ObjectRef* obj = tpl->instantiate(g_context.get());
+    obj->setExtraData(ValueRef::create(123));
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
+        EXPECT_TRUE(obj->set(state, StringRef::createFromASCII("aaa"), ValueRef::createNull()));
+        ValueRef* aaa = obj->get(state, StringRef::createFromASCII("aaa"));
+        EXPECT_TRUE(aaa->isNull());
+
+        ValueRef* bbb = obj->get(state, StringRef::createFromASCII("bbb"));
+        EXPECT_TRUE(bbb->isUndefined());
+
+        EXPECT_TRUE(obj->defineDataProperty(state, StringRef::createFromASCII("ccc"), ValueRef::create(333), true, true, true));
+        ValueRef* cccResult = obj->get(state, StringRef::createFromASCII("aaa"));
+        EXPECT_TRUE(cccResult->equalsTo(state, ValueRef::create(123)));
+
+        ValueRef* desc = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("aaa"));
+
+        ValueRef* json = state->context()->globalObject()->jsonStringify()->call(state, ValueRef::createUndefined(), 1, &desc);
+        EXPECT_TRUE(json->toString(state)->toStdUTF8String() == "{\"value\":123,\"writable\":true,\"enumerable\":true,\"configurable\":true}");
+
+        desc = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("ccc"));
+        json = state->context()->globalObject()->jsonStringify()->call(state, ValueRef::createUndefined(), 1, &desc);
+        EXPECT_TRUE(json->toString(state)->toStdUTF8String() == "{\"value\":555.555,\"writable\":true,\"enumerable\":false,\"configurable\":false}");
+
+        int pcnt = 0;
+        // FIXME enumration operation
+        obj->enumerateObjectOwnProperties(state, [&](ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable) -> bool {
+            if (pcnt == 0) {
+                EXPECT_TRUE(propertyName->toString(state)->toStdUTF8String() == "aaa");
+                EXPECT_TRUE(isWritable);
+                EXPECT_TRUE(isEnumerable);
+                EXPECT_TRUE(isConfigurable);
+            } else if (pcnt == 1) {
+                EXPECT_TRUE(propertyName->toString(state)->toStdUTF8String() == "ccc");
+                EXPECT_TRUE(isWritable);
+                EXPECT_TRUE(!isEnumerable);
+                EXPECT_TRUE(!isConfigurable);
+            }
+            pcnt++;
+            return true;
+        });
+
+        EXPECT_TRUE(pcnt == 4);
+
+        EXPECT_TRUE(obj->deleteOwnProperty(state, StringRef::createFromASCII("fff")));
+        EXPECT_FALSE(obj->deleteOwnProperty(state, StringRef::createFromASCII("ddd")));
+
+        auto descObj = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("eee"));
+        EXPECT_TRUE(descObj->isObject());
+        EXPECT_TRUE(descObj->asObject()->get(state, StringRef::createFromASCII("value"))->isNull());
+
+        return ValueRef::createUndefined();
+    },
+                       obj);
+
+    obj->setExtraData(ValueRef::create(123));
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
+        EXPECT_TRUE(obj->set(state, StringRef::createFromASCII("1"), ValueRef::createNull()));
+        ValueRef* one = obj->get(state, ValueRef::create(1));
+        EXPECT_TRUE(one->isNull());
+
+        ValueRef* two = obj->get(state, ValueRef::create(2));
+        EXPECT_TRUE(two->isUndefined());
+
+        EXPECT_TRUE(obj->defineDataProperty(state, ValueRef::create(3), ValueRef::create(333), true, true, true));
+        ValueRef* threeResult = obj->get(state, StringRef::createFromASCII("1"));
+        EXPECT_TRUE(threeResult->equalsTo(state, ValueRef::create(123)));
+
+        ValueRef* desc = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("1"));
+
+        ValueRef* json = state->context()->globalObject()->jsonStringify()->call(state, ValueRef::createUndefined(), 1, &desc);
+        EXPECT_TRUE(json->toString(state)->toStdUTF8String() == "{\"value\":123,\"writable\":true,\"enumerable\":true,\"configurable\":true}");
+
+        desc = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("3"));
+        json = state->context()->globalObject()->jsonStringify()->call(state, ValueRef::createUndefined(), 1, &desc);
+        EXPECT_TRUE(json->toString(state)->toStdUTF8String() == "{\"value\":555.555,\"writable\":true,\"enumerable\":false,\"configurable\":false}");
+
+        int pcnt = 0;
+        // FIXME enumration operation
+        obj->enumerateObjectOwnProperties(state, [&](ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable) -> bool {
+            if (pcnt == 2) {
+                EXPECT_TRUE(propertyName->tryToUseAsIndexProperty(state) == 1);
+                EXPECT_TRUE(isWritable);
+                EXPECT_TRUE(isEnumerable);
+                EXPECT_TRUE(isConfigurable);
+            } else if (pcnt == 3) {
+                EXPECT_TRUE(propertyName->tryToUseAsIndexProperty(state) == 3);
+                EXPECT_TRUE(isWritable);
+                EXPECT_TRUE(!isEnumerable);
+                EXPECT_TRUE(!isConfigurable);
+            }
+            pcnt++;
+            return true;
+        });
+
+        EXPECT_TRUE(pcnt == 4);
+
+        EXPECT_TRUE(obj->deleteOwnProperty(state, StringRef::createFromASCII("6")));
+        EXPECT_FALSE(obj->deleteOwnProperty(state, ValueRef::create(4)));
+
+        auto descObj = obj->getOwnPropertyDescriptor(state, StringRef::createFromASCII("5"));
+        EXPECT_TRUE(descObj->isObject());
+        EXPECT_TRUE(descObj->asObject()->get(state, StringRef::createFromASCII("value"))->isNull());
+
         return ValueRef::createUndefined();
     },
                        obj);
