@@ -40,17 +40,24 @@ enum class TypedArrayType : unsigned {
 };
 
 class ArrayBuffer : public Object {
-    friend void initializeCustomAllocators();
-
 public:
     static const uint64_t maxArrayBufferSize = 210000000;
 
-    explicit ArrayBuffer(ExecutionState& state, Object* proto);
+    explicit ArrayBuffer(ExecutionState& state, Object* proto)
+        : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+    {
+    }
 
     virtual bool isArrayBuffer() const override
     {
         return true;
     }
+
+    // pure virtual function to ensure that ArrayBuffer instance never created
+    // all these pure virtual functions guarantee thread-safe operations
+    virtual void fillData(const uint8_t* newData, size_t length) = 0;
+    virtual Value getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian = true) = 0;
+    virtual void setValueInBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, const Value& val, bool isLittleEndian = true) = 0;
 
     Optional<BackingStore*> backingStore()
     {
@@ -79,12 +86,6 @@ public:
         return m_backingStore->maxByteLength();
     }
 
-    // $24.1.1.6
-    Value getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian = true);
-
-    // $24.1.1.8
-    void setValueInBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, const Value& val, bool isLittleEndian = true);
-
     ALWAYS_INLINE bool isDetachedBuffer()
     {
         return (data() == nullptr);
@@ -103,12 +104,6 @@ public:
         if (UNLIKELY(isDetachedBuffer())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
         }
-    }
-
-    void fillData(const uint8_t* newData, size_t length)
-    {
-        ASSERT(!isDetachedBuffer());
-        memcpy(data(), newData, length);
     }
 
     void* operator new(size_t size) = delete;

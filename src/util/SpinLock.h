@@ -31,7 +31,7 @@ class SpinLock {
 
 public:
     SpinLock()
-        : m_locked(0)
+        : m_locked(ATOMIC_FLAG_INIT)
     {
     }
 
