@@ -25,6 +25,8 @@
 
 namespace Escargot {
 
+unsigned TypedArrayHelper::elementSizeTable[11] = { 1, 2, 4, 1, 2, 4, 1, 4, 8, 8, 8 };
+
 ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength, Optional<uint64_t> maxByteLength)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-allocatearraybuffer
@@ -148,5 +150,41 @@ void* ArrayBufferObject::operator new(size_t size)
 #else
     return CustomAllocator<ArrayBufferObject>().allocate(1);
 #endif
+}
+
+Value ArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, bool isLittleEndian)
+{
+    // If isLittleEndian is not present, set isLittleEndian to either true or false.
+    ASSERT(byteLength());
+    size_t elemSize = TypedArrayHelper::elementSize(type);
+    ASSERT(byteindex + elemSize <= byteLength());
+    uint8_t* rawStart = data() + byteindex;
+    if (LIKELY(isLittleEndian)) {
+        return TypedArrayHelper::rawBytesToNumber(state, type, rawStart);
+    } else {
+        uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
+        for (size_t i = 0; i < elemSize; i++) {
+            rawBytes[elemSize - i - 1] = rawStart[i];
+        }
+        return TypedArrayHelper::rawBytesToNumber(state, type, rawBytes);
+    }
+}
+
+void ArrayBufferObject::setValueInBuffer(ExecutionState& state, size_t byteindex, TypedArrayType type, const Value& val, bool isLittleEndian)
+{
+    // If isLittleEndian is not present, set isLittleEndian to either true or false.
+    ASSERT(byteLength());
+    size_t elemSize = TypedArrayHelper::elementSize(type);
+    ASSERT(byteindex + elemSize <= byteLength());
+    uint8_t* rawStart = data() + byteindex;
+    uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
+    TypedArrayHelper::numberToRawBytes(state, type, val, rawBytes);
+    if (LIKELY(isLittleEndian)) {
+        memcpy(rawStart, rawBytes, elemSize);
+    } else {
+        for (size_t i = 0; i < elemSize; i++) {
+            rawStart[i] = rawBytes[elemSize - i - 1];
+        }
+    }
 }
 } // namespace Escargot

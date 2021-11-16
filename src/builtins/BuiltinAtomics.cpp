@@ -74,10 +74,11 @@ static size_t validateAtomicAccess(ExecutionState& state, TypedArrayObject* type
     return (static_cast<size_t>(accessIndex) * elementSize) + offset;
 }
 
-template <typename T, typename ArgType = int64_t>
-static T atomicOperation(volatile uint8_t* rawStart, ArgType value, AtomicBinaryOps op)
+template <typename T>
+static T atomicOperation(volatile uint8_t* rawStart, int64_t v, AtomicBinaryOps op)
 {
-    T returnValue;
+    T returnValue = 0;
+    T value = static_cast<T>(v);
 #if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
     volatile T* ptr = reinterpret_cast<volatile T*>(rawStart);
     switch (op) {
@@ -88,8 +89,7 @@ static T atomicOperation(volatile uint8_t* rawStart, ArgType value, AtomicBinary
         returnValue = __atomic_fetch_and(ptr, value, __ATOMIC_SEQ_CST);
         break;
     case AtomicBinaryOps::EXCH: {
-        T v = value;
-        __atomic_exchange(ptr, &v, &returnValue, __ATOMIC_SEQ_CST);
+        __atomic_exchange(ptr, &value, &returnValue, __ATOMIC_SEQ_CST);
     } break;
     case AtomicBinaryOps::OR:
         returnValue = __atomic_fetch_or(ptr, value, __ATOMIC_SEQ_CST);
@@ -139,46 +139,26 @@ static Value getModifySetValueInBuffer(ExecutionState& state, ArrayBuffer* buffe
     ASSERT(indexedPosition + elemSize <= buffer->byteLength());
     uint8_t* rawStart = const_cast<uint8_t*>(buffer->data()) + indexedPosition;
 
-    if (v2.isInt32()) {
-        switch (type) {
-        case TypedArrayType::Int8:
-            return Value(atomicOperation<int8_t>(rawStart, v2.asInt32(), op));
-        case TypedArrayType::Int16:
-            return Value(atomicOperation<int16_t>(rawStart, v2.asInt32(), op));
-        case TypedArrayType::Int32:
-            return Value(atomicOperation<int32_t>(rawStart, v2.asInt32(), op));
-        case TypedArrayType::Uint8:
-            return Value(atomicOperation<uint8_t>(rawStart, v2.asInt32(), op));
-        case TypedArrayType::Uint16:
-            return Value(atomicOperation<uint16_t>(rawStart, v2.asInt32(), op));
-        case TypedArrayType::Uint32:
-            return Value(atomicOperation<uint32_t>(rawStart, v2.asInt32(), op));
-        default:
-            ASSERT(TypedArrayType::Uint8Clamped == type);
-            return Value(atomicOperation<uint8_t>(rawStart, v2.asInt32(), op));
-        }
-    }
-
     switch (type) {
     case TypedArrayType::Int8:
-        return Value(atomicOperation<int8_t, int64_t>(rawStart, v2.asNumber(), op));
+        return Value(atomicOperation<int8_t>(rawStart, v2.asNumber(), op));
     case TypedArrayType::Int16:
-        return Value(atomicOperation<int16_t, int64_t>(rawStart, v2.asNumber(), op));
+        return Value(atomicOperation<int16_t>(rawStart, v2.asNumber(), op));
     case TypedArrayType::Int32:
-        return Value(atomicOperation<int32_t, int64_t>(rawStart, v2.asNumber(), op));
+        return Value(atomicOperation<int32_t>(rawStart, v2.asNumber(), op));
     case TypedArrayType::Uint8:
-        return Value(atomicOperation<uint8_t, int64_t>(rawStart, v2.asNumber(), op));
+        return Value(atomicOperation<uint8_t>(rawStart, v2.asNumber(), op));
     case TypedArrayType::Uint16:
-        return Value(atomicOperation<uint16_t, int64_t>(rawStart, v2.asNumber(), op));
+        return Value(atomicOperation<uint16_t>(rawStart, v2.asNumber(), op));
     case TypedArrayType::Uint32:
-        return Value(atomicOperation<uint32_t, int64_t>(rawStart, v2.asNumber(), op));
+        return Value(atomicOperation<uint32_t>(rawStart, v2.asNumber(), op));
     case TypedArrayType::Uint8Clamped:
-        return Value(atomicOperation<uint8_t, int64_t>(rawStart, v2.asNumber(), op));
+        return Value(atomicOperation<uint8_t>(rawStart, v2.asNumber(), op));
     case TypedArrayType::BigInt64:
-        return new BigInt(atomicOperation<int64_t, int64_t>(rawStart, v2.asBigInt()->toInt64(), op));
+        return new BigInt(atomicOperation<int64_t>(rawStart, v2.asBigInt()->toInt64(), op));
     default:
         ASSERT(TypedArrayType::BigUint64 == type);
-        return new BigInt(atomicOperation<uint64_t, uint64_t>(rawStart, v2.asBigInt()->toUint64(), op));
+        return new BigInt(atomicOperation<uint64_t>(rawStart, v2.asBigInt()->toUint64(), op));
     }
 }
 
@@ -299,14 +279,6 @@ static Value builtinAtomicsExchange(ExecutionState& state, Value thisValue, size
     return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::EXCH);
 }
 
-#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-template <typename T>
-void atomicLoad(uint8_t* rawStart, uint8_t* rawBytes)
-{
-    __atomic_load(reinterpret_cast<T*>(rawStart), reinterpret_cast<T*>(rawBytes), __ATOMIC_SEQ_CST);
-}
-#endif
-
 static Value builtinAtomicsLoad(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ArrayBuffer* buffer = validateIntegerTypedArray(state, argv[0]);
@@ -314,58 +286,13 @@ static Value builtinAtomicsLoad(ExecutionState& state, Value thisValue, size_t a
     size_t indexedPosition = validateAtomicAccess(state, TA, argv[1]);
     TypedArrayType type = TA->typedArrayType();
 
-#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-    uint8_t* rawStart = buffer->data() + indexedPosition;
-    uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
-    switch (type) {
-    case TypedArrayType::Int8:
-        atomicLoad<int8_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::Int16:
-        atomicLoad<int16_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::Int32:
-        atomicLoad<int32_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::Uint8:
-        atomicLoad<uint8_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::Uint16:
-        atomicLoad<uint16_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::Uint32:
-        atomicLoad<uint32_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::Uint8Clamped:
-        atomicLoad<uint8_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::BigInt64:
-        atomicLoad<int64_t>(rawStart, rawBytes);
-        break;
-    default:
-        ASSERT(TypedArrayType::BigUint64 == type);
-        atomicLoad<uint64_t>(rawStart, rawBytes);
-        break;
-    }
-    return TypedArrayHelper::rawBytesToNumber(state, type, rawBytes);
-#else
-    std::lock_guard<SpinLock> guard(Global::atomicsLock());
     return buffer->getValueFromBuffer(state, indexedPosition, type);
-#endif
 }
 
 static Value builtinAtomicsOr(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::OR);
 }
-
-#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-template <typename T>
-void atomicStore(uint8_t* rawStart, uint8_t* rawBytes)
-{
-    __atomic_store(reinterpret_cast<T*>(rawStart), reinterpret_cast<T*>(rawBytes), __ATOMIC_SEQ_CST);
-}
-#endif
 
 static Value builtinAtomicsStore(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -382,47 +309,8 @@ static Value builtinAtomicsStore(ExecutionState& state, Value thisValue, size_t 
         v = Value(value.toInteger(state));
     }
 
-#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-    uint8_t* rawStart = buffer->data() + indexedPosition;
-    uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
-    TypedArrayHelper::numberToRawBytes(state, type, v, rawBytes);
-
-    switch (type) {
-    case TypedArrayType::Int8:
-        atomicStore<int8_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::Int16:
-        atomicStore<int16_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::Int32:
-        atomicStore<int32_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::Uint8:
-        atomicStore<uint8_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::Uint16:
-        atomicStore<uint16_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::Uint32:
-        atomicStore<uint32_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::Uint8Clamped:
-        atomicStore<uint8_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::BigInt64:
-        atomicStore<int64_t>(rawStart, rawBytes);
-        break;
-    default:
-        ASSERT(TypedArrayType::BigUint64 == type);
-        atomicStore<uint64_t>(rawStart, rawBytes);
-        break;
-    }
-    return v;
-#else
-    std::lock_guard<SpinLock> guard(Global::atomicsLock());
     buffer->setValueInBuffer(state, indexedPosition, type, v);
     return v;
-#endif
 }
 
 static Value builtinAtomicsSub(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -482,28 +370,9 @@ static Value builtinAtomicsWait(ExecutionState& state, Value thisValue, size_t a
     WL->m_mutex.lock();
     // 14. Let elementType be the Element Type value in Table 63 for arrayTypeName.
     // 15. Let w be ! GetValueFromBuffer(buffer, indexedPosition, elementType, true, SeqCst).
+    ASSERT(arrayTypeName == TypedArrayType::Int32 || arrayTypeName == TypedArrayType::BigInt64);
     Value w(Value::ForceUninitialized);
-#if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-    uint8_t* rawStart = buffer->data() + indexedPosition;
-    uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
-    switch (arrayTypeName) {
-    case TypedArrayType::Int32:
-        atomicLoad<int32_t>(rawStart, rawBytes);
-        break;
-    case TypedArrayType::BigInt64:
-        atomicLoad<int64_t>(rawStart, rawBytes);
-        break;
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
-        break;
-    }
-    w = TypedArrayHelper::rawBytesToNumber(state, arrayTypeName, rawBytes);
-#else
-    {
-        std::lock_guard<SpinLock> guard(Global::atomicsLock());
-        w = buffer->getValueFromBuffer(state, indexedPosition, arrayTypeName);
-    }
-#endif
+    w = buffer->getValueFromBuffer(state, indexedPosition, arrayTypeName);
     // 16. If v ≠ w, then
     if (!v.equalsTo(state, w)) {
         // a. Perform LeaveCriticalSection(WL).
@@ -595,7 +464,7 @@ static Value builtinAtomicsNotify(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinAtomicsIsLockFree(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    auto size = argv[0].toInteger(state);
+    const auto size = argv[0].toInteger(state);
 #if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
     if (size == 1 || size == 2 || size == 4 || size == 8) {
         return Value(true);
