@@ -138,21 +138,17 @@ bool Context::initDebugger(const char* options)
 
 void Context::printDebugger(StringView* output)
 {
-    if (!m_debugger || !m_debugger->enabled()) {
-        return;
-    }
-    m_debugger->sendType(Debugger::ESCARGOT_MESSAGE_PRINT);
-    if (m_debugger->enabled()) {
-        m_debugger->sendString(Debugger::ESCARGOT_MESSAGE_STRING_8BIT, output);
+    if (m_debugger != nullptr) {
+        m_debugger->consoleOut(output);
     }
 }
 
 String* Context::getClientSource(String** sourceName)
 {
-    if (!m_debugger || !m_debugger->enabled()) {
-        return nullptr;
+    if (m_debugger != nullptr) {
+        return m_debugger->getClientSource(sourceName);
     }
-    return m_debugger->getClientSource(sourceName);
+    return nullptr;
 }
 
 #endif /* ESCARGOT_DEBUGGER */

@@ -31,17 +31,17 @@
 #ifdef ESCARGOT_DEBUGGER
 namespace Escargot {
 
-void Debugger::sendType(uint8_t type)
+void DebuggerRemote::sendType(uint8_t type)
 {
     send(type, nullptr, 0);
 }
 
-void Debugger::sendSubtype(uint8_t type, uint8_t subType)
+void DebuggerRemote::sendSubtype(uint8_t type, uint8_t subType)
 {
     send(type, &subType, 1);
 }
 
-void Debugger::sendString(uint8_t type, String* string)
+void DebuggerRemote::sendString(uint8_t type, String* string)
 {
     size_t length = string->length();
 
@@ -75,28 +75,51 @@ void Debugger::sendString(uint8_t type, String* string)
     send(type + 2 + 1, chars, length * 2);
 }
 
-void Debugger::sendPointer(uint8_t type, const void* ptr)
+void DebuggerRemote::sendPointer(uint8_t type, const void* ptr)
 {
     // The pointer itself is sent, not the data pointed by it
     send(type, (void*)&ptr, sizeof(void*));
 }
 
-void Debugger::sendFunctionInfo(InterpretedCodeBlock* codeBlock)
+void DebuggerRemote::startParsing(String* source, String* srcName)
 {
-    char* byteCodeStart = codeBlock->byteCodeBlock()->m_code.data();
-    uint32_t startLine = (uint32_t)codeBlock->functionStart().line;
-    uint32_t startColumn = (uint32_t)(codeBlock->functionStart().column + 1);
-    FunctionInfo functionInfo;
+    if (enabled()) {
+        sendString(ESCARGOT_MESSAGE_SOURCE_8BIT, source);
 
-    memcpy(&functionInfo.byteCodeStart, (void*)&byteCodeStart, sizeof(char*));
-    memcpy(&functionInfo.startLine, &startLine, sizeof(uint32_t));
-    memcpy(&functionInfo.startColumn, &startColumn, sizeof(uint32_t));
-
-    send(ESCARGOT_MESSAGE_FUNCTION_PTR, (void*)&functionInfo, sizeof(FunctionInfo));
+        if (enabled()) {
+            sendString(ESCARGOT_MESSAGE_FILE_NAME_8BIT, srcName);
+        }
+    }
 }
 
-void Debugger::sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations)
+void DebuggerRemote::endParsing(String* error = nullptr)
 {
+    if (!enabled()) {
+        return;
+    }
+
+    if (error == nullptr) {
+        sendType(ESCARGOT_MESSAGE_PARSE_DONE);
+
+        if (enabled() && pendingWait()) {
+            waitForResolvingPendingBreakpoints();
+        }
+        return;
+    }
+
+    sendType(ESCARGOT_MESSAGE_PARSE_ERROR);
+
+    if (enabled()) {
+        sendString(ESCARGOT_MESSAGE_STRING_8BIT, error);
+    }
+}
+
+void DebuggerRemote::storeBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations)
+{
+    if (!enabled()) {
+        return;
+    }
+
     const size_t maxPacketLength = (ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1) / sizeof(BreakpointLocation);
     BreakpointLocation* ptr = locations.data();
     size_t length = locations.size();
@@ -112,7 +135,35 @@ void Debugger::sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>
     send(ESCARGOT_MESSAGE_BREAKPOINT_LOCATION, ptr, length * sizeof(BreakpointLocation));
 }
 
-void Debugger::sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column, uint32_t executionStateDepth)
+void DebuggerRemote::storeCodeBlockInfo(InterpretedCodeBlock* codeBlock)
+{
+    if (!enabled()) {
+        return;
+    }
+
+    String* functionName = codeBlock->functionName().string();
+    if (functionName->length() > 0) {
+        StringView* functionNameView = new StringView(functionName);
+        sendString(ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT, functionNameView);
+
+        if (!enabled()) {
+            return;
+        }
+    }
+
+    char* byteCodeStart = codeBlock->byteCodeBlock()->m_code.data();
+    uint32_t startLine = (uint32_t)codeBlock->functionStart().line;
+    uint32_t startColumn = (uint32_t)(codeBlock->functionStart().column + 1);
+    FunctionInfo functionInfo;
+
+    memcpy(&functionInfo.byteCodeStart, (void*)&byteCodeStart, sizeof(char*));
+    memcpy(&functionInfo.startLine, &startLine, sizeof(uint32_t));
+    memcpy(&functionInfo.startColumn, &startColumn, sizeof(uint32_t));
+
+    send(ESCARGOT_MESSAGE_FUNCTION_PTR, (void*)&functionInfo, sizeof(FunctionInfo));
+}
+
+void DebuggerRemote::sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column, uint32_t executionStateDepth)
 {
     BacktraceInfo backtraceInfo;
 
@@ -125,7 +176,7 @@ void Debugger::sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uin
     send(type, &backtraceInfo, sizeof(BacktraceInfo));
 }
 
-void Debugger::sendVariableObjectInfo(uint8_t subType, Object* object)
+void DebuggerRemote::sendVariableObjectInfo(uint8_t subType, Object* object)
 {
     /* Maximum UINT32_MAX number of objects are stored. */
     uint32_t size = (uint32_t)m_activeObjects.size();
@@ -141,19 +192,19 @@ void Debugger::sendVariableObjectInfo(uint8_t subType, Object* object)
         m_activeObjects.pushBack(object);
     }
 
-    Debugger::VariableObjectInfo variableObjectInfo;
+    VariableObjectInfo variableObjectInfo;
 
     variableObjectInfo.subType = subType;
     memcpy(&variableObjectInfo.index, &index, sizeof(uint32_t));
-    send(Debugger::ESCARGOT_MESSAGE_VARIABLE, &variableObjectInfo, sizeof(VariableObjectInfo));
+    send(ESCARGOT_MESSAGE_VARIABLE, &variableObjectInfo, sizeof(VariableObjectInfo));
 }
 
-void Debugger::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
+void DebuggerRemote::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
 {
     if (m_stopState == ESCARGOT_DEBUGGER_IN_EVAL_MODE) {
-        m_delay = (uint8_t)(m_delay - 1);
+        m_delay--;
         if (m_delay == 0) {
-            processIncomingMessages(state, byteCodeBlock);
+            processEvents(state, byteCodeBlock);
         }
         return;
     }
@@ -173,21 +224,73 @@ void Debugger::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, E
     ASSERT(m_activeObjects.size() == 0);
     m_stopState = ESCARGOT_DEBUGGER_IN_WAIT_MODE;
 
-    while (processIncomingMessages(state, byteCodeBlock))
+    while (processEvents(state, byteCodeBlock))
         ;
 
     m_activeObjects.clear();
     m_delay = ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY;
 }
 
-void Debugger::releaseFunction(const void* ptr)
+void DebuggerRemote::byteCodeReleaseNotification(const void* ptr)
 {
     // All messages which involves this pointer should be ignored until the confirmation arrives.
-    m_releasedFunctions.push_back(reinterpret_cast<uintptr_t>(ptr));
-    sendPointer(ESCARGOT_MESSAGE_RELEASE_FUNCTION, ptr);
+    if (enabled()) {
+        m_releasedFunctions.push_back(reinterpret_cast<uintptr_t>(ptr));
+        sendPointer(ESCARGOT_MESSAGE_RELEASE_FUNCTION, ptr);
+    }
 }
 
-bool Debugger::doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length)
+void DebuggerRemote::exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace)
+{
+    if (!enabled()) {
+        return;
+    }
+
+    sendType(ESCARGOT_MESSAGE_EXCEPTION);
+
+    if (!enabled()) {
+        return;
+    }
+
+    sendString(ESCARGOT_MESSAGE_STRING_8BIT, message);
+
+    size_t size = exceptionTrace.size();
+    for (size_t i = 0; i < size && enabled(); i++) {
+        sendBacktraceInfo(ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE, exceptionTrace[i].byteCodeBlock, exceptionTrace[i].line, exceptionTrace[i].column, UINT32_MAX);
+    }
+}
+
+void DebuggerRemote::consoleOut(String* output)
+{
+    if (enabled()) {
+        sendType(ESCARGOT_MESSAGE_PRINT);
+
+        if (enabled()) {
+            sendString(ESCARGOT_MESSAGE_STRING_8BIT, output);
+        }
+    }
+}
+
+String* DebuggerRemote::getClientSource(String** sourceName)
+{
+    if (!enabled()) {
+        return nullptr;
+    }
+
+    sendType(ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE);
+    while (processEvents(nullptr, nullptr))
+        ;
+
+    if (sourceName) {
+        *sourceName = m_clientSourceName;
+    }
+    String* sourceData = m_clientSourceData;
+    m_clientSourceName = nullptr;
+    m_clientSourceData = nullptr;
+    return sourceData;
+}
+
+bool DebuggerRemote::doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length)
 {
     uint8_t type = (uint8_t)(buffer[0] + 1);
     uint32_t size;
@@ -286,7 +389,7 @@ error:
     return false;
 }
 
-void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal)
+void DebuggerRemote::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal)
 {
     SandBox::StackTraceDataVector stackTraceData;
 
@@ -302,7 +405,7 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
     }
 
     if (hasSavedStackTrace) {
-        total += (uint32_t)m_activeSavedStackTrace->size();
+        total += (uint32_t)activeSavedStackTrace()->size();
     }
 
     if (getTotal && !send(ESCARGOT_MESSAGE_BACKTRACE_TOTAL, &total, sizeof(uint32_t))) {
@@ -362,8 +465,8 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
     }
 
     if (hasSavedStackTrace) {
-        SavedStackTraceData* savedStackTracePtr = m_activeSavedStackTrace->begin();
-        SavedStackTraceData* savedStackTraceEnd = m_activeSavedStackTrace->end();
+        SavedStackTraceData* savedStackTracePtr = activeSavedStackTrace()->begin();
+        SavedStackTraceData* savedStackTraceEnd = activeSavedStackTrace()->end();
 
         while (counter < maxDepth && savedStackTracePtr < savedStackTraceEnd) {
             if (++counter <= minDepth) {
@@ -378,7 +481,7 @@ void Debugger::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t m
     sendType(ESCARGOT_MESSAGE_BACKTRACE_END);
 }
 
-void Debugger::getScopeChain(ExecutionState* state, uint32_t stateIndex)
+void DebuggerRemote::getScopeChain(ExecutionState* state, uint32_t stateIndex)
 {
     const size_t maxMessageLength = ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1;
     uint8_t buffer[maxMessageLength];
@@ -431,32 +534,32 @@ void Debugger::getScopeChain(ExecutionState* state, uint32_t stateIndex)
     send(ESCARGOT_MESSAGE_SCOPE_CHAIN_END, buffer, nextScope);
 }
 
-static void sendProperty(Debugger* debugger, ExecutionState* state, AtomicString name, Value value)
+static void sendProperty(DebuggerRemote* debugger, ExecutionState* state, AtomicString name, Value value)
 {
-    uint8_t type = Debugger::ESCARGOT_VARIABLE_UNDEFINED;
+    uint8_t type = DebuggerRemote::ESCARGOT_VARIABLE_UNDEFINED;
     StringView* valueView = nullptr;
 
     if (value.isNull()) {
-        type = Debugger::ESCARGOT_VARIABLE_NULL;
+        type = DebuggerRemote::ESCARGOT_VARIABLE_NULL;
     } else if (value.isTrue()) {
-        type = Debugger::ESCARGOT_VARIABLE_TRUE;
+        type = DebuggerRemote::ESCARGOT_VARIABLE_TRUE;
     } else if (value.isFalse()) {
-        type = Debugger::ESCARGOT_VARIABLE_FALSE;
+        type = DebuggerRemote::ESCARGOT_VARIABLE_FALSE;
     } else if (value.isNumber()) {
-        type = Debugger::ESCARGOT_VARIABLE_NUMBER;
+        type = DebuggerRemote::ESCARGOT_VARIABLE_NUMBER;
 
         String* valueString = value.toString(*state);
         valueView = new StringView(valueString);
     } else if (value.isString() || value.isSymbol() || value.isBigInt()) {
         String* valueString;
         if (value.isString()) {
-            type = Debugger::ESCARGOT_VARIABLE_STRING;
+            type = DebuggerRemote::ESCARGOT_VARIABLE_STRING;
             valueString = value.asString();
         } else if (value.isBigInt()) {
-            type = Debugger::ESCARGOT_VARIABLE_BIGINT;
+            type = DebuggerRemote::ESCARGOT_VARIABLE_BIGINT;
             valueString = value.asBigInt()->toString();
         } else {
-            type = Debugger::ESCARGOT_VARIABLE_SYMBOL;
+            type = DebuggerRemote::ESCARGOT_VARIABLE_SYMBOL;
             Symbol* symbol = value.asSymbol();
 
             valueString = String::emptyString;
@@ -467,65 +570,65 @@ static void sendProperty(Debugger* debugger, ExecutionState* state, AtomicString
         size_t valueLength = valueString->length();
 
         if (valueLength >= ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
-            type |= Debugger::ESCARGOT_VARIABLE_LONG_VALUE;
+            type |= DebuggerRemote::ESCARGOT_VARIABLE_LONG_VALUE;
             valueLength = ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH;
         }
 
         valueView = new StringView(valueString, 0, valueLength);
     } else if (value.isFunction()) {
-        type = Debugger::ESCARGOT_VARIABLE_FUNCTION;
+        type = DebuggerRemote::ESCARGOT_VARIABLE_FUNCTION;
     } else if (value.isObject()) {
-        type = Debugger::ESCARGOT_VARIABLE_OBJECT;
+        type = DebuggerRemote::ESCARGOT_VARIABLE_OBJECT;
 
         Object* valueObject = value.asObject();
 
         if (valueObject->isArrayObject()) {
-            type = Debugger::ESCARGOT_VARIABLE_ARRAY;
+            type = DebuggerRemote::ESCARGOT_VARIABLE_ARRAY;
         }
     }
 
     size_t nameLength = name.string()->length();
 
     if (nameLength > ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
-        type |= Debugger::ESCARGOT_VARIABLE_LONG_NAME;
+        type |= DebuggerRemote::ESCARGOT_VARIABLE_LONG_NAME;
         nameLength = ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH;
     }
 
-    if ((type & Debugger::ESCARGOT_VARIABLE_TYPE_MASK) < Debugger::ESCARGOT_VARIABLE_OBJECT) {
-        debugger->sendSubtype(Debugger::ESCARGOT_MESSAGE_VARIABLE, type);
+    if ((type & DebuggerRemote::ESCARGOT_VARIABLE_TYPE_MASK) < DebuggerRemote::ESCARGOT_VARIABLE_OBJECT) {
+        debugger->sendSubtype(DebuggerRemote::ESCARGOT_MESSAGE_VARIABLE, type);
     } else {
         debugger->sendVariableObjectInfo(type, value.asObject());
     }
 
     if (debugger->enabled()) {
         StringView* nameView = new StringView(name.string(), 0, nameLength);
-        debugger->sendString(Debugger::ESCARGOT_MESSAGE_STRING_8BIT, nameView);
+        debugger->sendString(DebuggerRemote::ESCARGOT_MESSAGE_STRING_8BIT, nameView);
     }
 
     if (valueView && debugger->enabled()) {
-        debugger->sendString(Debugger::ESCARGOT_MESSAGE_STRING_8BIT, valueView);
+        debugger->sendString(DebuggerRemote::ESCARGOT_MESSAGE_STRING_8BIT, valueView);
     }
 }
 
-static void sendUnaccessibleProperty(Debugger* debugger, AtomicString name)
+static void sendUnaccessibleProperty(DebuggerRemote* debugger, AtomicString name)
 {
-    uint8_t type = Debugger::ESCARGOT_VARIABLE_UNACCESSIBLE;
+    uint8_t type = DebuggerRemote::ESCARGOT_VARIABLE_UNACCESSIBLE;
     size_t nameLength = name.string()->length();
 
     if (nameLength > ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
-        type |= Debugger::ESCARGOT_VARIABLE_LONG_NAME;
+        type |= DebuggerRemote::ESCARGOT_VARIABLE_LONG_NAME;
         nameLength = ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH;
     }
 
-    debugger->sendSubtype(Debugger::ESCARGOT_MESSAGE_VARIABLE, type);
+    debugger->sendSubtype(DebuggerRemote::ESCARGOT_MESSAGE_VARIABLE, type);
 
     if (debugger->enabled()) {
         StringView* nameView = new StringView(name.string(), 0, nameLength);
-        debugger->sendString(Debugger::ESCARGOT_MESSAGE_STRING_8BIT, nameView);
+        debugger->sendString(DebuggerRemote::ESCARGOT_MESSAGE_STRING_8BIT, nameView);
     }
 }
 
-static void sendObjectProperties(Debugger* debugger, ExecutionState* state, Object* object)
+static void sendObjectProperties(DebuggerRemote* debugger, ExecutionState* state, Object* object)
 {
     Object::OwnPropertyKeyVector keys = object->ownPropertyKeys(*state);
     size_t size = keys.size();
@@ -544,7 +647,7 @@ static void sendObjectProperties(Debugger* debugger, ExecutionState* state, Obje
     }
 }
 
-static void sendRecordProperties(Debugger* debugger, ExecutionState* state, IdentifierRecordVector& identifiers, EnvironmentRecord* record)
+static void sendRecordProperties(DebuggerRemote* debugger, ExecutionState* state, IdentifierRecordVector& identifiers, EnvironmentRecord* record)
 {
     size_t size = identifiers.size();
 
@@ -561,7 +664,7 @@ static void sendRecordProperties(Debugger* debugger, ExecutionState* state, Iden
     }
 }
 
-static void sendRecordProperties(Debugger* debugger, ExecutionState* state, const ModuleEnvironmentRecord::ModuleBindingRecordVector& bindings, ModuleEnvironmentRecord* record)
+static void sendRecordProperties(DebuggerRemote* debugger, ExecutionState* state, const ModuleEnvironmentRecord::ModuleBindingRecordVector& bindings, ModuleEnvironmentRecord* record)
 {
     size_t size = bindings.size();
 
@@ -578,7 +681,7 @@ static void sendRecordProperties(Debugger* debugger, ExecutionState* state, cons
     }
 }
 
-void Debugger::getScopeVariables(ExecutionState* state, uint32_t stateIndex, uint32_t index)
+void DebuggerRemote::getScopeVariables(ExecutionState* state, uint32_t stateIndex, uint32_t index)
 {
     while (stateIndex > 0) {
         state = state->parent();
@@ -645,7 +748,7 @@ static LexicalEnvironment* getFunctionLexEnv(ExecutionState* state)
     return nullptr;
 }
 
-bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock)
+bool DebuggerRemote::processEvents(ExecutionState* state, ByteCodeBlock* byteCodeBlock)
 {
     uint8_t buffer[ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH];
     size_t length;
@@ -854,12 +957,12 @@ bool Debugger::processIncomingMessages(ExecutionState* state, ByteCodeBlock* byt
     return enabled();
 }
 
-void Debugger::waitForResolvingPendingBreakpoints()
+void DebuggerRemote::waitForResolvingPendingBreakpoints()
 {
     m_waitForResume = true;
-    sendType(Debugger::ESCARGOT_DEBUGGER_WAITING_AFTER_PENDING);
+    sendType(ESCARGOT_DEBUGGER_WAITING_AFTER_PENDING);
     while (m_waitForResume) {
-        processIncomingMessages(nullptr, nullptr);
+        processEvents(nullptr, nullptr);
 
         if (!enabled()) {
             break;
@@ -867,7 +970,7 @@ void Debugger::waitForResolvingPendingBreakpoints()
     }
 }
 
-Debugger::SavedStackTraceDataVector* Debugger::saveStackTrace(ExecutionState& state)
+DebuggerRemote::SavedStackTraceDataVector* Debugger::saveStackTrace(ExecutionState& state)
 {
     SavedStackTraceDataVector* savedStackTrace = new SavedStackTraceDataVector();
     SandBox::StackTraceDataVector stackTraceData;
@@ -928,53 +1031,40 @@ Debugger::SavedStackTraceDataVector* Debugger::saveStackTrace(ExecutionState& st
     return savedStackTrace;
 }
 
+void DebuggerRemote::init(const char*, bool*)
+{
+    union {
+        uint16_t u16Value;
+        uint8_t u8Value;
+    } endian;
+
+    endian.u16Value = 1;
+
+    MessageVersion version;
+    version.littleEndian = (endian.u8Value == 1);
+
+    uint32_t debuggerVersion = ESCARGOT_DEBUGGER_VERSION;
+    memcpy(version.version, &debuggerVersion, sizeof(uint32_t));
+
+    if (!send(ESCARGOT_MESSAGE_VERSION, &version, sizeof(version))) {
+        return;
+    }
+
+    MessageConfiguration configuration;
+
+    configuration.maxMessageSize = ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH;
+    configuration.pointerSize = (uint8_t)sizeof(void*);
+
+    send(ESCARGOT_MESSAGE_CONFIGURATION, &configuration, sizeof(configuration));
+}
+
 Debugger* createDebugger(const char* options, bool* debuggerEnabled)
 {
     Debugger* debugger = new DebuggerTcp();
 
-    if (debugger->init(options)) {
-        union {
-            uint16_t u16Value;
-            uint8_t u8Value;
-        } endian;
-
-        endian.u16Value = 1;
-
-        Debugger::MessageVersion version;
-        version.littleEndian = (endian.u8Value == 1);
-
-        uint32_t debuggerVersion = ESCARGOT_DEBUGGER_VERSION;
-        memcpy(version.version, &debuggerVersion, sizeof(uint32_t));
-
-        if (debugger->send(Debugger::ESCARGOT_MESSAGE_VERSION, &version, sizeof(version))) {
-            Debugger::MessageConfiguration configuration;
-
-            configuration.maxMessageSize = ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH;
-            configuration.pointerSize = (uint8_t)sizeof(void*);
-
-            debugger->send(Debugger::ESCARGOT_MESSAGE_CONFIGURATION, &configuration, sizeof(configuration));
-        }
-
-        if (debugger->enabled()) {
-            *debuggerEnabled = true;
-            debugger->m_debuggerEnabled = debuggerEnabled;
-        }
-    }
+    debugger->init(options, debuggerEnabled);
     return debugger;
 }
 
-String* Debugger::getClientSource(String** sourceName)
-{
-    sendType(Debugger::ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE);
-    while (processIncomingMessages(nullptr, nullptr))
-        ;
-    if (sourceName) {
-        *sourceName = m_clientSourceName;
-    }
-    String* sourceData = m_clientSourceData;
-    m_clientSourceName = nullptr;
-    m_clientSourceData = nullptr;
-    return sourceData;
-}
 } // namespace Escargot
 #endif /* ESCARGOT_DEBUGGER */

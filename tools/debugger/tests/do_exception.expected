@@ -3,7 +3,7 @@ Connection created!!!
 Stopped at tools/debugger/tests/do_exception.js:28
 (escargot-debugger) c
 Exception: RangeError: Test exception
-tools/debugger/tests/do_exception.js:21:10 [depth:0] (in g)
-tools/debugger/tests/do_exception.js:25:4 [depth:1] (in f)
-tools/debugger/tests/do_exception.js:28:1 [depth:2]
+tools/debugger/tests/do_exception.js:21:10 (in g)
+tools/debugger/tests/do_exception.js:25:4 (in f)
+tools/debugger/tests/do_exception.js:28:1
 Connection closed.

@@ -561,16 +561,8 @@ void ScriptParser::recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* par
         FunctionNode* functionNode = esprima::parseSingleFunction(m_context, codeBlock, SIZE_MAX);
         codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, codeBlock, functionNode);
 
-        if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
-            String* functionName = codeBlock->functionName().string();
-            if (functionName->length() > 0) {
-                StringView* functionNameView = new StringView(functionName);
-                m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT, functionNameView);
-            }
-
-            if (m_context->debugger()->enabled()) {
-                m_context->debugger()->sendFunctionInfo(codeBlock);
-            }
+        if (m_context->debugger() != nullptr) {
+            m_context->debugger()->storeCodeBlockInfo(codeBlock);
         }
 
         m_context->astAllocator().reset();
@@ -601,12 +593,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
 
         programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo, isModule, strictFromOutside, inWith, SIZE_MAX, allowSC, allowSP, allowNewTarget, allowArguments);
 
-        if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
-            m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_SOURCE_8BIT, source);
-
-            if (m_context->debugger()->enabled()) {
-                m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_FILE_NAME_8BIT, srcName);
-            }
+        if (m_context->debugger() != nullptr) {
+            m_context->debugger()->startParsing(source, srcName);
         }
 
         script = new Script(srcName, source, programNode->moduleData(), !parentCodeBlock);
@@ -629,10 +617,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         // reset ASTAllocator
         m_context->astAllocator().reset();
 
-        if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
-            m_context->debugger()->sendType(Debugger::ESCARGOT_MESSAGE_PARSE_ERROR);
-            StringView* errorView = new StringView(orgError->message, 0, orgError->message->length());
-            m_context->debugger()->sendString(Debugger::ESCARGOT_MESSAGE_STRING_8BIT, errorView);
+        if (m_context->debugger() != nullptr) {
+            m_context->debugger()->endParsing(orgError->message);
         }
 
         GC_enable();
@@ -659,7 +645,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
     topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith);
 
     if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
-        m_context->debugger()->sendFunctionInfo(topCodeBlock);
+        m_context->debugger()->storeCodeBlockInfo(topCodeBlock);
     }
 
     // reset ASTAllocator
@@ -667,10 +653,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
 
     if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
         recursivelyGenerateChildrenByteCode(topCodeBlock);
-        m_context->debugger()->sendType(Debugger::ESCARGOT_MESSAGE_PARSE_DONE);
-        if (m_context->debugger()->pendingWait()) {
-            m_context->debugger()->waitForResolvingPendingBreakpoints();
-        }
+
+        m_context->debugger()->endParsing();
     }
 
     GC_enable();

@@ -308,7 +308,7 @@ private:
 // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-global-environment-records
 class GlobalEnvironmentRecord : public EnvironmentRecord {
 #ifdef ESCARGOT_DEBUGGER
-    friend class Debugger;
+    friend class DebuggerRemote;
 #endif /* ESCARGOT_DEBUGGER */
 public:
     GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, IdentifierRecordVector* globalDeclarativeRecord, EncodedValueVector* globalDeclarativeStorage);
@@ -570,7 +570,7 @@ private:
 // DeclarativeEnvironmentRecordNotIndexed record does not create binding self likes FunctionEnvironmentRecord
 class DeclarativeEnvironmentRecordNotIndexed : public DeclarativeEnvironmentRecord {
 #ifdef ESCARGOT_DEBUGGER
-    friend class Debugger;
+    friend class DebuggerRemote;
 #endif /* ESCARGOT_DEBUGGER */
 public:
     DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, bool isVarDeclarationTarget = false, bool isCatchClause = false)
@@ -1123,7 +1123,7 @@ public:
 
 class ModuleEnvironmentRecord : public DeclarativeEnvironmentRecord {
 #ifdef ESCARGOT_DEBUGGER
-    friend class Debugger;
+    friend class DebuggerRemote;
 #endif /* ESCARGOT_DEBUGGER */
 public:
     struct ModuleBindingRecord {
