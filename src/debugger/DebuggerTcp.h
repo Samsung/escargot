@@ -32,7 +32,7 @@ typedef SOCKET EscargotSocket;
 typedef int EscargotSocket;
 #endif /* WIN32 */
 
-class DebuggerTcp : public Debugger {
+class DebuggerTcp : public DebuggerRemote {
 public:
     DebuggerTcp()
         : m_socket(0)
@@ -47,7 +47,7 @@ public:
                             uint8_t destination[20]);
 
 protected:
-    virtual bool init(const char* options) override;
+    virtual void init(const char* options, bool* debuggerEnabled) override;
     virtual bool send(uint8_t type, const void* buffer, size_t length) override;
     virtual bool receive(uint8_t* buffer, size_t& length) override;
     virtual void close(void) override;

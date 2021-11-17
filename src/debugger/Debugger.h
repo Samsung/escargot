@@ -47,6 +47,142 @@ class Debugger : public gc {
     friend Debugger* createDebugger(const char* options, bool* debuggerEnabled);
 
 public:
+    struct BreakpointLocation {
+        BreakpointLocation(uint32_t line, uint32_t offset)
+            : line(line)
+            , offset(offset)
+        {
+        }
+
+        uint32_t line;
+        uint32_t offset;
+    };
+
+    struct SavedStackTraceData : public gc {
+        ByteCodeBlock* byteCodeBlock;
+        uint32_t line;
+        uint32_t column;
+
+        SavedStackTraceData(ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column)
+            : byteCodeBlock(byteCodeBlock)
+            , line(line)
+            , column(column)
+        {
+        }
+    };
+
+    typedef Vector<SavedStackTraceData, GCUtil::gc_malloc_allocator<SavedStackTraceData>> SavedStackTraceDataVector;
+
+    bool enabled()
+    {
+        return m_enabled;
+    }
+
+    bool parsingEnabled()
+    {
+        return m_parsingEnabled;
+    }
+
+    void setParsingEnabled(bool value)
+    {
+        m_parsingEnabled = value;
+    }
+
+    void setActiveSavedStackTrace(ExecutionState* state, SavedStackTraceDataVector* trace)
+    {
+        m_activeSavedStackTraceExecutionState = state;
+        m_activeSavedStackTrace = trace;
+    }
+
+    ExecutionState* activeSavedStackTraceExecutionState()
+    {
+        return m_activeSavedStackTraceExecutionState;
+    }
+
+    SavedStackTraceDataVector* activeSavedStackTrace()
+    {
+        return m_activeSavedStackTrace;
+    }
+
+    inline void processDisabledBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
+    {
+        if (m_stopState != ESCARGOT_DEBUGGER_ALWAYS_STOP && m_stopState != state) {
+            m_delay--;
+            if (m_delay == 0) {
+                processEvents(state, byteCodeBlock);
+            }
+        }
+
+        if (m_stopState == ESCARGOT_DEBUGGER_ALWAYS_STOP || m_stopState == state) {
+            stopAtBreakpoint(byteCodeBlock, offset, state);
+        }
+    }
+
+    static inline void updateStopState(Debugger* debugger, ExecutionState* state, ExecutionState* newState)
+    {
+        if (debugger != nullptr && debugger->m_stopState == state) {
+            // Stop at the next breakpoint if a "next" operation targets the current function
+            debugger->m_stopState = newState;
+        }
+    }
+
+    virtual void startParsing(String* source, String* srcName) = 0;
+    virtual void endParsing(String* error = nullptr) = 0;
+    virtual void storeBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations) = 0;
+    virtual void storeCodeBlockInfo(InterpretedCodeBlock* codeBlock) = 0;
+    virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) = 0;
+    virtual void byteCodeReleaseNotification(const void* ptr) = 0;
+    virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) = 0;
+    virtual void consoleOut(String* output) = 0;
+    virtual String* getClientSource(String** sourceName) = 0;
+
+    static SavedStackTraceDataVector* saveStackTrace(ExecutionState& state);
+
+protected:
+    Debugger()
+        : m_enabled(false)
+        , m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
+        , m_stopState(ESCARGOT_DEBUGGER_ALWAYS_STOP)
+        , m_parsingEnabled(false)
+        , m_debuggerEnabled(nullptr)
+        , m_activeSavedStackTraceExecutionState(nullptr)
+        , m_activeSavedStackTrace(nullptr)
+    {
+    }
+
+    inline void enableDebugger(bool* debuggerEnabled)
+    {
+        m_enabled = true;
+        m_parsingEnabled = true;
+        m_debuggerEnabled = debuggerEnabled;
+        *debuggerEnabled = true;
+    }
+
+    inline void disableDebugger()
+    {
+        m_enabled = false;
+        m_parsingEnabled = false;
+        *m_debuggerEnabled = false;
+    }
+
+    virtual void init(const char* options, bool* debuggerEnabled) = 0;
+    virtual bool processEvents(ExecutionState* state, ByteCodeBlock* byteCodeBlock) = 0;
+
+    bool m_enabled : 1;
+    uint32_t m_delay;
+    ExecutionState* m_stopState;
+
+private:
+    bool m_parsingEnabled : 1;
+    bool* m_debuggerEnabled;
+    ExecutionState* m_activeSavedStackTraceExecutionState;
+    SavedStackTraceDataVector* m_activeSavedStackTrace;
+};
+
+class DebuggerRemote : public Debugger {
+    friend Debugger* createDebugger(const char* options, bool* debuggerEnabled);
+
+public:
     // Messages sent by Escargot to the debugger client
     enum {
         ESCARGOT_MESSAGE_VERSION = 0,
@@ -160,128 +296,45 @@ public:
         ESCARGOT_VARIABLE_LONG_VALUE = 0x80,
     };
 
-    struct BreakpointLocation {
-        BreakpointLocation(uint32_t line, uint32_t offset)
-            : line(line)
-            , offset(offset)
-        {
-        }
-
-        uint32_t line;
-        uint32_t offset;
-    };
-
-    struct SavedStackTraceData : public gc {
-        ByteCodeBlock* byteCodeBlock;
-        uint32_t line;
-        uint32_t column;
-
-        SavedStackTraceData(ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column)
-            : byteCodeBlock(byteCodeBlock)
-            , line(line)
-            , column(column)
-        {
-        }
-    };
-
-    typedef Vector<SavedStackTraceData, GCUtil::gc_malloc_allocator<SavedStackTraceData>> SavedStackTraceDataVector;
-
-    bool enabled()
-    {
-        return m_enabled;
-    }
-
-    bool parsingEnabled()
-    {
-        return m_parsingEnabled;
-    }
-
-    void setParsingEnabled(bool value)
-    {
-        m_parsingEnabled = value;
-    }
-
     bool pendingWait(void)
     {
         return m_pendingWait;
-    }
-
-    inline void processDisabledBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
-    {
-        if (m_stopState != ESCARGOT_DEBUGGER_ALWAYS_STOP && m_stopState != state) {
-            m_delay = (uint8_t)(m_delay - 1);
-            if (m_delay == 0) {
-                processIncomingMessages(state, byteCodeBlock);
-            }
-        }
-
-        if (m_stopState == ESCARGOT_DEBUGGER_ALWAYS_STOP || m_stopState == state) {
-            stopAtBreakpoint(byteCodeBlock, offset, state);
-        }
-    }
-
-    void setActiveSavedStackTrace(ExecutionState* state, SavedStackTraceDataVector* trace)
-    {
-        m_activeSavedStackTraceExecutionState = state;
-        m_activeSavedStackTrace = trace;
-    }
-
-    ExecutionState* activeSavedStackTraceExecutionState()
-    {
-        return m_activeSavedStackTraceExecutionState;
-    }
-
-    SavedStackTraceDataVector* activeSavedStackTrace()
-    {
-        return m_activeSavedStackTrace;
-    }
-
-    static inline void updateStopState(Debugger* debugger, ExecutionState* state, ExecutionState* newState)
-    {
-        if (debugger != nullptr && debugger->m_stopState == state) {
-            // Stop at the next breakpoint if a "next" operation targets the current function
-            debugger->m_stopState = newState;
-        }
     }
 
     void sendType(uint8_t type);
     void sendSubtype(uint8_t type, uint8_t subType);
     void sendString(uint8_t type, String* string);
     void sendPointer(uint8_t type, const void* ptr);
-    void sendFunctionInfo(InterpretedCodeBlock* codeBlock);
-    void sendBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations);
+
+    virtual void startParsing(String* source, String* srcName) override;
+    virtual void endParsing(String* error) override;
+    virtual void storeBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations) override;
+    virtual void storeCodeBlockInfo(InterpretedCodeBlock* codeBlock) override;
+    virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
+    virtual void byteCodeReleaseNotification(const void* ptr) override;
+    virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
+    virtual void consoleOut(String* output) override;
+    virtual String* getClientSource(String** sourceName) override;
+
     void sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column, uint32_t executionStateDepth);
     void sendVariableObjectInfo(uint8_t subType, Object* object);
-    void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state);
-    void releaseFunction(const void* ptr);
-    String* getClientSource(String** sourceName);
     void waitForResolvingPendingBreakpoints();
-    static SavedStackTraceDataVector* saveStackTrace(ExecutionState& state);
 
 protected:
-    Debugger()
-        : m_enabled(false)
-        , m_parsingEnabled(false)
-        , m_debuggerEnabled(nullptr)
-        , m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
-        , m_pendingWait(false)
+    DebuggerRemote()
+        : m_pendingWait(false)
         , m_waitForResume(false)
-        , m_stopState(ESCARGOT_DEBUGGER_ALWAYS_STOP)
         , m_clientSourceData(nullptr)
         , m_clientSourceName(nullptr)
-        , m_activeSavedStackTraceExecutionState(nullptr)
-        , m_activeSavedStackTrace(nullptr)
     {
     }
 
-    virtual bool init(const char* options) = 0;
+    virtual void init(const char* options, bool* debuggerEnabled) override;
+    virtual bool processEvents(ExecutionState* state, ByteCodeBlock* byteCodeBlock) override;
+
     virtual bool send(uint8_t type, const void* buffer, size_t length) = 0;
     virtual bool receive(uint8_t* buffer, size_t& length) = 0;
     virtual void close(void) = 0;
-
-    bool m_enabled;
-    bool m_parsingEnabled;
-    bool* m_debuggerEnabled;
 
 private:
     // Packed structure definitions to reduce network traffic
@@ -324,18 +377,13 @@ private:
     void getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal);
     void getScopeChain(ExecutionState* state, uint32_t stateIndex);
     void getScopeVariables(ExecutionState* state, uint32_t stateIndex, uint32_t index);
-    bool processIncomingMessages(ExecutionState* state, ByteCodeBlock* byteCodeBlock);
 
-    uint8_t m_delay;
     bool m_pendingWait : 1;
     bool m_waitForResume : 1;
-    ExecutionState* m_stopState;
     String* m_clientSourceData;
     String* m_clientSourceName;
     Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
     Vector<Object*, GCUtil::gc_malloc_allocator<Object*>> m_activeObjects;
-    ExecutionState* m_activeSavedStackTraceExecutionState;
-    SavedStackTraceDataVector* m_activeSavedStackTrace;
 };
 
 Debugger* createDebugger(const char* options, bool* debuggerEnabled);

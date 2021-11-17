@@ -301,7 +301,7 @@ static bool webSocketHandshake(EscargotSocket socket)
     return tcpSend(socket, responseSuffix, sizeof(responseSuffix) - 1);
 }
 
-bool DebuggerTcp::init(const char*)
+void DebuggerTcp::init(const char*, bool* debuggerEnabled)
 {
     uint16_t port = 6501;
 
@@ -311,20 +311,20 @@ bool DebuggerTcp::init(const char*)
     WSADATA wsaData;
     int wsa_init_status = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (wsa_init_status != NO_ERROR) {
-        return false;
+        return;
     }
 #endif /* WIN32*/
 
     EscargotSocket serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (m_socket == ESCARGOT_INVALID_SOCKET) {
-        return false;
+        return;
     }
 
     if (!tcpConfigureSocket(serverSocket, port)) {
         int error = tcpGetErrno();
         tcpCloseSocket(serverSocket);
         tcpLogError(error);
-        return false;
+        return;
     }
 
     printf("Waiting for client connection\n");
@@ -338,7 +338,7 @@ bool DebuggerTcp::init(const char*)
 
     if (m_socket == ESCARGOT_INVALID_SOCKET) {
         tcpLogError(tcpGetErrno());
-        return false;
+        return;
     }
 
 #ifdef WIN32
@@ -347,20 +347,20 @@ bool DebuggerTcp::init(const char*)
     /* Set non-blocking mode. */
     if (ioctlsocket(m_socket, FIONBIO, &nonblockingEnabled) != NO_ERROR) {
         tcpCloseSocket(m_socket);
-        return false;
+        return;
     }
 #else /* !WIN32 */
     int socketFlags = fcntl(m_socket, F_GETFL, 0);
 
     if (socketFlags < 0) {
         tcpCloseSocket(m_socket);
-        return false;
+        return;
     }
 
     /* Set non-blocking mode. */
     if (fcntl(m_socket, F_SETFL, socketFlags | O_NONBLOCK) == -1) {
         tcpCloseSocket(m_socket);
-        return false;
+        return;
     }
 #endif /* WIN32 */
 
@@ -368,14 +368,15 @@ bool DebuggerTcp::init(const char*)
 
     if (!webSocketHandshake(m_socket)) {
         tcpCloseSocket(m_socket);
-        return false;
+        return;
     }
 
-    m_enabled = true;
-    m_parsingEnabled = true;
     m_receiveBufferFill = 0;
     m_messageLength = 0;
-    return true;
+
+    enableDebugger(debuggerEnabled);
+
+    return DebuggerRemote::init(nullptr, debuggerEnabled);
 }
 
 #define ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT 0x80
@@ -489,8 +490,7 @@ void DebuggerTcp::close(void)
 {
     if (enabled()) {
         tcpCloseSocket(m_socket);
-        m_enabled = false;
-        *m_debuggerEnabled = false;
+        disableDebugger();
     }
 }
 } // namespace Escargot

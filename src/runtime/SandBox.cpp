@@ -54,16 +54,7 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
 
 #ifdef ESCARGOT_DEBUGGER
     Debugger* debugger = m_context->debugger();
-    if (debugger && debugger->enabled()) {
-        ExecutionState state(m_context);
-        String* message = error.toStringWithoutException(state);
-
-        debugger->sendType(Debugger::ESCARGOT_MESSAGE_EXCEPTION);
-        if (debugger->enabled()) {
-            StringView* messageView = new StringView(message);
-            debugger->sendString(Debugger::ESCARGOT_MESSAGE_STRING_8BIT, messageView);
-        }
-    }
+    Debugger::SavedStackTraceDataVector exceptionTrace;
 #endif /* ESCARGOT_DEBUGGER */
 
     ByteCodeLOCDataMap locMap;
@@ -98,9 +89,8 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
             result.stackTraceData.pushBack(traceData);
 
 #ifdef ESCARGOT_DEBUGGER
-            if (i < 8 && debugger && debugger->enabled()) {
-                debugger->sendBacktraceInfo(Debugger::ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE,
-                                            block, (uint32_t)loc.line, (uint32_t)loc.column, m_stackTraceData[i].second.executionStateDepth);
+            if (i < 8 && debugger != nullptr) {
+                exceptionTrace.pushBack(Debugger::SavedStackTraceData(block, (uint32_t)loc.line, (uint32_t)loc.column));
             }
 #endif /* ESCARGOT_DEBUGGER */
         } else {
@@ -110,6 +100,15 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
     for (auto iter = locMap.begin(); iter != locMap.end(); iter++) {
         delete iter->second;
     }
+
+#ifdef ESCARGOT_DEBUGGER
+    if (debugger != nullptr) {
+        ExecutionState state(m_context);
+        String* message = error.toStringWithoutException(state);
+
+        debugger->exceptionCaught(message, exceptionTrace);
+    }
+#endif /* ESCARGOT_DEBUGGER */
 }
 
 SandBox::SandBoxResult SandBox::run(Value (*scriptRunner)(ExecutionState&, void*), void* data)
