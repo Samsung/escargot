@@ -47,7 +47,7 @@ public:
                             uint8_t destination[20]);
 
 protected:
-    virtual void init(const char* options, bool* debuggerEnabled) override;
+    virtual void init(const char* options, Context* context) override;
     virtual bool send(uint8_t type, const void* buffer, size_t length) override;
     virtual bool receive(uint8_t* buffer, size_t& length) override;
     virtual void close(void) override;

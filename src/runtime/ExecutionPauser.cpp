@@ -189,7 +189,8 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             debugger->setActiveSavedStackTrace(activeSavedStackTraceExecutionState, activeSavedStackTrace);
         }
 
-        if (from != Generator && self->m_savedStackTrace == nullptr && debugger != nullptr && debugger->enabled()) {
+        debugger = state.context()->debugger();
+        if (from != Generator && self->m_savedStackTrace == nullptr && debugger != nullptr) {
             self->m_savedStackTrace = Debugger::saveStackTrace(state);
         }
 #endif /* ESCARGOT_DEBUGGER */

@@ -31,6 +31,21 @@
 #ifdef ESCARGOT_DEBUGGER
 namespace Escargot {
 
+void Debugger::enableDebugger(Context* context)
+{
+    ASSERT(m_context == nullptr);
+    m_context = context;
+    m_parsingEnabled = true;
+    m_context->enableDebugger(this);
+}
+
+void Debugger::disableDebugger()
+{
+    ASSERT(m_context != nullptr);
+    m_context->disableDebugger();
+    m_context = nullptr;
+}
+
 void DebuggerRemote::sendType(uint8_t type)
 {
     send(type, nullptr, 0);
@@ -600,12 +615,12 @@ static void sendProperty(DebuggerRemote* debugger, ExecutionState* state, Atomic
         debugger->sendVariableObjectInfo(type, value.asObject());
     }
 
-    if (debugger->enabled()) {
+    if (debugger->connected()) {
         StringView* nameView = new StringView(name.string(), 0, nameLength);
         debugger->sendString(DebuggerRemote::ESCARGOT_MESSAGE_STRING_8BIT, nameView);
     }
 
-    if (valueView && debugger->enabled()) {
+    if (valueView && debugger->connected()) {
         debugger->sendString(DebuggerRemote::ESCARGOT_MESSAGE_STRING_8BIT, valueView);
     }
 }
@@ -622,7 +637,7 @@ static void sendUnaccessibleProperty(DebuggerRemote* debugger, AtomicString name
 
     debugger->sendSubtype(DebuggerRemote::ESCARGOT_MESSAGE_VARIABLE, type);
 
-    if (debugger->enabled()) {
+    if (debugger->connected()) {
         StringView* nameView = new StringView(name.string(), 0, nameLength);
         debugger->sendString(DebuggerRemote::ESCARGOT_MESSAGE_STRING_8BIT, nameView);
     }
@@ -1031,7 +1046,7 @@ DebuggerRemote::SavedStackTraceDataVector* Debugger::saveStackTrace(ExecutionSta
     return savedStackTrace;
 }
 
-void DebuggerRemote::init(const char*, bool*)
+void DebuggerRemote::init(const char*, Context*)
 {
     union {
         uint16_t u16Value;
@@ -1058,12 +1073,11 @@ void DebuggerRemote::init(const char*, bool*)
     send(ESCARGOT_MESSAGE_CONFIGURATION, &configuration, sizeof(configuration));
 }
 
-Debugger* createDebugger(const char* options, bool* debuggerEnabled)
+void Debugger::createDebugger(const char* options, Context* context)
 {
     Debugger* debugger = new DebuggerTcp();
 
-    debugger->init(options, debuggerEnabled);
-    return debugger;
+    debugger->init(options, context);
 }
 
 } // namespace Escargot

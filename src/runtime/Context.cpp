@@ -132,8 +132,22 @@ bool Context::initDebugger(const char* options)
         return false;
     }
 
-    m_debugger = createDebugger(options, &m_instance->m_debuggerEnabled);
-    return m_debugger->enabled();
+    Debugger::createDebugger(options, this);
+    return m_debugger != nullptr;
+}
+
+void Context::enableDebugger(Debugger* debugger)
+{
+    ASSERT(m_debugger == nullptr);
+    m_debugger = debugger;
+    m_instance->m_debuggerEnabled = true;
+}
+
+void Context::disableDebugger()
+{
+    ASSERT(m_debugger != nullptr);
+    m_debugger = nullptr;
+    m_instance->m_debuggerEnabled = false;
 }
 
 void Context::printDebugger(StringView* output)

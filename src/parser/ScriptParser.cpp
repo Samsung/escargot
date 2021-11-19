@@ -418,7 +418,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
 {
     ASSERT(m_context->astAllocator().isInitialized());
 #ifdef ESCARGOT_DEBUGGER
-    if (LIKELY(needByteCodeGeneration) && m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
+    if (LIKELY(needByteCodeGeneration) && m_context->debugger() != nullptr) {
         return initializeScriptWithDebugger(source, srcName, parentCodeBlock, isModule, isEvalMode, isEvalCodeInFunction, inWithOperation, strictFromOutside, allowSuperCall, allowSuperProperty, allowNewTarget);
     }
 #endif /* ESCARGOT_DEBUGGER */
@@ -644,14 +644,14 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
     // Generate ByteCode
     topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith);
 
-    if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
+    if (m_context->debugger() != nullptr) {
         m_context->debugger()->storeCodeBlockInfo(topCodeBlock);
     }
 
     // reset ASTAllocator
     m_context->astAllocator().reset();
 
-    if (m_context->debugger() != nullptr && m_context->debugger()->enabled()) {
+    if (m_context->debugger() != nullptr) {
         recursivelyGenerateChildrenByteCode(topCodeBlock);
 
         m_context->debugger()->endParsing();

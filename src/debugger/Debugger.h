@@ -37,6 +37,7 @@ namespace Escargot {
 #define ESCARGOT_DEBUGGER_NO_STACK_TRACE_RESTORE (reinterpret_cast<ExecutionState*>(0x1))
 #define ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH 128
 
+class Context;
 class Object;
 class String;
 class ExecutionState;
@@ -44,8 +45,6 @@ class ByteCodeBlock;
 class InterpretedCodeBlock;
 
 class Debugger : public gc {
-    friend Debugger* createDebugger(const char* options, bool* debuggerEnabled);
-
 public:
     struct BreakpointLocation {
         BreakpointLocation(uint32_t line, uint32_t offset)
@@ -72,11 +71,6 @@ public:
     };
 
     typedef Vector<SavedStackTraceData, GCUtil::gc_malloc_allocator<SavedStackTraceData>> SavedStackTraceDataVector;
-
-    bool enabled()
-    {
-        return m_enabled;
-    }
 
     bool parsingEnabled()
     {
@@ -126,6 +120,8 @@ public:
         }
     }
 
+    static void createDebugger(const char* options, Context* context);
+
     virtual void startParsing(String* source, String* srcName) = 0;
     virtual void endParsing(String* error = nullptr) = 0;
     virtual void storeBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations) = 0;
@@ -140,48 +136,37 @@ public:
 
 protected:
     Debugger()
-        : m_enabled(false)
-        , m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
+        : m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
         , m_stopState(ESCARGOT_DEBUGGER_ALWAYS_STOP)
         , m_parsingEnabled(false)
-        , m_debuggerEnabled(nullptr)
+        , m_context(nullptr)
         , m_activeSavedStackTraceExecutionState(nullptr)
         , m_activeSavedStackTrace(nullptr)
     {
     }
 
-    inline void enableDebugger(bool* debuggerEnabled)
+    bool enabled()
     {
-        m_enabled = true;
-        m_parsingEnabled = true;
-        m_debuggerEnabled = debuggerEnabled;
-        *debuggerEnabled = true;
+        return m_context != nullptr;
     }
 
-    inline void disableDebugger()
-    {
-        m_enabled = false;
-        m_parsingEnabled = false;
-        *m_debuggerEnabled = false;
-    }
+    void enableDebugger(Context* context);
+    void disableDebugger();
 
-    virtual void init(const char* options, bool* debuggerEnabled) = 0;
+    virtual void init(const char* options, Context* context) = 0;
     virtual bool processEvents(ExecutionState* state, ByteCodeBlock* byteCodeBlock) = 0;
 
-    bool m_enabled : 1;
     uint32_t m_delay;
     ExecutionState* m_stopState;
 
 private:
     bool m_parsingEnabled : 1;
-    bool* m_debuggerEnabled;
+    Context* m_context;
     ExecutionState* m_activeSavedStackTraceExecutionState;
     SavedStackTraceDataVector* m_activeSavedStackTrace;
 };
 
 class DebuggerRemote : public Debugger {
-    friend Debugger* createDebugger(const char* options, bool* debuggerEnabled);
-
 public:
     // Messages sent by Escargot to the debugger client
     enum {
@@ -296,9 +281,14 @@ public:
         ESCARGOT_VARIABLE_LONG_VALUE = 0x80,
     };
 
-    bool pendingWait(void)
+    inline bool pendingWait(void)
     {
         return m_pendingWait;
+    }
+
+    inline bool connected(void)
+    {
+        return enabled();
     }
 
     void sendType(uint8_t type);
@@ -329,7 +319,7 @@ protected:
     {
     }
 
-    virtual void init(const char* options, bool* debuggerEnabled) override;
+    virtual void init(const char* options, Context* context) override;
     virtual bool processEvents(ExecutionState* state, ByteCodeBlock* byteCodeBlock) override;
 
     virtual bool send(uint8_t type, const void* buffer, size_t length) = 0;
@@ -386,7 +376,7 @@ private:
     Vector<Object*, GCUtil::gc_malloc_allocator<Object*>> m_activeObjects;
 };
 
-Debugger* createDebugger(const char* options, bool* debuggerEnabled);
+
 } // namespace Escargot
 #endif /* ESCARGOT_DEBUGGER */
 

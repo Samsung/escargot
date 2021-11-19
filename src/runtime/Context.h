@@ -318,6 +318,8 @@ public:
     }
 
     bool initDebugger(const char* options);
+    void enableDebugger(Debugger* debugger);
+    void disableDebugger();
     void printDebugger(StringView* output);
     String* getClientSource(String** sourceName);
 #endif /* ESCARGOT_DEBUGGER */

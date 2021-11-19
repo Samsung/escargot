@@ -1402,7 +1402,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
 #ifdef ESCARGOT_DEBUGGER
             Debugger* debugger = state->context()->debugger();
-            if (debugger && debugger->enabled()) {
+            if (debugger != nullptr) {
                 debugger->processDisabledBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)codeBuffer), state);
             }
 #endif /* ESCARGOT_DEBUGGER */
@@ -1416,7 +1416,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
 #ifdef ESCARGOT_DEBUGGER
             Debugger* debugger = state->context()->debugger();
-            if (debugger && debugger->enabled()) {
+            if (debugger != nullptr) {
                 debugger->stopAtBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)codeBuffer), state);
             }
 #endif /* ESCARGOT_DEBUGGER */
