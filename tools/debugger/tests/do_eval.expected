@@ -1,0 +1,20 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_eval.js:2
+(escargot-debugger) b do_eval.js:7
+Breakpoint 1 at tools/debugger/tests/do_eval.js:7
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_eval.js:7
+(escargot-debugger) eval a
+42(escargot-debugger) e b
+Alma(escargot-debugger) e c
+undefined(escargot-debugger) e d
+function(){ return 1; }(escargot-debugger) e e
+[object Object](escargot-debugger) print a
+42(escargot-debugger) p b
+Alma(escargot-debugger) p c
+undefined(escargot-debugger) p d
+function(){ return 1; }(escargot-debugger) p e
+[object Object](escargot-debugger) c
+Print: 42
+Connection closed.
