@@ -2222,7 +2222,7 @@ bool ContextRef::initDebugger(const char* options)
 bool ContextRef::isDebuggerRunning()
 {
 #ifdef ESCARGOT_DEBUGGER
-    return !!toImpl(this)->debugger() && toImpl(this)->debugger()->enabled();
+    return toImpl(this)->debugger() != nullptr;
 #else /* !ESCARGOT_DEBUGGER */
     return false;
 #endif /* ESCARGOT_DEBUGGER */

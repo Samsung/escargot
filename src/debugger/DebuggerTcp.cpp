@@ -301,7 +301,7 @@ static bool webSocketHandshake(EscargotSocket socket)
     return tcpSend(socket, responseSuffix, sizeof(responseSuffix) - 1);
 }
 
-void DebuggerTcp::init(const char*, bool* debuggerEnabled)
+void DebuggerTcp::init(const char*, Context* context)
 {
     uint16_t port = 6501;
 
@@ -374,9 +374,9 @@ void DebuggerTcp::init(const char*, bool* debuggerEnabled)
     m_receiveBufferFill = 0;
     m_messageLength = 0;
 
-    enableDebugger(debuggerEnabled);
+    enableDebugger(context);
 
-    return DebuggerRemote::init(nullptr, debuggerEnabled);
+    return DebuggerRemote::init(nullptr, context);
 }
 
 #define ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT 0x80
