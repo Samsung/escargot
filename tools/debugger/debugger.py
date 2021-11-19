@@ -172,6 +172,8 @@ class DebuggerPrompt(Cmd):
         self.debugger.eval(args)
         self.stop = True
     do_e = do_eval
+    do_p = do_eval
+    do_print = do_eval
 
     def do_backtrace(self, args):
         """ Get backtrace data from debugger """
