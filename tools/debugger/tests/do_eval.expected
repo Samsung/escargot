@@ -15,6 +15,8 @@ function(){ return 1; }(escargot-debugger) e e
 Alma(escargot-debugger) p c
 undefined(escargot-debugger) p d
 function(){ return 1; }(escargot-debugger) p e
-[object Object](escargot-debugger) c
+[object Object](escargot-debugger) e k
+Exception: ReferenceError: k is not defined(escargot-debugger) p k
+Exception: ReferenceError: k is not defined(escargot-debugger) c
 Print: 42
 Connection closed.

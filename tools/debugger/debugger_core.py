@@ -438,8 +438,8 @@ class Debugger(object):
                                  ESCARGOT_MESSAGE_EVAL_FAILED_16BIT,
                                  ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END]:
                 self.prompt = True
-                result = self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, data);
-                return DebuggerAction(DebuggerAction.TEXT, "%sException: %s%s" % (self.red, result, self.no_color));
+                result = self._receive_string(ESCARGOT_MESSAGE_EVAL_FAILED_8BIT, data);
+                return DebuggerAction(DebuggerAction.TEXT, "%sException: %s%s" % (self.red, result, self.nocolor));
 
             elif buffer_type in [ESCARGOT_MESSAGE_BACKTRACE,
                                  ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE]:
