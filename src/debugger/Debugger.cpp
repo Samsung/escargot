@@ -96,86 +96,86 @@ void DebuggerRemote::sendPointer(uint8_t type, const void* ptr)
     send(type, (void*)&ptr, sizeof(void*));
 }
 
-void DebuggerRemote::startParsing(String* source, String* srcName)
+void DebuggerRemote::endParsing(String* source, String* srcName, String* error)
 {
-    if (enabled()) {
-        sendString(ESCARGOT_MESSAGE_SOURCE_8BIT, source);
+    if (!enabled()) {
+        return;
+    }
+
+    sendString(ESCARGOT_MESSAGE_SOURCE_8BIT, source);
+
+    if (!enabled()) {
+        return;
+    }
+
+    sendString(ESCARGOT_MESSAGE_FILE_NAME_8BIT, srcName);
+
+    if (!enabled()) {
+        return;
+    }
+
+    if (error != nullptr) {
+        sendType(ESCARGOT_MESSAGE_PARSE_ERROR);
 
         if (enabled()) {
-            sendString(ESCARGOT_MESSAGE_FILE_NAME_8BIT, srcName);
-        }
-    }
-}
-
-void DebuggerRemote::endParsing(String* error = nullptr)
-{
-    if (!enabled()) {
-        return;
-    }
-
-    if (error == nullptr) {
-        sendType(ESCARGOT_MESSAGE_PARSE_DONE);
-
-        if (enabled() && pendingWait()) {
-            waitForResolvingPendingBreakpoints();
+            sendString(ESCARGOT_MESSAGE_STRING_8BIT, error);
         }
         return;
     }
 
-    sendType(ESCARGOT_MESSAGE_PARSE_ERROR);
+    size_t codeBlockDataSize = m_codeBlockData.size();
 
-    if (enabled()) {
-        sendString(ESCARGOT_MESSAGE_STRING_8BIT, error);
-    }
-}
+    for (size_t i = 0; i < codeBlockDataSize; i++) {
+        /* Send breakpoint locations. */
+        const size_t maxPacketLength = (ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1) / sizeof(BreakpointLocation);
+        BreakpointLocation* ptr = m_codeBlockData[i].breakpointLocations->data();
+        size_t length = m_codeBlockData[i].breakpointLocations->size();
 
-void DebuggerRemote::storeBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations)
-{
-    if (!enabled()) {
-        return;
-    }
+        while (length > maxPacketLength) {
+            if (!send(ESCARGOT_MESSAGE_BREAKPOINT_LOCATION, ptr, maxPacketLength * sizeof(BreakpointLocation))) {
+                return;
+            }
+            ptr += maxPacketLength;
+            length -= maxPacketLength;
+        }
 
-    const size_t maxPacketLength = (ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1) / sizeof(BreakpointLocation);
-    BreakpointLocation* ptr = locations.data();
-    size_t length = locations.size();
-
-    while (length > maxPacketLength) {
-        if (!send(ESCARGOT_MESSAGE_BREAKPOINT_LOCATION, ptr, maxPacketLength * sizeof(BreakpointLocation))) {
+        if (!send(ESCARGOT_MESSAGE_BREAKPOINT_LOCATION, ptr, length * sizeof(BreakpointLocation))) {
             return;
         }
-        ptr += maxPacketLength;
-        length -= maxPacketLength;
-    }
 
-    send(ESCARGOT_MESSAGE_BREAKPOINT_LOCATION, ptr, length * sizeof(BreakpointLocation));
-}
+        InterpretedCodeBlock* codeBlock = m_codeBlockData[i].codeBlock;
+        String* functionName = codeBlock->functionName().string();
 
-void DebuggerRemote::storeCodeBlockInfo(InterpretedCodeBlock* codeBlock)
-{
-    if (!enabled()) {
-        return;
-    }
+        /* Send function name. */
+        if (functionName->length() > 0) {
+            StringView* functionNameView = new StringView(functionName);
+            sendString(ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT, functionNameView);
 
-    String* functionName = codeBlock->functionName().string();
-    if (functionName->length() > 0) {
-        StringView* functionNameView = new StringView(functionName);
-        sendString(ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT, functionNameView);
+            if (!enabled()) {
+                return;
+            }
+        }
 
-        if (!enabled()) {
+        /* Send function info. */
+        char* byteCodeStart = codeBlock->byteCodeBlock()->m_code.data();
+        uint32_t startLine = (uint32_t)codeBlock->functionStart().line;
+        uint32_t startColumn = (uint32_t)(codeBlock->functionStart().column + 1);
+        FunctionInfo functionInfo;
+
+        memcpy(&functionInfo.byteCodeStart, (void*)&byteCodeStart, sizeof(char*));
+        memcpy(&functionInfo.startLine, &startLine, sizeof(uint32_t));
+        memcpy(&functionInfo.startColumn, &startColumn, sizeof(uint32_t));
+
+        if (!send(ESCARGOT_MESSAGE_FUNCTION_PTR, (void*)&functionInfo, sizeof(FunctionInfo))) {
             return;
         }
     }
 
-    char* byteCodeStart = codeBlock->byteCodeBlock()->m_code.data();
-    uint32_t startLine = (uint32_t)codeBlock->functionStart().line;
-    uint32_t startColumn = (uint32_t)(codeBlock->functionStart().column + 1);
-    FunctionInfo functionInfo;
+    sendType(ESCARGOT_MESSAGE_PARSE_DONE);
 
-    memcpy(&functionInfo.byteCodeStart, (void*)&byteCodeStart, sizeof(char*));
-    memcpy(&functionInfo.startLine, &startLine, sizeof(uint32_t));
-    memcpy(&functionInfo.startColumn, &startColumn, sizeof(uint32_t));
-
-    send(ESCARGOT_MESSAGE_FUNCTION_PTR, (void*)&functionInfo, sizeof(FunctionInfo));
+    if (enabled() && pendingWait()) {
+        waitForResolvingPendingBreakpoints();
+    }
 }
 
 void DebuggerRemote::sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column, uint32_t executionStateDepth)

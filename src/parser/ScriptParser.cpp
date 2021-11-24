@@ -561,10 +561,6 @@ void ScriptParser::recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* par
         FunctionNode* functionNode = esprima::parseSingleFunction(m_context, codeBlock, SIZE_MAX);
         codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, codeBlock, functionNode);
 
-        if (m_context->debugger() != nullptr) {
-            m_context->debugger()->storeCodeBlockInfo(codeBlock);
-        }
-
         m_context->astAllocator().reset();
     }
 
@@ -593,10 +589,6 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
 
         programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo, isModule, strictFromOutside, inWith, SIZE_MAX, allowSC, allowSP, allowNewTarget, allowArguments);
 
-        if (m_context->debugger() != nullptr) {
-            m_context->debugger()->startParsing(source, srcName);
-        }
-
         script = new Script(srcName, source, programNode->moduleData(), !parentCodeBlock);
         if (parentCodeBlock) {
             programNode->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
@@ -618,7 +610,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         m_context->astAllocator().reset();
 
         if (m_context->debugger() != nullptr) {
-            m_context->debugger()->endParsing(orgError->message);
+            m_context->debugger()->endParsing(source, srcName, orgError->message);
         }
 
         GC_enable();
@@ -644,17 +636,15 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
     // Generate ByteCode
     topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith);
 
-    if (m_context->debugger() != nullptr) {
-        m_context->debugger()->storeCodeBlockInfo(topCodeBlock);
-    }
-
     // reset ASTAllocator
     m_context->astAllocator().reset();
 
-    if (m_context->debugger() != nullptr) {
+    Debugger* debugger = m_context->debugger();
+    if (debugger != nullptr) {
         recursivelyGenerateChildrenByteCode(topCodeBlock);
 
-        m_context->debugger()->endParsing();
+        debugger->endParsing(source, srcName);
+        debugger->clearParsingData();
     }
 
     GC_enable();

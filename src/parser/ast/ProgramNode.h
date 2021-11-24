@@ -53,7 +53,7 @@ public:
         codeBlock->finalizeLexicalBlock(context, blockContext);
 
 #ifdef ESCARGOT_DEBUGGER
-        if (context->m_breakpointContext->m_breakpointLocations.size() == 0) {
+        if (context->m_breakpointContext->m_breakpointLocations->size() == 0) {
             if (context->m_isEvalCode) {
                 context->insertBreakpointAt(1, this);
             } else {

@@ -141,7 +141,7 @@ void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
 void ByteCodeGenerateContext::insertBreakpointAt(size_t line, Node* node)
 {
     if (m_breakpointContext->m_parsingEnabled) {
-        m_breakpointContext->m_breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
+        m_breakpointContext->m_breakpointLocations->push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
         m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
     }
 }
@@ -198,8 +198,8 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
     ast->generateStatementByteCode(block, &ctx);
 
 #ifdef ESCARGOT_DEBUGGER
-    if (breakpointContext.m_parsingEnabled) {
-        context->debugger()->storeBreakpointLocations(breakpointContext.m_breakpointLocations);
+    if (breakpointContext.m_parsingEnabled && context->debugger() != nullptr) {
+        context->debugger()->appendBreakpointLocations(codeBlock, breakpointContext.m_breakpointLocations);
     }
 #endif /* ESCARGOT_DEBUGGER */
 

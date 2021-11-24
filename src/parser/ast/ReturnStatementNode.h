@@ -36,9 +36,9 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
 #ifdef ESCARGOT_DEBUGGER
-        if (context->m_breakpointContext->m_breakpointLocations.size() == 0 && context->m_breakpointContext->m_parsingEnabled) {
+        if (context->m_breakpointContext->m_breakpointLocations->size() == 0 && context->m_breakpointContext->m_parsingEnabled) {
             ASSERT(context->m_breakpointContext->m_lastBreakpointLineOffset == 0);
-            ASSERT(context->m_breakpointContext->m_breakpointLocations.size() == 0);
+            ASSERT(context->m_breakpointContext->m_breakpointLocations->size() == 0);
 
             InterpretedCodeBlock* interpretedCodeBlock = context->m_codeBlock;
 
