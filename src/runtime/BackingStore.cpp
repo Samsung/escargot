@@ -185,6 +185,14 @@ SharedBackingStore::SharedBackingStore(SharedDataBlockInfo* sharedInfo)
                                    nullptr, nullptr, nullptr);
 }
 
+void SharedBackingStore::resize(size_t newByteLength)
+{
+    ASSERT(m_sharedDataBlockInfo->hasValidReference());
+    ASSERT(isResizable() && newByteLength <= maxByteLength());
+
+    m_sharedDataBlockInfo->grow(newByteLength);
+}
+
 void* SharedBackingStore::operator new(size_t size)
 {
     // SharedBackingStore does not have any GC member
