@@ -146,6 +146,12 @@ public:
         return 0;
     }
 
+    virtual void grow(size_t newByteLength)
+    {
+        UNUSED_PARAMETER(newByteLength);
+        ASSERT_NOT_REACHED();
+    }
+
     void* data() const
     {
         ASSERT(hasValidReference());
@@ -155,7 +161,7 @@ public:
     size_t byteLength() const
     {
         ASSERT(hasValidReference());
-        return m_byteLength;
+        return m_byteLength.load();
     }
 
     void ref()
@@ -172,7 +178,8 @@ public:
 
 protected:
     void* m_data;
-    size_t m_byteLength;
+    // defined as atomic value to not to use a lock
+    std::atomic<size_t> m_byteLength;
     std::atomic<size_t> m_refCount;
 };
 
@@ -194,8 +201,15 @@ public:
         return m_maxByteLength;
     }
 
+    virtual void grow(size_t newByteLength) override
+    {
+        ASSERT(newByteLength <= m_maxByteLength);
+        m_byteLength.store(newByteLength);
+    }
+
 private:
-    size_t m_maxByteLength;
+    // defined once and never change
+    const size_t m_maxByteLength;
 };
 
 class SharedBackingStore : public BackingStore {
@@ -241,6 +255,8 @@ public:
     {
         return m_sharedDataBlockInfo->isGrowable();
     }
+
+    virtual void resize(size_t newByteLength) override;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;

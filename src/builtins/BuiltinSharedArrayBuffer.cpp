@@ -87,6 +87,25 @@ static Value builtinSharedArrayBufferGrowableGetter(ExecutionState& state, Value
     return Value(obj->isResizableArrayBuffer());
 }
 
+static Value builtinSharedArrayBufferGrow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(O, SharedArrayBuffer, grow);
+
+    if (!O->isResizableArrayBuffer()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().grow.string(), "SharedArrayBuffer is not a growable buffer");
+    }
+
+    // Let newByteLength to ? ToIntegerOrInfinity(newLength).
+    auto newByteLength = argv[0].toInteger(state);
+
+    if ((newByteLength < O->byteLength()) || (newByteLength > O->maxByteLength())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().grow.string(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+    }
+
+    O->backingStore()->resize(static_cast<size_t>(newByteLength));
+    return Value();
+}
+
 // https://262.ecma-international.org/#sec-sharedarraybuffer.prototype.slice
 static Value builtinSharedArrayBufferSlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -166,6 +185,8 @@ void GlobalObject::installSharedArrayBuffer(ExecutionState& state)
         m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->growable), growableDesc);
     }
 
+    m_sharedArrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->grow),
+                                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->grow, builtinSharedArrayBufferGrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_sharedArrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->slice),
                                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinSharedArrayBufferSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

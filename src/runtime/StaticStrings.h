@@ -270,6 +270,7 @@ namespace Escargot {
     F(global)                     \
     F(globalThis)                 \
     F(groups)                     \
+    F(grow)                       \
     F(growable)                   \
     F(has)                        \
     F(hasInstance)                \
@@ -496,7 +497,6 @@ namespace Escargot {
     F(exports)                         \
     F(f32)                             \
     F(f64)                             \
-    F(grow)                            \
     F(i32)                             \
     F(i64)                             \
     F(imports)                         \
