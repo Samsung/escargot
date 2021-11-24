@@ -33,6 +33,7 @@ void* CompressibleString::operator new(size_t size)
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(CompressibleString)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CompressibleString, m_bufferData.buffer));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CompressibleString, m_vmInstance));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(CompressibleString));
         typeInited = true;
@@ -135,12 +136,12 @@ UTF16StringData CompressibleString::toUTF16StringData() const
 
 void* CompressibleString::allocateStringDataBuffer(size_t byteLength)
 {
-    return malloc(byteLength);
+    return GC_MALLOC_ATOMIC(byteLength);
 }
 
 void CompressibleString::deallocateStringDataBuffer(void* ptr, size_t byteLength)
 {
-    free(ptr);
+    GC_FREE(ptr);
 }
 
 bool CompressibleString::compress()
@@ -231,7 +232,7 @@ bool CompressibleString::compressWorker(void* callerSP)
     // immediately free the original string after compression when there is no reference on stack
     deallocateStringDataBuffer(const_cast<void*>(m_bufferData.buffer), m_bufferData.length * (m_bufferData.has8BitContent ? 1 : 2));
 
-    m_bufferData.bufferAs8Bit = nullptr;
+    m_bufferData.buffer = nullptr;
     m_isCompressed = true;
 
     /*
