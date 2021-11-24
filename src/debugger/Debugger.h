@@ -57,6 +57,19 @@ public:
         uint32_t offset;
     };
 
+    typedef Vector<BreakpointLocation, GCUtil::gc_malloc_atomic_allocator<BreakpointLocation>> BreakpointLocationVector;
+
+    struct CodeBlockData : public gc {
+        InterpretedCodeBlock* codeBlock;
+        BreakpointLocationVector* breakpointLocations;
+
+        CodeBlockData(InterpretedCodeBlock* codeBlock, BreakpointLocationVector* breakpointLocations)
+            : codeBlock(codeBlock)
+            , breakpointLocations(breakpointLocations)
+        {
+        }
+    };
+
     struct SavedStackTraceData : public gc {
         ByteCodeBlock* byteCodeBlock;
         uint32_t line;
@@ -80,6 +93,16 @@ public:
     void setParsingEnabled(bool value)
     {
         m_parsingEnabled = value;
+    }
+
+    void appendBreakpointLocations(InterpretedCodeBlock* codeBlock, BreakpointLocationVector* breakpointLocations)
+    {
+        m_codeBlockData.push_back(CodeBlockData(codeBlock, breakpointLocations));
+    }
+
+    void clearParsingData()
+    {
+        m_codeBlockData.clear();
     }
 
     void setActiveSavedStackTrace(ExecutionState* state, SavedStackTraceDataVector* trace)
@@ -122,10 +145,7 @@ public:
 
     static void createDebugger(const char* options, Context* context);
 
-    virtual void startParsing(String* source, String* srcName) = 0;
-    virtual void endParsing(String* error = nullptr) = 0;
-    virtual void storeBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations) = 0;
-    virtual void storeCodeBlockInfo(InterpretedCodeBlock* codeBlock) = 0;
+    virtual void endParsing(String* source, String* srcName, String* error = nullptr) = 0;
     virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) = 0;
     virtual void byteCodeReleaseNotification(const void* ptr) = 0;
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) = 0;
@@ -158,6 +178,7 @@ protected:
 
     uint32_t m_delay;
     ExecutionState* m_stopState;
+    Vector<CodeBlockData, GCUtil::gc_malloc_allocator<CodeBlockData>> m_codeBlockData;
 
 private:
     bool m_parsingEnabled : 1;
@@ -296,10 +317,7 @@ public:
     void sendString(uint8_t type, String* string);
     void sendPointer(uint8_t type, const void* ptr);
 
-    virtual void startParsing(String* source, String* srcName) override;
-    virtual void endParsing(String* error) override;
-    virtual void storeBreakpointLocations(std::vector<Debugger::BreakpointLocation>& locations) override;
-    virtual void storeCodeBlockInfo(InterpretedCodeBlock* codeBlock) override;
+    virtual void endParsing(String* source, String* srcName, String* error = nullptr) override;
     virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
     virtual void byteCodeReleaseNotification(const void* ptr) override;
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;

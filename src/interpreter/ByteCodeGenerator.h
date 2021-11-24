@@ -57,12 +57,13 @@ struct ByteCodeBreakpointContext {
     bool m_parsingEnabled;
     size_t m_lastBreakpointLineOffset;
     size_t m_lastBreakpointIndexOffset;
-    std::vector<Debugger::BreakpointLocation> m_breakpointLocations;
+    Debugger::BreakpointLocationVector* m_breakpointLocations;
 
     ByteCodeBreakpointContext(bool parsingEnabled)
         : m_parsingEnabled(parsingEnabled)
         , m_lastBreakpointLineOffset(0)
         , m_lastBreakpointIndexOffset(0)
+        , m_breakpointLocations(new Debugger::BreakpointLocationVector())
     {
     }
 };
