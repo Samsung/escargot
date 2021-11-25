@@ -143,6 +143,11 @@ public:
         }
     }
 
+    void setAsAlwaysStopState()
+    {
+        m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
+    }
+
     static void createDebugger(const char* options, Context* context);
 
     virtual void endParsing(String* source, String* srcName, String* error = nullptr) = 0;
@@ -153,6 +158,8 @@ public:
     virtual String* getClientSource(String** sourceName) = 0;
 
     static SavedStackTraceDataVector* saveStackTrace(ExecutionState& state);
+
+    void pumpDebuggerEvents(ExecutionState* state);
 
 protected:
     Debugger()
@@ -174,7 +181,7 @@ protected:
     void disableDebugger();
 
     virtual void init(const char* options, Context* context) = 0;
-    virtual bool processEvents(ExecutionState* state, ByteCodeBlock* byteCodeBlock) = 0;
+    virtual bool processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest = true) = 0;
 
     uint32_t m_delay;
     ExecutionState* m_stopState;
@@ -257,18 +264,23 @@ public:
         ESCARGOT_MESSAGE_EVAL_8BIT = 7,
         ESCARGOT_MESSAGE_EVAL_16BIT_START = 8,
         ESCARGOT_MESSAGE_EVAL_16BIT = 9,
-        ESCARGOT_MESSAGE_GET_BACKTRACE = 10,
-        ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 11,
-        ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES = 12,
-        ESCARGOT_MESSAGE_GET_OBJECT = 13,
         // These four must be in the same order.
-        ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START = 14,
-        ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT = 15,
-        ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 16,
-        ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 17,
-        ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 18,
-        ESCARGOT_DEBUGGER_PENDING_CONFIG = 19,
-        ESCARGOT_DEBUGGER_PENDING_RESUME = 20,
+        ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_8BIT_START = 10,
+        ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_8BIT = 11,
+        ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_16BIT_START = 12,
+        ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_16BIT = 13,
+        ESCARGOT_MESSAGE_GET_BACKTRACE = 14,
+        ESCARGOT_MESSAGE_GET_SCOPE_CHAIN = 15,
+        ESCARGOT_MESSAGE_GET_SCOPE_VARIABLES = 16,
+        ESCARGOT_MESSAGE_GET_OBJECT = 17,
+        // These four must be in the same order.
+        ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START = 18,
+        ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT = 19,
+        ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START = 20,
+        ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 21,
+        ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 22,
+        ESCARGOT_DEBUGGER_PENDING_CONFIG = 23,
+        ESCARGOT_DEBUGGER_PENDING_RESUME = 24,
     };
 
     // Environment record types
@@ -338,10 +350,11 @@ protected:
     }
 
     virtual void init(const char* options, Context* context) override;
-    virtual bool processEvents(ExecutionState* state, ByteCodeBlock* byteCodeBlock) override;
+    virtual bool processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest = true) override;
 
     virtual bool send(uint8_t type, const void* buffer, size_t length) = 0;
     virtual bool receive(uint8_t* buffer, size_t& length) = 0;
+    virtual bool isThereAnyEvent() = 0;
     virtual void close(void) = 0;
 
 private:
@@ -381,7 +394,7 @@ private:
     };
 
     uint32_t appendToActiveObjects(Object* object);
-    bool doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length);
+    bool doEval(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, uint8_t* buffer, size_t length);
     void getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal);
     void getScopeChain(ExecutionState* state, uint32_t stateIndex);
     void getScopeVariables(ExecutionState* state, uint32_t stateIndex, uint32_t index);

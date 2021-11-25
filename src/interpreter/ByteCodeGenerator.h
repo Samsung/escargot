@@ -35,8 +35,7 @@ class InterpretedCodeBlock;
 
 struct ClassContextInformation {
     ClassContextInformation()
-        : m_thisExpressionIndex(REGULAR_REGISTER_LIMIT)
-        , m_constructorIndex(SIZE_MAX)
+        : m_constructorIndex(SIZE_MAX)
         , m_prototypeIndex(SIZE_MAX)
         , m_superIndex(SIZE_MAX)
         , m_name()
@@ -44,7 +43,6 @@ struct ClassContextInformation {
     {
     }
 
-    size_t m_thisExpressionIndex;
     size_t m_constructorIndex;
     size_t m_prototypeIndex;
     size_t m_superIndex;

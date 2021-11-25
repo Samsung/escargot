@@ -1,0 +1,11 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_eval_this.js:24
+(escargot-debugger) eval this
+[object global](escargot-debugger) s
+Stopped at tools/debugger/tests/do_eval_this.js:21 (in foo() at line:20, col:1)
+(escargot-debugger) eval this
+function foo() {
+    foo.name
+}(escargot-debugger) quit
+Connection closed.

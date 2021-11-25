@@ -321,6 +321,8 @@ public:
     void enableDebugger(Debugger* debugger);
     void disableDebugger();
     void printDebugger(StringView* output);
+    void pumpDebuggerEvents();
+    void setAsAlwaysStopState();
     String* getClientSource(String** sourceName);
 #endif /* ESCARGOT_DEBUGGER */
 

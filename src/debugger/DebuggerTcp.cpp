@@ -19,6 +19,7 @@
 
 #include "Escargot.h"
 #include "DebuggerTcp.h"
+#include "runtime/String.h" // for split function
 
 #ifdef ESCARGOT_DEBUGGER
 namespace Escargot {
@@ -39,6 +40,7 @@ typedef SSIZE_T ssize_t;
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/socket.h>
+#include <sys/poll.h>
 #include <unistd.h>
 
 /* On *nix the EWOULDBLOCK errno value can be returned for non-blocking operations */
@@ -301,9 +303,22 @@ static bool webSocketHandshake(EscargotSocket socket)
     return tcpSend(socket, responseSuffix, sizeof(responseSuffix) - 1);
 }
 
-void DebuggerTcp::init(const char*, Context* context)
+void DebuggerTcp::init(const char* options, Context* context)
 {
     uint16_t port = 6501;
+
+    if (options) {
+        auto v = split(options, ';');
+        for (size_t i = 0; i < v.size(); i++) {
+            const std::string& s = v[i];
+            if (s.find("--port=") == 0) {
+                int i = std::atoi(s.data() + 7);
+                if (i > 0 && i <= 65535) {
+                    port = i;
+                }
+            }
+        }
+    }
 
     ASSERT(enabled() == false);
 
@@ -327,7 +342,7 @@ void DebuggerTcp::init(const char*, Context* context)
         return;
     }
 
-    printf("Waiting for client connection\n");
+    ESCARGOT_LOG_INFO("Waiting for client connection 0.0.0.0:%hd\n", port);
 
     sockaddr_in addr;
     socklen_t sinSize = sizeof(sockaddr_in);
@@ -364,7 +379,7 @@ void DebuggerTcp::init(const char*, Context* context)
     }
 #endif /* WIN32 */
 
-    printf("Connected from: %s\n", inet_ntoa(addr.sin_addr));
+    ESCARGOT_LOG_INFO("Connected from: %s\n", inet_ntoa(addr.sin_addr));
 
     if (!webSocketHandshake(m_socket)) {
         tcpCloseSocket(m_socket);
@@ -404,6 +419,24 @@ bool DebuggerTcp::send(uint8_t type, const void* buffer, size_t length)
 
     close();
     return false;
+}
+
+bool DebuggerTcp::isThereAnyEvent()
+{
+    struct pollfd fd[1];
+    fd[0].fd = m_socket;
+    fd[0].events = POLLIN;
+    int rc = poll(fd, 1, 0);
+
+    if (rc < 0) {
+        return true;
+    }
+
+    if (rc == 0) {
+        return false;
+    }
+
+    return true;
 }
 
 bool DebuggerTcp::receive(uint8_t* buffer, size_t& length)

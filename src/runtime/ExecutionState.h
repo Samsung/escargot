@@ -319,6 +319,7 @@ public:
     Object* getNewTarget();
     // http://www.ecma-international.org/ecma-262/6.0/#sec-getthisenvironment
     EnvironmentRecord* getThisEnvironment();
+    Value thisValue();
     Value makeSuperPropertyReference();
     Value getSuperConstructor();
 
