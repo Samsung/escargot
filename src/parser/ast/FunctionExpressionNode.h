@@ -44,7 +44,7 @@ public:
             size_t homeObjectIndex = blk->isClassStaticMethod() ? context->m_classInfo.m_constructorIndex : context->m_classInfo.m_prototypeIndex;
             codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, homeObjectIndex, blk), context, this);
         } else {
-            codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_thisExpressionIndex, blk), context, this);
+            codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, REGULAR_REGISTER_LIMIT, blk), context, this);
         }
 
         codeBlock->m_shouldClearStack = true;

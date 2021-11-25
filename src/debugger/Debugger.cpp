@@ -305,7 +305,7 @@ String* DebuggerRemote::getClientSource(String** sourceName)
     return sourceData;
 }
 
-bool DebuggerRemote::doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock, uint8_t* buffer, size_t length)
+bool DebuggerRemote::doEval(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, uint8_t* buffer, size_t length)
 {
     uint8_t type = (uint8_t)(buffer[0] + 1);
     uint32_t size;
@@ -347,9 +347,9 @@ bool DebuggerRemote::doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock,
     }
 
     String* str;
-    if (type == ESCARGOT_MESSAGE_EVAL_8BIT) {
+    if (type == ESCARGOT_MESSAGE_EVAL_8BIT || type == ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_8BIT) {
         str = new Latin1String(data, size);
-    } else if (type == ESCARGOT_MESSAGE_EVAL_16BIT) {
+    } else if (type == ESCARGOT_MESSAGE_EVAL_16BIT || type == ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_16BIT) {
         str = new UTF16String((char16_t*)data, size / 2);
     } else if (type == ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT) {
         char* sourceNameSrc = (char*)memchr(data, '\0', size);
@@ -377,12 +377,17 @@ bool DebuggerRemote::doEval(ExecutionState* state, ByteCodeBlock* byteCodeBlock,
         return false;
     }
 
-    type = ESCARGOT_MESSAGE_EVAL_RESULT_8BIT;
     m_stopState = ESCARGOT_DEBUGGER_IN_EVAL_MODE;
 
     try {
         Value asValue(str);
-        Value result(state->context()->globalObject()->evalLocal(*state, asValue, Value(Value::Undefined), byteCodeBlock->m_codeBlock, true));
+        Value result(Value::ForceUninitialized);
+        if (type == ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_8BIT || type == ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_16BIT) {
+            result = state->context()->globalObject()->eval(*state, asValue);
+        } else {
+            result = state->context()->globalObject()->evalLocal(*state, asValue, state->thisValue(), byteCodeBlock->m_codeBlock, true);
+        }
+        type = ESCARGOT_MESSAGE_EVAL_RESULT_8BIT;
         str = result.toStringWithoutException(*state);
     } catch (const Value& val) {
         type = ESCARGOT_MESSAGE_EVAL_FAILED_8BIT;
@@ -763,23 +768,36 @@ static LexicalEnvironment* getFunctionLexEnv(ExecutionState* state)
     return nullptr;
 }
 
-bool DebuggerRemote::processEvents(ExecutionState* state, ByteCodeBlock* byteCodeBlock)
+bool DebuggerRemote::processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest)
 {
     uint8_t buffer[ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH];
     size_t length;
 
-    while (receive(buffer, length)) {
+    while (true) {
+        if (isBlockingRequest) {
+            if (!receive(buffer, length)) {
+                break;
+            }
+        } else {
+            if (isThereAnyEvent()) {
+                if (!receive(buffer, length)) {
+                    break;
+                }
+            } else {
+                return false;
+            }
+        }
         switch (buffer[0]) {
         case ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START:
         case ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT_START: {
-            if ((length <= 1 + sizeof(uint32_t) || state != nullptr || byteCodeBlock != nullptr)) {
+            if ((length <= 1 + sizeof(uint32_t) || state != nullptr || byteCodeBlock)) {
                 break;
             }
 
             return doEval(state, byteCodeBlock, buffer, length);
         }
         case ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE: {
-            if (length != 1 || state != nullptr || byteCodeBlock != nullptr) {
+            if (length != 1 || state != nullptr || byteCodeBlock) {
                 break;
             }
             return false;
@@ -894,8 +912,16 @@ bool DebuggerRemote::processEvents(ExecutionState* state, ByteCodeBlock* byteCod
             if ((length <= 1 + sizeof(uint32_t)) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
                 break;
             }
-
+            ASSERT(byteCodeBlock.hasValue());
             return doEval(state, byteCodeBlock, buffer, length);
+        }
+        case ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_8BIT_START:
+        case ESCARGOT_MESSAGE_EVAL_WITHOUT_STOP_16BIT_START: {
+            if ((length <= 1 + sizeof(uint32_t)) || (m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE && m_stopState != ESCARGOT_DEBUGGER_ALWAYS_STOP)) {
+                break;
+            }
+            ASSERT(!byteCodeBlock.hasValue());
+            return doEval(state, nullptr, buffer, length);
         }
         case ESCARGOT_MESSAGE_GET_BACKTRACE: {
             if ((length != 1 + sizeof(uint32_t) + sizeof(uint32_t) + 1) || m_stopState != ESCARGOT_DEBUGGER_IN_WAIT_MODE) {
@@ -1044,6 +1070,12 @@ DebuggerRemote::SavedStackTraceDataVector* Debugger::saveStackTrace(ExecutionSta
     }
 
     return savedStackTrace;
+}
+
+void Debugger::pumpDebuggerEvents(ExecutionState* state)
+{
+    while (processEvents(state, nullptr, false))
+        ;
 }
 
 void DebuggerRemote::init(const char*, Context*)

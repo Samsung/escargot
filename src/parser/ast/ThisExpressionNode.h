@@ -34,7 +34,7 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::ThisExpression; }
     virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
-        if (UNLIKELY(context->m_classInfo.m_thisExpressionIndex != REGULAR_REGISTER_LIMIT || codeBlock->m_codeBlock->isClassConstructor())) {
+        if (UNLIKELY(codeBlock->m_codeBlock->isClassConstructor())) {
             return context->getRegister();
         }
         context->pushRegister(REGULAR_REGISTER_LIMIT);
@@ -43,10 +43,6 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        if (UNLIKELY(context->m_classInfo.m_thisExpressionIndex != REGULAR_REGISTER_LIMIT)) {
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), context->m_classInfo.m_thisExpressionIndex, dstRegister), context, this);
-            return;
-        }
         if (UNLIKELY(codeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment())) {
             codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), dstRegister), context, this);
             return;

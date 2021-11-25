@@ -341,6 +341,11 @@ public:
         return m_globalCodeBlock;
     }
 
+    GlobalObject* globalObject()
+    {
+        return m_globalObject;
+    }
+
 private:
     InterpretedCodeBlock* m_globalCodeBlock;
     GlobalObject* m_globalObject;

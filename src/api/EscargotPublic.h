@@ -695,9 +695,13 @@ public:
 
     void throwException(ValueRef* exceptionValue); // if you use this function without Evaluator, your program will crash :(
 
+    // available options(separator is ';')
+    // "--port=6501", default for TCP debugger
     bool initDebugger(const char* options);
     bool isDebuggerRunning();
     void printDebugger(StringRef* output);
+    void pumpDebuggerEvents();
+    void setAsAlwaysStopState();
     StringRef* getClientSource(StringRef** sourceName);
 
     typedef OptionalRef<ValueRef> (*VirtualIdentifierCallback)(ExecutionStateRef* state, ValueRef* name);

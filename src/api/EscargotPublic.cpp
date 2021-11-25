@@ -2236,6 +2236,20 @@ void ContextRef::printDebugger(StringRef* output)
 #endif /* ESCARGOT_DEBUGGER */
 }
 
+void ContextRef::pumpDebuggerEvents()
+{
+#ifdef ESCARGOT_DEBUGGER
+    toImpl(this)->pumpDebuggerEvents();
+#endif /* ESCARGOT_DEBUGGER */
+}
+
+void ContextRef::setAsAlwaysStopState()
+{
+#ifdef ESCARGOT_DEBUGGER
+    toImpl(this)->setAsAlwaysStopState();
+#endif /* ESCARGOT_DEBUGGER */
+}
+
 StringRef* ContextRef::getClientSource(StringRef** sourceName)
 {
 #ifdef ESCARGOT_DEBUGGER

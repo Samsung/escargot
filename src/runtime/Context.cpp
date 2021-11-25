@@ -165,6 +165,30 @@ String* Context::getClientSource(String** sourceName)
     return nullptr;
 }
 
+void Context::setAsAlwaysStopState()
+{
+    if (m_debugger == nullptr) {
+        return;
+    }
+
+    m_debugger->setAsAlwaysStopState();
+}
+
+void Context::pumpDebuggerEvents()
+{
+    if (m_debugger == nullptr) {
+        return;
+    }
+
+    SandBox sb(this);
+    sb.run([](ExecutionState& state, void* d) -> Value {
+        Debugger* debugger = reinterpret_cast<Debugger*>(d);
+        debugger->pumpDebuggerEvents(&state);
+        return Value();
+    },
+           m_debugger);
+}
+
 #endif /* ESCARGOT_DEBUGGER */
 
 GlobalVariableAccessCacheItem* Context::ensureGlobalVariableAccessCacheSlot(AtomicString as)

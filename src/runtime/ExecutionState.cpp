@@ -175,6 +175,36 @@ EnvironmentRecord* ExecutionState::getThisEnvironment()
     }
 }
 
+Value ExecutionState::thisValue()
+{
+    LexicalEnvironment* lex = m_lexicalEnvironment;
+    while (lex) {
+        EnvironmentRecord* envRec = lex->record();
+        if (envRec->hasThisBinding()) {
+            if (envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                auto fnRecord = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+                ScriptFunctionObject* f = fnRecord->functionObject();
+                if (f->codeBlock()->isInterpretedCodeBlock() && f->codeBlock()->asInterpretedCodeBlock()->needsToLoadThisBindingFromEnvironment()) {
+                    return fnRecord->getThisBinding(*this);
+                } else {
+                    return f;
+                }
+            } else if (envRec->isGlobalEnvironmentRecord()) {
+                if (envRec->asGlobalEnvironmentRecord()->globalCodeBlock()->isStrict()) {
+                    return Value();
+                } else {
+                    return envRec->asGlobalEnvironmentRecord()->globalObject();
+                }
+            } else if (envRec->isModuleEnvironmentRecord()) {
+                return Value();
+            }
+        }
+
+        lex = lex->outerEnvironment();
+    }
+    return m_context->globalObject();
+}
+
 Value ExecutionState::makeSuperPropertyReference()
 {
     // Let env be GetThisEnvironment( ).
