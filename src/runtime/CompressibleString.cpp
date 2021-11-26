@@ -35,6 +35,7 @@ void* CompressibleString::operator new(size_t size)
         GC_word obj_bitmap[GC_BITMAP_SIZE(CompressibleString)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CompressibleString, m_bufferData.buffer));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CompressibleString, m_vmInstance));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(CompressibleString, m_compressedData));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(CompressibleString));
         typeInited = true;
     }
@@ -55,7 +56,7 @@ CompressibleString::CompressibleString(VMInstance* instance)
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         CompressibleString* self = (CompressibleString*)obj;
         if (self->isCompressed()) {
-            self->m_compressedData.~CompressedDataVector();
+            self->clearCompressedData();
         } else {
             deallocateStringDataBuffer(const_cast<void*>(self->m_bufferData.buffer), self->m_bufferData.length * (self->m_bufferData.has8BitContent ? 1 : 2));
         }
@@ -144,6 +145,15 @@ void CompressibleString::deallocateStringDataBuffer(void* ptr, size_t byteLength
     GC_FREE(ptr);
 }
 
+void CompressibleString::clearCompressedData()
+{
+    for (size_t i = 0; i < m_compressedData.size(); i++) {
+        GC_FREE(m_compressedData[i].compressedBuffer);
+    }
+
+    m_compressedData.clear();
+}
+
 bool CompressibleString::compress()
 {
     ASSERT(!m_isCompressed);
@@ -203,29 +213,38 @@ bool CompressibleString::compressWorker(void* callerSP)
 #endif
 
     if (testPointerExistsOnStack(start, end, m_bufferData.buffer)) {
+        ESCARGOT_LOG_INFO("Compression Failed due to string usage in stack\n");
         return false;
     }
 
     size_t originByteLength = m_bufferData.length * sizeof(StringType);
     int lastBoundLength = 0;
-    std::unique_ptr<char[]> compBuffer;
+    char* tempBuffer = nullptr;
     for (size_t srcIndex = 0; srcIndex < originByteLength; srcIndex += g_compressChunkSize) {
         int srcSize = (int)std::min(g_compressChunkSize, originByteLength - srcIndex);
         int boundLength = LZ4::LZ4_compressBound(srcSize);
         if (boundLength > lastBoundLength) {
-            compBuffer.reset(new char[boundLength]);
+            GC_FREE(tempBuffer);
+            delete[] tempBuffer;
+            tempBuffer = new char[boundLength];
             lastBoundLength = boundLength;
         }
 
-        int compressedLength = LZ4::LZ4_compress_default(m_bufferData.bufferAs8Bit + srcIndex, (char*)compBuffer.get(), srcSize, boundLength);
+        int compressedLength = LZ4::LZ4_compress_default(m_bufferData.bufferAs8Bit + srcIndex, (char*)tempBuffer, srcSize, boundLength);
         if (!compressedLength) {
             // compression fail
+            ESCARGOT_LOG_INFO("Compression Failed\n");
+            delete[] tempBuffer;
             return false;
         }
 
         ASSERT(compressedLength > 0);
-        m_compressedData.push_back(std::vector<char>(compBuffer.get(), compBuffer.get() + compressedLength));
+        char* compBuffer = reinterpret_cast<char*>(GC_MALLOC_ATOMIC(compressedLength));
+        memcpy(compBuffer, tempBuffer, compressedLength);
+        m_compressedData.push_back(CompressedElement(compBuffer, compressedLength));
     }
+
+    delete[] tempBuffer;
 
     m_vmInstance->compressibleStringsUncomressedBufferSize() -= decomressedBufferSize();
 
@@ -260,7 +279,7 @@ void CompressibleString::decompressWorker()
     for (size_t srcIndex = 0, bufIndex = 0; srcIndex < originByteLength; srcIndex += g_compressChunkSize, bufIndex++) {
         int srcSize = (int)std::min(g_compressChunkSize, originByteLength - srcIndex);
 
-        int decompressedLength = LZ4::LZ4_decompress_safe(m_compressedData[bufIndex].data(), dstBuffer + dstIndex, m_compressedData[bufIndex].size(), srcSize);
+        int decompressedLength = LZ4::LZ4_decompress_safe(m_compressedData[bufIndex].compressedBuffer, dstBuffer + dstIndex, m_compressedData[bufIndex].compressedLength, srcSize);
         if (!decompressedLength) {
             // decompress fail
             RELEASE_ASSERT_NOT_REACHED();
@@ -269,7 +288,7 @@ void CompressibleString::decompressWorker()
         dstIndex += srcSize;
     }
 
-    CompressedDataVector().swap(m_compressedData);
+    clearCompressedData();
 
     m_bufferData.bufferAs8Bit = const_cast<const char*>(dstBuffer);
     m_isCompressed = false;

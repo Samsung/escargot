@@ -28,6 +28,17 @@ namespace Escargot {
 
 class VMInstance;
 
+struct CompressedElement {
+    CompressedElement(char* buffer, size_t length)
+        : compressedBuffer(buffer)
+        , compressedLength(length)
+    {
+    }
+
+    char* compressedBuffer;
+    size_t compressedLength;
+};
+
 class CompressibleString : public String {
     friend class VMInstance;
 
@@ -81,6 +92,7 @@ public:
 
     static void* allocateStringDataBuffer(size_t byteLength);
     static void deallocateStringDataBuffer(void* ptr, size_t byteLength);
+    void clearCompressedData();
 
     bool compress();
     void decompress();
@@ -108,7 +120,7 @@ private:
     bool m_isCompressed;
     VMInstance* m_vmInstance;
     uint64_t m_lastUsedTickcount;
-    typedef std::vector<std::vector<char>> CompressedDataVector;
+    typedef Vector<CompressedElement, GCUtil::gc_malloc_allocator<CompressedElement>> CompressedDataVector;
     CompressedDataVector m_compressedData;
 };
 } // namespace Escargot
