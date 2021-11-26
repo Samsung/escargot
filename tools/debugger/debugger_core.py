@@ -634,11 +634,13 @@ class Debugger(object):
         elif args == 'all':
                 self.delete_active()
                 self.delete_pending()
+                return ""
         elif args == "pending":
                 self.delete_pending()
+                return ""
         elif args == "active":
                 self.delete_active()
-        return ""
+                return ""
 
         try:
             breakpoint_index = int(args)
