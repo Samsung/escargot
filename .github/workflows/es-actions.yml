@@ -105,6 +105,9 @@ jobs:
           # exclude spidermonkey on threading-enabled build (TODO)
           - tc: 'v8 chakracore spidermonkey'
             build_opt: '-DESCARGOT_THREADING=ON'
+          # exclue octane due to low performance incurred by SMALL_CONFIG
+          - tc: 'octane'
+            build_opt: '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_USE_CUSTOM_LOGGING=ON'
     steps:
     - uses: actions/checkout@v2
       with:
