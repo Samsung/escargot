@@ -145,6 +145,8 @@ def arguments_parse():
                         help="set exception config, usage 1: [Enable] or 0: [Disable]")
     parser.add_argument("--client-source", action="store", default=[], type=str, nargs="+",
                         help="specify a javascript source file to execute")
+    parser.add_argument("--command", action="store", default=[], type=str, nargs="+",
+                        help="set commands to run at the start of the debugger")
     args = parser.parse_args()
 
     if args.verbose:
