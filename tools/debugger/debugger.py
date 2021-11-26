@@ -260,6 +260,23 @@ def main():
     if args.client_source:
         debugger.store_client_sources(args.client_source)
 
+    if args.command:
+        commands = args.command[0].split(";")
+        i = 0
+        while i < len(commands):
+            result = debugger.process_messages()
+            res_type = result.get_type()
+
+            if res_type == result.END:
+                return
+            elif res_type == result.PROMPT:
+                write(commands[i] + "\n")
+                prompt.onecmd(commands[i] + "\n")
+                i += 1
+            elif res_type == result.TEXT:
+                write(result.get_text())
+            continue
+
     while True:
         if prompt.quit:
             break
