@@ -34,6 +34,7 @@ SpinLock Global::g_atomicsLock;
 std::mutex Global::g_waiterMutex;
 std::vector<Global::Waiter*> Global::g_waiter;
 #endif
+Global::HeapProfile* Global::g_heapProfile;
 
 void Global::initialize(Platform* platform)
 {
@@ -50,6 +51,8 @@ void Global::initialize(Platform* platform)
     PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject().getTag();
     PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getTag();
     PointerValue::g_doubleInEncodedValueTag = DoubleInEncodedValue(0).getTag();
+
+    g_heapProfile = new HeapProfile();
 
     called_once = false;
     inited = true;
@@ -72,6 +75,9 @@ void Global::finalize()
     delete g_platform;
     g_platform = nullptr;
 
+    g_heapProfile->printResult();
+    delete g_heapProfile;
+
     called_once = false;
     inited = false;
 }
@@ -80,6 +86,19 @@ Platform* Global::platform()
 {
     ASSERT(inited && !!g_platform);
     return g_platform;
+}
+
+void Global::HeapProfile::printResult()
+{
+    ESCARGOT_LOG_INFO("=== HeapProfile Result ===\n");
+    ESCARGOT_LOG_INFO("GC_Count: %lu\nComp_Count: %lu\nDecomp_Count: %lu\n", gcCount, compCount, decompCount);
+    ESCARGOT_LOG_INFO("GC_Time: %lu\nComp_Time: %lu\nDecomp_Time: %lu\nComp_Stack_Search_Time: %lu\n", gcTime, compTime, decompTime, compStackSearchTime);
+}
+
+Global::HeapProfile* Global::heapProfile()
+{
+    ASSERT(inited && !!g_heapProfile);
+    return g_heapProfile;
 }
 
 #if defined(ENABLE_THREADING)

@@ -23,6 +23,7 @@
 #include "CompressibleString.h"
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
+#include "runtime/Global.h"
 #include "lz4.h"
 
 namespace Escargot {
@@ -180,6 +181,8 @@ void CompressibleString::decompress()
     } else {
         decompressWorker<char16_t>();
     }
+
+    Global::increaseHeapProfileDecompCount();
 }
 
 constexpr static const size_t g_compressChunkSize = 1044465;
@@ -262,6 +265,7 @@ bool CompressibleString::compressWorker(void* callerSP)
     ESCARGOT_LOG_INFO("CompressibleString::compressWorker %fKB -> %fKB\n", originByteLength / 1024.f, compressedSize / 1024.f);
     */
 
+    Global::increaseHeapProfileCompCount();
     return true;
 }
 

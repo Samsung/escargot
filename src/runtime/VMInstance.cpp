@@ -206,6 +206,7 @@ void* VMInstance::operator new(size_t size)
 void vmMarkStartCallback(void* data)
 {
     VMInstance* self = (VMInstance*)data;
+    Global::increaseHeapProfileGCCount();
 
 #ifdef ESCARGOT_DEBUGGER
     if (!self->m_debuggerEnabled) {
@@ -265,6 +266,9 @@ void vmReclaimEndCallback(void* data)
             }
         }
     }
+
+    // disabled in default due to massive logs
+    //ESCARGOT_LOG_INFO("Heap After GC: %f MB\n", GC_get_heap_size() / 1024.f / 1024.f);
 
     /*
     if (t == GC_EventType::GC_EVENT_RECLAIM_END) {

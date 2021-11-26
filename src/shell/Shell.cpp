@@ -719,6 +719,8 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
         return false;
     }
 
+    printf("Heap After Run: %f MB\n", Memory::heapSize() / 1024.f / 1024.f);
+
     if (shouldPrintScriptResult) {
         puts(evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
     }
@@ -1024,6 +1026,7 @@ int main(int argc, char* argv[])
             if (!evalScript(context, src, StringRef::createFromUTF8(fileName.data(), fileName.length()), false, seenModule)) {
                 return 3;
             }
+
             seenModule = false;
             fileName.clear();
         } else {

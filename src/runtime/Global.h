@@ -68,6 +68,41 @@ public:
     static std::vector<Waiter*> g_waiter;
     static Waiter* waiter(void* blockAddress);
 #endif
+
+    struct HeapProfile {
+        HeapProfile()
+            : gcCount(0)
+            , compCount(0)
+            , decompCount(0)
+            , gcTime(0)
+            , compTime(0)
+            , decompTime(0)
+            , compStackSearchTime(0)
+        {
+        }
+
+        size_t gcCount;
+        size_t compCount;
+        size_t decompCount;
+        uint64_t gcTime;
+        uint64_t compTime;
+        uint64_t decompTime;
+        uint64_t compStackSearchTime;
+
+        void printResult();
+    };
+
+    static HeapProfile* g_heapProfile;
+    static HeapProfile* heapProfile();
+
+    // Heap Profile Functions
+    static void increaseHeapProfileGCCount() { g_heapProfile->gcCount++; }
+    static void increaseHeapProfileCompCount() { g_heapProfile->compCount++; }
+    static void increaseHeapProfileDecompCount() { g_heapProfile->decompCount++; }
+    static void addHeapProfileGCTime(uint64_t time) { g_heapProfile->gcTime += time; }
+    static void addHeapProfileCompTime(uint64_t time) { g_heapProfile->compTime += time; }
+    static void addHeapProfileDecompTime(uint64_t time) { g_heapProfile->decompTime += time; }
+    static void addHeapProfileCompStackSearchTime(uint64_t time) { g_heapProfile->compStackSearchTime += time; }
 };
 
 } // namespace Escargot
