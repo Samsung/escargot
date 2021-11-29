@@ -46,6 +46,9 @@ class InterpretedCodeBlock;
 
 class Debugger : public gc {
 public:
+    // The following code is the sam as in EscargotPublic.h
+    class WeakCodeRef;
+
     struct BreakpointLocation {
         BreakpointLocation(uint32_t line, uint32_t offset)
             : line(line)
@@ -57,18 +60,21 @@ public:
         uint32_t offset;
     };
 
-    typedef Vector<BreakpointLocation, GCUtil::gc_malloc_atomic_allocator<BreakpointLocation>> BreakpointLocationVector;
+    typedef std::vector<BreakpointLocation> BreakpointLocationVector;
 
-    struct CodeBlockData : public gc {
-        InterpretedCodeBlock* codeBlock;
-        BreakpointLocationVector* breakpointLocations;
-
-        CodeBlockData(InterpretedCodeBlock* codeBlock, BreakpointLocationVector* breakpointLocations)
-            : codeBlock(codeBlock)
-            , breakpointLocations(breakpointLocations)
+    struct BreakpointLocationsInfo {
+        BreakpointLocationsInfo(WeakCodeRef* weakCodeRef)
+            : weakCodeRef(weakCodeRef)
         {
         }
+
+        // The codeRef is a unique id which is not garbage collected
+        // to avoid keeping script / function code in the memory.
+        WeakCodeRef* weakCodeRef;
+        BreakpointLocationVector breakpointLocations;
     };
+
+    // End of the code from EscargotPublic.h
 
     struct SavedStackTraceData : public gc {
         ByteCodeBlock* byteCodeBlock;
@@ -95,14 +101,14 @@ public:
         m_parsingEnabled = value;
     }
 
-    void appendBreakpointLocations(InterpretedCodeBlock* codeBlock, BreakpointLocationVector* breakpointLocations)
+    void appendBreakpointLocations(BreakpointLocationsInfo* breakpointLocations)
     {
-        m_codeBlockData.push_back(CodeBlockData(codeBlock, breakpointLocations));
+        m_breakpointLocationsVector.push_back(breakpointLocations);
     }
 
     void clearParsingData()
     {
-        m_codeBlockData.clear();
+        m_breakpointLocationsVector.clear();
     }
 
     void setActiveSavedStackTrace(ExecutionState* state, SavedStackTraceDataVector* trace)
@@ -148,11 +154,11 @@ public:
         m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
     }
 
-    static void createDebugger(const char* options, Context* context);
+    static void createDebuggerRemote(const char* options, Context* context);
 
-    virtual void endParsing(String* source, String* srcName, String* error = nullptr) = 0;
+    virtual void parseCompleted(String* source, String* srcName, String* error = nullptr) = 0;
     virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) = 0;
-    virtual void byteCodeReleaseNotification(const void* ptr) = 0;
+    virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) = 0;
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) = 0;
     virtual void consoleOut(String* output) = 0;
     virtual String* getClientSource(String** sourceName) = 0;
@@ -180,12 +186,11 @@ protected:
     void enableDebugger(Context* context);
     void disableDebugger();
 
-    virtual void init(const char* options, Context* context) = 0;
     virtual bool processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest = true) = 0;
 
     uint32_t m_delay;
     ExecutionState* m_stopState;
-    Vector<CodeBlockData, GCUtil::gc_malloc_allocator<CodeBlockData>> m_codeBlockData;
+    std::vector<BreakpointLocationsInfo*> m_breakpointLocationsVector;
 
 private:
     bool m_parsingEnabled : 1;
@@ -329,9 +334,10 @@ public:
     void sendString(uint8_t type, String* string);
     void sendPointer(uint8_t type, const void* ptr);
 
-    virtual void endParsing(String* source, String* srcName, String* error = nullptr) override;
+    virtual void init(const char* options, Context* context) = 0;
+    virtual void parseCompleted(String* source, String* srcName, String* error = nullptr) override;
     virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
-    virtual void byteCodeReleaseNotification(const void* ptr) override;
+    virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) override;
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
     virtual void consoleOut(String* output) override;
     virtual String* getClientSource(String** sourceName) override;
@@ -349,7 +355,6 @@ protected:
     {
     }
 
-    virtual void init(const char* options, Context* context) override;
     virtual bool processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest = true) override;
 
     virtual bool send(uint8_t type, const void* buffer, size_t length) = 0;
@@ -406,7 +411,6 @@ private:
     Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
     Vector<Object*, GCUtil::gc_malloc_allocator<Object*>> m_activeObjects;
 };
-
 
 } // namespace Escargot
 #endif /* ESCARGOT_DEBUGGER */

@@ -53,16 +53,20 @@ struct ClassContextInformation {
 #ifdef ESCARGOT_DEBUGGER
 struct ByteCodeBreakpointContext {
     bool m_parsingEnabled;
-    size_t m_breakpointLineOffset; // cache breakpoint's calculated line offset
-    size_t m_breakpointIndexOffset; // cache breakpoint's calculated index offset
-    Debugger::BreakpointLocationVector* m_breakpointLocations;
+    size_t m_lastBreakpointLineOffset; // cache breakpoint's calculated line offset
+    size_t m_lastBreakpointIndexOffset; // cache breakpoint's calculated index offset
+    Debugger::BreakpointLocationsInfo* m_breakpointLocations;
 
-    ByteCodeBreakpointContext(bool parsingEnabled)
-        : m_parsingEnabled(parsingEnabled)
-        , m_breakpointLineOffset(0)
-        , m_breakpointIndexOffset(0)
-        , m_breakpointLocations(new Debugger::BreakpointLocationVector())
+    ByteCodeBreakpointContext(Debugger* debugger, InterpretedCodeBlock* codeBlock)
+        : m_parsingEnabled(debugger != nullptr && debugger->parsingEnabled())
+        , m_lastBreakpointLineOffset(0)
+        , m_lastBreakpointIndexOffset(0)
+        , m_breakpointLocations()
     {
+        if (m_parsingEnabled) {
+            m_breakpointLocations = new Debugger::BreakpointLocationsInfo(reinterpret_cast<Debugger::WeakCodeRef*>(codeBlock));
+            debugger->appendBreakpointLocations(m_breakpointLocations);
+        }
     }
 };
 #endif /* ESCARGOT_DEBUGGER */

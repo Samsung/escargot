@@ -96,7 +96,7 @@ void DebuggerRemote::sendPointer(uint8_t type, const void* ptr)
     send(type, (void*)&ptr, sizeof(void*));
 }
 
-void DebuggerRemote::endParsing(String* source, String* srcName, String* error)
+void DebuggerRemote::parseCompleted(String* source, String* srcName, String* error)
 {
     if (!enabled()) {
         return;
@@ -123,13 +123,13 @@ void DebuggerRemote::endParsing(String* source, String* srcName, String* error)
         return;
     }
 
-    size_t codeBlockDataSize = m_codeBlockData.size();
+    size_t breakpointLocationsSize = m_breakpointLocationsVector.size();
 
-    for (size_t i = 0; i < codeBlockDataSize; i++) {
+    for (size_t i = 0; i < breakpointLocationsSize; i++) {
         /* Send breakpoint locations. */
         const size_t maxPacketLength = (ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH - 1) / sizeof(BreakpointLocation);
-        BreakpointLocation* ptr = m_codeBlockData[i].breakpointLocations->data();
-        size_t length = m_codeBlockData[i].breakpointLocations->size();
+        BreakpointLocation* ptr = m_breakpointLocationsVector[i]->breakpointLocations.data();
+        size_t length = m_breakpointLocationsVector[i]->breakpointLocations.size();
 
         while (length > maxPacketLength) {
             if (!send(ESCARGOT_MESSAGE_BREAKPOINT_LOCATION, ptr, maxPacketLength * sizeof(BreakpointLocation))) {
@@ -143,7 +143,7 @@ void DebuggerRemote::endParsing(String* source, String* srcName, String* error)
             return;
         }
 
-        InterpretedCodeBlock* codeBlock = m_codeBlockData[i].codeBlock;
+        InterpretedCodeBlock* codeBlock = reinterpret_cast<InterpretedCodeBlock*>(m_breakpointLocationsVector[i]->weakCodeRef);
         String* functionName = codeBlock->functionName().string();
 
         /* Send function name. */
@@ -246,12 +246,12 @@ void DebuggerRemote::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t off
     m_delay = ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY;
 }
 
-void DebuggerRemote::byteCodeReleaseNotification(const void* ptr)
+void DebuggerRemote::byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock)
 {
     // All messages which involves this pointer should be ignored until the confirmation arrives.
     if (enabled()) {
-        m_releasedFunctions.push_back(reinterpret_cast<uintptr_t>(ptr));
-        sendPointer(ESCARGOT_MESSAGE_RELEASE_FUNCTION, ptr);
+        m_releasedFunctions.push_back(reinterpret_cast<uintptr_t>(byteCodeBlock));
+        sendPointer(ESCARGOT_MESSAGE_RELEASE_FUNCTION, byteCodeBlock);
     }
 }
 
@@ -1105,9 +1105,9 @@ void DebuggerRemote::init(const char*, Context*)
     send(ESCARGOT_MESSAGE_CONFIGURATION, &configuration, sizeof(configuration));
 }
 
-void Debugger::createDebugger(const char* options, Context* context)
+void Debugger::createDebuggerRemote(const char* options, Context* context)
 {
-    Debugger* debugger = new DebuggerTcp();
+    DebuggerRemote* debugger = new DebuggerTcp();
 
     debugger->init(options, context);
 }

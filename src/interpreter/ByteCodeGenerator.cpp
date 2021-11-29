@@ -99,12 +99,12 @@ void ByteCodeGenerateContext::calculateBreakpointLocation(size_t index, Extended
 {
     ASSERT(index >= sourceElementStart.index);
     const size_t indexOffset = index - sourceElementStart.index;
-    size_t lineOffset = m_breakpointContext->m_breakpointLineOffset;
-    ASSERT(indexOffset >= m_breakpointContext->m_breakpointIndexOffset);
+    size_t lineOffset = m_breakpointContext->m_lastBreakpointLineOffset;
+    ASSERT(indexOffset >= m_breakpointContext->m_lastBreakpointIndexOffset);
 
     // calculate the current breakpoint's location based on the last breakpoint's location
     StringView src = m_codeBlock->src();
-    for (size_t i = m_breakpointContext->m_breakpointIndexOffset; i < indexOffset; i++) {
+    for (size_t i = m_breakpointContext->m_lastBreakpointIndexOffset; i < indexOffset; i++) {
         char16_t c = src.charAt(i);
         if (EscargotLexer::isLineTerminator(c)) {
             // skip \r\n
@@ -116,8 +116,8 @@ void ByteCodeGenerateContext::calculateBreakpointLocation(size_t index, Extended
     }
 
     // cache the current breakpoint's calculated location (offset)
-    m_breakpointContext->m_breakpointIndexOffset = indexOffset;
-    m_breakpointContext->m_breakpointLineOffset = lineOffset;
+    m_breakpointContext->m_lastBreakpointIndexOffset = indexOffset;
+    m_breakpointContext->m_lastBreakpointLineOffset = lineOffset;
 }
 
 void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
@@ -126,36 +126,36 @@ void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
     ASSERT(index != SIZE_MAX);
 
     // do not insert any breakpoint when handling dynamically created function
-    if (UNLIKELY(m_codeBlock->hasDynamicSourceCode())) {
+    if (UNLIKELY(m_codeBlock->hasDynamicSourceCode() || !m_breakpointContext->m_parsingEnabled)) {
         return;
     }
 
     // handle eval code
     // insert one break point only at the start with line 1
     if (UNLIKELY(m_isEvalCode)) {
-        if (m_breakpointContext->m_breakpointLocations->size() == 0) {
+        if (m_breakpointContext->m_breakpointLocations->breakpointLocations.size() == 0) {
             insertBreakpointAt(1, node);
         }
         return;
     }
 
     // previous breakpoint's line offset
-    size_t lastLineOffset = m_breakpointContext->m_breakpointLineOffset;
+    size_t lastLineOffset = m_breakpointContext->m_lastBreakpointLineOffset;
     ExtendedNodeLOC sourceElementStart = m_codeBlock->functionStart();
     calculateBreakpointLocation(index, sourceElementStart);
 
     // insert a breakpoint if its the first breakpoint insertion or
     // there was no breakpoint insertion with the same lineoffset
-    if ((m_breakpointContext->m_breakpointLocations->size() == 0) || (lastLineOffset != m_breakpointContext->m_breakpointLineOffset)) {
-        ASSERT(lastLineOffset <= m_breakpointContext->m_breakpointLineOffset);
-        insertBreakpointAt(m_breakpointContext->m_breakpointLineOffset + sourceElementStart.line, node);
+    if ((m_breakpointContext->m_breakpointLocations->breakpointLocations.size() == 0) || (lastLineOffset != m_breakpointContext->m_lastBreakpointLineOffset)) {
+        ASSERT(lastLineOffset <= m_breakpointContext->m_lastBreakpointLineOffset);
+        insertBreakpointAt(m_breakpointContext->m_lastBreakpointLineOffset + sourceElementStart.line, node);
     }
 }
 
 void ByteCodeGenerateContext::insertBreakpointAt(size_t line, Node* node)
 {
     if (m_breakpointContext->m_parsingEnabled) {
-        m_breakpointContext->m_breakpointLocations->push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
+        m_breakpointContext->m_breakpointLocations->breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
         m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
     }
 }
@@ -204,18 +204,12 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
     ByteCodeGenerateContext ctx(codeBlock, block, codeBlock->isGlobalScope(), codeBlock->isEvalCode(), inWithFromRuntime || codeBlock->inWith(), nData);
 
 #ifdef ESCARGOT_DEBUGGER
-    ByteCodeBreakpointContext breakpointContext(context->debugger() && context->debugger()->parsingEnabled());
+    ByteCodeBreakpointContext breakpointContext(context->debugger(), codeBlock);
     ctx.m_breakpointContext = &breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */
 
     // generate bytecode
     ast->generateStatementByteCode(block, &ctx);
-
-#ifdef ESCARGOT_DEBUGGER
-    if (breakpointContext.m_parsingEnabled && context->debugger() != nullptr) {
-        context->debugger()->appendBreakpointLocations(codeBlock, breakpointContext.m_breakpointLocations);
-    }
-#endif /* ESCARGOT_DEBUGGER */
 
     if (ctx.m_keepNumberalLiteralsInRegisterFile) {
         block->m_numeralLiteralData.resizeWithUninitializedValues(nData->size());
@@ -280,7 +274,7 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
     ctx.m_locData = locData;
 
 #ifdef ESCARGOT_DEBUGGER
-    ByteCodeBreakpointContext breakpointContext(context->debugger() && context->debugger()->parsingEnabled());
+    ByteCodeBreakpointContext breakpointContext(context->debugger(), codeBlock);
     ctx.m_breakpointContext = &breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */
 

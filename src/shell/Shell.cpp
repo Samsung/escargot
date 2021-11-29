@@ -972,7 +972,7 @@ int main(int argc, char* argv[])
                     continue;
                 }
                 if (strcmp(argv[i], "--start-debug-server") == 0) {
-                    context->initDebugger(nullptr);
+                    context->initDebuggerRemote(nullptr);
                     continue;
                 }
                 if (strcmp(argv[i], "--debugger-wait-source") == 0) {

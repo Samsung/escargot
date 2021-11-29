@@ -119,7 +119,7 @@ static void clearByteCodeBlock(ByteCodeBlock* self)
 #ifdef ESCARGOT_DEBUGGER
     Debugger* debugger = self->m_codeBlock->context()->debugger();
     if (debugger != nullptr) {
-        debugger->byteCodeReleaseNotification(self->m_code.data());
+        debugger->byteCodeReleaseNotification(self);
     }
 #endif
     self->m_code.clear();
