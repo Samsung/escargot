@@ -1144,6 +1144,92 @@ Evaluator::EvaluatorResult VMInstanceRef::executePendingJob()
     return toEvaluatorResultRef(result);
 }
 
+#ifdef ESCARGOT_DEBUGGER
+
+class DebuggerC : public Debugger {
+public:
+    virtual void parseCompleted(String* source, String* srcName, String* error = nullptr) override;
+    virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
+    virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) override;
+    virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
+    virtual void consoleOut(String* output) override;
+    virtual String* getClientSource(String** sourceName) override;
+
+    DebuggerC(DebuggerOperationsRef::DebuggerClient* debuggerClient, Context* context)
+        : m_debuggerClient(debuggerClient)
+    {
+        enableDebugger(context);
+    }
+
+protected:
+    virtual bool processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest = true) override;
+
+private:
+    DebuggerOperationsRef::DebuggerClient* m_debuggerClient;
+};
+
+void DebuggerC::parseCompleted(String* source, String* srcName, String* error)
+{
+    if (error != nullptr) {
+        m_debuggerClient->parseError(toRef(source), toRef(srcName), toRef(error));
+        return;
+    }
+
+    size_t breakpointLocationsSize = m_breakpointLocationsVector.size();
+
+    for (size_t i = 0; i < breakpointLocationsSize; i++) {
+        InterpretedCodeBlock* codeBlock = reinterpret_cast<InterpretedCodeBlock*>(m_breakpointLocationsVector[i]->weakCodeRef);
+
+        m_breakpointLocationsVector[i]->weakCodeRef = reinterpret_cast<Debugger::WeakCodeRef*>(codeBlock->byteCodeBlock());
+    }
+
+    // Same structure, but the definition is duplicated.
+    std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>* info = reinterpret_cast<std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>*>(&m_breakpointLocationsVector);
+
+    m_debuggerClient->parseCompleted(toRef(source), toRef(srcName), *info);
+}
+
+void DebuggerC::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
+{
+    UNUSED_PARAMETER(byteCodeBlock);
+    UNUSED_PARAMETER(offset);
+    UNUSED_PARAMETER(state);
+}
+
+void DebuggerC::byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock)
+{
+    m_debuggerClient->codeReleased(reinterpret_cast<DebuggerOperationsRef::WeakCodeRef*>(byteCodeBlock));
+}
+
+void DebuggerC::exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace)
+{
+    UNUSED_PARAMETER(message);
+    UNUSED_PARAMETER(exceptionTrace);
+}
+
+void DebuggerC::consoleOut(String* output)
+{
+    UNUSED_PARAMETER(output);
+}
+
+String* DebuggerC::getClientSource(String** sourceName)
+{
+    UNUSED_PARAMETER(sourceName);
+
+    return nullptr;
+}
+
+bool DebuggerC::processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest)
+{
+    UNUSED_PARAMETER(state);
+    UNUSED_PARAMETER(byteCodeBlock);
+    UNUSED_PARAMETER(isBlockingRequest);
+
+    return false;
+}
+
+#endif /* ESCARGOT_DEBUGGER */
+
 PersistentRefHolder<ContextRef> ContextRef::create(VMInstanceRef* vminstanceref)
 {
     VMInstance* vminstance = toImpl(vminstanceref);
@@ -2210,10 +2296,26 @@ void ContextRef::throwException(ValueRef* exceptionValue)
     toImpl(this)->throwException(s, toImpl(exceptionValue));
 }
 
-bool ContextRef::initDebugger(const char* options)
+bool ContextRef::initDebugger(DebuggerOperationsRef::DebuggerClient* debuggerClient)
 {
 #ifdef ESCARGOT_DEBUGGER
-    return toImpl(this)->initDebugger(options);
+    Context* context = toImpl(this);
+
+    if (debuggerClient == nullptr || context->debugger() != nullptr) {
+        return false;
+    }
+
+    new DebuggerC(debuggerClient, context);
+    return true;
+#else /* !ESCARGOT_DEBUGGER */
+    return false;
+#endif /* ESCARGOT_DEBUGGER */
+}
+
+bool ContextRef::initDebuggerRemote(const char* options)
+{
+#ifdef ESCARGOT_DEBUGGER
+    return toImpl(this)->initDebuggerRemote(options);
 #else /* !ESCARGOT_DEBUGGER */
     return false;
 #endif /* ESCARGOT_DEBUGGER */

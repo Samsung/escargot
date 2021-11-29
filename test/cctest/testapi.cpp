@@ -2145,3 +2145,67 @@ TEST(ReloadableString, Basic)
     },
                        string, &d);
 }
+
+class DebuggerTest : public DebuggerOperationsRef::DebuggerClient {
+public:
+    virtual void parseCompleted(StringRef* source, StringRef* srcName, std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>& breakpointLocationsVector) override;
+    virtual void parseError(StringRef* source, StringRef* srcName, StringRef* error) override;
+    virtual void codeReleased(DebuggerOperationsRef::WeakCodeRef* weakCodeRef) override;
+};
+
+static int debuggerParseCompletedCount = 0;
+static int debuggerParseErrorCount = 0;
+static char debuggerFileNameString[] = "test.js";
+static char debuggerSourceString1[] = "var a = 1;\n"
+                                      "function f() {}\n";
+static char debuggerSourceString2[] = "var a = ;";
+
+void DebuggerTest::parseCompleted(StringRef* source, StringRef* srcName, std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>& breakpointLocationsVector)
+{
+    EXPECT_TRUE(source->equalsWithASCIIString(debuggerSourceString1, sizeof(debuggerSourceString1) - 1));
+    EXPECT_TRUE(srcName->equalsWithASCIIString(debuggerFileNameString, sizeof(debuggerFileNameString) - 1));
+    EXPECT_EQ(breakpointLocationsVector.size(), 2);
+
+    debuggerParseCompletedCount++;
+}
+
+void DebuggerTest::parseError(StringRef* source, StringRef* srcName, StringRef* error)
+{
+    EXPECT_TRUE(source->equalsWithASCIIString(debuggerSourceString2, sizeof(debuggerSourceString2) - 1));
+    EXPECT_TRUE(srcName->equalsWithASCIIString(debuggerFileNameString, sizeof(debuggerFileNameString) - 1));
+
+    static char errorString[] = "Line 1: Unexpected token ;";
+    EXPECT_TRUE(error->equalsWithASCIIString(errorString, sizeof(errorString) - 1));
+
+    debuggerParseErrorCount++;
+}
+
+void DebuggerTest::codeReleased(DebuggerOperationsRef::WeakCodeRef* weakCodeRef)
+{
+    EXPECT_TRUE(weakCodeRef != nullptr);
+}
+
+TEST(Debugger, Basic)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+    DebuggerTest* debuggerTest = new DebuggerTest();
+    StringRef* fileName = StringRef::createFromUTF8(debuggerFileNameString, sizeof(debuggerFileNameString) - 1);
+
+    context->initDebugger(debuggerTest);
+
+    StringRef* source = StringRef::createFromUTF8(debuggerSourceString1, sizeof(debuggerSourceString1) - 1);
+    evalScript(context, source, fileName, false);
+
+    EXPECT_EQ(debuggerParseCompletedCount, 1);
+    EXPECT_EQ(debuggerParseErrorCount, 0);
+
+    source = StringRef::createFromUTF8(debuggerSourceString2, sizeof(debuggerSourceString2) - 1);
+    evalScript(context, source, fileName, false);
+
+    EXPECT_EQ(debuggerParseCompletedCount, 1);
+    EXPECT_EQ(debuggerParseErrorCount, 1);
+
+    context.release();
+    instance.release();
+}

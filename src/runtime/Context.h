@@ -317,7 +317,7 @@ public:
         return m_debugger;
     }
 
-    bool initDebugger(const char* options);
+    bool initDebuggerRemote(const char* options);
     void enableDebugger(Debugger* debugger);
     void disableDebugger();
     void printDebugger(StringView* output);

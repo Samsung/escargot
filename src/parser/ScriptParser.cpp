@@ -610,7 +610,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         m_context->astAllocator().reset();
 
         if (m_context->debugger() != nullptr) {
-            m_context->debugger()->endParsing(source, srcName, orgError->message);
+            m_context->debugger()->parseCompleted(source, srcName, orgError->message);
         }
 
         GC_enable();
@@ -643,7 +643,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
     if (debugger != nullptr) {
         recursivelyGenerateChildrenByteCode(topCodeBlock);
 
-        debugger->endParsing(source, srcName);
+        debugger->parseCompleted(source, srcName);
         debugger->clearParsingData();
     }
 

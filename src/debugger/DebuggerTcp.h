@@ -42,12 +42,13 @@ public:
     {
     }
 
+    virtual void init(const char* options, Context* context) override;
+
     static void computeSha1(const uint8_t* source1, size_t source1Length,
                             const uint8_t* source2, size_t source2Length,
                             uint8_t destination[20]);
 
 protected:
-    virtual void init(const char* options, Context* context) override;
     virtual bool send(uint8_t type, const void* buffer, size_t length) override;
     virtual bool receive(uint8_t* buffer, size_t& length) override;
     virtual bool isThereAnyEvent() override;

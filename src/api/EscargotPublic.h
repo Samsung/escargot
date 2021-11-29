@@ -679,6 +679,44 @@ public:
     Evaluator::EvaluatorResult executePendingJob();
 };
 
+class ESCARGOT_EXPORT DebuggerOperationsRef {
+public:
+    class WeakCodeRef;
+
+    struct BreakpointLocation {
+        BreakpointLocation(uint32_t line, uint32_t offset)
+            : line(line)
+            , offset(offset)
+        {
+        }
+
+        uint32_t line;
+        uint32_t offset;
+    };
+
+    typedef std::vector<BreakpointLocation> BreakpointLocationVector;
+
+    struct BreakpointLocationsInfo {
+        BreakpointLocationsInfo(WeakCodeRef* weakCodeRef)
+            : weakCodeRef(weakCodeRef)
+        {
+        }
+
+        // The codeRef is a unique id which is not garbage collected
+        // to avoid keeping script / function code in the memory.
+        WeakCodeRef* weakCodeRef;
+        BreakpointLocationVector breakpointLocations;
+    };
+
+    // Base class for debugger callbacks
+    class DebuggerClient {
+    public:
+        virtual void parseCompleted(StringRef* source, StringRef* srcName, std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>& breakpointLocationsVector) = 0;
+        virtual void parseError(StringRef* source, StringRef* srcName, StringRef* error) = 0;
+        virtual void codeReleased(WeakCodeRef* weakCodeRef) = 0;
+    };
+};
+
 class ESCARGOT_EXPORT ContextRef {
 public:
     static PersistentRefHolder<ContextRef> create(VMInstanceRef* vmInstance);
@@ -695,9 +733,10 @@ public:
 
     void throwException(ValueRef* exceptionValue); // if you use this function without Evaluator, your program will crash :(
 
+    bool initDebugger(DebuggerOperationsRef::DebuggerClient* debuggerClient);
     // available options(separator is ';')
     // "--port=6501", default for TCP debugger
-    bool initDebugger(const char* options);
+    bool initDebuggerRemote(const char* options);
     bool isDebuggerRunning();
     void printDebugger(StringRef* output);
     void pumpDebuggerEvents();
