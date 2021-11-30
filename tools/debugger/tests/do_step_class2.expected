@@ -29,7 +29,7 @@ Stopped at tools/debugger/tests/do_step_class2.js:59
 Stopped at tools/debugger/tests/do_step_class2.js:23 (in function() at line:24, col:7)
 (escargot-debugger) bt
 tools/debugger/tests/do_step_class2.js:24:6 [depth:0]
-unknown dynamic function:3:7 [depth:2]
+unknown dynamic function:3:1 [depth:2]
 tools/debugger/tests/do_step_class2.js:59:9 [depth:3]
 (escargot-debugger) s
 Stopped at tools/debugger/tests/do_step_class2.js:26 (in function() at line:28, col:7)
@@ -41,7 +41,7 @@ Stopped at tools/debugger/tests/do_step_class2.js:29 (in function() at line:29, 
 Stopped at tools/debugger/tests/do_step_class2.js:43 (in function() at line:44, col:7)
 (escargot-debugger) bt
 tools/debugger/tests/do_step_class2.js:44:6 [depth:0]
-unknown dynamic function:3:7 [depth:1]
+unknown dynamic function:3:1 [depth:1]
 tools/debugger/tests/do_step_class2.js:59:9 [depth:2]
 (escargot-debugger) s
 Stopped at tools/debugger/tests/do_step_class2.js:46 (in function() at line:46, col:16)

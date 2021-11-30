@@ -35,7 +35,7 @@ Error: Integer number expected, invalid literal for int() with base 10: '1.1'
 (escargot-debugger) delete
 Error: Breakpoint index expected
 Delete the given breakpoint, use 'delete all|active|pending' to clear all the given breakpoints
- (escargot-debugger) list
+(escargot-debugger) list
 === Active breakpoints ===
  5: tools/debugger/tests/do_delete.js:21
 (escargot-debugger) delete a

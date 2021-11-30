@@ -214,6 +214,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_allowSuperCall(false)
     , m_allowSuperProperty(false)
     , m_allowArguments(false)
+    , m_hasDynamicSourceCode(false)
 #ifndef NDEBUG
     , m_scopeContext(scopeCtx)
 #endif
@@ -270,6 +271,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_allowSuperCall(false)
     , m_allowSuperProperty(false)
     , m_allowArguments(false)
+    , m_hasDynamicSourceCode(false)
 #ifndef NDEBUG
     , m_scopeContext(scopeCtx)
 #endif
@@ -326,6 +328,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
     , m_allowSuperCall(false)
     , m_allowSuperProperty(false)
     , m_allowArguments(false)
+    , m_hasDynamicSourceCode(false)
 #ifndef NDEBUG
     , m_scopeContext(nullptr)
 #endif

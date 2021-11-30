@@ -237,6 +237,8 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
 
     Script* script = parser.initializeScript(scriptSource, srcName, nullptr, false, false, false, false, false, allowSuperCall, false, true, false).scriptThrowsExceptionIfParseError(state);
     InterpretedCodeBlock* cb = script->topCodeBlock()->childBlockAt(0);
+    // mark it as dynamic code
+    cb->setDynamicSourceCode();
     LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, script->topCodeBlock(), state.context()->globalObject(), state.context()->globalDeclarativeRecord(), state.context()->globalDeclarativeStorage()), nullptr);
 
     FunctionObject::FunctionSource fs;

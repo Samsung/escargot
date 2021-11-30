@@ -36,22 +36,14 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
 #ifdef ESCARGOT_DEBUGGER
-        if (context->m_breakpointContext->m_breakpointLocations->size() == 0 && context->m_breakpointContext->m_parsingEnabled) {
-            ASSERT(context->m_breakpointContext->m_lastBreakpointLineOffset == 0);
-            ASSERT(context->m_breakpointContext->m_breakpointLocations->size() == 0);
-
+        {
             InterpretedCodeBlock* interpretedCodeBlock = context->m_codeBlock;
-
             if (interpretedCodeBlock->hasRareData() && interpretedCodeBlock->rareData()->m_debuggerLineStart != SIZE_MAX) {
                 ASSERT(interpretedCodeBlock->isOneExpressionOnlyVirtualArrowFunctionExpression());
                 context->insertBreakpointAt(interpretedCodeBlock->rareData()->m_debuggerLineStart, this);
             } else {
-                ExtendedNodeLOC sourceElementStart = context->m_codeBlock->functionStart();
-                size_t lastLineOffset = context->calculateBreakpointLineOffset(m_loc.index, sourceElementStart);
-                context->insertBreakpointAt(lastLineOffset + sourceElementStart.line, this);
+                insertBreakpoint(context);
             }
-        } else {
-            insertBreakpoint(context);
         }
 #endif /* ESCARGOT_DEBUGGER */
 

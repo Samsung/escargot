@@ -1,13 +1,15 @@
 Connecting to: localhost:6501
 Connection created!!!
-Stopped at tools/debugger/tests/do_command.js:2
-e i
-0b do_command.js:2
+Stopped at tools/debugger/tests/do_command.js:1
+b do_command.js:2
 Breakpoint 1 at tools/debugger/tests/do_command.js:2
 c
+Stopped at breakpoint:1 tools/debugger/tests/do_command.js:2
+e i
+0c
 Print: 0
 Stopped at breakpoint:1 tools/debugger/tests/do_command.js:2
-c
+(escargot-debugger) c
 Print: 1
 Stopped at breakpoint:1 tools/debugger/tests/do_command.js:2
 (escargot-debugger) c
