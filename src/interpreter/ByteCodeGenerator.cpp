@@ -95,32 +95,29 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
 }
 
 #ifdef ESCARGOT_DEBUGGER
-size_t ByteCodeGenerateContext::calculateBreakpointLineOffset(size_t index, ExtendedNodeLOC sourceElementStart)
+void ByteCodeGenerateContext::calculateBreakpointLocation(size_t index, ExtendedNodeLOC sourceElementStart)
 {
+    ASSERT(index >= sourceElementStart.index);
+    const size_t indexOffset = index - sourceElementStart.index;
+    size_t lineOffset = m_breakpointContext->m_breakpointLineOffset;
+    ASSERT(indexOffset >= m_breakpointContext->m_breakpointIndexOffset);
+
+    // calculate the current breakpoint's location based on the last breakpoint's location
     StringView src = m_codeBlock->src();
-    size_t lastLineOffset = m_breakpointContext->m_lastBreakpointLineOffset;
-    index -= sourceElementStart.index;
-
-    // if cache is invalid, we should recalulate {index, lineOffset} from begin
-    if (UNLIKELY(index < m_breakpointContext->m_lastBreakpointIndexOffset)) {
-        m_breakpointContext->m_lastBreakpointLineOffset = m_breakpointContext->m_lastBreakpointIndexOffset = 0;
-        lastLineOffset = 0;
-    }
-
-    for (size_t i = m_breakpointContext->m_lastBreakpointIndexOffset; i < index; i++) {
+    for (size_t i = m_breakpointContext->m_breakpointIndexOffset; i < indexOffset; i++) {
         char16_t c = src.charAt(i);
         if (EscargotLexer::isLineTerminator(c)) {
             // skip \r\n
-            if (UNLIKELY(c == 13 && (i + 1 < index) && src.charAt(i + 1) == 10)) {
+            if (UNLIKELY(c == 13 && (i + 1 < indexOffset) && src.charAt(i + 1) == 10)) {
                 i++;
             }
-            lastLineOffset++;
+            lineOffset++;
         }
     }
 
-    m_breakpointContext->m_lastBreakpointIndexOffset = index;
-
-    return lastLineOffset;
+    // cache the current breakpoint's calculated location (offset)
+    m_breakpointContext->m_breakpointIndexOffset = indexOffset;
+    m_breakpointContext->m_breakpointLineOffset = lineOffset;
 }
 
 void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
@@ -128,13 +125,30 @@ void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
     ASSERT(m_breakpointContext != nullptr);
     ASSERT(index != SIZE_MAX);
 
-    ExtendedNodeLOC sourceElementStart = m_codeBlock->functionStart();
-    size_t lastLineOffset = calculateBreakpointLineOffset(index, sourceElementStart);
+    // do not insert any breakpoint when handling dynamically created function
+    if (UNLIKELY(m_codeBlock->hasDynamicSourceCode())) {
+        return;
+    }
 
-    if (lastLineOffset != m_breakpointContext->m_lastBreakpointLineOffset) {
-        ASSERT(lastLineOffset > m_breakpointContext->m_lastBreakpointLineOffset);
-        m_breakpointContext->m_lastBreakpointLineOffset = lastLineOffset;
-        insertBreakpointAt(lastLineOffset + sourceElementStart.line, node);
+    // handle eval code
+    // insert one break point only at the start with line 1
+    if (UNLIKELY(m_isEvalCode)) {
+        if (m_breakpointContext->m_breakpointLocations->size() == 0) {
+            insertBreakpointAt(1, node);
+        }
+        return;
+    }
+
+    // previous breakpoint's line offset
+    size_t lastLineOffset = m_breakpointContext->m_breakpointLineOffset;
+    ExtendedNodeLOC sourceElementStart = m_codeBlock->functionStart();
+    calculateBreakpointLocation(index, sourceElementStart);
+
+    // insert a breakpoint if its the first breakpoint insertion or
+    // there was no breakpoint insertion with the same lineoffset
+    if ((m_breakpointContext->m_breakpointLocations->size() == 0) || (lastLineOffset != m_breakpointContext->m_breakpointLineOffset)) {
+        ASSERT(lastLineOffset <= m_breakpointContext->m_breakpointLineOffset);
+        insertBreakpointAt(m_breakpointContext->m_breakpointLineOffset + sourceElementStart.line, node);
     }
 }
 

@@ -636,7 +636,7 @@ class Debugger(object):
         if not args:
             return "Error: Breakpoint index expected\n" \
                    "Delete the given breakpoint, use 'delete all|active|pending' " \
-                   "to clear all the given breakpoints\n "
+                   "to clear all the given breakpoints\n"
         elif args == 'all':
                 self.delete_active()
                 self.delete_pending()

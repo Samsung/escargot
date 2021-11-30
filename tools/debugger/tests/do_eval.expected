@@ -1,6 +1,6 @@
 Connecting to: localhost:6501
 Connection created!!!
-Stopped at tools/debugger/tests/do_eval.js:2
+Stopped at tools/debugger/tests/do_eval.js:1
 (escargot-debugger) b do_eval.js:7
 Breakpoint 1 at tools/debugger/tests/do_eval.js:7
 (escargot-debugger) c

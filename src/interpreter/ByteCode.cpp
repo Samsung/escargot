@@ -202,6 +202,7 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
         }
     }
 
+    ASSERT(index >= cb->functionStart().index);
     size_t indexRelatedWithScript = index;
     index -= cb->functionStart().index;
 

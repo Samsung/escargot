@@ -53,14 +53,14 @@ struct ClassContextInformation {
 #ifdef ESCARGOT_DEBUGGER
 struct ByteCodeBreakpointContext {
     bool m_parsingEnabled;
-    size_t m_lastBreakpointLineOffset;
-    size_t m_lastBreakpointIndexOffset;
+    size_t m_breakpointLineOffset; // cache breakpoint's calculated line offset
+    size_t m_breakpointIndexOffset; // cache breakpoint's calculated index offset
     Debugger::BreakpointLocationVector* m_breakpointLocations;
 
     ByteCodeBreakpointContext(bool parsingEnabled)
         : m_parsingEnabled(parsingEnabled)
-        , m_lastBreakpointLineOffset(0)
-        , m_lastBreakpointIndexOffset(0)
+        , m_breakpointLineOffset(0)
+        , m_breakpointIndexOffset(0)
         , m_breakpointLocations(new Debugger::BreakpointLocationVector())
     {
     }
@@ -320,7 +320,7 @@ struct ByteCodeGenerateContext {
     }
 
 #ifdef ESCARGOT_DEBUGGER
-    size_t calculateBreakpointLineOffset(size_t index, ExtendedNodeLOC sourceElementStart);
+    void calculateBreakpointLocation(size_t index, ExtendedNodeLOC sourceElementStart);
     void insertBreakpoint(size_t index, Node* node);
     void insertBreakpointAt(size_t line, Node* node);
 #endif /* ESCARGOT_DEBUGGER */
