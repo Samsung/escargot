@@ -423,14 +423,16 @@ bool DebuggerTcp::send(uint8_t type, const void* buffer, size_t length)
 
 bool DebuggerTcp::isThereAnyEvent()
 {
+    // if there is remained receive buffer data,
+    // user should call receive function again
+    if (m_receiveBufferFill) {
+        return true;
+    }
+
     struct pollfd fd[1];
     fd[0].fd = m_socket;
     fd[0].events = POLLIN;
     int rc = poll(fd, 1, 0);
-
-    if (rc < 0) {
-        return true;
-    }
 
     if (rc == 0) {
         return false;
