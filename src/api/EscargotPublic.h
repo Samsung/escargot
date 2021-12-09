@@ -1940,7 +1940,8 @@ public:
         // do nothing
     }
 
-#ifdef ESCARGOT_USE_CUSTOM_LOGGING
+    // you can use these functions only if you enabled custom logging
+    static bool isCustomLoggingEnabled();
     // default custom logger
     virtual void customInfoLogger(const char* format, va_list arg)
     {
@@ -1951,20 +1952,19 @@ public:
     {
         vfprintf(stderr, format, arg);
     }
-#endif
 
     void* threadLocalCustomData();
 };
 
-#if defined(ENABLE_WASM)
 class ESCARGOT_EXPORT WASMOperationsRef {
 public:
+    // you can use these functions only if you enabled WASM
+    static bool isWASMOperationsEnabled();
     static ValueRef* copyStableBufferBytes(ExecutionStateRef* state, ValueRef* source);
     static ObjectRef* asyncCompileModule(ExecutionStateRef* state, ValueRef* source);
     static ObjectRef* instantiatePromiseOfModuleWithImportObject(ExecutionStateRef* state, PromiseObjectRef* promiseOfModule, ValueRef* importObj);
     static void collectHeap();
 };
-#endif
 
 } // namespace Escargot
 

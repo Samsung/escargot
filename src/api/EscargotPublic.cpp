@@ -183,7 +183,7 @@ public:
         m_platform->deallocateThreadLocalCustomData();
     }
 
-#ifdef ESCARGOT_USE_CUSTOM_LOGGING
+#ifdef ENABLE_CUSTOM_LOGGING
     virtual void customInfoLogger(const char* format, va_list arg) override
     {
         m_platform->customInfoLogger(format, arg);
@@ -3757,6 +3757,15 @@ PlatformRef::LoadModuleResult::LoadModuleResult(ErrorObjectRef::Code errorCode, 
 {
 }
 
+bool PlatformRef::isCustomLoggingEnabled()
+{
+#if defined(ENABLE_CUSTOM_LOGGING)
+    return true;
+#else
+    return false;
+#endif
+}
+
 bool SerializerRef::serializeInto(ValueRef* value, std::ostringstream& output)
 {
     return Serializer::serializeInto(toImpl(value), output);
@@ -3777,6 +3786,15 @@ ValueRef* SerializerRef::deserializeFrom(ContextRef* context, std::istringstream
     return toRef(result.result);
 }
 
+bool WASMOperationsRef::isWASMOperationsEnabled()
+{
+#if defined(ENABLE_WASM)
+    return true;
+#else
+    return false;
+#endif
+}
+
 #if defined(ENABLE_WASM)
 ValueRef* WASMOperationsRef::copyStableBufferBytes(ExecutionStateRef* state, ValueRef* source)
 {
@@ -3795,6 +3813,33 @@ ObjectRef* WASMOperationsRef::instantiatePromiseOfModuleWithImportObject(Executi
 void WASMOperationsRef::collectHeap()
 {
     WASMOperations::collectHeap();
+}
+#else
+ValueRef* WASMOperationsRef::copyStableBufferBytes(ExecutionStateRef* state, ValueRef* source)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable WASM");
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
+ObjectRef* WASMOperationsRef::asyncCompileModule(ExecutionStateRef* state, ValueRef* source)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable WASM");
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
+ObjectRef* WASMOperationsRef::instantiatePromiseOfModuleWithImportObject(ExecutionStateRef* state, PromiseObjectRef* promiseOfModule, ValueRef* importObj)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable WASM");
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
+void WASMOperationsRef::collectHeap()
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable WASM");
+    RELEASE_ASSERT_NOT_REACHED();
 }
 #endif
 

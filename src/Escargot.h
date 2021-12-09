@@ -332,7 +332,7 @@ typedef int32_t UChar32;
 #define FALSE 0
 #endif
 
-#ifdef ESCARGOT_USE_CUSTOM_LOGGING
+#ifdef ENABLE_CUSTOM_LOGGING
 // use customized logging
 #include <stdarg.h>
 namespace Escargot {

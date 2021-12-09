@@ -100,7 +100,7 @@ Global::Waiter* Global::waiter(void* blockAddress)
 }
 #endif
 
-#ifdef ESCARGOT_USE_CUSTOM_LOGGING
+#ifdef ENABLE_CUSTOM_LOGGING
 void customEscargotInfoLogger(const char* format, ...)
 {
     va_list arg;
