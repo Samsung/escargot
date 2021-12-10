@@ -47,6 +47,7 @@ CompressibleString::CompressibleString(VMInstance* instance)
     : String()
     , m_isOwnerMayFreed(false)
     , m_isCompressed(false)
+    , m_refCount(0)
     , m_vmInstance(instance)
     , m_lastUsedTickcount(fastTickCount())
 {
@@ -56,6 +57,7 @@ CompressibleString::CompressibleString(VMInstance* instance)
     v.push_back(this);
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         CompressibleString* self = (CompressibleString*)obj;
+        ASSERT(self->refCount() == 0);
         if (self->isCompressed()) {
             self->clearCompressedData();
         } else {
@@ -158,7 +160,8 @@ void CompressibleString::clearCompressedData()
 bool CompressibleString::compress()
 {
     ASSERT(!m_isCompressed);
-    if (UNLIKELY(!m_bufferData.length)) {
+    if (UNLIKELY(!m_bufferData.length || !!m_refCount)) {
+        ESCARGOT_LOG_INFO("Compression Failed due to string usage in stack\n");
         return false;
     }
 
@@ -188,23 +191,10 @@ void CompressibleString::decompress()
 constexpr static const size_t g_compressChunkSize = 1044465;
 static_assert(LZ4_COMPRESSBOUND(g_compressChunkSize) == 1024 * 1024, "");
 
-static ATTRIBUTE_NO_SANITIZE_ADDRESS bool testPointerExistsOnStack(size_t* start, size_t* end, const void* ptr)
-{
-    while (start != end) {
-        if (UNLIKELY(*start == (size_t)ptr)) {
-            // if there is reference on stack, we cannot compress string.
-            return true;
-        }
-        start++;
-    }
-
-    return false;
-}
-
 template <typename StringType>
 bool CompressibleString::compressWorker(void* callerSP)
 {
-    ASSERT(!m_isCompressed);
+    ASSERT(!m_isCompressed && !m_refCount);
     ASSERT(m_bufferData.length > 0);
 
 #if defined(STACK_GROWS_DOWN)
@@ -214,11 +204,6 @@ bool CompressibleString::compressWorker(void* callerSP)
     size_t* start = (size_t*)m_vmInstance->stackStartAddress();
     size_t* end = (size_t*)((size_t)callerSP & ~(sizeof(size_t) - 1));
 #endif
-
-    if (testPointerExistsOnStack(start, end, m_bufferData.buffer)) {
-        ESCARGOT_LOG_INFO("Compression Failed due to string usage in stack\n");
-        return false;
-    }
 
     size_t originByteLength = m_bufferData.length * sizeof(StringType);
     int lastBoundLength = 0;

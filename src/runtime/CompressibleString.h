@@ -78,12 +78,18 @@ public:
         if (isCompressed()) {
             decompress();
         }
-        return StringBufferAccessData(m_bufferData.has8BitContent, m_bufferData.length, const_cast<void*>(m_bufferData.buffer));
+
+        return StringBufferAccessData(m_bufferData.has8BitContent, m_bufferData.length, const_cast<void*>(m_bufferData.buffer), &m_refCount);
     }
 
     bool isCompressed()
     {
         return m_isCompressed;
+    }
+
+    size_t refCount()
+    {
+        return m_refCount;
     }
 
     void* operator new(size_t);
@@ -118,6 +124,7 @@ private:
 
     bool m_isOwnerMayFreed;
     bool m_isCompressed;
+    size_t m_refCount; // reference count representing the usage of this CompressibleString
     VMInstance* m_vmInstance;
     uint64_t m_lastUsedTickcount;
     typedef Vector<CompressedElement, GCUtil::gc_malloc_allocator<CompressedElement>> CompressedDataVector;
