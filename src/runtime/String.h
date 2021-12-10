@@ -100,12 +100,30 @@ struct StringBufferAccessData {
     };
     void* extraData;
 
-    StringBufferAccessData(bool has8Bit, size_t len, void* buffer, void* extraDataKeepInStack = nullptr)
+    StringBufferAccessData(bool has8Bit, size_t len, void* buffer, void* extraDataToKeep = nullptr)
         : has8BitContent(has8Bit)
         , length(len)
         , buffer(buffer)
-        , extraData(extraDataKeepInStack)
+        , extraData(extraDataToKeep)
     {
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+        if (extraData) {
+            // increase refCount in CompressibleString
+            (*reinterpret_cast<size_t*>(extraData))++;
+        }
+#endif
+    }
+
+    ~StringBufferAccessData()
+    {
+#if defined(ENABLE_COMPRESSIBLE_STRING)
+        if (extraData) {
+            // decrease refCount in CompressibleString
+            size_t& count = *reinterpret_cast<size_t*>(extraData);
+            ASSERT(count > 0);
+            count--;
+        }
+#endif
     }
 
     char16_t uncheckedCharAtFor8Bit(size_t idx) const
