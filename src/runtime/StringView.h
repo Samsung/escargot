@@ -139,9 +139,6 @@ protected:
         ASSERT(m_bufferData.hasSpecialImpl);
 
         StringBufferAccessData r = m_bufferData.bufferAsString->bufferAccessData();
-        // keep original buffer pointer in stack
-        // without this, compressible string can free this pointer
-        r.extraData = const_cast<void*>(r.buffer);
         r.length = m_bufferData.length;
         if (r.has8BitContent) {
             r.bufferAs8Bit += m_start;
