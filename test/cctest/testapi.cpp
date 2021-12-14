@@ -2148,23 +2148,65 @@ TEST(ReloadableString, Basic)
 
 class DebuggerTest : public DebuggerOperationsRef::DebuggerClient {
 public:
+    DebuggerTest()
+        : stopAtBreakpointCount(0)
+    {
+        memset(codeRefs, 0, sizeof(codeRefs));
+        memset(offsets, 0, sizeof(offsets));
+    }
+
     virtual void parseCompleted(StringRef* source, StringRef* srcName, std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>& breakpointLocationsVector) override;
     virtual void parseError(StringRef* source, StringRef* srcName, StringRef* error) override;
     virtual void codeReleased(DebuggerOperationsRef::WeakCodeRef* weakCodeRef) override;
+    virtual DebuggerOperationsRef::ResumeBreakpointOperation stopAtBreakpoint(DebuggerOperationsRef::BreakpointOperations& operations) override;
+
+    int stopAtBreakpointCount;
+    DebuggerOperationsRef::WeakCodeRef* codeRefs[2];
+    uint32_t offsets[5];
 };
 
 static int debuggerParseCompletedCount = 0;
 static int debuggerParseErrorCount = 0;
 static char debuggerFileNameString[] = "test.js";
-static char debuggerSourceString1[] = "var a = 1;\n"
-                                      "function f() {}\n";
+static char debuggerSourceString1[] = "var a = 1\n"
+                                      "function func() {\n"
+                                      "   a = 2\n"
+                                      "   a = 3\n"
+                                      "}\n"
+                                      "func()\n"
+                                      "a = 4\n";
 static char debuggerSourceString2[] = "var a = ;";
 
 void DebuggerTest::parseCompleted(StringRef* source, StringRef* srcName, std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>& breakpointLocationsVector)
 {
     EXPECT_TRUE(source->equalsWithASCIIString(debuggerSourceString1, sizeof(debuggerSourceString1) - 1));
     EXPECT_TRUE(srcName->equalsWithASCIIString(debuggerFileNameString, sizeof(debuggerFileNameString) - 1));
+
     EXPECT_EQ(breakpointLocationsVector.size(), 2);
+    EXPECT_TRUE(DebuggerOperationsRef::getFunctionName(breakpointLocationsVector[0]->weakCodeRef)->equalsWithASCIIString("", 0));
+    EXPECT_EQ(breakpointLocationsVector[0]->breakpointLocations.size(), 3);
+    EXPECT_EQ(breakpointLocationsVector[0]->breakpointLocations[0].line, 1);
+    EXPECT_EQ(breakpointLocationsVector[0]->breakpointLocations[1].line, 6);
+    EXPECT_EQ(breakpointLocationsVector[0]->breakpointLocations[2].line, 7);
+
+    EXPECT_TRUE(DebuggerOperationsRef::getFunctionName(breakpointLocationsVector[1]->weakCodeRef)->equalsWithASCIIString("func", 4));
+    EXPECT_EQ(breakpointLocationsVector[1]->breakpointLocations.size(), 3);
+    EXPECT_EQ(breakpointLocationsVector[1]->breakpointLocations[0].line, 3);
+    EXPECT_EQ(breakpointLocationsVector[1]->breakpointLocations[1].line, 4);
+    EXPECT_EQ(breakpointLocationsVector[1]->breakpointLocations[2].line, 5);
+
+    codeRefs[0] = breakpointLocationsVector[0]->weakCodeRef;
+    codeRefs[1] = breakpointLocationsVector[1]->weakCodeRef;
+    offsets[0] = breakpointLocationsVector[0]->breakpointLocations[0].offset;
+    offsets[1] = breakpointLocationsVector[0]->breakpointLocations[1].offset;
+    offsets[2] = breakpointLocationsVector[1]->breakpointLocations[0].offset;
+    offsets[3] = breakpointLocationsVector[1]->breakpointLocations[1].offset;
+    offsets[4] = breakpointLocationsVector[0]->breakpointLocations[2].offset;
+
+    EXPECT_FALSE(DebuggerOperationsRef::updateBreakpoint(codeRefs[0], offsets[0], false));
+    EXPECT_TRUE(DebuggerOperationsRef::updateBreakpoint(codeRefs[0], offsets[0], true));
+    EXPECT_FALSE(DebuggerOperationsRef::updateBreakpoint(codeRefs[0], offsets[0], true));
+    EXPECT_TRUE(DebuggerOperationsRef::updateBreakpoint(codeRefs[1], offsets[3], true));
 
     debuggerParseCompletedCount++;
 }
@@ -2183,6 +2225,40 @@ void DebuggerTest::parseError(StringRef* source, StringRef* srcName, StringRef* 
 void DebuggerTest::codeReleased(DebuggerOperationsRef::WeakCodeRef* weakCodeRef)
 {
     EXPECT_TRUE(weakCodeRef != nullptr);
+}
+
+DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(DebuggerOperationsRef::BreakpointOperations& operations)
+{
+    stopAtBreakpointCount++;
+
+    switch (stopAtBreakpointCount) {
+    case 1: {
+        EXPECT_EQ(operations.weakCodeRef(), codeRefs[0]);
+        EXPECT_EQ(operations.offset(), offsets[0]);
+        EXPECT_TRUE(DebuggerOperationsRef::updateBreakpoint(codeRefs[0], offsets[0], false));
+        return DebuggerOperationsRef::Next;
+    }
+    case 2: {
+        EXPECT_EQ(operations.weakCodeRef(), codeRefs[0]);
+        EXPECT_EQ(operations.offset(), offsets[1]);
+        return DebuggerOperationsRef::Step;
+    }
+    case 3: {
+        EXPECT_EQ(operations.weakCodeRef(), codeRefs[1]);
+        EXPECT_EQ(operations.offset(), offsets[2]);
+        return DebuggerOperationsRef::Continue;
+    }
+    case 4: {
+        EXPECT_EQ(operations.weakCodeRef(), codeRefs[1]);
+        EXPECT_EQ(operations.offset(), offsets[3]);
+        return DebuggerOperationsRef::Finish;
+    }
+    }
+
+    EXPECT_EQ(stopAtBreakpointCount, 5);
+    EXPECT_EQ(operations.weakCodeRef(), codeRefs[0]);
+    EXPECT_EQ(operations.offset(), offsets[4]);
+    return DebuggerOperationsRef::Continue;
 }
 
 TEST(Debugger, Basic)
@@ -2205,6 +2281,7 @@ TEST(Debugger, Basic)
 
     EXPECT_EQ(debuggerParseCompletedCount, 1);
     EXPECT_EQ(debuggerParseErrorCount, 1);
+    EXPECT_EQ(debuggerTest->stopAtBreakpointCount, 5);
 
     context.release();
     instance.release();

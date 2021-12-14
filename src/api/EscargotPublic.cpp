@@ -1146,6 +1146,48 @@ Evaluator::EvaluatorResult VMInstanceRef::executePendingJob()
 
 #ifdef ESCARGOT_DEBUGGER
 
+StringRef* DebuggerOperationsRef::getFunctionName(WeakCodeRef* weakCodeRef)
+{
+    ByteCodeBlock* byteCode = reinterpret_cast<ByteCodeBlock*>(weakCodeRef);
+
+    return toRef(byteCode->codeBlock()->functionName().string());
+}
+
+bool DebuggerOperationsRef::updateBreakpoint(WeakCodeRef* weakCodeRef, uint32_t offset, bool enable)
+{
+    ByteCodeBlock* byteCode = reinterpret_cast<ByteCodeBlock*>(weakCodeRef);
+
+    ByteCode* breakpoint = (ByteCode*)(byteCode->m_code.data() + offset);
+
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+    if (enable) {
+        if (breakpoint->m_opcodeInAddress != g_opcodeTable.m_addressTable[BreakpointDisabledOpcode]) {
+            return false;
+        }
+        breakpoint->m_opcodeInAddress = g_opcodeTable.m_addressTable[BreakpointEnabledOpcode];
+    } else {
+        if (breakpoint->m_opcodeInAddress != g_opcodeTable.m_addressTable[BreakpointEnabledOpcode]) {
+            return false;
+        }
+        breakpoint->m_opcodeInAddress = g_opcodeTable.m_addressTable[BreakpointDisabledOpcode];
+    }
+#else
+    if (enable) {
+        if (breakpoint->m_opcode != BreakpointDisabledOpcode) {
+            return false;
+        }
+        breakpoint->m_opcode = BreakpointEnabledOpcode;
+    } else {
+        if (breakpoint->m_opcode != BreakpointEnabledOpcode) {
+            return false;
+        }
+        breakpoint->m_opcode = BreakpointDisabledOpcode;
+    }
+#endif
+
+    return true;
+}
+
 class DebuggerC : public Debugger {
 public:
     virtual void parseCompleted(String* source, String* srcName, String* error = nullptr) override;
@@ -1189,11 +1231,58 @@ void DebuggerC::parseCompleted(String* source, String* srcName, String* error)
     m_debuggerClient->parseCompleted(toRef(source), toRef(srcName), *info);
 }
 
+static LexicalEnvironment* getFunctionLexEnv(ExecutionState* state)
+{
+    LexicalEnvironment* lexEnv = state->lexicalEnvironment();
+
+    while (lexEnv) {
+        EnvironmentRecord* record = lexEnv->record();
+
+        if (record->isDeclarativeEnvironmentRecord()
+            && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+            return lexEnv;
+        }
+
+        lexEnv = lexEnv->outerEnvironment();
+    }
+    return nullptr;
+}
+
 void DebuggerC::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state)
 {
-    UNUSED_PARAMETER(byteCodeBlock);
-    UNUSED_PARAMETER(offset);
-    UNUSED_PARAMETER(state);
+    DebuggerOperationsRef::BreakpointOperations operations(reinterpret_cast<DebuggerOperationsRef::WeakCodeRef*>(byteCodeBlock), toRef(state), offset);
+
+    switch (m_debuggerClient->stopAtBreakpoint(operations)) {
+    case DebuggerOperationsRef::Continue: {
+        m_stopState = nullptr;
+        break;
+    }
+    case DebuggerOperationsRef::Step: {
+        m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
+        break;
+    }
+    case DebuggerOperationsRef::Next: {
+        m_stopState = state;
+        break;
+    }
+    case DebuggerOperationsRef::Finish: {
+        LexicalEnvironment* lexEnv = getFunctionLexEnv(state);
+
+        if (!lexEnv) {
+            m_stopState = nullptr;
+            break;
+        }
+
+        ExecutionState* stopState = state->parent();
+
+        while (stopState && getFunctionLexEnv(stopState) == lexEnv) {
+            stopState = stopState->parent();
+        }
+
+        m_stopState = stopState;
+        break;
+    }
+    }
 }
 
 void DebuggerC::byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock)
