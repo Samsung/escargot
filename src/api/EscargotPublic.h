@@ -708,13 +708,58 @@ public:
         BreakpointLocationVector breakpointLocations;
     };
 
+    class ESCARGOT_EXPORT BreakpointOperations {
+        friend class DebuggerC;
+
+    public:
+        WeakCodeRef* weakCodeRef()
+        {
+            return m_weakCodeRef;
+        }
+
+        ExecutionStateRef* executionState()
+        {
+            return m_executionState;
+        }
+
+        uint32_t offset()
+        {
+            return m_offset;
+        }
+
+    private:
+        BreakpointOperations(WeakCodeRef* weakCodeRef, ExecutionStateRef* executionState, uint32_t offset)
+            : m_weakCodeRef(weakCodeRef)
+            , m_executionState(executionState)
+            , m_offset(offset)
+        {
+        }
+
+        WeakCodeRef* m_weakCodeRef;
+        ExecutionStateRef* m_executionState;
+        uint32_t m_offset;
+    };
+
+    enum ResumeBreakpointOperation {
+        Continue,
+        Step,
+        Next,
+        Finish,
+    };
+
     // Base class for debugger callbacks
     class DebuggerClient {
     public:
         virtual void parseCompleted(StringRef* source, StringRef* srcName, std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>& breakpointLocationsVector) = 0;
         virtual void parseError(StringRef* source, StringRef* srcName, StringRef* error) = 0;
         virtual void codeReleased(WeakCodeRef* weakCodeRef) = 0;
+
+        virtual ResumeBreakpointOperation stopAtBreakpoint(BreakpointOperations& operations) = 0;
     };
+
+    static StringRef* getFunctionName(WeakCodeRef* weakCodeRef);
+    // Returns true, if the breakpoint status is changed from enabled to disabled or vica versa
+    static bool updateBreakpoint(WeakCodeRef* weakCodeRef, uint32_t offset, bool enable);
 };
 
 class ESCARGOT_EXPORT ContextRef {
