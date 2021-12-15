@@ -167,9 +167,9 @@ bool CompressibleString::compress()
 
     bool has8Bit = m_bufferData.has8BitContent;
     if (has8Bit) {
-        return compressWorker<LChar>(currentStackPointer());
+        return compressWorker<LChar>();
     } else {
-        return compressWorker<char16_t>(currentStackPointer());
+        return compressWorker<char16_t>();
     }
 }
 
@@ -192,18 +192,13 @@ constexpr static const size_t g_compressChunkSize = 1044465;
 static_assert(LZ4_COMPRESSBOUND(g_compressChunkSize) == 1024 * 1024, "");
 
 template <typename StringType>
-bool CompressibleString::compressWorker(void* callerSP)
+bool CompressibleString::compressWorker()
 {
     ASSERT(!m_isCompressed && !m_refCount);
     ASSERT(m_bufferData.length > 0);
+    ASSERT(!GC_is_disabled());
 
-#if defined(STACK_GROWS_DOWN)
-    size_t* start = (size_t*)((size_t)callerSP & ~(sizeof(size_t) - 1));
-    size_t* end = (size_t*)m_vmInstance->stackStartAddress();
-#else
-    size_t* start = (size_t*)m_vmInstance->stackStartAddress();
-    size_t* end = (size_t*)((size_t)callerSP & ~(sizeof(size_t) - 1));
-#endif
+    GC_disable();
 
     size_t originByteLength = m_bufferData.length * sizeof(StringType);
     int lastBoundLength = 0;
@@ -212,7 +207,6 @@ bool CompressibleString::compressWorker(void* callerSP)
         int srcSize = (int)std::min(g_compressChunkSize, originByteLength - srcIndex);
         int boundLength = LZ4::LZ4_compressBound(srcSize);
         if (boundLength > lastBoundLength) {
-            GC_FREE(tempBuffer);
             delete[] tempBuffer;
             tempBuffer = new char[boundLength];
             lastBoundLength = boundLength;
@@ -223,6 +217,8 @@ bool CompressibleString::compressWorker(void* callerSP)
             // compression fail
             ESCARGOT_LOG_INFO("Compression Failed\n");
             delete[] tempBuffer;
+
+            GC_enable();
             return false;
         }
 
@@ -238,6 +234,8 @@ bool CompressibleString::compressWorker(void* callerSP)
 
     // immediately free the original string after compression when there is no reference on stack
     deallocateStringDataBuffer(const_cast<void*>(m_bufferData.buffer), m_bufferData.length * (m_bufferData.has8BitContent ? 1 : 2));
+
+    GC_enable();
 
     m_bufferData.buffer = nullptr;
     m_isCompressed = true;

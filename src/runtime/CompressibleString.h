@@ -118,7 +118,7 @@ private:
     }
 
     template <typename StringType>
-    NEVER_INLINE bool compressWorker(void* callerSP);
+    NEVER_INLINE bool compressWorker();
     template <typename StringType>
     NEVER_INLINE void decompressWorker();
 
