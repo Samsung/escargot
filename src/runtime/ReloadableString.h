@@ -58,12 +58,19 @@ public:
         if (isUnloaded()) {
             load();
         }
-        return StringBufferAccessData(m_bufferData.has8BitContent, m_bufferData.length, const_cast<void*>(m_bufferData.buffer));
+
+        // add refCount pointer to count its usage in StringBufferAccessData
+        return StringBufferAccessData(m_bufferData.has8BitContent, m_bufferData.length, const_cast<void*>(m_bufferData.buffer), &m_refCount);
     }
 
     bool isUnloaded()
     {
         return m_isUnloaded;
+    }
+
+    size_t refCount() const
+    {
+        return m_refCount;
     }
 
     void* operator new(size_t);
@@ -75,7 +82,7 @@ public:
 
 private:
     void initBufferAccessData(void* data, size_t len, bool is8bit);
-    ATTRIBUTE_NO_SANITIZE_ADDRESS bool unloadWorker(void* callerSP);
+    ATTRIBUTE_NO_SANITIZE_ADDRESS bool unloadWorker();
 
     size_t unloadedBufferSize()
     {
@@ -88,6 +95,7 @@ private:
 
     bool m_isOwnerMayFreed;
     bool m_isUnloaded;
+    size_t m_refCount; // reference count representing the usage of this ReloadableString
     VMInstance* m_vmInstance;
     void* m_callbackData;
     void* (*m_stringLoadCallback)(void* callbackData);
