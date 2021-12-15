@@ -32,8 +32,13 @@
 #include <unistd.h>
 #endif
 
+#include <time.h>
+
 #include "api/EscargotPublic.h"
 #include "malloc.h"
+#include "gc.h"
+
+#include <inttypes.h>
 
 #if defined(ESCARGOT_ENABLE_TEST)
 // these header & function below are used for Escargot internal development
@@ -719,8 +724,6 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
         return false;
     }
 
-    printf("Heap After Run: %f MB\n", Memory::heapSize() / 1024.f / 1024.f);
-
     if (shouldPrintScriptResult) {
         puts(evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
     }
@@ -923,6 +926,28 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
     return context;
 }
 
+uint64_t g_lastTick = 0;
+
+static uint64_t fastTickCount()
+{
+#if defined(CLOCK_MONOTONIC_COARSE)
+    timespec ts;
+    clock_gettime(CLOCK_MONOTONIC_COARSE, &ts);
+    return (uint64_t)ts.tv_sec * 1000UL + ts.tv_nsec / 1000000UL;
+#else
+    return tickCount();
+#endif
+}
+
+static void printGCMemory(void* data)
+{
+    uint64_t currentTick = fastTickCount() ;
+    if (currentTick - g_lastTick >= 1000) {
+        g_lastTick = currentTick;
+        fprintf(static_cast<FILE*>(data), "Tick %" PRIu64 ": Heap usage[%f MB]\n", fastTickCount(), Memory::heapSize() / 1024.f / 1024.f);
+    }
+}
+
 int main(int argc, char* argv[])
 {
 #ifndef NDEBUG
@@ -953,6 +978,7 @@ int main(int argc, char* argv[])
     bool runShell = true;
     bool seenModule = false;
     std::string fileName;
+    FILE* memoryUsageLog = nullptr;
 
     for (int i = 1; i < argc; i++) {
         if (strlen(argv[i]) >= 2 && argv[i][0] == '-') { // parse command line option
@@ -988,6 +1014,14 @@ int main(int argc, char* argv[])
                             return 3;
                         runShell = false;
                     }
+                    continue;
+                }
+                if (strcmp(argv[i], "--dump-memory-usage") == 0) {
+                    memoryUsageLog = fopen("memoryUsage.log", "w");
+                    g_lastTick = fastTickCount();
+                    fprintf(memoryUsageLog, "Tick %" PRIu64 ": Start Measure\n", g_lastTick);
+                    Memory::removeGCEventListener(Memory::RECLAIM_END, printGCMemory, memoryUsageLog);
+                    Memory::addGCEventListener(Memory::RECLAIM_END, printGCMemory, memoryUsageLog);
                     continue;
                 }
             } else { // `-option` case
@@ -1079,6 +1113,9 @@ int main(int argc, char* argv[])
     instance.release();
 
     Globals::finalize();
-
+    if (memoryUsageLog) {
+        fprintf(memoryUsageLog, "Tick %" PRIu64 ": End Measure\n", fastTickCount());
+        fclose(memoryUsageLog);
+    }
     return 0;
 }

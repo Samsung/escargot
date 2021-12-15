@@ -22,6 +22,7 @@
 #include "runtime/Platform.h"
 #include "runtime/PointerValue.h"
 #include "runtime/ArrayObject.h"
+#include <inttypes.h>
 
 namespace Escargot {
 
@@ -91,8 +92,8 @@ Platform* Global::platform()
 void Global::HeapProfile::printResult()
 {
     ESCARGOT_LOG_INFO("=== HeapProfile Result ===\n");
-    ESCARGOT_LOG_INFO("GC_Count: %lu\nComp_Count: %lu\nDecomp_Count: %lu\n", gcCount, compCount, decompCount);
-    ESCARGOT_LOG_INFO("GC_Time: %lu\nComp_Time: %lu\nDecomp_Time: %lu\nComp_Stack_Search_Time: %lu\n", gcTime, compTime, decompTime, compStackSearchTime);
+    ESCARGOT_LOG_INFO("GC_Count: %zu\nComp_Count: %zu\nDecomp_Count: %zu\n", gcCount, compCount, decompCount);
+    ESCARGOT_LOG_INFO("GC_Time: %" PRIu64 "\nComp_Time: %" PRIu64 "\nDecomp_Time:%" PRIu64 "\nComp_Stack_Search_Time: %" PRIu64 "\n", gcTime, compTime, decompTime, compStackSearchTime);
 }
 
 Global::HeapProfile* Global::heapProfile()
