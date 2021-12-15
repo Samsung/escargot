@@ -144,18 +144,19 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
 
                 char* dest = reinterpret_cast<char*>(malloc((data->m_dest->length()) * (is8Bit ? 1 : 2)));
 
+                {
                 auto headAccessData = data->m_head->bufferAccessData();
                 auto bodyAccessData = data->m_body->bufferAccessData();
 
                 if (is8Bit) {
-                    ASSERT(headAccessData.has8BitContent && bodyAccessData.has8BitContent);
-                    char* ptr = dest;
-                    memcpy(ptr, headAccessData.bufferAs8Bit, headAccessData.length);
-                    ptr += headAccessData.length;
-                    memcpy(ptr, bodyAccessData.bufferAs8Bit, bodyAccessData.length);
-                    ptr += bodyAccessData.length;
-                    ptr[0] = '\n';
-                    ptr[1] = '}';
+                ASSERT(headAccessData.has8BitContent && bodyAccessData.has8BitContent);
+                char* ptr = dest;
+                memcpy(ptr, headAccessData.bufferAs8Bit, headAccessData.length);
+                ptr += headAccessData.length;
+                memcpy(ptr, bodyAccessData.bufferAs8Bit, bodyAccessData.length);
+                ptr += bodyAccessData.length;
+                ptr[0] = '\n';
+                ptr[1] = '}';
                 } else {
                     char16_t* ptr = reinterpret_cast<char16_t*>(dest);
                     if (headAccessData.has8BitContent) {
@@ -179,10 +180,9 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
                     ptr[0] = '\n';
                     ptr[1] = '}';
                 }
+                }
 
                 // unload original body source immediately
-                // set nullptr to unload body string
-                bodyAccessData.buffer = nullptr;
                 data->m_body->unload();
                 return dest; }, [](void* memoryPtr, void* callbackData) { free(memoryPtr); });
 

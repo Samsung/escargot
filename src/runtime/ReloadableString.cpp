@@ -44,6 +44,7 @@ ReloadableString::ReloadableString(VMInstance* instance, bool is8Bit, size_t str
     : String()
     , m_isOwnerMayFreed(false)
     , m_isUnloaded(true)
+    , m_refCount(0)
     , m_vmInstance(instance)
     , m_callbackData(callbackData)
     , m_stringLoadCallback(loadCallback)
@@ -58,6 +59,8 @@ ReloadableString::ReloadableString(VMInstance* instance, bool is8Bit, size_t str
     v.push_back(this);
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         ReloadableString* self = (ReloadableString*)obj;
+        ASSERT(self->refCount() == 0);
+
         if (!self->m_isUnloaded) {
             self->m_stringUnloadCallback(const_cast<void*>(self->m_bufferData.buffer), self->m_callbackData);
         }
@@ -97,30 +100,16 @@ UTF16StringData ReloadableString::toUTF16StringData() const
 bool ReloadableString::unload()
 {
     ASSERT(!m_isUnloaded);
-    if (UNLIKELY(!m_bufferData.length)) {
+    if (UNLIKELY(!m_bufferData.length || m_refCount > 0)) {
         return false;
     }
 
-    return unloadWorker(currentStackPointer());
+    return unloadWorker();
 }
 
-bool ReloadableString::unloadWorker(void* callerSP)
+bool ReloadableString::unloadWorker()
 {
-#if defined(STACK_GROWS_DOWN)
-    size_t* start = (size_t*)((size_t)callerSP & ~(sizeof(size_t) - 1));
-    size_t* end = (size_t*)m_vmInstance->stackStartAddress();
-#else
-    size_t* start = (size_t*)m_vmInstance->stackStartAddress();
-    size_t* end = (size_t*)((size_t)callerSP & ~(sizeof(size_t) - 1));
-#endif
-
-    while (start != end) {
-        if (UNLIKELY(*start == (size_t)m_bufferData.buffer)) {
-            // if there is reference on stack, we cannot unload string.
-            return false;
-        }
-        start++;
-    }
+    ASSERT(!m_isUnloaded && !m_refCount);
 
     m_stringUnloadCallback(const_cast<void*>(m_bufferData.buffer), m_callbackData);
     m_bufferData.buffer = nullptr;

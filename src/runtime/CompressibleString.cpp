@@ -155,9 +155,9 @@ bool CompressibleString::compress()
 
     bool has8Bit = m_bufferData.has8BitContent;
     if (has8Bit) {
-        return compressWorker<LChar>(currentStackPointer());
+        return compressWorker<LChar>();
     } else {
-        return compressWorker<char16_t>(currentStackPointer());
+        return compressWorker<char16_t>();
     }
 }
 
@@ -178,18 +178,10 @@ constexpr static const size_t g_compressChunkSize = 1044465;
 static_assert(LZ4_COMPRESSBOUND(g_compressChunkSize) == 1024 * 1024, "");
 
 template <typename StringType>
-bool CompressibleString::compressWorker(void* callerSP)
+bool CompressibleString::compressWorker()
 {
     ASSERT(!m_isCompressed && !m_refCount);
     ASSERT(m_bufferData.length > 0);
-
-#if defined(STACK_GROWS_DOWN)
-    size_t* start = (size_t*)((size_t)callerSP & ~(sizeof(size_t) - 1));
-    size_t* end = (size_t*)m_vmInstance->stackStartAddress();
-#else
-    size_t* start = (size_t*)m_vmInstance->stackStartAddress();
-    size_t* end = (size_t*)((size_t)callerSP & ~(sizeof(size_t) - 1));
-#endif
 
     size_t originByteLength = m_bufferData.length * sizeof(StringType);
     int lastBoundLength = 0;

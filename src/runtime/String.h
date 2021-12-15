@@ -106,9 +106,9 @@ struct StringBufferAccessData {
         , buffer(buffer)
         , extraData(extraDataToKeep)
     {
-#if defined(ENABLE_COMPRESSIBLE_STRING)
+#if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_RELOADABLE_STRING)
         if (extraData) {
-            // increase refCount in CompressibleString
+            // increase refCount in CompressibleString or ReloadableString
             (*reinterpret_cast<size_t*>(extraData))++;
         }
 #endif
@@ -116,9 +116,9 @@ struct StringBufferAccessData {
 
     ~StringBufferAccessData()
     {
-#if defined(ENABLE_COMPRESSIBLE_STRING)
+#if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_RELOADABLE_STRING)
         if (extraData) {
-            // decrease refCount in CompressibleString
+            // decrease refCount in CompressibleString or ReloadableString
             size_t& count = *reinterpret_cast<size_t*>(extraData);
             ASSERT(count > 0);
             count--;
