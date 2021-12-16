@@ -1146,6 +1146,59 @@ Evaluator::EvaluatorResult VMInstanceRef::executePendingJob()
 
 #ifdef ESCARGOT_DEBUGGER
 
+void DebuggerOperationsRef::BreakpointOperations::getStackTrace(DebuggerOperationsRef::DebuggerStackTraceDataVector& outStackTrace)
+{
+    ExecutionState* state = toImpl(m_executionState);
+    SandBox::StackTraceDataVector stackTraceData;
+
+    bool hasSavedStackTrace = SandBox::createStackTraceData(stackTraceData, *state, true);
+    ByteCodeLOCDataMap locMap;
+    size_t size = stackTraceData.size();
+
+    outStackTrace.clear();
+
+    for (uint32_t i = 0; i < size; i++) {
+        if ((size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
+            ByteCodeBlock* byteCodeBlock = stackTraceData[i].second.loc.actualCodeBlock;
+            size_t line, column;
+
+            if ((size_t)stackTraceData[i].second.loc.index == SIZE_MAX) {
+                size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
+
+                ByteCodeLOCData* locData;
+                auto iterMap = locMap.find(byteCodeBlock);
+                if (iterMap == locMap.end()) {
+                    locData = new ByteCodeLOCData();
+                    locMap.insert(std::make_pair(byteCodeBlock, locData));
+                } else {
+                    locData = iterMap->second;
+                }
+
+                ExtendedNodeLOC loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock, locData);
+                line = (uint32_t)loc.line;
+                column = (uint32_t)loc.column;
+            } else {
+                line = (uint32_t)stackTraceData[i].second.loc.line;
+                column = (uint32_t)stackTraceData[i].second.loc.column;
+            }
+
+            outStackTrace.push_back(DebuggerStackTraceData(reinterpret_cast<WeakCodeRef*>(byteCodeBlock), line, column, stackTraceData[i].second.executionStateDepth));
+        }
+    }
+
+    for (auto iter = locMap.begin(); iter != locMap.end(); iter++) {
+        delete iter->second;
+    }
+
+    if (hasSavedStackTrace) {
+        Debugger* debugger = state->context()->debugger();
+
+        for (auto iter = debugger->activeSavedStackTrace()->begin(); iter != debugger->activeSavedStackTrace()->end(); iter++) {
+            outStackTrace.push_back(DebuggerStackTraceData(reinterpret_cast<WeakCodeRef*>(iter->byteCodeBlock), iter->line, iter->column, SIZE_MAX));
+        }
+    }
+}
+
 StringRef* DebuggerOperationsRef::getFunctionName(WeakCodeRef* weakCodeRef)
 {
     ByteCodeBlock* byteCode = reinterpret_cast<ByteCodeBlock*>(weakCodeRef);

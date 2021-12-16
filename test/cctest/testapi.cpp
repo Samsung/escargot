@@ -2241,11 +2241,37 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
     case 2: {
         EXPECT_EQ(operations.weakCodeRef(), codeRefs[0]);
         EXPECT_EQ(operations.offset(), offsets[1]);
+
+        DebuggerOperationsRef::DebuggerStackTraceDataVector stackTrace;
+        operations.getStackTrace(stackTrace);
+
+        EXPECT_EQ(stackTrace.size(), 1);
+        EXPECT_EQ(stackTrace[0].weakCodeRef, codeRefs[0]);
+        EXPECT_EQ(stackTrace[0].line, 6);
+        EXPECT_EQ(stackTrace[0].column, 1);
+        EXPECT_EQ(stackTrace[0].depth, 0);
+
         return DebuggerOperationsRef::Step;
     }
     case 3: {
         EXPECT_EQ(operations.weakCodeRef(), codeRefs[1]);
         EXPECT_EQ(operations.offset(), offsets[2]);
+
+        DebuggerOperationsRef::DebuggerStackTraceDataVector stackTrace;
+        operations.getStackTrace(stackTrace);
+
+        EXPECT_EQ(stackTrace.size(), 2);
+
+        EXPECT_EQ(stackTrace[0].weakCodeRef, codeRefs[1]);
+        EXPECT_EQ(stackTrace[0].line, 3);
+        EXPECT_EQ(stackTrace[0].column, 4);
+        EXPECT_EQ(stackTrace[0].depth, 0);
+
+        EXPECT_EQ(stackTrace[1].weakCodeRef, codeRefs[0]);
+        EXPECT_EQ(stackTrace[1].line, 6);
+        EXPECT_EQ(stackTrace[1].column, 1);
+        EXPECT_EQ(stackTrace[1].depth, 1);
+
         return DebuggerOperationsRef::Continue;
     }
     case 4: {
