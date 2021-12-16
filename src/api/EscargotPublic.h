@@ -708,6 +708,23 @@ public:
         BreakpointLocationVector breakpointLocations;
     };
 
+    struct DebuggerStackTraceData {
+        DebuggerStackTraceData(WeakCodeRef* weakCodeRef, size_t line, size_t column, size_t depth)
+            : weakCodeRef(weakCodeRef)
+            , line(line)
+            , column(column)
+            , depth(depth)
+        {
+        }
+
+        WeakCodeRef* weakCodeRef;
+        size_t line;
+        size_t column;
+        size_t depth;
+    };
+
+    typedef std::vector<DebuggerStackTraceData> DebuggerStackTraceDataVector;
+
     class ESCARGOT_EXPORT BreakpointOperations {
         friend class DebuggerC;
 
@@ -726,6 +743,8 @@ public:
         {
             return m_offset;
         }
+
+        void getStackTrace(DebuggerStackTraceDataVector& outStackTrace);
 
     private:
         BreakpointOperations(WeakCodeRef* weakCodeRef, ExecutionStateRef* executionState, uint32_t offset)
