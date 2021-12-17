@@ -299,6 +299,26 @@ void FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::setMutable
     m_heapStorage[slot.m_index] = v;
 }
 
+template <bool canBindThisValue, bool hasNewTarget, size_t inlineStorageSize>
+FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValue, hasNewTarget, inlineStorageSize>::FunctionEnvironmentRecordOnHeapWithInlineStorage(ScriptFunctionObject* function)
+    : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function)
+{
+}
+
+template <bool canBindThisValue, bool hasNewTarget, size_t inlineStorageSize>
+void FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValue, hasNewTarget, inlineStorageSize>::setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v)
+{
+    // Storing to const variable check only (TDZ check is already done by bytecode generation)
+    const auto& recordInfo = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
+    if (UNLIKELY(!recordInfo[slot.m_index].m_isMutable)) {
+        if (state.inStrictMode()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
+        }
+        return;
+    }
+    m_inlineStorage[slot.m_index] = v;
+}
+
 template <bool canBindThisValue, bool hasNewTarget>
 FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::FunctionEnvironmentRecordNotIndexed(ScriptFunctionObject* function)
     : FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>(function)
@@ -411,6 +431,17 @@ template class FunctionEnvironmentRecordOnStack<false, true>;
 template class FunctionEnvironmentRecordOnHeap<false, false>;
 template class FunctionEnvironmentRecordOnHeap<true, true>;
 template class FunctionEnvironmentRecordOnHeap<false, true>;
+
+#define DEFINE_FE_WITH_INLINE_STORAGE(num)                                              \
+    template class FunctionEnvironmentRecordOnHeapWithInlineStorage<false, false, num>; \
+    template class FunctionEnvironmentRecordOnHeapWithInlineStorage<true, true, num>;   \
+    template class FunctionEnvironmentRecordOnHeapWithInlineStorage<false, true, num>;
+
+DEFINE_FE_WITH_INLINE_STORAGE(1)
+DEFINE_FE_WITH_INLINE_STORAGE(2)
+DEFINE_FE_WITH_INLINE_STORAGE(3)
+DEFINE_FE_WITH_INLINE_STORAGE(4)
+DEFINE_FE_WITH_INLINE_STORAGE(5)
 
 template class FunctionEnvironmentRecordNotIndexed<false, false>;
 template class FunctionEnvironmentRecordNotIndexed<true, true>;

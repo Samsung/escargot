@@ -818,11 +818,6 @@ public:
         return false;
     }
 
-    virtual EncodedValueTightVector& heapStorage()
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
     Object* homeObject()
     {
         return functionObject()->homeObject();
@@ -1035,13 +1030,84 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    EncodedValueTightVector& heapStorage() override
+private:
+    EncodedValueTightVector m_heapStorage;
+};
+
+template <bool canBindThisValue, bool hasNewTarget, size_t inlineStorageSize>
+class FunctionEnvironmentRecordOnHeapWithInlineStorage : public FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget> {
+    friend class LexicalEnvironment;
+    friend class ByteCodeInterpreter;
+    friend class ScriptFunctionObject;
+
+public:
+    FunctionEnvironmentRecordOnHeapWithInlineStorage(ScriptFunctionObject* function);
+
+    virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v) override
     {
-        return m_heapStorage;
+        m_inlineStorage[idx] = v;
+    }
+
+    virtual Value getHeapValueByIndex(ExecutionState& state, const size_t idx) override
+    {
+        return m_inlineStorage[idx];
+    }
+
+    virtual EnvironmentRecord::GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
+    {
+        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
+
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_name == name) {
+                return EnvironmentRecord::GetBindingValueResult(m_inlineStorage[v[i].m_indexForIndexedStorage]);
+            }
+        }
+        return EnvironmentRecord::GetBindingValueResult();
+    }
+
+    virtual EnvironmentRecord::BindingSlot hasBinding(ExecutionState& state, const AtomicString& name) override
+    {
+        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
+
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_name == name) {
+                return EnvironmentRecord::BindingSlot(this, v[i].m_indexForIndexedStorage, false);
+            }
+        }
+        return EnvironmentRecord::BindingSlot(this, SIZE_MAX, false);
+    }
+
+    virtual bool deleteBinding(ExecutionState& state, const AtomicString& name) override
+    {
+        return false;
+    }
+
+    virtual void setMutableBindingByBindingSlot(ExecutionState& state, const EnvironmentRecord::BindingSlot& slot, const AtomicString& name, const Value& v) override;
+    virtual void setMutableBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override
+    {
+        m_inlineStorage[idx] = v;
+    }
+
+    virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override
+    {
+        m_inlineStorage[idx] = v;
+    }
+
+    virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
+    {
+        const auto& v = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
+
+        for (size_t i = 0; i < v.size(); i++) {
+            if (v[i].m_name == name) {
+                m_inlineStorage[v[i].m_indexForIndexedStorage] = V;
+                return;
+            }
+        }
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
 private:
-    EncodedValueTightVector m_heapStorage;
+    EncodedValue m_inlineStorage[inlineStorageSize];
 };
 
 template <bool canBindThisValue, bool hasNewTarget>

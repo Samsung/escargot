@@ -161,7 +161,7 @@ void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t
                 if (v[i].m_needToAllocateOnStack) {
                     stackStorage[v[i].m_indexForIndexedStorage] = newArgumentsObject;
                 } else {
-                    environmentRecordWillArgumentsObjectBeLocatedIn->heapStorage()[v[i].m_indexForIndexedStorage] = newArgumentsObject;
+                    environmentRecordWillArgumentsObjectBeLocatedIn->setHeapValueByIndex(state, v[i].m_indexForIndexedStorage, newArgumentsObject);
                 }
                 break;
             }
