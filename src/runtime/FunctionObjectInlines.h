@@ -132,15 +132,7 @@ public:
 #endif
             );
         } else {
-            if (LIKELY(codeBlock->canUseIndexedVariableStorage())) {
-                record = new FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self);
-            } else {
-                if (LIKELY(!codeBlock->needsVirtualIDOperation())) {
-                    record = new FunctionEnvironmentRecordNotIndexed<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self);
-                } else {
-                    record = new FunctionEnvironmentRecordNotIndexedWithVirtualID(self);
-                }
-            }
+            record = createFunctionEnvironmentRecord<FunctionObjectType, hasNewTargetOnEnvironment, canBindThisValueOnEnvironment>(state, self, codeBlock);
             lexEnv = new LexicalEnvironment(record, self->outerEnvironment());
         }
 
@@ -254,6 +246,34 @@ public:
         }
 
         return returnValue;
+    }
+
+private:
+    template <typename FunctionObjectType, bool hasNewTargetOnEnvironment, bool canBindThisValueOnEnvironment>
+    static NEVER_INLINE FunctionEnvironmentRecord* createFunctionEnvironmentRecord(ExecutionState& state, FunctionObjectType* self, InterpretedCodeBlock* codeBlock)
+    {
+        if (LIKELY(codeBlock->canUseIndexedVariableStorage())) {
+            switch (codeBlock->identifierOnHeapCount()) {
+            case 1:
+                return new FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment, 1>(self);
+            case 2:
+                return new FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment, 2>(self);
+            case 3:
+                return new FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment, 3>(self);
+            case 4:
+                return new FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment, 4>(self);
+            case 5:
+                return new FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment, 5>(self);
+            default:
+                return new FunctionEnvironmentRecordOnHeap<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self);
+            }
+        } else {
+            if (LIKELY(!codeBlock->needsVirtualIDOperation())) {
+                return new FunctionEnvironmentRecordNotIndexed<canBindThisValueOnEnvironment, hasNewTargetOnEnvironment>(self);
+            } else {
+                return new FunctionEnvironmentRecordNotIndexedWithVirtualID(self);
+            }
+        }
     }
 };
 
