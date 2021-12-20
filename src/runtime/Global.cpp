@@ -93,7 +93,7 @@ void Global::HeapProfile::printResult()
 {
     ESCARGOT_LOG_INFO("=== HeapProfile Result ===\n");
     ESCARGOT_LOG_INFO("GC_Count: %zu\nComp_Count: %zu\nDecomp_Count: %zu\n", gcCount, compCount, decompCount);
-    ESCARGOT_LOG_INFO("GC_Time: %" PRIu64 "\nComp_Time: %" PRIu64 "\nDecomp_Time:%" PRIu64 "\nComp_Stack_Search_Time: %" PRIu64 "\n", gcTime, compTime, decompTime, compStackSearchTime);
+    ESCARGOT_LOG_INFO("GC_Time: %" PRIu64 "\nComp_Time: %" PRIu64 "\nDecomp_Time:%" PRIu64 "\n", gcTime, compTime, decompTime);
 }
 
 Global::HeapProfile* Global::heapProfile()

@@ -260,6 +260,11 @@ public:
         return *m_holder;
     }
 
+    bool isInitialized() const
+    {
+        return m_holder != nullptr;
+    }
+
 private:
     void initHolderSpace(T* initialValue)
     {

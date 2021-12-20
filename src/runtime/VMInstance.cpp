@@ -207,6 +207,7 @@ void vmMarkStartCallback(void* data)
 {
     VMInstance* self = (VMInstance*)data;
     Global::increaseHeapProfileGCCount();
+    Global::markHeapProfileGCMarkStartTime(fastTickCount());
 
 #ifdef ESCARGOT_DEBUGGER
     if (!self->m_debuggerEnabled) {
@@ -266,6 +267,8 @@ void vmReclaimEndCallback(void* data)
             }
         }
     }
+
+    Global::markHeapProfileGCReclaimEndTime(fastTickCount());
 
     // disabled in default due to massive logs
     //ESCARGOT_LOG_INFO("Heap After GC: %f MB\n", GC_get_heap_size() / 1024.f / 1024.f);
