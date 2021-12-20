@@ -36,7 +36,6 @@
 
 #include "api/EscargotPublic.h"
 #include "malloc.h"
-#include "gc.h"
 
 #include <inttypes.h>
 
@@ -926,7 +925,8 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
     return context;
 }
 
-uint64_t g_lastTick = 0;
+static uint64_t g_lastTick = 0;
+static uint64_t g_dumpInterval = 1000; // default interval is set to 1 second
 
 static uint64_t fastTickCount()
 {
@@ -941,8 +941,8 @@ static uint64_t fastTickCount()
 
 static void printGCMemory(void* data)
 {
-    uint64_t currentTick = fastTickCount() ;
-    if (currentTick - g_lastTick >= 1000) {
+    uint64_t currentTick = fastTickCount();
+    if (currentTick - g_lastTick >= g_dumpInterval) {
         g_lastTick = currentTick;
         fprintf(static_cast<FILE*>(data), "Tick %" PRIu64 ": Heap usage[%f MB]\n", fastTickCount(), Memory::heapSize() / 1024.f / 1024.f);
     }
@@ -968,7 +968,7 @@ int main(int argc, char* argv[])
     Memory::setGCFrequency(24);
 
     PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
-    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+    PersistentRefHolder<ContextRef> context;
 
     if (getenv("GC_FREE_SPACE_DIVISOR") && strlen(getenv("GC_FREE_SPACE_DIVISOR"))) {
         int d = atoi(getenv("GC_FREE_SPACE_DIVISOR"));
@@ -999,23 +999,6 @@ int main(int argc, char* argv[])
                     fileName = argv[i] + sizeof("--filename-as=") - 1;
                     continue;
                 }
-                if (strcmp(argv[i], "--start-debug-server") == 0) {
-                    context->initDebugger(nullptr);
-                    continue;
-                }
-                if (strcmp(argv[i], "--debugger-wait-source") == 0) {
-                    StringRef* sourceName;
-                    while (true) {
-                        StringRef* clientSourceRef = context->getClientSource(&sourceName);
-                        if (!clientSourceRef) {
-                            break;
-                        }
-                        if (!evalScript(context, clientSourceRef, sourceName, false, false))
-                            return 3;
-                        runShell = false;
-                    }
-                    continue;
-                }
                 if (strcmp(argv[i], "--dump-memory-usage") == 0) {
                     memoryUsageLog = fopen("memoryUsage.log", "w");
                     g_lastTick = fastTickCount();
@@ -1024,15 +1007,12 @@ int main(int argc, char* argv[])
                     Memory::addGCEventListener(Memory::RECLAIM_END, printGCMemory, memoryUsageLog);
                     continue;
                 }
-            } else { // `-option` case
-                if (strcmp(argv[i], "-e") == 0) {
-                    runShell = false;
-                    i++;
-                    StringRef* src = StringRef::createFromUTF8(argv[i], strlen(argv[i]));
-                    if (!evalScript(context, src, StringRef::createFromASCII("shell input"), false, false))
-                        return 3;
+                if (strstr(argv[i], "--dump-memory-interval=") == argv[i]) {
+                    std::string interval = argv[i] + sizeof("--dump-memory-interval=") - 1;
+                    g_dumpInterval = atoi(interval.c_str());
                     continue;
                 }
+            } else { // `-option` case
                 if (strcmp(argv[i], "-f") == 0) {
                     continue;
                 }
@@ -1040,6 +1020,13 @@ int main(int argc, char* argv[])
             fprintf(stderr, "Cannot recognize option `%s`", argv[i]);
             // return 3;
             continue;
+        }
+
+        if (!context.isInitialized()) {
+            // postpone allocation of Context to here
+            // initialization of Context triggers several GC
+            // so, register of gc event with `--dump-memory-usage` should be done before Context creation
+            context.reset(createEscargotContext(instance.get()));
         }
 
         FILE* fp = fopen(argv[i], "r");

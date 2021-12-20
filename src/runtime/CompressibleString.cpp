@@ -178,6 +178,8 @@ void CompressibleString::decompress()
     ASSERT(m_isCompressed);
     ASSERT(m_bufferData.length);
 
+    uint64_t currentTick = fastTickCount();
+
     bool has8Bit = m_bufferData.has8BitContent;
     if (has8Bit) {
         decompressWorker<LChar>();
@@ -185,6 +187,7 @@ void CompressibleString::decompress()
         decompressWorker<char16_t>();
     }
 
+    Global::addHeapProfileDecompTime(fastTickCount() - currentTick);
     Global::increaseHeapProfileDecompCount();
 }
 
@@ -197,6 +200,8 @@ bool CompressibleString::compressWorker()
     ASSERT(!m_isCompressed && !m_refCount);
     ASSERT(m_bufferData.length > 0);
     ASSERT(!GC_is_disabled());
+
+    uint64_t currentTick = fastTickCount();
 
     GC_disable();
 
@@ -215,7 +220,7 @@ bool CompressibleString::compressWorker()
         int compressedLength = LZ4::LZ4_compress_default(m_bufferData.bufferAs8Bit + srcIndex, (char*)tempBuffer, srcSize, boundLength);
         if (!compressedLength) {
             // compression fail
-            ESCARGOT_LOG_INFO("Compression Failed\n");
+            ESCARGOT_LOG_ERROR("Compression Failed\n");
             delete[] tempBuffer;
 
             GC_enable();
@@ -232,10 +237,10 @@ bool CompressibleString::compressWorker()
 
     m_vmInstance->compressibleStringsUncomressedBufferSize() -= decomressedBufferSize();
 
+    GC_enable();
+
     // immediately free the original string after compression when there is no reference on stack
     deallocateStringDataBuffer(const_cast<void*>(m_bufferData.buffer), m_bufferData.length * (m_bufferData.has8BitContent ? 1 : 2));
-
-    GC_enable();
 
     m_bufferData.buffer = nullptr;
     m_isCompressed = true;
@@ -248,6 +253,7 @@ bool CompressibleString::compressWorker()
     ESCARGOT_LOG_INFO("CompressibleString::compressWorker %fKB -> %fKB\n", originByteLength / 1024.f, compressedSize / 1024.f);
     */
 
+    Global::addHeapProfileCompTime(fastTickCount() - currentTick);
     Global::increaseHeapProfileCompCount();
     return true;
 }

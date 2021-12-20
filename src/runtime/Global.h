@@ -74,20 +74,20 @@ public:
             : gcCount(0)
             , compCount(0)
             , decompCount(0)
+            , lastGCMarkTime(0)
             , gcTime(0)
             , compTime(0)
             , decompTime(0)
-            , compStackSearchTime(0)
         {
         }
 
         size_t gcCount;
         size_t compCount;
         size_t decompCount;
+        uint64_t lastGCMarkTime;
         uint64_t gcTime;
         uint64_t compTime;
         uint64_t decompTime;
-        uint64_t compStackSearchTime;
 
         void printResult();
     };
@@ -99,10 +99,19 @@ public:
     static void increaseHeapProfileGCCount() { g_heapProfile->gcCount++; }
     static void increaseHeapProfileCompCount() { g_heapProfile->compCount++; }
     static void increaseHeapProfileDecompCount() { g_heapProfile->decompCount++; }
-    static void addHeapProfileGCTime(uint64_t time) { g_heapProfile->gcTime += time; }
+    static void markHeapProfileGCMarkStartTime(uint64_t time)
+    {
+        ASSERT(g_heapProfile->lastGCMarkTime == 0);
+        g_heapProfile->lastGCMarkTime = time;
+    }
+    static void markHeapProfileGCReclaimEndTime(uint64_t time)
+    {
+        ASSERT(time >= g_heapProfile->lastGCMarkTime);
+        g_heapProfile->gcTime += (time - g_heapProfile->lastGCMarkTime);
+        g_heapProfile->lastGCMarkTime = 0;
+    }
     static void addHeapProfileCompTime(uint64_t time) { g_heapProfile->compTime += time; }
     static void addHeapProfileDecompTime(uint64_t time) { g_heapProfile->decompTime += time; }
-    static void addHeapProfileCompStackSearchTime(uint64_t time) { g_heapProfile->compStackSearchTime += time; }
 };
 
 } // namespace Escargot
