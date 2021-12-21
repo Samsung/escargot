@@ -2216,7 +2216,8 @@ TEST(ReloadableString, Basic)
 class DebuggerTest : public DebuggerOperationsRef::DebuggerClient {
 public:
     DebuggerTest()
-        : stopAtBreakpointCount(0)
+        : inEval(false)
+        , stopAtBreakpointCount(0)
     {
         memset(codeRefs, 0, sizeof(codeRefs));
         memset(offsets, 0, sizeof(offsets));
@@ -2227,6 +2228,7 @@ public:
     virtual void codeReleased(DebuggerOperationsRef::WeakCodeRef* weakCodeRef) override;
     virtual DebuggerOperationsRef::ResumeBreakpointOperation stopAtBreakpoint(DebuggerOperationsRef::BreakpointOperations& operations) override;
 
+    bool inEval;
     int stopAtBreakpointCount;
     DebuggerOperationsRef::WeakCodeRef* codeRefs[2];
     uint32_t offsets[5];
@@ -2246,6 +2248,10 @@ static char debuggerSourceString2[] = "var a = ;";
 
 void DebuggerTest::parseCompleted(StringRef* source, StringRef* srcName, std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>& breakpointLocationsVector)
 {
+    if (inEval) {
+        return;
+    }
+
     EXPECT_TRUE(source->equalsWithASCIIString(debuggerSourceString1, sizeof(debuggerSourceString1) - 1));
     EXPECT_TRUE(srcName->equalsWithASCIIString(debuggerFileNameString, sizeof(debuggerFileNameString) - 1));
 
@@ -2318,6 +2324,20 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
         EXPECT_EQ(stackTrace[0].column, 1);
         EXPECT_EQ(stackTrace[0].depth, 0);
 
+        inEval = true;
+        StringRef* sourceCode = StringRef::createFromUTF8("a", 1);
+        bool is_error;
+        StringRef* result = operations.eval(sourceCode, is_error);
+        EXPECT_FALSE(is_error);
+        EXPECT_TRUE(result->equalsWithASCIIString("1", 1));
+
+        sourceCode = StringRef::createFromUTF8("b", 1);
+        result = operations.eval(sourceCode, is_error);
+        EXPECT_TRUE(is_error);
+        static char errorMessage[] = "ReferenceError: b is not defined";
+        EXPECT_TRUE(result->equalsWithASCIIString(errorMessage, sizeof(errorMessage) - 1));
+        inEval = false;
+
         return DebuggerOperationsRef::Step;
     }
     case 3: {
@@ -2344,6 +2364,14 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
     case 4: {
         EXPECT_EQ(operations.weakCodeRef(), codeRefs[1]);
         EXPECT_EQ(operations.offset(), offsets[3]);
+
+        inEval = true;
+        StringRef* sourceCode = StringRef::createFromUTF8("a", 1);
+        bool is_error;
+        StringRef* result = operations.eval(sourceCode, is_error);
+        EXPECT_TRUE(result->equalsWithASCIIString("2", 1));
+        inEval = false;
+
         return DebuggerOperationsRef::Finish;
     }
     }

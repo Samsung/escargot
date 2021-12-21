@@ -1150,6 +1150,38 @@ Evaluator::EvaluatorResult VMInstanceRef::executePendingJob()
 
 #ifdef ESCARGOT_DEBUGGER
 
+StringRef* DebuggerOperationsRef::BreakpointOperations::eval(StringRef* sourceCode, bool& isError)
+{
+    ExecutionState* state = toImpl(m_executionState);
+    Debugger* debugger = state->context()->debugger();
+
+    if (debugger == nullptr) {
+        isError = true;
+
+        return StringRef::createFromASCII("Debugger is not available");
+    }
+
+    isError = false;
+
+    String* result;
+
+    debugger->setStopState(ESCARGOT_DEBUGGER_IN_EVAL_MODE);
+
+    try {
+        Value asValue(toImpl(sourceCode));
+        Value evalResult(Value::ForceUninitialized);
+        evalResult = state->context()->globalObject()->evalLocal(*state, asValue, state->thisValue(), reinterpret_cast<ByteCodeBlock*>(weakCodeRef())->m_codeBlock, true);
+        result = evalResult.toStringWithoutException(*state);
+    } catch (const Value& val) {
+        result = val.toStringWithoutException(*state);
+
+        isError = true;
+    }
+
+    debugger->setStopState(ESCARGOT_DEBUGGER_IN_WAIT_MODE);
+    return toRef(result);
+}
+
 void DebuggerOperationsRef::BreakpointOperations::getStackTrace(DebuggerOperationsRef::DebuggerStackTraceDataVector& outStackTrace)
 {
     ExecutionState* state = toImpl(m_executionState);

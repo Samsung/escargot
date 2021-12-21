@@ -171,7 +171,7 @@ void Context::setAsAlwaysStopState()
         return;
     }
 
-    m_debugger->setAsAlwaysStopState();
+    m_debugger->setStopState(ESCARGOT_DEBUGGER_ALWAYS_STOP);
 }
 
 void Context::pumpDebuggerEvents()

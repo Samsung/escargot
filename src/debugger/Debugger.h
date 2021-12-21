@@ -149,9 +149,9 @@ public:
         }
     }
 
-    void setAsAlwaysStopState()
+    void setStopState(ExecutionState* stopState)
     {
-        m_stopState = ESCARGOT_DEBUGGER_ALWAYS_STOP;
+        m_stopState = stopState;
     }
 
     static void createDebuggerRemote(const char* options, Context* context);

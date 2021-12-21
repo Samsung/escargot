@@ -745,6 +745,7 @@ public:
             return m_offset;
         }
 
+        StringRef* eval(StringRef* sourceCode, bool& isError);
         void getStackTrace(DebuggerStackTraceDataVector& outStackTrace);
 
     private:
