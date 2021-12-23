@@ -82,6 +82,7 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
             traceData.sourceCode = cb->script()->sourceCode();
             traceData.functionName = m_stackTraceData[i].second.functionName;
             traceData.isFunction = m_stackTraceData[i].second.isFunction;
+            traceData.callee = m_stackTraceData[i].second.callee;
             traceData.isConstructor = m_stackTraceData[i].second.isConstructor;
             traceData.isAssociatedWithJavaScriptCode = m_stackTraceData[i].second.isAssociatedWithJavaScriptCode;
             traceData.isEval = m_stackTraceData[i].second.isEval;
@@ -261,6 +262,7 @@ bool SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                 data.functionName = cb->functionName().string();
                 data.isEval = false;
                 data.isFunction = true;
+                data.callee = callee;
                 data.isAssociatedWithJavaScriptCode = cb->isInterpretedCodeBlock();
                 data.isConstructor = callee->isConstructor();
                 data.sourceCode = String::emptyString;

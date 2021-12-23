@@ -41,6 +41,7 @@ public:
 #ifdef ESCARGOT_DEBUGGER
         uint32_t executionStateDepth;
 #endif /* ESCARGOT_DEBUGGER */
+        Optional<FunctionObject*> callee;
         bool isFunction;
         bool isConstructor;
         bool isAssociatedWithJavaScriptCode;
@@ -53,6 +54,7 @@ public:
 #ifdef ESCARGOT_DEBUGGER
             , executionStateDepth(0)
 #endif /* ESCARGOT_DEBUGGER */
+            , callee(nullptr)
             , isFunction(false)
             , isConstructor(false)
             , isAssociatedWithJavaScriptCode(false)

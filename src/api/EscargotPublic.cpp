@@ -950,6 +950,7 @@ Evaluator::StackTraceData::StackTraceData()
     , sourceCode(toRef(String::emptyString))
     , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
     , functionName(toRef(String::emptyString))
+    , callee(nullptr)
     , isFunction(false)
     , isConstructor(false)
     , isAssociatedWithJavaScriptCode(false)
@@ -1012,6 +1013,9 @@ static Evaluator::EvaluatorResult toEvaluatorResultRef(SandBox::SandBoxResult& r
             t.loc.line = result.stackTraceData[i].loc.line;
             t.loc.column = result.stackTraceData[i].loc.column;
             t.functionName = toRef(result.stackTraceData[i].functionName);
+            if (result.stackTraceData[i].callee) {
+                t.callee = toRef(result.stackTraceData[i].callee.value());
+            }
             t.isFunction = result.stackTraceData[i].isFunction;
             t.isConstructor = result.stackTraceData[i].isConstructor;
             t.isAssociatedWithJavaScriptCode = result.stackTraceData[i].isAssociatedWithJavaScriptCode;
@@ -2645,6 +2649,9 @@ GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTraceD
         t.loc.line = stackTraceData[i].second.loc.line;
         t.loc.column = stackTraceData[i].second.loc.column;
         t.functionName = toRef(stackTraceData[i].second.functionName);
+        if (stackTraceData[i].second.callee) {
+            t.callee = toRef(stackTraceData[i].second.callee.value());
+        }
         t.isFunction = stackTraceData[i].second.isFunction;
         t.isConstructor = stackTraceData[i].second.isConstructor;
         t.isAssociatedWithJavaScriptCode = stackTraceData[i].second.isAssociatedWithJavaScriptCode;

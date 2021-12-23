@@ -461,6 +461,52 @@ TEST(ValueRef, Basic2)
     });
 }
 
+TEST(Evaluator, Basic)
+{
+    auto result = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        return ValueRef::create(123);
+    });
+    EXPECT_TRUE(result.isSuccessful());
+    EXPECT_TRUE(!result.error);
+    EXPECT_TRUE(result.result->isInt32());
+    EXPECT_TRUE(result.result->asInt32() == 123);
+
+    auto result2 = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        state->throwException(ValueRef::create(123));
+        return ValueRef::create(456);
+    });
+    EXPECT_TRUE(!result2.isSuccessful());
+    EXPECT_TRUE(result2.error);
+    EXPECT_TRUE(result2.error->isInt32());
+    EXPECT_TRUE(result2.error->asInt32() == 123);
+
+    FunctionObjectRef* functionObjectRef = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+                                               FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(g_context.get(), "test"),
+                                                                                                        [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
+                                                                                                            state->throwException(ValueRef::create(123));
+                                                                                                            return ValueRef::createUndefined();
+                                                                                                        },
+                                                                                                        0, true, false);
+                                               return FunctionObjectRef::create(state, nativeFunctionInfo);
+                                           })
+                                               .result->asFunctionObject();
+
+    auto result3 = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* functionObjectRef) -> ValueRef* {
+        functionObjectRef->call(state, ValueRef::createUndefined(), 0, nullptr);
+        EXPECT_TRUE(false);
+        return ValueRef::create(456);
+    },
+                                      functionObjectRef);
+
+    EXPECT_TRUE(!result3.isSuccessful());
+    EXPECT_TRUE(result3.error);
+    EXPECT_TRUE(result3.error->isInt32());
+    EXPECT_TRUE(result3.error->asInt32() == 123);
+    EXPECT_TRUE(result3.stackTraceData.size() == 1);
+    EXPECT_TRUE(result3.stackTraceData[0].isFunction);
+    EXPECT_TRUE(result3.stackTraceData[0].callee.value() == functionObjectRef);
+}
+
 TEST(EvalScript, Run)
 {
     auto s = evalScript(g_context.get(), StringRef::createFromASCII("1 + 1"), StringRef::createFromASCII("test.js"), false);
