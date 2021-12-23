@@ -549,6 +549,7 @@ public:
         StringRef* sourceCode;
         LOC loc;
         StringRef* functionName;
+        OptionalRef<FunctionObjectRef> callee;
         bool isFunction;
         bool isConstructor;
         bool isAssociatedWithJavaScriptCode;
