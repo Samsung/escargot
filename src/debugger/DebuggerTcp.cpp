@@ -306,16 +306,21 @@ static bool webSocketHandshake(EscargotSocket socket)
 void DebuggerTcp::init(const char* options, Context* context)
 {
     uint16_t port = 6501;
+    int timeout = -1;
 
     if (options) {
         auto v = split(options, ';');
+        const char portOption[] = "--port=";
+        const char accpetTimeoutOption[] = "--accept-timeout=";
         for (size_t i = 0; i < v.size(); i++) {
             const std::string& s = v[i];
-            if (s.find("--port=") == 0) {
-                int i = std::atoi(s.data() + 7);
+            if (s.find(portOption) == 0) {
+                int i = std::atoi(s.data() + sizeof(portOption) - 1);
                 if (i > 0 && i <= 65535) {
                     port = i;
                 }
+            } else if (s.find(accpetTimeoutOption) == 0) {
+                timeout = std::atoi(s.data() + sizeof(accpetTimeoutOption) - 1);
             }
         }
     }
@@ -343,6 +348,28 @@ void DebuggerTcp::init(const char* options, Context* context)
     }
 
     ESCARGOT_LOG_INFO("Waiting for client connection 0.0.0.0:%hd\n", port);
+
+    struct pollfd fd[1];
+    fd[0].fd = serverSocket;
+    fd[0].events = POLLIN;
+    while (true) {
+        int rc = poll(fd, 1, 0);
+
+        if (rc != 0) {
+            break;
+        }
+
+        usleep(10 * 1000); // 10ms
+        if (timeout == -1) {
+            continue;
+        }
+        timeout -= 10;
+        if (timeout < 0) {
+            ESCARGOT_LOG_ERROR("Waiting for client connection error: timeout reached\n");
+            tcpCloseSocket(serverSocket);
+            return;
+        }
+    }
 
     sockaddr_in addr;
     socklen_t sinSize = sizeof(sockaddr_in);

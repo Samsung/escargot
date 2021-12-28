@@ -2358,3 +2358,15 @@ TEST(Debugger, Basic)
     context.release();
     instance.release();
 }
+
+TEST(Debugger, RemoteOption)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+    // 100ms
+    EXPECT_FALSE(context->initDebuggerRemote("--accept-timeout=100"));
+    EXPECT_FALSE(context->isDebuggerRunning());
+
+    context.release();
+    instance.release();
+}
