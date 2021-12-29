@@ -75,7 +75,7 @@ FunctionObject::FunctionObject(ObjectStructure* structure, ObjectPropertyValueVe
 {
 }
 
-FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyValue, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource)
+static String* createFunctionSource(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyValue, bool useStrict, bool isGenerator, bool isAsync, bool isInternalSource)
 {
     StringBuilder src, parameters;
     if (useStrict) {
@@ -225,10 +225,18 @@ FunctionObject::FunctionSource FunctionObject::createFunctionSourceFromScriptSou
         scriptSource = src.finalize(&state);
     }
 
+    return scriptSource;
+}
+
+FunctionObject::FunctionSource FunctionObject::createFunctionScript(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyValue, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource, String* sourceName)
+{
+    String* scriptSource = createFunctionSource(state, functionName, argCount, argArray, bodyValue, useStrict, isGenerator, isAsync, isInternalSource);
+
     ScriptParser parser(state.context());
-    String* srcName = String::emptyString;
+    String* srcName = sourceName;
+
     // find srcName through outer script except internal source
-    if (!isInternalSource) {
+    if (!isInternalSource && !srcName) {
         auto script = state.resolveOuterScript();
         if (script) {
             srcName = script->srcName();

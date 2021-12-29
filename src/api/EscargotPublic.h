@@ -1439,7 +1439,10 @@ public:
 
     static FunctionObjectRef* create(ExecutionStateRef* state, NativeFunctionInfo info);
     static FunctionObjectRef* createBuiltinFunction(ExecutionStateRef* state, NativeFunctionInfo info); // protoype of builtin function is non-writable
+
+    // dynamically create a function from source string
     static FunctionObjectRef* create(ExecutionStateRef* state, AtomicStringRef* functionName, size_t argumentCount, ValueRef** argumentNameArray, ValueRef* body);
+    static FunctionObjectRef* create(ExecutionStateRef* state, StringRef* sourceName, AtomicStringRef* functionName, size_t argumentCount, ValueRef** argumentNameArray, ValueRef* body);
 
     // get prototype property of constructible function(not [[prototype]])
     // this property is used for new object construction. see https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycreatefromconstructor

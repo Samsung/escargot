@@ -505,6 +505,27 @@ TEST(Evaluator, Basic)
     EXPECT_TRUE(result3.stackTraceData.size() == 1);
     EXPECT_TRUE(result3.stackTraceData[0].isFunction);
     EXPECT_TRUE(result3.stackTraceData[0].callee.value() == functionObjectRef);
+
+    FunctionObjectRef* functionObjectRef2 = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+                                                return FunctionObjectRef::create(state, StringRef::createFromASCII("test_name"), AtomicStringRef::create(state->context(), "test"), 0, nullptr, StringRef::createFromASCII("throw 3;"));
+                                            })
+                                                .result->asFunctionObject();
+
+    auto result4 = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* functionObjectRef) -> ValueRef* {
+        functionObjectRef->call(state, ValueRef::createUndefined(), 0, nullptr);
+        EXPECT_TRUE(false);
+        return ValueRef::create(456);
+    },
+                                      functionObjectRef2);
+
+    EXPECT_TRUE(!result4.isSuccessful());
+    EXPECT_TRUE(result4.error);
+    EXPECT_TRUE(result4.error->isInt32());
+    EXPECT_TRUE(result4.error->asInt32() == 3);
+    EXPECT_TRUE(result4.stackTraceData.size() == 1);
+    EXPECT_TRUE(result4.stackTraceData[0].isFunction);
+    EXPECT_TRUE(result4.stackTraceData[0].callee.value() == functionObjectRef2);
+    EXPECT_TRUE(result4.stackTraceData[0].src->equalsWithASCIIString("test_name", 9));
 }
 
 TEST(EvalScript, Run)

@@ -884,7 +884,7 @@ protected:
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
     bool m_allowArguments : 1;
-    // represent if its source code is created dynamically by createFunctionSourceFromScriptSource
+    // represent if its source code is created dynamically by createFunctionScript
     bool m_hasDynamicSourceCode : 1;
 
 #ifndef NDEBUG

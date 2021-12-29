@@ -107,7 +107,7 @@ public:
         InterpretedCodeBlock* codeBlock;
         LexicalEnvironment* outerEnvironment;
     };
-    static FunctionSource createFunctionSourceFromScriptSource(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource = false);
+    static FunctionSource createFunctionScript(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource = false, String* sourceName = nullptr);
 
 protected:
     FunctionObject(ExecutionState& state, Object* proto, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.

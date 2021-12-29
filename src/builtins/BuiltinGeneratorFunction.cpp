@@ -31,7 +31,7 @@ static Value builtinGeneratorFunction(ExecutionState& state, Value thisValue, si
 {
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
-    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true, false, false);
+    auto functionSource = FunctionObject::createFunctionScript(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true, false, false);
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
     if (!newTarget.hasValue()) {
