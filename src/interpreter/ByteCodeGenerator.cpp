@@ -126,7 +126,7 @@ void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
     ASSERT(index != SIZE_MAX);
 
     // do not insert any breakpoint when handling dynamically created function
-    if (UNLIKELY(m_codeBlock->hasDynamicSourceCode() || !m_breakpointContext->m_parsingEnabled)) {
+    if (UNLIKELY(m_codeBlock->hasDynamicSourceCode())) {
         return;
     }
 
@@ -154,10 +154,8 @@ void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
 
 void ByteCodeGenerateContext::insertBreakpointAt(size_t line, Node* node)
 {
-    if (m_breakpointContext->m_parsingEnabled) {
-        m_breakpointContext->m_breakpointLocations->breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
-        m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
-    }
+    m_breakpointContext->m_breakpointLocations->breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
+    m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
 }
 
 #endif /* ESCARGOT_DEBUGGER */
