@@ -506,9 +506,7 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     // When the debugger is enabled, lazy compilation is disabled, so the functions are compiled
     // during parsing, and this function is never called. However, implicit class constructors
     // has no source code, and still compiled later. These functions are ignored by the debugger.
-    if (m_context->debugger() != nullptr) {
-        m_context->debugger()->setParsingEnabled(false);
-    }
+    ASSERT(m_context->debugger() == nullptr || !m_context->debugger()->parsingEnabled());
 #endif /* ESCARGOT_DEBUGGER */
 
     GC_disable();
@@ -535,12 +533,6 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     // reset ASTAllocator
     m_context->astAllocator().reset();
     GC_enable();
-
-#ifdef ESCARGOT_DEBUGGER
-    if (m_context->debugger() != nullptr) {
-        m_context->debugger()->setParsingEnabled(true);
-    }
-#endif /* ESCARGOT_DEBUGGER */
 }
 
 #ifdef ESCARGOT_DEBUGGER
@@ -572,6 +564,9 @@ void ScriptParser::recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* par
 ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
 {
     GC_disable();
+    if (m_context->debugger() != nullptr) {
+        m_context->debugger()->setParsingEnabled(true);
+    }
 
     bool inWith = (parentCodeBlock ? parentCodeBlock->inWith() : false) || inWithOperation;
     bool allowSC = (parentCodeBlock ? parentCodeBlock->allowSuperCall() : false) || allowSuperCall;
@@ -611,6 +606,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
 
         if (m_context->debugger() != nullptr) {
             m_context->debugger()->parseCompleted(source, srcName, orgError->message);
+            m_context->debugger()->clearParsingData();
+            m_context->debugger()->setParsingEnabled(false);
         }
 
         GC_enable();
@@ -645,6 +642,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
 
         debugger->parseCompleted(source, srcName);
         debugger->clearParsingData();
+        debugger->setParsingEnabled(false);
     }
 
     GC_enable();
