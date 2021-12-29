@@ -2363,7 +2363,25 @@ FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* stateRef, Atomic
         newArgv[i] = toImpl(argumentNameArray[i]);
     }
 
-    auto functionSource = FunctionObject::createFunctionSourceFromScriptSource(state, toImpl(functionName), argumentCount, newArgv, toImpl(body), false, false, false, false);
+    auto functionSource = FunctionObject::createFunctionScript(state, toImpl(functionName), argumentCount, newArgv, toImpl(body), false, false, false, false);
+
+    Object* proto = state.context()->globalObject()->functionPrototype();
+    ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false, false);
+
+    return toRef(result);
+}
+
+FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* stateRef, StringRef* sourceName, AtomicStringRef* functionName, size_t argumentCount, ValueRef** argumentNameArray, ValueRef* body)
+{
+    ASSERT(toImpl(sourceName));
+
+    ExecutionState& state = *toImpl(stateRef);
+    Value* newArgv = ALLOCA(sizeof(Value) * argumentCount, Value, state);
+    for (size_t i = 0; i < argumentCount; i++) {
+        newArgv[i] = toImpl(argumentNameArray[i]);
+    }
+
+    auto functionSource = FunctionObject::createFunctionScript(state, toImpl(functionName), argumentCount, newArgv, toImpl(body), false, false, false, false, false, toImpl(sourceName));
 
     Object* proto = state.context()->globalObject()->functionPrototype();
     ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false, false);
