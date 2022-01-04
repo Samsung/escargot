@@ -95,8 +95,6 @@ struct ByteCodeGenerateContext {
         , m_positionToContinue(0)
         , m_complexJumpBreakIgnoreCount(0)
         , m_complexJumpContinueIgnoreCount(0)
-        , m_complexJumpLabelledBreakIgnoreCount(0)
-        , m_complexJumpLabelledContinueIgnoreCount(0)
         , m_lexicalBlockIndex(0)
         , m_openedNonBlockEnvCount(0)
         , m_classInfo()
@@ -131,10 +129,8 @@ struct ByteCodeGenerateContext {
         , m_lexicallyDeclaredNames(contextBefore.m_lexicallyDeclaredNames)
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_recursiveStatementStack(contextBefore.m_recursiveStatementStack)
-        , m_complexJumpBreakIgnoreCount(contextBefore.m_complexJumpBreakIgnoreCount)
-        , m_complexJumpContinueIgnoreCount(contextBefore.m_complexJumpContinueIgnoreCount)
-        , m_complexJumpLabelledBreakIgnoreCount(contextBefore.m_complexJumpLabelledBreakIgnoreCount)
-        , m_complexJumpLabelledContinueIgnoreCount(contextBefore.m_complexJumpLabelledContinueIgnoreCount)
+        , m_complexJumpBreakIgnoreCount(contextBefore.m_recursiveStatementStack.size())
+        , m_complexJumpContinueIgnoreCount(m_complexJumpBreakIgnoreCount)
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
         , m_openedNonBlockEnvCount(contextBefore.m_openedNonBlockEnvCount)
         , m_classInfo(contextBefore.m_classInfo)
@@ -143,6 +139,7 @@ struct ByteCodeGenerateContext {
         , m_breakpointContext(contextBefore.m_breakpointContext)
 #endif /* ESCARGOT_DEBUGGER */
     {
+        ASSERT(m_complexJumpBreakIgnoreCount == m_complexJumpContinueIgnoreCount);
     }
 
     ~ByteCodeGenerateContext()
@@ -210,16 +207,16 @@ struct ByteCodeGenerateContext {
 
         for (unsigned i = 0; i < m_labelledBreakStatmentPositions.size(); i++) {
             if (m_labelledBreakStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labelledBreakStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
-                if (tryCatchWithBlockStatementCount() - m_complexJumpLabelledBreakIgnoreCount > 0) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_labelledBreakStatmentPositions[i].second, tryCatchWithBlockStatementCount() - m_complexJumpLabelledBreakIgnoreCount));
+                if (tryCatchWithBlockStatementCount() > 0) {
+                    m_complexCaseStatementPositions.insert(std::make_pair(m_labelledBreakStatmentPositions[i].second, tryCatchWithBlockStatementCount()));
                 }
             }
         }
 
         for (unsigned i = 0; i < m_labelledContinueStatmentPositions.size(); i++) {
             if (m_labelledContinueStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labelledContinueStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
-                if (tryCatchWithBlockStatementCount() - m_complexJumpLabelledContinueIgnoreCount > 0) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_labelledContinueStatmentPositions[i].second, tryCatchWithBlockStatementCount() - m_complexJumpLabelledContinueIgnoreCount));
+                if (tryCatchWithBlockStatementCount() > 0) {
+                    m_complexCaseStatementPositions.insert(std::make_pair(m_labelledContinueStatmentPositions[i].second, tryCatchWithBlockStatementCount()));
                 }
             }
         }
@@ -371,8 +368,6 @@ struct ByteCodeGenerateContext {
     std::vector<std::pair<RecursiveStatementKind, size_t>> m_recursiveStatementStack;
     int m_complexJumpBreakIgnoreCount;
     int m_complexJumpContinueIgnoreCount;
-    int m_complexJumpLabelledBreakIgnoreCount;
-    int m_complexJumpLabelledContinueIgnoreCount;
     size_t m_lexicalBlockIndex;
     size_t m_openedNonBlockEnvCount;
     ClassContextInformation m_classInfo;
