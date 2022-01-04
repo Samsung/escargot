@@ -2052,11 +2052,13 @@ void Object::addFinalizer(ObjectFinalizer fn, void* data)
         rareData()->m_isFinalizerRegistered = true;
 
 #define FINALIZER_CALLBACK()                                     \
+    GC_disable();                                                \
     Object* self = (Object*)obj;                                 \
     auto r = self->ensureObjectExtendedExtraData();              \
     for (size_t i = 0; i < r->m_finalizer.size(); i++) {         \
         r->m_finalizer[i].first(self, r->m_finalizer[i].second); \
-    }
+    }                                                            \
+    GC_enable();
 
 #ifndef NDEBUG
         GC_finalization_proc of = nullptr;
