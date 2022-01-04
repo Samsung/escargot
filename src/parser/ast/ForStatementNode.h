@@ -112,8 +112,11 @@ public:
                 newContext.giveUpRegister();
             }
 
+            // we should increase this count here.
+            // because the block was created after newContext creation
             if (bi->m_shouldAllocateEnvironment) {
                 newContext.m_complexJumpContinueIgnoreCount++;
+                newContext.m_complexJumpBreakIgnoreCount++;
             }
         }
 
