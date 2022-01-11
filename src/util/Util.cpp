@@ -61,6 +61,13 @@ struct timezone {
     int tz_dsttime; /* type of dst correction */
 };
 
+#if !defined(_WINSOCKAPI_)
+struct timeval {
+    long tv_sec;
+    long tv_usec;
+};
+#endif
+
 int gettimeofday(struct timeval *tv, struct timezone *tz)
 {
     FILETIME ft;
@@ -83,7 +90,9 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
 
     if (NULL != tz) {
         if (!tzflag) {
+#if !defined(OS_WINDOWS_UWP)
             _tzset();
+#endif
             tzflag++;
         }
         tz->tz_minuteswest = _timezone / 60;

@@ -26,6 +26,8 @@
 #include "Intl.h"
 #include "IntlDisplayNames.h"
 
+#if defined(ENABLE_INTL_DISPLAYNAMES)
+
 namespace Escargot {
 
 IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* proto, Value locales, Value options)
@@ -366,4 +368,5 @@ Value IntlDisplayNamesObject::of(ExecutionState& state, const Value& codeInput)
 }
 
 } // namespace Escargot
+#endif
 #endif

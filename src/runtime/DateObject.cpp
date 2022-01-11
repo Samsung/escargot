@@ -279,7 +279,7 @@ time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
     int32_t stdOffset = 0, dstOffset = 0;
 
 // roughly check range before calling yearFromTime function
-#if defined(ENABLE_ICU)
+#if defined(ENABLE_ICU) && !defined(OS_WINDOWS_UWP)
     stdOffset = vzone_getRawOffset(state.context()->vmInstance()->timezone());
 #else
     stdOffset = 0;
@@ -299,7 +299,7 @@ time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
     time64_t msBetweenYears = (realYear != equivalentYear) ? (timeFromYear(equivalentYear) - timeFromYear(realYear)) : 0;
 
     t += msBetweenYears;
-#if defined(ENABLE_ICU)
+#if defined(ENABLE_ICU) && !defined(OS_WINDOWS_UWP)
     vzone_getOffset3(state.context()->vmInstance()->timezone(), t, true, stdOffset, dstOffset, succ);
 #else
     dstOffset = 0;
@@ -1117,7 +1117,7 @@ void DateObject::resolveCache(ExecutionState& state)
     t += msBetweenYears;
 
     int32_t stdOffset = 0, dstOffset = 0;
-#if defined(ENABLE_ICU)
+#if defined(ENABLE_ICU) && !defined(OS_WINDOWS_UWP)
     UErrorCode succ = U_ZERO_ERROR;
     vzone_getOffset3(state.context()->vmInstance()->timezone(), t, true, stdOffset, dstOffset, succ);
 #endif

@@ -182,8 +182,9 @@ static void toDateTimeOptionsTest(ExecutionState& state, Value options, AtomicSt
 
 static String* defaultTimeZone(ExecutionState& state)
 {
-    // ensure timezone
-    state.context()->vmInstance()->timezone();
+#if !defined(OS_WINDOWS_UWP)
+    state.context()->vmInstance()->ensureTimezone();
+#endif
     return String::fromUTF8(state.context()->vmInstance()->timezoneID().data(), state.context()->vmInstance()->timezoneID().length());
 }
 

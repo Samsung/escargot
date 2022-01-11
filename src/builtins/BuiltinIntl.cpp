@@ -315,6 +315,7 @@ static Value builtinIntlDateTimeFormatSupportedLocalesOf(ExecutionState& state, 
     return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
 }
 
+#if defined(ENABLE_INTL_NUMBERFORMAT)
 static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     FunctionObject* callee = state.resolveCallee();
@@ -440,7 +441,9 @@ static Value builtinIntlNumberFormatSupportedLocalesOf(ExecutionState& state, Va
     // Return the result of calling the SupportedLocales abstract operation (defined in 9.2.8) with arguments availableLocales, requestedLocales, and options.
     return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
 }
+#endif
 
+#if defined(ENABLE_INTL_PLURALRULES)
 static Value builtinIntlPluralRulesConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
@@ -560,6 +563,7 @@ static Value builtinIntlPluralRulesSupportedLocalesOf(ExecutionState& state, Val
     // Return the result of calling the SupportedLocales abstract operation (defined in 9.2.8) with arguments availableLocales, requestedLocales, and options.
     return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
 }
+#endif
 
 static Value builtinIntlLocaleConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -896,6 +900,7 @@ static Value builtinIntlLocaleTimeZonesGetter(ExecutionState& state, Value thisV
     return thisValue.asObject()->asIntlLocaleObject()->timeZones(state);
 }
 
+#if defined(ENABLE_INTL_RELATIVETIMEFORMAT)
 static Value builtinIntlRelativeTimeFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
@@ -986,7 +991,9 @@ static Value builtinIntlRelativeTimeFormatFormatToParts(ExecutionState& state, V
     // Return ? FormatRelativeTimeToParts(relativeTimeFormat, value, unit).
     return thisValue.asObject()->asIntlRelativeTimeFormatObject()->formatToParts(state, value, unit);
 }
+#endif
 
+#if defined(ENABLE_INTL_DISPLAYNAMES)
 static Value builtinIntlDisplayNamesConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // https://402.ecma-international.org/8.0/#sec-Intl.DisplayNames
@@ -1029,7 +1036,9 @@ static Value builtinIntlDisplayNamesResolvedOptions(ExecutionState& state, Value
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(staticStrings.lazyLanguageDisplay()), ObjectPropertyDescriptor(r->languageDisplay(), ObjectPropertyDescriptor::AllPresent));
     return options;
 }
+#endif
 
+#if defined(ENABLE_INTL_LISTFORMAT)
 static Value builtinIntlListFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
@@ -1097,6 +1106,7 @@ static Value builtinIntlListFormatFormatToParts(ExecutionState& state, Value thi
     IntlListFormatObject* r = thisValue.asObject()->asIntlListFormatObject();
     return r->formatToParts(state, argv[0]);
 }
+#endif
 
 static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -1162,6 +1172,7 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlDateTimeFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlDateTimeFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
+#if defined(ENABLE_INTL_NUMBERFORMAT)
     m_intlNumberFormat = new NativeFunctionObject(state, NativeFunctionInfo(strings->NumberFormat, builtinIntlNumberFormatConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlNumberFormat->setGlobalIntrinsicObject(state);
     m_intlNumberFormatPrototype = m_intlNumberFormat->getFunctionPrototype(state).asObject();
@@ -1185,7 +1196,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlNumberFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlNumberFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+#endif
 
+#if defined(ENABLE_INTL_PLURALRULES)
     m_intlPluralRules = new NativeFunctionObject(state, NativeFunctionInfo(strings->PluralRules, builtinIntlPluralRulesConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlPluralRules->setGlobalIntrinsicObject(state);
 
@@ -1203,7 +1216,7 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlPluralRules->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlPluralRulesSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
-
+#endif
 
     m_intlLocale = new NativeFunctionObject(state, NativeFunctionInfo(strings->Locale, builtinIntlLocaleConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlLocale->setGlobalIntrinsicObject(state);
@@ -1342,6 +1355,7 @@ void GlobalObject::installIntl(ExecutionState& state)
         m_intlLocalePrototype->defineOwnProperty(state, ObjectPropertyName(state, strings->lazyTimeZones()), desc);
     }
 
+#if defined(ENABLE_INTL_RELATIVETIMEFORMAT)
     m_intlRelativeTimeFormat = new NativeFunctionObject(state, NativeFunctionInfo(strings->RelativeTimeFormat, builtinIntlRelativeTimeFormatConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlRelativeTimeFormat->setGlobalIntrinsicObject(state);
 
@@ -1362,7 +1376,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlRelativeTimeFormat->defineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlRelativeTimeFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+#endif
 
+#if defined(ENABLE_INTL_DISPLAYNAMES)
     m_intlDisplayNames = new NativeFunctionObject(state, NativeFunctionInfo(strings->DisplayNames, builtinIntlDisplayNamesConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlDisplayNames->setGlobalIntrinsicObject(state);
 
@@ -1377,7 +1393,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlDisplayNamesPrototype->defineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlDisplayNamesResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+#endif
 
+#if defined(ENABLE_INTL_LISTFORMAT)
     m_intlListFormat = new NativeFunctionObject(state, NativeFunctionInfo(strings->ListFormat, builtinIntlListFormatConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_intlListFormat->setGlobalIntrinsicObject(state);
 
@@ -1401,31 +1419,35 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intl->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                              ObjectPropertyDescriptor(Value(state.context()->staticStrings().Intl.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+#endif
 
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->Collator),
                               ObjectPropertyDescriptor(m_intlCollator, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->DateTimeFormat),
                               ObjectPropertyDescriptor(m_intlDateTimeFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
+#if defined(ENABLE_INTL_NUMBERFORMAT)
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->NumberFormat),
                               ObjectPropertyDescriptor(m_intlNumberFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
+#endif
+#if defined(ENABLE_INTL_PLURALRULES)
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->PluralRules),
                               ObjectPropertyDescriptor(m_intlPluralRules, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
+#endif
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->Locale),
                               ObjectPropertyDescriptor(m_intlLocale, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
+#if defined(ENABLE_INTL_RELATIVETIMEFORMAT)
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->RelativeTimeFormat),
                               ObjectPropertyDescriptor(m_intlRelativeTimeFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
+#endif
+#if defined(ENABLE_INTL_DISPLAYNAMES)
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->DisplayNames),
                               ObjectPropertyDescriptor(m_intlDisplayNames, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
+#endif
+#if defined(ENABLE_INTL_LISTFORMAT)
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->ListFormat),
                               ObjectPropertyDescriptor(m_intlListFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-
+#endif
     FunctionObject* getCanonicalLocales = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCanonicalLocales, builtinIntlGetCanonicalLocales, 1, NativeFunctionInfo::Strict));
     m_intl->defineOwnProperty(state, ObjectPropertyName(strings->getCanonicalLocales),
                               ObjectPropertyDescriptor(getCanonicalLocales, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

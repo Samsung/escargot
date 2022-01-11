@@ -328,7 +328,7 @@ VMInstance::~VMInstance()
     }
 
     clearCachesRelatedWithContext();
-#ifdef ENABLE_ICU
+#if defined(ENABLE_ICU) && !defined(OS_WINDOWS_UWP)
     vzone_close(m_timezone);
 #endif
 
@@ -390,8 +390,10 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     m_regexpOptionStringCache = (ASCIIString**)GC_MALLOC(64 * sizeof(ASCIIString*));
     memset(m_regexpOptionStringCache, 0, 64 * sizeof(ASCIIString*));
 
-#ifdef ENABLE_ICU
+#if defined(ENABLE_ICU)
+#if !defined(OS_WINDOWS_UWP)
     m_timezone = nullptr;
+#endif
     if (timezone) {
         m_timezoneID = timezone;
     } else if (getenv("TZ")) {
@@ -510,6 +512,23 @@ static std::string findTimezone()
 {
     return RuntimeICUBinder::ICU::findSystemTimezoneName();
 }
+#elif defined(OS_WINDOWS_UWP)
+static std::string findTimezone()
+{
+    DYNAMIC_TIME_ZONE_INFORMATION tz;
+    DWORD ret = GetDynamicTimeZoneInformation(&tz);
+    UErrorCode status = U_ZERO_ERROR;
+    UChar result[256];
+    int32_t len = ucal_getTimeZoneIDForWindowsID(
+        (const UChar*)tz.TimeZoneKeyName, -1,
+        "en_US",
+        result,
+        sizeof(result) / sizeof(UChar),
+        &status);
+
+    RELEASE_ASSERT(status == U_ZERO_ERROR);
+    return (new UTF16String(result, len))->toNonGCUTF8StringData();
+}
 #else
 static std::string findTimezone()
 {
@@ -529,11 +548,15 @@ void VMInstance::ensureTimezone()
     if (m_timezoneID == "") {
         m_timezoneID = findTimezone();
     } else {
+#if !defined(OS_WINDOWS_UWP)
         tzset();
+#endif
     }
 
+#if !defined(OS_WINDOWS_UWP)
     auto u16 = utf8StringToUTF16String(m_timezoneID.data(), m_timezoneID.size());
     m_timezone = vzone_openID(u16.data(), u16.size());
+#endif
 }
 #endif
 

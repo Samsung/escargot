@@ -1,4 +1,4 @@
-#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL) && defined(ENABLE_INTL_NUMBERFORMAT)
 /*
  * Copyright (c) 2019-present Samsung Electronics Co., Ltd
  *
