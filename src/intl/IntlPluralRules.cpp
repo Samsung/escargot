@@ -26,6 +26,8 @@
 #include "Intl.h"
 #include "IntlPluralRules.h"
 
+#if defined(ENABLE_INTL_PLURALRULES)
+
 namespace Escargot {
 
 static double getNumberOption(ExecutionState& state, Optional<Object*> options, String* property, double minimum, double maximum, double fallback)
@@ -220,4 +222,5 @@ String* IntlPluralRulesObject::resolvePlural(double number)
 }
 
 } // namespace Escargot
+#endif
 #endif

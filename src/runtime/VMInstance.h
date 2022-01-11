@@ -119,6 +119,9 @@ public:
         return m_timezoneID;
     }
 
+    void ensureTimezone();
+
+#if !defined(OS_WINDOWS_UWP)
     VZone* timezone()
     {
         if (m_timezone == nullptr) {
@@ -126,8 +129,8 @@ public:
         }
         return m_timezone;
     }
+#endif
 
-    void ensureTimezone();
 #endif
     DateObject* cachedUTC(ExecutionState& state);
 
@@ -363,7 +366,9 @@ private:
 // date object data
 #ifdef ENABLE_ICU
     std::string m_locale;
+#if !defined(OS_WINDOWS_UWP)
     VZone* m_timezone;
+#endif
     std::string m_timezoneID;
 #endif
     DateObject* m_cachedUTC;

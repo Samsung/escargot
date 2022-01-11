@@ -97,23 +97,54 @@ class FunctionObject;
     F(generatorPrototype, Object, objName)
 //INTL
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-#define GLOBALOBJECT_BUILTIN_INTL(F, objName)           \
-    F(intl, Object, objName)                            \
-    F(intlCollator, FunctionObject, objName)            \
-    F(intlDateTimeFormat, FunctionObject, objName)      \
-    F(intlDateTimeFormatPrototype, Object, objName)     \
-    F(intlNumberFormat, FunctionObject, objName)        \
-    F(intlNumberFormatPrototype, Object, objName)       \
-    F(intlRelativeTimeFormat, FunctionObject, objName)  \
-    F(intlRelativeTimeFormatPrototype, Object, objName) \
-    F(intlDisplayNames, FunctionObject, objName)        \
-    F(intlDisplayNamesPrototype, Object, objName)       \
-    F(intlLocale, FunctionObject, objName)              \
-    F(intlLocalePrototype, Object, objName)             \
-    F(intlListFormat, FunctionObject, objName)          \
-    F(intlListFormatPrototype, Object, objName)         \
-    F(intlPluralRules, FunctionObject, objName)         \
+#if defined(ENABLE_INTL_DISPLAYNAMES)
+#define GLOBALOBJECT_BUILTIN_INTL_DISPLAYNAMES(F, objName) \
+    F(intlDisplayNames, FunctionObject, objName)           \
+    F(intlDisplayNamesPrototype, Object, objName)
+#else
+#define GLOBALOBJECT_BUILTIN_INTL_DISPLAYNAMES(F, objName)
+#endif
+#if defined(ENABLE_INTL_NUMBERFORMAT)
+#define GLOBALOBJECT_BUILTIN_INTL_NUMBERFORMAT(F, objName) \
+    F(intlNumberFormat, FunctionObject, objName)           \
+    F(intlNumberFormatPrototype, Object, objName)
+#else
+#define GLOBALOBJECT_BUILTIN_INTL_NUMBERFORMAT(F, objName)
+#endif
+#if defined(ENABLE_INTL_PLURALRULES)
+#define GLOBALOBJECT_BUILTIN_INTL_PLURALRULES(F, objName) \
+    F(intlPluralRules, FunctionObject, objName)           \
     F(intlPluralRulesPrototype, Object, objName)
+#else
+#define GLOBALOBJECT_BUILTIN_INTL_PLURALRULES(F, objName)
+#endif
+#if defined(ENABLE_INTL_RELATIVETIMEFORMAT)
+#define GLOBALOBJECT_BUILTIN_INTL_RELATIVETIMEFORMAT(F, objName) \
+    F(intlRelativeTimeFormat, FunctionObject, objName)           \
+    F(intlRelativeTimeFormatPrototype, Object, objName)
+#else
+#define GLOBALOBJECT_BUILTIN_INTL_RELATIVETIMEFORMAT(F, objName)
+#endif
+#if defined(ENABLE_INTL_LISTFORMAT)
+#define GLOBALOBJECT_BUILTIN_INTL_LISTFORMAT(F, objName) \
+    F(intlListFormat, FunctionObject, objName)           \
+    F(intlListFormatPrototype, Object, objName)
+#else
+#define GLOBALOBJECT_BUILTIN_INTL_LISTFORMAT(F, objName)
+#endif
+
+#define GLOBALOBJECT_BUILTIN_INTL(F, objName)                \
+    F(intl, Object, objName)                                 \
+    F(intlCollator, FunctionObject, objName)                 \
+    F(intlDateTimeFormat, FunctionObject, objName)           \
+    F(intlDateTimeFormatPrototype, Object, objName)          \
+    F(intlLocale, FunctionObject, objName)                   \
+    F(intlLocalePrototype, Object, objName)                  \
+    GLOBALOBJECT_BUILTIN_INTL_DISPLAYNAMES(F, objName)       \
+    GLOBALOBJECT_BUILTIN_INTL_NUMBERFORMAT(F, objName)       \
+    GLOBALOBJECT_BUILTIN_INTL_PLURALRULES(F, objName)        \
+    GLOBALOBJECT_BUILTIN_INTL_RELATIVETIMEFORMAT(F, objName) \
+    GLOBALOBJECT_BUILTIN_INTL_LISTFORMAT(F, objName)
 #else
 #define GLOBALOBJECT_BUILTIN_INTL(F, objName)
 #endif

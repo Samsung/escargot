@@ -163,7 +163,7 @@ static Value builtinBigIntToLocaleString(ExecutionState& state, Value thisValue,
 {
     RESOLVE_THIS_BINDING_TO_BIGINT(thisObject, BigInt, toLocaleString);
 
-#if defined(ENABLE_ICU) && defined(ENABLE_INTL)
+#if defined(ENABLE_ICU) && defined(ENABLE_INTL_NUMBERFORMAT)
     Value locales = argc > 0 ? argv[0] : Value();
     Value options = argc > 1 ? argv[1] : Value();
     Object* numberFormat = IntlNumberFormat::create(state, state.context(), locales, options);

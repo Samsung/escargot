@@ -52,6 +52,8 @@
 #include "Intl.h"
 #include "IntlNumberFormat.h"
 
+#if defined(ENABLE_INTL_NUMBERFORMAT)
+
 namespace Escargot {
 
 static const char* const intlNumberFormatRelevantExtensionKeys[1] = { "nu" };
@@ -909,4 +911,5 @@ ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numb
 }
 
 } // namespace Escargot
+#endif
 #endif

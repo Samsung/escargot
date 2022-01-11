@@ -29,6 +29,8 @@
 #include "Intl.h"
 #include "IntlListFormat.h"
 
+#if defined(ENABLE_INTL_LISTFORMAT)
+
 namespace Escargot {
 
 IntlListFormatObject::IntlListFormatObject(ExecutionState& state, Object* proto, Value locales, Value options)
@@ -305,4 +307,5 @@ Value IntlListFormatObject::formatToParts(ExecutionState& state, const Value& li
 }
 
 } // namespace Escargot
+#endif
 #endif

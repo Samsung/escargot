@@ -260,6 +260,10 @@ typedef unsigned char LChar;
 #include "RuntimeICUBinder.h"
 #include "ICUPolyfill.h"
 #else
+
+#if defined(OS_WINDOWS_UWP)
+#include <icu.h>
+#else
 #include <unicode/locid.h>
 #include <unicode/uchar.h>
 #include <unicode/ustring.h>
@@ -293,6 +297,8 @@ void vzone_getOffset3(VZone* zone, UDate date, UBool local, int32_t& rawOffset,
                       int32_t& dstOffset, UErrorCode& ec);
 int32_t vzone_getRawOffset(VZone* zone);
 }
+#endif // !defined(OS_WINDOWS_UWP)
+
 #endif
 
 #else
@@ -322,6 +328,14 @@ typedef int32_t UChar32;
 #define U16_LENGTH(c) ((uint32_t)(c) <= 0xffff ? 1 : 2)
 #define U_IS_BMP(c) ((uint32_t)(c) <= 0xffff)
 #define UCHAR_MAX_VALUE 0x10ffff
+#endif
+
+#if defined(ENABLE_INTL) && !defined(OS_WINDOWS_UWP)
+#define ENABLE_INTL_DISPLAYNAMES
+#define ENABLE_INTL_NUMBERFORMAT
+#define ENABLE_INTL_PLURALRULES
+#define ENABLE_INTL_RELATIVETIMEFORMAT
+#define ENABLE_INTL_LISTFORMAT
 #endif
 
 #ifndef TRUE

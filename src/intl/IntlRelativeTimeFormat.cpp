@@ -28,6 +28,8 @@
 #include "Intl.h"
 #include "IntlRelativeTimeFormat.h"
 
+#if defined(ENABLE_INTL_RELATIVETIMEFORMAT)
+
 namespace Escargot {
 
 static const char* const intlRelativeTimeFormatRelevantExtensionKeys[1] = { "nu" };
@@ -349,4 +351,5 @@ ArrayObject* IntlRelativeTimeFormatObject::formatToParts(ExecutionState& state, 
 }
 
 } // namespace Escargot
+#endif
 #endif

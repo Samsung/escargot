@@ -2167,6 +2167,12 @@ String* Intl::icuNumberFieldToString(ExecutionState& state, int32_t fieldName, d
         return state.context()->staticStrings().lazyExponentMinusSign().string();
     case UNUM_EXPONENT_FIELD:
         return state.context()->staticStrings().lazyExponentInteger().string();
+#ifndef UNUM_MEASURE_UNIT_FIELD
+#define UNUM_MEASURE_UNIT_FIELD (UNUM_SIGN_FIELD + 1)
+#endif
+#ifndef UNUM_COMPACT_FIELD
+#define UNUM_COMPACT_FIELD (UNUM_SIGN_FIELD + 2)
+#endif
     case UNUM_MEASURE_UNIT_FIELD:
         return state.context()->staticStrings().lazyUnit().string();
     case UNUM_COMPACT_FIELD:
