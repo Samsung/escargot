@@ -149,25 +149,25 @@ Object* FunctionTemplate::instantiate(Context* ctx)
     const size_t functionDefaultPropertyCount = m_isConstructor ? ctx->defaultStructureForFunctionObject()->propertyCount() : ctx->defaultStructureForNotConstructorFunctionObject()->propertyCount();
     if (!m_cachedObjectStructure.m_objectStructure) {
         if (m_isConstructor) {
-            // [prototype, name, length]
+            // [prototype, length, name]
             ASSERT(functionDefaultPropertyCount == 3);
             ObjectStructureItem structureItemVector[3] = {
                 ObjectStructureItem(ctx->staticStrings().prototype,
                                     ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::WritablePresent)),
-                ObjectStructureItem(ctx->staticStrings().name,
-                                    ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent)),
                 ObjectStructureItem(ctx->staticStrings().length,
+                                    ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent)),
+                ObjectStructureItem(ctx->staticStrings().name,
                                     ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent))
 
             };
             m_cachedObjectStructure = constructObjectStructure(ctx, structureItemVector, 3);
         } else {
-            // [name, length]
+            // [length, name]
             ASSERT(functionDefaultPropertyCount == 2);
             ObjectStructureItem structureItemVector[2] = {
-                ObjectStructureItem(ctx->staticStrings().name,
-                                    ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent)),
                 ObjectStructureItem(ctx->staticStrings().length,
+                                    ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent)),
+                ObjectStructureItem(ctx->staticStrings().name,
                                     ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::ConfigurablePresent))
 
             };
@@ -179,21 +179,21 @@ Object* FunctionTemplate::instantiate(Context* ctx)
     ObjectPropertyValueVector objectPropertyValues;
     Object* functionPrototype = nullptr;
     if (m_isConstructor) {
-        // [prototype, name, length]
+        // [prototype, length, name]
         if (!m_prototypeTemplate->has(ctx->staticStrings().constructor.string())) {
             m_prototypeTemplate->set(ctx->staticStrings().constructor.string(), Value(), true, false, true);
         }
 
         ObjectPropertyValue baseValues[3];
         baseValues[0] = functionPrototype = m_prototypeTemplate->instantiate(ctx);
-        baseValues[1] = m_name.string();
-        baseValues[2] = Value(m_argumentCount);
+        baseValues[1] = Value(m_argumentCount);
+        baseValues[2] = m_name.string();
         constructObjectPropertyValues(ctx, baseValues, 3, objectPropertyValues);
     } else {
-        // [name, length]
+        // [length, name]
         ObjectPropertyValue baseValues[2];
-        baseValues[0] = m_name.string();
-        baseValues[1] = Value(m_argumentCount);
+        baseValues[0] = Value(m_argumentCount);
+        baseValues[1] = m_name.string();
         constructObjectPropertyValues(ctx, baseValues, 2, objectPropertyValues);
     }
 
