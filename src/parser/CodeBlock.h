@@ -72,6 +72,7 @@ public:
 
     virtual uint16_t functionLength() const = 0;
     virtual AtomicString functionName() const = 0;
+    virtual void setFunctionName(AtomicString name) = 0;
 
     virtual bool isNativeCodeBlock() const
     {
@@ -144,6 +145,11 @@ public:
     virtual AtomicString functionName() const override
     {
         return m_functionName;
+    }
+
+    virtual void setFunctionName(AtomicString name) override
+    {
+        m_functionName = name;
     }
 
     bool isNativeConstructor() const
@@ -311,6 +317,13 @@ public:
     virtual AtomicString functionName() const override
     {
         return m_functionName;
+    }
+
+    virtual void setFunctionName(AtomicString name) override
+    {
+        // set function name is allowed only for dynamically created function except class constructor
+        ASSERT(m_hasDynamicSourceCode && !m_isClassConstructor);
+        m_functionName = name;
     }
 
     virtual bool hasRareData() const

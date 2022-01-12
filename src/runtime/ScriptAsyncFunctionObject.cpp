@@ -26,7 +26,7 @@
 namespace Escargot {
 
 ScriptAsyncFunctionObject::ScriptAsyncFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, EncodedValue thisValue, Object* homeObject)
-    : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, false, false, true)
+    : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, false, false)
     , m_thisValue(thisValue)
     , m_homeObject(homeObject)
 {

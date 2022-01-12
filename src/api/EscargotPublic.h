@@ -1455,6 +1455,9 @@ public:
 
     bool isConstructor();
     void markFunctionNeedsSlowVirtualIdentifierOperation();
+
+    // set function name is allowed only for native function or dynamically created function except class constructor
+    bool setName(AtomicStringRef* name);
 };
 
 class ESCARGOT_EXPORT IteratorObjectRef : public ObjectRef {

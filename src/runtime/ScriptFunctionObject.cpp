@@ -37,11 +37,11 @@
 
 namespace Escargot {
 
-ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor, bool isGenerator, bool isAsync)
+ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnv, bool isConstructor, bool isGenerator)
     : ScriptFunctionObject(state, proto, codeBlock, outerEnv,
                            ((isConstructor || isGenerator) ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)) + (codeBlock->isStrict() ? 2 : 0))
 {
-    initStructureAndValues(state, isConstructor, isGenerator, isAsync);
+    initStructureAndValues(state, isConstructor, isGenerator);
 }
 
 ScriptFunctionObject::ScriptFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, size_t defaultPropertyCount)

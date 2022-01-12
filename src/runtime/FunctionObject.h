@@ -109,15 +109,28 @@ public:
     };
     static FunctionSource createFunctionScript(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource = false, String* sourceName = nullptr);
 
+    bool setName(AtomicString name);
+
 protected:
     FunctionObject(ExecutionState& state, Object* proto, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.
     FunctionObject(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto); // ctor for FunctionTemplate
 
-    void initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator, bool isAsync);
+    void initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator);
     virtual size_t functionPrototypeIndex()
     {
         ASSERT(isConstructor() || isGenerator());
         return ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER;
+    }
+
+    size_t functionNameIndex()
+    {
+        // getting a function name index of ScriptClassConstructorFunctionObject is not supported now
+        ASSERT(!isScriptClassConstructorFunctionObject());
+        if (isConstructor() || isGenerator()) {
+            return ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2;
+        } else {
+            return ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1;
+        }
     }
 
     void ensureFunctionPrototype(ExecutionState& state, const size_t& prototypeIndex)

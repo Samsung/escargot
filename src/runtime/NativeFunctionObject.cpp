@@ -28,14 +28,14 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, const NativeFu
     : FunctionObject(state, state.context()->globalObject()->functionPrototype(), info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
 {
     m_codeBlock = new NativeCodeBlock(state.context(), info);
-    initStructureAndValues(state, info.m_isConstructor, false, false);
+    initStructureAndValues(state, info.m_isConstructor, false);
 }
 
 NativeFunctionObject::NativeFunctionObject(ExecutionState& state, const NativeFunctionInfo& info, ForGlobalBuiltin)
     : FunctionObject(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
 {
     m_codeBlock = new NativeCodeBlock(state.context(), info);
-    initStructureAndValues(state, info.m_isConstructor, false, false);
+    initStructureAndValues(state, info.m_isConstructor, false);
     ASSERT(!NativeFunctionObject::isConstructor());
 }
 
@@ -43,7 +43,7 @@ NativeFunctionObject::NativeFunctionObject(ExecutionState& state, const NativeFu
     : FunctionObject(state, state.context()->globalObject()->functionPrototype(), info.m_isConstructor ? (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3) : (ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2))
 {
     m_codeBlock = new NativeCodeBlock(state.context(), info);
-    initStructureAndValues(state, info.m_isConstructor, false, false);
+    initStructureAndValues(state, info.m_isConstructor, false);
     if (info.m_isConstructor) {
         m_structure = state.context()->defaultStructureForBuiltinFunctionObject();
     }
