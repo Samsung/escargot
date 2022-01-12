@@ -57,7 +57,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         return constructorRealm->globalObject()->functionPrototype();
     });
 
-    ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false, false);
+    ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false);
 
     return result;
 }

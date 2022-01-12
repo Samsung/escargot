@@ -29,7 +29,7 @@ class ScriptVirtualArrowFunctionObject : public ScriptFunctionObject {
 
 public:
     ScriptVirtualArrowFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment)
-        : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, false, codeBlock->isGenerator(), codeBlock->isAsync())
+        : ScriptFunctionObject(state, proto, codeBlock, outerEnvironment, false, codeBlock->isGenerator())
     {
         m_prototype = nullptr;
     }

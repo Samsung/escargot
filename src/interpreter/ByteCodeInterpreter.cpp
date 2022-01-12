@@ -2545,7 +2545,7 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
     } else if (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) {
         registerFile[code->m_registerIndex] = new ScriptClassMethodFunctionObject(state, proto, cb, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex].asObject());
     } else {
-        registerFile[code->m_registerIndex] = new ScriptFunctionObject(state, proto, cb, outerLexicalEnvironment, true, false, false);
+        registerFile[code->m_registerIndex] = new ScriptFunctionObject(state, proto, cb, outerLexicalEnvironment, true, false);
     }
 }
 

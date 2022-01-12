@@ -2398,7 +2398,7 @@ FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* stateRef, Atomic
     auto functionSource = FunctionObject::createFunctionScript(state, toImpl(functionName), argumentCount, newArgv, toImpl(body), false, false, false, false);
 
     Object* proto = state.context()->globalObject()->functionPrototype();
-    ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false, false);
+    ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false);
 
     return toRef(result);
 }
@@ -2416,7 +2416,7 @@ FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* stateRef, String
     auto functionSource = FunctionObject::createFunctionScript(state, toImpl(functionName), argumentCount, newArgv, toImpl(body), false, false, false, false, false, toImpl(sourceName));
 
     Object* proto = state.context()->globalObject()->functionPrototype();
-    ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false, false);
+    ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false);
 
     return toRef(result);
 }
@@ -2460,6 +2460,11 @@ void FunctionObjectRef::markFunctionNeedsSlowVirtualIdentifierOperation()
         markEvalToCodeblock(func->interpretedCodeBlock());
         func->interpretedCodeBlock()->setNeedsVirtualIDOperation();
     }
+}
+
+bool FunctionObjectRef::setName(AtomicStringRef* name)
+{
+    return toImpl(this)->setName(toImpl(name));
 }
 
 GlobalObjectRef* ContextRef::globalObject()

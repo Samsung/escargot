@@ -1391,6 +1391,12 @@ TEST(FunctionTemplate, Basic1)
         ValueRef* length = fn->getOwnProperty(state, StringRef::createFromASCII("length", 6));
         EXPECT_TRUE(length->asNumber() == 5);
 
+        // re-set function name property
+        bool setNameResult = fn->setName(AtomicStringRef::create(g_context.get(), "asdf3"));
+        EXPECT_TRUE(setNameResult);
+        name = fn->getOwnProperty(state, StringRef::createFromASCII("name", 4));
+        EXPECT_TRUE(name->asString()->equalsWithASCIIString("asdf3", 5));
+
         return ValueRef::createUndefined();
     },
                                 fn);

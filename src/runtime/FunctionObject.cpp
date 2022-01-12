@@ -31,7 +31,7 @@
 
 namespace Escargot {
 
-void FunctionObject::initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator, bool isAsync)
+void FunctionObject::initStructureAndValues(ExecutionState& state, bool isConstructor, bool isGenerator)
 {
     if (isGenerator) {
         // Unlike function instances, the object that is the value of the GeneratorFunction’s of AsyncGeneratorFunction prototype property
@@ -255,5 +255,26 @@ FunctionObject::FunctionSource FunctionObject::createFunctionScript(ExecutionSta
     fs.outerEnvironment = globalEnvironment;
 
     return fs;
+}
+
+bool FunctionObject::setName(AtomicString name)
+{
+    // re-set function name is allowed only for native function or dynamically created function except class constructor
+    ASSERT(!!m_codeBlock);
+    if (m_codeBlock->isInterpretedCodeBlock()) {
+        InterpretedCodeBlock* cb = m_codeBlock->asInterpretedCodeBlock();
+        if (!cb->hasDynamicSourceCode() || cb->isClassConstructor()) {
+            return false;
+        }
+    }
+
+    // set function name property
+    size_t nameIndex = functionNameIndex();
+    m_values[nameIndex] = Value(name.string());
+
+    // set function name in CodeBlock
+    m_codeBlock->setFunctionName(name);
+
+    return true;
 }
 } // namespace Escargot
