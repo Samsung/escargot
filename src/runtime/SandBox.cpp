@@ -58,10 +58,10 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
 #endif /* ESCARGOT_DEBUGGER */
 
     ByteCodeLOCDataMap locMap;
-    for (size_t i = 0; i < m_stackTraceData.size(); i++) {
-        if ((size_t)m_stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)m_stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
+    for (size_t i = 0; i < m_stackTraceDataVector.size(); i++) {
+        if ((size_t)m_stackTraceDataVector[i].second.loc.index == SIZE_MAX && (size_t)m_stackTraceDataVector[i].second.loc.actualCodeBlock != SIZE_MAX) {
             // this means loc not computed yet.
-            ByteCodeBlock* block = m_stackTraceData[i].second.loc.actualCodeBlock;
+            ByteCodeBlock* block = m_stackTraceDataVector[i].second.loc.actualCodeBlock;
 
             ByteCodeLOCData* locData;
             auto iterMap = locMap.find(block);
@@ -73,21 +73,21 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
             }
 
             ExtendedNodeLOC loc = block->computeNodeLOCFromByteCode(m_context,
-                                                                    m_stackTraceData[i].second.loc.byteCodePosition, block->m_codeBlock, locData);
+                                                                    m_stackTraceDataVector[i].second.loc.byteCodePosition, block->m_codeBlock, locData);
 
             StackTraceData traceData;
             traceData.loc = loc;
             InterpretedCodeBlock* cb = block->m_codeBlock;
-            traceData.src = cb->script()->srcName();
+            traceData.srcName = cb->script()->srcName();
             traceData.sourceCode = cb->script()->sourceCode();
-            traceData.functionName = m_stackTraceData[i].second.functionName;
-            traceData.isFunction = m_stackTraceData[i].second.isFunction;
-            traceData.callee = m_stackTraceData[i].second.callee;
-            traceData.isConstructor = m_stackTraceData[i].second.isConstructor;
-            traceData.isAssociatedWithJavaScriptCode = m_stackTraceData[i].second.isAssociatedWithJavaScriptCode;
-            traceData.isEval = m_stackTraceData[i].second.isEval;
+            traceData.functionName = m_stackTraceDataVector[i].second.functionName;
+            traceData.isFunction = m_stackTraceDataVector[i].second.isFunction;
+            traceData.callee = m_stackTraceDataVector[i].second.callee;
+            traceData.isConstructor = m_stackTraceDataVector[i].second.isConstructor;
+            traceData.isAssociatedWithJavaScriptCode = m_stackTraceDataVector[i].second.isAssociatedWithJavaScriptCode;
+            traceData.isEval = m_stackTraceDataVector[i].second.isEval;
 
-            result.stackTraceData.pushBack(traceData);
+            result.stackTrace.pushBack(traceData);
 
 #ifdef ESCARGOT_DEBUGGER
             if (i < 8 && debugger != nullptr) {
@@ -95,7 +95,7 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
             }
 #endif /* ESCARGOT_DEBUGGER */
         } else {
-            result.stackTraceData.pushBack(m_stackTraceData[i].second);
+            result.stackTrace.pushBack(m_stackTraceDataVector[i].second);
         }
     }
     for (auto iter = locMap.begin(); iter != locMap.end(); iter++) {
@@ -136,7 +136,7 @@ SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
     return result;
 }
 
-bool SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, ExecutionState& state, bool stopAtPause)
+bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, ExecutionState& state, bool stopAtPause)
 {
     UNUSED_VARIABLE(stopAtPause);
 
@@ -174,8 +174,8 @@ bool SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
 
         bool alreadyExists = false;
 
-        for (size_t i = 0; i < stackTraceData.size(); i++) {
-            if (stackTraceData[i].first == es || stackTraceData[i].first->lexicalEnvironment() == es->lexicalEnvironment()) {
+        for (size_t i = 0; i < stackTraceDataVector.size(); i++) {
+            if (stackTraceDataVector[i].first == es || stackTraceDataVector[i].first->lexicalEnvironment() == es->lexicalEnvironment()) {
                 alreadyExists = true;
                 break;
             }
@@ -201,7 +201,7 @@ bool SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                     }
                     SandBox::StackTraceData data;
                     data.loc = loc;
-                    data.src = cb->script()->srcName();
+                    data.srcName = cb->script()->srcName();
                     data.sourceCode = cb->script()->sourceCode();
                     data.isEval = true;
                     data.isFunction = false;
@@ -211,14 +211,14 @@ bool SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                     data.executionStateDepth = executionStateDepthIndex;
 #endif /* ESCARGOT_DEBUGGER */
 
-                    stackTraceData.pushBack(std::make_pair(es, data));
+                    stackTraceDataVector.pushBack(std::make_pair(es, data));
                 }
             } else if (pstate->codeBlock() && pstate->codeBlock()->isInterpretedCodeBlock() && pstate->codeBlock()->asInterpretedCodeBlock()->isEvalCodeInFunction()) {
                 CodeBlock* cb = pstate->codeBlock();
                 ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
                 SandBox::StackTraceData data;
                 data.loc = loc;
-                data.src = cb->asInterpretedCodeBlock()->script()->srcName();
+                data.srcName = cb->asInterpretedCodeBlock()->script()->srcName();
                 data.sourceCode = String::emptyString;
                 data.isEval = true;
                 data.isFunction = false;
@@ -228,7 +228,7 @@ bool SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                 data.executionStateDepth = executionStateDepthIndex;
 #endif /* ESCARGOT_DEBUGGER */
 
-                stackTraceData.pushBack(std::make_pair(es, data));
+                stackTraceDataVector.pushBack(std::make_pair(es, data));
             } else if (callee) {
                 CodeBlock* cb = callee->codeBlock();
                 ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
@@ -243,7 +243,7 @@ bool SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                 SandBox::StackTraceData data;
                 data.loc = loc;
                 if (cb->isInterpretedCodeBlock() && cb->asInterpretedCodeBlock()->script()) {
-                    data.src = cb->asInterpretedCodeBlock()->script()->srcName();
+                    data.srcName = cb->asInterpretedCodeBlock()->script()->srcName();
 #ifdef ESCARGOT_DEBUGGER
                     data.executionStateDepth = executionStateDepthIndex;
 #endif /* ESCARGOT_DEBUGGER */
@@ -254,7 +254,7 @@ bool SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                     builder.appendString("() { ");
                     builder.appendString("[native function]");
                     builder.appendString(" } ");
-                    data.src = builder.finalize();
+                    data.srcName = builder.finalize();
 #ifdef ESCARGOT_DEBUGGER
                     data.executionStateDepth = executionStateDepthIndex;
 #endif /* ESCARGOT_DEBUGGER */
@@ -266,7 +266,7 @@ bool SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
                 data.isAssociatedWithJavaScriptCode = cb->isInterpretedCodeBlock();
                 data.isConstructor = callee->isConstructor();
                 data.sourceCode = String::emptyString;
-                stackTraceData.pushBack(std::make_pair(es, data));
+                stackTraceDataVector.pushBack(std::make_pair(es, data));
             }
         }
 
@@ -287,8 +287,8 @@ bool SandBox::createStackTraceData(StackTraceDataVector& stackTraceData, Executi
 
 void SandBox::throwException(ExecutionState& state, Value exception)
 {
-    m_stackTraceData.clear();
-    createStackTraceData(m_stackTraceData, state);
+    m_stackTraceDataVector.clear();
+    createStackTrace(m_stackTraceDataVector, state);
 
     // We MUST save thrown exception Value.
     // because bdwgc cannot track `thrown value`(may turned off by GC_DONT_REGISTER_MAIN_STATIC_DATA)
@@ -296,11 +296,11 @@ void SandBox::throwException(ExecutionState& state, Value exception)
     throw exception;
 }
 
-void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, const StackTraceDataVector& stackTraceData)
+void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, const StackTraceDataVector& stackTraceDataVector)
 {
-    m_stackTraceData = stackTraceData;
+    m_stackTraceDataVector = stackTraceDataVector;
     // update stack trace data if needs
-    createStackTraceData(m_stackTraceData, state);
+    createStackTrace(m_stackTraceDataVector, state);
 
     // We MUST save thrown exception Value.
     // because bdwgc cannot track `thrown value`(may turned off by GC_DONT_REGISTER_MAIN_STATIC_DATA)
@@ -328,16 +328,16 @@ static Value builtinErrorObjectStackInfo(ExecutionState& state, Value thisValue,
 ErrorObject::StackTraceData* ErrorObject::StackTraceData::create(SandBox* sandBox)
 {
     ErrorObject::StackTraceData* data = new ErrorObject::StackTraceData();
-    data->gcValues.resizeWithUninitializedValues(sandBox->m_stackTraceData.size());
-    data->nonGCValues.resizeWithUninitializedValues(sandBox->m_stackTraceData.size());
+    data->gcValues.resizeWithUninitializedValues(sandBox->m_stackTraceDataVector.size());
+    data->nonGCValues.resizeWithUninitializedValues(sandBox->m_stackTraceDataVector.size());
     data->exception = sandBox->m_exception;
 
-    for (size_t i = 0; i < sandBox->m_stackTraceData.size(); i++) {
-        if ((size_t)sandBox->m_stackTraceData[i].second.loc.index == SIZE_MAX && (size_t)sandBox->m_stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
-            data->gcValues[i].byteCodeBlock = sandBox->m_stackTraceData[i].second.loc.actualCodeBlock;
-            data->nonGCValues[i].byteCodePosition = sandBox->m_stackTraceData[i].second.loc.byteCodePosition;
+    for (size_t i = 0; i < sandBox->m_stackTraceDataVector.size(); i++) {
+        if ((size_t)sandBox->m_stackTraceDataVector[i].second.loc.index == SIZE_MAX && (size_t)sandBox->m_stackTraceDataVector[i].second.loc.actualCodeBlock != SIZE_MAX) {
+            data->gcValues[i].byteCodeBlock = sandBox->m_stackTraceDataVector[i].second.loc.actualCodeBlock;
+            data->nonGCValues[i].byteCodePosition = sandBox->m_stackTraceDataVector[i].second.loc.byteCodePosition;
         } else {
-            data->gcValues[i].infoString = sandBox->m_stackTraceData[i].second.src;
+            data->gcValues[i].infoString = sandBox->m_stackTraceDataVector[i].second.srcName;
             data->nonGCValues[i].byteCodePosition = SIZE_MAX;
         }
     }

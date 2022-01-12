@@ -545,7 +545,7 @@ public:
     };
 
     struct ESCARGOT_EXPORT StackTraceData {
-        StringRef* src;
+        StringRef* srcName;
         StringRef* sourceCode;
         LOC loc;
         StringRef* functionName;
@@ -572,7 +572,7 @@ public:
 
         ValueRef* result;
         OptionalRef<ValueRef> error;
-        GCManagedVector<StackTraceData> stackTraceData;
+        GCManagedVector<StackTraceData> stackTrace;
     };
 
     template <typename... Args, typename F>
@@ -618,7 +618,7 @@ public:
 
     void throwException(ValueRef* value);
 
-    GCManagedVector<Evaluator::StackTraceData> computeStackTraceData();
+    GCManagedVector<Evaluator::StackTraceData> computeStackTrace();
 
     ContextRef* context();
 

@@ -131,8 +131,8 @@ static std::string evalScript(ContextRef* context, StringRef* str, StringRef* fi
     if (!evalResult.isSuccessful()) {
         snprintf(str, sizeof(str), "Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
         result += str;
-        for (size_t i = 0; i < evalResult.stackTraceData.size(); i++) {
-            snprintf(str, sizeof(str), "%s (%d:%d)\n", evalResult.stackTraceData[i].src->toStdUTF8String().data(), (int)evalResult.stackTraceData[i].loc.line, (int)evalResult.stackTraceData[i].loc.column);
+        for (size_t i = 0; i < evalResult.stackTrace.size(); i++) {
+            snprintf(str, sizeof(str), "%s (%d:%d)\n", evalResult.stackTrace[i].srcName->toStdUTF8String().data(), (int)evalResult.stackTrace[i].loc.line, (int)evalResult.stackTrace[i].loc.column);
             result += str;
         }
         return result;
@@ -502,9 +502,9 @@ TEST(Evaluator, Basic)
     EXPECT_TRUE(result3.error);
     EXPECT_TRUE(result3.error->isInt32());
     EXPECT_TRUE(result3.error->asInt32() == 123);
-    EXPECT_TRUE(result3.stackTraceData.size() == 1);
-    EXPECT_TRUE(result3.stackTraceData[0].isFunction);
-    EXPECT_TRUE(result3.stackTraceData[0].callee.value() == functionObjectRef);
+    EXPECT_TRUE(result3.stackTrace.size() == 1);
+    EXPECT_TRUE(result3.stackTrace[0].isFunction);
+    EXPECT_TRUE(result3.stackTrace[0].callee.value() == functionObjectRef);
 
     FunctionObjectRef* functionObjectRef2 = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
                                                 return FunctionObjectRef::create(state, StringRef::createFromASCII("test_name"), AtomicStringRef::create(state->context(), "test"), 0, nullptr, StringRef::createFromASCII("throw 3;"));
@@ -522,10 +522,10 @@ TEST(Evaluator, Basic)
     EXPECT_TRUE(result4.error);
     EXPECT_TRUE(result4.error->isInt32());
     EXPECT_TRUE(result4.error->asInt32() == 3);
-    EXPECT_TRUE(result4.stackTraceData.size() == 1);
-    EXPECT_TRUE(result4.stackTraceData[0].isFunction);
-    EXPECT_TRUE(result4.stackTraceData[0].callee.value() == functionObjectRef2);
-    EXPECT_TRUE(result4.stackTraceData[0].src->equalsWithASCIIString("test_name", 9));
+    EXPECT_TRUE(result4.stackTrace.size() == 1);
+    EXPECT_TRUE(result4.stackTrace[0].isFunction);
+    EXPECT_TRUE(result4.stackTrace[0].callee.value() == functionObjectRef2);
+    EXPECT_TRUE(result4.stackTrace[0].srcName->equalsWithASCIIString("test_name", 9));
 }
 
 TEST(EvalScript, Run)
@@ -1753,11 +1753,11 @@ TEST(ErrorCreationCallback, Basic1)
         // Register ErrorCreationCallback
         g_instance.get()->registerErrorCreationCallback([](ExecutionStateRef* state, ErrorObjectRef* err) -> void {
             // compute stack trace data
-            auto stackTraceVector = state->computeStackTraceData();
+            auto stackTraceVector = state->computeStackTrace();
 
             // save stack info
             ObjectRef* result = ObjectRef::create(state);
-            result->set(state, StringRef::createFromASCII("src"), stackTraceVector[1].src);
+            result->set(state, StringRef::createFromASCII("src"), stackTraceVector[1].srcName);
             result->set(state, StringRef::createFromASCII("functionName"), stackTraceVector[1].functionName);
 
             g_context.get()->globalObject()->set(state, StringRef::createFromASCII("errorCBResult"), result);
@@ -1787,11 +1787,11 @@ TEST(ErrorCreationCallback, Basic2)
         // Register ErrorCreationCallback
         g_instance.get()->registerErrorCreationCallback([](ExecutionStateRef* state, ErrorObjectRef* err) -> void {
             // compute stack trace data
-            auto stackTraceVector = state->computeStackTraceData();
+            auto stackTraceVector = state->computeStackTrace();
 
             // save stack info
             ObjectRef* result = ObjectRef::create(state);
-            result->set(state, StringRef::createFromASCII("src"), stackTraceVector[1].src);
+            result->set(state, StringRef::createFromASCII("src"), stackTraceVector[1].srcName);
             result->set(state, StringRef::createFromASCII("functionName"), stackTraceVector[1].functionName);
 
             g_context.get()->globalObject()->set(state, StringRef::createFromASCII("errorCBResult"), result);

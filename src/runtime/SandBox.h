@@ -34,10 +34,11 @@ public:
     ~SandBox();
 
     struct StackTraceData : public gc {
-        String* src;
+        String* srcName;
         String* sourceCode;
         ExtendedNodeLOC loc;
         String* functionName;
+
 #ifdef ESCARGOT_DEBUGGER
         uint32_t executionStateDepth;
 #endif /* ESCARGOT_DEBUGGER */
@@ -46,8 +47,9 @@ public:
         bool isConstructor;
         bool isAssociatedWithJavaScriptCode;
         bool isEval;
+
         StackTraceData()
-            : src(String::emptyString)
+            : srcName(String::emptyString)
             , sourceCode(String::emptyString)
             , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
             , functionName(String::emptyString)
@@ -68,7 +70,8 @@ public:
     struct SandBoxResult {
         Value result;
         Value error;
-        Vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> stackTraceData;
+        Vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> stackTrace;
+
         SandBoxResult()
             : result(Value::EmptyValue)
             , error(Value::EmptyValue)
@@ -78,13 +81,15 @@ public:
 
     SandBoxResult run(const std::function<Value()>& scriptRunner); // for capsule script executing with try-catch
     SandBoxResult run(Value (*runner)(ExecutionState&, void*), void* data);
-    static bool createStackTraceData(StackTraceDataVector& stackTraceData, ExecutionState& state, bool stopAtPause = false);
-    void throwException(ExecutionState& state, Value exception);
-    void rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, const StackTraceDataVector& stackTraceData);
 
-    StackTraceDataVector& stackTraceData()
+    static bool createStackTrace(StackTraceDataVector& stackTraceDataVector, ExecutionState& state, bool stopAtPause = false);
+
+    void throwException(ExecutionState& state, Value exception);
+    void rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, const StackTraceDataVector& stackTraceDataVector);
+
+    StackTraceDataVector& stackTraceDataVector()
     {
-        return m_stackTraceData;
+        return m_stackTraceDataVector;
     }
 
     Context* context()
@@ -99,7 +104,7 @@ protected:
 private:
     Context* m_context;
     SandBox* m_oldSandBox;
-    StackTraceDataVector m_stackTraceData;
+    StackTraceDataVector m_stackTraceDataVector;
     Value m_exception; // To avoid accidential GC of exception value
 };
 } // namespace Escargot

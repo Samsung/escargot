@@ -2600,7 +2600,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
         newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
     }
 
-    SandBox::StackTraceDataVector stackTraceData;
+    SandBox::StackTraceDataVector stackTraceDataVector;
 
     if (LIKELY(!code->m_isCatchResumeProcess && !code->m_isFinallyResumeProcess)) {
         try {
@@ -2649,11 +2649,11 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
                 ESCARGOT_LOG_ERROR("%s\n", builder.finalize()->toUTF8StringData().data());
             }
 #endif
-            stackTraceData = std::move(newState->context()->vmInstance()->currentSandBox()->stackTraceData());
+            stackTraceDataVector = std::move(newState->context()->vmInstance()->currentSandBox()->stackTraceDataVector());
             if (!code->m_hasCatch) {
                 newState->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
             } else {
-                stackTraceData.clear();
+                stackTraceDataVector.clear();
                 registerFile[code->m_catchedValueRegisterIndex] = val;
                 try {
                     ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
@@ -2664,7 +2664,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
                         return Value();
                     }
                 } catch (const Value& val) {
-                    stackTraceData = newState->context()->vmInstance()->currentSandBox()->stackTraceData();
+                    stackTraceDataVector = newState->context()->vmInstance()->currentSandBox()->stackTraceDataVector();
                     newState->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
                 }
             }
@@ -2737,7 +2737,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
                 return Value(Value::EmptyValue);
             }
         } else if (record->reason() == ControlFlowRecord::NeedsThrow) {
-            state->context()->vmInstance()->currentSandBox()->rethrowPreviouslyCaughtException(*state, record->value(), stackTraceData);
+            state->context()->vmInstance()->currentSandBox()->rethrowPreviouslyCaughtException(*state, record->value(), stackTraceDataVector);
             ASSERT_NOT_REACHED();
             // never get here. but I add return statement for removing compile warning
             return Value(Value::EmptyValue);

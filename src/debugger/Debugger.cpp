@@ -413,7 +413,7 @@ void DebuggerRemote::getBacktrace(ExecutionState* state, uint32_t minDepth, uint
 {
     SandBox::StackTraceDataVector stackTraceData;
 
-    bool hasSavedStackTrace = SandBox::createStackTraceData(stackTraceData, *state, true);
+    bool hasSavedStackTrace = SandBox::createStackTrace(stackTraceData, *state, true);
 
     uint32_t size = (uint32_t)stackTraceData.size();
     uint32_t total = 0;
@@ -1018,7 +1018,7 @@ DebuggerRemote::SavedStackTraceDataVector* Debugger::saveStackTrace(ExecutionSta
     ByteCodeLOCDataMap locMap;
     uint32_t counter = 0;
 
-    bool hasSavedStackTrace = SandBox::createStackTraceData(stackTraceData, state, true);
+    bool hasSavedStackTrace = SandBox::createStackTrace(stackTraceData, state, true);
     uint32_t total = (uint32_t)stackTraceData.size();
 
     for (uint32_t i = 0; i < total && counter < ESCARGOT_DEBUGGER_MAX_STACK_TRACE_LENGTH; i++) {
