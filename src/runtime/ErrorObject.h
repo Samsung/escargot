@@ -144,33 +144,6 @@ public:
         WASMRuntimeError,
 #endif
     };
-    static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString)
-    {
-        throwBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString);
-    }
-    static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString, AtomicString templateDataString)
-    {
-        throwBuiltinError(state, code, templateDataString.string(), false, String::emptyString, templateString);
-    }
-    static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString, String* templateDataString)
-    {
-        throwBuiltinError(state, code, templateDataString, false, String::emptyString, templateString);
-    }
-    static ErrorObject* createBuiltinError(ExecutionState& state, Code code, const char* templateString)
-    {
-        return createBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString);
-    }
-    static ErrorObject* createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage);
-    static ErrorObject* createBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
-    static void throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
-    static void throwBuiltinError(ExecutionState& state, Code code, String* errorMessage);
-
-    ErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
-
-    virtual bool isErrorObject() const
-    {
-        return true;
-    }
 
     struct StackTraceGCData {
         union {
@@ -178,9 +151,11 @@ public:
             String* infoString;
         };
     };
+
     struct StackTraceNonGCData {
         size_t byteCodePosition;
     };
+
     struct StackTraceData : public gc {
         TightVector<StackTraceGCData, GCUtil::gc_malloc_allocator<StackTraceGCData>> gcValues;
         TightVector<StackTraceNonGCData, GCUtil::gc_malloc_atomic_allocator<StackTraceNonGCData>> nonGCValues;
@@ -192,6 +167,38 @@ public:
     private:
         StackTraceData() {}
     };
+
+    static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString)
+    {
+        throwBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString);
+    }
+
+    static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString, AtomicString templateDataString)
+    {
+        throwBuiltinError(state, code, templateDataString.string(), false, String::emptyString, templateString);
+    }
+
+    static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString, String* templateDataString)
+    {
+        throwBuiltinError(state, code, templateDataString, false, String::emptyString, templateString);
+    }
+
+    static ErrorObject* createBuiltinError(ExecutionState& state, Code code, const char* templateString)
+    {
+        return createBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString);
+    }
+
+    static ErrorObject* createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage);
+    static ErrorObject* createBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
+    static void throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
+    static void throwBuiltinError(ExecutionState& state, Code code, String* errorMessage);
+
+    ErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+
+    virtual bool isErrorObject() const
+    {
+        return true;
+    }
 
     StackTraceData* stackTraceData()
     {
