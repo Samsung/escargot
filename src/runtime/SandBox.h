@@ -65,12 +65,12 @@ public:
         }
     };
 
-    typedef Vector<std::pair<ExecutionState*, StackTraceData>, GCUtil::gc_malloc_allocator<std::pair<ExecutionState*, StackTraceData>>> StackTraceDataVector;
+    typedef Vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> StackTraceDataVector;
 
     struct SandBoxResult {
         Value result;
         Value error;
-        Vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> stackTrace;
+        StackTraceDataVector stackTrace;
 
         SandBoxResult()
             : result(Value::EmptyValue)

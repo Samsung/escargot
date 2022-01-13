@@ -59,9 +59,10 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
 
     ByteCodeLOCDataMap locMap;
     for (size_t i = 0; i < m_stackTraceDataVector.size(); i++) {
-        if ((size_t)m_stackTraceDataVector[i].second.loc.index == SIZE_MAX && (size_t)m_stackTraceDataVector[i].second.loc.actualCodeBlock != SIZE_MAX) {
+        if ((size_t)m_stackTraceDataVector[i].loc.index == SIZE_MAX && (size_t)m_stackTraceDataVector[i].loc.actualCodeBlock != SIZE_MAX) {
             // this means loc not computed yet.
-            ByteCodeBlock* block = m_stackTraceDataVector[i].second.loc.actualCodeBlock;
+            StackTraceData traceData = m_stackTraceDataVector[i];
+            ByteCodeBlock* block = traceData.loc.actualCodeBlock;
 
             ByteCodeLOCData* locData;
             auto iterMap = locMap.find(block);
@@ -73,20 +74,9 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
             }
 
             ExtendedNodeLOC loc = block->computeNodeLOCFromByteCode(m_context,
-                                                                    m_stackTraceDataVector[i].second.loc.byteCodePosition, block->m_codeBlock, locData);
+                                                                    traceData.loc.byteCodePosition, block->m_codeBlock, locData);
 
-            StackTraceData traceData;
             traceData.loc = loc;
-            InterpretedCodeBlock* cb = block->m_codeBlock;
-            traceData.srcName = cb->script()->srcName();
-            traceData.sourceCode = cb->script()->sourceCode();
-            traceData.functionName = m_stackTraceDataVector[i].second.functionName;
-            traceData.isFunction = m_stackTraceDataVector[i].second.isFunction;
-            traceData.callee = m_stackTraceDataVector[i].second.callee;
-            traceData.isConstructor = m_stackTraceDataVector[i].second.isConstructor;
-            traceData.isAssociatedWithJavaScriptCode = m_stackTraceDataVector[i].second.isAssociatedWithJavaScriptCode;
-            traceData.isEval = m_stackTraceDataVector[i].second.isEval;
-
             result.stackTrace.pushBack(traceData);
 
 #ifdef ESCARGOT_DEBUGGER
@@ -95,7 +85,7 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
             }
 #endif /* ESCARGOT_DEBUGGER */
         } else {
-            result.stackTrace.pushBack(m_stackTraceDataVector[i].second);
+            result.stackTrace.pushBack(m_stackTraceDataVector[i]);
         }
     }
     for (auto iter = locMap.begin(); iter != locMap.end(); iter++) {
@@ -150,6 +140,8 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
     }
 #endif /* ESCARGOT_DEBUGGER */
 
+    std::vector<ExecutionState*> stateStack;
+
     while (pstate) {
         FunctionObject* callee = pstate->resolveCallee();
         ExecutionState* es = pstate;
@@ -174,8 +166,8 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
 
         bool alreadyExists = false;
 
-        for (size_t i = 0; i < stackTraceDataVector.size(); i++) {
-            if (stackTraceDataVector[i].first == es || stackTraceDataVector[i].first->lexicalEnvironment() == es->lexicalEnvironment()) {
+        for (size_t i = 0; i < stateStack.size(); i++) {
+            if (stateStack[i] == es || stateStack[i]->lexicalEnvironment() == es->lexicalEnvironment()) {
                 alreadyExists = true;
                 break;
             }
@@ -211,7 +203,8 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
                     data.executionStateDepth = executionStateDepthIndex;
 #endif /* ESCARGOT_DEBUGGER */
 
-                    stackTraceDataVector.pushBack(std::make_pair(es, data));
+                    stateStack.push_back(es);
+                    stackTraceDataVector.pushBack(data);
                 }
             } else if (pstate->codeBlock() && pstate->codeBlock()->isInterpretedCodeBlock() && pstate->codeBlock()->asInterpretedCodeBlock()->isEvalCodeInFunction()) {
                 CodeBlock* cb = pstate->codeBlock();
@@ -228,7 +221,8 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
                 data.executionStateDepth = executionStateDepthIndex;
 #endif /* ESCARGOT_DEBUGGER */
 
-                stackTraceDataVector.pushBack(std::make_pair(es, data));
+                stateStack.push_back(es);
+                stackTraceDataVector.pushBack(data);
             } else if (callee) {
                 CodeBlock* cb = callee->codeBlock();
                 ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
@@ -240,13 +234,13 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
                         loc.actualCodeBlock = b;
                     }
                 }
+
                 SandBox::StackTraceData data;
                 data.loc = loc;
+
                 if (cb->isInterpretedCodeBlock() && cb->asInterpretedCodeBlock()->script()) {
                     data.srcName = cb->asInterpretedCodeBlock()->script()->srcName();
-#ifdef ESCARGOT_DEBUGGER
-                    data.executionStateDepth = executionStateDepthIndex;
-#endif /* ESCARGOT_DEBUGGER */
+                    data.sourceCode = cb->asInterpretedCodeBlock()->script()->sourceCode();
                 } else {
                     StringBuilder builder;
                     builder.appendString("function ");
@@ -255,18 +249,21 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
                     builder.appendString("[native function]");
                     builder.appendString(" } ");
                     data.srcName = builder.finalize();
-#ifdef ESCARGOT_DEBUGGER
-                    data.executionStateDepth = executionStateDepthIndex;
-#endif /* ESCARGOT_DEBUGGER */
+                    data.sourceCode = String::emptyString;
                 }
+
                 data.functionName = cb->functionName().string();
                 data.isEval = false;
                 data.isFunction = true;
                 data.callee = callee;
                 data.isAssociatedWithJavaScriptCode = cb->isInterpretedCodeBlock();
                 data.isConstructor = callee->isConstructor();
-                data.sourceCode = String::emptyString;
-                stackTraceDataVector.pushBack(std::make_pair(es, data));
+#ifdef ESCARGOT_DEBUGGER
+                data.executionStateDepth = executionStateDepthIndex;
+#endif /* ESCARGOT_DEBUGGER */
+
+                stateStack.push_back(es);
+                stackTraceDataVector.pushBack(data);
             }
         }
 
@@ -333,11 +330,11 @@ ErrorObject::StackTraceData* ErrorObject::StackTraceData::create(SandBox* sandBo
     data->exception = sandBox->m_exception;
 
     for (size_t i = 0; i < sandBox->m_stackTraceDataVector.size(); i++) {
-        if ((size_t)sandBox->m_stackTraceDataVector[i].second.loc.index == SIZE_MAX && (size_t)sandBox->m_stackTraceDataVector[i].second.loc.actualCodeBlock != SIZE_MAX) {
-            data->gcValues[i].byteCodeBlock = sandBox->m_stackTraceDataVector[i].second.loc.actualCodeBlock;
-            data->nonGCValues[i].byteCodePosition = sandBox->m_stackTraceDataVector[i].second.loc.byteCodePosition;
+        if ((size_t)sandBox->m_stackTraceDataVector[i].loc.index == SIZE_MAX && (size_t)sandBox->m_stackTraceDataVector[i].loc.actualCodeBlock != SIZE_MAX) {
+            data->gcValues[i].byteCodeBlock = sandBox->m_stackTraceDataVector[i].loc.actualCodeBlock;
+            data->nonGCValues[i].byteCodePosition = sandBox->m_stackTraceDataVector[i].loc.byteCodePosition;
         } else {
-            data->gcValues[i].infoString = sandBox->m_stackTraceDataVector[i].second.srcName;
+            data->gcValues[i].infoString = sandBox->m_stackTraceDataVector[i].srcName;
             data->nonGCValues[i].byteCodePosition = SIZE_MAX;
         }
     }

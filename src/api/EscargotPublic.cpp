@@ -1194,12 +1194,12 @@ void DebuggerOperationsRef::BreakpointOperations::getStackTrace(DebuggerOperatio
     outStackTrace.clear();
 
     for (uint32_t i = 0; i < size; i++) {
-        if ((size_t)stackTraceDataVector[i].second.loc.actualCodeBlock != SIZE_MAX) {
-            ByteCodeBlock* byteCodeBlock = stackTraceDataVector[i].second.loc.actualCodeBlock;
+        if (reinterpret_cast<size_t>(stackTraceDataVector[i].loc.actualCodeBlock) != SIZE_MAX) {
+            ByteCodeBlock* byteCodeBlock = stackTraceDataVector[i].loc.actualCodeBlock;
             size_t line, column;
 
-            if ((size_t)stackTraceDataVector[i].second.loc.index == SIZE_MAX) {
-                size_t byteCodePosition = stackTraceDataVector[i].second.loc.byteCodePosition;
+            if (stackTraceDataVector[i].loc.index == SIZE_MAX) {
+                size_t byteCodePosition = stackTraceDataVector[i].loc.byteCodePosition;
 
                 ByteCodeLOCData* locData;
                 auto iterMap = locMap.find(byteCodeBlock);
@@ -1214,11 +1214,11 @@ void DebuggerOperationsRef::BreakpointOperations::getStackTrace(DebuggerOperatio
                 line = (uint32_t)loc.line;
                 column = (uint32_t)loc.column;
             } else {
-                line = (uint32_t)stackTraceDataVector[i].second.loc.line;
-                column = (uint32_t)stackTraceDataVector[i].second.loc.column;
+                line = (uint32_t)stackTraceDataVector[i].loc.line;
+                column = (uint32_t)stackTraceDataVector[i].loc.column;
             }
 
-            outStackTrace.push_back(DebuggerStackTraceData(reinterpret_cast<WeakCodeRef*>(byteCodeBlock), line, column, stackTraceDataVector[i].second.executionStateDepth));
+            outStackTrace.push_back(DebuggerStackTraceData(reinterpret_cast<WeakCodeRef*>(byteCodeBlock), line, column, stackTraceDataVector[i].executionStateDepth));
         }
     }
 
@@ -2693,8 +2693,8 @@ GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTrace(
     GCManagedVector<Evaluator::StackTraceData> result(stackTraceDataVector.size());
     ByteCodeLOCDataMap locMap;
     for (size_t i = 0; i < stackTraceDataVector.size(); i++) {
-        if ((size_t)stackTraceDataVector[i].second.loc.index == SIZE_MAX && (size_t)stackTraceDataVector[i].second.loc.actualCodeBlock != SIZE_MAX) {
-            ByteCodeBlock* byteCodeBlock = stackTraceDataVector[i].second.loc.actualCodeBlock;
+        if (stackTraceDataVector[i].loc.index == SIZE_MAX && reinterpret_cast<size_t>(stackTraceDataVector[i].loc.actualCodeBlock) != SIZE_MAX) {
+            ByteCodeBlock* byteCodeBlock = stackTraceDataVector[i].loc.actualCodeBlock;
 
             ByteCodeLOCData* locData;
             auto iterMap = locMap.find(byteCodeBlock);
@@ -2706,26 +2706,27 @@ GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTrace(
             }
 
             InterpretedCodeBlock* codeBlock = byteCodeBlock->codeBlock();
-            size_t byteCodePosition = stackTraceDataVector[i].second.loc.byteCodePosition;
-            stackTraceDataVector[i].second.loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock, locData);
-            stackTraceDataVector[i].second.srcName = codeBlock->script()->srcName();
-            stackTraceDataVector[i].second.sourceCode = codeBlock->script()->sourceCode();
+            size_t byteCodePosition = stackTraceDataVector[i].loc.byteCodePosition;
+            stackTraceDataVector[i].loc = byteCodeBlock->computeNodeLOCFromByteCode(state->context(), byteCodePosition, byteCodeBlock->m_codeBlock, locData);
+
+            stackTraceDataVector[i].srcName = codeBlock->script()->srcName();
+            stackTraceDataVector[i].sourceCode = codeBlock->script()->sourceCode();
         }
 
         Evaluator::StackTraceData t;
-        t.srcName = toRef(stackTraceDataVector[i].second.srcName);
-        t.sourceCode = toRef(stackTraceDataVector[i].second.sourceCode);
-        t.loc.index = stackTraceDataVector[i].second.loc.index;
-        t.loc.line = stackTraceDataVector[i].second.loc.line;
-        t.loc.column = stackTraceDataVector[i].second.loc.column;
-        t.functionName = toRef(stackTraceDataVector[i].second.functionName);
-        if (stackTraceDataVector[i].second.callee) {
-            t.callee = toRef(stackTraceDataVector[i].second.callee.value());
+        t.srcName = toRef(stackTraceDataVector[i].srcName);
+        t.sourceCode = toRef(stackTraceDataVector[i].sourceCode);
+        t.loc.index = stackTraceDataVector[i].loc.index;
+        t.loc.line = stackTraceDataVector[i].loc.line;
+        t.loc.column = stackTraceDataVector[i].loc.column;
+        t.functionName = toRef(stackTraceDataVector[i].functionName);
+        if (stackTraceDataVector[i].callee) {
+            t.callee = toRef(stackTraceDataVector[i].callee.value());
         }
-        t.isFunction = stackTraceDataVector[i].second.isFunction;
-        t.isConstructor = stackTraceDataVector[i].second.isConstructor;
-        t.isAssociatedWithJavaScriptCode = stackTraceDataVector[i].second.isAssociatedWithJavaScriptCode;
-        t.isEval = stackTraceDataVector[i].second.isEval;
+        t.isFunction = stackTraceDataVector[i].isFunction;
+        t.isConstructor = stackTraceDataVector[i].isConstructor;
+        t.isAssociatedWithJavaScriptCode = stackTraceDataVector[i].isAssociatedWithJavaScriptCode;
+        t.isEval = stackTraceDataVector[i].isEval;
         result[i] = t;
     }
     for (auto iter = locMap.begin(); iter != locMap.end(); iter++) {
