@@ -419,7 +419,7 @@ void DebuggerRemote::getBacktrace(ExecutionState* state, uint32_t minDepth, uint
     uint32_t total = 0;
 
     for (uint32_t i = 0; i < size; i++) {
-        if ((size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
+        if ((size_t)stackTraceData[i].loc.actualCodeBlock != SIZE_MAX) {
             total++;
         }
     }
@@ -444,16 +444,16 @@ void DebuggerRemote::getBacktrace(ExecutionState* state, uint32_t minDepth, uint
     uint32_t counter = 0;
 
     for (uint32_t i = 0; i < size && counter < maxDepth; i++) {
-        if ((size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
+        if ((size_t)stackTraceData[i].loc.actualCodeBlock != SIZE_MAX) {
             if (++counter <= minDepth) {
                 continue;
             }
 
-            ByteCodeBlock* byteCodeBlock = stackTraceData[i].second.loc.actualCodeBlock;
+            ByteCodeBlock* byteCodeBlock = stackTraceData[i].loc.actualCodeBlock;
             uint32_t line, column;
 
-            if ((size_t)stackTraceData[i].second.loc.index == SIZE_MAX) {
-                size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
+            if ((size_t)stackTraceData[i].loc.index == SIZE_MAX) {
+                size_t byteCodePosition = stackTraceData[i].loc.byteCodePosition;
 
                 ByteCodeLOCData* locData;
                 auto iterMap = locMap.find(byteCodeBlock);
@@ -468,11 +468,11 @@ void DebuggerRemote::getBacktrace(ExecutionState* state, uint32_t minDepth, uint
                 line = (uint32_t)loc.line;
                 column = (uint32_t)loc.column;
             } else {
-                line = (uint32_t)stackTraceData[i].second.loc.line;
-                column = (uint32_t)stackTraceData[i].second.loc.column;
+                line = (uint32_t)stackTraceData[i].loc.line;
+                column = (uint32_t)stackTraceData[i].loc.column;
             }
 
-            sendBacktraceInfo(ESCARGOT_MESSAGE_BACKTRACE, byteCodeBlock, line, column, (uint32_t)stackTraceData[i].second.executionStateDepth);
+            sendBacktraceInfo(ESCARGOT_MESSAGE_BACKTRACE, byteCodeBlock, line, column, (uint32_t)stackTraceData[i].executionStateDepth);
 
             if (!enabled()) {
                 return;
@@ -1022,14 +1022,14 @@ DebuggerRemote::SavedStackTraceDataVector* Debugger::saveStackTrace(ExecutionSta
     uint32_t total = (uint32_t)stackTraceData.size();
 
     for (uint32_t i = 0; i < total && counter < ESCARGOT_DEBUGGER_MAX_STACK_TRACE_LENGTH; i++) {
-        if ((size_t)stackTraceData[i].second.loc.actualCodeBlock != SIZE_MAX) {
-            ByteCodeBlock* byteCodeBlock = stackTraceData[i].second.loc.actualCodeBlock;
+        if ((size_t)stackTraceData[i].loc.actualCodeBlock != SIZE_MAX) {
+            ByteCodeBlock* byteCodeBlock = stackTraceData[i].loc.actualCodeBlock;
             uint32_t line, column;
 
             counter++;
 
-            if ((size_t)stackTraceData[i].second.loc.index == SIZE_MAX) {
-                size_t byteCodePosition = stackTraceData[i].second.loc.byteCodePosition;
+            if ((size_t)stackTraceData[i].loc.index == SIZE_MAX) {
+                size_t byteCodePosition = stackTraceData[i].loc.byteCodePosition;
 
                 ByteCodeLOCData* locData;
                 auto iterMap = locMap.find(byteCodeBlock);
@@ -1045,8 +1045,8 @@ DebuggerRemote::SavedStackTraceDataVector* Debugger::saveStackTrace(ExecutionSta
                 line = (uint32_t)loc.line;
                 column = (uint32_t)loc.column;
             } else {
-                line = (uint32_t)stackTraceData[i].second.loc.line;
-                column = (uint32_t)stackTraceData[i].second.loc.column;
+                line = (uint32_t)stackTraceData[i].loc.line;
+                column = (uint32_t)stackTraceData[i].loc.column;
             }
 
             savedStackTrace->push_back(SavedStackTraceData(byteCodeBlock, line, column));
