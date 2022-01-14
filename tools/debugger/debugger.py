@@ -260,6 +260,9 @@ def main():
     if args.client_source:
         debugger.store_client_sources(args.client_source)
 
+    if args.wait_before_exit:
+        debugger.set_wait_exit(args.wait_before_exit)
+
     if args.command:
         commands = args.command[0].split(";")
         i = 0

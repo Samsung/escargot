@@ -804,6 +804,7 @@ public:
     // "--port=6501", default for TCP debugger
     bool initDebuggerRemote(const char* options);
     bool isDebuggerRunning();
+    bool isWaitBeforeExit();
     void printDebugger(StringRef* output);
     void pumpDebuggerEvents();
     void setAsAlwaysStopState();

@@ -162,6 +162,7 @@ public:
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) = 0;
     virtual void consoleOut(String* output) = 0;
     virtual String* getClientSource(String** sourceName) = 0;
+    virtual bool getWaitBeforeExitClient() = 0;
 
     static SavedStackTraceDataVector* saveStackTrace(ExecutionState& state);
 
@@ -254,6 +255,7 @@ public:
         ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE = 42,
         ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE = 43,
         ESCARGOT_DEBUGGER_WAITING_AFTER_PENDING = 44,
+        ESCARGOT_DEBUGGER_WAIT_FOR_WAIT_EXIT = 45,
     };
 
     // Messages sent by the debugger client to Escargot
@@ -286,6 +288,7 @@ public:
         ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 22,
         ESCARGOT_DEBUGGER_PENDING_CONFIG = 23,
         ESCARGOT_DEBUGGER_PENDING_RESUME = 24,
+        ESCARGOT_DEBUGGER_WAIT_BEFORE_EXIT = 25,
     };
 
     // Environment record types
@@ -341,6 +344,7 @@ public:
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
     virtual void consoleOut(String* output) override;
     virtual String* getClientSource(String** sourceName) override;
+    virtual bool getWaitBeforeExitClient() override;
 
     void sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBlock, uint32_t line, uint32_t column, uint32_t executionStateDepth);
     void sendVariableObjectInfo(uint8_t subType, Object* object);
@@ -348,7 +352,8 @@ public:
 
 protected:
     DebuggerRemote()
-        : m_pendingWait(false)
+        : m_exitClient(false)
+        , m_pendingWait(false)
         , m_waitForResume(false)
         , m_clientSourceData(nullptr)
         , m_clientSourceName(nullptr)
@@ -404,6 +409,7 @@ private:
     void getScopeChain(ExecutionState* state, uint32_t stateIndex);
     void getScopeVariables(ExecutionState* state, uint32_t stateIndex, uint32_t index);
 
+    bool m_exitClient : 1;
     bool m_pendingWait : 1;
     bool m_waitForResume : 1;
     String* m_clientSourceData;

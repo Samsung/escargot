@@ -1285,6 +1285,7 @@ public:
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
     virtual void consoleOut(String* output) override;
     virtual String* getClientSource(String** sourceName) override;
+    virtual bool getWaitBeforeExitClient() override;
 
     DebuggerC(DebuggerOperationsRef::DebuggerClient* debuggerClient, Context* context)
         : m_debuggerClient(debuggerClient)
@@ -1395,6 +1396,11 @@ String* DebuggerC::getClientSource(String** sourceName)
     UNUSED_PARAMETER(sourceName);
 
     return nullptr;
+}
+
+bool DebuggerC::getWaitBeforeExitClient()
+{
+    return false;
 }
 
 bool DebuggerC::processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest)
@@ -2526,6 +2532,15 @@ bool ContextRef::isDebuggerRunning()
 {
 #ifdef ESCARGOT_DEBUGGER
     return toImpl(this)->debugger() != nullptr;
+#else /* !ESCARGOT_DEBUGGER */
+    return false;
+#endif /* ESCARGOT_DEBUGGER */
+}
+
+bool ContextRef::isWaitBeforeExit()
+{
+#ifdef ESCARGOT_DEBUGGER
+    return toImpl(this)->debugger()->getWaitBeforeExitClient();
 #else /* !ESCARGOT_DEBUGGER */
     return false;
 #endif /* ESCARGOT_DEBUGGER */
