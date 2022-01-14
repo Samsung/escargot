@@ -935,6 +935,8 @@ int main(int argc, char* argv[])
     mallopt(M_MMAP_MAX, 1024 * 1024);
 #endif
 
+    bool wait_before_exit = false;
+
     ShellPlatform* platform = new ShellPlatform();
     Globals::initialize(platform);
 
@@ -988,6 +990,10 @@ int main(int argc, char* argv[])
                     }
                     continue;
                 }
+                if (strcmp(argv[i], "--wait-before-exit") == 0) {
+                    wait_before_exit = true;
+                    continue;
+                }
             } else { // `-option` case
                 if (strcmp(argv[i], "-e") == 0) {
                     runShell = false;
@@ -1035,6 +1041,14 @@ int main(int argc, char* argv[])
 
     if (runShell && !context->isDebuggerRunning()) {
         printf("escargot version:%s, %s%s\n", Globals::version(), Globals::buildDate(), Globals::supportsThreading() ? "(supports threading)" : "");
+    }
+
+    if (wait_before_exit || context->isWaitBeforeExit()) {
+        context->setAsAlwaysStopState();
+        auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
+            return script->execute(state);
+        },
+                                             context->scriptParser()->initializeScript(StringRef::createFromASCII(""), StringRef::createFromASCII("<ScriptEnd>"), seenModule).script.get());
     }
 
     while (runShell) {

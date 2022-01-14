@@ -305,6 +305,14 @@ String* DebuggerRemote::getClientSource(String** sourceName)
     return sourceData;
 }
 
+bool DebuggerRemote::getWaitBeforeExitClient()
+{
+    sendType(ESCARGOT_DEBUGGER_WAIT_FOR_WAIT_EXIT);
+    while (processEvents(nullptr, nullptr))
+        ;
+    return this->m_exitClient;
+}
+
 bool DebuggerRemote::doEval(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, uint8_t* buffer, size_t length)
 {
     uint8_t type = (uint8_t)(buffer[0] + 1);
@@ -802,6 +810,11 @@ bool DebuggerRemote::processEvents(ExecutionState* state, Optional<ByteCodeBlock
             }
             return false;
         }
+        case ESCARGOT_DEBUGGER_WAIT_BEFORE_EXIT: {
+            m_exitClient = buffer[1];
+            return false;
+        }
+
         case ESCARGOT_MESSAGE_FUNCTION_RELEASED: {
             if (length != 1 + sizeof(uintptr_t)) {
                 break;

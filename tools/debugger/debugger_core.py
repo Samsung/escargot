@@ -71,6 +71,7 @@ ESCARGOT_MESSAGE_EXCEPTION = 41
 ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE = 42
 ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE = 43
 ESCARGOT_DEBUGGER_WAITING_AFTER_PENDING = 44
+ESCARGOT_DEBUGGER_WAIT_FOR_WAIT_EXIT = 45
 
 
 # Messages sent by the debugger client to Escargot.
@@ -99,6 +100,7 @@ ESCARGOT_DEBUGGER_CLIENT_SOURCE_16BIT = 21
 ESCARGOT_DEBUGGER_THERE_WAS_NO_SOURCE = 22
 ESCARGOT_DEBUGGER_PENDING_CONFIG = 23
 ESCARGOT_DEBUGGER_PENDING_RESUME = 24
+ESCARGOT_DEBUGGER_WAIT_BEFORE_EXIT = 25
 
 
 # Environment record types
@@ -147,6 +149,8 @@ def arguments_parse():
                         help="specify a javascript source file to execute")
     parser.add_argument("--command", action="store", default=[], type=str, nargs="+",
                         help="set commands to run at the start of the debugger")
+    parser.add_argument("--wait-before-exit", action="store", default=False, type=int, choices=[0, 1],
+                        help="after the execution of the script the program will stop")
     args = parser.parse_args()
 
     if args.verbose:
@@ -313,6 +317,7 @@ class Debugger(object):
         self.current_out = b""
         self.current_log = b""
         self.channel = channel
+        self.wait_exit = False
 
         # The server will send the version message after connection established
         # type [1]
@@ -563,6 +568,8 @@ class Debugger(object):
                 return DebuggerAction(DebuggerAction.TEXT, exceptionMessage);
             elif buffer_type == ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE:
                 self.send_client_source()
+            elif buffer_type == ESCARGOT_DEBUGGER_WAIT_FOR_WAIT_EXIT:
+                self._send_wait_exit()
             else:
                 raise Exception("Unknown message: %d" % (buffer_type))
 
@@ -589,6 +596,16 @@ class Debugger(object):
         with open(path, 'r') as src_file:
             content = path + '\0'+ src_file.read()
         self._send_string(content, ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START)
+
+    def set_wait_exit(self, wait_exit):
+        self.wait_exit = wait_exit
+
+    def _send_wait_exit(self):
+        message = struct.pack(self.byte_order + "BBB",
+                              1 + 1,
+                              ESCARGOT_DEBUGGER_WAIT_BEFORE_EXIT,
+                              1 if self.wait_exit else 0)
+        self.channel.send_message(self.byte_order, message)
 
     def _exec_command(self, command_id):
         message = struct.pack(self.byte_order + "BB",
