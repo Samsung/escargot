@@ -27,6 +27,8 @@
 
 namespace Escargot {
 
+class Context;
+
 // A type to hold a single Latin-1 character.
 typedef unsigned char LChar;
 
@@ -774,6 +776,16 @@ public:
     void* operator new[](size_t size) = delete;
 };
 
+class Latin1StringFinalizer : public Latin1String {
+public:
+    Latin1StringFinalizer(Context* context, const LChar* str, size_t len);
+
+    Context* m_context;
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+};
+
 class Latin1StringFromExternalMemory : public Latin1String {
 public:
     Latin1StringFromExternalMemory(const unsigned char* str, size_t len)
@@ -835,6 +847,16 @@ public:
     virtual UTF16StringData toUTF16StringData() const override;
     virtual UTF8StringData toUTF8StringData() const override;
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const override;
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+};
+
+class UTF16StringFinalizer : public UTF16String {
+public:
+    explicit UTF16StringFinalizer(Context* context, UTF16StringData&& src);
+
+    Context* m_context;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;

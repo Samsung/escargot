@@ -185,6 +185,22 @@ public:
         return m_compiledByteCodeSize;
     }
 
+    size_t validSourceSize()
+    {
+        return m_validSourceSize;
+    }
+
+    void increaseSourceSize(size_t size)
+    {
+        m_validSourceSize += size;
+    }
+
+    void decreaseSourceSize(size_t size)
+    {
+        ASSERT(m_validSourceSize >= size);
+        m_validSourceSize -= size;
+    }
+
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     std::vector<CompressibleString*>& compressibleStrings()
     {
@@ -328,6 +344,7 @@ private:
 
     std::vector<ByteCodeBlock*> m_compiledByteCodeBlocks;
     size_t m_compiledByteCodeSize;
+    size_t m_validSourceSize;
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     uint64_t m_lastCompressibleStringsTestTime;

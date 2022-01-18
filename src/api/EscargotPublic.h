@@ -644,6 +644,10 @@ public:
     void registerErrorCreationCallback(ErrorCreationCallback cb);
     void unregisterErrorCreationCallback();
 
+    size_t validSourceSize();
+    void increaseSourceSize(size_t size);
+    void decreaseSourceSize(size_t size);
+
     enum PromiseHookType {
         Init,
         Resolve,
@@ -864,8 +868,11 @@ public:
         return createFromUTF8(str, N - 1);
     }
     static StringRef* createFromUTF8(const char* s, size_t byteLength, bool maybeASCII = true);
+    static StringRef* createFromUTF8(ContextRef* context, const char* s, size_t len, bool maybeASCII);
+
     static StringRef* createFromUTF16(const char16_t* s, size_t stringLength);
     static StringRef* createFromLatin1(const unsigned char* s, size_t stringLength);
+    static StringRef* createFromLatin1(ContextRef* context, const unsigned char* s, size_t len);
 
     static StringRef* createExternalFromASCII(const char* s, size_t stringLength);
     static StringRef* createExternalFromLatin1(const unsigned char* s, size_t stringLength);

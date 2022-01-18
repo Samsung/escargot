@@ -52,6 +52,7 @@
 
 #include "fast-dtoa.h"
 #include "bignum-dtoa.h"
+#include "runtime/VMInstance.h"
 
 namespace Escargot {
 
@@ -623,6 +624,32 @@ String* String::fromDouble(double v)
     return new ASCIIString(std::move(s));
 }
 
+UTF16StringFinalizer::UTF16StringFinalizer(Context* context, UTF16StringData&& src)
+    : UTF16String(std::forward<UTF16StringData>(src))
+    , m_context(context)
+{
+    context->vmInstance()->increaseSourceSize(length() * 2);
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+        UTF16StringFinalizer* self = (UTF16StringFinalizer*)obj;
+        self->m_context->vmInstance()->decreaseSourceSize((self->length()) * 2);
+    },
+                                   nullptr, nullptr, nullptr);
+}
+
+void* UTF16StringFinalizer::operator new(size_t size)
+{
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(UTF16StringFinalizer)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(UTF16StringFinalizer, m_bufferData.buffer));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(UTF16StringFinalizer, m_context));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(UTF16StringFinalizer));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
 String* String::fromUTF8(const char* src, size_t len, bool maybeASCII)
 {
     if (maybeASCII && isAllASCII(src, len)) {
@@ -922,6 +949,32 @@ void* Latin1String::operator new(size_t size)
         GC_word obj_bitmap[GC_BITMAP_SIZE(Latin1String)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Latin1String, m_bufferData.buffer));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(Latin1String));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+Latin1StringFinalizer::Latin1StringFinalizer(Context* context, const LChar* str, size_t len)
+    : Latin1String(str, len)
+    , m_context(context)
+{
+    context->vmInstance()->increaseSourceSize(length());
+    GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
+        Latin1StringFinalizer* self = (Latin1StringFinalizer*)obj;
+        self->m_context->vmInstance()->decreaseSourceSize(self->length());
+    },
+                                   nullptr, nullptr, nullptr);
+}
+
+void* Latin1StringFinalizer::operator new(size_t size)
+{
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(Latin1StringFinalizer)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Latin1StringFinalizer, m_bufferData.buffer));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Latin1StringFinalizer, m_context));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(Latin1StringFinalizer));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);

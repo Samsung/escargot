@@ -511,6 +511,12 @@ StringRef* StringRef::createFromUTF8(const char* s, size_t len, bool maybeASCII)
     return toRef(String::fromUTF8(s, len, maybeASCII));
 }
 
+StringRef* StringRef::createFromUTF8(ContextRef* context, const char* src, size_t len, bool maybeASCII)
+{
+    auto s = utf8StringToUTF16String(src, len);
+    return toRef(new UTF16StringFinalizer(toImpl(context), std::move(s)));
+}
+
 StringRef* StringRef::createFromUTF16(const char16_t* s, size_t len)
 {
     return toRef(new UTF16String(s, len));
@@ -519,6 +525,11 @@ StringRef* StringRef::createFromUTF16(const char16_t* s, size_t len)
 StringRef* StringRef::createFromLatin1(const unsigned char* s, size_t len)
 {
     return toRef(new Latin1String(s, len));
+}
+
+StringRef* StringRef::createFromLatin1(ContextRef* context, const unsigned char* s, size_t len)
+{
+    return toRef(new Latin1StringFinalizer(toImpl(context), s, len));
 }
 
 StringRef* StringRef::createExternalFromASCII(const char* s, size_t len)
@@ -1099,6 +1110,11 @@ void VMInstanceRef::registerErrorCreationCallback(ErrorCreationCallback cb)
 void VMInstanceRef::unregisterErrorCreationCallback()
 {
     toImpl(this)->unregisterErrorCreationCallback();
+}
+
+size_t VMInstanceRef::validSourceSize()
+{
+    return toImpl(this)->validSourceSize();
 }
 
 void VMInstanceRef::registerPromiseHook(PromiseHook promiseHook)

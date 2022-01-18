@@ -349,6 +349,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     , m_debuggerEnabled(false)
 #endif /* ESCARGOT_DEBUGGER */
     , m_compiledByteCodeSize(0)
+    , m_validSourceSize(0)
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     , m_lastCompressibleStringsTestTime(0)
     , m_compressibleStringsUncomressedBufferSize(0)

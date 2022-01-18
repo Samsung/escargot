@@ -207,9 +207,9 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
             }
         } else {
             if (hasNonLatin1Content) {
-                src = StringRef::createFromUTF8(utf8Str.data(), utf8Str.length(), false);
+                src = StringRef::createFromUTF8(state->context(), utf8Str.data(), utf8Str.length(), false);
             } else {
-                src = StringRef::createFromLatin1(str.data(), str.length());
+                src = StringRef::createFromLatin1(state->context(), str.data(), str.length());
             }
         }
         return src;
@@ -944,7 +944,8 @@ static void printGCMemory(void* data)
     uint64_t currentTick = fastTickCount();
     if (currentTick - g_lastTick >= g_dumpInterval) {
         g_lastTick = currentTick;
-        fprintf(static_cast<FILE*>(data), "Tick %" PRIu64 ": Heap usage[%f MB]\n", fastTickCount(), Memory::heapSize() / 1024.f / 1024.f);
+        VMInstanceRef* vm = static_cast<VMInstanceRef*>(data);
+        printf("Tick %" PRIu64 ": %f MB %lu \n", fastTickCount(), Memory::heapSize() / 1024.f / 1024.f, vm->validSourceSize());
     }
 }
 
@@ -978,7 +979,7 @@ int main(int argc, char* argv[])
     bool runShell = true;
     bool seenModule = false;
     std::string fileName;
-    FILE* memoryUsageLog = nullptr;
+    bool memoryUsageLog = false;
 
     for (int i = 1; i < argc; i++) {
         if (strlen(argv[i]) >= 2 && argv[i][0] == '-') { // parse command line option
@@ -1000,11 +1001,11 @@ int main(int argc, char* argv[])
                     continue;
                 }
                 if (strcmp(argv[i], "--dump-memory-usage") == 0) {
-                    memoryUsageLog = fopen("memoryUsage.log", "w");
+                    memoryUsageLog = true;
                     g_lastTick = fastTickCount();
-                    fprintf(memoryUsageLog, "Tick %" PRIu64 ": Start Measure\n", g_lastTick);
-                    Memory::removeGCEventListener(Memory::RECLAIM_END, printGCMemory, memoryUsageLog);
-                    Memory::addGCEventListener(Memory::RECLAIM_END, printGCMemory, memoryUsageLog);
+                    printf("Tick %" PRIu64 ": Start Measure\n", g_lastTick);
+                    Memory::removeGCEventListener(Memory::RECLAIM_END, printGCMemory, instance.get());
+                    Memory::addGCEventListener(Memory::RECLAIM_END, printGCMemory, instance.get());
                     continue;
                 }
                 if (strstr(argv[i], "--dump-memory-interval=") == argv[i]) {
@@ -1101,8 +1102,7 @@ int main(int argc, char* argv[])
 
     Globals::finalize();
     if (memoryUsageLog) {
-        fprintf(memoryUsageLog, "Tick %" PRIu64 ": End Measure\n", fastTickCount());
-        fclose(memoryUsageLog);
+        printf("Tick %" PRIu64 ": End Measure\n", fastTickCount());
     }
     return 0;
 }
