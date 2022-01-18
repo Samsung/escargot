@@ -143,8 +143,6 @@ def arguments_parse():
                         help="enable color highlighting on source commands (default: %(default)s)")
     parser.add_argument("--display", action="store", default=None, type=int,
                         help="set display range")
-    parser.add_argument("--exception", action="store", default=None, type=int, choices=[0, 1],
-                        help="set exception config, usage 1: [Enable] or 0: [Disable]")
     parser.add_argument("--client-source", action="store", default=[], type=str, nargs="+",
                         help="specify a javascript source file to execute")
     parser.add_argument("--command", action="store", default=[], type=str, nargs="+",

@@ -254,9 +254,6 @@ def main():
     else:
         prompt.stop = False
 
-    if args.exception is not None:
-        prompt.do_exception(str(args.exception))
-
     if args.client_source:
         debugger.store_client_sources(args.client_source)
 
