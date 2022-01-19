@@ -57,7 +57,7 @@ void* Script::operator new(size_t size)
 bool Script::isExecuted()
 {
     if (isModule()) {
-        return m_moduleData->m_status != ModuleData::ModuleStatus::Unlinked;
+        return m_moduleData->m_status >= ModuleData::ModuleStatus::Evaluating;
     }
     return m_topCodeBlock->byteCodeBlock() == nullptr;
 }
@@ -105,6 +105,32 @@ String* Script::moduleRequest(size_t i)
 {
     ASSERT(isModule());
     return m_moduleData->m_requestedModules[i];
+}
+
+Value Script::moduleInstantiate(ExecutionState& state)
+{
+    ASSERT(isModule());
+    if (!moduleData()->m_didCallLoadedCallback) {
+        Global::platform()->didLoadModule(context(), nullptr, this);
+        moduleData()->m_didCallLoadedCallback = true;
+    }
+
+    auto result = moduleLinking(state);
+    if (result.gotException) {
+        throw result.value;
+    }
+    return result.value;
+}
+
+Value Script::moduleEvaluate(ExecutionState& state)
+{
+    ASSERT(isModule());
+
+    auto result = moduleEvaluation(state);
+    if (result.gotException) {
+        throw result.value;
+    }
+    return result.value;
 }
 
 AtomicStringVector Script::exportedNames(ExecutionState& state, std::vector<Script*>& exportStarSet)
@@ -334,7 +360,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         if (result.gotException) {
             throw result.value;
         }
-        result = moduleEvaluate(state);
+        result = moduleEvaluation(state);
         if (result.gotException) {
             throw result.value;
         }
@@ -688,16 +714,7 @@ Script::ModuleExecutionResult Script::innerModuleLinking(ExecutionState& state, 
         // Assert: requiredModule.[[Status]] is either "linking", "linked", or "evaluated".
         ASSERT(requiredModule->moduleData()->m_status == ModuleData::Linking || requiredModule->moduleData()->m_status == ModuleData::Linked || requiredModule->moduleData()->m_status == ModuleData::Evaluated);
         // Assert: requiredModule.[[Status]] is "linking" if and only if requiredModule is in stack.
-        if (requiredModule->moduleData()->m_status == ModuleData::Linking) {
-            bool onStack = false;
-            for (size_t j = 0; j < stack.size(); j++) {
-                if (stack[j] == requiredModule) {
-                    onStack = true;
-                    break;
-                }
-            }
-            ASSERT(onStack);
-        }
+        // this assert is removed. because some users want to instantiate their module on onLoadModule
 
         // If requiredModule.[[Status]] is "linking", then
         if (requiredModule->moduleData()->m_status == ModuleData::Linking) {
@@ -738,7 +755,7 @@ Script::ModuleExecutionResult Script::innerModuleLinking(ExecutionState& state, 
     return Script::ModuleExecutionResult(false, Value(index));
 }
 
-Script::ModuleExecutionResult Script::moduleEvaluate(ExecutionState& state)
+Script::ModuleExecutionResult Script::moduleEvaluation(ExecutionState& state)
 {
     // + https://tc39.es/proposal-top-level-await/#sec-moduleevaluation
 
