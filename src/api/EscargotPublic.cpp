@@ -4065,6 +4065,39 @@ ValueRef* ScriptRef::moduleEvaluationError()
     return toRef(toImpl(this)->moduleEvaluationError());
 }
 
+ScriptRef::ModuleStatus ScriptRef::moduleStatus()
+{
+    auto md = toImpl(this)->moduleData();
+    if (md->m_evaluationError) {
+        return ModuleStatus::Errored;
+    }
+    switch (md->m_status) {
+    case Script::ModuleData::Unlinked:
+        return ModuleStatus::Uninstantiated;
+    case Script::ModuleData::Linking:
+        return ModuleStatus::Instantiating;
+    case Script::ModuleData::Linked:
+        return ModuleStatus::Instantiated;
+    case Script::ModuleData::Evaluating:
+        return ModuleStatus::Evaluating;
+    case Script::ModuleData::Evaluated:
+        return ModuleStatus::Evaluated;
+    }
+
+    ASSERT_NOT_REACHED();
+    return ModuleStatus::Errored;
+}
+
+ValueRef* ScriptRef::moduleInstantiate(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->moduleInstantiate(*toImpl(state)));
+}
+
+ValueRef* ScriptRef::moduleEvaluate(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->moduleEvaluate(*toImpl(state)));
+}
+
 PlatformRef::LoadModuleResult::LoadModuleResult(ScriptRef* result)
     : script(result)
     , errorMessage(StringRef::emptyString())

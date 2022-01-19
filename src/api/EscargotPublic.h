@@ -1983,6 +1983,17 @@ public:
     ObjectRef* moduleNamespace(ExecutionStateRef* state);
     bool wasThereErrorOnModuleEvaluation();
     ValueRef* moduleEvaluationError();
+    enum ModuleStatus {
+        Uninstantiated,
+        Instantiating,
+        Instantiated,
+        Evaluating,
+        Evaluated,
+        Errored
+    };
+    ModuleStatus moduleStatus();
+    ValueRef* moduleInstantiate(ExecutionStateRef* state);
+    ValueRef* moduleEvaluate(ExecutionStateRef* state);
 };
 
 class ESCARGOT_EXPORT PlatformRef {

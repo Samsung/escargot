@@ -189,6 +189,9 @@ public:
     size_t moduleRequestsLength();
     String* moduleRequest(size_t i);
 
+    Value moduleInstantiate(ExecutionState& state);
+    Value moduleEvaluate(ExecutionState& state);
+
     bool isExecuted();
     bool wasThereErrorOnModuleEvaluation();
     Value moduleEvaluationError();
@@ -253,7 +256,7 @@ private:
     ModuleExecutionResult innerModuleLinking(ExecutionState& state, std::vector<Script*>& stack, uint32_t index);
 
     // https://tc39.es/ecma262/#sec-moduleevaluation
-    ModuleExecutionResult moduleEvaluate(ExecutionState& state);
+    ModuleExecutionResult moduleEvaluation(ExecutionState& state);
 
     // https://tc39.es/ecma262/#sec-innermoduleevaluation
     ModuleExecutionResult innerModuleEvaluation(ExecutionState& state, std::vector<Script*>& stack, uint32_t index);
