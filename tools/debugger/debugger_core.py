@@ -177,7 +177,7 @@ class Breakpoint(object):
         self.active_index = -1
 
     def __str__(self):
-        result = self.function.source_name or "<unknown>"
+        result = str(self.function.source_name) or "<unknown>"
         result += ":%d" % (self.line)
 
         if self.function.is_func:
@@ -211,7 +211,7 @@ class EscargotFunction(object):
     def __init__(self, is_func, function_info, source, source_name, name, locations):
         self.is_func = is_func
         self.byte_code_ptr = function_info[0]
-        self.source = re.split("\r\n|[\r\n]", source)
+        self.source = re.split("\r\n|[\r\n]", str(source))
         self.source_name = source_name
         self.name = name
         self.lines = {}
@@ -323,10 +323,10 @@ class Debugger(object):
         # version [4]
         result = self.channel.connect()
 
-        if len(result) != 6 or ord(result[0]) != ESCARGOT_MESSAGE_VERSION:
+        if len(result) != 6 or result[0] != ESCARGOT_MESSAGE_VERSION:
             raise Exception("Unexpected version info")
 
-        self.little_endian = ord(result[1]) != 0
+        self.little_endian = result[1] != 0
 
         if self.little_endian:
             self.byte_order = "<"
@@ -344,8 +344,8 @@ class Debugger(object):
 
         print("Connection created!!!")
 
-        self.max_message_size = ord(result[1])
-        self.pointer_size = ord(result[2])
+        self.max_message_size = result[1]
+        self.pointer_size = result[2]
 
         if self.pointer_size == 8:
             self.pointer_format = "Q"
@@ -363,7 +363,7 @@ class Debugger(object):
             self.channel.close()
 
     def decode8(self, string):
-        return string.decode("latin1")
+        return string.decode("UTF-8")
 
     def decode16(self, string):
         return string.decode("UTF-16LE" if self.little_endian else "UTF-16BE", "namereplace")
@@ -385,7 +385,7 @@ class Debugger(object):
             if not data:  # Break the while loop if there is no more data.
                 return DebuggerAction(DebuggerAction.END, "")
 
-            buffer_type = ord(data[0])
+            buffer_type = data[0]
             buffer_size = len(data) - 1
 
             logging.debug("Main buffer type: %d, message size: %d", buffer_type, buffer_size)
@@ -476,12 +476,12 @@ class Debugger(object):
 
             elif buffer_type in [ESCARGOT_MESSAGE_SCOPE_CHAIN,
                                  ESCARGOT_MESSAGE_SCOPE_CHAIN_END]:
-                scope_chain = ""
+                scope_chain = bytearray()
 
                 while buffer_type == ESCARGOT_MESSAGE_SCOPE_CHAIN:
                     scope_chain += data[1:]
                     data = self.channel.get_message(True)
-                    buffer_type = ord(data[0])
+                    buffer_type = data[0]
 
                 if buffer_type != ESCARGOT_MESSAGE_SCOPE_CHAIN_END:
                     raise Exception("Unexpected message")
@@ -490,7 +490,7 @@ class Debugger(object):
                 result = ""
 
                 for env_type in scope_chain:
-                    env_type = ord(env_type)
+                    env_type = env_type
                     if env_type == ESCARGOT_RECORD_GLOBAL_ENVIRONMENT:
                         result += "Global Environment\n"
                     elif env_type == ESCARGOT_RECORD_FUNCTION_ENVIRONMENT:
@@ -508,7 +508,7 @@ class Debugger(object):
                 return DebuggerAction(DebuggerAction.TEXT, result)
 
             elif buffer_type == ESCARGOT_MESSAGE_VARIABLE:
-                variable_full_type = ord(data[1])
+                variable_full_type = data[1]
                 variable_type = variable_full_type & 0x3f
                 variable_has_value = False
 
@@ -846,7 +846,7 @@ class Debugger(object):
             if data is None:
                 return "Error: connection lost during source code receiving"
 
-            buffer_type = ord(data[0])
+            buffer_type = data[0]
             buffer_size = len(data) - 1
 
             logging.debug("Parser buffer type: %d, message size: %d", buffer_type, buffer_size)
@@ -860,34 +860,22 @@ class Debugger(object):
                 return "%sSyntaxError: %s%s\n" % (self.red, error_str, self.nocolor)
 
             elif buffer_type in [ESCARGOT_MESSAGE_SOURCE_8BIT, ESCARGOT_MESSAGE_SOURCE_8BIT_END]:
-                source += data[1:]
-                if buffer_type == ESCARGOT_MESSAGE_SOURCE_8BIT_END:
-                    source = self.decode8(source)
+                source += self.decode8(data[1:])
 
             elif buffer_type in [ESCARGOT_MESSAGE_SOURCE_16BIT, ESCARGOT_MESSAGE_SOURCE_16BIT_END]:
-                source += data[1:]
-                if buffer_type == ESCARGOT_MESSAGE_SOURCE_16BIT_END:
-                    source = self.decode16(source)
+                source += self.decode16(data[1:])
 
             elif buffer_type in [ESCARGOT_MESSAGE_FILE_NAME_8BIT, ESCARGOT_MESSAGE_FILE_NAME_8BIT_END]:
-                source_name += data[1:]
-                if buffer_type == ESCARGOT_MESSAGE_FILE_NAME_8BIT_END:
-                    source_name = self.decode8(source_name)
+                source_name += self.decode8(data[1:])
 
             elif buffer_type in [ESCARGOT_MESSAGE_FILE_NAME_16BIT, ESCARGOT_MESSAGE_FILE_NAME_16BIT_END]:
-                source_name += data[1:]
-                if buffer_type == ESCARGOT_MESSAGE_FILE_NAME_16BIT_END:
-                    source_name = self.decode16(source_name)
+                source_name += self.decode16(data[1:])
 
             elif buffer_type in [ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT, ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT_END]:
-                name += data[1:]
-                if buffer_type == ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT_END:
-                    name = self.decode8(name)
+                name += self.decode8(data[1:])
 
             elif buffer_type in [ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT, ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT_END]:
-                name += data[1:]
-                if buffer_type == ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT_END:
-                    name = self.decode16(name)
+                name += self.decode16(data[1:])
 
             elif buffer_type == ESCARGOT_MESSAGE_BREAKPOINT_LOCATION:
                 logging.debug("Breakpoint %s received", source_name)
@@ -930,7 +918,7 @@ class Debugger(object):
             logging.debug("Pending breakpoints available")
             bp_list = self.pending_breakpoint_list
 
-            for breakpoint_index, breakpoint in bp_list.items():
+            for breakpoint_index, breakpoint in list(bp_list.items()):
                 source_lines = 0
                 for src in function_list:
                     if src.name == breakpoint.source_name:
@@ -1080,12 +1068,6 @@ class Debugger(object):
         # 4: length of an uint32 value
         message_header = 1 + 4
 
-        if not isinstance(args, unicode):
-            try:
-                args = args.decode("ascii")
-            except UnicodeDecodeError:
-                args = args.decode("utf-8")
-
         try:
             args = args.encode("latin1")
         except UnicodeEncodeError:
@@ -1126,7 +1108,7 @@ class Debugger(object):
 
     def _receive_string(self, message_type, data):
         result = b'';
-        buffer_type = ord(data[0])
+        buffer_type = data[0]
         end_type = message_type + 1;
 
         if buffer_type > end_type:
@@ -1135,7 +1117,7 @@ class Debugger(object):
         while buffer_type == end_type - 1:
             result += data[1:]
             data = self.channel.get_message(True)
-            buffer_type = ord(data[0])
+            buffer_type = data[0]
 
         if buffer_type != end_type:
             raise Exception("Unexpected message")
@@ -1150,7 +1132,7 @@ class Debugger(object):
         return result;
 
     def delete_active(self):
-        for i in self.active_breakpoint_list.values():
+        for i in list(self.active_breakpoint_list.values()):
             breakpoint = self.active_breakpoint_list[i.active_index]
             del self.active_breakpoint_list[i.active_index]
             breakpoint.active_index = -1
