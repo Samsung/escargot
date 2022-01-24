@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 
 # Copyright 2015-present Samsung Electronics Co., Ltd.
 #
@@ -23,11 +23,6 @@ import sys
 import logging
 import time
 import debugger_core
-import codecs
-import locale
-
-# Wrap sys.stdout into a StreamWriter to allow writing unicode.
-sys.stdout = codecs.getwriter(locale.getpreferredencoding())(sys.stdout)
 
 from debugger_websocket import WebSocket
 from debugger_tcp import TcpSocket

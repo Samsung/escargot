@@ -180,7 +180,7 @@ jobs:
         submodules: true
     - uses: actions/setup-python@v2
       with:
-        python-version: '2.7'
+        python-version: '3.x'
     - name: Install Packages
       run: sudo apt install -y ninja-build
     - name: Install ICU
