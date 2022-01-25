@@ -726,6 +726,17 @@ public:
 
     typedef std::vector<DebuggerStackTraceData> DebuggerStackTraceDataVector;
 
+    enum ScopeType {
+        UNKNOWN_ENVIRONMENT,
+        GLOBAL_ENVIRONMENT,
+        FUNCTION_ENVIRONMENT,
+        DECLARATIVE_ENVIRONMENT,
+        OBJECT_ENVIRONMENT,
+        MODULE_ENVIRONMENT,
+    };
+
+    typedef std::vector<ScopeType> LexicalScopeChainVector;
+
     class ESCARGOT_EXPORT BreakpointOperations {
         friend class DebuggerC;
 
@@ -747,6 +758,7 @@ public:
 
         StringRef* eval(StringRef* sourceCode, bool& isError);
         void getStackTrace(DebuggerStackTraceDataVector& outStackTrace);
+        void getLexicalScopeChain(uint32_t stateIndex, LexicalScopeChainVector& outLexicalScopeChain);
 
     private:
         BreakpointOperations(WeakCodeRef* weakCodeRef, ExecutionStateRef* executionState, uint32_t offset)

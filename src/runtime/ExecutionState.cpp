@@ -53,7 +53,7 @@ FunctionObject* ExecutionState::resolveCallee()
             if (record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
                 return record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
             }
-        } else if (es->m_isNativeFunctionObjectExecutionContext) {
+        } else if (es->isNativeFunctionObjectExecutionContext()) {
             return es->m_calledNativeFunctionObject;
         }
 

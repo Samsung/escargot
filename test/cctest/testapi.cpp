@@ -2330,6 +2330,12 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
         EXPECT_EQ(stackTrace[0].column, 1);
         EXPECT_EQ(stackTrace[0].depth, 0);
 
+        DebuggerOperationsRef::LexicalScopeChainVector scopeChain;
+        operations.getLexicalScopeChain(0, scopeChain);
+
+        EXPECT_EQ(scopeChain.size(), 1);
+        EXPECT_EQ(scopeChain[0], DebuggerOperationsRef::GLOBAL_ENVIRONMENT);
+
         inEval = true;
         StringRef* sourceCode = StringRef::createFromUTF8("a", 1);
         bool is_error;
@@ -2364,6 +2370,16 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
         EXPECT_EQ(stackTrace[1].line, 6);
         EXPECT_EQ(stackTrace[1].column, 1);
         EXPECT_EQ(stackTrace[1].depth, 1);
+
+        DebuggerOperationsRef::LexicalScopeChainVector scopeChain;
+        operations.getLexicalScopeChain(0, scopeChain);
+
+        EXPECT_EQ(scopeChain.size(), 2);
+        EXPECT_EQ(scopeChain[0], DebuggerOperationsRef::FUNCTION_ENVIRONMENT);
+        EXPECT_EQ(scopeChain[1], DebuggerOperationsRef::GLOBAL_ENVIRONMENT);
+
+        operations.getLexicalScopeChain(1, scopeChain);
+        EXPECT_EQ(scopeChain[0], DebuggerOperationsRef::GLOBAL_ENVIRONMENT);
 
         return DebuggerOperationsRef::Continue;
     }
