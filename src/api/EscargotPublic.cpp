@@ -1235,6 +1235,49 @@ void DebuggerOperationsRef::BreakpointOperations::getStackTrace(DebuggerOperatio
     }
 }
 
+void DebuggerOperationsRef::BreakpointOperations::getLexicalScopeChain(uint32_t stateIndex, DebuggerOperationsRef::LexicalScopeChainVector& outLexicalScopeChain)
+{
+    outLexicalScopeChain.clear();
+
+    ExecutionState* state = toImpl(m_executionState);
+
+    while (stateIndex > 0) {
+        state = state->parent();
+        stateIndex--;
+
+        if (state == nullptr) {
+            return;
+        }
+    }
+
+    LexicalEnvironment* lexEnv = state->lexicalEnvironment();
+
+    while (lexEnv) {
+        EnvironmentRecord* record = lexEnv->record();
+        ScopeType type;
+
+        if (record->isGlobalEnvironmentRecord()) {
+            type = GLOBAL_ENVIRONMENT;
+        } else if (record->isDeclarativeEnvironmentRecord()) {
+            DeclarativeEnvironmentRecord* declarativeRecord = record->asDeclarativeEnvironmentRecord();
+            if (declarativeRecord->isFunctionEnvironmentRecord()) {
+                type = FUNCTION_ENVIRONMENT;
+            } else if (record->isModuleEnvironmentRecord()) {
+                type = MODULE_ENVIRONMENT;
+            } else {
+                type = DECLARATIVE_ENVIRONMENT;
+            }
+        } else if (record->isObjectEnvironmentRecord()) {
+            type = OBJECT_ENVIRONMENT;
+        } else {
+            type = UNKNOWN_ENVIRONMENT;
+        }
+
+        outLexicalScopeChain.push_back(type);
+        lexEnv = lexEnv->outerEnvironment();
+    }
+}
+
 StringRef* DebuggerOperationsRef::getFunctionName(WeakCodeRef* weakCodeRef)
 {
     ByteCodeBlock* byteCode = reinterpret_cast<ByteCodeBlock*>(weakCodeRef);

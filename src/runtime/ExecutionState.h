@@ -277,6 +277,11 @@ public:
         return m_onFinally;
     }
 
+    bool isNativeFunctionObjectExecutionContext() const
+    {
+        return m_isNativeFunctionObjectExecutionContext;
+    }
+
     // callee is pauser && isNotInEvalCode
     bool inPauserScope();
 

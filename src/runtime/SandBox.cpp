@@ -186,7 +186,7 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
                 if (cb) {
                     ByteCodeBlock* b = cb->byteCodeBlock();
                     ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
-                    ASSERT(!pstate->m_isNativeFunctionObjectExecutionContext);
+                    ASSERT(!pstate->isNativeFunctionObjectExecutionContext());
                     if (pstate->m_programCounter != nullptr) {
                         loc.byteCodePosition = *pstate->m_programCounter - (size_t)b->m_code.data();
                         loc.actualCodeBlock = b;
@@ -228,7 +228,7 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
                 ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
                 if (cb->isInterpretedCodeBlock()) {
                     ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
-                    ASSERT(!pstate->m_isNativeFunctionObjectExecutionContext);
+                    ASSERT(!pstate->isNativeFunctionObjectExecutionContext());
                     if (pstate->m_programCounter != nullptr) {
                         loc.byteCodePosition = *pstate->m_programCounter - (size_t)b->m_code.data();
                         loc.actualCodeBlock = b;
