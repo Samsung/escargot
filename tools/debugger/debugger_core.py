@@ -166,7 +166,7 @@ def _parse_int(value):
         return index
 
     except ValueError as val_errno:
-        return "Error: Non negative integer number expected, %s\n" % (val_errno)
+        return "Error: Non negative integer number expected, %s\n" % val_errno
 
 
 class Breakpoint(object):
@@ -178,7 +178,7 @@ class Breakpoint(object):
 
     def __str__(self):
         result = str(self.function.source_name) or "<unknown>"
-        result += ":%d" % (self.line)
+        result += ":%d" % self.line
 
         if self.function.is_func:
             result += " (in "
@@ -201,9 +201,9 @@ class PendingBreakpoint(object):
     def __str__(self):
         result = self.source_name or ""
         if self.line:
-            result += ":%d" % (self.line)
+            result += ":%d" % self.line
         else:
-            result += "%s()" % (self.function)
+            result += "%s()" % self.function
         return result
 
 class EscargotFunction(object):
@@ -263,7 +263,7 @@ class Multimap(object):
             del items[items.index(value)]
 
     def __repr__(self):
-        return "Multimap(%r)" % (self.map)
+        return "Multimap(%r)" % self.map
 
 
 class DebuggerAction(object):
@@ -352,7 +352,7 @@ class Debugger(object):
         elif self.pointer_size == 4:
             self.pointer_format = "I"
         else:
-            raise Exception("Unsupported pointer size: %d" % (self.pointer_size))
+            raise Exception("Unsupported pointer size: %d" % self.pointer_size)
 
         self.idx_format = "I"
 
@@ -432,7 +432,7 @@ class Debugger(object):
 
             elif buffer_type == ESCARGOT_MESSAGE_BACKTRACE_TOTAL:
                 total = struct.unpack(self.byte_order + self.idx_format, data[1:])[0]
-                result += "Total number of frames: %d\n" % (total)
+                result += "Total number of frames: %d\n" % total
                 return DebuggerAction(DebuggerAction.TEXT, result)
 
             elif buffer_type in [ESCARGOT_MESSAGE_EVAL_RESULT_8BIT,
@@ -440,15 +440,15 @@ class Debugger(object):
                                  ESCARGOT_MESSAGE_EVAL_RESULT_16BIT,
                                  ESCARGOT_MESSAGE_EVAL_RESULT_16BIT_END]:
                 self.prompt = True
-                return DebuggerAction(DebuggerAction.TEXT, self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, data));
+                return DebuggerAction(DebuggerAction.TEXT, self._receive_string(ESCARGOT_MESSAGE_EVAL_RESULT_8BIT, data))
 
             elif buffer_type in [ESCARGOT_MESSAGE_EVAL_FAILED_8BIT,
                                  ESCARGOT_MESSAGE_EVAL_FAILED_8BIT_END,
                                  ESCARGOT_MESSAGE_EVAL_FAILED_16BIT,
                                  ESCARGOT_MESSAGE_EVAL_FAILED_16BIT_END]:
                 self.prompt = True
-                result = self._receive_string(ESCARGOT_MESSAGE_EVAL_FAILED_8BIT, data);
-                return DebuggerAction(DebuggerAction.TEXT, "%sException: %s%s" % (self.red, result, self.nocolor));
+                result = self._receive_string(ESCARGOT_MESSAGE_EVAL_FAILED_8BIT, data)
+                return DebuggerAction(DebuggerAction.TEXT, "%sException: %s%s" % (self.red, result, self.nocolor))
 
             elif buffer_type in [ESCARGOT_MESSAGE_BACKTRACE,
                                  ESCARGOT_MESSAGE_EXCEPTION_BACKTRACE]:
@@ -462,7 +462,7 @@ class Debugger(object):
                 if function is not None:
                     result = "%s:%d:%d%s" % (function.source_name, backtrace_info[1], backtrace_info[2], depth)
                     if function.name != "":
-                        result += " (in %s)" % (function.name)
+                        result += " (in %s)" % function.name
                 else:
                     result = "unknown dynamic function:%d:%d%s" % (backtrace_info[1], backtrace_info[2], depth)
 
@@ -544,12 +544,12 @@ class Debugger(object):
                 elif variable_type == ESCARGOT_VARIABLE_FUNCTION:
                     value_str = "function"
 
-                name = self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True));
+                name = self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True))
                 if variable_full_type & ESCARGOT_VARIABLE_LONG_NAME != 0:
                     name += "..."
 
                 if variable_has_value:
-                    value_str += self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True));
+                    value_str += self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True))
                     if variable_full_type & ESCARGOT_VARIABLE_LONG_VALUE:
                         value_str += "..."
                 elif variable_type >= ESCARGOT_VARIABLE_OBJECT:
@@ -559,17 +559,17 @@ class Debugger(object):
 
             elif buffer_type == ESCARGOT_MESSAGE_PRINT:
                 printMessage ="Print: %s\n" % (self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True)))
-                return DebuggerAction(DebuggerAction.TEXT, printMessage);
+                return DebuggerAction(DebuggerAction.TEXT, printMessage)
 
             elif buffer_type == ESCARGOT_MESSAGE_EXCEPTION:
                 exceptionMessage ="%sException: %s%s\n" % (self.red, self._receive_string(ESCARGOT_MESSAGE_STRING_8BIT, self.channel.get_message(True)), self.nocolor)
-                return DebuggerAction(DebuggerAction.TEXT, exceptionMessage);
+                return DebuggerAction(DebuggerAction.TEXT, exceptionMessage)
             elif buffer_type == ESCARGOT_DEBUGGER_WAIT_FOR_SOURCE:
                 self.send_client_source()
             elif buffer_type == ESCARGOT_DEBUGGER_WAIT_FOR_WAIT_EXIT:
                 self._send_wait_exit()
             else:
-                raise Exception("Unknown message: %d" % (buffer_type))
+                raise Exception("Unknown message: %d" % buffer_type)
 
     def set_colors(self):
         self.nocolor = '\033[0m'
@@ -590,7 +590,6 @@ class Debugger(object):
         path = self.client_sources.pop(0)
         if not path.endswith('.js'):
             sys.exit("Error: Javascript file expected!")
-            return
         with open(path, 'r') as src_file:
             content = path + '\0'+ src_file.read()
         self._send_string(content, ESCARGOT_DEBUGGER_CLIENT_SOURCE_8BIT_START)
@@ -643,7 +642,7 @@ class Debugger(object):
                 return self._set_breakpoint(args, False)
 
             except ValueError as val_errno:
-                return "Error: Positive breakpoint index expected: %s" % (val_errno)
+                return "Error: Positive breakpoint index expected: %s" % val_errno
 
         return self._set_breakpoint(args, False)
 
@@ -666,21 +665,21 @@ class Debugger(object):
         try:
             breakpoint_index = int(args)
         except ValueError as val_errno:
-            return "Error: Integer number expected, %s\n" % (val_errno)
+            return "Error: Integer number expected, %s\n" % val_errno
 
         if breakpoint_index in self.active_breakpoint_list:
             breakpoint = self.active_breakpoint_list[breakpoint_index]
             del self.active_breakpoint_list[breakpoint_index]
             breakpoint.active_index = -1
             self._send_breakpoint(breakpoint)
-            return "Breakpoint %d deleted\n" % (breakpoint_index)
+            return "Breakpoint %d deleted\n" % breakpoint_index
         elif breakpoint_index in self.pending_breakpoint_list:
             del self.pending_breakpoint_list[breakpoint_index]
             if not self.pending_breakpoint_list:
                 self._send_pending_config(0)
-            return "Pending breakpoint %d deleted\n" % (breakpoint_index)
+            return "Pending breakpoint %d deleted\n" % breakpoint_index
 
-        return "Error: Breakpoint %d not found\n" % (breakpoint_index)
+        return "Error: Breakpoint %d not found\n" % breakpoint_index
 
     def breakpoint_list(self):
         result = ""
@@ -708,7 +707,7 @@ class Debugger(object):
 
         lines = last_bp.function.source
         if last_bp.function.source_name:
-            msg += "Source: %s\n" % (last_bp.function.source_name)
+            msg += "Source: %s\n" % last_bp.function.source_name
 
         if line_num == 0:
             start = 0
@@ -764,7 +763,7 @@ class Debugger(object):
                         return "Error: Positive integer number expected\n"
 
             except ValueError as val_errno:
-                return "Error: Positive integer number expected, %s\n" % (val_errno)
+                return "Error: Positive integer number expected, %s\n" % val_errno
 
         self.frame_index = min_depth
 
@@ -903,7 +902,7 @@ class Debugger(object):
 
             else:
                 logging.error("Parser error!")
-                raise Exception("Unexpected message: %d" % (buffer_type))
+                raise Exception("Unexpected message: %d" % buffer_type)
 
             data = self.channel.get_message(True)
 
@@ -983,10 +982,10 @@ class Debugger(object):
         offset = breakpoint_data[1]
 
         if offset in function.offsets:
-            return (function.offsets[offset], True)
+            return function.offsets[offset], True
 
         if offset < function.first_breakpoint_offset:
-            return (function.offsets[function.first_breakpoint_offset], False)
+            return function.offsets[function.first_breakpoint_offset], False
 
         nearest_offset = -1
 
@@ -1107,9 +1106,9 @@ class Debugger(object):
             self.channel.send_message(self.byte_order, message + args[prev_offset:offset])
 
     def _receive_string(self, message_type, data):
-        result = b'';
+        result = b''
         buffer_type = data[0]
-        end_type = message_type + 1;
+        end_type = message_type + 1
 
         if buffer_type > end_type:
             end_type += 2
@@ -1129,7 +1128,7 @@ class Debugger(object):
         else:
             result = self.decode16(result)
 
-        return result;
+        return result
 
     def delete_active(self):
         for i in list(self.active_breakpoint_list.values()):
