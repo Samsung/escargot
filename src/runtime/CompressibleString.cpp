@@ -58,14 +58,17 @@ CompressibleString::CompressibleString(VMInstance* instance)
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         CompressibleString* self = (CompressibleString*)obj;
         ASSERT(self->refCount() == 0);
+        size_t strLength = self->m_bufferData.length * (self->m_bufferData.has8BitContent ? 1 : 2);
+
         if (self->isCompressed()) {
             self->clearCompressedData();
         } else {
-            deallocateStringDataBuffer(const_cast<void*>(self->m_bufferData.buffer), self->m_bufferData.length * (self->m_bufferData.has8BitContent ? 1 : 2));
+            deallocateStringDataBuffer(const_cast<void*>(self->m_bufferData.buffer), strLength);
         }
 
         if (!self->m_isOwnerMayFreed) {
             self->m_vmInstance->compressibleStringsUncomressedBufferSize() -= self->decomressedBufferSize();
+            self->m_vmInstance->decreaseSourceSize(strLength);
 
             auto& v = self->m_vmInstance->compressibleStrings();
             v.erase(std::find(v.begin(), v.end(), self));
@@ -80,6 +83,7 @@ CompressibleString::CompressibleString(VMInstance* instance, const char* str, si
     char* buf = (char*)allocateStringDataBuffer(sizeof(char) * len);
     memcpy(buf, str, len);
     initBufferAccessData(buf, len, true);
+    instance->increaseSourceSize(len);
 }
 
 CompressibleString::CompressibleString(VMInstance* instance, const LChar* str, size_t len)
@@ -88,6 +92,7 @@ CompressibleString::CompressibleString(VMInstance* instance, const LChar* str, s
     char* buf = (char*)allocateStringDataBuffer(sizeof(char) * len);
     memcpy(buf, str, len);
     initBufferAccessData(buf, len, true);
+    instance->increaseSourceSize(len);
 }
 
 CompressibleString::CompressibleString(VMInstance* instance, const char16_t* str, size_t len)
@@ -96,11 +101,13 @@ CompressibleString::CompressibleString(VMInstance* instance, const char16_t* str
     char* buf = (char*)allocateStringDataBuffer(sizeof(char) * len * 2);
     memcpy(buf, str, len * 2);
     initBufferAccessData(buf, len, false);
+    instance->increaseSourceSize(len * 2);
 }
 
 CompressibleString::CompressibleString(VMInstance* instance, void* buffer, size_t stringLength, bool is8bit)
     : CompressibleString(instance)
 {
+    RELEASE_ASSERT_NOT_REACHED();
     initBufferAccessData(buffer, stringLength, is8bit);
 }
 
@@ -206,6 +213,7 @@ bool CompressibleString::compressWorker()
     GC_disable();
 
     size_t originByteLength = m_bufferData.length * sizeof(StringType);
+    size_t totalDecompLength = 0;
     int lastBoundLength = 0;
     char* tempBuffer = nullptr;
     for (size_t srcIndex = 0; srcIndex < originByteLength; srcIndex += g_compressChunkSize) {
@@ -228,6 +236,8 @@ bool CompressibleString::compressWorker()
         }
 
         ASSERT(compressedLength > 0);
+        totalDecompLength += compressedLength;
+
         char* compBuffer = reinterpret_cast<char*>(GC_MALLOC_ATOMIC(compressedLength));
         memcpy(compBuffer, tempBuffer, compressedLength);
         m_compressedData.push_back(CompressedElement(compBuffer, compressedLength));
@@ -236,6 +246,8 @@ bool CompressibleString::compressWorker()
     delete[] tempBuffer;
 
     m_vmInstance->compressibleStringsUncomressedBufferSize() -= decomressedBufferSize();
+    ASSERT(originByteLength > totalDecompLength);
+    m_vmInstance->decreaseSourceSize(originByteLength - totalDecompLength);
 
     GC_enable();
 
@@ -265,12 +277,15 @@ void CompressibleString::decompressWorker()
     ASSERT(m_isCompressed);
 
     size_t originByteLength = m_bufferData.length * sizeof(StringType);
+    size_t totalDecompLength = 0;
 
     char* dstBuffer = (char*)allocateStringDataBuffer(originByteLength);
     int dstIndex = 0;
 
     for (size_t srcIndex = 0, bufIndex = 0; srcIndex < originByteLength; srcIndex += g_compressChunkSize, bufIndex++) {
         int srcSize = (int)std::min(g_compressChunkSize, originByteLength - srcIndex);
+
+        totalDecompLength += m_compressedData[bufIndex].compressedLength;
 
         int decompressedLength = LZ4::LZ4_decompress_safe(m_compressedData[bufIndex].compressedBuffer, dstBuffer + dstIndex, m_compressedData[bufIndex].compressedLength, srcSize);
         if (!decompressedLength) {
@@ -287,6 +302,8 @@ void CompressibleString::decompressWorker()
     m_isCompressed = false;
 
     m_vmInstance->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
+    ASSERT(originByteLength > totalDecompLength);
+    m_vmInstance->increaseSourceSize(originByteLength - totalDecompLength);
 }
 } // namespace Escargot
 

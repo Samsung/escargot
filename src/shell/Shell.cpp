@@ -192,19 +192,22 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
         }
         fclose(fp);
         if (StringRef::isCompressibleStringEnabled()) {
-            if (state) {
-                if (hasNonLatin1Content) {
-                    src = StringRef::createFromUTF8ToCompressibleString(state->context()->vmInstance(), utf8Str.data(), utf8Str.length(), false);
-                } else {
-                    src = StringRef::createFromLatin1ToCompressibleString(state->context()->vmInstance(), str.data(), str.length());
-                }
+            //if (state) {
+            if (hasNonLatin1Content) {
+                src = StringRef::createFromUTF8ToCompressibleString(state->context()->vmInstance(), utf8Str.data(), utf8Str.length(), false);
             } else {
+                src = StringRef::createFromLatin1ToCompressibleString(state->context()->vmInstance(), str.data(), str.length());
+            }
+            //}
+            /*
+            else {
                 if (hasNonLatin1Content) {
                     src = StringRef::createFromUTF8(utf8Str.data(), utf8Str.length(), false);
                 } else {
                     src = StringRef::createFromLatin1(str.data(), str.length());
                 }
             }
+            */
         } else {
             if (hasNonLatin1Content) {
                 src = StringRef::createFromUTF8(state->context(), utf8Str.data(), utf8Str.length(), false);

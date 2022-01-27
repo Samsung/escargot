@@ -645,8 +645,6 @@ public:
     void unregisterErrorCreationCallback();
 
     size_t validSourceSize();
-    void increaseSourceSize(size_t size);
-    void decreaseSourceSize(size_t size);
 
     enum PromiseHookType {
         Init,

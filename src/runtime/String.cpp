@@ -664,6 +664,7 @@ String* String::fromUTF8(const char* src, size_t len, bool maybeASCII)
 String* String::fromUTF8ToCompressibleString(VMInstance* instance, const char* src, size_t len, bool maybeASCII)
 {
     if (maybeASCII && isAllASCII(src, len)) {
+        RELEASE_ASSERT_NOT_REACHED();
         return new CompressibleString(instance, src, len);
     } else {
         auto s = utf8StringToUTF16StringNonGC(src, len);
