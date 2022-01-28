@@ -153,6 +153,8 @@ public:
         , m_topCodeBlock(nullptr)
         , m_moduleData(moduleData)
     {
+        // srcName and sourceCode should have valid string (empty string for no name)
+        ASSERT(!!srcName && !!sourceCode);
     }
 
     void* operator new(size_t size);

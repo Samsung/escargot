@@ -107,7 +107,7 @@ public:
         InterpretedCodeBlock* codeBlock;
         LexicalEnvironment* outerEnvironment;
     };
-    static FunctionSource createFunctionScript(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource = false, String* sourceName = nullptr);
+    static FunctionSource createFunctionScript(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource = false, String* sourceName = String::emptyString);
 
     bool setName(AtomicString name);
 

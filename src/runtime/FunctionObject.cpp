@@ -236,7 +236,7 @@ FunctionObject::FunctionSource FunctionObject::createFunctionScript(ExecutionSta
     String* srcName = sourceName;
 
     // find srcName through outer script except internal source
-    if (!isInternalSource && !srcName) {
+    if (!isInternalSource && !srcName->length()) {
         auto script = state.resolveOuterScript();
         if (script) {
             srcName = script->srcName();
