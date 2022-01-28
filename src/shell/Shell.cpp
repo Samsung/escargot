@@ -1059,7 +1059,7 @@ int main(int argc, char* argv[])
             return 3;
         }
         StringRef* str = Escargot::StringRef::createFromUTF8(buf, strlen(buf));
-        evalScript(context, str, StringRef::createFromASCII("from shell input"), true, false);
+        evalScript(context, str, StringRef::emptyString(), true, false);
     }
 
 #if defined(ESCARGOT_ENABLE_TEST)
