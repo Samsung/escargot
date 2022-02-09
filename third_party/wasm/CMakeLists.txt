@@ -149,7 +149,7 @@ set(WABT_SRC
 # disable -Wpointer-arith: this is a GCC extension, and doesn't work in MSVC.
 set(WASM_CXX_FLAGS_INTERNAL
     -Wall -Wextra -Werror -Wno-unused-parameter -Wpointer-arith
-    -Wuninitialized -fno-exceptions -fPIC -fdata-sections -ffunction-sections
+    -Wuninitialized -fPIC -fdata-sections -ffunction-sections
 )
 
 # set c++ flags
