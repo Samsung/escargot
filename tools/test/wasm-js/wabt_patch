@@ -1,17 +1,3 @@
-diff --git src/binary-reader.cc src/binary-reader.cc
-index e1a7a336..d373770d 100644
---- src/binary-reader.cc
-+++ src/binary-reader.cc
-@@ -2181,8 +2181,7 @@ Result BinaryReader::ReadTypeSection(Offset section_size) {
-     } else {
-       uint8_t type;
-       CHECK_RESULT(ReadU8(&type, "type form"));
--      ERROR_UNLESS(type == 0x60, "unexpected type form (got " PRItypecode ")",
--                   WABT_PRINTF_TYPE_CODE(type));
-+      ERROR_UNLESS(type == 0x60, "unexpected type form (got " "%#x" ")", type);
-       form = Type::Func;
-     }
- 
 diff --git src/interp/interp-wasm-c-api.cc src/interp/interp-wasm-c-api.cc
 index 4df66b89..2edc17d9 100644
 --- src/interp/interp-wasm-c-api.cc

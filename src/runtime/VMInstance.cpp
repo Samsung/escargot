@@ -56,7 +56,7 @@ namespace Escargot {
 
 #if defined(ENABLE_WASM)
 #ifndef ESCARGOT_WASM_GC_CHECK_INTERVAL
-#define ESCARGOT_WASM_GC_CHECK_INTERVAL 5000
+#define ESCARGOT_WASM_GC_CHECK_INTERVAL 10000
 #endif
 #endif
 
