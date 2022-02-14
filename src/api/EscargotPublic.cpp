@@ -2583,7 +2583,7 @@ bool ContextRef::isDebuggerRunning()
 bool ContextRef::isWaitBeforeExit()
 {
 #ifdef ESCARGOT_DEBUGGER
-    return toImpl(this)->debugger()->getWaitBeforeExitClient();
+    return isDebuggerRunning() && toImpl(this)->debugger()->getWaitBeforeExitClient();
 #else /* !ESCARGOT_DEBUGGER */
     return false;
 #endif /* ESCARGOT_DEBUGGER */

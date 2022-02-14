@@ -2437,6 +2437,7 @@ TEST(Debugger, RemoteOption)
     // 100ms
     EXPECT_FALSE(context->initDebuggerRemote("--accept-timeout=100"));
     EXPECT_FALSE(context->isDebuggerRunning());
+    EXPECT_FALSE(context->isWaitBeforeExit());
 
     context.release();
     instance.release();
