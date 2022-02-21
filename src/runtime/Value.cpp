@@ -301,13 +301,15 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
         double a = asNumber();
         double b = val.asNumber();
 
-        if (std::isnan(a) || std::isnan(b))
+        if (UNLIKELY(std::isnan(a) || std::isnan(b)))
             return false;
-        else if (a == b)
-            return true;
 
-        return false;
+        return a == b;
     } else {
+        if (u.asInt64 == val.u.asInt64) {
+            return true;
+        }
+
         bool selfIsUndefinedOrNull = isUndefinedOrNull();
         bool valIsUndefinedOrNull = val.isUndefinedOrNull();
         if (selfIsUndefinedOrNull && valIsUndefinedOrNull)
@@ -416,34 +418,31 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
 
 bool Value::equalsToSlowCase(ExecutionState& state, const Value& val) const
 {
-    if (isUndefined())
-        return val.isUndefined();
+    if (!val.isPointerValue()) {
+        if (isNumber() && val.isNumber()) {
+            double a = asNumber();
+            double b = val.asNumber();
+            if (UNLIKELY(std::isnan(a) || std::isnan(b))) {
+                return false;
+            }
+            // we can pass [If x is +0 and y is −0, return true. If x is −0 and y is +0, return true.]
+            // because
+            // double a = -0.0;
+            // double b = 0.0;
+            // a == b; is true
+            return a == b;
+        }
 
-    if (isNull())
-        return val.isNull();
+        return u.asInt64 == val.u.asInt64;
+    } else {
+        if (u.asInt64 == val.u.asInt64) {
+            return true;
+        }
 
-    if (isBoolean())
-        return val.isBoolean() && asBoolean() == val.asBoolean();
-
-    if (isNumber()) {
-        if (!val.isNumber())
+        if (!isPointerValue())
             return false;
-        double a = asNumber();
-        double b = val.asNumber();
-        if (std::isnan(a) || std::isnan(b))
-            return false;
-        // we can pass [If x is +0 and y is −0, return true. If x is −0 and y is +0, return true.]
-        // because
-        // double a = -0.0;
-        // double b = 0.0;
-        // a == b; is true
-        return a == b;
-    }
 
-    if (isPointerValue()) {
         PointerValue* o = asPointerValue();
-        if (!val.isPointerValue())
-            return false;
         PointerValue* o2 = val.asPointerValue();
         if (o->isString()) {
             if (!o2->isString())
@@ -456,50 +455,41 @@ bool Value::equalsToSlowCase(ExecutionState& state, const Value& val) const
             }
             return o->asBigInt()->equals(o2->asBigInt());
         }
-        return o == o2;
     }
+
     return false;
 }
 
 bool Value::equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const
 {
-    if (isUndefined()) {
-        return val.isUndefined();
-    }
+    if (!val.isPointerValue()) {
+        if (isNumber() && val.isNumber()) {
+            double a = asNumber();
+            double b = val.asNumber();
 
-    if (isNull()) {
-        return val.isNull();
-    }
+            if (UNLIKELY(std::isnan(a) || std::isnan(b))) {
+                return std::isnan(a) && std::isnan(b);
+            }
 
-    if (isBoolean()) {
-        return val.isBoolean() && asBoolean() == val.asBoolean();
-    }
-
-    if (isNumber()) {
-        if (!val.isNumber()) {
-            return false;
+            // we can pass [If x is +0 and y is −0, return true. If x is −0 and y is +0, return true.]
+            // because
+            // double a = -0.0;
+            // double b = 0.0;
+            // a == b; is true
+            return a == b && std::signbit(a) == std::signbit(b);
         }
-        double a = asNumber();
-        double b = val.asNumber();
-        if (std::isnan(a) && std::isnan(b)) {
+
+        return u.asInt64 == val.u.asInt64;
+    } else {
+        if (u.asInt64 == val.u.asInt64) {
             return true;
         }
-        if (std::isnan(a) || std::isnan(b)) {
-            return false;
-        }
-        // we can pass [If x is +0 and y is −0, return true. If x is −0 and y is +0, return true.]
-        // because
-        // double a = -0.0;
-        // double b = 0.0;
-        // a == b; is true
-        return a == b && std::signbit(a) == std::signbit(b);
-    }
 
-    if (isPointerValue()) {
-        PointerValue* o = asPointerValue();
-        if (!val.isPointerValue()) {
+        if (!isPointerValue()) {
             return false;
         }
+
+        PointerValue* o = asPointerValue();
         PointerValue* o2 = val.asPointerValue();
         if (o->isString()) {
             if (!o2->isString()) {
@@ -507,56 +497,42 @@ bool Value::equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val
             }
             return *o->asString() == *o2->asString();
         }
-        if (o->isSymbol()) {
-            if (!o2->isSymbol()) {
-                return false;
-            }
-        }
         if (UNLIKELY(o->isBigInt())) {
             if (!o2->isBigInt()) {
                 return false;
             }
             return o->asBigInt()->equals(o2->asBigInt());
         }
-        return o == o2;
     }
+
     return false;
 }
 
 bool Value::equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value& val) const
 {
-    if (isUndefined()) {
-        return val.isUndefined();
-    }
+    if (LIKELY(!val.isPointerValue())) {
+        if (isNumber() && val.isNumber()) {
+            double a = asNumber();
+            double b = val.asNumber();
 
-    if (isNull()) {
-        return val.isNull();
-    }
+            if (UNLIKELY(std::isnan(a) || std::isnan(b))) {
+                return std::isnan(a) && std::isnan(b);
+            }
 
-    if (isBoolean()) {
-        return val.isBoolean() && asBoolean() == val.asBoolean();
-    }
-
-    if (isNumber()) {
-        if (!val.isNumber()) {
-            return false;
+            return a == b;
         }
-        double a = asNumber();
-        double b = val.asNumber();
-        if (std::isnan(a) && std::isnan(b)) {
+
+        return u.asInt64 == val.u.asInt64;
+    } else {
+        if (u.asInt64 == val.u.asInt64) {
             return true;
         }
-        if (std::isnan(a) || std::isnan(b)) {
-            return false;
-        }
-        return a == b;
-    }
 
-    if (isPointerValue()) {
-        PointerValue* o = asPointerValue();
-        if (!val.isPointerValue()) {
+        if (!isPointerValue()) {
             return false;
         }
+
+        PointerValue* o = asPointerValue();
         PointerValue* o2 = val.asPointerValue();
         if (o->isString()) {
             if (!o2->isString()) {
@@ -564,19 +540,14 @@ bool Value::equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value&
             }
             return *o->asString() == *o2->asString();
         }
-        if (o->isSymbol()) {
-            if (!o2->isSymbol()) {
-                return false;
-            }
-        }
         if (UNLIKELY(o->isBigInt())) {
             if (!o2->isBigInt()) {
                 return false;
             }
             return o->asBigInt()->equals(o2->asBigInt());
         }
-        return o == o2;
     }
+
     return false;
 }
 

@@ -73,21 +73,33 @@ public:
         }
 
         const auto& data = m_bufferData;
-        if (data.has8BitContent) {
+        if (LIKELY(data.has8BitContent)) {
             for (size_t i = 0; i < srcLen; i++) {
-                if (src[i] != ((const LChar*)data.buffer)[i]) {
+                if (src[i] != data.bufferAs8Bit[i]) {
                     return false;
                 }
             }
         } else {
             for (size_t i = 0; i < srcLen; i++) {
-                if (src[i] != ((const char16_t*)data.buffer)[i]) {
+                if (src[i] != data.bufferAs16Bit[i]) {
                     return false;
                 }
             }
         }
 
         return true;
+    }
+
+    ALWAYS_INLINE bool equalsSameLength(const char* str, size_t compareStartAt = 0) const
+    {
+        ASSERT(strlen(str) == length());
+
+        const auto& data = m_bufferData;
+        if (LIKELY(data.has8BitContent)) {
+            return memcmp(data.bufferAs8Bit + compareStartAt, str + compareStartAt, data.length - compareStartAt) == 0;
+        } else {
+            return equals16Bit(data.bufferAs16Bit + compareStartAt, str + compareStartAt, data.length - compareStartAt);
+        }
     }
 
     template <const size_t srcLen>
@@ -103,7 +115,7 @@ public:
         ret.resizeWithUninitializedValues(len);
 
         for (size_t i = 0; i < len; i++) {
-            ret[i] = charAt(i);
+            ret[i] = bufferedCharAt(i);
         }
 
         return ret;
@@ -122,13 +134,13 @@ public:
     virtual const LChar* characters8() const override
     {
         ASSERT(has8BitContent());
-        return (LChar*)m_bufferData.buffer;
+        return reinterpret_cast<const LChar*>(m_bufferData.bufferAs8Bit);
     }
 
     virtual const char16_t* characters16() const override
     {
         ASSERT(!has8BitContent());
-        return (const char16_t*)m_bufferData.buffer;
+        return reinterpret_cast<const char16_t*>(m_bufferData.bufferAs16Bit);
     }
 
     virtual bool isStringView() override
@@ -138,10 +150,10 @@ public:
 
     char16_t bufferedCharAt(const size_t idx) const
     {
-        if (m_bufferData.has8BitContent) {
-            return ((const LChar*)m_bufferData.buffer)[idx];
+        if (LIKELY(m_bufferData.has8BitContent)) {
+            return m_bufferData.bufferAs8Bit[idx];
         } else {
-            return ((const char16_t*)m_bufferData.buffer)[idx];
+            return m_bufferData.bufferAs16Bit[idx];
         }
     }
 
@@ -154,10 +166,22 @@ protected:
         m_bufferData.has8BitContent = srcData.has8BitContent;
         m_bufferData.length = end - start;
         if (srcData.has8BitContent) {
-            m_bufferData.buffer = ((LChar*)srcData.buffer) + start;
+            m_bufferData.bufferAs8Bit = srcData.bufferAs8Bit + start;
         } else {
-            m_bufferData.buffer = ((char16_t*)srcData.buffer) + start;
+            m_bufferData.bufferAs16Bit = srcData.bufferAs16Bit + start;
         }
+    }
+
+    bool equals16Bit(const char16_t* c1, const char* c2, size_t len) const
+    {
+        while (len > 0) {
+            if (*c1++ != *c2++) {
+                return false;
+            }
+            len--;
+        }
+
+        return true;
     }
 };
 
