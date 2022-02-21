@@ -773,12 +773,10 @@ inline bool Value::abstractEqualsTo(ExecutionState& state, const Value& val) con
 {
     if (isInt32() && val.isInt32()) {
 #ifdef ESCARGOT_64
-        if (u.asInt64 == val.u.asInt64)
+        return u.asInt64 == val.u.asInt64;
 #else
-        if (u.asBits.payload == val.u.asBits.payload)
+        return u.asBits.payload == val.u.asBits.payload;
 #endif
-            return true;
-        return false;
     } else {
         return abstractEqualsToSlowCase(state, val);
     }
@@ -788,12 +786,10 @@ inline bool Value::equalsTo(ExecutionState& state, const Value& val) const
 {
     if (isInt32() && val.isInt32()) {
 #ifdef ESCARGOT_64
-        if (u.asInt64 == val.u.asInt64)
+        return u.asInt64 == val.u.asInt64;
 #else
-        if (u.asBits.payload == val.u.asBits.payload)
+        return u.asBits.payload == val.u.asBits.payload;
 #endif
-            return true;
-        return false;
     } else {
         return equalsToSlowCase(state, val);
     }

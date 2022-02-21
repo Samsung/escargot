@@ -480,18 +480,48 @@ StringView Scanner::ScannerResult::relatedSource(const StringView& source)
 
 Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance)
 {
-    if (this->type == Token::KeywordToken) {
-        return keywordToString(scannerInstance->escargotContext, this->valueKeywordKind).string();
-    }
+    ASSERT(this->type == Token::StringLiteralToken);
 
-    if (this->hasAllocatedString) {
+    if (UNLIKELY(this->hasAllocatedString)) {
         if (!this->valueStringLiteralData.m_stringIfNewlyAllocated) {
             constructStringLiteral(scannerInstance);
         }
         return this->valueStringLiteralData.m_stringIfNewlyAllocated;
     }
 
-    return new StringView(scannerInstance->sourceAsNormalView, this->valueStringLiteralData.m_start, this->valueStringLiteralData.m_end);
+    // check if string is one of typeof strings
+    // we only consider the most common cases which are undefined, object, function
+    size_t start = this->valueStringLiteralData.m_start;
+    size_t end = this->valueStringLiteralData.m_end;
+    size_t length = end - start;
+    if (length > 5 && length < 10) {
+        ParserStringView str(scannerInstance->source, start, end);
+        switch (str.bufferedCharAt(0)) {
+        case 'o': {
+            if (length == 6 && str.equalsSameLength("object", 1)) {
+                return scannerInstance->escargotContext->staticStrings().object.string();
+            }
+            break;
+        }
+        case 'f': {
+            if (length == 8 && str.equalsSameLength("function", 1)) {
+                return scannerInstance->escargotContext->staticStrings().function.string();
+            }
+            break;
+        }
+        case 'u': {
+            if (length == 9 && str.equalsSameLength("undefined", 1)) {
+                return scannerInstance->escargotContext->staticStrings().undefined.string();
+            }
+            break;
+        }
+        default: {
+            return new StringView(scannerInstance->sourceAsNormalView, start, end);
+        }
+        }
+    }
+
+    return new StringView(scannerInstance->sourceAsNormalView, start, end);
 }
 
 ParserStringView Scanner::ScannerResult::valueStringLiteral(Scanner* scannerInstance)

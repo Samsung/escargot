@@ -442,6 +442,7 @@ public:
             , lineStart(0)
             , start(0)
             , end(0)
+            , valueKeywordKind(NotKeyword)
         {
         }
 
