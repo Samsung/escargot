@@ -796,6 +796,12 @@ public:
         return hasRareData() ? rareData()->m_isExtensible : true;
     }
 
+    // represent that this Object has its own enumeration function other than Object::enumeration
+    virtual bool hasOwnEnumeration() const
+    {
+        return false;
+    }
+
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
     virtual bool preventExtensions(ExecutionState&)
     {

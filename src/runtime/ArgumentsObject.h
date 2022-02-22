@@ -52,6 +52,11 @@ public:
         return true;
     }
 
+    virtual bool hasOwnEnumeration() const override
+    {
+        return true;
+    }
+
     ScriptFunctionObject* sourceFunctionObject() const
     {
         return m_sourceFunctionObject;
