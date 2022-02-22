@@ -56,6 +56,11 @@ public:
         return m_isConstructible;
     }
 
+    virtual bool hasOwnEnumeration() const override
+    {
+        return true;
+    }
+
     virtual Context* getFunctionRealm(ExecutionState& state) override;
 
     static ProxyObject* createProxy(ExecutionState& state, const Value& target, const Value& handler);

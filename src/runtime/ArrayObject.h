@@ -56,6 +56,11 @@ public:
         return false;
     }
 
+    virtual bool hasOwnEnumeration() const override
+    {
+        return true;
+    }
+
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;

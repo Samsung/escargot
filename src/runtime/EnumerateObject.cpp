@@ -248,35 +248,50 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
             target = target.asObject()->getPrototype(state);
         }
     } else {
-        struct Properties {
-            std::vector<Value::ValueIndex> indexes;
-            VectorWithInlineStorage<32, EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> strings;
-        } properties;
+        if (m_object->hasOwnEnumeration() || m_object->structure()->hasIndexPropertyName()) {
+            struct Properties {
+                std::vector<Value::ValueIndex> indexes;
+                VectorWithInlineStorage<32, EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> strings;
+            } properties;
 
-        m_object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-            auto properties = (Properties*)data;
-            auto value = name.toPlainValue();
-            if (desc.isEnumerable()) {
-                Value::ValueIndex nameAsIndexValue;
-                if (name.isIndexString() && (nameAsIndexValue = value.toIndex(state)) != Value::InvalidIndexValue) {
-                    properties->indexes.push_back(nameAsIndexValue);
-                } else {
-                    properties->strings.push_back(value);
+            m_object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+                auto properties = (Properties*)data;
+                auto value = name.toPlainValue();
+                if (desc.isEnumerable()) {
+                    Value::ValueIndex nameAsIndexValue;
+                    if (name.isIndexString() && (nameAsIndexValue = value.toIndex(state)) != Value::InvalidIndexValue) {
+                        properties->indexes.push_back(nameAsIndexValue);
+                    } else {
+                        properties->strings.push_back(value);
+                    }
                 }
+                return true;
+            },
+                                  &properties);
+
+            std::sort(properties.indexes.begin(), properties.indexes.end(), std::less<Value::ValueIndex>());
+
+            keys.resizeWithUninitializedValues(properties.indexes.size() + properties.strings.size());
+            size_t idx = 0;
+            for (auto& v : properties.indexes) {
+                keys[idx++] = Value(v).toString(state);
             }
-            return true;
-        },
-                              &properties);
+            for (auto& v : properties.strings) {
+                keys[idx++] = v;
+            }
+        } else {
+            keys.reserve(m_object->structure()->propertyCount());
 
-        std::sort(properties.indexes.begin(), properties.indexes.end(), std::less<Value::ValueIndex>());
-
-        keys.resizeWithUninitializedValues(properties.indexes.size() + properties.strings.size());
-        size_t idx = 0;
-        for (auto& v : properties.indexes) {
-            keys[idx++] = Value(v).toString(state);
-        }
-        for (auto& v : properties.strings) {
-            keys[idx++] = v;
+            m_object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+                auto properties = (EncodedValueVector*)data;
+                auto value = name.toPlainValue();
+                if (desc.isEnumerable()) {
+                    ASSERT(!name.isIndexString() || value.toIndex(state) == Value::InvalidIndexValue);
+                    properties->push_back(value);
+                }
+                return true;
+            },
+                                  &keys);
         }
     }
 

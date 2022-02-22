@@ -41,6 +41,11 @@ public:
         return false;
     }
 
+    virtual bool hasOwnEnumeration() const override
+    {
+        return true;
+    }
+
     // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects-getprototypeof
     virtual Object* getPrototypeObject(ExecutionState&) override
     {

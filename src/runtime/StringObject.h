@@ -40,6 +40,11 @@ public:
         return true;
     }
 
+    virtual bool hasOwnEnumeration() const override
+    {
+        return true;
+    }
+
     void setPrimitiveValue(ExecutionState& state, String* data)
     {
         m_primitiveValue = data;

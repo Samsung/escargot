@@ -67,6 +67,11 @@ public:
     virtual bool isExtensible(ExecutionState&) override;
     virtual bool preventExtensions(ExecutionState&) override;
 
+    virtual bool hasOwnEnumeration() const override
+    {
+        return true;
+    }
+
     virtual bool canUseOwnPropertyKeysFastPath() override
     {
         return false;
