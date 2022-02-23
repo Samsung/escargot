@@ -2257,9 +2257,13 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
 
 NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
 {
-    if (code->m_isLength && originalObject->isArrayObject() && originalObject->asArrayObject()->isFastModeArray()) {
-        if (!originalObject->asArrayObject()->setArrayLength(state, value) && state.inStrictMode()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, code->m_propertyName.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+    if (code->m_isLength && originalObject->isArrayObject()) {
+        if (LIKELY(originalObject->asArrayObject()->isFastModeArray())) {
+            if (!originalObject->asArrayObject()->setArrayLength(state, value) && state.inStrictMode()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, code->m_propertyName.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+            }
+        } else {
+            originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject);
         }
         return;
     }

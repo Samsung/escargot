@@ -42,11 +42,6 @@ public:
     virtual bool set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver) override;
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver) override;
 
-    virtual bool isInlineCacheable() override
-    {
-        return false;
-    }
-
     virtual bool isArgumentsObject() const override
     {
         return true;
