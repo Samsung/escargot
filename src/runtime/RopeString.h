@@ -80,6 +80,8 @@ public:
         return (String*)m_bufferData.buffer;
     }
 
+    virtual char16_t charAt(const size_t idx) const override;
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 

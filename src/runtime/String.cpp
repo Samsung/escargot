@@ -875,21 +875,20 @@ bool String::isAllSpecialCharacters(bool (*fn)(char))
 
 String* String::trim(String::StringTrimWhere where)
 {
-    const auto& bad = bufferAccessData();
-    int64_t stringLength = (int64_t)bad.length;
+    int64_t stringLength = (int64_t)length();
     int64_t s = 0;
     int64_t e = stringLength - 1;
 
     if (where == TrimStart || where == TrimBoth) {
         for (s = 0; s < stringLength; s++) {
-            if (!EscargotLexer::isWhiteSpaceOrLineTerminator(bad.charAt(s)))
+            if (!EscargotLexer::isWhiteSpaceOrLineTerminator(charAt(s)))
                 break;
         }
     }
 
     if (where == TrimEnd || where == TrimBoth) {
         for (e = stringLength - 1; e >= s; e--) {
-            if (!EscargotLexer::isWhiteSpaceOrLineTerminator(bad.charAt(e)))
+            if (!EscargotLexer::isWhiteSpaceOrLineTerminator(charAt(e)))
                 break;
         }
     }

@@ -825,6 +825,14 @@ public:
         free(numbers);
     }
 
+    Escargot::String* charCodeToString(char32_t ch)
+    {
+        if (LIKELY(ch < ESCARGOT_ASCII_TABLE_MAX)) {
+            return asciiTable[ch].string();
+        }
+        return String::fromCharCode(ch);
+    }
+
     // keyword string
     AtomicString stringBreak;
     AtomicString stringCase;

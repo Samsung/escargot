@@ -260,6 +260,38 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
     return ordinaryToPrimitive(state, preferredType);
 }
 
+bool Value::toBooleanSlowCase(ExecutionState& ec) const
+{
+    if (isDouble()) {
+        double d = asDouble();
+        if (std::isnan(d))
+            return false;
+        if (d == 0.0)
+            return false;
+        return true;
+    }
+
+    if (isUndefinedOrNull())
+        return false;
+
+    ASSERT(isPointerValue());
+
+    if (UNLIKELY(asPointerValue()->isString()))
+        return asString()->length();
+
+    if (UNLIKELY(isBigInt())) {
+        return !asBigInt()->isZero();
+    }
+
+#if defined(ESCARGOT_ENABLE_TEST)
+    if (UNLIKELY(checkIfObjectWithIsHTMLDDA())) {
+        return false;
+    }
+#endif
+    // Symbol, Objects..
+    return true;
+}
+
 bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) const
 {
     bool selfIsNumber = isNumber();
