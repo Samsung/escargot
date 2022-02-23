@@ -23,6 +23,15 @@
 
 namespace Escargot {
 
+static inline Value charToStringValue(ExecutionState& state, char16_t ch)
+{
+    if (ch < ESCARGOT_ASCII_TABLE_MAX) {
+        return state.context()->staticStrings().asciiTable[ch].string();
+    } else {
+        return String::fromCharCode(ch);
+    }
+}
+
 StringObject::StringObject(ExecutionState& state, String* value)
     : StringObject(state, state.context()->globalObject()->stringPrototype(), value)
 {
@@ -56,7 +65,7 @@ ObjectHasPropertyResult StringObject::hasProperty(ExecutionState& state, const O
     if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
-            return ObjectHasPropertyResult(ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false));
+            return ObjectHasPropertyResult(ObjectGetResult(charToStringValue(state, m_primitiveValue->charAt(idx)), false, true, false));
         }
     }
     return Object::hasProperty(state, P);
@@ -69,7 +78,7 @@ ObjectGetResult StringObject::getOwnProperty(ExecutionState& state, const Object
     if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
-            return ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false);
+            return ObjectGetResult(charToStringValue(state, m_primitiveValue->charAt(idx)), false, true, false);
         }
     }
     return Object::getOwnProperty(state, P);
@@ -108,7 +117,7 @@ ObjectGetResult StringObject::getIndexedProperty(ExecutionState& state, const Va
     if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
-            return ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false);
+            return ObjectGetResult(charToStringValue(state, m_primitiveValue->charAt(idx)), false, true, false);
         }
     }
     return get(state, ObjectPropertyName(state, property), receiver);
@@ -120,7 +129,7 @@ ObjectHasPropertyResult StringObject::hasIndexedProperty(ExecutionState& state, 
     if (idx != Value::InvalidIndexPropertyValue) {
         size_t strLen = m_primitiveValue->length();
         if (LIKELY(idx < strLen)) {
-            return ObjectHasPropertyResult(ObjectGetResult(Value(String::fromCharCode(m_primitiveValue->charAt(idx))), false, true, false));
+            return ObjectHasPropertyResult(ObjectGetResult(charToStringValue(state, m_primitiveValue->charAt(idx)), false, true, false));
         }
     }
     return hasProperty(state, ObjectPropertyName(state, propertyName));
