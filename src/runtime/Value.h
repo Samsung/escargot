@@ -279,6 +279,7 @@ private:
     String* toStringSlowCase(ExecutionState& ec) const; // $7.1.12 ToString
     Object* toObjectSlowCase(ExecutionState& ec) const; // $7.1.13 ToObject
     Value toPrimitiveSlowCase(ExecutionState& ec, PrimitiveTypeHint) const; // $7.1.1 ToPrimitive
+    bool toBooleanSlowCase(ExecutionState& ec) const; // $7.1.2 ToBoolean
     int32_t toInt32SlowCase(ExecutionState& ec) const; // $7.1.5 ToInt32
     ValueIndex tryToUseAsIndexSlowCase(ExecutionState& ec) const;
     uint32_t tryToUseAsIndex32SlowCase(ExecutionState& ec) const;

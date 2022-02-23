@@ -175,9 +175,7 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
         ASSERT(from <= to);
         if (to - from == 1) {
             char16_t c = str->charAt(from);
-            if (c < ESCARGOT_ASCII_TABLE_MAX) {
-                return state.context()->staticStrings().asciiTable[c].string();
-            }
+            return state.context()->staticStrings().charCodeToString(c);
         }
         return str->substring(from, to);
     }
@@ -793,17 +791,11 @@ static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, siz
     RESOLVE_THIS_BINDING_TO_STRING(str, String, charCodeAt);
     int position = argv[0].toInteger(state);
     Value ret;
-    const auto& data = str->bufferAccessData();
-    if (position < 0 || position >= (int)data.length)
+    size_t length = str->length();
+    if (position < 0 || position >= (int)length)
         ret = Value(std::numeric_limits<double>::quiet_NaN());
     else {
-        char16_t c;
-        if (data.has8BitContent) {
-            c = ((LChar*)data.buffer)[position];
-        } else {
-            c = ((char16_t*)data.buffer)[position];
-        }
-        ret = Value(c);
+        ret = Value(str->charAt(position));
     }
     return ret;
 }
@@ -814,29 +806,17 @@ static Value builtinStringCodePointAt(ExecutionState& state, Value thisValue, si
     RESOLVE_THIS_BINDING_TO_STRING(str, String, codePointAt);
     int position = argv[0].toInteger(state);
     Value ret;
-    const auto& data = str->bufferAccessData();
-    const int size = (int)data.length;
+    size_t length = str->length();
+    const int size = (int)length;
     if (position < 0 || position >= size)
         return Value();
 
-    char16_t first;
-    if (data.has8BitContent) {
-        first = ((LChar*)data.buffer)[position];
-    } else {
-        first = ((char16_t*)data.buffer)[position];
-    }
-
+    char16_t first = str->charAt(position);
     if (first < 0xD800 || first > 0xDBFF || (position + 1) == size) {
         return Value(first);
     }
 
-    char16_t second;
-    if (data.has8BitContent) {
-        second = ((LChar*)data.buffer)[position + 1];
-    } else {
-        second = ((char16_t*)data.buffer)[position + 1];
-    }
-
+    char16_t second = str->charAt(position + 1);
     if (second < 0xDC00 || second > 0xDFFF) {
         return Value(first);
     }
@@ -854,20 +834,10 @@ static Value builtinStringCharAt(ExecutionState& state, Value thisValue, size_t 
         position = argv[0].toInteger(state);
     }
 
-    const auto& accessData = str->bufferAccessData();
-
-    if (LIKELY(0 <= position && position < (int64_t)accessData.length)) {
-        char16_t c;
-        if (accessData.has8BitContent) {
-            c = ((LChar*)accessData.buffer)[position];
-        } else {
-            c = ((char16_t*)accessData.buffer)[position];
-        }
-        if (LIKELY(c < ESCARGOT_ASCII_TABLE_MAX)) {
-            return state.context()->staticStrings().asciiTable[c].string();
-        } else {
-            return String::fromCharCode(c);
-        }
+    const auto length = str->length();
+    if (LIKELY(0 <= position && position < (int64_t)length)) {
+        char16_t c = str->charAt(position);
+        return state.context()->staticStrings().charCodeToString(c);
     } else {
         return String::emptyString;
     }
@@ -877,9 +847,7 @@ static Value builtinStringFromCharCode(ExecutionState& state, Value thisValue, s
 {
     if (argc == 1) {
         char16_t c = argv[0].toUint32(state) & 0xFFFF;
-        if (c < ESCARGOT_ASCII_TABLE_MAX)
-            return state.context()->staticStrings().asciiTable[c].string();
-        return String::fromCharCode(c);
+        return state.context()->staticStrings().charCodeToString(c);
     }
 
     StringBuilder builder;
@@ -1531,7 +1499,7 @@ static Value builtinStringAt(ExecutionState& state, Value thisValue, size_t argc
     if (relativeStart < 0 || relativeStart >= len) {
         return Value();
     }
-    return String::fromCharCode(str->charAt(relativeStart));
+    return state.context()->staticStrings().charCodeToString(str->charAt(relativeStart));
 }
 
 #define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, P0, P1, P2)                                                                    \

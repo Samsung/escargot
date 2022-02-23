@@ -807,34 +807,7 @@ inline bool Value::toBoolean(ExecutionState& ec) const // $7.1.2 ToBoolean
     if (isInt32())
         return asInt32();
 
-    if (isDouble()) {
-        double d = asDouble();
-        if (std::isnan(d))
-            return false;
-        if (d == 0.0)
-            return false;
-        return true;
-    }
-
-    if (isUndefinedOrNull())
-        return false;
-
-    ASSERT(isPointerValue());
-
-    if (UNLIKELY(asPointerValue()->isString()))
-        return asString()->length();
-
-    if (UNLIKELY(isBigInt())) {
-        return !asBigInt()->isZero();
-    }
-
-#if defined(ESCARGOT_ENABLE_TEST)
-    if (UNLIKELY(checkIfObjectWithIsHTMLDDA())) {
-        return false;
-    }
-#endif
-    // Symbol, Objects..
-    return true;
+    return toBooleanSlowCase(ec);
 }
 
 inline int32_t Value::toInt32(ExecutionState& state) const // $7.1.5 ToInt3

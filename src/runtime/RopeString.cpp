@@ -159,6 +159,54 @@ void RopeString::flattenRopeString()
     }
 }
 
+static MAY_THREAD_LOCAL const RopeString* g_lastUsedString;
+static MAY_THREAD_LOCAL bool g_headOfCharAt = true;
+class RopeStringUsageChecker {
+public:
+    RopeStringUsageChecker()
+    {
+        m_headOfCharAt = g_headOfCharAt;
+        g_headOfCharAt = false;
+    }
+
+    ~RopeStringUsageChecker()
+    {
+        g_headOfCharAt = m_headOfCharAt;
+    }
+
+    bool isOftenUsed(const RopeString* rs)
+    {
+        auto old = g_lastUsedString;
+        if (m_headOfCharAt) {
+            g_lastUsedString = rs;
+        }
+        return rs == old;
+    }
+
+private:
+    bool m_headOfCharAt;
+};
+
+char16_t RopeString::charAt(const size_t idx) const
+{
+    if (wasFlattened()) {
+        return bufferAccessData().charAt(idx);
+    }
+
+    RopeStringUsageChecker checker;
+
+    if (checker.isOftenUsed(this)) {
+        return bufferAccessData().charAt(idx);
+    }
+
+    size_t leftLength = left()->length();
+    if (idx < leftLength) {
+        return left()->charAt(idx);
+    } else {
+        return right()->charAt(idx - leftLength);
+    }
+}
+
 UTF8StringDataNonGCStd RopeString::toNonGCUTF8StringData(int options) const
 {
     return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
