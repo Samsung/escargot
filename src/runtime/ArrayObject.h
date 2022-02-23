@@ -51,11 +51,6 @@ public:
 
     static ArrayObject* createSpreadArray(ExecutionState& state);
 
-    virtual bool isInlineCacheable() override
-    {
-        return false;
-    }
-
     virtual bool hasOwnEnumeration() const override
     {
         return true;
