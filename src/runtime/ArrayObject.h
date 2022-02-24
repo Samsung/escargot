@@ -72,6 +72,7 @@ public:
     virtual ObjectHasPropertyResult hasIndexedProperty(ExecutionState& state, const Value& propertyName) override;
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver) override;
     virtual bool preventExtensions(ExecutionState&) override;
+    virtual uint64_t length(ExecutionState& state) override;
 
     // Use custom allocator for Array object (for Badtime)
     void* operator new(size_t size);

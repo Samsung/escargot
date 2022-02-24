@@ -597,6 +597,15 @@ bool ArrayObject::preventExtensions(ExecutionState& state)
     return Object::preventExtensions(state);
 }
 
+uint64_t ArrayObject::length(ExecutionState& state)
+{
+    if (isFastModeArray()) {
+        return arrayLength(state);
+    } else {
+        return Object::length(state);
+    }
+}
+
 ArrayIteratorObject::ArrayIteratorObject(ExecutionState& state, Object* a, Type type)
     : IteratorObject(state, state.context()->globalObject()->arrayIteratorPrototype())
     , m_array(a)

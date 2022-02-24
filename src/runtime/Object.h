@@ -865,7 +865,7 @@ public:
     // callback function should skip un-Enumerable property if needs
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true);
     // ToLength(Get(obj, "length"))
-    uint64_t length(ExecutionState& state);
+    virtual uint64_t length(ExecutionState& state);
 
     // https://www.ecma-international.org/ecma-262/10.0/#sec-isarray
     bool isArray(ExecutionState& state);
