@@ -906,26 +906,27 @@ static ResultType objectOwnPropertyKeys(ExecutionState& state, Object* self)
         VectorWithInlineStorage<4, std::pair<Symbol*, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<Symbol*, ObjectStructurePropertyDescriptor>>> symbols;
     } properties;
 
-    self->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-        auto properties = (Properties*)data;
+    self->enumeration(
+        state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+            auto properties = (Properties*)data;
 
-        auto indexProperty = name.tryToUseAsIndexProperty();
-        if (indexProperty != Value::InvalidIndexPropertyValue) {
-            properties->indexes.push_back(std::make_pair(indexProperty, desc));
-        } else {
-            const ObjectStructurePropertyName& propertyName = name.objectStructurePropertyName();
-
-            if (propertyName.isSymbol()) {
-                properties->symbols.push_back(std::make_pair(propertyName.symbol(), desc));
+            auto indexProperty = name.tryToUseAsIndexProperty();
+            if (indexProperty != Value::InvalidIndexPropertyValue) {
+                properties->indexes.push_back(std::make_pair(indexProperty, desc));
             } else {
-                ASSERT(propertyName.isPlainString());
-                String* name = propertyName.plainString();
-                properties->strings.push_back(std::make_pair(name, desc));
+                const ObjectStructurePropertyName& propertyName = name.objectStructurePropertyName();
+
+                if (propertyName.isSymbol()) {
+                    properties->symbols.push_back(std::make_pair(propertyName.symbol(), desc));
+                } else {
+                    ASSERT(propertyName.isPlainString());
+                    String* name = propertyName.plainString();
+                    properties->strings.push_back(std::make_pair(name, desc));
+                }
             }
-        }
-        return true;
-    },
-                      &properties, false);
+            return true;
+        },
+        &properties, false);
 
     std::sort(properties.indexes.begin(), properties.indexes.end(),
               [](const std::pair<Value::ValueIndex, ObjectStructurePropertyDescriptor>& a, const std::pair<Value::ValueIndex, ObjectStructurePropertyDescriptor>& b) -> bool {
@@ -1007,7 +1008,8 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
     // 2. Let ownDesc be O.[[GetOwnProperty]](P).
     auto ownDesc = this->getOwnProperty(state, propertyName);
     // 4. If ownDesc is undefined, then
-    if (!ownDesc.hasValue()) {
+    bool hasValue = ownDesc.hasValue();
+    if (!hasValue) {
         // FIXME need to optimize prototype iteration
         // 4.a. Let parent be O.[[GetPrototypeOf]]().
         Value parent = this->getPrototype(state);
@@ -1044,7 +1046,17 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
 
         // 5.c. Let existingDescriptor be Receiver.[[GetOwnProperty]](P).
         Object* receiverObj = receiver.asObject();
-        auto existingDesc = receiverObj->getOwnProperty(state, propertyName);
+
+        ObjectGetResult existingDesc;
+        if (hasValue && LIKELY(this == receiverObj)) {
+            existingDesc = ownDesc;
+            ObjectPropertyDescriptor propertyDesc(v);
+            // 5.e.iv. Return Receiver.[[DefineOwnProperty]](P, valueDesc).
+            return receiverObj->defineOwnProperty(state, propertyName, propertyDesc);
+        }
+
+        existingDesc = receiverObj->getOwnProperty(state, propertyName);
+
         // 5.e. If existingDescriptor is not undefined, then
         if (existingDesc.hasValue()) {
             // 5.e.i. If IsAccessorDescriptor(existingDescriptor) is true, return false.
@@ -1560,20 +1572,21 @@ void Object::nextIndexForward(ExecutionState& state, Object* obj, const int64_t 
             return;
         }
 
-        ptr.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
-            int64_t index;
-            Data* e = (Data*)data;
-            int64_t* ret = e->ret;
-            Value key = name.toPlainValue();
-            index = key.toNumber(state);
-            if ((uint64_t)index != Value::InvalidIndexValue) {
-                if (index > *e->cur && *ret > index) {
-                    *ret = std::min(index, *ret);
+        ptr.asObject()->enumeration(
+            state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
+                int64_t index;
+                Data* e = (Data*)data;
+                int64_t* ret = e->ret;
+                Value key = name.toPlainValue();
+                index = key.toNumber(state);
+                if ((uint64_t)index != Value::InvalidIndexValue) {
+                    if (index > *e->cur && *ret > index) {
+                        *ret = std::min(index, *ret);
+                    }
                 }
-            }
-            return true;
-        },
-                                    &data);
+                return true;
+            },
+            &data);
         ptr = ptr.asObject()->getPrototype(state);
     }
     nextIndex = std::max(ret, cur + 1);
@@ -1595,20 +1608,21 @@ void Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t
             nextIndex = std::max(end, cur - 1);
             return;
         }
-        ptr.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
-            int64_t index;
-            Data* e = (Data*)data;
-            int64_t* ret = e->ret;
-            Value key = name.toPlainValue();
-            index = key.toNumber(state);
-            if ((uint64_t)index != Value::InvalidIndexValue) {
-                if (index < *e->cur) {
-                    *ret = std::max(index, *ret);
+        ptr.asObject()->enumeration(
+            state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) {
+                int64_t index;
+                Data* e = (Data*)data;
+                int64_t* ret = e->ret;
+                Value key = name.toPlainValue();
+                index = key.toNumber(state);
+                if ((uint64_t)index != Value::InvalidIndexValue) {
+                    if (index < *e->cur) {
+                        *ret = std::max(index, *ret);
+                    }
                 }
-            }
-            return true;
-        },
-                                    &data);
+                return true;
+            },
+            &data);
         ptr = ptr.asObject()->getPrototype(state);
     }
     nextIndex = std::min(ret, cur - 1);
