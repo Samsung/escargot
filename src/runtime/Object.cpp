@@ -1044,7 +1044,14 @@ bool Object::set(ExecutionState& state, const ObjectPropertyName& propertyName, 
 
         // 5.c. Let existingDescriptor be Receiver.[[GetOwnProperty]](P).
         Object* receiverObj = receiver.asObject();
-        auto existingDesc = receiverObj->getOwnProperty(state, propertyName);
+
+        ObjectGetResult existingDesc;
+        if (LIKELY(this == receiverObj)) {
+            existingDesc = ownDesc;
+        } else {
+            existingDesc = receiverObj->getOwnProperty(state, propertyName);
+        }
+
         // 5.e. If existingDescriptor is not undefined, then
         if (existingDesc.hasValue()) {
             // 5.e.i. If IsAccessorDescriptor(existingDescriptor) is true, return false.
