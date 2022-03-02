@@ -599,11 +599,7 @@ bool ArrayObject::preventExtensions(ExecutionState& state)
 
 uint64_t ArrayObject::length(ExecutionState& state)
 {
-    if (isFastModeArray()) {
-        return arrayLength(state);
-    } else {
-        return Object::length(state);
-    }
+    return arrayLength(state);
 }
 
 ArrayIteratorObject::ArrayIteratorObject(ExecutionState& state, Object* a, Type type)
