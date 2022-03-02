@@ -187,6 +187,28 @@ private:
     bool m_headOfCharAt;
 };
 
+// worker for preventing too many recursive calls with RopeString
+static char16_t charAtWorker(size_t idx, const RopeString* self)
+{
+    while (true) {
+        size_t leftLength = self->left()->length();
+        if (idx < leftLength) {
+            if (self->left()->isRopeString() && !self->left()->asRopeString()->wasFlattened()) {
+                self = self->left()->asRopeString();
+                continue;
+            }
+            return self->left()->charAt(idx);
+        } else {
+            if (self->right()->isRopeString() && !self->right()->asRopeString()->wasFlattened()) {
+                self = self->right()->asRopeString();
+                idx = idx - leftLength;
+                continue;
+            }
+            return self->right()->charAt(idx - leftLength);
+        }
+    }
+}
+
 char16_t RopeString::charAt(const size_t idx) const
 {
     if (wasFlattened()) {
@@ -199,12 +221,7 @@ char16_t RopeString::charAt(const size_t idx) const
         return bufferAccessData().charAt(idx);
     }
 
-    size_t leftLength = left()->length();
-    if (idx < leftLength) {
-        return left()->charAt(idx);
-    } else {
-        return right()->charAt(idx - leftLength);
-    }
+    return charAtWorker(idx, this);
 }
 
 UTF8StringDataNonGCStd RopeString::toNonGCUTF8StringData(int options) const
