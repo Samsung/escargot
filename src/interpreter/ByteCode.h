@@ -1037,6 +1037,9 @@ public:
         , m_loadRegisterIndex(loadRegisterIndex)
         , m_propertyName(propertyName)
         , m_presentAttribute(presentAttribute)
+        , m_missCount(0)
+        , m_inlineCachedStructureBefore(nullptr)
+        , m_inlineCachedStructureAfter(nullptr)
     {
     }
 
@@ -1044,8 +1047,11 @@ public:
     ByteCodeRegisterIndex m_loadRegisterIndex : REGISTER_INDEX_IN_BIT;
     AtomicString m_propertyName;
     ObjectPropertyDescriptor::PresentAttribute m_presentAttribute : 8;
-#ifndef NDEBUG
+    size_t m_missCount : 4;
+    ObjectStructure* m_inlineCachedStructureBefore;
+    ObjectStructure* m_inlineCachedStructureAfter;
 
+#ifndef NDEBUG
     void dump()
     {
         printf("object define own property with name r%u.%s <- r%u", m_objectRegisterIndex, m_propertyName.string()->toUTF8StringData().data(), m_loadRegisterIndex);
@@ -1053,7 +1059,7 @@ public:
 #endif
 };
 
-BYTECODE_SIZE_CHECK_IN_32BIT(ObjectDefineOwnPropertyWithNameOperation, sizeof(size_t) * 4);
+BYTECODE_SIZE_CHECK_IN_32BIT(ObjectDefineOwnPropertyWithNameOperation, sizeof(size_t) * 6);
 
 #define ARRAY_DEFINE_OPERATION_MERGE_COUNT 8
 
@@ -2530,13 +2536,17 @@ public:
 
 class ObjectDefineGetterSetter : public ByteCode {
 public:
-    ObjectDefineGetterSetter(const ByteCodeLOC& loc, size_t objectRegisterIndex, size_t objectPropertyNameRegisterIndex, size_t objectPropertyValueRegisterIndex, ObjectPropertyDescriptor::PresentAttribute presentAttribute, bool isGetter)
+    ObjectDefineGetterSetter(const ByteCodeLOC& loc, size_t objectRegisterIndex, size_t objectPropertyNameRegisterIndex, size_t objectPropertyValueRegisterIndex, ObjectPropertyDescriptor::PresentAttribute presentAttribute, bool isGetter, bool isPrecomputed)
         : ByteCode(Opcode::ObjectDefineGetterSetterOpcode, loc)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_objectPropertyNameRegisterIndex(objectPropertyNameRegisterIndex)
         , m_objectPropertyValueRegisterIndex(objectPropertyValueRegisterIndex)
         , m_presentAttribute(presentAttribute)
         , m_isGetter(isGetter)
+        , m_isPrecomputed(isPrecomputed)
+        , m_missCount(0)
+        , m_inlineCachedStructureBefore(nullptr)
+        , m_inlineCachedStructureAfter(nullptr)
     {
     }
 
@@ -2545,6 +2555,10 @@ public:
     ByteCodeRegisterIndex m_objectPropertyValueRegisterIndex : REGISTER_INDEX_IN_BIT;
     ObjectPropertyDescriptor::PresentAttribute m_presentAttribute : 8;
     bool m_isGetter : 1; // other case, this is setter
+    bool m_isPrecomputed : 1;
+    size_t m_missCount : 4;
+    ObjectStructure* m_inlineCachedStructureBefore;
+    ObjectStructure* m_inlineCachedStructureAfter;
 
 #ifndef NDEBUG
     void dump()
@@ -2558,7 +2572,7 @@ public:
 #endif
 };
 
-BYTECODE_SIZE_CHECK_IN_32BIT(ObjectDefineGetterSetter, sizeof(size_t) * 3);
+BYTECODE_SIZE_CHECK_IN_32BIT(ObjectDefineGetterSetter, sizeof(size_t) * 5);
 
 class BindingRestElement : public ByteCode {
 public:

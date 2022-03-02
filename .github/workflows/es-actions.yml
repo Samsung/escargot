@@ -20,7 +20,9 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt install -y clang-format-6.0
+      run: |
+        sudo apt update
+        sudo apt install -y clang-format-6.0
     - name: Test
       run: tools/check_tidy.py
 
@@ -44,7 +46,9 @@ jobs:
       with:
         submodules: true
     - name: Install Packages
-      run: sudo apt install -y ninja-build gcc-multilib g++-multilib
+      run: |
+        sudo apt update
+        sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Patch WABT
       working-directory: ./third_party/wasm/wabt
       run: |
@@ -76,7 +80,9 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt install -y ninja-build gcc-multilib g++-multilib
+      run: |
+        sudo apt update
+        sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_i386.deb
@@ -116,7 +122,9 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt install -y ninja-build
+      run: |
+        sudo apt update
+        sudo apt install -y ninja-build
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_amd64.deb
@@ -145,7 +153,9 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt install -y ninja-build gcc-multilib g++-multilib
+      run: |
+        sudo apt update
+        sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_i386.deb
@@ -182,7 +192,9 @@ jobs:
       with:
         python-version: '3.x'
     - name: Install Packages
-      run: sudo apt install -y ninja-build
+      run: |
+        sudo apt update
+        sudo apt install -y ninja-build
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_amd64.deb
@@ -211,7 +223,9 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt install -y ninja-build
+      run: |
+        sudo apt update
+        sudo apt install -y ninja-build
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_amd64.deb
@@ -238,7 +252,9 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt install -y ninja-build gcc-multilib g++-multilib
+      run: |
+        sudo apt update
+        sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_i386.deb
@@ -301,7 +317,9 @@ jobs:
       with:
         python-version: '2.7'
     - name: Install Packages
-      run: sudo apt install -y ninja-build gcc-multilib g++-multilib
+      run: |
+        sudo apt update
+        sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_i386.deb
@@ -344,7 +362,9 @@ jobs:
       with:
         submodules: true
     - name: Install Packages
-      run: sudo apt install -y ninja-build
+      run: |
+        sudo apt update
+        sudo apt install -y ninja-build
     - name: Patch WABT
       working-directory: ./third_party/wasm/wabt
       run: |

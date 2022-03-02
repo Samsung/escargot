@@ -75,10 +75,10 @@ public:
                         codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, ObjectPropertyDescriptor::AllPresent, hasFunctionOnRightSide | hasClassOnRightSide), context, this);
                     }
                 } else if (p->kind() == PropertyNode::Kind::Get) {
-                    codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent), true), context, this);
+                    codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent), true, hasKeyName), context, this);
                 } else {
                     ASSERT(p->kind() == PropertyNode::Kind::Set);
-                    codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent), false), context, this);
+                    codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent), false, hasKeyName), context, this);
                 }
 
                 if (!hasKeyName) {

@@ -919,7 +919,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ObjectDefineOwnPropertyWithNameOperation* code = (ObjectDefineOwnPropertyWithNameOperation*)programCounter;
-            objectDefineOwnPropertyWithNameOperation(*state, code, registerFile);
+            objectDefineOwnPropertyWithNameOperation(*state, code, byteCodeBlock, registerFile);
             ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyWithNameOperation);
             NEXT_INSTRUCTION();
         }
@@ -1258,7 +1258,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ObjectDefineGetterSetter* code = (ObjectDefineGetterSetter*)programCounter;
-            defineObjectGetterSetter(*state, code, registerFile);
+            defineObjectGetterSetter(*state, code, byteCodeBlock, registerFile);
             ADD_PROGRAM_COUNTER(ObjectDefineGetterSetter);
             NEXT_INSTRUCTION();
         }
@@ -3677,17 +3677,43 @@ NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyOperation(Executio
     willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(state, propertyStringOrSymbol), ObjectPropertyDescriptor(value, code->m_presentAttribute));
 }
 
-NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyWithNameOperation(ExecutionState& state, ObjectDefineOwnPropertyWithNameOperation* code, Value* registerFile)
+NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyWithNameOperation(ExecutionState& state, ObjectDefineOwnPropertyWithNameOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
-    const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
+    Object* object = registerFile[code->m_objectRegisterIndex].asObject();
+    const Value& v = registerFile[code->m_loadRegisterIndex];
     // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
-    if (!willBeObject.asObject()->isScriptClassConstructorPrototypeObject() && (code->m_propertyName == state.context()->staticStrings().__proto__)) {
-        const Value& v = registerFile[code->m_loadRegisterIndex];
+    if (!object->isScriptClassConstructorPrototypeObject() && (code->m_propertyName == state.context()->staticStrings().__proto__)) {
         if (v.isObject() || v.isNull()) {
-            willBeObject.asObject()->setPrototype(state, v);
+            object->setPrototype(state, v);
         }
     } else {
-        willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(registerFile[code->m_loadRegisterIndex], code->m_presentAttribute));
+        const size_t minCacheFillCount = 2;
+        if (object->structure() == code->m_inlineCachedStructureBefore) {
+            object->m_values.push_back(v, code->m_inlineCachedStructureAfter->propertyCount());
+            object->m_structure = code->m_inlineCachedStructureAfter;
+        } else if (code->m_missCount > minCacheFillCount) {
+            // cache miss
+            object->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(v, code->m_presentAttribute));
+        } else {
+            code->m_missCount++;
+            // should we fill cache?
+            if (minCacheFillCount == code->m_missCount) {
+                // try to fill cache
+                auto oldStructure = object->structure();
+                object->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(v, code->m_presentAttribute));
+                auto newStructure = object->structure();
+                if (object->isInlineCacheable() && oldStructure != newStructure) {
+                    byteCodeBlock->m_otherLiteralData.push_back(oldStructure);
+                    byteCodeBlock->m_otherLiteralData.push_back(newStructure);
+                    code->m_inlineCachedStructureBefore = oldStructure;
+                    code->m_inlineCachedStructureAfter = newStructure;
+                } else {
+                    // failed to cache
+                }
+            } else {
+                object->defineOwnProperty(state, ObjectPropertyName(code->m_propertyName), ObjectPropertyDescriptor(v, code->m_presentAttribute));
+            }
+        }
     }
 }
 
@@ -3803,7 +3829,7 @@ NEVER_INLINE void ByteCodeInterpreter::createSpreadArrayObject(ExecutionState& s
     registerFile[code->m_registerIndex] = spreadArray;
 }
 
-NEVER_INLINE void ByteCodeInterpreter::defineObjectGetterSetter(ExecutionState& state, ObjectDefineGetterSetter* code, Value* registerFile)
+static void defineObjectGetterSetterOperation(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile, Object* object)
 {
     FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
     Value pName = code->m_objectPropertyNameRegisterIndex == REGISTER_LIMIT ? fn->codeBlock()->functionName().string() : registerFile[code->m_objectPropertyNameRegisterIndex];
@@ -3821,8 +3847,45 @@ NEVER_INLINE void ByteCodeInterpreter::defineObjectGetterSetter(ExecutionState& 
         gs = new (alloca(sizeof(JSGetterSetter))) JSGetterSetter(Value(Value::EmptyValue), registerFile[code->m_objectPropertyValueRegisterIndex].asFunction());
     }
     ObjectPropertyDescriptor desc(*gs, code->m_presentAttribute);
-    Object* object = registerFile[code->m_objectRegisterIndex].toObject(state);
     object->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, pName), desc);
+}
+
+NEVER_INLINE void ByteCodeInterpreter::defineObjectGetterSetter(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+{
+    Object* object = registerFile[code->m_objectRegisterIndex].toObject(state);
+    const size_t minCacheFillCount = 2;
+    if (object->structure() == code->m_inlineCachedStructureBefore) {
+        JSGetterSetter* gs;
+        if (code->m_isGetter) {
+            gs = new JSGetterSetter(registerFile[code->m_objectPropertyValueRegisterIndex].asFunction(), Value(Value::EmptyValue));
+        } else {
+            gs = new JSGetterSetter(Value(Value::EmptyValue), registerFile[code->m_objectPropertyValueRegisterIndex].asFunction());
+        }
+        object->m_values.push_back(Value(gs), code->m_inlineCachedStructureAfter->propertyCount());
+        object->m_structure = code->m_inlineCachedStructureAfter;
+    } else if (code->m_missCount > minCacheFillCount) {
+        // cache miss
+        defineObjectGetterSetterOperation(state, code, byteCodeBlock, registerFile, object);
+    } else {
+        code->m_missCount++;
+        // should we fill cache?
+        if (minCacheFillCount == code->m_missCount && code->m_isPrecomputed) {
+            // try to fill cache
+            auto oldStructure = object->structure();
+            defineObjectGetterSetterOperation(state, code, byteCodeBlock, registerFile, object);
+            auto newStructure = object->structure();
+            if (object->isInlineCacheable() && oldStructure != newStructure) {
+                byteCodeBlock->m_otherLiteralData.push_back(oldStructure);
+                byteCodeBlock->m_otherLiteralData.push_back(newStructure);
+                code->m_inlineCachedStructureBefore = oldStructure;
+                code->m_inlineCachedStructureAfter = newStructure;
+            } else {
+                // failed to cache
+            }
+        } else {
+            defineObjectGetterSetterOperation(state, code, byteCodeBlock, registerFile, object);
+        }
+    }
 }
 
 ALWAYS_INLINE Value ByteCodeInterpreter::incrementOperation(ExecutionState& state, const Value& value)
