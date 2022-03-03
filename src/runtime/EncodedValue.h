@@ -151,6 +151,7 @@ class EncodedValue {
 public:
     enum ForceUninitializedTag { ForceUninitialized };
     enum EmptyValueInitTag { EmptyValue };
+    COMPILE_ASSERT(EncodedValue::EmptyValue == 0, "");
 
     EncodedValue(ForceUninitializedTag)
     {
@@ -350,6 +351,7 @@ private:
 class EncodedSmallValue {
 public:
     enum EmptyValueInitTag { EmptyValue };
+    COMPILE_ASSERT(EncodedSmallValue::EmptyValue == 0, "");
 
     EncodedSmallValue(EmptyValueInitTag)
     {
