@@ -1142,8 +1142,13 @@ Object* Object::getPrototypeFromConstructor(ExecutionState& state, Object* const
     // Assert: IsCallable(constructor) is true.
     ASSERT(constructor->isCallable());
 
-    // Let proto be ? Get(constructor, "prototype").
-    Value proto = constructor->get(state, ObjectPropertyName(state.context()->staticStrings().prototype)).value(state, constructor);
+    Value proto;
+    if (LIKELY(constructor->isFunctionObject())) {
+        proto = constructor->asFunctionObject()->getFunctionPrototype(state);
+    } else {
+        // Let proto be ? Get(constructor, "prototype").
+        proto = constructor->get(state, ObjectPropertyName(state.context()->staticStrings().prototype)).value(state, constructor);
+    }
 
     // If Type(proto) is not Object, then
     if (!proto.isObject()) {
