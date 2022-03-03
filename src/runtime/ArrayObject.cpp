@@ -385,8 +385,9 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                 bool hasRD = hasRareData();
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
                 m_fastModeData.resizeWithUninitializedValues(oldLength, newLength);
-                for (size_t i = oldLength; i < newLength; i++) {
-                    m_fastModeData[i] = EncodedSmallValue(EncodedSmallValue::EmptyValue);
+
+                if (oldLength < newLength) {
+                    memset(static_cast<void*>(m_fastModeData.data() + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
                 }
 #else
                 size_t oldCapacity = hasRD ? (size_t)rareData()->m_arrayObjectFastModeBufferCapacity : 0;
@@ -394,8 +395,8 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                     if (newLength > oldCapacity) {
                         m_fastModeData = (EncodedValue*)GC_REALLOC(m_fastModeData, sizeof(EncodedValue) * newLength);
 
-                        for (size_t i = oldLength; i < newLength; i++) {
-                            m_fastModeData[i] = EncodedValue(EncodedValue::EmptyValue);
+                        if (oldLength < newLength) {
+                            memset(static_cast<void*>(m_fastModeData + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
                         }
 
                     } else {
@@ -404,8 +405,8 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                 } else {
                     m_fastModeData = (EncodedValue*)GC_REALLOC(m_fastModeData, sizeof(EncodedValue) * newLength);
 
-                    for (size_t i = oldLength; i < newLength; i++) {
-                        m_fastModeData[i] = EncodedValue(EncodedValue::EmptyValue);
+                    if (oldLength < newLength) {
+                        memset(static_cast<void*>(m_fastModeData + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
                     }
                 }
 #endif
@@ -432,8 +433,9 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                     }
                     m_fastModeData.resizeWithUninitializedValues(oldLength, newCapacity);
 
-                    for (size_t i = oldLength; i < newLength; i++) {
-                        m_fastModeData[i] = EncodedSmallValue(EncodedSmallValue::EmptyValue);
+
+                    if (oldLength < newLength) {
+                        memset(static_cast<void*>(m_fastModeData.data() + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
                     }
 
                     rd->m_arrayObjectFastModeBufferCapacity = newCapacity;
@@ -441,9 +443,10 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                         rd->m_arrayObjectFastModeBufferExpandCount++;
                     }
                 } else {
-                    for (size_t i = oldLength; i < newLength; i++) {
-                        m_fastModeData[i] = EncodedSmallValue(EncodedSmallValue::EmptyValue);
+                    if (oldLength < newLength) {
+                        memset(static_cast<void*>(m_fastModeData.data() + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
                     }
+
                     rd->m_arrayObjectFastModeBufferCapacity = oldCapacity;
                 }
 #else
@@ -462,8 +465,8 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                     GC_FREE(m_fastModeData);
                     m_fastModeData = newFastModeData;
 
-                    for (size_t i = oldLength; i < newLength; i++) {
-                        m_fastModeData[i] = EncodedValue(EncodedValue::EmptyValue);
+                    if (oldLength < newLength) {
+                        memset(static_cast<void*>(m_fastModeData + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
                     }
 
                     rd->m_arrayObjectFastModeBufferCapacity = newCapacity;
@@ -471,8 +474,8 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
                         rd->m_arrayObjectFastModeBufferExpandCount++;
                     }
                 } else {
-                    for (size_t i = oldLength; i < newLength; i++) {
-                        m_fastModeData[i] = EncodedValue(EncodedValue::EmptyValue);
+                    if (oldLength < newLength) {
+                        memset(static_cast<void*>(m_fastModeData + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
                     }
                     rd->m_arrayObjectFastModeBufferCapacity = oldCapacity;
                 }
