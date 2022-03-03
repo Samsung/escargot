@@ -955,7 +955,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             NewOperation* code = (NewOperation*)programCounter;
-            registerFile[code->m_resultIndex] = constructOperation(*state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+            const Value& constructor = registerFile[code->m_calleeIndex];
+
+            if (UNLIKELY(!constructor.isConstructor())) {
+                ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor);
+            }
+
+            registerFile[code->m_resultIndex] = constructor.asPointerValue()->construct(*state, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex], constructor.asObject());
+
             ADD_PROGRAM_COUNTER(NewOperation);
             NEXT_INSTRUCTION();
         }
@@ -1293,13 +1300,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             NewOperationWithSpreadElement* code = (NewOperationWithSpreadElement*)programCounter;
-            const Value& callee = registerFile[code->m_calleeIndex];
 
-            {
-                ValueVector spreadArgs;
-                spreadFunctionArguments(*state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-                registerFile[code->m_resultIndex] = constructOperation(*state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data());
-            }
+            registerFile[code->m_resultIndex] = constructOperationWithSpreadElement(*state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 
             ADD_PROGRAM_COUNTER(NewOperationWithSpreadElement);
             NEXT_INSTRUCTION();
@@ -3191,16 +3193,16 @@ NEVER_INLINE bool ByteCodeInterpreter::binaryInOperation(ExecutionState& state, 
     return right.toObject(state)->hasProperty(state, ObjectPropertyName(state, left));
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv)
+NEVER_INLINE Value ByteCodeInterpreter::constructOperationWithSpreadElement(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv)
 {
-    if (!constructor.isConstructor()) {
-        if (constructor.isFunction()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor_Function, constructor.asFunction()->codeBlock()->functionName());
-        }
+    if (UNLIKELY(!constructor.isConstructor())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor);
     }
 
-    return constructor.asPointerValue()->construct(state, argc, argv, constructor.asObject());
+    ValueVector spreadArgs;
+    spreadFunctionArguments(state, argv, argc, spreadArgs);
+
+    return constructor.asPointerValue()->construct(state, spreadArgs.size(), spreadArgs.data(), constructor.asObject());
 }
 
 static Value callDynamicImportResolved(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
