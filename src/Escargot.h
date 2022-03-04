@@ -517,10 +517,6 @@ typedef uint16_t LexicalBlockIndex;
 #define REGEXP_CACHE_SIZE_MAX 64
 #endif
 
-#ifndef ROPE_STRING_MIN_LENGTH
-#define ROPE_STRING_MIN_LENGTH 24
-#endif
-
 #include "EscargotInfo.h"
 #include "heap/Heap.h"
 #include "util/Util.h"

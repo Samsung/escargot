@@ -503,7 +503,7 @@ void PersistentValueRefMap::clear()
 
 StringRef* StringRef::createFromASCII(const char* s, size_t len)
 {
-    return toRef(new ASCIIString(s, len));
+    return toRef(String::fromASCII(s, len));
 }
 
 StringRef* StringRef::createFromUTF8(const char* s, size_t len, bool maybeASCII)
@@ -518,7 +518,7 @@ StringRef* StringRef::createFromUTF16(const char16_t* s, size_t len)
 
 StringRef* StringRef::createFromLatin1(const unsigned char* s, size_t len)
 {
-    return toRef(new Latin1String(s, len));
+    return toRef(String::fromLatin1(s, len));
 }
 
 StringRef* StringRef::createExternalFromASCII(const char* s, size_t len)

@@ -57,13 +57,13 @@ RegExpObject::RegExpObject(ExecutionState& state, Object* proto, bool hasLastInd
     : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + (hasLastIndex ? 5 : 4))
     , m_source(NULL)
     , m_optionString(NULL)
-    , m_option(None)
+    , m_legacyFeaturesEnabled(true)
     , m_yarrPattern(NULL)
     , m_bytecodePattern(NULL)
     , m_lastIndex(Value(0))
     , m_lastExecutedString(NULL)
-    , m_legacyFeaturesEnabled(true)
 {
+    setOptionValueForGC(None);
     initRegExpObject(state, hasLastIndex);
 }
 
@@ -78,25 +78,6 @@ void RegExpObject::initRegExpObject(ExecutionState& state, bool hasLastIndex)
             m_values[i] = Value();
         m_structure = state.context()->defaultStructureForObject();
     }
-}
-
-void* RegExpObject::operator new(size_t size)
-{
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(RegExpObject)] = { 0 };
-        Object::fillGCDescriptor(obj_bitmap);
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_source));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_optionString));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_yarrPattern));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_bytecodePattern));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_lastIndex));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(RegExpObject, m_lastExecutedString));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(RegExpObject));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
 static String* escapeSlashInPattern(String* patternStr)
@@ -159,16 +140,16 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, Option op
     String* defaultRegExpString = state.context()->staticStrings().defaultRegExpString.string();
 
     String* previousSource = m_source;
-    RegExpObject::Option previousOptions = m_option;
+    RegExpObject::Option previousOptions = this->option();
 
-    m_option = option;
+    setOptionValueForGC(option);
     m_source = source->length() ? source : defaultRegExpString;
     m_source = escapeSlashInPattern(m_source);
 
-    auto entry = getCacheEntryAndCompileIfNeeded(state, m_source, m_option);
+    auto entry = getCacheEntryAndCompileIfNeeded(state, m_source, this->option());
     if (entry.m_yarrError) {
         m_source = previousSource;
-        m_option = previousOptions;
+        setOptionValueForGC(previousOptions);
         ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, entry.m_yarrError);
     }
 
@@ -186,7 +167,7 @@ void RegExpObject::init(ExecutionState& state, String* source, String* option)
 
 void RegExpObject::setLastIndex(ExecutionState& state, const Value& v)
 {
-    if (UNLIKELY(hasRareData() && rareData()->m_hasNonWritableLastIndexRegExpObject && (m_option & (Option::Sticky | Option::Global)))) {
+    if (UNLIKELY(hasRareData() && rareData()->m_hasNonWritableLastIndexRegExpObject && (option() & (Option::Sticky | Option::Global)))) {
         Object::throwCannotWriteError(state, ObjectStructurePropertyName(state.context()->staticStrings().lastIndex));
     }
     m_lastIndex = v;
@@ -252,12 +233,13 @@ RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, String* op
 
 void RegExpObject::setOption(const Option& option)
 {
-    if (((m_option & Option::MultiLine) != (option & Option::MultiLine))
-        || ((m_option & Option::IgnoreCase) != (option & Option::IgnoreCase))) {
+    Option currentOption = this->option();
+    if (((currentOption & Option::MultiLine) != (option & Option::MultiLine))
+        || ((currentOption & Option::IgnoreCase) != (option & Option::IgnoreCase))) {
         ASSERT(!m_yarrPattern);
         m_bytecodePattern = NULL;
     }
-    m_option = option;
+    setOptionValueForGC(option);
 }
 
 RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option)
@@ -297,7 +279,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     m_lastExecutedString = str;
 
     if (!m_bytecodePattern) {
-        RegExpCacheEntry& entry = getCacheEntryAndCompileIfNeeded(state, m_source, m_option);
+        RegExpCacheEntry& entry = getCacheEntryAndCompileIfNeeded(state, m_source, option());
         if (entry.m_yarrError) {
             matchResult.m_subPatternNum = 0;
             return false;

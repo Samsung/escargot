@@ -37,8 +37,16 @@ String* StringBuilderBase::finalizeBase(StringBuilderPiece* piecesInlineStorage,
     }
 
     if (m_has8BitContent) {
-        Latin1StringData ret;
-        ret.resizeWithUninitializedValues(m_contentLength);
+        Latin1StringData retString;
+        LChar* retArray;
+        LChar* ret;
+        if (m_contentLength <= LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE) {
+            retArray = static_cast<LChar*>(alloca(m_contentLength));
+            ret = retArray;
+        } else {
+            retString.resizeWithUninitializedValues(m_contentLength);
+            ret = retString.data();
+        }
 
         size_t currentLength = 0;
         for (size_t i = 0; i < m_piecesInlineStorageUsage; i++) {
@@ -96,7 +104,11 @@ String* StringBuilderBase::finalizeBase(StringBuilderPiece* piecesInlineStorage,
         }
 
         clear();
-        return new Latin1String(std::move(ret));
+        if (currentLength <= LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE) {
+            return String::fromLatin1(retArray, currentLength);
+        } else {
+            return new Latin1String(std::move(retString));
+        }
     } else {
         UTF16StringData ret;
         ret.resizeWithUninitializedValues(m_contentLength);

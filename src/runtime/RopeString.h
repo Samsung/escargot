@@ -82,7 +82,7 @@ public:
 
     virtual char16_t charAt(const size_t idx) const override;
 
-    void* operator new(size_t size);
+    void* operator new(size_t size, bool is8Bit);
     void* operator new[](size_t size) = delete;
 
 protected:

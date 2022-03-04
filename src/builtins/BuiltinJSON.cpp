@@ -116,16 +116,17 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
             const char16_t* chars = (const char16_t*)value.GetString();
             unsigned len = value.GetStringLength();
             if (isAllLatin1(chars, len)) {
-                return new Latin1String(chars, len);
+                return String::fromLatin1(chars, len);
             } else {
                 return new UTF16String(chars, len);
             }
         } else {
             const char* valueAsString = (const char*)value.GetString();
-            if (isAllASCII(valueAsString, strlen(valueAsString))) {
-                return new ASCIIString(valueAsString);
+            size_t len = strlen(valueAsString);
+            if (isAllASCII(valueAsString, len)) {
+                return String::fromASCII(valueAsString, len);
             } else {
-                return new UTF16String(utf8StringToUTF16String(valueAsString, strlen(valueAsString)));
+                return new UTF16String(utf8StringToUTF16String(valueAsString, len));
             }
         }
     } else if (value.IsArray()) {

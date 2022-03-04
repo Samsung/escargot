@@ -693,7 +693,7 @@ void Scanner::ScannerResult::constructStringLiteral(Scanner* scannerInstance)
 
     String* newStr;
     if (isEveryCharLatin1) {
-        newStr = new Latin1String(stringUTF16.data(), stringUTF16.length());
+        newStr = String::fromLatin1(stringUTF16.data(), stringUTF16.length());
     } else {
         newStr = new UTF16String(stringUTF16.data(), stringUTF16.length());
     }
@@ -1924,7 +1924,7 @@ String* Scanner::scanRegExpFlags()
     }
 
     if (isAllASCII(flags.data(), flags.length())) {
-        return new ASCIIString(flags.data(), flags.length());
+        return String::fromLatin1(flags.data(), flags.length());
     }
 
     return new UTF16String(flags.data(), flags.length());
