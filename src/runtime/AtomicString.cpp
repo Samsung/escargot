@@ -127,11 +127,11 @@ void AtomicString::init(AtomicStringMap* map, const char* src, size_t len, bool 
 
     auto iter = map->find(&stringForSearch);
     if (map->end() == iter) {
-        ASCIIString* newStr;
+        String* newStr;
         if (fromExternalMemory) {
             newStr = new ASCIIStringFromExternalMemory(src, len);
         } else {
-            newStr = new ASCIIString(src, len);
+            newStr = String::fromLatin1(reinterpret_cast<const LChar*>(src), len);
         }
         map->insert(newStr);
         m_string = newStr;
@@ -250,7 +250,7 @@ void AtomicString::init(AtomicStringMap* map, const char16_t* src, size_t len)
     if (map->end() == iter) {
         String* newStr;
         if (isAllASCII(src, len)) {
-            newStr = new ASCIIString(src, len);
+            newStr = String::fromLatin1(src, len);
         } else {
             newStr = new UTF16String(src, len);
         }
@@ -276,7 +276,7 @@ AtomicString::AtomicString(Context* c, const StringView& sv)
         String* newString;
         auto buffer = sv.bufferAccessData();
         if (buffer.has8BitContent) {
-            newString = new Latin1String((const char*)buffer.buffer, buffer.length);
+            newString = String::fromLatin1(reinterpret_cast<const LChar*>(buffer.buffer), buffer.length);
         } else {
             newString = new UTF16String((const char16_t*)buffer.buffer, buffer.length);
         }
@@ -316,7 +316,7 @@ void AtomicString::init(AtomicStringMap* ec, String* name)
         if (name->isStringView()) {
             auto buffer = name->bufferAccessData();
             if (buffer.has8BitContent) {
-                name = new Latin1String((const char*)buffer.buffer, buffer.length);
+                name = String::fromLatin1(reinterpret_cast<const LChar*>(buffer.buffer), buffer.length);
             } else {
                 name = new UTF16String((const char16_t*)buffer.buffer, buffer.length);
             }

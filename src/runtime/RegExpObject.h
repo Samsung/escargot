@@ -120,7 +120,7 @@ public:
 
     Option option()
     {
-        return m_option;
+        return static_cast<Option>(m_option >> 1);
     }
 
     JSC::Yarr::YarrPattern* yarrPatern()
@@ -162,13 +162,14 @@ public:
     ArrayObject* createRegExpMatchedArray(ExecutionState& state, const RegexMatchResult& result, String* input);
     void pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObject* array, size_t& index, const size_t limit, const RegexMatchResult& result, String* str);
 
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
-
 protected:
     explicit RegExpObject(ExecutionState& state, Object* proto, bool hasLastIndex = true);
 
 private:
+    void setOptionValueForGC(const Option& option)
+    {
+        m_option = static_cast<Option>(option << 1 | 1);
+    }
     void setOption(const Option& option);
     void internalInit(ExecutionState& state, String* source, Option option = None);
 
@@ -178,12 +179,12 @@ private:
 
     String* m_source;
     String* m_optionString;
-    Option m_option;
+    Option m_option : 16;
+    bool m_legacyFeaturesEnabled : 1;
     JSC::Yarr::YarrPattern* m_yarrPattern;
     JSC::Yarr::BytecodePattern* m_bytecodePattern;
     EncodedValue m_lastIndex;
     const String* m_lastExecutedString;
-    bool m_legacyFeaturesEnabled;
 };
 
 class RegExpStringIteratorObject : public IteratorObject {

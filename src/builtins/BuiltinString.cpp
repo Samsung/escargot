@@ -940,20 +940,32 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, toLowerCase);
     if (str->has8BitContent()) {
-        Latin1StringData newStr;
         size_t len = str->length();
-        newStr.resizeWithUninitializedValues(len);
-        const LChar* buf = str->characters8();
+        const LChar* from = str->characters8();
+        LChar* dest;
+        Latin1StringData newStr;
+        if (len <= LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE) {
+            dest = static_cast<LChar*>(alloca(len));
+        } else {
+            newStr.resizeWithUninitializedValues(len);
+            dest = newStr.data();
+        }
+
         for (size_t i = 0; i < len; i++) {
 #if defined(ENABLE_ICU)
-            char32_t u2 = u_tolower(buf[i]);
+            char32_t u2 = u_tolower(from[i]);
 #else
-            char32_t u2 = tolower(buf[i]);
+            char32_t u2 = tolower(from[i]);
 #endif
             ASSERT(u2 < 256);
-            newStr[i] = u2;
+            dest[i] = u2;
         }
-        return new Latin1String(std::move(newStr));
+
+        if (len <= LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE) {
+            return String::fromLatin1(dest, len);
+        } else {
+            return new Latin1String(std::move(newStr));
+        }
     }
 
 #if defined(ENABLE_ICU)

@@ -107,7 +107,9 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
         int e = result.m_matchResults[0][0].m_end;
         if (option & RegExpObject::Option::Unicode) {
             char16_t utfRes = str->charAt(e);
-            size_t eUTF = str->find(new ASCIIString((const char*)&utfRes), 0);
+            const char* buf = reinterpret_cast<const char*>(&utfRes);
+            size_t len = strlen(buf);
+            size_t eUTF = str->find(buf, len, 0);
             if (eUTF >= str->length()) {
                 e = str->length();
             } else if ((int)eUTF > e || e == (int)str->length()) {

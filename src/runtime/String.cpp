@@ -548,10 +548,10 @@ void CreateExponentialRepresentation(
                                  kMaxExponentLength - first_char_pos);
 }
 
-ASCIIStringData dtoa(double number)
+ASCIIStringDataNonGCStd dtoa(double number)
 {
     if (number == 0) {
-        return ASCIIStringData("0", 1);
+        return "0";
     }
     const int flags = UNIQUE_ZERO | EMIT_POSITIVE_EXPONENT_SIGN;
     bool sign = false;
@@ -609,24 +609,96 @@ ASCIIStringData dtoa(double number)
         str += *buf;
         buf++;
     }
-    return ASCIIStringData(str.data(), str.length());
+    return str;
 }
+
+#define LATIN1_LARGE_INLINE_BUFFER(F) \
+    F(1)                              \
+    F(2)                              \
+    F(3)                              \
+    F(4)                              \
+    F(5)                              \
+    F(6)                              \
+    F(7)                              \
+    F(8)                              \
+    F(9)                              \
+    F(10)                             \
+    F(11)                             \
+    F(12)                             \
+    F(13)                             \
+    F(14)                             \
+    F(15)                             \
+    F(16)                             \
+    F(17)                             \
+    F(18)                             \
+    F(19)                             \
+    F(20)                             \
+    F(21)                             \
+    F(22)                             \
+    F(23)                             \
+    F(24)
+
+#define LATIN1_LARGE_INLINE_BUFFER_DEFINE(N) \
+    template class Latin1StringWithLargeInlineBuffer<N>;
+
+LATIN1_LARGE_INLINE_BUFFER(LATIN1_LARGE_INLINE_BUFFER_DEFINE)
 
 String* String::fromASCII(const char* src, size_t len)
 {
-    return new ASCIIString(src, len);
+    if (len <= String::StringBufferData::bufferPointerAsArraySize) {
+        return new ASCIIStringWithInlineBuffer(src, len);
+    } else {
+        switch (len) {
+#define LATIN1_LARGE_INLINE_BUFFER_SWITCH_ASCII(N) \
+    case N:                                        \
+        return new Latin1StringWithLargeInlineBuffer<N>(reinterpret_cast<const LChar*>(src), len);
+            LATIN1_LARGE_INLINE_BUFFER(LATIN1_LARGE_INLINE_BUFFER_SWITCH_ASCII)
+        default:
+            return new ASCIIString(src, len);
+        }
+    }
+}
+
+String* String::fromLatin1(const LChar* src, size_t len)
+{
+    if (len <= String::StringBufferData::bufferPointerAsArraySize) {
+        return new Latin1StringWithInlineBuffer(src, len);
+    } else {
+        switch (len) {
+#define LATIN1_LARGE_INLINE_BUFFER_SWITCH(N) \
+    case N:                                  \
+        return new Latin1StringWithLargeInlineBuffer<N>(src, len);
+            LATIN1_LARGE_INLINE_BUFFER(LATIN1_LARGE_INLINE_BUFFER_SWITCH)
+        default:
+            return new Latin1String(src, len);
+        }
+    }
+}
+
+String* String::fromLatin1(const char16_t* src, size_t len)
+{
+    if (len <= LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE) {
+        LChar* dest = static_cast<LChar*>(alloca(len));
+        for (size_t i = 0; i < len; i++) {
+            ASSERT(src[i] < 256);
+            dest[i] = src[i];
+        }
+        return String::fromLatin1(dest, len);
+    } else {
+        return new Latin1String(src, len);
+    }
 }
 
 String* String::fromDouble(double v)
 {
     auto s = dtoa(v);
-    return new ASCIIString(std::move(s));
+    return String::fromASCII(s.data(), s.length());
 }
 
 String* String::fromUTF8(const char* src, size_t len, bool maybeASCII)
 {
     if (maybeASCII && isAllASCII(src, len)) {
-        return new ASCIIString(src, len);
+        return String::fromASCII(src, len);
     } else {
         auto s = utf8StringToUTF16String(src, len);
         return new UTF16String(std::move(s));
@@ -644,6 +716,22 @@ String* String::fromUTF8ToCompressibleString(VMInstance* instance, const char* s
     }
 }
 #endif
+
+String* String::fromCharCode(char32_t code)
+{
+    if (code < 128) {
+        char c = (char)code;
+        return new ASCIIStringWithInlineBuffer(&c, 1);
+    } else if (code < 0x10000) {
+        char16_t buf = code;
+        return new UTF16StringWithInlineBuffer(&buf, 1);
+    } else {
+        char16_t buf[2];
+        buf[0] = (char16_t)(0xD800 + ((code - 0x10000) >> 10));
+        buf[1] = (char16_t)(0xDC00 + ((code - 0x10000) & 1023));
+        return new UTF16StringWithInlineBuffer(buf, 2);
+    }
+}
 
 int String::stringCompare(size_t l1, size_t l2, const String* c1, const String* c2)
 {
@@ -788,6 +876,49 @@ size_t String::find(String* str, size_t pos)
     return SIZE_MAX;
 }
 
+size_t String::find(const char* str, size_t srcStrLen, size_t pos) const
+{
+    const size_t size = length();
+
+    if (srcStrLen == 0)
+        return pos <= size ? pos : SIZE_MAX;
+
+    if (srcStrLen <= size) {
+        char32_t src0 = str[0];
+        const auto& data = bufferAccessData();
+        if (data.has8BitContent) {
+            for (; pos <= size - srcStrLen; ++pos) {
+                if (((const LChar*)data.buffer)[pos] == src0) {
+                    bool same = true;
+                    for (size_t k = 1; k < srcStrLen; k++) {
+                        if (((const LChar*)data.buffer)[pos + k] != str[k]) {
+                            same = false;
+                            break;
+                        }
+                    }
+                    if (same)
+                        return pos;
+                }
+            }
+        } else {
+            for (; pos <= size - srcStrLen; ++pos) {
+                if (((const char16_t*)data.buffer)[pos] == src0) {
+                    bool same = true;
+                    for (size_t k = 1; k < srcStrLen; k++) {
+                        if (((const char16_t*)data.buffer)[pos + k] != str[k]) {
+                            same = false;
+                            break;
+                        }
+                    }
+                    if (same)
+                        return pos;
+                }
+            }
+        }
+    }
+    return SIZE_MAX;
+}
+
 size_t String::rfind(String* str, size_t pos)
 {
     const size_t srcStrLen = str->length();
@@ -899,32 +1030,6 @@ String* String::trim(String::StringTrimWhere where)
     return new StringView(this, s, e + 1);
 }
 
-
-void* ASCIIString::operator new(size_t size)
-{
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(ASCIIString)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ASCIIString, m_bufferData.buffer));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ASCIIString));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
-void* Latin1String::operator new(size_t size)
-{
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(Latin1String)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(Latin1String, m_bufferData.buffer));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(Latin1String));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
 
 void* UTF16String::operator new(size_t size)
 {

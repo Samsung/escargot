@@ -133,7 +133,8 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
     char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
     double_conversion::StringBuilder builder(buffer, NUMBER_TO_STRING_BUFFER_LENGTH);
     double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToFixed(number, digit, &builder);
-    return Value(new ASCIIString(builder.Finalize()));
+    auto len = builder.position();
+    return Value(String::fromASCII(builder.Finalize(), len));
 }
 
 static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -174,7 +175,8 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
     } else {
         double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToExponential(number, digit, &builder);
     }
-    return Value(new ASCIIString(builder.Finalize()));
+    auto len = builder.position();
+    return Value(String::fromASCII(builder.Finalize(), len));
 }
 
 static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -215,7 +217,8 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
     char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
     double_conversion::StringBuilder builder(buffer, NUMBER_TO_STRING_BUFFER_LENGTH);
     double_conversion::DoubleToStringConverter::EcmaScriptConverter().ToPrecision(number, p, &builder);
-    return Value(new ASCIIString(builder.Finalize()));
+    auto len = builder.position();
+    return Value(String::fromASCII(builder.Finalize(), len));
 }
 
 static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -255,12 +258,12 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
         } else {
             itoa(static_cast<int64_t>(number), buffer, radix);
         }
-        return new ASCIIString(buffer);
+        return String::fromASCII(buffer, strlen(buffer));
     } else {
         ASSERT(Value(number).isDouble());
         NumberObject::RadixBuffer s;
         const char* str = NumberObject::toStringWithRadix(state, s, number, radix);
-        return new ASCIIString(str);
+        return String::fromASCII(str, strlen(str));
     }
 }
 

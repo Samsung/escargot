@@ -24,8 +24,12 @@
 
 namespace Escargot {
 
-void* RopeString::operator new(size_t size)
+void* RopeString::operator new(size_t size, bool is8Bit)
 {
+    if (is8Bit) {
+        // if 8-bit string, we don't needs typed malloc
+        return GC_MALLOC(size);
+    }
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
@@ -50,26 +54,15 @@ String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState*
         return lstr;
     }
 
-    if (llen + rlen < ROPE_STRING_MIN_LENGTH) {
+    if (llen + rlen <= LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE) {
         const auto& lData = lstr->bufferAccessData();
         const auto& rData = rstr->bufferAccessData();
         if (LIKELY(lData.has8BitContent && rData.has8BitContent)) {
-            Latin1StringData ret;
             size_t len = lData.length + rData.length;
-            ret.resizeWithUninitializedValues(len);
-
-            LChar* result = ret.data();
-            const LChar* buffer = (const LChar*)lData.buffer;
-            for (size_t i = 0; i < lData.length; i++) {
-                result[i] = buffer[i];
-            }
-
-            result += lData.length;
-            buffer = (const LChar*)rData.buffer;
-            for (size_t i = 0; i < rData.length; i++) {
-                result[i] = buffer[i];
-            }
-            return new Latin1String(std::move(ret));
+            LChar* result = reinterpret_cast<LChar*>(alloca(len));
+            memcpy(result, lData.buffer, lData.length);
+            memcpy(result + lData.length, rData.buffer, rData.length);
+            return String::fromLatin1(result, len);
         } else {
             StringBuilder builder;
             builder.appendString(lstr);
@@ -82,26 +75,14 @@ String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState*
         ErrorObject::throwBuiltinError(*state, ErrorObject::RangeError, ErrorObject::Messages::String_InvalidStringLength);
     }
 
-    RopeString* rope = new RopeString();
+    bool l8bit = lstr->has8BitContent();
+    bool r8bit = rstr->has8BitContent();
+    bool result8Bit = l8bit & r8bit;
+    RopeString* rope = new (result8Bit) RopeString();
     rope->m_bufferData.length = llen + rlen;
     rope->m_left = lstr;
     rope->m_bufferData.buffer = rstr;
-
-    bool l8bit;
-    if (lstr->isRopeString()) {
-        l8bit = ((RopeString*)lstr)->m_bufferData.has8BitContent;
-    } else {
-        l8bit = lstr->has8BitContent();
-    }
-
-    bool r8bit;
-    if (rstr->isRopeString()) {
-        r8bit = ((RopeString*)rstr)->m_bufferData.has8BitContent;
-    } else {
-        r8bit = rstr->has8BitContent();
-    }
-
-    rope->m_bufferData.has8BitContent = l8bit & r8bit;
+    rope->m_bufferData.has8BitContent = result8Bit;
     return rope;
 }
 

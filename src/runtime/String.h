@@ -59,7 +59,7 @@ char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen);
 UTF16StringData utf8StringToUTF16String(const char* buf, const size_t len);
 UTF8StringData utf16StringToUTF8String(const char16_t* buf, const size_t len);
 ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t len);
-ASCIIStringData dtoa(double number);
+ASCIIStringDataNonGCStd dtoa(double number);
 size_t utf32ToUtf8(char32_t uc, char* UTF8);
 size_t utf32ToUtf16(char32_t i, char16_t* u);
 
@@ -229,18 +229,27 @@ protected:
         {
         }
 
-        bool has8BitContent : 1;
-        bool hasSpecialImpl : 1;
+        union {
+            struct {
+                bool has8BitContent : 1;
+                bool hasSpecialImpl : 1;
 #if defined(ESCARGOT_32)
-        size_t length : 30;
+                size_t length : 30;
 #else
-        size_t length : 62;
+                size_t length : 62;
 #endif
+            };
+            size_t valueShouldBeOddForFewTypes;
+        };
+
+        static constexpr size_t bufferPointerAsArraySize = sizeof(size_t);
         union {
             const void* buffer;
             const char* bufferAs8Bit;
             const char16_t* bufferAs16Bit;
             String* bufferAsString;
+            LChar bufferPointerAsArray[bufferPointerAsArraySize];
+            char16_t bufferPointerAs16BitArray[bufferPointerAsArraySize / 2];
         };
 
         COMPILE_ASSERT(STRING_MAXIMUM_LENGTH < (std::numeric_limits<size_t>::max() >> 2), "");
@@ -324,6 +333,12 @@ public:
     }
 
     static String* fromASCII(const char* s, size_t len);
+
+    // if you want to change this value, you  should change LATIN1_LARGE_INLINE_BUFFER macro in String.cpp
+#define LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE 24
+    static String* fromLatin1(const LChar* s, size_t len);
+    static String* fromLatin1(const char16_t* s, size_t len);
+
     static String* fromCharCode(char32_t code);
     static String* fromDouble(double v);
     static String* fromInt32(int32_t v)
@@ -390,50 +405,13 @@ public:
     }
 
     size_t find(String* str, size_t pos = 0);
+    size_t find(const char* str, size_t len, size_t pos = 0) const;
 
     template <size_t N>
-    size_t find(const char (&str)[N], size_t pos = 0) const
+    size_t find(const char (&src)[N], size_t pos = 0) const
     {
-        const size_t srcStrLen = N - 1;
-        const size_t size = length();
-
-        if (srcStrLen == 0)
-            return pos <= size ? pos : SIZE_MAX;
-
-        if (srcStrLen <= size) {
-            char32_t src0 = str[0];
-            const auto& data = bufferAccessData();
-            if (data.has8BitContent) {
-                for (; pos <= size - srcStrLen; ++pos) {
-                    if (((const LChar*)data.buffer)[pos] == src0) {
-                        bool same = true;
-                        for (size_t k = 1; k < srcStrLen; k++) {
-                            if (((const LChar*)data.buffer)[pos + k] != str[k]) {
-                                same = false;
-                                break;
-                            }
-                        }
-                        if (same)
-                            return pos;
-                    }
-                }
-            } else {
-                for (; pos <= size - srcStrLen; ++pos) {
-                    if (((const char16_t*)data.buffer)[pos] == src0) {
-                        bool same = true;
-                        for (size_t k = 1; k < srcStrLen; k++) {
-                            if (((const char16_t*)data.buffer)[pos + k] != str[k]) {
-                                same = false;
-                                break;
-                            }
-                        }
-                        if (same)
-                            return pos;
-                    }
-                }
-            }
-        }
-        return SIZE_MAX;
+        ASSERT(N - 1 == strlen(src));
+        return find(src, N - 1, 0);
     }
 
     template <size_t N>
@@ -497,9 +475,30 @@ public:
     friend int stringCompare(const String& a, const String& b);
 
     // NOTE these function generates new copy of string data
-    virtual UTF16StringData toUTF16StringData() const = 0;
-    virtual UTF8StringData toUTF8StringData() const = 0;
-    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const = 0;
+    virtual UTF16StringData toUTF16StringData() const
+    {
+        UTF16StringData ret;
+        size_t len = length();
+        ret.resizeWithUninitializedValues(len);
+
+        auto bad = bufferAccessData();
+        for (size_t i = 0; i < len; i++) {
+            ret[i] = bad.charAt(i);
+        }
+
+        return ret;
+    }
+
+    virtual UTF8StringData toUTF8StringData() const
+    {
+        return bufferAccessData().toUTF8String<UTF8StringData, UTF8StringDataNonGCStd>();
+    }
+
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const
+    {
+        return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
+    }
+
     static MAY_THREAD_LOCAL String* emptyString;
 
     uint64_t tryToUseAsIndex() const;
@@ -572,6 +571,10 @@ protected:
         return true;
     }
 };
+
+#if defined(NDEBUG) && defined(ESCARGOT_32) && !defined(COMPILER_MSVC)
+COMPILE_ASSERT(sizeof(String) == sizeof(size_t) * 4, "");
+#endif
 
 inline bool operator<(const String& a, const String& b)
 {
@@ -668,13 +671,18 @@ public:
         m_bufferData.has8BitContent = true;
         m_bufferData.length = stringData.length();
         m_bufferData.buffer = stringData.takeBuffer();
+
+        ASSERT(m_bufferData.valueShouldBeOddForFewTypes & 1);
     }
 
     virtual UTF16StringData toUTF16StringData() const override;
     virtual UTF8StringData toUTF8StringData() const override;
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const override;
 
-    void* operator new(size_t size);
+    void* operator new(size_t size)
+    {
+        return GC_MALLOC(size);
+    }
     void* operator new(size_t size, GCPlacement p)
     {
         return gc::operator new(size, p);
@@ -696,6 +704,34 @@ public:
     virtual bool hasExternalMemory() override
     {
         return true;
+    }
+};
+
+class ASCIIStringWithInlineBuffer : public String {
+public:
+    ASCIIStringWithInlineBuffer(const char* str, size_t len)
+        : String()
+    {
+        ASSERT(len <= m_bufferData.bufferPointerAsArraySize);
+        memcpy(m_bufferData.bufferPointerAsArray, str, len);
+        m_bufferData.length = len;
+        m_bufferData.hasSpecialImpl = true;
+        m_bufferData.has8BitContent = true;
+    }
+
+    void* operator new(size_t size)
+    {
+        return GC_MALLOC_ATOMIC(size);
+    }
+
+    virtual StringBufferAccessData bufferAccessDataSpecialImpl() override
+    {
+        return StringBufferAccessData(true, m_bufferData.length, &m_bufferData.bufferPointerAsArray);
+    }
+
+    virtual const LChar* characters8() const override
+    {
+        return (LChar*)&m_bufferData.bufferPointerAsArray;
     }
 };
 
@@ -757,6 +793,8 @@ public:
         m_bufferData.has8BitContent = true;
         m_bufferData.length = stringData.length();
         m_bufferData.buffer = stringData.takeBuffer();
+
+        ASSERT(m_bufferData.valueShouldBeOddForFewTypes & 1);
     }
 
     virtual char16_t charAt(const size_t idx) const override
@@ -773,8 +811,10 @@ public:
     virtual UTF8StringData toUTF8StringData() const override;
     virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const override;
 
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
+    void* operator new(size_t size)
+    {
+        return GC_MALLOC(size);
+    }
 };
 
 class Latin1StringFromExternalMemory : public Latin1String {
@@ -792,6 +832,62 @@ public:
     {
         return true;
     }
+};
+
+class Latin1StringWithInlineBuffer : public String {
+public:
+    Latin1StringWithInlineBuffer(const LChar* str, size_t len)
+        : String()
+    {
+        ASSERT(len <= m_bufferData.bufferPointerAsArraySize);
+        memcpy(m_bufferData.bufferPointerAsArray, str, len);
+        m_bufferData.length = len;
+        m_bufferData.hasSpecialImpl = true;
+        m_bufferData.has8BitContent = true;
+    }
+
+    void* operator new(size_t size)
+    {
+        return GC_MALLOC_ATOMIC(size);
+    }
+
+    virtual StringBufferAccessData bufferAccessDataSpecialImpl() override
+    {
+        return StringBufferAccessData(true, m_bufferData.length, &m_bufferData.bufferPointerAsArray);
+    }
+
+    virtual const LChar* characters8() const override
+    {
+        return (LChar*)&m_bufferData.bufferPointerAsArray;
+    }
+};
+
+template <const int bufferSize>
+class Latin1StringWithLargeInlineBuffer : public String {
+public:
+    Latin1StringWithLargeInlineBuffer(const LChar* str, size_t len)
+        : String()
+    {
+        ASSERT(len <= bufferSize);
+        m_bufferData.buffer = m_buffer;
+        m_bufferData.length = len;
+        m_bufferData.hasSpecialImpl = false;
+        m_bufferData.has8BitContent = true;
+        memcpy(m_buffer, str, len);
+    }
+
+    void* operator new(size_t size)
+    {
+        return GC_MALLOC_ATOMIC(size);
+    }
+
+    virtual const LChar* characters8() const override
+    {
+        return m_buffer;
+    }
+
+private:
+    LChar m_buffer[bufferSize];
 };
 
 class UTF16String : public String {
@@ -860,25 +956,58 @@ public:
     }
 };
 
-
-inline String* String::fromCharCode(char32_t code)
-{
-    if (code < 128) {
-        char c = (char)code;
-        ASCIIStringData s(&c, 1);
-        return new ASCIIString(std::move(s));
-    } else if (code <= 0x10000) {
-        char16_t c = (char16_t)code;
-        UTF16StringData s(&c, 1);
-        return new UTF16String(std::move(s));
-    } else {
-        char16_t buf[3];
-        buf[0] = (char16_t)(0xD800 + ((code - 0x10000) >> 10));
-        buf[1] = (char16_t)(0xDC00 + ((code - 0x10000) & 1023));
-        buf[2] = 0;
-        return new UTF16String(buf, 2);
+class UTF16StringWithInlineBuffer : public String {
+public:
+    UTF16StringWithInlineBuffer(const char16_t* str, size_t len)
+        : String()
+    {
+        ASSERT(len <= m_bufferData.bufferPointerAsArraySize / 2);
+        memcpy(m_bufferData.bufferPointerAs16BitArray, str, len * 2);
+        m_bufferData.length = len;
+        m_bufferData.hasSpecialImpl = true;
+        m_bufferData.has8BitContent = false;
     }
-}
+
+    void* operator new(size_t size)
+    {
+        return GC_MALLOC_ATOMIC(size);
+    }
+
+    virtual StringBufferAccessData bufferAccessDataSpecialImpl() override
+    {
+        return StringBufferAccessData(false, m_bufferData.length, &m_bufferData.bufferPointerAs16BitArray);
+    }
+
+    virtual UTF16StringData toUTF16StringData() const override
+    {
+        UTF16StringData ret;
+        size_t len = length();
+        ret.resizeWithUninitializedValues(len);
+
+        auto bad = bufferAccessData();
+        for (size_t i = 0; i < len; i++) {
+            ret[i] = bad.charAt(i);
+        }
+
+        return ret;
+    }
+
+    virtual UTF8StringData toUTF8StringData() const override
+    {
+        return bufferAccessData().toUTF8String<UTF8StringData, UTF8StringDataNonGCStd>();
+    }
+
+    virtual UTF8StringDataNonGCStd toNonGCUTF8StringData(int options = StringWriteOption::NoOptions) const override
+    {
+        return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
+    }
+
+    virtual const char16_t* characters16() const override
+    {
+        return (char16_t*)&m_bufferData.bufferPointerAs16BitArray;
+    }
+};
+
 } // namespace Escargot
 
 namespace std {
