@@ -1987,6 +1987,45 @@ TEST(PromiseHook, Basic2)
     });
 }
 
+TEST(PromiseRejectCallback, Basic1)
+{
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        // Register PromiseRejectCallback
+        g_instance.get()->registerPromiseRejectCallback([](ExecutionStateRef* state, PromiseObjectRef* promise, ValueRef* value, VMInstanceRef::PromiseRejectEvent event) -> void {
+            GlobalObjectRef* globalObj = g_context.get()->globalObject();
+            switch (event) {
+            case VMInstanceRef::PromiseRejectEvent::PromiseRejectWithNoHandler: {
+                EXPECT_TRUE(promise->promiseResult() == value);
+                StringRef* prop = StringRef::createFromASCII("promiseRejectWithNoHandler");
+                int count = 1;
+                if (globalObj->has(state, prop)) {
+                    count += globalObj->get(state, prop)->asInt32();
+                }
+                globalObj->set(state, prop, ValueRef::create(count));
+                break;
+            }
+            default:
+                break;
+            }
+        });
+        return ValueRef::createUndefined();
+    });
+
+    auto result = evalScript(g_context.get(), StringRef::createFromASCII("var p = new Promise((resolve, reject) => { reject(1); }); p.then((v) => {});"), StringRef::createFromASCII("testPromiseRejectCallback.js"), false);
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        ValueRef* noHandler = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("promiseRejectWithNoHandler"));
+        EXPECT_TRUE(noHandler->isInt32() && noHandler->asInt32() == 2);
+
+        bool removeNoHandler = g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("promiseRejectWithNoHandler"));
+        EXPECT_TRUE(removeNoHandler);
+
+        // Unregister PromiseRejectCallback
+        g_instance.get()->unregisterPromiseRejectCallback();
+        return ValueRef::createUndefined();
+    });
+}
+
 TEST(Serializer, Basic1)
 {
     std::ostringstream ostream;

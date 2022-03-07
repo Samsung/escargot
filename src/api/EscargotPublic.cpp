@@ -1076,6 +1076,11 @@ COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::Resolve == (int)VMInstance::
 COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::Before == (int)VMInstance::PromiseHookType::Before, "");
 COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::After == (int)VMInstance::PromiseHookType::After, "");
 
+COMPILE_ASSERT((int)VMInstanceRef::PromiseRejectEvent::PromiseRejectWithNoHandler == (int)VMInstance::PromiseRejectEvent::PromiseRejectWithNoHandler, "");
+COMPILE_ASSERT((int)VMInstanceRef::PromiseRejectEvent::PromiseHandlerAddedAfterReject == (int)VMInstance::PromiseRejectEvent::PromiseHandlerAddedAfterReject, "");
+COMPILE_ASSERT((int)VMInstanceRef::PromiseRejectEvent::PromiseRejectAfterResolved == (int)VMInstance::PromiseRejectEvent::PromiseRejectAfterResolved, "");
+COMPILE_ASSERT((int)VMInstanceRef::PromiseRejectEvent::PromiseResolveAfterResolved == (int)VMInstance::PromiseRejectEvent::PromiseResolveAfterResolved, "");
+
 PersistentRefHolder<VMInstanceRef> VMInstanceRef::create(const char* locale, const char* timezone, const char* baseCacheDir)
 {
     return PersistentRefHolder<VMInstanceRef>(toRef(new VMInstance(locale, timezone, baseCacheDir)));
@@ -1117,6 +1122,20 @@ void VMInstanceRef::registerPromiseHook(PromiseHook promiseHook)
 void VMInstanceRef::unregisterPromiseHook()
 {
     toImpl(this)->unregisterPromiseHook();
+}
+
+void VMInstanceRef::registerPromiseRejectCallback(PromiseRejectCallback rejectCallback)
+{
+    toImpl(this)->registerPromiseRejectCallback([](ExecutionState& state, PromiseObject* promise, const Value& value, VMInstance::PromiseRejectEvent event, void* callback) -> void {
+        ASSERT(!!callback);
+        (reinterpret_cast<PromiseRejectCallback>(callback))(toRef(&state), toRef(promise), toRef(value), (PromiseRejectEvent)(event));
+    },
+                                                (void*)rejectCallback);
+}
+
+void VMInstanceRef::unregisterPromiseRejectCallback()
+{
+    toImpl(this)->unregisterPromiseRejectCallback();
 }
 
 void VMInstanceRef::enterIdleMode()
@@ -3638,6 +3657,16 @@ void PromiseObjectRef::reject(ExecutionStateRef* state, ValueRef* reason)
         toImpl(state)->context()->vmInstance()->triggerPromiseHook(*toImpl(state), VMInstance::PromiseHookType::Resolve, toImpl(this));
     }
     toImpl(this)->reject(*toImpl(state), toImpl(reason));
+}
+
+bool PromiseObjectRef::hasResolveHandlers()
+{
+    return toImpl(this)->hasResolveHandlers();
+}
+
+bool PromiseObjectRef::hasRejectHandlers()
+{
+    return toImpl(this)->hasRejectHandlers();
 }
 
 ProxyObjectRef* ProxyObjectRef::create(ExecutionStateRef* state, ObjectRef* target, ObjectRef* handler)

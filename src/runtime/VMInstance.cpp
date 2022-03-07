@@ -357,6 +357,8 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     , m_errorCreationCallbackPublic(nullptr)
     , m_promiseHook(nullptr)
     , m_promiseHookPublic(nullptr)
+    , m_promiseRejectCallback(nullptr)
+    , m_promiseRejectCallbackPublic(nullptr)
     , m_cachedUTC(nullptr)
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {

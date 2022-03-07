@@ -154,6 +154,9 @@ public:
     // https://tc39.es/ecma262/#sec-promise.any-reject-element-functions
     static Value promiseAnyRejectElementFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
+    bool hasResolveHandlers() const { return m_fulfillReactions.size() > 0; }
+    bool hasRejectHandlers() const { return m_rejectReactions.size() > 0; }
+
 protected:
     static inline void fillGCDescriptor(GC_word* desc)
     {
