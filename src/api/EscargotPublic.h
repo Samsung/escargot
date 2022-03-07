@@ -647,11 +647,22 @@ public:
         After
     };
 
+    enum PromiseRejectEvent {
+        PromiseRejectWithNoHandler = 0,
+        PromiseHandlerAddedAfterReject = 1,
+        PromiseRejectAfterResolved = 2,
+        PromiseResolveAfterResolved = 3,
+    };
+
     typedef void (*PromiseHook)(ExecutionStateRef* state, PromiseHookType type, PromiseObjectRef* promise, ValueRef* parent);
+    typedef void (*PromiseRejectCallback)(ExecutionStateRef* state, PromiseObjectRef* promise, ValueRef* value, PromiseRejectEvent event);
 
     // Register PromiseHook (PromiseHook is used by third party app)
     void registerPromiseHook(PromiseHook promiseHook);
     void unregisterPromiseHook();
+    // Register a callback to call if this promise is rejected, but it does not have a reject handler
+    void registerPromiseRejectCallback(PromiseRejectCallback);
+    void unregisterPromiseRejectCallback();
 
     // this function enforce do gc,
     // remove every compiled bytecodes,
@@ -1761,6 +1772,9 @@ public:
     ObjectRef* then(ExecutionStateRef* state, ValueRef* onFulfilled, ValueRef* onRejected);
     void fulfill(ExecutionStateRef* state, ValueRef* value);
     void reject(ExecutionStateRef* state, ValueRef* reason);
+
+    bool hasResolveHandlers();
+    bool hasRejectHandlers();
 };
 
 class ESCARGOT_EXPORT ProxyObjectRef : public ObjectRef {

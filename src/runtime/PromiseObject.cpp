@@ -151,7 +151,11 @@ void PromiseObject::reject(ExecutionState& state, Value reason)
 {
     m_state = PromiseState::Rejected;
     m_promiseResult = reason;
-    triggerPromiseReactions(state, m_rejectReactions);
+    if (LIKELY(hasRejectHandlers() > 0)) {
+        triggerPromiseReactions(state, m_rejectReactions);
+    } else if (state.context()->vmInstance()->isPromiseRejectCallbackRegistered()) {
+        state.context()->vmInstance()->triggerPromiseRejectCallback(state, this, reason, VMInstance::PromiseRejectEvent::PromiseRejectWithNoHandler);
+    }
 
     m_fulfillReactions.clear();
     m_rejectReactions.clear();

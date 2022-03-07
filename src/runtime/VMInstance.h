@@ -87,7 +87,15 @@ public:
         After
     };
 
+    enum PromiseRejectEvent {
+        PromiseRejectWithNoHandler = 0,
+        PromiseHandlerAddedAfterReject = 1,
+        PromiseRejectAfterResolved = 2,
+        PromiseResolveAfterResolved = 3,
+    };
+
     typedef void (*PromiseHook)(ExecutionState& state, PromiseHookType type, PromiseObject* promise, const Value& parent, void* hook);
+    typedef void (*PromiseRejectCallback)(ExecutionState& state, PromiseObject* promise, const Value& value, PromiseRejectEvent event, void* callback);
 
     VMInstance(const char* locale = nullptr, const char* timezone = nullptr, const char* baseCacheDir = nullptr);
     ~VMInstance();
@@ -280,6 +288,33 @@ public:
         }
     }
 
+    // trigger PromiseRejectCallback
+    // Third party app registers PromiseRejectCallback when it is necessary
+    bool isPromiseRejectCallbackRegistered()
+    {
+        return !!m_promiseRejectCallback;
+    }
+
+    void registerPromiseRejectCallback(PromiseRejectCallback promiseRejectCallback, void* promiseRejectCallbackPublic)
+    {
+        m_promiseRejectCallback = promiseRejectCallback;
+        m_promiseRejectCallbackPublic = promiseRejectCallbackPublic;
+    }
+
+    void unregisterPromiseRejectCallback()
+    {
+        m_promiseRejectCallback = nullptr;
+        m_promiseRejectCallbackPublic = nullptr;
+    }
+
+    void triggerPromiseRejectCallback(ExecutionState& state, PromiseObject* promise, const Value& value, PromiseRejectEvent event)
+    {
+        ASSERT(!!m_promiseRejectCallback);
+        if (m_promiseRejectCallbackPublic) {
+            m_promiseRejectCallback(state, promise, value, event, m_promiseRejectCallbackPublic);
+        }
+    }
+
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlCollatorAvailableLocales();
     const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& intlDateTimeFormatAvailableLocales();
@@ -354,6 +389,10 @@ private:
     // Third party app registers PromiseHook when it is necessary
     PromiseHook m_promiseHook;
     void* m_promiseHookPublic;
+
+    // Third party app registers PromiseRejectCallback when it is necessary
+    PromiseRejectCallback m_promiseRejectCallback;
+    void* m_promiseRejectCallbackPublic;
 
     ToStringRecursionPreventer m_toStringRecursionPreventer;
 
