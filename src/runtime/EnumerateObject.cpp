@@ -39,10 +39,10 @@ bool EnumerateObject::checkLastEnumerateKey(ExecutionState& state)
 
 void EnumerateObject::update(ExecutionState& state)
 {
-    EncodedValueVector newKeys;
+    EncodedValueTightVector newKeys;
     executeEnumeration(state, newKeys);
 
-    Vector<Value, GCUtil::gc_malloc_allocator<Value>> differenceKeys;
+    VectorWithInlineStorage<32, Value, GCUtil::gc_malloc_allocator<Value>> differenceKeys;
     for (size_t i = 0; i < newKeys.size(); i++) {
         const auto& key = newKeys[i];
         // If a property that has not yet been visited during enumeration is deleted, then it will not be visited.
@@ -110,7 +110,7 @@ void EnumerateObjectWithDestruction::fillRestElement(ExecutionState& state, Obje
     }
 }
 
-void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, EncodedValueVector& keys)
+void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, EncodedValueTightVector& keys)
 {
     ASSERT(!!m_object);
 
@@ -177,7 +177,7 @@ bool EnumerateObjectWithDestruction::checkIfModified(ExecutionState& state)
     return false;
 }
 
-void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, EncodedValueVector& keys)
+void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, EncodedValueTightVector& keys)
 {
     ASSERT(!!m_object);
     m_hiddenClassChain.clear();
@@ -189,51 +189,53 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
     }
 
     bool shouldSearchProto = false;
-
     m_hiddenClassChain.push_back(m_object->structure());
 
     std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_allocator<String*>> keyStringSet;
 
-    Value proto = m_object->getPrototype(state);
-    while (proto.isObject()) {
+    Object* proto = m_object->getPrototypeObject(state);
+    while (proto) {
         if (!shouldSearchProto) {
-            proto.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-                if (desc.isEnumerable()) {
-                    bool* shouldSearchProto = (bool*)data;
-                    *shouldSearchProto = true;
-                    return false;
-                }
-                return true;
-            },
-                                          &shouldSearchProto);
+            if (proto->hasOwnEnumeration()) {
+                proto->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+                    if (desc.isEnumerable()) {
+                        bool* shouldSearchProto = (bool*)data;
+                        *shouldSearchProto = true;
+                        return false;
+                    }
+                    return true;
+                },
+                                   &shouldSearchProto);
+
+            } else {
+                shouldSearchProto |= proto->structure()->hasEnumerableProperty();
+            }
         }
-        ASSERT(!!proto.asObject()->structure());
-        m_hiddenClassChain.push_back(proto.asObject()->structure());
-        proto = proto.asObject()->getPrototype(state);
+        m_hiddenClassChain.push_back(proto->structure());
+        proto = proto->getPrototypeObject(state);
     }
 
     if (shouldSearchProto) {
         // TODO sorting properties
         struct EData {
             std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_allocator<String*>>* keyStringSet;
-            EncodedValueVector* keys;
+            VectorWithInlineStorage<32, EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> keys;
             Object* obj;
         } eData;
 
         eData.keyStringSet = &keyStringSet;
-        eData.keys = &keys;
         eData.obj = m_object;
 
-        Value target = m_object;
-        while (target.isObject()) {
-            target.asObject()->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
+        Object* target = m_object;
+        while (target) {
+            target->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
                 EData* eData = (EData*)data;
                 if (desc.isEnumerable()) {
                     String* key = name.toPlainValue().toString(state);
                     auto iter = eData->keyStringSet->find(key);
                     if (iter == eData->keyStringSet->end()) {
                         eData->keyStringSet->insert(key);
-                        eData->keys->pushBack(Value(key));
+                        eData->keys.pushBack(Value(key));
                     }
                 } else if (self == eData->obj) {
                     // 12.6.4 The values of [[Enumerable]] attributes are not considered
@@ -244,9 +246,15 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
                 }
                 return true;
             },
-                                           &eData);
-            target = target.asObject()->getPrototype(state);
+                                &eData);
+            target = target->getPrototypeObject(state);
         }
+
+        keys.resizeWithUninitializedValues(eData.keys.size());
+        for (size_t i = 0; i < eData.keys.size(); i++) {
+            keys[i] = eData.keys[i];
+        }
+
     } else {
         if (m_object->hasOwnEnumeration() || m_object->structure()->hasIndexPropertyName()) {
             struct Properties {
@@ -280,14 +288,12 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
                 keys[idx++] = v;
             }
         } else {
-            keys.reserve(m_object->structure()->propertyCount());
-
             m_object->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-                auto properties = (EncodedValueVector*)data;
+                EncodedValueTightVector* keys = reinterpret_cast<EncodedValueTightVector*>(data);
                 auto value = name.toPlainValue();
                 if (desc.isEnumerable()) {
                     ASSERT(!name.isIndexString() || value.toIndex(state) == Value::InvalidIndexValue);
-                    properties->push_back(value);
+                    keys->pushBack(value);
                 }
                 return true;
             },
@@ -309,9 +315,9 @@ bool EnumerateObjectWithIteration::checkIfModified(ExecutionState& state)
         if (UNLIKELY(hc != structure)) {
             return true;
         }
-        Value val = obj->getPrototype(state);
-        if (val.isObject()) {
-            obj = val.asObject();
+        Object* val = obj->getPrototypeObject(state);
+        if (val) {
+            obj = val;
         } else {
             break;
         }
@@ -329,3 +335,4 @@ bool EnumerateObjectWithIteration::checkIfModified(ExecutionState& state)
     return false;
 }
 } // namespace Escargot
+;

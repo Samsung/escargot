@@ -149,13 +149,15 @@ public:
 
     virtual bool inTransitionMode() = 0;
     virtual bool hasIndexPropertyName() = 0;
+    virtual bool hasEnumerableProperty() = 0;
 };
 
 class ObjectStructureWithoutTransition : public ObjectStructure {
 public:
-    ObjectStructureWithoutTransition(ObjectStructureItemVector* properties, bool hasIndexPropertyName, bool hasNonAtomicPropertyName)
+    ObjectStructureWithoutTransition(ObjectStructureItemVector* properties, bool hasIndexPropertyName, bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
         : m_hasIndexPropertyName(hasIndexPropertyName)
         , m_hasNonAtomicPropertyName(hasNonAtomicPropertyName)
+        , m_hasEnumerableProperty(hasEnumerableProperty)
         , m_properties(properties)
     {
     }
@@ -179,22 +181,29 @@ public:
         return m_hasIndexPropertyName;
     }
 
+    virtual bool hasEnumerableProperty() override
+    {
+        return m_hasEnumerableProperty;
+    }
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 private:
     bool m_hasIndexPropertyName;
     bool m_hasNonAtomicPropertyName;
+    bool m_hasEnumerableProperty;
     ObjectStructureItemVector* m_properties;
 };
 
 class ObjectStructureWithTransition : public ObjectStructure {
 public:
-    ObjectStructureWithTransition(ObjectStructureItemTightVector&& properties, bool hasIndexPropertyName, bool hasNonAtomicPropertyName)
+    ObjectStructureWithTransition(ObjectStructureItemTightVector&& properties, bool hasIndexPropertyName, bool hasNonAtomicPropertyName, bool hasEnumerableProperty)
         : m_properties(std::move(properties))
         , m_doesTransitionTableUseMap(false)
         , m_hasIndexPropertyName(hasIndexPropertyName)
         , m_hasNonAtomicPropertyName(hasNonAtomicPropertyName)
+        , m_hasEnumerableProperty(hasEnumerableProperty)
         , m_transitionTableVectorBufferSize(0)
         , m_transitionTableVectorBufferCapacity(0)
         , m_transitionTableVectorBuffer(nullptr)
@@ -220,6 +229,11 @@ public:
         return m_hasIndexPropertyName;
     }
 
+    virtual bool hasEnumerableProperty() override
+    {
+        return m_hasEnumerableProperty;
+    }
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
@@ -238,6 +252,7 @@ private:
     bool m_doesTransitionTableUseMap : 1;
     bool m_hasIndexPropertyName : 1;
     bool m_hasNonAtomicPropertyName : 1;
+    bool m_hasEnumerableProperty : 1;
     uint8_t m_transitionTableVectorBufferSize;
     uint8_t m_transitionTableVectorBufferCapacity;
 
@@ -252,16 +267,18 @@ COMPILE_ASSERT(sizeof(ObjectStructureWithTransition) == sizeof(size_t) * 5, "");
 
 class ObjectStructureWithMap : public ObjectStructure {
 public:
-    ObjectStructureWithMap(ObjectStructureItemVector* properties, PropertyNameMap* map, bool hasIndexPropertyName)
+    ObjectStructureWithMap(ObjectStructureItemVector* properties, PropertyNameMap* map, bool hasIndexPropertyName, bool hasEnumerableProperty)
         : m_hasIndexPropertyName(hasIndexPropertyName)
+        , m_hasEnumerableProperty(hasEnumerableProperty)
         , m_properties(properties)
         , m_propertyNameMap(map)
     {
     }
 
     template <typename SourceProperties>
-    ObjectStructureWithMap(bool hasIndexPropertyName, const SourceProperties& properties, const ObjectStructureItem& newItem)
+    ObjectStructureWithMap(bool hasIndexPropertyName, bool hasEnumerableProperty, const SourceProperties& properties, const ObjectStructureItem& newItem)
         : m_hasIndexPropertyName(hasIndexPropertyName)
+        , m_hasEnumerableProperty(hasEnumerableProperty)
     {
         ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
         newProperties->resizeWithUninitializedValues(properties.size() + 1);
@@ -272,8 +289,9 @@ public:
         m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(newProperties);
     }
 
-    ObjectStructureWithMap(bool hasIndexPropertyName, const ObjectStructureItemTightVector& properties)
+    ObjectStructureWithMap(bool hasIndexPropertyName, bool hasEnumerableProperty, const ObjectStructureItemTightVector& properties)
         : m_hasIndexPropertyName(hasIndexPropertyName)
+        , m_hasEnumerableProperty(hasEnumerableProperty)
     {
         ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
         newProperties->resizeWithUninitializedValues(properties.size());
@@ -283,8 +301,9 @@ public:
         m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(newProperties);
     }
 
-    ObjectStructureWithMap(bool hasIndexPropertyName, ObjectStructureItemTightVector&& properties)
+    ObjectStructureWithMap(bool hasIndexPropertyName, bool hasEnumerableProperty, ObjectStructureItemTightVector&& properties)
         : m_hasIndexPropertyName(hasIndexPropertyName)
+        , m_hasEnumerableProperty(hasEnumerableProperty)
     {
         m_properties = new ObjectStructureItemVector(std::move(properties));
         m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(m_properties);
@@ -303,9 +322,15 @@ public:
     {
         return false;
     }
+
     virtual bool hasIndexPropertyName() override
     {
         return m_hasIndexPropertyName;
+    }
+
+    virtual bool hasEnumerableProperty() override
+    {
+        return m_hasEnumerableProperty;
     }
 
     void* operator new(size_t size);
@@ -325,6 +350,7 @@ public:
 
 private:
     bool m_hasIndexPropertyName;
+    bool m_hasEnumerableProperty;
     ObjectStructureItemVector* m_properties;
     PropertyNameMap* m_propertyNameMap;
 };

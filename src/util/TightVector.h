@@ -246,6 +246,10 @@ public:
         }
     }
 
+    using iterator = T*;
+    constexpr iterator begin() const { return m_buffer; }
+    constexpr iterator end() const { return m_buffer + m_size; }
+
     void* operator new(size_t size)
     {
         static MAY_THREAD_LOCAL bool typeInited = false;
