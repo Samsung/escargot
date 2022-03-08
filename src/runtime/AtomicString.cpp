@@ -73,11 +73,6 @@ AtomicString::AtomicString(AtomicStringMap* map, const char16_t* src, size_t len
     init(map, src, len);
 }
 
-AtomicString::AtomicString(ExecutionState& ec, String* name)
-{
-    init(ec.context()->m_atomicStringMap, name);
-}
-
 class ASCIIStringOnStack : public String {
 public:
     ASCIIStringOnStack(const char* str, size_t len)
@@ -290,11 +285,6 @@ AtomicString::AtomicString(Context* c, const StringView& sv)
     }
 }
 
-AtomicString::AtomicString(Context* c, String* name)
-{
-    init(c->m_atomicStringMap, name);
-}
-
 void AtomicString::initStaticString(AtomicStringMap* ec, String* name)
 {
     ASSERT(ec->find(name) == ec->end());
@@ -303,14 +293,9 @@ void AtomicString::initStaticString(AtomicStringMap* ec, String* name)
     name->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
 }
 
-void AtomicString::init(AtomicStringMap* ec, String* name)
+void AtomicString::init(Context* c, String* name)
 {
-    size_t v = name->getTagInFirstDataArea();
-    if (v > POINTER_VALUE_STRING_TAG_IN_DATA) {
-        m_string = (String*)(v & ~POINTER_VALUE_STRING_TAG_IN_DATA);
-        return;
-    }
-
+    AtomicStringMap* ec = c->atomicStringMap();
     auto iter = ec->find(name);
     if (ec->end() == iter) {
         if (name->isStringView()) {

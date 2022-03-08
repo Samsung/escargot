@@ -61,14 +61,22 @@ ObjectStructurePropertyName::ObjectStructurePropertyName(ExecutionState& state, 
         m_data = (size_t)value.asSymbol();
         return;
     }
+
     String* string = value.toString(state);
+    size_t v = string->getTagInFirstDataArea();
+    if (v > POINTER_VALUE_STRING_TAG_IN_DATA) {
+        ASSERT(v == ((v & ~POINTER_VALUE_STRING_TAG_IN_DATA) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS));
+        m_data = v;
+        return;
+    }
+
     const auto& data = string->bufferAccessData();
     if (data.length == 0) {
         m_data = ((size_t)AtomicString().string()) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS;
         return;
     }
     bool needsRemainNormalString = false;
-    char16_t c = data.has8BitContent ? ((LChar*)data.buffer)[0] : ((char16_t*)data.buffer)[0];
+    char16_t c = data.charAt(0);
     if ((c == '.' || (c >= '0' && c <= '9')) && data.length > 16) {
         needsRemainNormalString = true;
     }

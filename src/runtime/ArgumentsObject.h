@@ -57,9 +57,6 @@ public:
         return m_sourceFunctionObject;
     }
 
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
-
 private:
     FunctionEnvironmentRecord* m_targetRecord;
     ScriptFunctionObject* m_sourceFunctionObject;

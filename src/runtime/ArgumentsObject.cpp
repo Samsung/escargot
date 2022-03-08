@@ -47,24 +47,6 @@ static void ArgumentsObjectNativeSetter(ExecutionState& state, Object* self, con
     targetRecord->setHeapValueByIndex(state, info.m_indexForIndexedStorage, setterInputData);
 }
 
-void* ArgumentsObject::operator new(size_t size)
-{
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(ArgumentsObject)] = { 0 };
-        Object::fillGCDescriptor(obj_bitmap);
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_targetRecord));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_sourceFunctionObject));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_parameterMap));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(ArgumentsObject, m_modifiedArguments));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(ArgumentsObject));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-}
-
-
 ArgumentsObject::ArgumentsObject(ExecutionState& state, Object* proto, ScriptFunctionObject* sourceFunctionObject, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, bool isMapped)
     : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3)
     , m_targetRecord(environmentRecordWillArgumentsObjectBeLocatedIn->isFunctionEnvironmentRecordOnStack() ? nullptr : environmentRecordWillArgumentsObjectBeLocatedIn)

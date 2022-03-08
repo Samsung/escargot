@@ -58,7 +58,10 @@ public:
     AtomicString(AtomicStringMap* map, const char* src, size_t len, FromExternalMemoryTag);
     AtomicString(AtomicStringMap* map, const LChar* src, size_t len);
     AtomicString(AtomicStringMap* map, const char16_t* src, size_t len);
-    AtomicString(ExecutionState& ec, String* name);
+    AtomicString(ExecutionState& ec, String* name)
+        : AtomicString(ec.context(), name)
+    {
+    }
     AtomicString(ExecutionState& ec, const char16_t* src, size_t len);
     AtomicString(ExecutionState& ec, const char* src, size_t len);
     template <const size_t srcLen>
@@ -76,7 +79,16 @@ public:
     {
     }
     AtomicString(Context* c, const StringView& sv);
-    AtomicString(Context* c, String* name);
+    ALWAYS_INLINE AtomicString(Context* c, String* name)
+    {
+        // fast path
+        size_t v = name->getTagInFirstDataArea();
+        if (v > POINTER_VALUE_STRING_TAG_IN_DATA) {
+            m_string = (String*)(v & ~POINTER_VALUE_STRING_TAG_IN_DATA);
+            return;
+        }
+        init(c, name);
+    }
 
     inline String* string() const
     {
@@ -111,7 +123,7 @@ private:
     void init(AtomicStringMap* ec, const char* src, size_t len, bool fromExternalMemory = false);
     void init(AtomicStringMap* ec, const LChar* str, size_t len);
     void init(AtomicStringMap* ec, const char16_t* src, size_t len);
-    void init(AtomicStringMap* ec, String* name);
+    void init(Context* c, String* name);
     void initStaticString(AtomicStringMap* ec, String* name);
     String* m_string;
 };
