@@ -121,7 +121,7 @@ void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, E
     m_hiddenClass = m_object->structure();
 
     struct Properties {
-        std::vector<Value::ValueIndex> indexes;
+        std::multiset<Value::ValueIndex, std::less<Value::ValueIndex>> indexes;
         VectorWithInlineStorage<32, EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> strings;
         VectorWithInlineStorage<4, Value, GCUtil::gc_malloc_allocator<Value>> symbols;
     } properties;
@@ -134,7 +134,7 @@ void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, E
             if (value.isSymbol()) {
                 properties->symbols.push_back(value);
             } else if (name.isIndexString() && (nameAsIndexValue = value.toIndex(state)) != Value::InvalidIndexValue) {
-                properties->indexes.push_back(nameAsIndexValue);
+                properties->indexes.insert(nameAsIndexValue);
             } else {
                 properties->strings.push_back(value);
             }
@@ -142,8 +142,6 @@ void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, E
         return true;
     },
                           &properties, false);
-
-    std::sort(properties.indexes.begin(), properties.indexes.end(), std::less<Value::ValueIndex>());
 
     keys.resizeWithUninitializedValues(properties.indexes.size() + properties.strings.size() + properties.symbols.size());
 
@@ -250,7 +248,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
     } else {
         if (m_object->hasOwnEnumeration() || m_object->structure()->hasIndexPropertyName()) {
             struct Properties {
-                std::vector<Value::ValueIndex> indexes;
+                std::multiset<Value::ValueIndex, std::less<Value::ValueIndex>> indexes;
                 VectorWithInlineStorage<32, EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> strings;
             } properties;
 
@@ -260,7 +258,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
                 if (desc.isEnumerable()) {
                     Value::ValueIndex nameAsIndexValue;
                     if (name.isIndexString() && (nameAsIndexValue = value.toIndex(state)) != Value::InvalidIndexValue) {
-                        properties->indexes.push_back(nameAsIndexValue);
+                        properties->indexes.insert(nameAsIndexValue);
                     } else {
                         properties->strings.push_back(value);
                     }
@@ -268,8 +266,6 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
                 return true;
             },
                                   &properties);
-
-            std::sort(properties.indexes.begin(), properties.indexes.end(), std::less<Value::ValueIndex>());
 
             keys.resizeWithUninitializedValues(properties.indexes.size() + properties.strings.size());
             size_t idx = 0;

@@ -896,12 +896,20 @@ ObjectHasPropertyResult Object::hasIndexedProperty(ExecutionState& state, const 
     return hasProperty(state, ObjectPropertyName(state, propertyName));
 }
 
+typedef std::pair<Value::ValueIndex, ObjectStructurePropertyDescriptor> IndexItem;
+struct CompareIndexItem {
+    bool operator()(const IndexItem& a, const IndexItem& b) const
+    {
+        return a.first < b.first;
+    }
+};
+
 template <typename ResultType, typename ResultBinder>
 static ResultType objectOwnPropertyKeys(ExecutionState& state, Object* self)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
     struct Properties {
-        VectorWithInlineStorage<32, std::pair<Value::ValueIndex, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<Value::ValueIndex, ObjectStructurePropertyDescriptor>>> indexes;
+        std::multiset<IndexItem, CompareIndexItem, GCUtil::gc_malloc_allocator<IndexItem>> indexes;
         VectorWithInlineStorage<32, std::pair<String*, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<String*, ObjectStructurePropertyDescriptor>>> strings;
         VectorWithInlineStorage<4, std::pair<Symbol*, ObjectStructurePropertyDescriptor>, GCUtil::gc_malloc_allocator<std::pair<Symbol*, ObjectStructurePropertyDescriptor>>> symbols;
     } properties;
@@ -912,7 +920,7 @@ static ResultType objectOwnPropertyKeys(ExecutionState& state, Object* self)
 
             auto indexProperty = name.tryToUseAsIndexProperty();
             if (indexProperty != Value::InvalidIndexPropertyValue) {
-                properties->indexes.push_back(std::make_pair(indexProperty, desc));
+                properties->indexes.insert(std::make_pair(indexProperty, desc));
             } else {
                 const ObjectStructurePropertyName& propertyName = name.objectStructurePropertyName();
 
@@ -927,12 +935,6 @@ static ResultType objectOwnPropertyKeys(ExecutionState& state, Object* self)
             return true;
         },
         &properties, false);
-
-    std::sort(properties.indexes.begin(), properties.indexes.end(),
-              [](const std::pair<Value::ValueIndex, ObjectStructurePropertyDescriptor>& a, const std::pair<Value::ValueIndex, ObjectStructurePropertyDescriptor>& b) -> bool {
-                  return a.first < b.first;
-              });
-
 
     ResultType result(properties.indexes.size() + properties.strings.size() + properties.symbols.size());
 
