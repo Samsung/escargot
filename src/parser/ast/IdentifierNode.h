@@ -43,25 +43,18 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::Identifier; }
+
     AtomicString name()
     {
         return m_name;
     }
 
-    void addParameterReferenceErrorIfNeeds(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    bool isPointsArgumentsObject(ByteCodeGenerateContext* context)
     {
-        // check if parameter value is referenced before initialized
-        bool find = false;
-        for (size_t i = 0; i < context->m_initializedParameterNames.size(); i++) {
-            if (context->m_initializedParameterNames[i] == m_name) {
-                find = true;
-                break;
-            }
+        if (context->m_codeBlock->context()->staticStrings().arguments == m_name && context->m_codeBlock->usesArgumentsObject() && !context->m_codeBlock->isArrowFunctionExpression()) {
+            return true;
         }
-
-        if (!find) {
-            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, ErrorObject::Messages::IsNotInitialized, m_name), context, this);
-        }
+        return false;
     }
 
     void addLexicalVariableErrorsIfNeeds(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, InterpretedCodeBlock::IndexedIdentifierInfo info, bool isLexicallyDeclaredBindingInitialization, bool isVariableChainging = false)
@@ -89,40 +82,6 @@ public:
         if (!isLexicallyDeclaredBindingInitialization && isVariableChainging && info.m_isResultSaved && !info.m_isMutable && info.m_type == InterpretedCodeBlock::IndexedIdentifierInfo::LexicallyDeclared) {
             codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, m_name), context, this);
         }
-    }
-
-    bool isPointsArgumentsObject(ByteCodeGenerateContext* context)
-    {
-        if (context->m_codeBlock->context()->staticStrings().arguments == m_name && context->m_codeBlock->usesArgumentsObject() && !context->m_codeBlock->isArrowFunctionExpression()) {
-            return true;
-        }
-        return false;
-    }
-
-    bool mayNeedsResolveAddress(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
-    {
-        if (context->m_codeBlock->canUseIndexedVariableStorage()) {
-            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context);
-            if (!info.m_isResultSaved) {
-                if (codeBlock->m_codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {
-                    if (context->m_isWithScope) {
-                        return true;
-                    }
-                }
-
-                if (context->m_isLeftBindingAffectedByRightExpression) {
-                    return true;
-                }
-            }
-        } else {
-            if (context->m_isWithScope) {
-                return true;
-            }
-            if (context->m_isLeftBindingAffectedByRightExpression) {
-                return true;
-            }
-        }
-        return false;
     }
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
@@ -245,7 +204,13 @@ public:
                 if (codeBlock->m_codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {
                     codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
                 } else {
-                    codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
+                    if (context->m_codeBlock->context()->staticStrings().undefined == m_name) {
+                        // getting global undefined value
+                        // convert to LoadLiteral of undefined value
+                        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value()), context, this);
+                    } else {
+                        codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
+                    }
                 }
             } else {
                 if (info.m_isStackAllocated) {
@@ -257,6 +222,8 @@ public:
                         codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + info.m_index, dstRegister), context, this);
                 } else {
                     if (info.m_isGlobalLexicalVariable) {
+                        // m_isResultSaved should be false for global undefined
+                        ASSERT(context->m_codeBlock->context()->staticStrings().undefined != m_name);
                         codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
                     } else {
                         codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_upperIndex, info.m_index), context, this);
@@ -336,6 +303,48 @@ public:
     }
 
 private:
+    void addParameterReferenceErrorIfNeeds(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        // check if parameter value is referenced before initialized
+        bool find = false;
+        for (size_t i = 0; i < context->m_initializedParameterNames.size(); i++) {
+            if (context->m_initializedParameterNames[i] == m_name) {
+                find = true;
+                break;
+            }
+        }
+
+        if (!find) {
+            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::ReferenceError, ErrorObject::Messages::IsNotInitialized, m_name), context, this);
+        }
+    }
+
+    bool mayNeedsResolveAddress(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
+    {
+        if (context->m_codeBlock->canUseIndexedVariableStorage()) {
+            InterpretedCodeBlock::IndexedIdentifierInfo info = context->m_codeBlock->indexedIdentifierInfo(m_name, context);
+            if (!info.m_isResultSaved) {
+                if (codeBlock->m_codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {
+                    if (context->m_isWithScope) {
+                        return true;
+                    }
+                }
+
+                if (context->m_isLeftBindingAffectedByRightExpression) {
+                    return true;
+                }
+            }
+        } else {
+            if (context->m_isWithScope) {
+                return true;
+            }
+            if (context->m_isLeftBindingAffectedByRightExpression) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     AtomicString m_name;
 };
 } // namespace Escargot
