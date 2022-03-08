@@ -47,9 +47,6 @@ public:
         m_primitiveValue = data;
     }
 
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
-
 private:
     BigInt* m_primitiveValue;
 };
