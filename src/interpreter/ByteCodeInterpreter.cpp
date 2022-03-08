@@ -1146,8 +1146,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             CreateEnumerateObject* code = (CreateEnumerateObject*)programCounter;
-            auto data = createEnumerateObject(*state, registerFile[code->m_objectRegisterIndex].toObject(*state), code->m_isDestruction);
-            registerFile[code->m_dataRegisterIndex] = Value((PointerValue*)data);
+            createEnumerateObject(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(CreateEnumerateObject);
             NEXT_INSTRUCTION();
         }
@@ -3488,22 +3487,25 @@ NEVER_INLINE void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& s
     }
 }
 
-NEVER_INLINE EnumerateObject* ByteCodeInterpreter::createEnumerateObject(ExecutionState& state, Object* obj, bool isDestruction)
+NEVER_INLINE void ByteCodeInterpreter::createEnumerateObject(ExecutionState& state, CreateEnumerateObject* code, Value* registerFile)
 {
+    Object* obj = registerFile[code->m_objectRegisterIndex].toObject(state);
+    bool isDestruction = code->m_isDestruction;
+
     EnumerateObject* enumObj;
     if (isDestruction) {
         enumObj = new EnumerateObjectWithDestruction(state, obj);
     } else {
         enumObj = new EnumerateObjectWithIteration(state, obj);
     }
-
-    return enumObj;
+    registerFile[code->m_dataRegisterIndex] = Value((PointerValue*)enumObj);
 }
 
 NEVER_INLINE void ByteCodeInterpreter::checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, char* codeBuffer, size_t& programCounter, Value* registerFile)
 {
     EnumerateObject* data = (EnumerateObject*)registerFile[code->m_registerIndex].asPointerValue();
     if (data->checkLastEnumerateKey(state)) {
+        delete data;
         programCounter = jumpTo(codeBuffer, code->m_exitPosition);
     } else {
         ADD_PROGRAM_COUNTER(CheckLastEnumerateKey);

@@ -67,6 +67,7 @@ class EnumerateObject;
 class CheckLastEnumerateKey;
 class TaggedTemplateOperation;
 class MarkEnumerateKey;
+class CreateEnumerateObject;
 
 class ByteCodeInterpreter {
 public:
@@ -137,7 +138,7 @@ private:
     static void callFunctionComplexCase(ExecutionState& state, CallFunctionComplexCase* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
     static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
 
-    static EnumerateObject* createEnumerateObject(ExecutionState& state, Object* obj, bool isDestruction);
+    static void createEnumerateObject(ExecutionState& state, CreateEnumerateObject* code, Value* registerFile);
     static void checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, char* codeBuffer, size_t& programCounter, Value* registerFile);
     static void markEnumerateKey(ExecutionState& state, MarkEnumerateKey* code, Value* registerFile);
 

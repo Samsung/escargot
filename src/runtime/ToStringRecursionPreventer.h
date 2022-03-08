@@ -53,7 +53,7 @@ public:
     }
 
 private:
-    Vector<Object*, GCUtil::gc_malloc_allocator<Object*>> m_registeredItems;
+    VectorWithInlineStorage<8, Object*, GCUtil::gc_malloc_allocator<Object*>> m_registeredItems;
 };
 
 class ToStringRecursionPreventerItemAutoHolder {

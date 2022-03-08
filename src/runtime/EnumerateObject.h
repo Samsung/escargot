@@ -26,7 +26,7 @@ namespace Escargot {
 
 class EnumerateObject : public PointerValue {
 public:
-    virtual bool isEnumerateObject() const
+    virtual bool isEnumerateObject() const override
     {
         return true;
     }
@@ -39,7 +39,7 @@ public:
     }
 
     size_t m_index;
-    EncodedValueVector m_keys;
+    EncodedValueTightVector m_keys;
 
 protected:
     EnumerateObject(Object* obj)
@@ -52,11 +52,11 @@ protected:
 
     void update(ExecutionState& state);
 
-    virtual void executeEnumeration(ExecutionState& state, EncodedValueVector& keys) = 0;
+    virtual void executeEnumeration(ExecutionState& state, EncodedValueTightVector& keys) = 0;
     virtual bool checkIfModified(ExecutionState& state) = 0;
 
     Object* m_object;
-    uint64_t m_arrayLength;
+    uint32_t m_arrayLength;
 };
 
 // enumerate object for destruction operation e.g. var obj = { a, ...b };
@@ -72,18 +72,22 @@ public:
 
     virtual void fillRestElement(ExecutionState& state, Object* result) override;
 
+    inline void* operator new(size_t size, void* p)
+    {
+        return p;
+    }
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 protected:
-    virtual void executeEnumeration(ExecutionState& state, EncodedValueVector& keys) override;
+    virtual void executeEnumeration(ExecutionState& state, EncodedValueTightVector& keys) override;
     virtual bool checkIfModified(ExecutionState& state) override;
 
     ObjectStructure* m_hiddenClass;
 };
 
 // enumerate object for iteration operation (for-in)
-// exclude symbol, include prototype chain and check modification during enumetation
+// exclude symbol, include prototype chain and check modification during enumeration
 class EnumerateObjectWithIteration : public EnumerateObject {
 public:
     EnumerateObjectWithIteration(ExecutionState& state, Object* obj)
@@ -92,11 +96,15 @@ public:
         executeEnumeration(state, m_keys);
     }
 
+    inline void* operator new(size_t size, void* p)
+    {
+        return p;
+    }
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 protected:
-    virtual void executeEnumeration(ExecutionState& state, EncodedValueVector& keys) override;
+    virtual void executeEnumeration(ExecutionState& state, EncodedValueTightVector& keys) override;
     virtual bool checkIfModified(ExecutionState& state) override;
 
     Vector<ObjectStructure*, GCUtil::gc_malloc_allocator<ObjectStructure*>> m_hiddenClassChain;
