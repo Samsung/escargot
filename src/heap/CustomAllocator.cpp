@@ -351,6 +351,18 @@ GetObjectInlineCacheData* CustomAllocator<GetObjectInlineCacheData>::allocate(si
 {
     // Un-comment this to use default allocator
     // return (Value*)GC_MALLOC(sizeof(GetObjectInlineCacheData) * GC_n);
+    // typed calloc test
+    /*
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCacheData)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheData, m_cachedhiddenClassChain));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCacheData));
+        typeInited = true;
+    }
+    return (GetObjectInlineCacheData*)GC_CALLOC_EXPLICITLY_TYPED(GC_n, sizeof(GetObjectInlineCacheData), descr);
+    */
     int kind = s_gcKinds[HeapObjectKind::GetObjectInlineCacheDataVectorKind];
     size_t size = sizeof(GetObjectInlineCacheData) * GC_n;
 
