@@ -1209,7 +1209,7 @@ protected:
     }
 
     Value getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& receiver);
-    ALWAYS_INLINE Value getOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& receiver)
+    Value getOwnPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& receiver)
     {
         const ObjectStructureItem& item = m_structure->readProperty(idx);
         if (LIKELY(item.m_descriptor.isDataProperty())) {
@@ -1218,6 +1218,17 @@ protected:
             } else {
                 return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, receiver, m_values[idx]);
             }
+        } else {
+            return getOwnPropertyUtilForObjectAccCase(state, idx, receiver);
+        }
+    }
+
+    NEVER_INLINE Value getOwnNonPlainDataPropertyUtilForObject(ExecutionState& state, size_t idx, const Value& receiver)
+    {
+        const ObjectStructureItem& item = m_structure->readProperty(idx);
+        if (LIKELY(item.m_descriptor.isDataProperty())) {
+            ASSERT(!item.m_descriptor.isPlainDataProperty());
+            return item.m_descriptor.nativeGetterSetterData()->m_getter(state, this, receiver, m_values[idx]);
         } else {
             return getOwnPropertyUtilForObjectAccCase(state, idx, receiver);
         }

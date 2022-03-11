@@ -1126,6 +1126,7 @@ struct GetObjectInlineCacheData {
     {
         m_cachedhiddenClassChain = nullptr;
         m_cachedhiddenClassChainLength = 0;
+        m_isPlainDataProperty = false;
         m_cachedIndex = 0;
     }
 
@@ -1133,8 +1134,12 @@ struct GetObjectInlineCacheData {
         ObjectStructure** m_cachedhiddenClassChain;
         ObjectStructure* m_cachedhiddenClass;
     };
-    size_t m_cachedhiddenClassChainLength;
-    size_t m_cachedIndex;
+    bool m_isPlainDataProperty : 1;
+    // 15bits of storage is enough
+    // inlineCacheProtoTraverseMaxCount is so small
+    uint16_t m_cachedhiddenClassChainLength : 15;
+    static constexpr size_t inlineCacheCachedIndexMax = std::numeric_limits<uint16_t>::max();
+    uint16_t m_cachedIndex : 16;
 };
 
 typedef Vector<GetObjectInlineCacheData, CustomAllocator<GetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> GetObjectInlineCacheDataVector;
@@ -1156,6 +1161,7 @@ public:
     GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, ObjectStructurePropertyName propertyName)
         : ByteCode(Opcode::GetObjectPreComputedCaseOpcode, loc)
         , m_isLength(propertyName.plainString()->equals("length"))
+        , m_inlineCacheProtoTraverseMaxIndex(0)
         , m_cacheMissCount(0)
         , m_inlineCache(nullptr)
         , m_objectRegisterIndex(objectRegisterIndex)
@@ -1164,8 +1170,11 @@ public:
     {
     }
 
+    static constexpr size_t inlineCacheProtoTraverseMaxCount = 12;
+
     bool m_isLength : 1;
-    uint16_t m_cacheMissCount : 16;
+    unsigned char m_inlineCacheProtoTraverseMaxIndex : 8;
+    size_t m_cacheMissCount : 16;
     GetObjectInlineCache* m_inlineCache;
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
