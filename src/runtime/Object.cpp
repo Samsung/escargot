@@ -2122,4 +2122,34 @@ bool Object::removeFinalizer(ObjectFinalizer fn, void* data)
     return false;
 }
 
+Object::FastLookupSymbolResult Object::fastLookupForSymbol(ExecutionState& state, Symbol* s, Optional<Object*> protochainSearchStopAt)
+{
+    ObjectStructurePropertyName name(s);
+    Object* obj = this;
+    while (true) {
+        if (protochainSearchStopAt.unwrap() == obj) {
+            return FastLookupSymbolResult(true, obj, SIZE_MAX);
+        }
+
+        if (!obj->isInlineCacheable()) {
+            break;
+        }
+
+        auto structure = obj->structure();
+        if (structure->hasSymbolPropertyName()) {
+            auto ret = structure->findProperty(name).first;
+            if (ret != SIZE_MAX) {
+                return FastLookupSymbolResult(true, obj, ret);
+            }
+        }
+        obj = obj->Object::getPrototypeObject(state);
+        if (!obj) {
+            return FastLookupSymbolResult(true, nullptr, SIZE_MAX);
+        }
+    }
+
+    // fast path was failed
+    return FastLookupSymbolResult();
+}
+
 } // namespace Escargot

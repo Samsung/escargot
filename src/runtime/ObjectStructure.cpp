@@ -52,17 +52,27 @@ std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithoutTr
 {
     size_t size = m_properties->size();
 
-    if (LIKELY(s.hasAtomicString() && !m_hasNonAtomicPropertyName)) {
-        for (size_t i = 0; i < size; i++) {
-            if ((*m_properties)[i].m_propertyName.rawValue() == s.rawValue()) {
-                return std::make_pair(i, &(*m_properties)[i]);
+    if (LIKELY(s.hasAtomicString())) {
+        if (LIKELY(!m_hasNonAtomicPropertyName)) {
+            for (size_t i = 0; i < size; i++) {
+                if ((*m_properties)[i].m_propertyName.rawValue() == s.rawValue()) {
+                    return std::make_pair(i, &(*m_properties)[i]);
+                }
+            }
+        } else {
+            AtomicString as = s.asAtomicString();
+            for (size_t i = 0; i < size; i++) {
+                if ((*m_properties)[i].m_propertyName == as) {
+                    return std::make_pair(i, &(*m_properties)[i]);
+                }
             }
         }
-    } else if (LIKELY(s.hasAtomicString())) {
-        AtomicString as = s.asAtomicString();
-        for (size_t i = 0; i < size; i++) {
-            if ((*m_properties)[i].m_propertyName == as) {
-                return std::make_pair(i, &(*m_properties)[i]);
+    } else if (s.isSymbol()) {
+        if (m_hasSymbolPropertyName) {
+            for (size_t i = 0; i < size; i++) {
+                if ((*m_properties)[i].m_propertyName == s) {
+                    return std::make_pair(i, &(*m_properties)[i]);
+                }
             }
         }
     } else {
@@ -95,15 +105,16 @@ ObjectStructure* ObjectStructureWithoutTransition::addProperty(const ObjectStruc
 {
     ObjectStructureItem newItem(name, desc);
     bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
+    bool nameIsSymbol = m_hasSymbolPropertyName ? true : name.isSymbol();
     bool hasNonAtomicName = m_hasNonAtomicPropertyName ? true : !name.hasAtomicString();
     bool hasEnumerableProperty = m_hasEnumerableProperty ? true : desc.isEnumerable();
     ObjectStructure* newStructure;
     m_properties->push_back(newItem);
 
     if (m_properties->size() + 1 > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
-        newStructure = new ObjectStructureWithMap(m_properties, ObjectStructureWithMap::createPropertyNameMap(m_properties), nameIsIndexString, hasEnumerableProperty);
+        newStructure = new ObjectStructureWithMap(m_properties, ObjectStructureWithMap::createPropertyNameMap(m_properties), nameIsIndexString, nameIsSymbol, hasEnumerableProperty);
     } else {
-        newStructure = new ObjectStructureWithoutTransition(m_properties, nameIsIndexString, hasNonAtomicName, hasEnumerableProperty);
+        newStructure = new ObjectStructureWithoutTransition(m_properties, nameIsIndexString, nameIsSymbol, hasNonAtomicName, hasEnumerableProperty);
     }
 
     m_properties = nullptr;
@@ -118,12 +129,14 @@ ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
 
     size_t newIdx = 0;
     bool hasIndexString = false;
+    bool hasSymbol = false;
     bool hasNonAtomicName = false;
     bool hasEnumerableProperty = false;
     for (size_t i = 0; i < ps; i++) {
         if (i == pIndex)
             continue;
         hasIndexString = hasIndexString | (*m_properties)[i].m_propertyName.isIndexString();
+        hasSymbol = hasSymbol | (*m_properties)[i].m_propertyName.isSymbol();
         hasNonAtomicName = hasNonAtomicName | !(*m_properties)[i].m_propertyName.hasAtomicString();
         hasEnumerableProperty = hasEnumerableProperty | (*m_properties)[i].m_descriptor.isEnumerable();
         (*newProperties)[newIdx].m_propertyName = (*m_properties)[i].m_propertyName;
@@ -131,7 +144,7 @@ ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
         newIdx++;
     }
 
-    auto newStructure = new ObjectStructureWithoutTransition(newProperties, hasIndexString, hasNonAtomicName, hasEnumerableProperty);
+    auto newStructure = new ObjectStructureWithoutTransition(newProperties, hasIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
     m_properties = nullptr;
     return newStructure;
 }
@@ -139,7 +152,7 @@ ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
 ObjectStructure* ObjectStructureWithoutTransition::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
 {
     m_properties->at(idx).m_descriptor = newDesc;
-    auto newStructure = new ObjectStructureWithoutTransition(m_properties, m_hasIndexPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
+    auto newStructure = new ObjectStructureWithoutTransition(m_properties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
     m_properties = nullptr;
     return newStructure;
 }
@@ -167,17 +180,27 @@ std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithTrans
 {
     size_t size = m_properties.size();
 
-    if (LIKELY(s.hasAtomicString() && !m_hasNonAtomicPropertyName)) {
-        for (size_t i = 0; i < size; i++) {
-            if (m_properties[i].m_propertyName.rawValue() == s.rawValue()) {
-                return std::make_pair(i, &m_properties[i]);
+    if (LIKELY(s.hasAtomicString())) {
+        if (LIKELY(!m_hasNonAtomicPropertyName)) {
+            for (size_t i = 0; i < size; i++) {
+                if (m_properties[i].m_propertyName.rawValue() == s.rawValue()) {
+                    return std::make_pair(i, &m_properties[i]);
+                }
+            }
+        } else {
+            AtomicString as = s.asAtomicString();
+            for (size_t i = 0; i < size; i++) {
+                if (m_properties[i].m_propertyName == as) {
+                    return std::make_pair(i, &m_properties[i]);
+                }
             }
         }
-    } else if (LIKELY(s.hasAtomicString())) {
-        AtomicString as = s.asAtomicString();
-        for (size_t i = 0; i < size; i++) {
-            if (m_properties[i].m_propertyName == as) {
-                return std::make_pair(i, &m_properties[i]);
+    } else if (s.isSymbol()) {
+        if (m_hasSymbolPropertyName) {
+            for (size_t i = 0; i < size; i++) {
+                if (m_properties[i].m_propertyName == s) {
+                    return std::make_pair(i, &m_properties[i]);
+                }
             }
         }
     } else {
@@ -225,19 +248,20 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructur
 
     ObjectStructureItem newItem(name, desc);
     bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
+    bool hasSymbol = m_hasSymbolPropertyName ? true : name.isSymbol();
     bool hasNonAtomicName = m_hasNonAtomicPropertyName ? true : !name.hasAtomicString();
     bool hasEnumerableProperty = m_hasEnumerableProperty ? true : desc.isEnumerable();
     ObjectStructure* newObjectStructure;
 
     size_t nextSize = m_properties.size() + 1;
     if (nextSize > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
-        newObjectStructure = new ObjectStructureWithMap(nameIsIndexString, hasEnumerableProperty, m_properties, newItem);
+        newObjectStructure = new ObjectStructureWithMap(nameIsIndexString, hasSymbol, hasEnumerableProperty, m_properties, newItem);
     } else if (nextSize > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE) {
         ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties, newItem);
-        newObjectStructure = new ObjectStructureWithoutTransition(newProperties, nameIsIndexString, hasNonAtomicName, hasEnumerableProperty);
+        newObjectStructure = new ObjectStructureWithoutTransition(newProperties, nameIsIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
     } else {
         ObjectStructureItemTightVector newProperties(m_properties, newItem);
-        newObjectStructure = new ObjectStructureWithTransition(std::move(newProperties), nameIsIndexString, hasNonAtomicName, hasEnumerableProperty);
+        newObjectStructure = new ObjectStructureWithTransition(std::move(newProperties), nameIsIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
         ObjectStructureTransitionVectorItem newTransitionItem(name, desc, newObjectStructure);
 
         if (m_doesTransitionTableUseMap) {
@@ -280,12 +304,14 @@ ObjectStructure* ObjectStructureWithTransition::removeProperty(size_t pIndex)
 
     size_t newIdx = 0;
     bool hasIndexString = false;
+    bool hasSymbol = false;
     bool hasNonAtomicName = false;
     bool hasEnumerableProperty = false;
     for (size_t i = 0; i < pc; i++) {
         if (i == pIndex)
             continue;
         hasIndexString = hasIndexString | m_properties[i].m_propertyName.isIndexString();
+        hasSymbol = hasSymbol | m_properties[i].m_propertyName.isSymbol();
         hasNonAtomicName = hasNonAtomicName | !m_properties[i].m_propertyName.hasAtomicString();
         hasEnumerableProperty = hasEnumerableProperty | m_properties[i].m_descriptor.isEnumerable();
         (*newProperties)[newIdx].m_propertyName = m_properties[i].m_propertyName;
@@ -293,20 +319,20 @@ ObjectStructure* ObjectStructureWithTransition::removeProperty(size_t pIndex)
         newIdx++;
     }
 
-    return new ObjectStructureWithoutTransition(newProperties, hasIndexString, hasNonAtomicName, hasEnumerableProperty);
+    return new ObjectStructureWithoutTransition(newProperties, hasIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
 }
 
 ObjectStructure* ObjectStructureWithTransition::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
 {
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties);
     newProperties->at(idx).m_descriptor = newDesc;
-    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
+    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
 }
 
 ObjectStructure* ObjectStructureWithTransition::convertToNonTransitionStructure()
 {
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties);
-    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
+    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
 }
 
 void* ObjectStructureWithMap::operator new(size_t size)
@@ -352,11 +378,12 @@ ObjectStructure* ObjectStructureWithMap::addProperty(const ObjectStructureProper
 {
     ObjectStructureItem newItem(name, desc);
     bool nameIsIndexString = m_hasIndexPropertyName ? true : name.isIndexString();
+    bool hasSymbol = m_hasSymbolPropertyName ? true : name.isSymbol();
     bool hasEnumerableProperty = m_hasEnumerableProperty ? true : desc.isEnumerable();
 
     m_propertyNameMap->insert(std::make_pair(name, m_properties->size()));
     m_properties->push_back(newItem);
-    ObjectStructure* newStructure = new ObjectStructureWithMap(m_properties, m_propertyNameMap, nameIsIndexString, hasEnumerableProperty);
+    ObjectStructure* newStructure = new ObjectStructureWithMap(m_properties, m_propertyNameMap, nameIsIndexString, hasSymbol, hasEnumerableProperty);
     m_properties = nullptr;
     m_propertyNameMap = nullptr;
     return newStructure;
@@ -370,18 +397,20 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
 
     size_t newIdx = 0;
     bool hasIndexString = false;
+    bool hasSymbol = false;
     bool hasEnumerableProperty = false;
     for (size_t i = 0; i < ps; i++) {
         if (i == pIndex)
             continue;
         hasIndexString = hasIndexString | (*m_properties)[i].m_propertyName.isIndexString();
+        hasSymbol = hasSymbol | (*m_properties)[i].m_propertyName.isSymbol();
         hasEnumerableProperty = hasEnumerableProperty | (*m_properties)[i].m_descriptor.isEnumerable();
         (*newProperties)[newIdx].m_propertyName = (*m_properties)[i].m_propertyName;
         (*newProperties)[newIdx].m_descriptor = (*m_properties)[i].m_descriptor;
         newIdx++;
     }
 
-    ObjectStructure* newStructure = new ObjectStructureWithMap(newProperties, ObjectStructureWithMap::createPropertyNameMap(newProperties), hasIndexString, hasEnumerableProperty);
+    ObjectStructure* newStructure = new ObjectStructureWithMap(newProperties, ObjectStructureWithMap::createPropertyNameMap(newProperties), hasIndexString, hasSymbol, hasEnumerableProperty);
     m_properties = nullptr;
     m_propertyNameMap = nullptr;
     return newStructure;
@@ -390,7 +419,7 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
 ObjectStructure* ObjectStructureWithMap::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
 {
     m_properties->at(idx).m_descriptor = newDesc;
-    ObjectStructure* newStructure = new ObjectStructureWithMap(m_properties, m_propertyNameMap, m_hasIndexPropertyName, m_hasEnumerableProperty);
+    ObjectStructure* newStructure = new ObjectStructureWithMap(m_properties, m_propertyNameMap, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasEnumerableProperty);
     m_properties = nullptr;
     m_propertyNameMap = nullptr;
     return newStructure;

@@ -1116,6 +1116,52 @@ public:
     void addFinalizer(ObjectFinalizer fn, void* data);
     bool removeFinalizer(ObjectFinalizer fn, void* data);
 
+    struct FastLookupSymbolResult {
+        FastLookupSymbolResult()
+            : m_wasSucessful(false)
+            , m_propertyIndexInStructure(0)
+        {
+        }
+
+        FastLookupSymbolResult(bool wasSucessful, Object* o, size_t idx)
+            : m_wasSucessful(wasSucessful)
+            , m_matchedObject(o)
+            , m_propertyIndexInStructure(idx)
+        {
+        }
+
+        bool wasSucessful() const
+        {
+            return m_wasSucessful;
+        }
+
+        Optional<Object*> matchedObject() const
+        {
+            return m_matchedObject;
+        }
+
+        size_t propertyIndexInStructure() const
+        {
+            return m_propertyIndexInStructure;
+        }
+
+        Value value(ExecutionState& state, Object* receiver)
+        {
+            ASSERT(wasSucessful());
+            if (m_matchedObject) {
+                return m_matchedObject->getOwnPropertyUtilForObject(state, m_propertyIndexInStructure, Value(receiver));
+            } else {
+                return Value();
+            }
+        }
+
+    private:
+        bool m_wasSucessful;
+        Optional<Object*> m_matchedObject;
+        size_t m_propertyIndexInStructure;
+    };
+    FastLookupSymbolResult fastLookupForSymbol(ExecutionState& state, Symbol* s, Optional<Object*> protochainSearchStopAt = nullptr);
+
 protected:
     static inline void fillGCDescriptor(GC_word* desc)
     {
