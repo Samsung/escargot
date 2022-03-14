@@ -95,6 +95,7 @@ Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx,
     }
 
     bool hasIndexStringAsPropertyName = false;
+    bool hasSymbol = false;
     bool hasNonAtomicPropertyName = false;
     bool hasEnumerableProperty = false;
     bool isInlineNonCacheable = false;
@@ -108,6 +109,7 @@ Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx,
         } else {
             ASSERT(propertyNameValue.isSymbol());
             propertyName = ObjectStructurePropertyName(propertyNameValue.asSymbol());
+            hasSymbol = true;
         }
 
         if (!hasIndexStringAsPropertyName) {
@@ -135,9 +137,9 @@ Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx,
 
     ObjectStructure* newObjectStructure;
     if (propertyCount > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
-        newObjectStructure = new ObjectStructureWithMap(hasIndexStringAsPropertyName, hasEnumerableProperty, std::move(structureItemVector));
+        newObjectStructure = new ObjectStructureWithMap(hasIndexStringAsPropertyName, hasSymbol, hasEnumerableProperty, std::move(structureItemVector));
     } else {
-        newObjectStructure = new ObjectStructureWithTransition(std::move(structureItemVector), hasIndexStringAsPropertyName, hasNonAtomicPropertyName, hasEnumerableProperty);
+        newObjectStructure = new ObjectStructureWithTransition(std::move(structureItemVector), hasSymbol, hasIndexStringAsPropertyName, hasNonAtomicPropertyName, hasEnumerableProperty);
     }
 
     CachedObjectStructure s;

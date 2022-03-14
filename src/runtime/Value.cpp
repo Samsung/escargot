@@ -231,6 +231,16 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
     const StaticStrings& strings = state.context()->staticStrings();
     Object* input = asObject();
 
+    // fast path
+    auto ret = input->fastLookupForSymbol(state, state.context()->vmInstance()->globalSymbols().toPrimitive);
+    if (ret.wasSucessful() && !ret.matchedObject().hasValue()) {
+        // If hint is "default", let hint be "number".
+        if (preferredType == PreferDefault) {
+            preferredType = PreferNumber;
+        }
+        return ordinaryToPrimitive(state, preferredType);
+    }
+
     // Let exoticToPrim be GetMethod(input, @@toPrimitive).
     Value exoticToPrim = Object::getMethod(state, input, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toPrimitive));
     // If exoticToPrim is not undefined, then
@@ -559,6 +569,14 @@ bool Value::instanceOf(ExecutionState& state, const Value& other) const
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::InstanceOf_NotFunction);
     }
     Object* C = other.asObject();
+
+    // fast path
+    auto globalFunctionPrototype = state.context()->globalObject()->functionPrototype();
+    auto fastPathResult = C->fastLookupForSymbol(state, state.context()->vmInstance()->globalSymbols().hasInstance, globalFunctionPrototype);
+    if (fastPathResult.wasSucessful() && fastPathResult.matchedObject().unwrap() == globalFunctionPrototype) {
+        return C->hasInstance(state, *this);
+    }
+
     // Let instOfHandler be GetMethod(C,@@hasInstance).
     Value instOfHandler = Object::getMethod(state, other, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().hasInstance));
     // If instOfHandler is not undefined, then
