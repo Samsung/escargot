@@ -112,6 +112,11 @@ SandBox::SandBoxResult PromiseResolveThenableJob::run()
 
         SandBox sb(state.context());
         auto res = sb.run([&]() -> Value {
+            if (LIKELY(m_thenable->isPromiseObject() && m_then == state.context()->globalObject()->promiseThen())) {
+                // fast path for then call
+                return m_thenable->asPromiseObject()->then(state, capability.m_resolveFunction, capability.m_rejectFunction);
+            }
+
             Value arguments[] = { capability.m_resolveFunction, capability.m_rejectFunction };
             return Object::call(state, m_then, m_thenable, 2, arguments);
         });

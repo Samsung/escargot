@@ -156,7 +156,7 @@ PromiseObject* ScriptAsyncFunctionObject::awaitOperationBeforePause(ExecutionSta
     FunctionObject* onRejected = new ScriptAsyncFunctionHelperFunctionObject(state, NativeFunctionInfo(AtomicString(), awaitRejectedFunction, 1), executionPauser, source);
 
     // Perform ! PerformPromiseThen(promise, onFulfilled, onRejected).
-    promise->then(state, onFulfilled, onRejected, Optional<PromiseReaction::Capability>());
+    promise->then(state, onFulfilled, onRejected, PromiseReaction::Capability());
 
     return promise;
 }
