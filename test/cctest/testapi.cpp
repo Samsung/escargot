@@ -1996,7 +1996,19 @@ TEST(PromiseRejectCallback, Basic1)
             switch (event) {
             case VMInstanceRef::PromiseRejectEvent::PromiseRejectWithNoHandler: {
                 EXPECT_TRUE(promise->promiseResult() == value);
+                EXPECT_TRUE(value->isInt32() && value->asInt32() == 1);
                 StringRef* prop = StringRef::createFromASCII("promiseRejectWithNoHandler");
+                int count = 1;
+                if (globalObj->has(state, prop)) {
+                    count += globalObj->get(state, prop)->asInt32();
+                }
+                globalObj->set(state, prop, ValueRef::create(count));
+                break;
+            }
+            case VMInstanceRef::PromiseRejectEvent::PromiseHandlerAddedAfterReject: {
+                EXPECT_TRUE(promise->promiseResult() == value);
+                EXPECT_TRUE(value->isInt32() && value->asInt32() == 1);
+                StringRef* prop = StringRef::createFromASCII("promiseHandlerAddedAfterReject");
                 int count = 1;
                 if (globalObj->has(state, prop)) {
                     count += globalObj->get(state, prop)->asInt32();
@@ -2011,14 +2023,18 @@ TEST(PromiseRejectCallback, Basic1)
         return ValueRef::createUndefined();
     });
 
-    auto result = evalScript(g_context.get(), StringRef::createFromASCII("var p = new Promise((resolve, reject) => { reject(1); }); p.then((v) => {});"), StringRef::createFromASCII("testPromiseRejectCallback.js"), false);
+    auto result = evalScript(g_context.get(), StringRef::createFromASCII("var p = new Promise((resolve, reject) => { reject(1); }); p.then((v) => {}, (v) => {});"), StringRef::createFromASCII("testPromiseRejectCallback.js"), false);
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
         ValueRef* noHandler = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("promiseRejectWithNoHandler"));
-        EXPECT_TRUE(noHandler->isInt32() && noHandler->asInt32() == 2);
+        ValueRef* addedAfterHandler = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("promiseHandlerAddedAfterReject"));
+        EXPECT_TRUE(noHandler->isInt32() && noHandler->asInt32() == 1);
+        EXPECT_TRUE(addedAfterHandler->isInt32() && addedAfterHandler->asInt32() == 1);
 
         bool removeNoHandler = g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("promiseRejectWithNoHandler"));
+        bool removeAddedAfterHandler = g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("promiseHandlerAddedAfterReject"));
         EXPECT_TRUE(removeNoHandler);
+        EXPECT_TRUE(removeAddedAfterHandler);
 
         // Unregister PromiseRejectCallback
         g_instance.get()->unregisterPromiseRejectCallback();

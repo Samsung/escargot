@@ -205,6 +205,10 @@ Optional<Object*> PromiseObject::then(ExecutionState& state, Value onFulfilledVa
     case PromiseObject::PromiseState::Rejected: {
         Job* job = new PromiseReactionJob(state.context(), PromiseReaction(onRejected, capability), promiseResult());
         state.context()->vmInstance()->enqueueJob(job);
+
+        if (UNLIKELY(state.context()->vmInstance()->isPromiseRejectCallbackRegistered() && onRejectedValue.isCallable())) {
+            state.context()->vmInstance()->triggerPromiseRejectCallback(state, this, promiseResult(), VMInstance::PromiseRejectEvent::PromiseHandlerAddedAfterReject);
+        }
         break;
     }
     default:
