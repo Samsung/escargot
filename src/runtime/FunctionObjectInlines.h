@@ -91,12 +91,10 @@ public:
     template <typename FunctionObjectType, bool isConstructCall, bool hasNewTargetOnEnvironment, bool canBindThisValueOnEnvironment, typename ThisValueBinder, typename NewTargetBinder, typename ReturnValueBinder>
     static ALWAYS_INLINE Value processCall(ExecutionState& state, FunctionObjectType* self, const Value& thisArgument, const size_t argc, Value* argv, Object* newTarget) // newTarget is null on [[call]]
     {
-        volatile int sp;
-        size_t currentStackBase = (size_t)&sp;
 #ifdef STACK_GROWS_DOWN
-        if (UNLIKELY(state.stackLimit() > currentStackBase)) {
+        if (UNLIKELY(state.stackLimit() > (size_t)currentStackPointer())) {
 #else
-        if (UNLIKELY(state.stackLimit() < currentStackBase)) {
+        if (UNLIKELY(state.stackLimit() < (size_t)currentStackPointer())) {
 #endif
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
         }

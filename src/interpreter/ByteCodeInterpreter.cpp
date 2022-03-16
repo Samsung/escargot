@@ -483,7 +483,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             PointerValue* v;
-            if (LIKELY(willBeObject.isObject() && (v = willBeObject.asPointerValue())->isArrayObject())) {
+            if (LIKELY(willBeObject.isObject() && (v = willBeObject.asPointerValue())->hasArrayObjectTag())) {
                 ArrayObject* arr = (ArrayObject*)v;
                 if (LIKELY(arr->isFastModeArray())) {
                     uint32_t idx = property.tryToUseAsIndexProperty(*state);
@@ -506,7 +506,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             SetObjectOperation* code = (SetObjectOperation*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
-            if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->isArrayObject())) {
+            if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->hasArrayObjectTag())) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
                 uint32_t idx = property.tryToUseAsIndexProperty(*state);
                 if (LIKELY(arr->isFastModeArray())) {

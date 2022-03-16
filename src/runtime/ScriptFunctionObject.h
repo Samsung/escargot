@@ -28,6 +28,7 @@ class ScriptFunctionObject : public FunctionObject {
     friend class Script;
     friend class ByteCodeInterpreter;
     friend class FunctionObjectProcessCallGenerator;
+    friend class Global;
 
 public:
     enum ConstructorKind {
@@ -76,6 +77,14 @@ public:
     }
 
 protected:
+    ScriptFunctionObject()
+        : FunctionObject()
+        , m_outerEnvironment(nullptr)
+    {
+        // dummy default constructor
+        // only called by Global::initialize to set tag value
+    }
+
     ScriptFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment, size_t defaultPropertyCount);
 
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ecmascript-function-objects-call-thisargument-argumentslist
