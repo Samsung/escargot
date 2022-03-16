@@ -113,13 +113,6 @@ class PointerValue : public gc {
     friend class Global;
     friend class ByteCodeInterpreter;
 
-    // tag values for fast type check
-    // these values actually have unique virtual table address of each object class
-    static size_t g_arrayObjectTag;
-    static size_t g_arrayPrototypeObjectTag;
-    static size_t g_objectRareDataTag;
-    static size_t g_doubleInEncodedValueTag;
-
 public:
     virtual ~PointerValue() {}
     // fast type check with tag comparison
@@ -161,6 +154,11 @@ public:
     inline bool isDoubleInEncodedValue() const
     {
         return hasTag(g_doubleInEncodedValueTag);
+    }
+
+    inline bool hasArrayObjectTag() const
+    {
+        return hasTag(g_arrayObjectTag);
     }
 
     // type check by virtual function call
@@ -886,7 +884,7 @@ public:
         return *((size_t*)(this) + 1);
     }
 
-private:
+protected:
     inline bool hasTag(const size_t tag) const
     {
         ASSERT(!!tag);
@@ -898,8 +896,21 @@ private:
         return *((size_t*)(this));
     }
 
+    inline void writeTag(const size_t tag)
+    {
+        *((size_t*)(this)) = tag;
+    }
+
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv);
     virtual Value construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget);
+
+    // tag values for fast type check
+    // these values actually have unique virtual table address of each object class
+    static size_t g_arrayObjectTag;
+    static size_t g_arrayPrototypeObjectTag;
+    static size_t g_scriptFunctionObjectTag;
+    static size_t g_objectRareDataTag;
+    static size_t g_doubleInEncodedValueTag;
 };
 } // namespace Escargot
 

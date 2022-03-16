@@ -30,6 +30,7 @@
 #include "runtime/EnvironmentRecord.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/VMInstance.h"
+#include "runtime/ScriptSimpleFunctionObject.h"
 #include "parser/ScriptParser.h"
 #include "parser/ast/AST.h"
 
@@ -77,6 +78,47 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
     auto& currentCodeSizeTotal = state.context()->vmInstance()->compiledByteCodeSize();
     ASSERT(currentCodeSizeTotal < std::numeric_limits<size_t>::max());
     currentCodeSizeTotal += interpretedCodeBlock()->byteCodeBlock()->memoryAllocatedSize();
+
+
+    if (hasTag(g_scriptFunctionObjectTag)) {
+        auto cb = m_codeBlock->asInterpretedCodeBlock();
+        auto byteCb = cb->byteCodeBlock();
+        size_t registerSize = byteCb->m_requiredRegisterFileSizeInValueSize;
+        size_t identifierOnStackCount = cb->identifierOnStackCount();
+        size_t stackStorageSize = cb->totalStackAllocatedVariableSize();
+        size_t literalStorageSize = byteCb->m_numeralLiteralData.size();
+        size_t registerFileSize = registerSize + stackStorageSize + literalStorageSize;
+
+        bool isStrict = cb->isStrict();
+        bool shouldClearStack = byteCb->m_shouldClearStack;
+
+#define DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH(opt1, opt2)                   \
+    if (registerFileSize <= 4) {                                         \
+        writeTag(ScriptSimpleFunctionObject<opt1, opt2, 4>().getTag());  \
+    } else if (registerFileSize <= 8) {                                  \
+        writeTag(ScriptSimpleFunctionObject<opt1, opt2, 8>().getTag());  \
+    } else if (registerFileSize <= 16) {                                 \
+        writeTag(ScriptSimpleFunctionObject<opt1, opt2, 16>().getTag()); \
+    } else {                                                             \
+        writeTag(ScriptSimpleFunctionObject<opt1, opt2, 24>().getTag()); \
+    }
+
+        if (cb->canAllocateEnvironmentOnStack() && registerFileSize <= 24) {
+            if (isStrict) {
+                if (shouldClearStack) {
+                    DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH(true, true);
+                } else {
+                    DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH(true, false);
+                }
+            } else {
+                if (shouldClearStack) {
+                    DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH(false, true);
+                } else {
+                    DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH(false, false);
+                }
+            }
+        }
+    }
 }
 
 Value ScriptFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)

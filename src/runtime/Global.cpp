@@ -22,6 +22,7 @@
 #include "runtime/Platform.h"
 #include "runtime/PointerValue.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/ScriptFunctionObject.h"
 
 namespace Escargot {
 
@@ -48,6 +49,7 @@ void Global::initialize(Platform* platform)
     // tag values should be initialized once and not changed
     PointerValue::g_arrayObjectTag = ArrayObject().getTag();
     PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject().getTag();
+    PointerValue::g_scriptFunctionObjectTag = ScriptFunctionObject().getTag();
     PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getTag();
     PointerValue::g_doubleInEncodedValueTag = DoubleInEncodedValue(0).getTag();
 
