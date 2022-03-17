@@ -627,9 +627,7 @@ void InterpretedCodeBlock::computeVariables()
             // name of function expression is immutable
             for (size_t i = 0; i < m_identifierInfos.size(); i++) {
                 if (m_identifierInfos[i].m_name == m_functionName && !m_identifierInfos[i].m_isExplicitlyDeclaredOrParameterName) {
-                    if (m_isFunctionExpression) {
-                        m_identifierInfos[i].m_isMutable = false;
-                    }
+                    m_identifierInfos[i].m_isMutable = false;
                     break;
                 }
             }

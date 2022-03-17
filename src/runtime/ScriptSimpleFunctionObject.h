@@ -61,13 +61,11 @@ protected:
 
         ByteCodeBlock* blk = codeBlock->byteCodeBlock();
         Context* ctx = codeBlock->context();
-        const size_t stackStorageSize = codeBlock->totalStackAllocatedVariableSize();
-        const size_t identifierOnStackCount = codeBlock->identifierOnStackCount();
         const size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
-        const size_t literalStorageSize = blk->m_numeralLiteralData.size();
-        Value* literalStorageSrc = blk->m_numeralLiteralData.data();
 
 #if !defined(NDEBUG)
+        const size_t stackStorageSize = codeBlock->totalStackAllocatedVariableSize();
+        const size_t literalStorageSize = blk->m_numeralLiteralData.size();
         ASSERT(codeBlock->isStrict() == isStrict);
         ASSERT(blk->m_requiredRegisterFileSizeInValueSize + stackStorageSize + literalStorageSize <= registerFileSize);
 #endif
@@ -86,21 +84,6 @@ protected:
         Value* registerFile = reinterpret_cast<Value*>(registerFileBuffer);
         Value* stackStorage = registerFile + registerSize;
 
-        {
-            Value* literalStorage = stackStorage + stackStorageSize;
-            for (size_t i = 0; i < literalStorageSize; i++) {
-                literalStorage[i] = literalStorageSrc[i];
-            }
-        }
-
-        // binding function name
-        stackStorage[1] = this;
-
-        // initialize identifiers by undefined value
-        for (size_t i = 2; i < identifierOnStackCount; i++) {
-            stackStorage[i] = Value();
-        }
-
         ExecutionState newState(ctx, &state, &lexEnv, argc, argv, isStrict);
         if (isStrict) {
             stackStorage[0] = thisValue;
@@ -111,6 +94,9 @@ protected:
                 stackStorage[0] = thisValue.toObject(newState);
             }
         }
+
+        // binding function name
+        stackStorage[1] = this;
 
         if (shouldClearStack) {
             const Value returnValue = ByteCodeInterpreter::interpret(&newState, blk, 0, registerFile);
