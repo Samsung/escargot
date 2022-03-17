@@ -111,10 +111,8 @@ public:
         Context* ctx = codeBlock->context();
         bool isStrict = codeBlock->isStrict();
         size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
-        size_t identifierOnStackCount = codeBlock->identifierOnStackCount();
         size_t stackStorageSize = codeBlock->totalStackAllocatedVariableSize();
         size_t literalStorageSize = blk->m_numeralLiteralData.size();
-        Value* literalStorageSrc = blk->m_numeralLiteralData.data();
 
         // prepare env, ec
         FunctionEnvironmentRecord* record;
@@ -144,21 +142,6 @@ public:
 
         Value* stackStorage = registerFile + registerSize;
 
-        {
-            Value* literalStorage = stackStorage + stackStorageSize;
-            for (size_t i = 0; i < literalStorageSize; i++) {
-                literalStorage[i] = literalStorageSrc[i];
-            }
-        }
-
-        // binding function name
-        stackStorage[1] = self;
-
-        // initialize identifiers by undefined value
-        for (size_t i = 2; i < identifierOnStackCount; i++) {
-            stackStorage[i] = Value();
-        }
-
         ThisValueBinder thisValueBinder;
         if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncGeneratorFunctionObject>::value) {
             Value* arguments = CustomAllocator<Value>().allocate(argc);
@@ -171,6 +154,8 @@ public:
             // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycallbindthis
             // NOTE ToObject produces wrapper objects using calleeRealm. <<----
             stackStorage[0] = thisValueBinder(state, *newState, self, thisArgument, isStrict);
+            // binding function name
+            stackStorage[1] = self;
 
             if (isConstructCall) {
                 NewTargetBinder newTargetBinder;
@@ -226,6 +211,8 @@ public:
         // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycallbindthis
         // NOTE ToObject produces wrapper objects using calleeRealm. <<----
         stackStorage[0] = thisValueBinder(state, *newState, self, thisArgument, isStrict);
+        // binding function name
+        stackStorage[1] = self;
 
         if (isConstructCall) {
             NewTargetBinder newTargetBinder;

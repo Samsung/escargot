@@ -40,6 +40,29 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::Function; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+        // init stack-allocated vars
+        if (context->m_codeBlock->canUseIndexedVariableStorage()) {
+            auto varInfo = codeBlock->m_codeBlock->identifierInfos();
+            auto fnName = codeBlock->m_codeBlock->functionName();
+            for (size_t i = 0; i < varInfo.size(); i++) {
+                const auto& var = varInfo[i];
+                if (var.m_name == fnName && !var.m_isExplicitlyDeclaredOrParameterName) {
+                    // this case, init from outside
+                    continue;
+                }
+                if (var.m_needToAllocateOnStack && !var.m_isParameterName) {
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + var.m_indexForIndexedStorage, Value()), context, this);
+                }
+            }
+        }
+
+        // init literal values
+        if (context->m_numeralLiteralData) {
+            for (size_t i = 0; i < context->m_numeralLiteralData->size(); i++) {
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT + i, context->m_numeralLiteralData->data()[i]), context, this);
+            }
+        }
+
         if (codeBlock->m_codeBlock->functionBodyBlockIndex() != 0) {
             size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
 
