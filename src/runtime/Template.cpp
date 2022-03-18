@@ -139,7 +139,7 @@ Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx,
     if (propertyCount > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
         newObjectStructure = new ObjectStructureWithMap(hasIndexStringAsPropertyName, hasSymbol, hasEnumerableProperty, std::move(structureItemVector));
     } else {
-        newObjectStructure = new ObjectStructureWithTransition(std::move(structureItemVector), hasSymbol, hasIndexStringAsPropertyName, hasNonAtomicPropertyName, hasEnumerableProperty);
+        newObjectStructure = new ObjectStructureWithTransition(std::move(structureItemVector), hasIndexStringAsPropertyName, hasSymbol, hasNonAtomicPropertyName, hasEnumerableProperty);
     }
 
     CachedObjectStructure s;

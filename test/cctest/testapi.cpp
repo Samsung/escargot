@@ -1556,6 +1556,22 @@ TEST(FunctionTemplate, Basic4)
     });
 }
 
+TEST(FunctionTemplate, Basic5)
+{
+    FunctionTemplateRef* ft = FunctionTemplateRef::create(AtomicStringRef::emptyAtomicString(), 0, false, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
+        return ValueRef::createUndefined();
+    });
+
+    auto symbol = SymbolRef::create(StringRef::createFromASCII("asdf"));
+    ft->prototypeTemplate()->set(symbol, ValueRef::create(true), true, true, true);
+    auto obj = ft->instanceTemplate()->instantiate(g_context.get());
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj, SymbolRef* symbol) -> ValueRef* {
+        EXPECT_TRUE(obj->has(state, symbol));
+        return ValueRef::createUndefined();
+    },
+                       obj, symbol);
+}
+
 TEST(BackingStore, Basic1)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
