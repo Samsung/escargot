@@ -459,7 +459,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     Value thisValue(context()->globalObjectProxy());
 
     const size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
-    const size_t registerFileSize = byteCodeBlock->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth();
+    const size_t registerFileSize = byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
     Value* registerFile;
     if (LIKELY(!m_topCodeBlock->isAsync())) {
         registerFile = (Value*)ALLOCA(registerFileSize * sizeof(Value), Value, state);
@@ -469,7 +469,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         memset(static_cast<void*>(registerFile), 0, sizeof(Value) * registerFileSize);
     }
     registerFile[0] = Value();
-    Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
+    Value* stackStorage = registerFile + byteCodeBlock->m_requiredGeneralRegisterSizeInValueSize;
     stackStorage[0] = thisValue;
     Value* literalStorage = stackStorage + 1 + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth();
     Value* src = byteCodeBlock->m_numeralLiteralData.data();
@@ -568,9 +568,9 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     size_t stackStorageSize = m_topCodeBlock->totalStackAllocatedVariableSize();
     size_t identifierOnStackCount = m_topCodeBlock->identifierOnStackCount();
     size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
-    Value* registerFile = ALLOCA((byteCodeBlock->m_requiredRegisterFileSizeInValueSize + stackStorageSize + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth()) * sizeof(Value), Value, state);
+    Value* registerFile = ALLOCA((byteCodeBlock->m_requiredRegisterFileSizeInValueSize) * sizeof(Value), Value, state);
     registerFile[0] = Value();
-    Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
+    Value* stackStorage = registerFile + byteCodeBlock->m_requiredGeneralRegisterSizeInValueSize;
     for (size_t i = 0; i < identifierOnStackCount; i++) {
         stackStorage[i] = Value();
     }
@@ -1065,7 +1065,7 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
     newState->setLexicalEnvironment(new LexicalEnvironment(moduleData()->m_moduleRecord, globalLexicalEnv), true);
 
     const size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
-    const size_t registerFileSize = byteCodeBlock->m_requiredRegisterFileSizeInValueSize + 1 + literalStorageSize + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth();
+    const size_t registerFileSize = byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
     Value* registerFile;
     if (LIKELY(!m_topCodeBlock->isAsync())) {
         registerFile = (Value*)ALLOCA(registerFileSize * sizeof(Value), Value, state);
@@ -1076,7 +1076,7 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
     }
 
     registerFile[0] = Value();
-    Value* stackStorage = registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize;
+    Value* stackStorage = registerFile + byteCodeBlock->m_requiredGeneralRegisterSizeInValueSize;
     stackStorage[0] = Value();
     Value* literalStorage = stackStorage + 1 + m_topCodeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth();
     Value* src = byteCodeBlock->m_numeralLiteralData.data();

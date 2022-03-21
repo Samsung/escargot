@@ -161,7 +161,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             Move* code = (Move*)programCounter;
-            ASSERT(code->m_registerIndex1 < (byteCodeBlock->m_requiredRegisterFileSizeInValueSize + byteCodeBlock->m_codeBlock->totalStackAllocatedVariableSize() + 1));
+            ASSERT(code->m_registerIndex1 < (byteCodeBlock->m_requiredGeneralRegisterSizeInValueSize + byteCodeBlock->m_codeBlock->totalStackAllocatedVariableSize() + 1));
             ASSERT(!registerFile[code->m_registerIndex0].isEmpty());
             registerFile[code->m_registerIndex1] = registerFile[code->m_registerIndex0];
             ADD_PROGRAM_COUNTER(Move);
@@ -877,6 +877,15 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             const Value& val = registerFile[code->m_srcIndex];
             registerFile[code->m_dstIndex] = Value(val.toNumber(*state));
             ADD_PROGRAM_COUNTER(ToNumber);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(BindingCalleeIntoRegister)
+            :
+        {
+            BindingCalleeIntoRegister* code = (BindingCalleeIntoRegister*)programCounter;
+            registerFile[byteCodeBlock->m_requiredGeneralRegisterSizeInValueSize + 1] = state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
+            ADD_PROGRAM_COUNTER(BindingCalleeIntoRegister);
             NEXT_INSTRUCTION();
         }
 
@@ -2585,7 +2594,7 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
 
     if (UNLIKELY(isGenerator && isAsync)) {
         proto = functionRealm->globalObject()->asyncGenerator();
-        Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize] : Value(Value::EmptyValue);
+        Value thisValue = cb->isArrowFunctionExpression() ? registerFile[byteCodeBlock->m_requiredGeneralRegisterSizeInValueSize] : Value(Value::EmptyValue);
         Object* homeObject = (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptAsyncGeneratorFunctionObject(state, proto, cb, outerLexicalEnvironment, thisValue, homeObject);
     } else if (UNLIKELY(isGenerator)) {
@@ -2988,7 +2997,7 @@ NEVER_INLINE void ByteCodeInterpreter::complexSetObjectOperation(ExecutionState&
             ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
             thisValue = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(state);
         } else {
-            thisValue = registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize];
+            thisValue = registerFile[byteCodeBlock->m_requiredGeneralRegisterSizeInValueSize];
         }
 
         const Value& object = registerFile[code->m_objectRegisterIndex];
@@ -3025,7 +3034,7 @@ NEVER_INLINE void ByteCodeInterpreter::complexGetObjectOperation(ExecutionState&
             ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
             thisValue = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->getThisBinding(state);
         } else {
-            thisValue = registerFile[byteCodeBlock->m_requiredRegisterFileSizeInValueSize];
+            thisValue = registerFile[byteCodeBlock->m_requiredGeneralRegisterSizeInValueSize];
         }
 
         Value object = registerFile[code->m_objectRegisterIndex];
@@ -3359,7 +3368,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         for (size_t i = 0; i < idInfo.size(); i++) {
             if (idInfo[i].m_name == argumentsAtomicString) {
                 if (idInfo[i].m_needToAllocateOnStack) {
-                    argumentsValue = registerFile[idInfo[i].m_indexForIndexedStorage + byteCodeBlock->m_requiredRegisterFileSizeInValueSize];
+                    argumentsValue = registerFile[idInfo[i].m_indexForIndexedStorage + byteCodeBlock->m_requiredGeneralRegisterSizeInValueSize];
                 } else {
                     argumentsValue = functionRecord->getBindingValue(state, argumentsAtomicString).m_value;
                 }
@@ -4268,6 +4277,6 @@ NEVER_INLINE void ByteCodeInterpreter::ensureArgumentsObjectOperation(ExecutionS
     auto functionRecord = state.mostNearestFunctionLexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
     auto functionObject = functionRecord->functionObject()->asScriptFunctionObject();
     bool isMapped = functionObject->interpretedCodeBlock()->shouldHaveMappedArguments();
-    functionObject->generateArgumentsObject(state, state.argc(), state.argv(), functionRecord, registerFile + byteCodeBlock->m_requiredRegisterFileSizeInValueSize, isMapped);
+    functionObject->generateArgumentsObject(state, state.argc(), state.argv(), functionRecord, registerFile + byteCodeBlock->m_requiredGeneralRegisterSizeInValueSize, isMapped);
 }
 } // namespace Escargot

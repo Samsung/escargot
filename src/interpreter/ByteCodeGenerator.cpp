@@ -231,6 +231,12 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
         block->m_code.shrinkToFit();
     }
 
+    if (ast->type() == ASTNodeType::Program) {
+        block->m_requiredRegisterFileSizeInValueSize = block->m_requiredGeneralRegisterSizeInValueSize + 1 + codeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth() + block->m_numeralLiteralData.size();
+    } else {
+        block->m_requiredRegisterFileSizeInValueSize = block->m_requiredGeneralRegisterSizeInValueSize + codeBlock->totalStackAllocatedVariableSize() + block->m_numeralLiteralData.size();
+    }
+
 #if defined(ENABLE_CODE_CACHE)
     // cache bytecode right before relocation
     if (UNLIKELY(cacheByteCode)) {
@@ -322,7 +328,7 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
     InterpretedCodeBlock* codeBlock = block->codeBlock();
 
     ByteCodeRegisterIndex stackBase = REGULAR_REGISTER_LIMIT;
-    ByteCodeRegisterIndex stackBaseWillBe = block->m_requiredRegisterFileSizeInValueSize;
+    ByteCodeRegisterIndex stackBaseWillBe = block->m_requiredGeneralRegisterSizeInValueSize;
     ByteCodeRegisterIndex stackVariableSize = codeBlock->totalStackAllocatedVariableSize();
 
     char* code = block->m_code.data();
@@ -808,12 +814,12 @@ void ByteCodeGenerator::printByteCode(Context* context, ByteCodeBlock* block)
     if (dumpByteCode && (strcmp(dumpByteCode, "1") == 0)) {
         printf("dumpBytecode %s (%d:%d)>>>>>>>>>>>>>>>>>>>>>>\n", codeBlock->functionName().string()->toUTF8StringData().data(), (int)codeBlock->functionStart().line, (int)codeBlock->functionStart().column);
         printf("register info.. (stack variable total(%d), this + function + var (%d), max lexical depth (%d)) [", (int)codeBlock->totalStackAllocatedVariableSize(), (int)codeBlock->identifierOnStackCount(), (int)codeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth());
-        for (size_t i = 0; i < block->m_requiredRegisterFileSizeInValueSize; i++) {
+        for (size_t i = 0; i < block->m_requiredGeneralRegisterSizeInValueSize; i++) {
             printf("r%d,", (int)i);
         }
 
-        size_t b = block->m_requiredRegisterFileSizeInValueSize + 1;
-        printf("`r%d this`,", (int)block->m_requiredRegisterFileSizeInValueSize);
+        size_t b = block->m_requiredGeneralRegisterSizeInValueSize + 1;
+        printf("`r%d this`,", (int)block->m_requiredGeneralRegisterSizeInValueSize);
         if (!codeBlock->isGlobalCodeBlock()) {
             printf("`r%d function`,", (int)b);
             b++;

@@ -40,6 +40,13 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::Function; }
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+        // binding function name if needs
+        if (context->m_codeBlock->functionName().string()->length()) {
+            if (context->m_codeBlock->isFunctionNameSaveOnHeap() || context->m_codeBlock->isFunctionNameUsedBySelf()) {
+                codeBlock->pushCode(BindingCalleeIntoRegister(ByteCodeLOC(m_loc.index)), context, this);
+            }
+        }
+
         // init stack-allocated vars
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
             auto varInfo = codeBlock->m_codeBlock->identifierInfos();

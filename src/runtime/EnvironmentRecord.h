@@ -838,7 +838,7 @@ public:
 
     ScriptFunctionObject* functionObject()
     {
-        if (m_argumentsObject->isArgumentsObject()) {
+        if (UNLIKELY(m_argumentsObject->isArgumentsObject())) {
             return m_argumentsObject->sourceFunctionObject();
         }
         return m_functionObject;
