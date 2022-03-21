@@ -110,9 +110,8 @@ public:
         ByteCodeBlock* blk = codeBlock->byteCodeBlock();
         Context* ctx = codeBlock->context();
         bool isStrict = codeBlock->isStrict();
-        size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
-        size_t stackStorageSize = codeBlock->totalStackAllocatedVariableSize();
-        size_t literalStorageSize = blk->m_numeralLiteralData.size();
+        size_t registerFileSize = blk->m_requiredRegisterFileSizeInValueSize;
+        size_t generalRegisterSize = blk->m_requiredGeneralRegisterSizeInValueSize;
 
         // prepare env, ec
         FunctionEnvironmentRecord* record;
@@ -135,12 +134,12 @@ public:
         Value* registerFile;
 
         if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncGeneratorFunctionObject>::value) {
-            registerFile = (Value*)CustomAllocator<Value>().allocate(registerSize + stackStorageSize + literalStorageSize);
+            registerFile = (Value*)CustomAllocator<Value>().allocate(registerFileSize);
         } else {
-            registerFile = (Value*)alloca((registerSize + stackStorageSize + literalStorageSize) * sizeof(Value));
+            registerFile = (Value*)alloca((registerFileSize) * sizeof(Value));
         }
 
-        Value* stackStorage = registerFile + registerSize;
+        Value* stackStorage = registerFile + generalRegisterSize;
 
         ThisValueBinder thisValueBinder;
         if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncGeneratorFunctionObject>::value) {
@@ -211,8 +210,6 @@ public:
         // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycallbindthis
         // NOTE ToObject produces wrapper objects using calleeRealm. <<----
         stackStorage[0] = thisValueBinder(state, *newState, self, thisArgument, isStrict);
-        // binding function name
-        stackStorage[1] = self;
 
         if (isConstructCall) {
             NewTargetBinder newTargetBinder;

@@ -221,7 +221,8 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     m_buffer.put(codeBlock->m_functionBodyBlockIndex);
     m_buffer.put(codeBlock->m_lexicalBlockIndexFunctionLocatedIn);
 
-    m_buffer.ensureSize(30 * sizeof(bool));
+    m_buffer.ensureSize(31 * sizeof(bool));
+    m_buffer.put(codeBlock->m_isFunctionNameUsedBySelf);
     m_buffer.put(codeBlock->m_isFunctionNameSaveOnHeap);
     m_buffer.put(codeBlock->m_isFunctionNameExplicitlyDeclared);
     m_buffer.put(codeBlock->m_canUseIndexedVariableStorage);
@@ -294,9 +295,10 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
 
     size_t size = 0;
 
-    m_buffer.ensureSize(2 * sizeof(bool) + sizeof(uint16_t));
+    m_buffer.ensureSize(2 * sizeof(bool) + 2 * sizeof(uint16_t));
     m_buffer.put(block->m_shouldClearStack);
     m_buffer.put(block->m_isOwnerMayFreed);
+    m_buffer.put((uint16_t)block->m_requiredGeneralRegisterSizeInValueSize);
     m_buffer.put((uint16_t)block->m_requiredRegisterFileSizeInValueSize);
 
     // ByteCodeBlock::m_numeralLiteralData
@@ -767,6 +769,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     codeBlock->m_functionBodyBlockIndex = m_buffer.get<LexicalBlockIndex>();
     codeBlock->m_lexicalBlockIndexFunctionLocatedIn = m_buffer.get<LexicalBlockIndex>();
 
+    codeBlock->m_isFunctionNameUsedBySelf = m_buffer.get<bool>();
     codeBlock->m_isFunctionNameSaveOnHeap = m_buffer.get<bool>();
     codeBlock->m_isFunctionNameExplicitlyDeclared = m_buffer.get<bool>();
     codeBlock->m_canUseIndexedVariableStorage = m_buffer.get<bool>();
@@ -839,6 +842,7 @@ ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, InterpretedC
 
     block->m_shouldClearStack = m_buffer.get<bool>();
     block->m_isOwnerMayFreed = m_buffer.get<bool>();
+    block->m_requiredGeneralRegisterSizeInValueSize = m_buffer.get<uint16_t>();
     block->m_requiredRegisterFileSizeInValueSize = m_buffer.get<uint16_t>();
 
     // ByteCodeBlock::m_numeralLiteralData

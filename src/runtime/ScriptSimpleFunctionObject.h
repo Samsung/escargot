@@ -61,13 +61,13 @@ protected:
 
         ByteCodeBlock* blk = codeBlock->byteCodeBlock();
         Context* ctx = codeBlock->context();
-        const size_t registerSize = blk->m_requiredRegisterFileSizeInValueSize;
+        const size_t registerSize = blk->m_requiredGeneralRegisterSizeInValueSize;
 
 #if !defined(NDEBUG)
         const size_t stackStorageSize = codeBlock->totalStackAllocatedVariableSize();
         const size_t literalStorageSize = blk->m_numeralLiteralData.size();
         ASSERT(codeBlock->isStrict() == isStrict);
-        ASSERT(blk->m_requiredRegisterFileSizeInValueSize + stackStorageSize + literalStorageSize <= registerFileSize);
+        ASSERT(blk->m_requiredGeneralRegisterSizeInValueSize + stackStorageSize + literalStorageSize <= registerFileSize);
 #endif
 
         // prepare env, ec
@@ -94,9 +94,6 @@ protected:
                 stackStorage[0] = thisValue.toObject(newState);
             }
         }
-
-        // binding function name
-        stackStorage[1] = this;
 
         if (shouldClearStack) {
             const Value returnValue = ByteCodeInterpreter::interpret(&newState, blk, 0, registerFile);

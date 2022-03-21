@@ -657,6 +657,11 @@ public:
     }
 #endif
 
+    bool isFunctionNameUsedBySelf() const
+    {
+        return m_isFunctionNameUsedBySelf;
+    }
+
     bool isFunctionNameSaveOnHeap() const
     {
         return m_isFunctionNameSaveOnHeap;
@@ -869,6 +874,7 @@ protected:
     LexicalBlockIndex m_functionBodyBlockIndex : 16;
     LexicalBlockIndex m_lexicalBlockIndexFunctionLocatedIn : 16;
 
+    bool m_isFunctionNameUsedBySelf : 1;
     bool m_isFunctionNameSaveOnHeap : 1;
     bool m_isFunctionNameExplicitlyDeclared : 1;
     bool m_canUseIndexedVariableStorage : 1;

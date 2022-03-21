@@ -130,6 +130,7 @@ struct GlobalVariableAccessCacheItem;
     F(ReplaceBlockLexicalEnvironmentOperation, 0, 0)        \
     F(TaggedTemplateOperation, 0, 0)                        \
     F(EnsureArgumentsObject, 0, 0)                          \
+    F(BindingCalleeIntoRegister, 0, 0)                      \
     F(ResolveNameAddress, 1, 0)                             \
     F(StoreByNameWithAddress, 0, 1)                         \
     F(End, 0, 0)
@@ -2702,6 +2703,21 @@ public:
 #endif
 };
 
+class BindingCalleeIntoRegister : public ByteCode {
+public:
+    BindingCalleeIntoRegister(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::BindingCalleeIntoRegisterOpcode, loc)
+    {
+    }
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("binding callee into register");
+    }
+#endif
+};
+
 class ResolveNameAddress : public ByteCode {
 public:
     ResolveNameAddress(const ByteCodeLOC& loc, AtomicString name, ByteCodeRegisterIndex registerIndex)
@@ -2811,10 +2827,10 @@ public:
             first++;
         }
 
-        m_requiredRegisterFileSizeInValueSize = std::max(m_requiredRegisterFileSizeInValueSize, (ByteCodeRegisterIndex)context->m_baseRegisterCount);
+        m_requiredGeneralRegisterSizeInValueSize = std::max(m_requiredGeneralRegisterSizeInValueSize, (ByteCodeRegisterIndex)context->m_baseRegisterCount);
 
         // TODO throw exception
-        RELEASE_ASSERT(m_requiredRegisterFileSizeInValueSize < REGISTER_LIMIT);
+        RELEASE_ASSERT(m_requiredGeneralRegisterSizeInValueSize < REGISTER_LIMIT);
 
         if (std::is_same<CodeType, ExecutionPause>::value) {
             pushPauseStatementExtraData(context);
@@ -2880,6 +2896,9 @@ public:
 
     bool m_shouldClearStack : 1;
     bool m_isOwnerMayFreed : 1;
+    // register size for bytecode operation like adding...moving...
+    ByteCodeRegisterIndex m_requiredGeneralRegisterSizeInValueSize : REGISTER_INDEX_IN_BIT;
+    // precomputed value of "m_requiredRegisterFileSizeInValueSize + stack allocated variables size"
     ByteCodeRegisterIndex m_requiredRegisterFileSizeInValueSize : REGISTER_INDEX_IN_BIT;
     size_t m_inlineCacheDataSize;
 

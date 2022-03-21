@@ -209,6 +209,10 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                         c = c->parent();
                     }
                 }
+
+                if (uname == codeBlock->functionName()) {
+                    codeBlock->m_isFunctionNameUsedBySelf = true;
+                }
             }
         }
     }
