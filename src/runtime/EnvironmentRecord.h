@@ -309,6 +309,7 @@ private:
 class GlobalEnvironmentRecord : public EnvironmentRecord {
 #ifdef ESCARGOT_DEBUGGER
     friend class DebuggerRemote;
+    friend class DebuggerAPI;
 #endif /* ESCARGOT_DEBUGGER */
 public:
     GlobalEnvironmentRecord(ExecutionState& state, InterpretedCodeBlock* codeBlock, GlobalObject* global, IdentifierRecordVector* globalDeclarativeRecord, EncodedValueVector* globalDeclarativeStorage);
@@ -576,6 +577,7 @@ private:
 class DeclarativeEnvironmentRecordNotIndexed : public DeclarativeEnvironmentRecord {
 #ifdef ESCARGOT_DEBUGGER
     friend class DebuggerRemote;
+    friend class DebuggerAPI;
 #endif /* ESCARGOT_DEBUGGER */
 public:
     DeclarativeEnvironmentRecordNotIndexed(ExecutionState& state, bool isVarDeclarationTarget = false, bool isCatchClause = false)
@@ -1195,6 +1197,7 @@ public:
 class ModuleEnvironmentRecord : public DeclarativeEnvironmentRecord {
 #ifdef ESCARGOT_DEBUGGER
     friend class DebuggerRemote;
+    friend class DebuggerAPI;
 #endif /* ESCARGOT_DEBUGGER */
 public:
     struct ModuleBindingRecord {

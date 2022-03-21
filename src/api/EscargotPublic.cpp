@@ -1297,6 +1297,164 @@ void DebuggerOperationsRef::BreakpointOperations::getLexicalScopeChain(uint32_t 
     }
 }
 
+static void fillObjectProperties(ExecutionState* state, Object* object, Object::OwnPropertyKeyVector& keys, DebuggerOperationsRef::PropertyKeyValueVector& result, size_t start)
+{
+    size_t size = keys.size();
+
+    ASSERT(result.size() >= start + size);
+
+    for (size_t i = 0; i < size; i++) {
+        ObjectPropertyName propertyName(*state, keys[i]);
+
+        result[start + i].key = toRef(keys[i].toStringWithoutException(*state));
+
+        try {
+            ObjectGetResult value = object->getOwnProperty(*state, propertyName);
+
+            result[start + i].value = toRef(value.value(*state, Value(object)));
+        } catch (const Value& val) {
+            // The value field is optional, and not filled on error.
+        }
+    }
+}
+
+static void fillRecordProperties(ExecutionState* state, EnvironmentRecord* record, IdentifierRecordVector* identifiers, DebuggerOperationsRef::PropertyKeyValueVector& result)
+{
+    size_t size = identifiers->size();
+
+    ASSERT(result.size() >= size);
+
+    for (size_t i = 0; i < size; i++) {
+        AtomicString name = (*identifiers)[i].m_name;
+
+        result[i].key = toRef(name.string());
+
+        try {
+            EnvironmentRecord::GetBindingValueResult value = record->getBindingValue(*state, name);
+            ASSERT(value.m_hasBindingValue);
+
+            result[i].value = toRef(value.m_value);
+        } catch (const Value& val) {
+            // The value field is optional, and not filled on error.
+        }
+    }
+}
+
+static void fillRecordProperties(ExecutionState* state, ModuleEnvironmentRecord* record, const ModuleEnvironmentRecord::ModuleBindingRecordVector& bindings, DebuggerOperationsRef::PropertyKeyValueVector& result)
+{
+    size_t size = bindings.size();
+
+    ASSERT(result.size() >= size);
+
+    for (size_t i = 0; i < size; i++) {
+        AtomicString name = bindings[i].m_localName;
+
+        result[i].key = toRef(name.string());
+
+        try {
+            EnvironmentRecord::GetBindingValueResult value = record->getBindingValue(*state, name);
+            ASSERT(value.m_hasBindingValue);
+
+            result[i].value = toRef(value.m_value);
+        } catch (const Value& val) {
+            // The value field is optional, and not filled on error.
+        }
+    }
+}
+
+class DebuggerAPI {
+public:
+    static IdentifierRecordVector* globalDeclarativeRecord(GlobalEnvironmentRecord* global)
+    {
+        return global->m_globalDeclarativeRecord;
+    }
+
+    static const ModuleEnvironmentRecord::ModuleBindingRecordVector& moduleBindings(ModuleEnvironmentRecord* moduleRecord)
+    {
+        return moduleRecord->m_moduleBindings;
+    }
+
+    static IdentifierRecordVector* declarativeEnvironmentRecordVector(DeclarativeEnvironmentRecord* declarativeRecord)
+    {
+        return &declarativeRecord->asDeclarativeEnvironmentRecordNotIndexed()->m_recordVector;
+    }
+};
+
+DebuggerOperationsRef::PropertyKeyValueVector DebuggerOperationsRef::BreakpointOperations::getLexicalScopeChainProperties(uint32_t stateIndex, uint32_t scopeIndex)
+{
+    ExecutionState* state = toImpl(m_executionState);
+
+    while (stateIndex > 0) {
+        state = state->parent();
+        stateIndex--;
+
+        if (!state) {
+            return PropertyKeyValueVector();
+        }
+    }
+
+    LexicalEnvironment* lexEnv = state->lexicalEnvironment();
+
+    while (lexEnv && scopeIndex > 0) {
+        lexEnv = lexEnv->outerEnvironment();
+        scopeIndex--;
+    }
+
+    if (!lexEnv) {
+        return PropertyKeyValueVector();
+    }
+
+    EnvironmentRecord* record = lexEnv->record();
+    if (record->isGlobalEnvironmentRecord()) {
+        GlobalEnvironmentRecord* global = record->asGlobalEnvironmentRecord();
+        Object* globalObject = global->globalObject();
+
+        Object::OwnPropertyKeyVector keys = globalObject->ownPropertyKeys(*state);
+        IdentifierRecordVector* identifiers = DebuggerAPI::globalDeclarativeRecord(global);
+
+        PropertyKeyValueVector result(identifiers->size() + keys.size());
+
+        fillRecordProperties(state, global, identifiers, result);
+        fillObjectProperties(state, globalObject, keys, result, identifiers->size());
+        return result;
+    } else if (record->isDeclarativeEnvironmentRecord()) {
+        DeclarativeEnvironmentRecord* declarativeRecord = record->asDeclarativeEnvironmentRecord();
+        if (declarativeRecord->isFunctionEnvironmentRecord()) {
+            IdentifierRecordVector* identifiers = declarativeRecord->asFunctionEnvironmentRecord()->getRecordVector();
+
+            if (identifiers != NULL) {
+                PropertyKeyValueVector result(identifiers->size());
+
+                fillRecordProperties(state, record, identifiers, result);
+                return result;
+            }
+        } else if (record->isModuleEnvironmentRecord()) {
+            ModuleEnvironmentRecord* moduleRecord = record->asModuleEnvironmentRecord();
+
+            const ModuleEnvironmentRecord::ModuleBindingRecordVector& bindings = DebuggerAPI::moduleBindings(moduleRecord);
+            PropertyKeyValueVector result(bindings.size());
+
+            fillRecordProperties(state, moduleRecord, bindings, result);
+            return result;
+        } else if (declarativeRecord->isDeclarativeEnvironmentRecordNotIndexed()) {
+            IdentifierRecordVector* identifiers = DebuggerAPI::declarativeEnvironmentRecordVector(declarativeRecord);
+            PropertyKeyValueVector result(identifiers->size());
+
+            fillRecordProperties(state, record, identifiers, result);
+            return result;
+        }
+    } else if (record->isObjectEnvironmentRecord()) {
+        Object* bindingObject = record->asObjectEnvironmentRecord()->bindingObject();
+        Object::OwnPropertyKeyVector keys = bindingObject->ownPropertyKeys(*state);
+        PropertyKeyValueVector result(keys.size());
+
+        fillObjectProperties(state, bindingObject, keys, result, 0);
+        return result;
+    }
+
+    return PropertyKeyValueVector();
+}
+
 StringRef* DebuggerOperationsRef::getFunctionName(WeakCodeRef* weakCodeRef)
 {
     ByteCodeBlock* byteCode = reinterpret_cast<ByteCodeBlock*>(weakCodeRef);

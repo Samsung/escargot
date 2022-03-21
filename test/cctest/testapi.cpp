@@ -2319,11 +2319,13 @@ static int debuggerParseCompletedCount = 0;
 static int debuggerParseErrorCount = 0;
 static char debuggerFileNameString[] = "test.js";
 static char debuggerSourceString1[] = "var a = 1\n"
-                                      "function func() {\n"
+                                      "function func(arg) {\n"
+                                      "   let x = 4, y = 'str'\n"
                                       "   a = 2\n"
                                       "   a = 3\n"
+                                      "   const z = 6\n"
                                       "}\n"
-                                      "func()\n"
+                                      "func(null)\n"
                                       "a = 4\n";
 static char debuggerSourceString2[] = "var a = ;";
 
@@ -2340,21 +2342,23 @@ void DebuggerTest::parseCompleted(StringRef* source, StringRef* srcName, std::ve
     EXPECT_TRUE(DebuggerOperationsRef::getFunctionName(breakpointLocationsVector[0]->weakCodeRef)->equalsWithASCIIString("", 0));
     EXPECT_EQ(breakpointLocationsVector[0]->breakpointLocations.size(), 3);
     EXPECT_EQ(breakpointLocationsVector[0]->breakpointLocations[0].line, 1);
-    EXPECT_EQ(breakpointLocationsVector[0]->breakpointLocations[1].line, 6);
-    EXPECT_EQ(breakpointLocationsVector[0]->breakpointLocations[2].line, 7);
+    EXPECT_EQ(breakpointLocationsVector[0]->breakpointLocations[1].line, 8);
+    EXPECT_EQ(breakpointLocationsVector[0]->breakpointLocations[2].line, 9);
 
     EXPECT_TRUE(DebuggerOperationsRef::getFunctionName(breakpointLocationsVector[1]->weakCodeRef)->equalsWithASCIIString("func", 4));
-    EXPECT_EQ(breakpointLocationsVector[1]->breakpointLocations.size(), 3);
+    EXPECT_EQ(breakpointLocationsVector[1]->breakpointLocations.size(), 5);
     EXPECT_EQ(breakpointLocationsVector[1]->breakpointLocations[0].line, 3);
     EXPECT_EQ(breakpointLocationsVector[1]->breakpointLocations[1].line, 4);
     EXPECT_EQ(breakpointLocationsVector[1]->breakpointLocations[2].line, 5);
+    EXPECT_EQ(breakpointLocationsVector[1]->breakpointLocations[3].line, 6);
+    EXPECT_EQ(breakpointLocationsVector[1]->breakpointLocations[4].line, 7);
 
     codeRefs[0] = breakpointLocationsVector[0]->weakCodeRef;
     codeRefs[1] = breakpointLocationsVector[1]->weakCodeRef;
     offsets[0] = breakpointLocationsVector[0]->breakpointLocations[0].offset;
     offsets[1] = breakpointLocationsVector[0]->breakpointLocations[1].offset;
     offsets[2] = breakpointLocationsVector[1]->breakpointLocations[0].offset;
-    offsets[3] = breakpointLocationsVector[1]->breakpointLocations[1].offset;
+    offsets[3] = breakpointLocationsVector[1]->breakpointLocations[2].offset;
     offsets[4] = breakpointLocationsVector[0]->breakpointLocations[2].offset;
 
     EXPECT_FALSE(DebuggerOperationsRef::updateBreakpoint(codeRefs[0], offsets[0], false));
@@ -2401,7 +2405,7 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
 
         EXPECT_EQ(stackTrace.size(), 1);
         EXPECT_EQ(stackTrace[0].weakCodeRef, codeRefs[0]);
-        EXPECT_EQ(stackTrace[0].line, 6);
+        EXPECT_EQ(stackTrace[0].line, 8);
         EXPECT_EQ(stackTrace[0].column, 1);
         EXPECT_EQ(stackTrace[0].depth, 0);
 
@@ -2418,10 +2422,10 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
         EXPECT_FALSE(is_error);
         EXPECT_TRUE(result->equalsWithASCIIString("1", 1));
 
-        sourceCode = StringRef::createFromUTF8("b", 1);
+        sourceCode = StringRef::createFromUTF8("aa", 2);
         result = operations.eval(sourceCode, is_error);
         EXPECT_TRUE(is_error);
-        static char errorMessage[] = "ReferenceError: b is not defined";
+        static char errorMessage[] = "ReferenceError: aa is not defined";
         EXPECT_TRUE(result->equalsWithASCIIString(errorMessage, sizeof(errorMessage) - 1));
         inEval = false;
 
@@ -2438,23 +2442,13 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
 
         EXPECT_EQ(stackTrace[0].weakCodeRef, codeRefs[1]);
         EXPECT_EQ(stackTrace[0].line, 3);
-        EXPECT_EQ(stackTrace[0].column, 4);
+        EXPECT_EQ(stackTrace[0].column, 8);
         EXPECT_EQ(stackTrace[0].depth, 0);
 
         EXPECT_EQ(stackTrace[1].weakCodeRef, codeRefs[0]);
-        EXPECT_EQ(stackTrace[1].line, 6);
+        EXPECT_EQ(stackTrace[1].line, 8);
         EXPECT_EQ(stackTrace[1].column, 1);
-        EXPECT_EQ(stackTrace[1].depth, 1);
-
-        DebuggerOperationsRef::LexicalScopeChainVector scopeChain;
-        operations.getLexicalScopeChain(0, scopeChain);
-
-        EXPECT_EQ(scopeChain.size(), 2);
-        EXPECT_EQ(scopeChain[0], DebuggerOperationsRef::FUNCTION_ENVIRONMENT);
-        EXPECT_EQ(scopeChain[1], DebuggerOperationsRef::GLOBAL_ENVIRONMENT);
-
-        operations.getLexicalScopeChain(1, scopeChain);
-        EXPECT_EQ(scopeChain[0], DebuggerOperationsRef::GLOBAL_ENVIRONMENT);
+        EXPECT_EQ(stackTrace[1].depth, 2);
 
         return DebuggerOperationsRef::Continue;
     }
@@ -2468,6 +2462,36 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
         StringRef* result = operations.eval(sourceCode, is_error);
         EXPECT_TRUE(result->equalsWithASCIIString("2", 1));
         inEval = false;
+
+        DebuggerOperationsRef::LexicalScopeChainVector scopeChain;
+        operations.getLexicalScopeChain(0, scopeChain);
+
+        EXPECT_EQ(scopeChain.size(), 3);
+        EXPECT_EQ(scopeChain[0], DebuggerOperationsRef::DECLARATIVE_ENVIRONMENT);
+        EXPECT_EQ(scopeChain[1], DebuggerOperationsRef::FUNCTION_ENVIRONMENT);
+        EXPECT_EQ(scopeChain[2], DebuggerOperationsRef::GLOBAL_ENVIRONMENT);
+
+        operations.getLexicalScopeChain(2, scopeChain);
+        EXPECT_EQ(scopeChain[0], DebuggerOperationsRef::GLOBAL_ENVIRONMENT);
+
+        DebuggerOperationsRef::PropertyKeyValueVector properties = operations.getLexicalScopeChainProperties(0, 0);
+        EXPECT_EQ(properties.size(), 3);
+        EXPECT_TRUE(properties[0].key->equalsWithASCIIString("x", 1));
+        EXPECT_TRUE(properties[0].value.hasValue());
+        EXPECT_TRUE(properties[0].value->isNumber());
+        EXPECT_TRUE(properties[0].value->asNumber() == 4);
+        EXPECT_TRUE(properties[1].key->equalsWithASCIIString("y", 1));
+        EXPECT_TRUE(properties[1].value.hasValue());
+        EXPECT_TRUE(properties[1].value->isString());
+        EXPECT_TRUE(properties[1].value->asString()->equalsWithASCIIString("str", 3));
+        EXPECT_TRUE(properties[2].key->equalsWithASCIIString("z", 1));
+        EXPECT_FALSE(properties[2].value.hasValue());
+
+        properties = operations.getLexicalScopeChainProperties(0, 1);
+        EXPECT_EQ(properties.size(), 1);
+        EXPECT_TRUE(properties[0].key->equalsWithASCIIString("arg", 3));
+        EXPECT_TRUE(properties[0].value.hasValue());
+        EXPECT_TRUE(properties[0].value->isNull());
 
         return DebuggerOperationsRef::Finish;
     }
