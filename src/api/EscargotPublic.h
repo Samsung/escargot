@@ -748,6 +748,25 @@ public:
 
     typedef std::vector<ScopeType> LexicalScopeChainVector;
 
+    struct PropertyKeyValue {
+        PropertyKeyValue()
+            : key(nullptr)
+            , value()
+        {
+        }
+
+        PropertyKeyValue(StringRef* key, OptionalRef<ValueRef> value)
+            : key(key)
+            , value(value)
+        {
+        }
+
+        StringRef* key;
+        OptionalRef<ValueRef> value;
+    };
+
+    typedef GCManagedVector<PropertyKeyValue> PropertyKeyValueVector;
+
     class ESCARGOT_EXPORT BreakpointOperations {
         friend class DebuggerC;
 
@@ -770,6 +789,7 @@ public:
         StringRef* eval(StringRef* sourceCode, bool& isError);
         void getStackTrace(DebuggerStackTraceDataVector& outStackTrace);
         void getLexicalScopeChain(uint32_t stateIndex, LexicalScopeChainVector& outLexicalScopeChain);
+        PropertyKeyValueVector getLexicalScopeChainProperties(uint32_t stateIndex, uint32_t scopeIndex);
 
     private:
         BreakpointOperations(WeakCodeRef* weakCodeRef, ExecutionStateRef* executionState, uint32_t offset)
