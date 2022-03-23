@@ -318,11 +318,13 @@ public:
     }
 
     bool initDebuggerRemote(const char* options);
-    void enableDebugger(Debugger* debugger);
-    void disableDebugger();
+    void initDebugger(Debugger* debugger);
+    void removeDebugger();
+    bool debuggerEnabled() const;
     void printDebugger(StringView* output);
     void pumpDebuggerEvents();
     void setAsAlwaysStopState();
+    bool inDebuggingCodeMode() const;
     String* getClientSource(String** sourceName);
 #endif /* ESCARGOT_DEBUGGER */
 

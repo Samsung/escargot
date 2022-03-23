@@ -135,7 +135,7 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
     uint32_t executionStateDepthIndex = 0;
     ExecutionState* activeSavedStackTraceExecutionState = nullptr;
 
-    if (stopAtPause && state.context()->debugger() != nullptr) {
+    if (stopAtPause && state.context()->debuggerEnabled()) {
         activeSavedStackTraceExecutionState = state.context()->debugger()->activeSavedStackTraceExecutionState();
     }
 #endif /* ESCARGOT_DEBUGGER */

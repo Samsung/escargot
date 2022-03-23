@@ -311,7 +311,8 @@ void DebuggerTcp::init(const char* options, Context* context)
     if (options) {
         auto v = split(options, ';');
         const char portOption[] = "--port=";
-        const char accpetTimeoutOption[] = "--accept-timeout=";
+        const char acceptTimeoutOption[] = "--accept-timeout=";
+        const char skipOption[] = "--skip=";
         for (size_t i = 0; i < v.size(); i++) {
             const std::string& s = v[i];
             if (s.find(portOption) == 0) {
@@ -319,8 +320,12 @@ void DebuggerTcp::init(const char* options, Context* context)
                 if (i > 0 && i <= 65535) {
                     port = i;
                 }
-            } else if (s.find(accpetTimeoutOption) == 0) {
-                timeout = std::atoi(s.data() + sizeof(accpetTimeoutOption) - 1);
+            } else if (s.find(acceptTimeoutOption) == 0) {
+                timeout = std::atoi(s.data() + sizeof(acceptTimeoutOption) - 1);
+            } else if (s.find(skipOption) == 0) {
+                const char* skipStr = const_cast<const char*>(s.data() + sizeof(skipOption) - 1);
+                size_t skipLen = strlen(skipStr);
+                m_skipSourceName = String::fromASCII(skipStr, skipLen);
             }
         }
     }
@@ -416,9 +421,19 @@ void DebuggerTcp::init(const char* options, Context* context)
     m_receiveBufferFill = 0;
     m_messageLength = 0;
 
-    enableDebugger(context);
+    enable(context);
 
     return DebuggerRemote::init(nullptr, context);
+}
+
+bool DebuggerTcp::skipSourceCode(String* srcName) const
+{
+    ASSERT(!!srcName);
+    if (!m_skipSourceName || m_skipSourceName->length() == 0 || srcName->length() == 0) {
+        return false;
+    }
+
+    return srcName->contains(m_skipSourceName);
 }
 
 #define ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT 0x80
@@ -552,7 +567,7 @@ void DebuggerTcp::close(void)
 {
     if (enabled()) {
         tcpCloseSocket(m_socket);
-        disableDebugger();
+        disable();
     }
 }
 } // namespace Escargot

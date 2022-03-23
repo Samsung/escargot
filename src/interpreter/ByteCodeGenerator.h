@@ -55,17 +55,9 @@ struct ByteCodeBreakpointContext {
     size_t m_lastBreakpointLineOffset; // cache breakpoint's calculated line offset
     size_t m_lastBreakpointIndexOffset; // cache breakpoint's calculated index offset
     Debugger::BreakpointLocationsInfo* m_breakpointLocations;
+    bool m_parsingEnabled;
 
-    ByteCodeBreakpointContext(Debugger* debugger, InterpretedCodeBlock* codeBlock)
-        : m_lastBreakpointLineOffset(0)
-        , m_lastBreakpointIndexOffset(0)
-        , m_breakpointLocations()
-    {
-        m_breakpointLocations = new Debugger::BreakpointLocationsInfo(reinterpret_cast<Debugger::WeakCodeRef*>(codeBlock));
-        if (debugger != nullptr && debugger->parsingEnabled()) {
-            debugger->appendBreakpointLocations(m_breakpointLocations);
-        }
-    }
+    ByteCodeBreakpointContext(Debugger* debugger, InterpretedCodeBlock* codeBlock);
 };
 #endif /* ESCARGOT_DEBUGGER */
 

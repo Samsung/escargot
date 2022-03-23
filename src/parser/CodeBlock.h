@@ -297,10 +297,6 @@ public:
 
     typedef TightVector<IdentifierInfo, GCUtil::gc_malloc_atomic_allocator<IdentifierInfo>> IdentifierInfoVector;
 
-    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
-    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
-    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, bool needRareData = false);
-
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
@@ -654,6 +650,13 @@ public:
         m_hasDynamicSourceCode = true;
     }
 
+#ifdef ESCARGOT_DEBUGGER
+    bool markDebugging() const
+    {
+        return m_markDebugging;
+    }
+#endif
+
     bool isFunctionNameSaveOnHeap() const
     {
         return m_isFunctionNameSaveOnHeap;
@@ -899,6 +902,10 @@ protected:
     bool m_allowArguments : 1;
     // represent if its source code is created dynamically by createFunctionScript
     bool m_hasDynamicSourceCode : 1;
+#ifdef ESCARGOT_DEBUGGER
+    // mark that this InterpretedCodeBlock should generate debugging bytecode (breakpoint)
+    bool m_markDebugging : 1;
+#endif
 
 #ifndef NDEBUG
     ASTScopeContext* m_scopeContext;
@@ -910,6 +917,10 @@ protected:
     InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
     // empty CodeBlock (for CodeCache loading)
     InterpretedCodeBlock(Context* ctx, Script* script);
+
+    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
+    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
+    static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, bool needRareData = false);
 
     void recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     void recordFunctionParsingInfo(ASTScopeContext* scopeCtxm, bool isEvalCode, bool isEvalCodeInFunction);

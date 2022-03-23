@@ -404,7 +404,7 @@ public:
         return true;
     }
 
-    size_t find(String* str, size_t pos = 0);
+    size_t find(String* str, size_t pos = 0) const;
     size_t find(const char* str, size_t len, size_t pos = 0) const;
 
     template <size_t N>
@@ -416,6 +416,11 @@ public:
 
     template <size_t N>
     bool contains(const char (&str)[N]) const
+    {
+        return find(str) != SIZE_MAX;
+    }
+
+    bool contains(String* str) const
     {
         return find(str) != SIZE_MAX;
     }

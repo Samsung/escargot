@@ -31,18 +31,17 @@
 #ifdef ESCARGOT_DEBUGGER
 namespace Escargot {
 
-void Debugger::enableDebugger(Context* context)
+void Debugger::enable(Context* context)
 {
     ASSERT(m_context == nullptr);
     m_context = context;
-    m_parsingEnabled = true;
-    m_context->enableDebugger(this);
+    m_context->initDebugger(this);
 }
 
-void Debugger::disableDebugger()
+void Debugger::disable()
 {
     ASSERT(m_context != nullptr);
-    m_context->disableDebugger();
+    m_context->removeDebugger();
     m_context = nullptr;
 }
 

@@ -215,6 +215,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_allowSuperProperty(false)
     , m_allowArguments(false)
     , m_hasDynamicSourceCode(false)
+#ifdef ESCARGOT_DEBUGGER
+    , m_markDebugging(ctx->inDebuggingCodeMode())
+#endif
 #ifndef NDEBUG
     , m_scopeContext(scopeCtx)
 #endif
@@ -272,6 +275,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_allowSuperProperty(false)
     , m_allowArguments(false)
     , m_hasDynamicSourceCode(false)
+#ifdef ESCARGOT_DEBUGGER
+    , m_markDebugging(ctx->inDebuggingCodeMode())
+#endif
 #ifndef NDEBUG
     , m_scopeContext(scopeCtx)
 #endif
@@ -329,6 +335,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
     , m_allowSuperProperty(false)
     , m_allowArguments(false)
     , m_hasDynamicSourceCode(false)
+#ifdef ESCARGOT_DEBUGGER
+    , m_markDebugging(ctx->inDebuggingCodeMode())
+#endif
 #ifndef NDEBUG
     , m_scopeContext(nullptr)
 #endif

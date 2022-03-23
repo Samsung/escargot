@@ -39,10 +39,13 @@ public:
         , m_receiveBuffer{}
         , m_receiveBufferFill(0)
         , m_messageLength(0)
+        , m_skipSourceName(nullptr)
     {
     }
 
     virtual void init(const char* options, Context* context) override;
+
+    virtual bool skipSourceCode(String* srcName) const override;
 
     static void computeSha1(const uint8_t* source1, size_t source1Length,
                             const uint8_t* source2, size_t source2Length,
@@ -61,6 +64,9 @@ private:
     uint8_t m_receiveBuffer[2 + sizeof(uint32_t) + ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH];
     uint8_t m_receiveBufferFill;
     uint8_t m_messageLength;
+
+    // skip generating debugging bytecode for source code whose name contains m_skipSourceName
+    String* m_skipSourceName;
 };
 } // namespace Escargot
 #endif /* ESCARGOT_DEBUGGER */

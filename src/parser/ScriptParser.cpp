@@ -418,7 +418,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* sour
 {
     ASSERT(m_context->astAllocator().isInitialized());
 #ifdef ESCARGOT_DEBUGGER
-    if (LIKELY(needByteCodeGeneration) && m_context->debugger() != nullptr) {
+    if (LIKELY(needByteCodeGeneration) && m_context->debuggerEnabled() && !m_context->debugger()->skipSourceCode(srcName)) {
         return initializeScriptWithDebugger(source, srcName, parentCodeBlock, isModule, isEvalMode, isEvalCodeInFunction, inWithOperation, strictFromOutside, allowSuperCall, allowSuperProperty, allowNewTarget);
     }
 #endif /* ESCARGOT_DEBUGGER */
@@ -504,9 +504,9 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
 {
 #ifdef ESCARGOT_DEBUGGER
     // When the debugger is enabled, lazy compilation is disabled, so the functions are compiled
-    // during parsing, and this function is never called. However, implicit class constructors
-    // has no source code, and still compiled later. These functions are ignored by the debugger.
-    ASSERT(m_context->debugger() == nullptr || !m_context->debugger()->parsingEnabled());
+    // during parsing, and this function is never called. However, implicit class constructors and dynamically generated functions
+    // are still compiled later. These functions are ignored by the debugger.
+    ASSERT(!m_context->debuggerEnabled() || !m_context->inDebuggingCodeMode());
 #endif /* ESCARGOT_DEBUGGER */
 
     GC_disable();
@@ -564,8 +564,8 @@ void ScriptParser::recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* par
 ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
 {
     GC_disable();
-    if (m_context->debugger() != nullptr) {
-        m_context->debugger()->setParsingEnabled(true);
+    if (m_context->debuggerEnabled()) {
+        m_context->debugger()->setInDebuggingCodeMode(true);
     }
 
     bool inWith = (parentCodeBlock ? parentCodeBlock->inWith() : false) || inWithOperation;
@@ -604,10 +604,10 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         // reset ASTAllocator
         m_context->astAllocator().reset();
 
-        if (m_context->debugger() != nullptr) {
+        if (m_context->debuggerEnabled()) {
             m_context->debugger()->parseCompleted(source, srcName, orgError->message);
             m_context->debugger()->clearParsingData();
-            m_context->debugger()->setParsingEnabled(false);
+            m_context->debugger()->setInDebuggingCodeMode(false);
         }
 
         GC_enable();
@@ -642,7 +642,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
 
         debugger->parseCompleted(source, srcName);
         debugger->clearParsingData();
-        debugger->setParsingEnabled(false);
+        debugger->setInDebuggingCodeMode(false);
     }
 
     GC_enable();

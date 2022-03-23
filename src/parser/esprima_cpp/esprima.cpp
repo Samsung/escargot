@@ -312,7 +312,7 @@ public:
         this->currentScopeContext = ctx;
         this->lastUsingName = AtomicString();
 #ifdef ESCARGOT_DEBUGGER
-        if (this->escargotContext->debugger() != nullptr) {
+        if (this->escargotContext->debuggerEnabled()) {
             ctx->m_hasEval = true;
         }
 #endif /* ESCARGOT_DEBUGGER */
