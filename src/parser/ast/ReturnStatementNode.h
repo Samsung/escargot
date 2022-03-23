@@ -36,7 +36,7 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
 #ifdef ESCARGOT_DEBUGGER
-        {
+        if (codeBlock->codeBlock()->markDebugging()) {
             InterpretedCodeBlock* interpretedCodeBlock = context->m_codeBlock;
             if (interpretedCodeBlock->hasRareData() && interpretedCodeBlock->rareData()->m_debuggerLineStart != SIZE_MAX) {
                 ASSERT(interpretedCodeBlock->isOneExpressionOnlyVirtualArrowFunctionExpression());

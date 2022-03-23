@@ -187,7 +187,7 @@ Optional<Object*> PromiseObject::then(ExecutionState& state, Value onFulfilledVa
     PromiseReaction::Capability capability = resultCapability.hasValue() ? resultCapability.value() : PromiseReaction::Capability(nullptr, nullptr, nullptr);
 
 #ifdef ESCARGOT_DEBUGGER
-    if (state.context()->debugger() != nullptr) {
+    if (state.context()->debuggerEnabled()) {
         capability.m_savedStackTrace = Debugger::saveStackTrace(state);
     }
 #endif /* ESCARGOT_DEBUGGER */

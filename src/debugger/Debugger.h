@@ -91,14 +91,14 @@ public:
 
     typedef Vector<SavedStackTraceData, GCUtil::gc_malloc_allocator<SavedStackTraceData>> SavedStackTraceDataVector;
 
-    bool parsingEnabled()
+    bool inDebuggingCodeMode() const
     {
-        return m_parsingEnabled;
+        return m_inDebuggingCodeMode;
     }
 
-    void setParsingEnabled(bool value)
+    void setInDebuggingCodeMode(bool mode)
     {
-        m_parsingEnabled = value;
+        m_inDebuggingCodeMode = mode;
     }
 
     void appendBreakpointLocations(BreakpointLocationsInfo* breakpointLocations)
@@ -163,6 +163,10 @@ public:
     virtual void consoleOut(String* output) = 0;
     virtual String* getClientSource(String** sourceName) = 0;
     virtual bool getWaitBeforeExitClient() = 0;
+    virtual bool skipSourceCode(String* srcName) const
+    {
+        return false;
+    }
 
     static SavedStackTraceDataVector* saveStackTrace(ExecutionState& state);
 
@@ -172,10 +176,10 @@ protected:
     Debugger()
         : m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
         , m_stopState(ESCARGOT_DEBUGGER_ALWAYS_STOP)
-        , m_parsingEnabled(false)
         , m_context(nullptr)
         , m_activeSavedStackTraceExecutionState(nullptr)
         , m_activeSavedStackTrace(nullptr)
+        , m_inDebuggingCodeMode(false)
     {
     }
 
@@ -184,8 +188,8 @@ protected:
         return m_context != nullptr;
     }
 
-    void enableDebugger(Context* context);
-    void disableDebugger();
+    void enable(Context* context);
+    void disable();
 
     virtual bool processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest = true) = 0;
 
@@ -194,10 +198,13 @@ protected:
     std::vector<BreakpointLocationsInfo*> m_breakpointLocationsVector;
 
 private:
-    bool m_parsingEnabled : 1;
     Context* m_context;
     ExecutionState* m_activeSavedStackTraceExecutionState;
     SavedStackTraceDataVector* m_activeSavedStackTrace;
+
+    // represent that every created InterpretedCodeBlock and its ByteCode should be marked with debugging feature
+    // ByteCode should contain debugging code (breakpoint)
+    bool m_inDebuggingCodeMode;
 };
 
 class DebuggerRemote : public Debugger {
@@ -414,6 +421,7 @@ private:
     bool m_waitForResume : 1;
     String* m_clientSourceData;
     String* m_clientSourceName;
+
     Vector<uintptr_t, GCUtil::gc_malloc_atomic_allocator<uintptr_t>> m_releasedFunctions;
     Vector<Object*, GCUtil::gc_malloc_allocator<Object*>> m_activeObjects;
 };

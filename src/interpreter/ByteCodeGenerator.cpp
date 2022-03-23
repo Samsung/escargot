@@ -125,10 +125,13 @@ void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
     ASSERT(m_breakpointContext != nullptr);
     ASSERT(index != SIZE_MAX);
 
-    // do not insert any breakpoint when handling dynamically created function
-    if (UNLIKELY(m_codeBlock->hasDynamicSourceCode())) {
+    // do not insert any breakpoint for unmarked code
+    if (UNLIKELY(!m_codeBlock->markDebugging())) {
         return;
     }
+
+    // dynamically generated code should not insert any debugging code
+    ASSERT(!m_codeBlock->hasDynamicSourceCode());
 
     // handle eval code
     // insert one break point only at the start with line 1
@@ -158,6 +161,16 @@ void ByteCodeGenerateContext::insertBreakpointAt(size_t line, Node* node)
     m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
 }
 
+ByteCodeBreakpointContext::ByteCodeBreakpointContext(Debugger* debugger, InterpretedCodeBlock* codeBlock)
+    : m_lastBreakpointLineOffset(0)
+    , m_lastBreakpointIndexOffset(0)
+    , m_breakpointLocations()
+{
+    m_breakpointLocations = new Debugger::BreakpointLocationsInfo(reinterpret_cast<Debugger::WeakCodeRef*>(codeBlock));
+    if (debugger && codeBlock->markDebugging()) {
+        debugger->appendBreakpointLocations(m_breakpointLocations);
+    }
+}
 #endif /* ESCARGOT_DEBUGGER */
 
 #define ASSIGN_STACKINDEX_IF_NEEDED(registerIndex, stackBase, stackBaseWillBe, stackVariableSize)                         \

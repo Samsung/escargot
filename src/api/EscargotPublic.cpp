@@ -1352,7 +1352,7 @@ public:
     DebuggerC(DebuggerOperationsRef::DebuggerClient* debuggerClient, Context* context)
         : m_debuggerClient(debuggerClient)
     {
-        enableDebugger(context);
+        enable(context);
     }
 
 protected:
@@ -2570,7 +2570,7 @@ bool ContextRef::initDebugger(DebuggerOperationsRef::DebuggerClient* debuggerCli
 #ifdef ESCARGOT_DEBUGGER
     Context* context = toImpl(this);
 
-    if (debuggerClient == nullptr || context->debugger() != nullptr) {
+    if (debuggerClient == nullptr || context->debuggerEnabled()) {
         return false;
     }
 
@@ -2593,7 +2593,7 @@ bool ContextRef::initDebuggerRemote(const char* options)
 bool ContextRef::isDebuggerRunning()
 {
 #ifdef ESCARGOT_DEBUGGER
-    return toImpl(this)->debugger() != nullptr;
+    return toImpl(this)->debuggerEnabled();
 #else /* !ESCARGOT_DEBUGGER */
     return false;
 #endif /* ESCARGOT_DEBUGGER */

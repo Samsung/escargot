@@ -207,26 +207,23 @@ void vmMarkStartCallback(void* data)
 {
     VMInstance* self = (VMInstance*)data;
 
-#ifdef ESCARGOT_DEBUGGER
-    if (!self->m_debuggerEnabled) {
-#endif
-        if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX || UNLIKELY(self->inIdleMode())) {
-            self->m_regexpCache->clear();
-        }
+#if !defined(ESCARGOT_DEBUGGER)
+    // in debugger mode, do not remove ByteCodeBlock
+    if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX || UNLIKELY(self->inIdleMode())) {
+        self->m_regexpCache->clear();
+    }
 
-        auto& currentCodeSizeTotal = self->compiledByteCodeSize();
-        if (currentCodeSizeTotal > SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX || UNLIKELY(self->inIdleMode())) {
-            currentCodeSizeTotal = std::numeric_limits<size_t>::max();
+    auto& currentCodeSizeTotal = self->compiledByteCodeSize();
+    if (currentCodeSizeTotal > SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX || UNLIKELY(self->inIdleMode())) {
+        currentCodeSizeTotal = std::numeric_limits<size_t>::max();
 
-            auto& v = self->compiledByteCodeBlocks();
-            for (size_t i = 0; i < v.size(); i++) {
-                auto cb = v[i]->m_codeBlock;
-                if (LIKELY(!cb->isAsync() && !cb->isGenerator())) {
-                    v[i]->m_codeBlock->setByteCodeBlock(nullptr);
-                }
+        auto& v = self->compiledByteCodeBlocks();
+        for (size_t i = 0; i < v.size(); i++) {
+            auto cb = v[i]->m_codeBlock;
+            if (LIKELY(!cb->isAsync() && !cb->isGenerator())) {
+                v[i]->m_codeBlock->setByteCodeBlock(nullptr);
             }
         }
-#ifdef ESCARGOT_DEBUGGER
     }
 #endif
 }
@@ -343,9 +340,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     , m_isFinalized(false)
     , m_inIdleMode(false)
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
-#ifdef ESCARGOT_DEBUGGER
-    , m_debuggerEnabled(false)
-#endif /* ESCARGOT_DEBUGGER */
     , m_compiledByteCodeSize(0)
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     , m_lastCompressibleStringsTestTime(0)

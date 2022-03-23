@@ -832,7 +832,7 @@ uint32_t String::tryToUseAsIndexProperty() const
     return tryToUseAsIndex32();
 }
 
-size_t String::find(String* str, size_t pos)
+size_t String::find(String* str, size_t pos) const
 {
     const size_t srcStrLen = str->length();
     const size_t size = length();

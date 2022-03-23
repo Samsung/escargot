@@ -127,7 +127,7 @@ ASTAllocator& Context::astAllocator()
 
 bool Context::initDebuggerRemote(const char* options)
 {
-    if (m_debugger != nullptr) {
+    if (debuggerEnabled()) {
         // debugger cannot be re-initialized
         return false;
     }
@@ -136,30 +136,33 @@ bool Context::initDebuggerRemote(const char* options)
     return m_debugger != nullptr;
 }
 
-void Context::enableDebugger(Debugger* debugger)
+void Context::initDebugger(Debugger* debugger)
 {
     ASSERT(m_debugger == nullptr);
     m_debugger = debugger;
-    m_instance->m_debuggerEnabled = true;
 }
 
-void Context::disableDebugger()
+void Context::removeDebugger()
 {
     ASSERT(m_debugger != nullptr);
     m_debugger = nullptr;
-    m_instance->m_debuggerEnabled = false;
+}
+
+bool Context::debuggerEnabled() const
+{
+    return m_debugger != nullptr;
 }
 
 void Context::printDebugger(StringView* output)
 {
-    if (m_debugger != nullptr) {
+    if (debuggerEnabled()) {
         m_debugger->consoleOut(output);
     }
 }
 
 String* Context::getClientSource(String** sourceName)
 {
-    if (m_debugger != nullptr) {
+    if (debuggerEnabled()) {
         return m_debugger->getClientSource(sourceName);
     }
     return nullptr;
@@ -167,16 +170,25 @@ String* Context::getClientSource(String** sourceName)
 
 void Context::setAsAlwaysStopState()
 {
-    if (m_debugger == nullptr) {
+    if (!debuggerEnabled()) {
         return;
     }
 
     m_debugger->setStopState(ESCARGOT_DEBUGGER_ALWAYS_STOP);
 }
 
+bool Context::inDebuggingCodeMode() const
+{
+    if (!debuggerEnabled()) {
+        return false;
+    }
+
+    return m_debugger->inDebuggingCodeMode();
+}
+
 void Context::pumpDebuggerEvents()
 {
-    if (m_debugger == nullptr) {
+    if (!debuggerEnabled()) {
         return;
     }
 

@@ -345,9 +345,6 @@ private:
     bool m_inIdleMode;
     // this flag should affect VM-wide array object
     bool m_didSomePrototypeObjectDefineIndexedProperty;
-#ifdef ESCARGOT_DEBUGGER
-    bool m_debuggerEnabled;
-#endif /* ESCARGOT_DEBUGGER */
 
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;
