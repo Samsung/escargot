@@ -35,6 +35,8 @@ struct EncodedValueData {
     }
 };
 
+COMPILE_ASSERT(sizeof(EncodedValueData) == sizeof(intptr_t), "");
+
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
 struct EncodedSmallValueData {
     int32_t payload;
