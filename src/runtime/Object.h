@@ -764,6 +764,7 @@ enum class ElementTypes : uint8_t {
 
 class Object : public PointerValue {
     friend class ObjectRef;
+    friend class Global;
     friend class GlobalObject;
     friend class ByteCodeInterpreter;
     friend class EnumerateObjectWithDestruction;

@@ -112,6 +112,7 @@ class PointerValue : public gc {
     friend class Context;
     friend class Global;
     friend class ByteCodeInterpreter;
+    friend class EncodedValue;
 
 public:
     virtual ~PointerValue() {}
@@ -128,12 +129,12 @@ public:
 
     inline bool isSymbol() const
     {
-        return getTagInFirstDataArea() & POINTER_VALUE_SYMBOL_TAG_IN_DATA;
+        return getTagInFirstDataArea() == POINTER_VALUE_SYMBOL_TAG_IN_DATA;
     }
 
     inline bool isBigInt() const
     {
-        return getTagInFirstDataArea() & POINTER_VALUE_BIGINT_TAG_IN_DATA;
+        return getTagInFirstDataArea() == POINTER_VALUE_BIGINT_TAG_IN_DATA;
     }
 
     inline bool isArrayObject() const
@@ -149,11 +150,6 @@ public:
     inline bool isObjectRareData() const
     {
         return hasTag(g_objectRareDataTag);
-    }
-
-    inline bool isDoubleInEncodedValue() const
-    {
-        return hasTag(g_doubleInEncodedValueTag);
     }
 
     inline bool hasArrayObjectTag() const
@@ -700,12 +696,6 @@ public:
         return (DataViewObject*)this;
     }
 
-    DoubleInEncodedValue* asDoubleInEncodedValue()
-    {
-        ASSERT(isDoubleInEncodedValue());
-        return (DoubleInEncodedValue*)this;
-    }
-
     JSGetterSetter* asJSGetterSetter()
     {
         ASSERT(isJSGetterSetter());
@@ -906,11 +896,11 @@ protected:
 
     // tag values for fast type check
     // these values actually have unique virtual table address of each object class
+    static size_t g_objectTag;
     static size_t g_arrayObjectTag;
     static size_t g_arrayPrototypeObjectTag;
     static size_t g_scriptFunctionObjectTag;
     static size_t g_objectRareDataTag;
-    static size_t g_doubleInEncodedValueTag;
 };
 } // namespace Escargot
 
