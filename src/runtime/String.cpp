@@ -612,6 +612,18 @@ ASCIIStringDataNonGCStd dtoa(double number)
     return str;
 }
 
+void String::initEmptyString()
+{
+    ASSERT(!String::emptyString);
+    String* emptyStr = new (NoGC) ASCIIString("");
+    // mark empty string as AtomicString source
+    // because empty string is the default string value of empty AtomicString
+    emptyStr->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)emptyStr;
+
+    ASSERT(emptyStr->isAtomicStringSource());
+    String::emptyString = emptyStr;
+}
+
 #define LATIN1_LARGE_INLINE_BUFFER(F) \
     F(1)                              \
     F(2)                              \

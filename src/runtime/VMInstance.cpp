@@ -378,7 +378,8 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     RELEASE_ASSERT(((size_t)m_stackStartAddress) % sizeof(size_t) == 0);
 
     if (!String::emptyString) {
-        String::emptyString = new (NoGC) ASCIIString("");
+        String::initEmptyString();
+        ASSERT(!!String::emptyString && String::emptyString->isAtomicStringSource());
     }
     m_staticStrings.initStaticStrings();
 
