@@ -450,10 +450,17 @@ void SandBox::fillStackDataIntoErrorObject(const Value& e)
 {
     if (e.isObject() && e.asObject()->isErrorObject()) {
         ErrorObject* obj = e.asObject()->asErrorObject();
+        ExecutionState state(m_context);
+
+        if (UNLIKELY(m_context->vmInstance()->isErrorCreationCallbackRegistered() && obj->hasOwnProperty(state, ObjectPropertyName(m_context->staticStrings().stack)))) {
+            // if ErrorCreationCallback is registered and this callback already inserts `stack` property for evert created ErrorObject,
+            // we just ignore adding `stack` data here
+            return;
+        }
+
         ErrorObject::StackTraceData* data = ErrorObject::StackTraceData::create(this);
         obj->setStackTraceData(data);
 
-        ExecutionState state(m_context);
         JSGetterSetter gs(
             new NativeFunctionObject(state, NativeFunctionInfo(m_context->staticStrings().stack, builtinErrorObjectStackInfo, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
