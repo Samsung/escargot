@@ -325,6 +325,10 @@ public:
         return false;
     }
 
+    // initialize String::emptyString value
+    // its called only once by VMInstance constructor
+    static void initEmptyString();
+
     template <const size_t srcLen>
     static String* fromASCII(const char (&src)[srcLen])
     {
