@@ -133,6 +133,13 @@ inline Value::Value(const PointerValue* ptr)
     u.asBits.payload = reinterpret_cast<int32_t>(const_cast<PointerValue*>(ptr));
 }
 
+inline Value::Value(const PointerValue* ptr, FromNonObjectPointerTag)
+{
+    ASSERT(!ptr->isObject());
+    u.asBits.tag = OtherPointerTag;
+    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<PointerValue*>(ptr));
+}
+
 inline Value::Value(String* ptr)
 {
     ASSERT(ptr != NULL);

@@ -133,6 +133,8 @@ public:
 #else
     Value(PointerValue* ptr);
     Value(const PointerValue* ptr);
+    enum FromNonObjectPointerTag { FromNonObjectPointer };
+    Value(const PointerValue* ptr, FromNonObjectPointerTag);
     Value(Object* ptr);
     Value(const Object* ptr);
     Value(String* ptr);

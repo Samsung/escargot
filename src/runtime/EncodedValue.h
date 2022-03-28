@@ -38,18 +38,23 @@ COMPILE_ASSERT(sizeof(EncodedValueData) == 4, "");
 COMPILE_ASSERT(sizeof(EncodedValueData) == 8, "");
 #endif
 
-#define ENCODED_VALUE_DOUBLE_TAG_IN_DATA 1
-
+#pragma pack(push, 1)
+// DoubleInEncodedValue stores its tag in `this + sizeof(size_t)`
+// the location is same with PointerValues
 class DoubleInEncodedValue : public gc {
-    friend class EncodedValue;
-    friend class EncodedSmallValue;
-
 public:
-    explicit DoubleInEncodedValue(double v)
-        : m_tag(ENCODED_VALUE_DOUBLE_TAG_IN_DATA)
-        , m_value(v)
+    explicit DoubleInEncodedValue(const double& v)
+#ifdef ESCARGOT_32
+    {
+        m_buffer[1] = POINTER_VALUE_DOUBLE_TAG_IN_DATA;
+        setValue(v);
+    }
+#else
+        : m_value(v)
+        , m_tag(POINTER_VALUE_DOUBLE_TAG_IN_DATA)
     {
     }
+#endif
 
     void* operator new(size_t size)
     {
@@ -59,13 +64,37 @@ public:
 
     double value()
     {
+#ifdef ESCARGOT_32
+        double ret;
+        uint32_t* buf = reinterpret_cast<uint32_t*>(&ret);
+        buf[0] = m_buffer[0];
+        buf[1] = m_buffer[2];
+        return ret;
+#else
         return m_value;
+#endif
+    }
+
+    void setValue(const double& v)
+    {
+#ifdef ESCARGOT_32
+        const uint32_t* buf = reinterpret_cast<const uint32_t*>(&v);
+        m_buffer[0] = buf[0];
+        m_buffer[2] = buf[1];
+#else
+        m_value = v;
+#endif
     }
 
 private:
-    size_t m_tag;
+#ifdef ESCARGOT_32
+    uint32_t m_buffer[3];
+#else
     double m_value;
+    size_t m_tag;
+#endif
 };
+#pragma pack(pop)
 
 namespace EncodedValueImpl {
 
@@ -224,7 +253,7 @@ public:
         }
 
         void* ptr = reinterpret_cast<void*>(m_data.payload);
-        if (((size_t)ptr) <= ValueLast) {
+        if (UNLIKELY(((size_t)ptr) <= ValueLast)) {
 #ifdef ESCARGOT_32
             return Value(Value::FromTag, ~((uint32_t)ptr));
 #else
@@ -233,13 +262,13 @@ public:
         }
 
 #ifdef ESCARGOT_32
-        size_t tag = readTagFromPointer(ptr);
-        if (tag == PointerValue::g_objectTag) {
+        const uint8_t tag = *(reinterpret_cast<size_t*>(ptr) + 1);
+        if (LIKELY(!(tag & POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA))) {
             return Value(reinterpret_cast<Object*>(ptr));
-        } else if (static_cast<unsigned char>(tag) == ENCODED_VALUE_DOUBLE_TAG_IN_DATA) {
+        } else if (UNLIKELY(tag == POINTER_VALUE_DOUBLE_TAG_IN_DATA)) {
             return Value(Value::EncodeAsDouble, reinterpret_cast<DoubleInEncodedValue*>(ptr)->value());
         } else {
-            return Value(reinterpret_cast<PointerValue*>(ptr));
+            return Value(reinterpret_cast<PointerValue*>(ptr), Value::FromNonObjectPointer);
         }
 #else
         if (UNLIKELY(readPointerIsDoubleEncodedValue(ptr))) {
@@ -318,7 +347,7 @@ public:
             if (!HAS_SMI_TAG(payload) && ((size_t)payload > (size_t)ValueLast)) {
                 void* v = (void*)payload;
                 if (readPointerIsDoubleEncodedValue(v)) {
-                    ((DoubleInEncodedValue*)m_data.payload)->m_value = from.asNumber();
+                    ((DoubleInEncodedValue*)m_data.payload)->setValue(from.asNumber());
                     return;
                 }
             }
@@ -335,21 +364,10 @@ public:
     }
 
 protected:
-    // NOTE
-    // first word of PointerValue are always address
-    // because it has virtual method
     static ALWAYS_INLINE bool readPointerIsDoubleEncodedValue(void* ptr)
     {
-        size_t* first = reinterpret_cast<size_t*>(ptr);
-        size_t firstWord = *first;
-        return firstWord == ENCODED_VALUE_DOUBLE_TAG_IN_DATA;
-    }
-
-    static ALWAYS_INLINE size_t readTagFromPointer(void* ptr)
-    {
-        size_t* first = reinterpret_cast<size_t*>(ptr);
-        size_t firstWord = *first;
-        return firstWord;
+        const uint8_t* b = reinterpret_cast<const uint8_t*>(reinterpret_cast<size_t*>(ptr) + 1);
+        return *b == POINTER_VALUE_DOUBLE_TAG_IN_DATA;
     }
 
     void fromValueForCtor(const Value& from)
@@ -502,7 +520,7 @@ public:
             if (!isSMI() && ((size_t)pl > (size_t)ValueLast)) {
                 void* v = reinterpret_cast<void*>(pl);
                 if (EncodedValue::readPointerIsDoubleEncodedValue(v)) {
-                    reinterpret_cast<DoubleInEncodedValue*>(v)->m_value = from.asNumber();
+                    reinterpret_cast<DoubleInEncodedValue*>(v)->setValue(from.asNumber());
                     return;
                 }
             }
