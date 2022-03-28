@@ -93,8 +93,9 @@ class ExportedFunctionObject;
 #define POINTER_VALUE_STRING_TAG_IN_DATA 1
 #define POINTER_VALUE_SYMBOL_TAG_IN_DATA 1 << 1
 #define POINTER_VALUE_BIGINT_TAG_IN_DATA 1 << 2
+#define POINTER_VALUE_DOUBLE_TAG_IN_DATA (POINTER_VALUE_SYMBOL_TAG_IN_DATA | POINTER_VALUE_BIGINT_TAG_IN_DATA)
 
-#define POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA (POINTER_VALUE_STRING_TAG_IN_DATA | POINTER_VALUE_SYMBOL_TAG_IN_DATA | POINTER_VALUE_BIGINT_TAG_IN_DATA)
+#define POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA (POINTER_VALUE_STRING_TAG_IN_DATA | POINTER_VALUE_SYMBOL_TAG_IN_DATA | POINTER_VALUE_BIGINT_TAG_IN_DATA | POINTER_VALUE_DOUBLE_TAG_IN_DATA)
 // Finding the type of PointerValue operation is widely used during the runtime
 // Only Object, String and Symbol are seen in regular runtime-code
 // We can figure out fastly what the type of PointerValue by tag value
@@ -896,7 +897,6 @@ protected:
 
     // tag values for fast type check
     // these values actually have unique virtual table address of each object class
-    static size_t g_objectTag;
     static size_t g_arrayObjectTag;
     static size_t g_arrayPrototypeObjectTag;
     static size_t g_scriptFunctionObjectTag;

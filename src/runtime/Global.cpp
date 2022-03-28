@@ -47,7 +47,6 @@ void Global::initialize(Platform* platform)
 
     // initialize PointerValue tag values
     // tag values should be initialized once and not changed
-    PointerValue::g_objectTag = Object().getTag();
     PointerValue::g_arrayObjectTag = ArrayObject().getTag();
     PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject().getTag();
     PointerValue::g_scriptFunctionObjectTag = ScriptFunctionObject().getTag();
