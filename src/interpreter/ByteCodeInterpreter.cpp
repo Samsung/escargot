@@ -2239,10 +2239,20 @@ NEVER_INLINE void ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMis
         goto GiveUp;
     }
 
+    if (code->m_inlineCacheProtoTraverseMaxIndex == 0 && (cachedhiddenClassChain.size() - 1) != 0) {
+        // convert simple case to complex case
+        for (size_t i = 1; i < inlineCache->m_cache.size(); i++) {
+            auto oldClass = inlineCache->m_cache[i].m_cachedhiddenClass;
+            block->m_inlineCacheDataSize += sizeof(size_t);
+            currentCodeSizeTotal += sizeof(size_t);
+            inlineCache->m_cache[i].m_cachedhiddenClassChain = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*));
+            inlineCache->m_cache[i].m_cachedhiddenClassChain[0] = oldClass;
+        }
+    }
     code->m_inlineCacheProtoTraverseMaxIndex = std::max(cachedhiddenClassChain.size() - 1, (size_t)code->m_inlineCacheProtoTraverseMaxIndex);
 
     newItem.m_cachedhiddenClassChainLength = cachedhiddenClassChain.size();
-    if (newItem.m_cachedhiddenClassChainLength == 1) {
+    if (newItem.m_cachedhiddenClassChainLength == 1 && code->m_inlineCacheProtoTraverseMaxIndex == 0) {
         newItem.m_cachedhiddenClass = cachedhiddenClassChain[0];
     } else {
         block->m_inlineCacheDataSize += sizeof(size_t) * cachedhiddenClassChain.size();
