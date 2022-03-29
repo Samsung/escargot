@@ -167,8 +167,8 @@ public:
 
         if (m_forIn) {
             // for-in statement
-            auto oldRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredGeneralRegisterSizeInValueSize;
-            codeBlock->m_requiredGeneralRegisterSizeInValueSize = 0;
+            auto oldRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredOperandRegisterNumber;
+            codeBlock->m_requiredOperandRegisterNumber = 0;
 
             size_t headRightLexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
             ByteCodeBlock::ByteCodeLexicalBlockContext headRightBlockContext;
@@ -224,16 +224,16 @@ public:
             ASSERT(newContext.m_registerStack->size() == baseCountBefore);
             newContext.giveUpRegister();
 
-            auto headRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredGeneralRegisterSizeInValueSize;
+            auto headRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredOperandRegisterNumber;
 
-            oldRequiredRegisterFileSizeInValueSize = std::max(oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredGeneralRegisterSizeInValueSize);
-            codeBlock->m_requiredGeneralRegisterSizeInValueSize = 0;
+            oldRequiredRegisterFileSizeInValueSize = std::max(oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredOperandRegisterNumber);
+            codeBlock->m_requiredOperandRegisterNumber = 0;
             generateBodyByteCode(codeBlock, context, newContext);
 
-            auto bodyRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredGeneralRegisterSizeInValueSize;
+            auto bodyRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredOperandRegisterNumber;
             auto dataRegisterIndex = std::max(headRequiredRegisterFileSizeInValueSize, bodyRequiredRegisterFileSizeInValueSize);
 
-            codeBlock->m_requiredGeneralRegisterSizeInValueSize = std::max({ oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredGeneralRegisterSizeInValueSize, (ByteCodeRegisterIndex)(dataRegisterIndex + 1) });
+            codeBlock->m_requiredOperandRegisterNumber = std::max({ oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredOperandRegisterNumber, (ByteCodeRegisterIndex)(dataRegisterIndex + 1) });
 
             codeBlock->peekCode<CreateEnumerateObject>(ePosition)->m_dataRegisterIndex = dataRegisterIndex;
             codeBlock->peekCode<CheckLastEnumerateKey>(checkPos)->m_registerIndex = dataRegisterIndex;
@@ -242,8 +242,8 @@ public:
             // for-of statement
             TryStatementNode::generateTryStatementStartByteCode(codeBlock, &newContext, this, forOfTryStatementContext);
 
-            auto oldRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredGeneralRegisterSizeInValueSize;
-            codeBlock->m_requiredGeneralRegisterSizeInValueSize = 0;
+            auto oldRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredOperandRegisterNumber;
+            codeBlock->m_requiredOperandRegisterNumber = 0;
 
             forOfEndCheckRegisterHeadStartPosition = codeBlock->currentCodeSize();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), SIZE_MAX, Value(true)), &newContext, this);
@@ -347,22 +347,22 @@ public:
             ASSERT(newContext.m_registerStack->size() == baseCountBefore);
             newContext.giveUpRegister();
 
-            auto headRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredGeneralRegisterSizeInValueSize;
+            auto headRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredOperandRegisterNumber;
 
-            oldRequiredRegisterFileSizeInValueSize = std::max(oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredGeneralRegisterSizeInValueSize);
-            codeBlock->m_requiredGeneralRegisterSizeInValueSize = 0;
+            oldRequiredRegisterFileSizeInValueSize = std::max(oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredOperandRegisterNumber);
+            codeBlock->m_requiredOperandRegisterNumber = 0;
 
             generateBodyByteCode(codeBlock, context, newContext);
 
             forOfEndCheckRegisterBodyEndPosition = codeBlock->currentCodeSize();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), SIZE_MAX, Value(true)), &newContext, this);
 
-            auto bodyRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredGeneralRegisterSizeInValueSize;
+            auto bodyRequiredRegisterFileSizeInValueSize = codeBlock->m_requiredOperandRegisterNumber;
             iteratorRecordRegisterIndex = std::max(headRequiredRegisterFileSizeInValueSize, bodyRequiredRegisterFileSizeInValueSize);
             iteratorObjectRegisterIndex = iteratorRecordRegisterIndex + 1;
             finishCheckRegisterIndex = iteratorRecordRegisterIndex + 2;
 
-            codeBlock->m_requiredGeneralRegisterSizeInValueSize = std::max({ oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredGeneralRegisterSizeInValueSize, (ByteCodeRegisterIndex)(iteratorRecordRegisterIndex + 3) });
+            codeBlock->m_requiredOperandRegisterNumber = std::max({ oldRequiredRegisterFileSizeInValueSize, codeBlock->m_requiredOperandRegisterNumber, (ByteCodeRegisterIndex)(iteratorRecordRegisterIndex + 3) });
 
             codeBlock->peekCode<IteratorOperation>(getIteratorOperationPosition)->m_getIteratorData.m_dstIteratorRecordIndex = iteratorRecordRegisterIndex;
             codeBlock->peekCode<IteratorOperation>(getIteratorOperationPosition)->m_getIteratorData.m_dstIteratorObjectIndex = iteratorObjectRegisterIndex;

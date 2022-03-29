@@ -110,8 +110,8 @@ public:
         ByteCodeBlock* blk = codeBlock->byteCodeBlock();
         Context* ctx = codeBlock->context();
         bool isStrict = codeBlock->isStrict();
-        size_t registerFileSize = blk->m_requiredRegisterFileSizeInValueSize;
-        size_t generalRegisterSize = blk->m_requiredGeneralRegisterSizeInValueSize;
+        size_t registerFileSize = blk->m_requiredTotalRegisterNumber;
+        size_t generalRegisterSize = blk->m_requiredOperandRegisterNumber;
 
         // prepare env, ec
         FunctionEnvironmentRecord* record;
