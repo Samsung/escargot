@@ -298,8 +298,8 @@ void CodeCacheWriter::storeByteCodeBlock(ByteCodeBlock* block)
     m_buffer.ensureSize(2 * sizeof(bool) + 2 * sizeof(uint16_t));
     m_buffer.put(block->m_shouldClearStack);
     m_buffer.put(block->m_isOwnerMayFreed);
-    m_buffer.put((uint16_t)block->m_requiredGeneralRegisterSizeInValueSize);
-    m_buffer.put((uint16_t)block->m_requiredRegisterFileSizeInValueSize);
+    m_buffer.put((uint16_t)block->m_requiredOperandRegisterNumber);
+    m_buffer.put((uint16_t)block->m_requiredTotalRegisterNumber);
 
     // ByteCodeBlock::m_numeralLiteralData
     ByteCodeNumeralLiteralData& numeralLiteralData = block->m_numeralLiteralData;
@@ -842,8 +842,8 @@ ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, InterpretedC
 
     block->m_shouldClearStack = m_buffer.get<bool>();
     block->m_isOwnerMayFreed = m_buffer.get<bool>();
-    block->m_requiredGeneralRegisterSizeInValueSize = m_buffer.get<uint16_t>();
-    block->m_requiredRegisterFileSizeInValueSize = m_buffer.get<uint16_t>();
+    block->m_requiredOperandRegisterNumber = m_buffer.get<uint16_t>();
+    block->m_requiredTotalRegisterNumber = m_buffer.get<uint16_t>();
 
     // ByteCodeBlock::m_numeralLiteralData
     ByteCodeNumeralLiteralData& numeralLiteralData = block->m_numeralLiteralData;

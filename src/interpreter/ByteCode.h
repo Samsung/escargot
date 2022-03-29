@@ -2836,10 +2836,10 @@ public:
             first++;
         }
 
-        m_requiredGeneralRegisterSizeInValueSize = std::max(m_requiredGeneralRegisterSizeInValueSize, (ByteCodeRegisterIndex)context->m_baseRegisterCount);
+        m_requiredOperandRegisterNumber = std::max(m_requiredOperandRegisterNumber, (ByteCodeRegisterIndex)context->m_baseRegisterCount);
 
         // TODO throw exception
-        RELEASE_ASSERT(m_requiredGeneralRegisterSizeInValueSize < REGISTER_LIMIT);
+        RELEASE_ASSERT(m_requiredOperandRegisterNumber < REGISTER_LIMIT);
 
         if (std::is_same<CodeType, ExecutionPause>::value) {
             pushPauseStatementExtraData(context);
@@ -2905,10 +2905,10 @@ public:
 
     bool m_shouldClearStack : 1;
     bool m_isOwnerMayFreed : 1;
-    // register size for bytecode operation like adding...moving...
-    ByteCodeRegisterIndex m_requiredGeneralRegisterSizeInValueSize : REGISTER_INDEX_IN_BIT;
-    // precomputed value of "m_requiredRegisterFileSizeInValueSize + stack allocated variables size"
-    ByteCodeRegisterIndex m_requiredRegisterFileSizeInValueSize : REGISTER_INDEX_IN_BIT;
+    // number of bytecode registers used for bytecode operation like adding...moving...
+    ByteCodeRegisterIndex m_requiredOperandRegisterNumber : REGISTER_INDEX_IN_BIT;
+    // precomputed value of total register number which is "m_requiredTotalRegisterNumber + stack allocated variables size"
+    ByteCodeRegisterIndex m_requiredTotalRegisterNumber : REGISTER_INDEX_IN_BIT;
     size_t m_inlineCacheDataSize;
 
     ByteCodeBlockData m_code;
