@@ -118,8 +118,8 @@ ByteCodeBlock::ByteCodeBlock()
 static void clearByteCodeBlock(ByteCodeBlock* self)
 {
 #ifdef ESCARGOT_DEBUGGER
-    Debugger* debugger = self->m_codeBlock->context()->debugger();
-    if (debugger != nullptr) {
+    Debugger* debugger = self->codeBlock()->context()->debugger();
+    if (debugger != nullptr && self->codeBlock()->markDebugging()) {
         debugger->byteCodeReleaseNotification(self);
     }
 #endif
