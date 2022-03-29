@@ -61,13 +61,13 @@ protected:
 
         ByteCodeBlock* blk = codeBlock->byteCodeBlock();
         Context* ctx = codeBlock->context();
-        const size_t registerSize = blk->m_requiredGeneralRegisterSizeInValueSize;
+        const size_t registerSize = blk->m_requiredOperandRegisterNumber;
 
 #if !defined(NDEBUG)
         const size_t stackStorageSize = codeBlock->totalStackAllocatedVariableSize();
         const size_t literalStorageSize = blk->m_numeralLiteralData.size();
         ASSERT(codeBlock->isStrict() == isStrict);
-        ASSERT(blk->m_requiredGeneralRegisterSizeInValueSize + stackStorageSize + literalStorageSize <= registerFileSize);
+        ASSERT(blk->m_requiredOperandRegisterNumber + stackStorageSize + literalStorageSize <= registerFileSize);
 #endif
 
         // prepare env, ec

@@ -83,7 +83,7 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
     if (hasTag(g_scriptFunctionObjectTag)) {
         auto cb = m_codeBlock->asInterpretedCodeBlock();
         auto byteCb = cb->byteCodeBlock();
-        size_t registerFileSize = byteCb->m_requiredRegisterFileSizeInValueSize;
+        size_t registerFileSize = byteCb->m_requiredTotalRegisterNumber;
         bool isStrict = cb->isStrict();
         bool shouldClearStack = byteCb->m_shouldClearStack;
 
