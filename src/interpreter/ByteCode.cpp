@@ -346,8 +346,7 @@ void* SetObjectInlineCache::operator new(size_t size)
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(SetObjectInlineCache)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetObjectInlineCache, m_cachedHiddenClassChainData));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetObjectInlineCache, m_hiddenClassWillBe));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SetObjectInlineCache, m_cache));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(SetObjectInlineCache));
         typeInited = true;
     }
