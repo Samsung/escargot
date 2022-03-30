@@ -1189,28 +1189,32 @@ public:
 #endif
 };
 
-struct SetObjectInlineCache {
+struct SetObjectInlineCacheData {
+    SetObjectInlineCacheData()
+    {
+        m_cachedHiddenClass = nullptr;
+        m_cachedIndex = m_cachedhiddenClassChainLength = 0;
+    }
+
     union {
         ObjectStructure** m_cachedHiddenClassChainData;
         ObjectStructure* m_cachedHiddenClass;
     };
-    size_t m_cachedhiddenClassChainLength;
-    union {
-        size_t m_cachedIndex;
-        ObjectStructure* m_hiddenClassWillBe;
-    };
+    // 16bits of storage is enough
+    // inlineCacheProtoTraverseMaxCount is so small
+    uint16_t m_cachedhiddenClassChainLength : 16;
+    static constexpr size_t inlineCacheCachedIndexMax = std::numeric_limits<uint16_t>::max();
+    uint16_t m_cachedIndex : 16;
+};
 
+typedef Vector<SetObjectInlineCacheData, CustomAllocator<SetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> SetObjectInlineCacheDataVector;
+
+struct SetObjectInlineCache {
     SetObjectInlineCache()
     {
-        m_cachedHiddenClass = m_hiddenClassWillBe = nullptr;
-        m_cachedhiddenClassChainLength = 0;
     }
 
-    void invalidateCache()
-    {
-        m_cachedHiddenClass = m_hiddenClassWillBe = nullptr;
-        m_cachedhiddenClassChainLength = 0;
-    }
+    SetObjectInlineCacheDataVector m_cache;
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -1225,6 +1229,7 @@ public:
         , m_propertyName(propertyName)
         , m_inlineCache(nullptr)
         , m_isLength(propertyName.plainString()->equals("length"))
+        , m_inlineCacheProtoTraverseMaxIndex(0)
         , m_missCount(0)
     {
     }
@@ -1233,7 +1238,11 @@ public:
     ByteCodeRegisterIndex m_loadRegisterIndex;
     ObjectStructurePropertyName m_propertyName;
     SetObjectInlineCache* m_inlineCache;
+
+    static constexpr size_t inlineCacheProtoTraverseMaxCount = 12;
+
     bool m_isLength : 1;
+    unsigned char m_inlineCacheProtoTraverseMaxIndex : 8;
     uint16_t m_missCount : 16;
 #ifndef NDEBUG
     void dump()

@@ -806,6 +806,7 @@ public:
     // http://www.ecma-international.org/ecma-262/6.0/index.html#sec-ordinary-object-internal-methods-and-internal-slots-preventextensions
     virtual bool preventExtensions(ExecutionState&)
     {
+        markThisObjectDontNeedStructureTransitionTable();
         ensureRareData()->m_isExtensible = false;
         return true;
     }

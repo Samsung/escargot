@@ -117,6 +117,7 @@ private:
                                                           const size_t& cacheFillCount, Value* registerFile, ByteCodeBlock* block);
     static void getObjectPrecomputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& receiver, GetObjectPreComputedCase* code, Value* registerFile, ByteCodeBlock* block);
     static void setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
+    static bool setObjectPreComputedCaseOperationSlowCase(ExecutionState& state, Object* obj, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
     static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
 
     static Object* fastToObject(ExecutionState& state, const Value& obj);

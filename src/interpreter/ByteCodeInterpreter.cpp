@@ -2067,7 +2067,7 @@ ALWAYS_INLINE void ByteCodeInterpreter::getObjectPrecomputedCaseOperation(Execut
         GetObjectInlineCacheData* const cacheData = inlineCache->m_cache.data();
 
         // simple case
-        if (!code->m_inlineCacheProtoTraverseMaxIndex) {
+        if (LIKELY(!code->m_inlineCacheProtoTraverseMaxIndex)) {
             ObjectStructure* const objStructure = obj->structure();
             for (unsigned currentCacheIndex = 0; currentCacheIndex < cacheFillCount; currentCacheIndex++) {
                 const GetObjectInlineCacheData& data = cacheData[currentCacheIndex];
@@ -2113,7 +2113,7 @@ NEVER_INLINE bool ByteCodeInterpreter::getObjectPrecomputedCaseOperationSlowCase
     for (unsigned currentCacheIndex = 0; currentCacheIndex < cacheFillCount; currentCacheIndex++) {
         const GetObjectInlineCacheData& data = cacheData[currentCacheIndex];
         const size_t& cSiz = data.m_cachedhiddenClassChainLength;
-        if (cSiz <= fillCount) {
+        if (LIKELY(cSiz <= fillCount)) {
             bool ok = true;
             for (size_t i = 0; i < cSiz; i++) {
                 if (objStructures[i] != data.m_cachedhiddenClassChain[i]) {
@@ -2292,45 +2292,72 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
         obj = willBeObject.asObject();
     }
     Object* originalObject = obj;
-    ASSERT(originalObject != nullptr);
-
-    ObjectStructure* testItem = obj->structure();
-
     auto inlineCache = code->m_inlineCache;
 
-    if (inlineCache) {
-        if (inlineCache->m_cachedhiddenClassChainLength == 1 && inlineCache->m_cachedHiddenClass == testItem) {
-            // cache hit!
-            obj->m_values[inlineCache->m_cachedIndex] = value;
-            return;
-        } else if (inlineCache->m_hiddenClassWillBe) {
-            const auto& cSiz = inlineCache->m_cachedhiddenClassChainLength;
-            bool miss = false;
-            for (size_t i = 0; i < cSiz - 1; i++) {
-                if (UNLIKELY(inlineCache->m_cachedHiddenClassChainData[i] != obj->structure())) {
-                    miss = true;
-                    break;
-                } else {
-                    Object* o = obj->Object::getPrototypeObject(state);
-                    if (UNLIKELY(!o)) {
-                        miss = true;
-                        break;
-                    }
-                    obj = o;
+    if (LIKELY(inlineCache != nullptr)) {
+        // simple case
+        if (LIKELY(code->m_inlineCacheProtoTraverseMaxIndex == 0)) {
+            ObjectStructure* testItem = obj->structure();
+            SetObjectInlineCache* const inlineCache = code->m_inlineCache;
+            const size_t cacheFillCount = inlineCache->m_cache.size();
+            SetObjectInlineCacheData* const cacheData = inlineCache->m_cache.data();
+            for (unsigned currentCacheIndex = 0; currentCacheIndex < cacheFillCount; currentCacheIndex++) {
+                const auto& item = cacheData[currentCacheIndex];
+                if (testItem == item.m_cachedHiddenClass) {
+                    // cache hit!
+                    obj->m_values[item.m_cachedIndex] = value;
+                    return;
                 }
             }
-            if (LIKELY(!miss) && inlineCache->m_cachedHiddenClassChainData[cSiz - 1] == obj->structure()) {
-                // cache hit!
-                obj = originalObject;
-                ASSERT(obj->structure()->inTransitionMode());
-                obj->m_values.push_back(value, inlineCache->m_hiddenClassWillBe->propertyCount());
-                obj->m_structure = inlineCache->m_hiddenClassWillBe;
+        } else {
+            if (setObjectPreComputedCaseOperationSlowCase(state, originalObject, willBeObject, value, code, block)) {
                 return;
             }
         }
     }
 
     setObjectPreComputedCaseOperationCacheMiss(state, originalObject, willBeObject, value, code, block);
+}
+
+NEVER_INLINE bool ByteCodeInterpreter::setObjectPreComputedCaseOperationSlowCase(ExecutionState& state, Object* originalObject, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
+{
+    Object* obj = originalObject;
+    Object* objChain[GetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount];
+    ObjectStructure* objStructures[GetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount];
+    const auto& maxIndex = code->m_inlineCacheProtoTraverseMaxIndex;
+    size_t fillCount;
+    for (fillCount = 0; fillCount <= maxIndex && obj; fillCount++) {
+        objChain[fillCount] = obj;
+        objStructures[fillCount] = obj->structure();
+        obj = obj->Object::getPrototypeObject(state);
+    }
+
+    SetObjectInlineCache* const inlineCache = code->m_inlineCache;
+    const size_t cacheFillCount = inlineCache->m_cache.size();
+    SetObjectInlineCacheData* const cacheData = inlineCache->m_cache.data();
+    for (unsigned currentCacheIndex = 0; currentCacheIndex < cacheFillCount; currentCacheIndex++) {
+        const auto& item = cacheData[currentCacheIndex];
+        const auto& cSiz = item.m_cachedhiddenClassChainLength;
+        bool ok = true;
+        for (size_t i = 0; i < cSiz; i++) {
+            if (objStructures[i] != item.m_cachedHiddenClassChainData[i]) {
+                ok = false;
+                break;
+            }
+        }
+        if (ok) {
+            if (item.m_cachedIndex != SetObjectInlineCacheData::inlineCacheCachedIndexMax) {
+                originalObject->m_values[item.m_cachedIndex] = value;
+            } else {
+                ASSERT(originalObject->structure()->inTransitionMode());
+                // next object structure save in `item.m_cachedHiddenClassChainData[cSiz]`
+                originalObject->m_structure = item.m_cachedHiddenClassChainData[cSiz];
+                originalObject->m_values.push_back(value, originalObject->m_structure->propertyCount());
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
@@ -2352,8 +2379,9 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
     return;
 #endif
 
-    const int maxCacheMissCount = 16;
-    const int minCacheFillCount = 3;
+    const size_t maxCacheMissCount = 32;
+    const size_t minCacheFillCount = 3;
+    const size_t maxCacheCount = 24;
 
     // cache miss
     if (code->m_missCount > maxCacheMissCount) {
@@ -2368,7 +2396,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
     }
 
     if (UNLIKELY(!originalObject->isInlineCacheable())) {
-        code->m_missCount++;
+        code->m_missCount = maxCacheMissCount + 1;
         originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject);
         return;
     }
@@ -2384,9 +2412,18 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
 
     auto inlineCache = code->m_inlineCache;
 
-    inlineCache->invalidateCache();
-    code->m_missCount++;
+    if (inlineCache->m_cache.size() > maxCacheCount) {
+        for (size_t i = inlineCache->m_cache.size() - 1; i > 0; i--) {
+            inlineCache->m_cache[i] = inlineCache->m_cache[i - 1];
+        }
+    } else {
+        inlineCache->m_cache.insert(0, SetObjectInlineCacheData());
+        block->m_inlineCacheDataSize += sizeof(SetObjectInlineCacheData);
+        currentCodeSizeTotal += sizeof(SetObjectInlineCacheData);
+    }
 
+    auto& newItem = inlineCache->m_cache[0];
+    VectorWithInlineStorage<GetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount, ObjectStructure*, std::allocator<ObjectStructure*>> cachedhiddenClassChain;
     Object* obj = originalObject;
 
     auto findResult = obj->structure()->findProperty(code->m_propertyName);
@@ -2399,22 +2436,30 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
         o.foo = 0;
         */
         if (UNLIKELY(findResult.first >= obj->structure()->propertyCount())) {
-            return;
+            goto GiveUp;
         }
 
         const auto& propertyData = obj->structure()->readProperty(findResult.first);
         const auto& desc = propertyData.m_descriptor;
         if (propertyData.m_propertyName == code->m_propertyName && desc.isPlainDataProperty() && desc.isWritable()) {
-            inlineCache->m_cachedIndex = findResult.first;
-            inlineCache->m_cachedhiddenClassChainLength = 1;
-            inlineCache->m_cachedHiddenClass = obj->structure();
+            if (code->m_inlineCacheProtoTraverseMaxIndex == 0) {
+                newItem.m_cachedIndex = findResult.first;
+                newItem.m_cachedhiddenClassChainLength = 1;
+                newItem.m_cachedHiddenClass = obj->structure();
+            } else {
+                newItem.m_cachedIndex = findResult.first;
+                newItem.m_cachedhiddenClassChainLength = 1;
+                newItem.m_cachedHiddenClassChainData = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*));
+                newItem.m_cachedHiddenClassChainData[0] = obj->structure();
+            }
+        } else {
+            goto GiveUp;
         }
     } else {
         Object* orgObject = obj;
         if (UNLIKELY(!obj->structure()->inTransitionMode())) {
-            inlineCache->invalidateCache();
             orgObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject);
-            return;
+            goto GiveUp;
         }
 
         VectorWithInlineStorage<24, ObjectStructure*, std::allocator<ObjectStructure*>> cachedhiddenClassChain;
@@ -2426,42 +2471,62 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
             if (!UNLIKELY(obj->isInlineCacheable())) {
                 code->m_missCount++;
                 originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject);
-                return;
+                goto GiveUp;
             }
 
             cachedhiddenClassChain.push_back(obj->structure());
             proto = obj->getPrototype(state);
         }
 
-        inlineCache->m_hiddenClassWillBe = nullptr;
-        inlineCache->m_cachedhiddenClassChainLength = cachedhiddenClassChain.size();
-        inlineCache->m_cachedHiddenClassChainData = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*) * inlineCache->m_cachedhiddenClassChainLength);
-        memcpy(inlineCache->m_cachedHiddenClassChainData, cachedhiddenClassChain.data(), sizeof(ObjectStructure*) * inlineCache->m_cachedhiddenClassChainLength);
+        newItem.m_cachedIndex = SetObjectInlineCacheData::inlineCacheCachedIndexMax;
+        newItem.m_cachedhiddenClassChainLength = cachedhiddenClassChain.size();
+        // +1 space for next object structure
+        newItem.m_cachedHiddenClassChainData = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*) * (newItem.m_cachedhiddenClassChainLength + 1));
+        memcpy(newItem.m_cachedHiddenClassChainData, cachedhiddenClassChain.data(), sizeof(ObjectStructure*) * newItem.m_cachedhiddenClassChainLength);
 
-        block->m_inlineCacheDataSize += sizeof(size_t) * inlineCache->m_cachedhiddenClassChainLength;
-        currentCodeSizeTotal += sizeof(size_t) * inlineCache->m_cachedhiddenClassChainLength;
+        block->m_inlineCacheDataSize += sizeof(size_t) * newItem.m_cachedhiddenClassChainLength;
+        currentCodeSizeTotal += sizeof(size_t) * newItem.m_cachedhiddenClassChainLength;
         bool s = orgObject->set(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject);
         if (UNLIKELY(!s)) {
+            inlineCache->m_cache.clear();
+            code->m_inlineCache = nullptr;
+            code->m_missCount = maxCacheMissCount + 1;
             if (state.inStrictMode()) {
                 orgObject->throwCannotWriteError(state, code->m_propertyName);
             }
-
-            inlineCache->invalidateCache();
             return;
         }
         if (!orgObject->structure()->inTransitionMode()) {
-            inlineCache->invalidateCache();
-            return;
+            goto GiveUp;
         }
 
         auto result = orgObject->get(state, ObjectPropertyName(state, code->m_propertyName));
         if (!result.hasValue() || !result.isDataProperty()) {
-            inlineCache->invalidateCache();
-            return;
+            goto GiveUp;
         }
 
-        inlineCache->m_hiddenClassWillBe = orgObject->structure();
+        newItem.m_cachedHiddenClassChainData[newItem.m_cachedhiddenClassChainLength] = orgObject->structure();
+
+        if (code->m_inlineCacheProtoTraverseMaxIndex == 0) {
+            // convert simple case to complex case
+            for (size_t i = 1; i < inlineCache->m_cache.size(); i++) {
+                auto oldClass = inlineCache->m_cache[i].m_cachedHiddenClass;
+                block->m_inlineCacheDataSize += sizeof(size_t);
+                currentCodeSizeTotal += sizeof(size_t);
+                ASSERT(inlineCache->m_cache[i].m_cachedhiddenClassChainLength == 1);
+                inlineCache->m_cache[i].m_cachedHiddenClassChainData = (ObjectStructure**)GC_MALLOC(sizeof(ObjectStructure*));
+                inlineCache->m_cache[i].m_cachedHiddenClassChainData[0] = oldClass;
+            }
+        }
+        code->m_inlineCacheProtoTraverseMaxIndex = std::max(cachedhiddenClassChain.size() - 1, (size_t)code->m_inlineCacheProtoTraverseMaxIndex);
     }
+
+    return;
+
+GiveUp:
+    inlineCache->m_cache.clear();
+    code->m_inlineCache = nullptr;
+    code->m_missCount = maxCacheMissCount + 1;
 }
 
 ALWAYS_INLINE Object* ByteCodeInterpreter::fastToObject(ExecutionState& state, const Value& obj)

@@ -87,6 +87,14 @@ void getNextValidInGetObjectInlineCacheDataVector(GC_word* ptr, GC_word* end, GC
     *to = (GC_word*)current->m_cachedhiddenClassChain;
 }
 
+void getNextValidInSetObjectInlineCacheDataVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
+{
+    SetObjectInlineCacheData* current = (SetObjectInlineCacheData*)ptr;
+    *next_ptr = (GC_word*)((size_t)ptr + sizeof(SetObjectInlineCacheData));
+    *from = (GC_word*)&current->m_cachedHiddenClassChainData;
+    *to = (GC_word*)current->m_cachedHiddenClassChainData;
+}
+
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
 void getNextValidInEncodedSmallValueVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, GC_word** from, GC_word** to)
 {
@@ -249,6 +257,11 @@ void initializeCustomAllocators()
                                                                                 FALSE,
                                                                                 TRUE);
 
+    s_gcKinds[HeapObjectKind::SetObjectInlineCacheDataVectorKind] = GC_new_kind(GC_new_free_list(),
+                                                                                GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInSetObjectInlineCacheDataVector>), 0),
+                                                                                FALSE,
+                                                                                TRUE);
+
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
     s_gcKinds[HeapObjectKind::EncodedSmallValueVectorKind] = GC_new_kind(GC_new_free_list(),
                                                                          GC_MAKE_PROC(GC_new_proc(markAndPushCustomIterable<getNextValidInEncodedSmallValueVector>), 0),
@@ -368,6 +381,20 @@ GetObjectInlineCacheData* CustomAllocator<GetObjectInlineCacheData>::allocate(si
 
     GetObjectInlineCacheData* ret;
     ret = (GetObjectInlineCacheData*)GC_GENERIC_MALLOC(size, kind);
+    return ret;
+}
+
+template <>
+SetObjectInlineCacheData* CustomAllocator<SetObjectInlineCacheData>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (Value*)GC_MALLOC(sizeof(SetObjectInlineCacheData) * GC_n);
+    // typed calloc test
+    int kind = s_gcKinds[HeapObjectKind::SetObjectInlineCacheDataVectorKind];
+    size_t size = sizeof(SetObjectInlineCacheData) * GC_n;
+
+    SetObjectInlineCacheData* ret;
+    ret = (SetObjectInlineCacheData*)GC_GENERIC_MALLOC(size, kind);
     return ret;
 }
 
