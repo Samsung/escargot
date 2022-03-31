@@ -40,11 +40,14 @@ enum class TypedArrayType : unsigned {
 };
 
 class ArrayBuffer : public Object {
+    friend int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr);
+
 public:
     static const uint64_t maxArrayBufferSize = 210000000;
 
     explicit ArrayBuffer(ExecutionState& state, Object* proto)
         : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+        , m_cachedDataAddress(nullptr)
     {
     }
 
@@ -66,15 +69,15 @@ public:
 
     ALWAYS_INLINE uint8_t* data()
     {
-        if (LIKELY(m_backingStore)) {
-            return reinterpret_cast<uint8_t*>(m_backingStore->data());
+        if (LIKELY(m_cachedDataAddress.hasValue())) {
+            return m_cachedDataAddress.unwrap();
         }
-        return nullptr;
+        return dataSlowCase();
     }
 
     ALWAYS_INLINE size_t byteLength()
     {
-        if (LIKELY(m_backingStore)) {
+        if (LIKELY(m_backingStore.hasValue())) {
             return m_backingStore->byteLength();
         }
         return 0;
@@ -116,7 +119,24 @@ protected:
         GC_set_bit(desc, GC_WORD_OFFSET(ArrayBuffer, m_backingStore));
     }
 
+    void updateBackingStore(Optional<BackingStore*> bs)
+    {
+        m_backingStore = bs;
+        m_cachedDataAddress = nullptr;
+    }
+
+private:
+    NEVER_INLINE uint8_t* dataSlowCase()
+    {
+        if (LIKELY(m_backingStore)) {
+            m_cachedDataAddress = reinterpret_cast<uint8_t*>(m_backingStore->data());
+            return m_cachedDataAddress.unwrap();
+        }
+        return nullptr;
+    }
+
     Optional<BackingStore*> m_backingStore;
+    Optional<uint8_t*> m_cachedDataAddress;
 };
 
 class ArrayBufferView : public Object {
