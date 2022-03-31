@@ -97,7 +97,7 @@ void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
         GC_invoke_finalizers();
     }
 
-    m_backingStore = BackingStore::createDefaultNonSharedBackingStore(byteLength);
+    updateBackingStore(BackingStore::createDefaultNonSharedBackingStore(byteLength));
 }
 
 void ArrayBufferObject::allocateResizableBuffer(ExecutionState& state, size_t byteLength, size_t maxByteLength)
@@ -118,7 +118,7 @@ void ArrayBufferObject::allocateResizableBuffer(ExecutionState& state, size_t by
         GC_invoke_finalizers();
     }
 
-    m_backingStore = BackingStore::createDefaultResizableNonSharedBackingStore(byteLength, maxByteLength);
+    updateBackingStore(BackingStore::createDefaultResizableNonSharedBackingStore(byteLength, maxByteLength));
 }
 
 void ArrayBufferObject::attachBuffer(BackingStore* backingStore)
@@ -127,12 +127,12 @@ void ArrayBufferObject::attachBuffer(BackingStore* backingStore)
     ASSERT(!backingStore->isShared());
     detachArrayBuffer();
 
-    m_backingStore = backingStore;
+    updateBackingStore(backingStore);
 }
 
 void ArrayBufferObject::detachArrayBuffer()
 {
-    m_backingStore.reset();
+    updateBackingStore(nullptr);
 }
 
 void* ArrayBufferObject::operator new(size_t size)

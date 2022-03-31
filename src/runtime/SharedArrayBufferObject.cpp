@@ -44,7 +44,7 @@ SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* 
         GC_invoke_finalizers();
     }
 
-    m_backingStore = BackingStore::createDefaultSharedBackingStore(byteLength);
+    updateBackingStore(BackingStore::createDefaultSharedBackingStore(byteLength));
 }
 
 SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, size_t byteLength, size_t maxByteLength)
@@ -64,7 +64,7 @@ SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* 
         GC_invoke_finalizers();
     }
 
-    m_backingStore = BackingStore::createDefaultGrowableSharedBackingStore(byteLength, maxByteLength);
+    updateBackingStore(BackingStore::createDefaultGrowableSharedBackingStore(byteLength, maxByteLength));
 }
 
 SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, BackingStore* backingStore)
@@ -73,13 +73,13 @@ SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* 
     // BackingStore should be valid and shared
     ASSERT(!!backingStore && backingStore->isShared());
 
-    m_backingStore = BackingStore::createSharedBackingStore(backingStore->sharedDataBlockInfo());
+    updateBackingStore(BackingStore::createSharedBackingStore(backingStore->sharedDataBlockInfo()));
 }
 
 SharedArrayBufferObject::SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedDataBlockInfo* sharedInfo)
     : ArrayBuffer(state, proto)
 {
-    m_backingStore = BackingStore::createSharedBackingStore(sharedInfo);
+    updateBackingStore(BackingStore::createSharedBackingStore(sharedInfo));
 }
 
 SharedArrayBufferObject* SharedArrayBufferObject::allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength, Optional<uint64_t> maxByteLength)
