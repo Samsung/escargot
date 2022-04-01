@@ -117,6 +117,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         ExecutionStateProgramCounterBinder binder(*state, &programCounter);
         char* codeBuffer = byteCodeBlock->m_code.data();
         programCounter = (size_t)(codeBuffer + programCounter);
+        size_t currentStackSize = byteCodeBlock->m_requiredTotalRegisterNumber;
 
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define DEFINE_OPCODE(codeName) codeName##OpcodeLbl
@@ -887,6 +888,31 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             registerFile[byteCodeBlock->m_requiredOperandRegisterNumber + 1] = state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject();
             ADD_PROGRAM_COUNTER(BindingCalleeIntoRegister);
             NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(CallTailFunction)
+            :
+        {
+            CallTailFunction* code = (CallTailFunction*)programCounter;
+            const Value& callee = registerFile[code->m_calleeIndex];
+
+            ASSERT(byteCodeBlock->codeBlock()->canAllocateEnvironmentOnStack());
+#ifdef NDEBUG
+            // TCO
+            // directly return the result because its tail call
+            return callTailFunction(*state, code, registerFile, byteCodeBlock, codeBuffer, programCounter, currentStackSize);
+#else
+                Value result = callTailFunction(*state, code, registerFile, byteCodeBlock, codeBuffer, programCounter, currentStackSize);
+                // check code for debug
+                ADD_PROGRAM_COUNTER(CallTailFunction);
+                ASSERT(((ByteCode*)programCounter)->m_orgOpcode == Opcode::EndOpcode);
+                ASSERT(((End*)programCounter)->m_registerIndex == code->m_resultIndex);
+
+#ifdef ESCARGOT_DEBUGGER
+                Debugger::updateStopState(state->context()->debugger(), state, ESCARGOT_DEBUGGER_ALWAYS_STOP);
+#endif
+                return result;
+#endif
         }
 
         DEFINE_OPCODE(InitializeGlobalVariable)
@@ -2579,6 +2605,54 @@ NEVER_INLINE void ByteCodeInterpreter::initializeGlobalVariable(ExecutionState& 
         }
     }
     ASSERT_NOT_REACHED();
+}
+
+NEVER_INLINE Value ByteCodeInterpreter::callTailFunction(ExecutionState& state, CallTailFunction* code, Value* registerFile, ByteCodeBlock*& byteCodeBlock, char*& codeBuffer, size_t& programCounter, const size_t& currentStackSize)
+{
+    const Value& calleeValue = registerFile[code->m_calleeIndex];
+
+    // https://www.ecma-international.org/ecma-262/6.0/#sec-call
+    // If IsCallable(F) is false, throw a TypeError exception.
+    if (UNLIKELY(!calleeValue.isPointerValue())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+    }
+
+    bool withReceiver = (code->m_receiverIndex == REGISTER_LIMIT);
+    if (calleeValue.asPointerValue()->isScriptSimpleFunctionObject()) {
+        ScriptFunctionObject* callee = calleeValue.asPointerValue()->asScriptFunctionObject();
+        if (ByteCodeBlock* calleeBlock = callee->interpretedCodeBlock()->byteCodeBlock()) {
+            // FIXME TCO is now supported only for simple function call case
+            if (calleeBlock->m_requiredTotalRegisterNumber <= currentStackSize) {
+                bool isStrict = callee->interpretedCodeBlock()->isStrict();
+                Value thisValue = withReceiver ? Value() : registerFile[code->m_receiverIndex];
+
+                // allocate arguments
+                size_t argc = code->m_argumentCount;
+                Value* argv = argc > 0 ? (Value*)alloca(argc * sizeof(Value)) : nullptr;
+                for (size_t i = 0; i < argc; i++) {
+                    argv[i] = registerFile[code->m_argumentsStartIndex + i];
+                }
+
+                // set new ExecutionState for callee
+                FunctionEnvironmentRecordOnStack<false, false> record(callee);
+                LexicalEnvironment lexEnv(&record, callee->outerEnvironment()
+#ifndef NDEBUG
+                                                       ,
+                                          false
+#endif
+                );
+                ExecutionState newState(callee->interpretedCodeBlock()->context(), &state, &lexEnv, argc, argv, isStrict);
+
+                // set this value
+                registerFile[calleeBlock->m_requiredOperandRegisterNumber] = isStrict ? thisValue : (thisValue.isUndefinedOrNull() ? newState.context()->globalObjectProxy() : thisValue.toObject(newState));
+
+                return ByteCodeInterpreter::interpret(&newState, calleeBlock, 0, registerFile);
+            }
+        }
+    }
+
+    return withReceiver ? calleeValue.asPointerValue()->call(state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex])
+                        : calleeValue.asPointerValue()->call(state, registerFile[code->m_receiverIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 }
 
 NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& state, CreateFunction* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)

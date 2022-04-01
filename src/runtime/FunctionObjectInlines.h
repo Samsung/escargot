@@ -134,6 +134,7 @@ public:
         Value* registerFile;
 
         if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncGeneratorFunctionObject>::value) {
+            ASSERT(!codeBlock->canAllocateEnvironmentOnStack());
             registerFile = (Value*)CustomAllocator<Value>().allocate(registerFileSize);
         } else {
             registerFile = (Value*)alloca((registerFileSize) * sizeof(Value));

@@ -90,12 +90,16 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
 #define DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH(opt1, opt2)                   \
     if (registerFileSize <= 4) {                                         \
         writeTag(ScriptSimpleFunctionObject<opt1, opt2, 4>().getTag());  \
+        byteCb->m_requiredTotalRegisterNumber = 4;                       \
     } else if (registerFileSize <= 8) {                                  \
         writeTag(ScriptSimpleFunctionObject<opt1, opt2, 8>().getTag());  \
+        byteCb->m_requiredTotalRegisterNumber = 8;                       \
     } else if (registerFileSize <= 16) {                                 \
         writeTag(ScriptSimpleFunctionObject<opt1, opt2, 16>().getTag()); \
+        byteCb->m_requiredTotalRegisterNumber = 16;                      \
     } else {                                                             \
         writeTag(ScriptSimpleFunctionObject<opt1, opt2, 24>().getTag()); \
+        byteCb->m_requiredTotalRegisterNumber = 24;                      \
     }
 
         if (cb->canAllocateEnvironmentOnStack() && registerFileSize <= 24) {

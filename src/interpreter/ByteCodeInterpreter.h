@@ -69,6 +69,7 @@ class CheckLastEnumerateKey;
 class TaggedTemplateOperation;
 class MarkEnumerateKey;
 class CreateEnumerateObject;
+class CallTailFunction;
 
 class ByteCodeInterpreter {
 public:
@@ -124,6 +125,7 @@ private:
     static Value getGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, ByteCodeBlock* block);
     static void setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block);
     static void initializeGlobalVariable(ExecutionState& state, InitializeGlobalVariable* code, const Value& value);
+    static Value callTailFunction(ExecutionState& state, CallTailFunction* code, Value* registerFile, ByteCodeBlock*& byteCodeBlock, char*& codeBuffer, size_t& programCounter, const size_t& currentStackSize);
 
     static Value tryOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 

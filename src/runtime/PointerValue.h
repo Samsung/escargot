@@ -214,6 +214,11 @@ public:
         return false;
     }
 
+    virtual bool isScriptSimpleFunctionObject() const
+    {
+        return false;
+    }
+
     virtual bool isStringObject() const
     {
         return false;

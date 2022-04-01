@@ -175,7 +175,7 @@ void CompressibleString::decompress()
 }
 
 constexpr static const size_t g_compressChunkSize = 1044465;
-static_assert(LZ4_COMPRESSBOUND(g_compressChunkSize) == 1024 * 1024, "");
+COMPILE_ASSERT(LZ4_COMPRESSBOUND(g_compressChunkSize) == 1024 * 1024, "");
 
 template <typename StringType>
 bool CompressibleString::compressWorker()

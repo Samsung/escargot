@@ -62,77 +62,8 @@ struct ByteCodeBreakpointContext {
 #endif /* ESCARGOT_DEBUGGER */
 
 struct ByteCodeGenerateContext {
-    ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, bool isGlobalScope, bool isEvalCode, bool isWithScope, NumeralLiteralVector* numeralLiteralData)
-        : m_baseRegisterCount(0)
-        , m_codeBlock(codeBlock)
-        , m_byteCodeBlock(byteCodeBlock)
-        , m_locData(nullptr)
-        , m_isGlobalScope(isGlobalScope)
-        , m_isEvalCode(isEvalCode)
-        , m_isOutermostContext(true)
-        , m_isWithScope(isWithScope)
-        , m_isFunctionDeclarationBindingInitialization(false)
-        , m_isVarDeclaredBindingInitialization(false)
-        , m_isLexicallyDeclaredBindingInitialization(false)
-        , m_canSkipCopyToRegister(true)
-        , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
-        , m_inCallingExpressionScope(false)
-        , m_inObjectDestruction(false)
-        , m_inParameterInitialization(false)
-        , m_isHeadOfMemberExpression(false)
-        , m_forInOfVarBinding(false)
-        , m_isLeftBindingAffectedByRightExpression(false)
-        , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
-        , m_lexicallyDeclaredNames(new std::vector<std::pair<size_t, AtomicString>>())
-        , m_positionToContinue(0)
-        , m_complexJumpBreakIgnoreCount(0)
-        , m_complexJumpContinueIgnoreCount(0)
-        , m_lexicalBlockIndex(0)
-        , m_openedNonBlockEnvCount(0)
-        , m_classInfo()
-        , m_numeralLiteralData(numeralLiteralData)
-#ifdef ESCARGOT_DEBUGGER
-        , m_breakpointContext(nullptr)
-#endif /* ESCARGOT_DEBUGGER */
-    {
-    }
-
-    ByteCodeGenerateContext(const ByteCodeGenerateContext& contextBefore)
-        : m_baseRegisterCount(contextBefore.m_baseRegisterCount)
-        , m_codeBlock(contextBefore.m_codeBlock)
-        , m_byteCodeBlock(contextBefore.m_byteCodeBlock)
-        , m_locData(contextBefore.m_locData)
-        , m_isGlobalScope(contextBefore.m_isGlobalScope)
-        , m_isEvalCode(contextBefore.m_isEvalCode)
-        , m_isOutermostContext(false)
-        , m_isWithScope(contextBefore.m_isWithScope)
-        , m_isFunctionDeclarationBindingInitialization(contextBefore.m_isFunctionDeclarationBindingInitialization)
-        , m_isVarDeclaredBindingInitialization(contextBefore.m_isVarDeclaredBindingInitialization)
-        , m_isLexicallyDeclaredBindingInitialization(contextBefore.m_isLexicallyDeclaredBindingInitialization)
-        , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
-        , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
-        , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
-        , m_inObjectDestruction(contextBefore.m_inObjectDestruction)
-        , m_inParameterInitialization(contextBefore.m_inParameterInitialization)
-        , m_isHeadOfMemberExpression(false)
-        , m_forInOfVarBinding(contextBefore.m_forInOfVarBinding)
-        , m_isLeftBindingAffectedByRightExpression(contextBefore.m_isLeftBindingAffectedByRightExpression)
-        , m_registerStack(contextBefore.m_registerStack)
-        , m_lexicallyDeclaredNames(contextBefore.m_lexicallyDeclaredNames)
-        , m_positionToContinue(contextBefore.m_positionToContinue)
-        , m_recursiveStatementStack(contextBefore.m_recursiveStatementStack)
-        , m_complexJumpBreakIgnoreCount(contextBefore.m_recursiveStatementStack.size())
-        , m_complexJumpContinueIgnoreCount(m_complexJumpBreakIgnoreCount)
-        , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
-        , m_openedNonBlockEnvCount(contextBefore.m_openedNonBlockEnvCount)
-        , m_classInfo(contextBefore.m_classInfo)
-        , m_numeralLiteralData(contextBefore.m_numeralLiteralData)
-#ifdef ESCARGOT_DEBUGGER
-        , m_breakpointContext(contextBefore.m_breakpointContext)
-#endif /* ESCARGOT_DEBUGGER */
-    {
-        ASSERT(m_complexJumpBreakIgnoreCount == m_complexJumpContinueIgnoreCount);
-    }
+    ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, bool isGlobalScope, bool isEvalCode, bool isWithScope, NumeralLiteralVector* numeralLiteralData);
+    ByteCodeGenerateContext(const ByteCodeGenerateContext& contextBefore);
 
     ~ByteCodeGenerateContext()
     {

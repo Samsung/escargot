@@ -106,6 +106,7 @@ struct GlobalVariableAccessCacheItem;
     F(JumpIfEqual, 0, 0)                                    \
     F(CallFunction, -1, 0)                                  \
     F(CallFunctionWithReceiver, -1, 0)                      \
+    F(CallTailFunction, -1, 0)                              \
     F(GetParameter, 0, 0)                                   \
     F(ReturnFunctionSlowCase, 0, 0)                         \
     F(TryOperation, 0, 0)                                   \
@@ -1893,10 +1894,43 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("call r%u <- r%u,r%u(r%u-r%u)", m_resultIndex, m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        printf("call r%u <- r%u.r%u(r%u-r%u)", m_resultIndex, m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
     }
 #endif
 };
+
+class CallTailFunction : public ByteCode {
+public:
+    CallTailFunction(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
+        : ByteCode(Opcode::CallTailFunctionOpcode, loc)
+        , m_receiverIndex(receiverIndex)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_resultIndex(resultIndex)
+        , m_argumentCount(argumentCount)
+    {
+    }
+
+    ByteCodeRegisterIndex m_receiverIndex;
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    ByteCodeRegisterIndex m_resultIndex;
+    uint16_t m_argumentCount;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        if (m_receiverIndex != REGISTER_LIMIT) {
+            printf("tail call r%u <- r%u.r%u(r%u-r%u)", m_resultIndex, m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        } else {
+            printf("tail call r%u <- r%u(r%u-r%u)", m_resultIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        }
+    }
+#endif
+};
+
+COMPILE_ASSERT(sizeof(CallTailFunction) >= sizeof(CallFunction), "");
+COMPILE_ASSERT(sizeof(CallTailFunction) == sizeof(CallFunctionWithReceiver), "");
 
 class CallFunctionComplexCase : public ByteCode {
 public:

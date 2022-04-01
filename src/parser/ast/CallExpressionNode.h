@@ -293,6 +293,163 @@ public:
         context->m_canSkipCopyToRegister = directBefore;
     }
 
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
+    {
+        bool isOptional = this->isOptional();
+        bool isSubSequenceOfOptionalExpression = this->isSubSequenceOfOptionalExpression();
+        if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
+            ByteCodeRegisterIndex evalIndex = context->getRegister();
+            codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), evalIndex, codeBlock->m_codeBlock->context()->staticStrings().eval), context, this);
+            auto args = generateArguments(codeBlock, context, false);
+            ByteCodeRegisterIndex startIndex = args.first;
+            context->giveUpRegister();
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::MayBuiltinEval, context->m_isWithScope, args.second,
+                                                        isOptional, REGULAR_REGISTER_LIMIT, evalIndex, startIndex, dstRegister, m_arguments.size()),
+                                context, this);
+            return;
+        }
+
+        bool isSlow = !canUseDirectRegister(context, m_callee, m_arguments);
+        bool directBefore = context->m_canSkipCopyToRegister;
+        if (isSlow) {
+            context->m_canSkipCopyToRegister = false;
+        }
+
+        bool prevInCallingExpressionScope = context->m_inCallingExpressionScope;
+        bool useWithObjectAsReceiver = context->m_isWithScope && m_callee->isIdentifier();
+        if (UNLIKELY(useWithObjectAsReceiver)) {
+            // CallFunction should check whether receiver is global obj or with obj.
+            ASSERT(m_callee->isIdentifier());
+            AtomicString calleeName = m_callee->asIdentifier()->name();
+            auto args = generateArguments(codeBlock, context);
+            ByteCodeRegisterIndex startIndex = args.first;
+            context->m_inCallingExpressionScope = prevInCallingExpressionScope;
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), args.second, isOptional,
+                                                        calleeName, startIndex, dstRegister, m_arguments.size()),
+                                context, this);
+            return;
+        }
+
+        bool isCalleeHasReceiver = false;
+        bool isSuperCall = m_callee->isSuperExpression() && ((SuperExpressionNode*)m_callee)->isCall();
+        bool maySpecialBuiltinApplyCall = false; // ex) function.apply(<any>, arguments)
+        bool calleeIsMemberExpression = m_callee->isMemberExpression();
+
+        if (calleeIsMemberExpression && !isOptional && !isSubSequenceOfOptionalExpression && m_callee->asMemberExpression()->property()->isIdentifier() && m_callee->asMemberExpression()->property()->asIdentifier()->name().string()->equals("apply")) {
+            if (m_arguments.size() == 2 && codeBlock->m_codeBlock->parameterCount() == 0) {
+                auto node = m_arguments.begin();
+                node = node->next();
+                if (node->astNode()->isIdentifier() && node->astNode()->asIdentifier()->isPointsArgumentsObject(context)) {
+                    maySpecialBuiltinApplyCall = true;
+                }
+            }
+        }
+
+        if (calleeIsMemberExpression) {
+            isCalleeHasReceiver = true;
+            context->m_inCallingExpressionScope = true;
+            context->m_isHeadOfMemberExpression = true;
+        }
+
+        if (maySpecialBuiltinApplyCall) {
+            auto calleeIndex = m_callee->getRegister(codeBlock, context);
+            m_callee->generateExpressionByteCode(codeBlock, context, calleeIndex);
+            auto receiverIndex = context->getLastRegisterIndex();
+
+            ByteCodeRegisterIndex firstArgumentRegister = m_arguments.begin()->astNode()->getRegister(codeBlock, context);
+            m_arguments.begin()->astNode()->generateExpressionByteCode(codeBlock, context, firstArgumentRegister);
+            // argument 0
+            context->giveUpRegister();
+
+            // callee
+            context->giveUpRegister();
+            context->giveUpRegister();
+
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::MayBuiltinApply, false, false, false,
+                                                        receiverIndex, calleeIndex, firstArgumentRegister, dstRegister, m_arguments.size()),
+                                context, this);
+
+            context->m_inCallingExpressionScope = prevInCallingExpressionScope;
+            context->m_canSkipCopyToRegister = directBefore;
+            return;
+        }
+
+        if (isOptional || isSubSequenceOfOptionalExpression) {
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value()), context, this);
+        }
+
+        ByteCodeRegisterIndex receiverIndex = REGISTER_LIMIT;
+        ByteCodeRegisterIndex calleeIndex = REGISTER_LIMIT;
+
+        calleeIndex = m_callee->getRegister(codeBlock, context);
+        m_callee->generateExpressionByteCode(codeBlock, context, calleeIndex);
+
+        size_t optionalJumpPos = SIZE_MAX;
+        if (isSubSequenceOfOptionalExpression) {
+            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this);
+            optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+        }
+
+        if (isCalleeHasReceiver) {
+            receiverIndex = context->getLastRegisterIndex();
+            Node* object = ((MemberExpressionNode*)(m_callee))->object();
+            if (object->isSuperExpression()) {
+                ThisExpressionNode* nd = new (alloca(sizeof(ThisExpressionNode))) ThisExpressionNode();
+                nd->generateExpressionByteCode(codeBlock, context, receiverIndex);
+            }
+        }
+
+        auto args = generateArguments(codeBlock, context);
+        ByteCodeRegisterIndex argumentsStartIndex = args.first;
+        bool hasSpreadElement = args.second;
+
+        if (isOptional) {
+            ASSERT(optionalJumpPos == SIZE_MAX);
+            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this);
+            optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+        }
+
+        // drop callee, receiver registers
+        if (isCalleeHasReceiver) {
+            context->giveUpRegister();
+            context->giveUpRegister();
+        } else {
+            context->giveUpRegister();
+        }
+
+        bool canAllocateEnvironmentOnStack = codeBlock->codeBlock()->canAllocateEnvironmentOnStack();
+        if (isSuperCall) {
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::Super, false, args.second, false,
+                                                        REGISTER_LIMIT, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
+                                context, this);
+        } else if (hasSpreadElement) {
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::WithSpreadElement, false, args.second, false,
+                                                        receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
+                                context, this);
+        } else if (isCalleeHasReceiver) {
+            // tail call with receiver
+            if (canAllocateEnvironmentOnStack) {
+                codeBlock->pushCode(CallTailFunction(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
+            } else {
+                codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
+            }
+        } else {
+            // tail call without receiver
+            if (canAllocateEnvironmentOnStack) {
+                codeBlock->pushCode(CallTailFunction(ByteCodeLOC(m_loc.index), REGISTER_LIMIT, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
+            } else {
+                codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
+            }
+        }
+
+        if (isOptional || isSubSequenceOfOptionalExpression) {
+            codeBlock->peekCode<JumpIfUndefinedOrNull>(optionalJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+        }
+
+        context->m_inCallingExpressionScope = prevInCallingExpressionScope;
+        context->m_canSkipCopyToRegister = directBefore;
+    }
+
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_callee->iterateChildrenIdentifier(fn);

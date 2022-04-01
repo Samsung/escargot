@@ -266,7 +266,7 @@ protected:
             } m_nativeAccessorData;
         };
     };
-    static_assert(sizeof(TemplatePropertyData) == sizeof(size_t) * 3, "");
+    COMPILE_ASSERT(sizeof(TemplatePropertyData) == sizeof(size_t) * 3, "");
 
     // internally, property name is stored as ObjectStructurePropertyName because it only requires the size of `size_t` (4 or 8 bytes) which is memory-efficient
     Vector<std::pair<ObjectStructurePropertyName, TemplatePropertyData>, GCUtil::gc_malloc_allocator<std::pair<ObjectStructurePropertyName, TemplatePropertyData>>> m_properties;

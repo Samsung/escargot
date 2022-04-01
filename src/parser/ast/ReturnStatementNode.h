@@ -60,10 +60,11 @@ public:
             }
             context->giveUpRegister();
         } else {
-            size_t r;
+            ByteCodeRegisterIndex r;
             if (m_argument) {
                 r = m_argument->getRegister(codeBlock, context);
-                m_argument->generateExpressionByteCode(codeBlock, context, r);
+                // consider TCO
+                m_argument->generateTCOExpressionByteCode(codeBlock, context, r);
             } else {
                 r = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), r, Value()), context, this);

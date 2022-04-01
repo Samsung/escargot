@@ -526,6 +526,11 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
+    {
+        generateExpressionByteCode(codeBlock, context, dstRegister);
+    }
+
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf);
 
     virtual void generateResolveAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
