@@ -1101,7 +1101,7 @@ public:
     IteratorObject* entries(ExecutionState& state);
 
     Value speciesConstructor(ExecutionState& state, const Value& defaultConstructor);
-    void markAsPrototypeObject(ExecutionState& state);
+    virtual void markAsPrototypeObject(ExecutionState& state);
 
     ALWAYS_INLINE Value uncheckedGetOwnDataProperty(size_t idx)
     {

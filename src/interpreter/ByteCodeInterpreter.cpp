@@ -485,15 +485,12 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             PointerValue* v;
             if (LIKELY(willBeObject.isObject() && (v = willBeObject.asPointerValue())->hasArrayObjectTag())) {
                 ArrayObject* arr = (ArrayObject*)v;
-                if (LIKELY(arr->isFastModeArray())) {
+                if (LIKELY(arr->hasFastModeDataBuffer())) {
                     uint32_t idx = property.tryToUseAsIndexProperty(*state);
-                    if (LIKELY(idx != Value::InvalidIndexPropertyValue) && LIKELY(idx < arr->arrayLength(*state))) {
-                        const Value& v = arr->m_fastModeData[idx];
-                        if (LIKELY(!v.isEmpty())) {
-                            registerFile[code->m_storeRegisterIndex] = v;
-                            ADD_PROGRAM_COUNTER(GetObject);
-                            NEXT_INSTRUCTION();
-                        }
+                    if (LIKELY(idx < arr->arrayLength(*state))) {
+                        registerFile[code->m_storeRegisterIndex] = arr->m_fastModeData[idx].toValue<true>();
+                        ADD_PROGRAM_COUNTER(GetObject);
+                        NEXT_INSTRUCTION();
                     }
                 }
             }
@@ -508,18 +505,10 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             const Value& property = registerFile[code->m_propertyRegisterIndex];
             if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->hasArrayObjectTag())) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
-                uint32_t idx = property.tryToUseAsIndexProperty(*state);
-                if (LIKELY(arr->isFastModeArray())) {
-                    if (LIKELY(idx != Value::InvalidIndexPropertyValue)) {
-                        uint32_t len = arr->arrayLength(*state);
-                        if (UNLIKELY(len <= idx)) {
-                            if (UNLIKELY(!arr->isExtensible(*state))) {
-                                JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
-                            }
-                            if (UNLIKELY(!arr->setArrayLength(*state, idx + 1)) || UNLIKELY(!arr->isFastModeArray())) {
-                                JUMP_INSTRUCTION(SetObjectOpcodeSlowCase);
-                            }
-                        }
+                if (LIKELY(arr->hasFastModeDataBuffer())) {
+                    uint32_t len = arr->arrayLength(*state);
+                    uint32_t idx = property.tryToUseAsIndexProperty(*state);
+                    if (LIKELY(idx < len)) {
                         arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
                         ADD_PROGRAM_COUNTER(SetObjectOperation);
                         NEXT_INSTRUCTION();

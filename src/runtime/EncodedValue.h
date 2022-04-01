@@ -245,7 +245,8 @@ public:
         return m_data.payload == ValueEmpty;
     }
 
-    ALWAYS_INLINE operator Value() const
+    template <const bool shouldTreatEmptyAsUndefined = false>
+    ALWAYS_INLINE Value toValue() const
     {
         if (HAS_SMI_TAG(m_data.payload)) {
             int32_t value = EncodedValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
@@ -254,6 +255,9 @@ public:
 
         void* ptr = reinterpret_cast<void*>(m_data.payload);
         if (UNLIKELY(((size_t)ptr) <= ValueLast)) {
+            if (shouldTreatEmptyAsUndefined && UNLIKELY(ptr == ValueEmpty)) {
+                return Value();
+            }
 #ifdef ESCARGOT_32
             return Value(Value::FromTag, ~((uint32_t)ptr));
 #else
@@ -277,6 +281,11 @@ public:
             return Value(reinterpret_cast<PointerValue*>(ptr));
         }
 #endif
+    }
+
+    ALWAYS_INLINE operator Value() const
+    {
+        return toValue<>();
     }
 
     bool isInt32()
@@ -460,7 +469,8 @@ public:
         return m_data.payload;
     }
 
-    ALWAYS_INLINE operator Value() const
+    template <const bool shouldTreatEmptyAsUndefined = false>
+    ALWAYS_INLINE Value toValue() const
     {
         if (isSMI()) {
             // we cannot use EncodedValueImpl::PlatformSmiTagging::SmiToInt
@@ -472,6 +482,9 @@ public:
 
         void* ptr = reinterpret_cast<void*>(payload());
         if (((size_t)ptr) <= ValueLast) {
+            if (shouldTreatEmptyAsUndefined && UNLIKELY(ptr == ValueEmpty)) {
+                return Value();
+            }
             return Value(reinterpret_cast<PointerValue*>(ptr));
         }
 
@@ -480,6 +493,11 @@ public:
         } else {
             return Value(reinterpret_cast<PointerValue*>(ptr));
         }
+    }
+
+    ALWAYS_INLINE operator Value() const
+    {
+        return toValue<>();
     }
 
     bool isEmpty() const
