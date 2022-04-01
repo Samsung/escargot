@@ -605,6 +605,12 @@ uint64_t ArrayObject::length(ExecutionState& state)
     return arrayLength(state);
 }
 
+void ArrayObject::markAsPrototypeObject(ExecutionState& state)
+{
+    Object::markAsPrototypeObject(state);
+    convertIntoNonFastMode(state);
+}
+
 ArrayIteratorObject::ArrayIteratorObject(ExecutionState& state, Object* a, Type type)
     : IteratorObject(state, state.context()->globalObject()->arrayIteratorPrototype())
     , m_array(a)
@@ -685,5 +691,6 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
 ArrayPrototypeObject::ArrayPrototypeObject(ExecutionState& state)
     : ArrayObject(state, state.context()->globalObject()->objectPrototype())
 {
+    convertIntoNonFastMode(state);
 }
 } // namespace Escargot

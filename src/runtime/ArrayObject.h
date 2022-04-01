@@ -73,6 +73,7 @@ public:
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver) override;
     virtual bool preventExtensions(ExecutionState&) override;
     virtual uint64_t length(ExecutionState& state) override;
+    virtual void markAsPrototypeObject(ExecutionState& state) override;
 
     // Use custom allocator for Array object (for Badtime)
     void* operator new(size_t size);
@@ -102,6 +103,8 @@ protected:
         // only called by Global::initialize to set tag value
     }
 
+    void convertIntoNonFastMode(ExecutionState& state);
+
 private:
     ALWAYS_INLINE bool isFastModeArray()
     {
@@ -128,9 +131,17 @@ private:
         return m_arrayLength;
     }
 
+    bool hasFastModeDataBuffer()
+    {
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return !!m_fastModeData.data();
+#else
+        return !!m_fastModeData;
+#endif
+    }
+
     bool setArrayLength(ExecutionState& state, const Value& newLength);
     bool setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage = false, bool considerHole = true);
-    void convertIntoNonFastMode(ExecutionState& state);
 
     ObjectGetResult getVirtualValue(ExecutionState& state, const ObjectPropertyName& P);
 
