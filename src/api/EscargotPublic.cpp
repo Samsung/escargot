@@ -1169,10 +1169,17 @@ Evaluator::EvaluatorResult VMInstanceRef::executePendingJob()
 
 #ifdef ESCARGOT_DEBUGGER
 
-StringRef* DebuggerOperationsRef::BreakpointOperations::eval(StringRef* sourceCode, bool& isError)
+class DebuggerOperationsRef::BreakpointOperations::ObjectStore {
+public:
+    Vector<Object*, GCUtil::gc_malloc_allocator<Object*>> m_activeObjects;
+};
+
+StringRef* DebuggerOperationsRef::BreakpointOperations::eval(StringRef* sourceCode, bool& isError, size_t& objectIndex)
 {
     ExecutionState* state = toImpl(m_executionState);
     Debugger* debugger = state->context()->debugger();
+
+    objectIndex = SIZE_MAX;
 
     if (debugger == nullptr) {
         isError = true;
@@ -1190,7 +1197,13 @@ StringRef* DebuggerOperationsRef::BreakpointOperations::eval(StringRef* sourceCo
         Value asValue(toImpl(sourceCode));
         Value evalResult(Value::ForceUninitialized);
         evalResult = state->context()->globalObject()->evalLocal(*state, asValue, state->thisValue(), reinterpret_cast<ByteCodeBlock*>(weakCodeRef())->m_codeBlock, true);
-        result = evalResult.toStringWithoutException(*state);
+
+        if (evalResult.isObject()) {
+            result = nullptr;
+            objectIndex = putObject(toRef(evalResult.asObject()));
+        } else {
+            result = evalResult.toStringWithoutException(*state);
+        }
     } catch (const Value& val) {
         result = val.toStringWithoutException(*state);
 
@@ -1453,6 +1466,37 @@ DebuggerOperationsRef::PropertyKeyValueVector DebuggerOperationsRef::BreakpointO
     }
 
     return PropertyKeyValueVector();
+}
+
+size_t DebuggerOperationsRef::BreakpointOperations::putObject(ObjectRef* object)
+{
+    Object* storedObject = toImpl(object);
+
+    if (m_objectStore == nullptr) {
+        m_objectStore = new ObjectStore();
+        m_objectStore->m_activeObjects.pushBack(storedObject);
+        return 0;
+    }
+
+    size_t size = m_objectStore->m_activeObjects.size();
+
+    for (size_t i = 0; i < size; i++) {
+        if (m_objectStore->m_activeObjects[i] == storedObject) {
+            return i;
+        }
+    }
+
+    m_objectStore->m_activeObjects.pushBack(storedObject);
+    return size;
+}
+
+ObjectRef* DebuggerOperationsRef::BreakpointOperations::getObject(size_t index)
+{
+    if (m_objectStore == nullptr || index >= m_objectStore->m_activeObjects.size()) {
+        return nullptr;
+    }
+
+    return toRef(m_objectStore->m_activeObjects[index]);
 }
 
 StringRef* DebuggerOperationsRef::getFunctionName(WeakCodeRef* weakCodeRef)
