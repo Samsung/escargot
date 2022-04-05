@@ -2418,13 +2418,16 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
         inEval = true;
         StringRef* sourceCode = StringRef::createFromUTF8("a", 1);
         bool is_error;
-        StringRef* result = operations.eval(sourceCode, is_error);
+        size_t objectRef;
+        StringRef* result = operations.eval(sourceCode, is_error, objectRef);
         EXPECT_FALSE(is_error);
+        EXPECT_EQ(objectRef, SIZE_MAX);
         EXPECT_TRUE(result->equalsWithASCIIString("1", 1));
 
         sourceCode = StringRef::createFromUTF8("aa", 2);
-        result = operations.eval(sourceCode, is_error);
+        result = operations.eval(sourceCode, is_error, objectRef);
         EXPECT_TRUE(is_error);
+        EXPECT_EQ(objectRef, SIZE_MAX);
         static char errorMessage[] = "ReferenceError: aa is not defined";
         EXPECT_TRUE(result->equalsWithASCIIString(errorMessage, sizeof(errorMessage) - 1));
         inEval = false;
@@ -2459,7 +2462,8 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
         inEval = true;
         StringRef* sourceCode = StringRef::createFromUTF8("a", 1);
         bool is_error;
-        StringRef* result = operations.eval(sourceCode, is_error);
+        size_t objectRef;
+        StringRef* result = operations.eval(sourceCode, is_error, objectRef);
         EXPECT_TRUE(result->equalsWithASCIIString("2", 1));
         inEval = false;
 
@@ -2537,6 +2541,105 @@ TEST(Debugger, RemoteOption)
     EXPECT_FALSE(context->initDebuggerRemote("--accept-timeout=100"));
     EXPECT_FALSE(context->isDebuggerRunning());
     EXPECT_FALSE(context->isWaitBeforeExit());
+
+    context.release();
+    instance.release();
+}
+
+static char debuggerSourceString3[] = "var a = { get x() { return {} } },\n"
+                                      "    b = a\n"
+                                      "a = b";
+
+class DebuggerObjectTest : public DebuggerOperationsRef::DebuggerClient {
+public:
+    DebuggerObjectTest()
+        : inEval(false)
+        , stopAtBreakpointCount(0)
+    {
+    }
+
+    virtual void parseCompleted(StringRef* source, StringRef* srcName, std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>& breakpointLocationsVector) override;
+    virtual void parseError(StringRef* source, StringRef* srcName, StringRef* error) override;
+    virtual void codeReleased(DebuggerOperationsRef::WeakCodeRef* weakCodeRef) override;
+    virtual DebuggerOperationsRef::ResumeBreakpointOperation stopAtBreakpoint(DebuggerOperationsRef::BreakpointOperations& operations) override;
+
+    bool inEval;
+    int stopAtBreakpointCount;
+};
+
+void DebuggerObjectTest::parseCompleted(StringRef* source, StringRef* srcName, std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>& breakpointLocationsVector)
+{
+    if (inEval) {
+        return;
+    }
+
+    EXPECT_TRUE(source->equalsWithASCIIString(debuggerSourceString3, sizeof(debuggerSourceString3) - 1));
+    EXPECT_TRUE(srcName->equalsWithASCIIString(debuggerFileNameString, sizeof(debuggerFileNameString) - 1));
+    EXPECT_EQ(breakpointLocationsVector.size(), 3);
+}
+
+void DebuggerObjectTest::parseError(StringRef* source, StringRef* srcName, StringRef* error)
+{
+    (void)source;
+    (void)srcName;
+    (void)error;
+
+    EXPECT_TRUE(false);
+}
+
+void DebuggerObjectTest::codeReleased(DebuggerOperationsRef::WeakCodeRef* weakCodeRef)
+{
+    EXPECT_TRUE(weakCodeRef != nullptr);
+}
+
+DebuggerOperationsRef::ResumeBreakpointOperation DebuggerObjectTest::stopAtBreakpoint(DebuggerOperationsRef::BreakpointOperations& operations)
+{
+    stopAtBreakpointCount++;
+
+    if (stopAtBreakpointCount <= 2) {
+        return DebuggerOperationsRef::Next;
+    }
+
+    bool is_error;
+    size_t objectRef1, objectRef2;
+    StringRef* sourceCode = StringRef::createFromUTF8("a", 1);
+
+    StringRef* result = operations.eval(sourceCode, is_error, objectRef1);
+    EXPECT_FALSE(is_error);
+    EXPECT_EQ(result, nullptr);
+
+    sourceCode = StringRef::createFromUTF8("b", 1);
+
+    result = operations.eval(sourceCode, is_error, objectRef2);
+    EXPECT_FALSE(is_error);
+    EXPECT_EQ(result, nullptr);
+
+    EXPECT_EQ(objectRef1, objectRef2);
+
+    sourceCode = StringRef::createFromUTF8("a.x", 1);
+
+    result = operations.eval(sourceCode, is_error, objectRef2);
+    EXPECT_FALSE(is_error);
+    EXPECT_EQ(result, nullptr);
+    EXPECT_TRUE(objectRef1 != objectRef2);
+
+    return DebuggerOperationsRef::Continue;
+}
+
+TEST(Debugger, ObjectStore)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+    DebuggerTest* debuggerTest = new DebuggerTest();
+    StringRef* fileName = StringRef::createFromUTF8(debuggerFileNameString, sizeof(debuggerFileNameString) - 1);
+
+    context->initDebugger(debuggerTest);
+
+    StringRef* source = StringRef::createFromUTF8(debuggerSourceString1, sizeof(debuggerSourceString1) - 1);
+    evalScript(context, source, fileName, false);
+
+    source = StringRef::createFromUTF8(debuggerSourceString2, sizeof(debuggerSourceString2) - 1);
+    evalScript(context, source, fileName, false);
 
     context.release();
     instance.release();

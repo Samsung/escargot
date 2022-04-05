@@ -786,21 +786,32 @@ public:
             return m_offset;
         }
 
-        StringRef* eval(StringRef* sourceCode, bool& isError);
+        // eval notes:
+        //   - error: the result is the string of the error message, isError is set to true
+        //   - object: the returned string is nullptr, objectRef contains the index of the object
+        //   - other values: the returned string contains the string representation of the value
+        StringRef* eval(StringRef* sourceCode, bool& isError, size_t& objectIndex);
         void getStackTrace(DebuggerStackTraceDataVector& outStackTrace);
         void getLexicalScopeChain(uint32_t stateIndex, LexicalScopeChainVector& outLexicalScopeChain);
         PropertyKeyValueVector getLexicalScopeChainProperties(uint32_t stateIndex, uint32_t scopeIndex);
+        // Temporary object store for storing inspected objects. All object has an index.
+        size_t putObject(ObjectRef* object);
+        ObjectRef* getObject(size_t index);
 
     private:
+        class ObjectStore;
+
         BreakpointOperations(WeakCodeRef* weakCodeRef, ExecutionStateRef* executionState, uint32_t offset)
             : m_weakCodeRef(weakCodeRef)
             , m_executionState(executionState)
+            , m_objectStore(nullptr)
             , m_offset(offset)
         {
         }
 
         WeakCodeRef* m_weakCodeRef;
         ExecutionStateRef* m_executionState;
+        ObjectStore* m_objectStore;
         uint32_t m_offset;
     };
 
