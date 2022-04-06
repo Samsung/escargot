@@ -1131,10 +1131,7 @@ struct GetObjectInlineCacheData {
         m_cachedIndex = 0;
     }
 
-    union {
-        ObjectStructure** m_cachedhiddenClassChain;
-        ObjectStructure* m_cachedhiddenClass;
-    };
+    ObjectStructure** m_cachedhiddenClassChain;
     bool m_isPlainDataProperty : 1;
     // 15bits of storage is enough
     // inlineCacheProtoTraverseMaxCount is so small
@@ -1145,8 +1142,8 @@ struct GetObjectInlineCacheData {
 
 typedef Vector<GetObjectInlineCacheData, CustomAllocator<GetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> GetObjectInlineCacheDataVector;
 
-struct GetObjectInlineCache {
-    GetObjectInlineCache()
+struct GetObjectInlineCacheComplexCase {
+    GetObjectInlineCacheComplexCase()
     {
     }
 
@@ -1156,27 +1153,58 @@ struct GetObjectInlineCache {
     GetObjectInlineCacheDataVector m_cache;
 };
 
+struct GetObjectInlineCacheSimpleCase : public gc {
+    GetObjectInlineCacheSimpleCase()
+    {
+        memset(this, 0, sizeof(GetObjectInlineCacheSimpleCase));
+    }
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    static constexpr size_t inlineBufferSize = 3;
+
+    ObjectStructure* m_cachedStructures[inlineBufferSize];
+    uint8_t m_cachedIndexes[inlineBufferSize];
+};
+
 class GetObjectPreComputedCase : public ByteCode {
 public:
     // [object] -> [value]
     GetObjectPreComputedCase(const ByteCodeLOC& loc, const size_t objectRegisterIndex, const size_t storeRegisterIndex, ObjectStructurePropertyName propertyName)
         : ByteCode(Opcode::GetObjectPreComputedCaseOpcode, loc)
+        , m_inlineCacheMode(None)
         , m_isLength(propertyName.plainString()->equals("length"))
         , m_inlineCacheProtoTraverseMaxIndex(0)
         , m_cacheMissCount(0)
-        , m_inlineCache(nullptr)
+        , m_simpleInlineCache(nullptr)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_storeRegisterIndex(storeRegisterIndex)
         , m_propertyName(propertyName)
     {
     }
 
+    bool hasInlineCache() const
+    {
+        return !!m_simpleInlineCache;
+    }
+
     static constexpr size_t inlineCacheProtoTraverseMaxCount = 12;
 
+    enum GetInlineCacheMode {
+        None,
+        Simple,
+        Complex
+    };
+
+    GetInlineCacheMode m_inlineCacheMode : 2;
     bool m_isLength : 1;
     unsigned char m_inlineCacheProtoTraverseMaxIndex : 8;
     size_t m_cacheMissCount : 16;
-    GetObjectInlineCache* m_inlineCache;
+    union {
+        GetObjectInlineCacheSimpleCase* m_simpleInlineCache;
+        GetObjectInlineCacheComplexCase* m_complexInlineCache;
+    };
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_storeRegisterIndex;
