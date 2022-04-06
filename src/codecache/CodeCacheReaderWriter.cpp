@@ -583,7 +583,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
             }
             case GetObjectPreComputedCaseOpcode: {
                 GetObjectPreComputedCase* bc = static_cast<GetObjectPreComputedCase*>(currentCode);
-                ASSERT(!bc->m_inlineCache);
+                ASSERT(!bc->hasInlineCache());
                 ASSERT(bc->m_propertyName.hasAtomicString());
                 STORE_ATOMICSTRING_RELOC(m_propertyName.asAtomicString());
                 break;
@@ -1153,7 +1153,7 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
             }
             case GetObjectPreComputedCaseOpcode: {
                 GetObjectPreComputedCase* bc = static_cast<GetObjectPreComputedCase*>(currentCode);
-                ASSERT(!bc->m_inlineCache);
+                ASSERT(!bc->hasInlineCache());
                 LOAD_ATOMICSTRING_RELOC(m_propertyName);
                 break;
             }

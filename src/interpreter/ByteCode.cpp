@@ -327,14 +327,30 @@ void ByteCodeBlock::pushPauseStatementExtraData(ByteCodeGenerateContext* context
     }
 }
 
-void* GetObjectInlineCache::operator new(size_t size)
+void* GetObjectInlineCacheSimpleCase::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCache)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCache, m_cache));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCache));
+        GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCacheSimpleCase)] = { 0 };
+        for (size_t i = 0; i < inlineBufferSize; i++) {
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheSimpleCase, m_cachedStructures) + i);
+        }
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCacheSimpleCase));
+        typeInited = true;
+    }
+
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+void* GetObjectInlineCacheComplexCase::operator new(size_t size)
+{
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCacheComplexCase)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheComplexCase, m_cache));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCacheComplexCase));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
