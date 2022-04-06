@@ -586,7 +586,8 @@ def run_cctest(engine, arch):
     proc = Popen([engine], stdout=PIPE)
     stdout, _ = proc.communicate()
     print(stdout)
-    if 'FAILED' in stdout:
+    result = stdout.lower()
+    if 'fail' in result:
         raise Exception('Not all tests succeeded')
 
 @runner('debugger-server-source', default=True)
