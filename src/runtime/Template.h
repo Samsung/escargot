@@ -40,15 +40,15 @@ public:
     };
 
     TemplateData(const Value& v)
+        : m_type(TemplateDataValue)
+        , m_value(v)
     {
-        m_type = TemplateDataValue;
-        m_value = v;
     }
 
     TemplateData(Template* t)
+        : m_type(TemplateDataTemplate)
+        , m_template(t)
     {
-        m_type = TemplateDataTemplate;
-        m_template = t;
     }
 
 private:

@@ -225,22 +225,32 @@ jobs:
     - name: Install Packages
       run: |
         sudo apt update
-        sudo apt install -y ninja-build
+        sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_i386.deb
+        dpkg -X libicu-dev_67.1-6ubuntu2_i386.deb $GITHUB_WORKSPACE/icu32
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_amd64.deb
         dpkg -X libicu-dev_67.1-6ubuntu2_amd64.deb $GITHUB_WORKSPACE/icu64
-    - name: Build
+    - name: Build x86/x64
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_THREADING=1 -DESCARGOT_DEBUGGER=1 -DESCARGOT_OUTPUT=cctest -GNinja
+        BUILD_OPTIONS_X86: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_THREADING=1 -DESCARGOT_DEBUGGER=1 -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=cctest -GNinja
+        BUILD_OPTIONS_X64: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_THREADING=1 -DESCARGOT_DEBUGGER=1 -DESCARGOT_OUTPUT=cctest -GNinja
       run: |
+        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu32/usr/include"
+        export LDFLAGS="-L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu"
+        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu/pkgconfig
+        cmake -H. -Bout/cctest/x86 $BUILD_OPTIONS_X86
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/usr/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu"
         export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu/pkgconfig
-        cmake -H. -Bout/cctest $BUILD_OPTIONS
-        ninja -Cout/cctest
+        cmake -H. -Bout/cctest/x64 $BUILD_OPTIONS_X64
+        ninja -Cout/cctest/x86
+        ninja -Cout/cctest/x64
     - name: Run Test
-      run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/cctest/cctest" cctest
+      run: |
+        $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/cctest/x86/cctest" cctest
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/cctest/x64/cctest" cctest
 
   codecache_test:
     runs-on: ubuntu-latest

@@ -266,13 +266,13 @@ public:
         if (LIKELY(!(tag & POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA))) {
             return Value(reinterpret_cast<Object*>(ptr));
         } else if (UNLIKELY(tag == POINTER_VALUE_DOUBLE_TAG_IN_DATA)) {
-            return Value(Value::EncodeAsDouble, reinterpret_cast<DoubleInEncodedValue*>(ptr)->value());
+            return Value(reinterpret_cast<DoubleInEncodedValue*>(ptr)->value());
         } else {
             return Value(reinterpret_cast<PointerValue*>(ptr), Value::FromNonObjectPointer);
         }
 #else
         if (UNLIKELY(readPointerIsDoubleEncodedValue(ptr))) {
-            return Value(Value::EncodeAsDouble, reinterpret_cast<DoubleInEncodedValue*>(ptr)->value());
+            return Value(reinterpret_cast<DoubleInEncodedValue*>(ptr)->value());
         } else {
             return Value(reinterpret_cast<PointerValue*>(ptr));
         }
@@ -342,7 +342,7 @@ public:
         }
 
         if (from.isNumber()) {
-            auto payload = m_data.payload;
+            intptr_t payload = m_data.payload;
 
             if (!HAS_SMI_TAG(payload) && ((size_t)payload > (size_t)ValueLast)) {
                 void* v = (void*)payload;
