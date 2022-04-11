@@ -34,24 +34,26 @@ class PointerValue;
 
 #ifdef ESCARGOT_32
 COMPILE_ASSERT(sizeof(EncodedValueData) == 4, "");
+COMPILE_ASSERT(sizeof(Value) == 8, "");
 #else
 COMPILE_ASSERT(sizeof(EncodedValueData) == 8, "");
 #endif
 
 #pragma pack(push, 1)
-// DoubleInEncodedValue stores its tag in `this + sizeof(size_t)`
+// NumberInEncodedValue stores its tag in `this + sizeof(size_t)`
 // the location is same with PointerValues
-class DoubleInEncodedValue : public gc {
+// store double
+class NumberInEncodedValue : public gc {
 public:
-    explicit DoubleInEncodedValue(const double& v)
+    explicit NumberInEncodedValue(const Value& v)
 #ifdef ESCARGOT_32
     {
-        m_buffer[1] = POINTER_VALUE_DOUBLE_TAG_IN_DATA;
+        m_buffer[1] = POINTER_VALUE_NUMBER_TAG_IN_DATA;
         setValue(v);
     }
 #else
         : m_value(v)
-        , m_tag(POINTER_VALUE_DOUBLE_TAG_IN_DATA)
+        , m_tag(POINTER_VALUE_NUMBER_TAG_IN_DATA)
     {
     }
 #endif
@@ -62,10 +64,10 @@ public:
     }
     void* operator new[](size_t size) = delete;
 
-    double value()
+    Value value() const
     {
 #ifdef ESCARGOT_32
-        double ret;
+        Value ret;
         uint32_t* buf = reinterpret_cast<uint32_t*>(&ret);
         buf[0] = m_buffer[0];
         buf[1] = m_buffer[2];
@@ -75,8 +77,9 @@ public:
 #endif
     }
 
-    void setValue(const double& v)
+    void setValue(const Value& v)
     {
+        ASSERT(v.isNumber());
 #ifdef ESCARGOT_32
         const uint32_t* buf = reinterpret_cast<const uint32_t*>(&v);
         m_buffer[0] = buf[0];
@@ -90,7 +93,7 @@ private:
 #ifdef ESCARGOT_32
     uint32_t m_buffer[3];
 #else
-    double m_value;
+    Value m_value;
     size_t m_tag;
 #endif
 };
@@ -178,7 +181,7 @@ const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
 // EncodedValue turns int, double values into pointer or odd value
 // so there is no conservative gc leak(there is no even value looks like pointer without pointers)
 // developers should use this class if want to save some Value on Heap
-// developers should not copy this value because this class changes DoubleInEncodedValue without copy it
+// developers should not copy this value because this class changes NumberInEncodedValue without copy it
 // just convert into Value and use it.
 class EncodedValue {
 public:
@@ -269,14 +272,14 @@ public:
         const uint8_t tag = *(reinterpret_cast<size_t*>(ptr) + 1);
         if (LIKELY(!(tag & POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA))) {
             return Value(reinterpret_cast<Object*>(ptr));
-        } else if (UNLIKELY(tag == POINTER_VALUE_DOUBLE_TAG_IN_DATA)) {
-            return Value(reinterpret_cast<DoubleInEncodedValue*>(ptr)->value());
+        } else if (UNLIKELY(tag == POINTER_VALUE_NUMBER_TAG_IN_DATA)) {
+            return reinterpret_cast<NumberInEncodedValue*>(ptr)->value();
         } else {
             return Value(reinterpret_cast<PointerValue*>(ptr), Value::FromNonObjectPointer);
         }
 #else
-        if (UNLIKELY(readPointerIsDoubleEncodedValue(ptr))) {
-            return Value(reinterpret_cast<DoubleInEncodedValue*>(ptr)->value());
+        if (UNLIKELY(readPointerIsNumberEncodedValue(ptr))) {
+            return reinterpret_cast<NumberInEncodedValue*>(ptr)->value();
         } else {
             return Value(reinterpret_cast<PointerValue*>(ptr));
         }
@@ -355,13 +358,13 @@ public:
 
             if (!HAS_SMI_TAG(payload) && ((size_t)payload > (size_t)ValueLast)) {
                 void* v = (void*)payload;
-                if (readPointerIsDoubleEncodedValue(v)) {
-                    ((DoubleInEncodedValue*)m_data.payload)->setValue(from.asNumber());
+                if (readPointerIsNumberEncodedValue(v)) {
+                    ((NumberInEncodedValue*)m_data.payload)->setValue(from);
                     return;
                 }
             }
-            m_data.payload = reinterpret_cast<intptr_t>(new DoubleInEncodedValue(from.asNumber()));
-            ASSERT(readPointerIsDoubleEncodedValue((void*)m_data.payload));
+            m_data.payload = reinterpret_cast<intptr_t>(new NumberInEncodedValue(from));
+            ASSERT(readPointerIsNumberEncodedValue((void*)m_data.payload));
             return;
         }
 
@@ -373,10 +376,10 @@ public:
     }
 
 protected:
-    static ALWAYS_INLINE bool readPointerIsDoubleEncodedValue(void* ptr)
+    static ALWAYS_INLINE bool readPointerIsNumberEncodedValue(void* ptr)
     {
         const uint8_t* b = reinterpret_cast<const uint8_t*>(reinterpret_cast<size_t*>(ptr) + 1);
-        return *b == POINTER_VALUE_DOUBLE_TAG_IN_DATA;
+        return *b == POINTER_VALUE_NUMBER_TAG_IN_DATA;
     }
 
     void fromValueForCtor(const Value& from)
@@ -391,7 +394,7 @@ protected:
             if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
                 m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
             } else if (from.isNumber()) {
-                m_data.payload = reinterpret_cast<intptr_t>(new DoubleInEncodedValue(from.asNumber()));
+                m_data.payload = reinterpret_cast<intptr_t>(new NumberInEncodedValue(from));
             } else {
 #ifdef ESCARGOT_32
                 m_data.payload = ~from.tag();
@@ -436,7 +439,7 @@ public:
             if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
                 setPayload(EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32));
             } else if (from.isNumber()) {
-                setPayload(reinterpret_cast<intptr_t>(new DoubleInEncodedValue(from.asNumber())));
+                setPayload(reinterpret_cast<intptr_t>(new NumberInEncodedValue(from)));
             } else {
                 setPayload(from.payload());
             }
@@ -488,8 +491,8 @@ public:
             return Value(reinterpret_cast<PointerValue*>(ptr));
         }
 
-        if (EncodedValue::readPointerIsDoubleEncodedValue(ptr)) {
-            return Value(Value::EncodeAsDouble, reinterpret_cast<DoubleInEncodedValue*>(ptr)->value());
+        if (EncodedValue::readPointerIsNumberEncodedValue(ptr)) {
+            return reinterpret_cast<NumberInEncodedValue*>(ptr)->value();
         } else {
             return Value(reinterpret_cast<PointerValue*>(ptr));
         }
@@ -537,13 +540,13 @@ public:
             auto pl = payload();
             if (!isSMI() && ((size_t)pl > (size_t)ValueLast)) {
                 void* v = reinterpret_cast<void*>(pl);
-                if (EncodedValue::readPointerIsDoubleEncodedValue(v)) {
-                    reinterpret_cast<DoubleInEncodedValue*>(v)->setValue(from.asNumber());
+                if (EncodedValue::readPointerIsNumberEncodedValue(v)) {
+                    reinterpret_cast<NumberInEncodedValue*>(v)->setValue(from);
                     return;
                 }
             }
-            setPayload(reinterpret_cast<intptr_t>(new DoubleInEncodedValue(from.asNumber())));
-            ASSERT(EncodedValue::readPointerIsDoubleEncodedValue((void*)payload()));
+            setPayload(reinterpret_cast<intptr_t>(new NumberInEncodedValue(from)));
+            ASSERT(EncodedValue::readPointerIsNumberEncodedValue((void*)payload()));
             return;
         }
         setPayload(from.payload());
