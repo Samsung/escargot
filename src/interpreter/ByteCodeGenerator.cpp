@@ -157,13 +157,19 @@ void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
 
 void ByteCodeGenerateContext::insertBreakpointAt(size_t line, Node* node)
 {
-    m_breakpointContext->m_breakpointLocations->breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
-    m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
+    // add breakpoint only when its line offset is bigger than original source's start line offset
+    // m_originSourceLineOffset is usually set as 0, but for the manipulated source code case,
+    // we should consider original source code and insert bytecode only for the original source code case
+    if (line > m_breakpointContext->m_originSourceLineOffset) {
+        m_breakpointContext->m_breakpointLocations->breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
+        m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
+    }
 }
 
 ByteCodeBreakpointContext::ByteCodeBreakpointContext(Debugger* debugger, InterpretedCodeBlock* codeBlock)
     : m_lastBreakpointLineOffset(0)
     , m_lastBreakpointIndexOffset(0)
+    , m_originSourceLineOffset(codeBlock->script()->originSourceLineOffset())
     , m_breakpointLocations()
 {
     m_breakpointLocations = new Debugger::BreakpointLocationsInfo(reinterpret_cast<Debugger::WeakCodeRef*>(codeBlock));

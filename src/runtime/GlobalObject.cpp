@@ -179,7 +179,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
         size_t stackRemainApprox = state.stackLimit() - currentStackBase;
 #endif
 
-        Script* script = parser.initializeScript(arg.asString(), state.context()->staticStrings().lazyEvalInput().string(), nullptr, false, true, false, false, strictFromOutside, false, false, false, true, stackRemainApprox).scriptThrowsExceptionIfParseError(state);
+        Script* script = parser.initializeScript(nullptr, 0, arg.asString(), state.context()->staticStrings().lazyEvalInput().string(), nullptr, false, true, false, false, strictFromOutside, false, false, false, true, stackRemainApprox).scriptThrowsExceptionIfParseError(state);
         // In case of indirect call, use global execution context
         ExecutionState stateForNewGlobal(m_context);
         return script->execute(stateForNewGlobal, true, script->topCodeBlock()->isStrict());
@@ -228,7 +228,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
         size_t stackRemainApprox = state.stackLimit() - currentStackBase;
 #endif
 
-        Script* script = parser.initializeScript(arg.asString(), state.context()->staticStrings().lazyEvalInput().string(), parentCodeBlock,
+        Script* script = parser.initializeScript(nullptr, 0, arg.asString(), state.context()->staticStrings().lazyEvalInput().string(), parentCodeBlock,
                                                  false, true, isRunningEvalOnFunction, inWithOperation, strictFromOutside, parentCodeBlock->allowSuperCall(),
                                                  parentCodeBlock->allowSuperProperty(), allowNewTarget, true, stackRemainApprox)
                              .scriptThrowsExceptionIfParseError(state);

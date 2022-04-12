@@ -2022,7 +2022,26 @@ public:
         ScriptRef* fetchScriptThrowsExceptionIfParseError(ExecutionStateRef* state);
     };
 
-    InitializeScriptResult initializeScript(StringRef* sourceCode, StringRef* src, bool isModule = false);
+    struct ESCARGOT_EXPORT InitializeFunctionScriptResult {
+        bool isSuccessful()
+        {
+            return script.hasValue();
+        }
+
+        OptionalRef<ScriptRef> script;
+        OptionalRef<FunctionObjectRef> functionObject;
+
+        StringRef* parseErrorMessage;
+        ErrorObjectRef::Code parseErrorCode;
+
+        InitializeFunctionScriptResult();
+    };
+
+    // parse the input source code and return the result (Script)
+    InitializeScriptResult initializeScript(StringRef* sourceCode, StringRef* srcName, bool isModule = false);
+    // convert the input body source into a function and parse it
+    // generate Script and FunctionObject
+    InitializeFunctionScriptResult initializeFunctionScript(StringRef* sourceName, AtomicStringRef* functionName, size_t argumentCount, ValueRef** argumentNameArray, ValueRef* functionBody);
 };
 
 class ESCARGOT_EXPORT ScriptRef {

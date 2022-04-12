@@ -62,11 +62,13 @@ public:
         }
     };
 
-    InitializeScriptResult initializeScript(String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode = false, bool isEvalCodeInFunction = false, bool inWithOperation = false, bool strictFromOutside = false, bool allowSuperCall = false, bool allowSuperProperty = false, bool allowNewTarget = false, bool needByteCodeGeneration = true, size_t stackSizeRemain = SIZE_MAX);
+    InitializeScriptResult initializeScript(String* originSource, size_t originLineOffset, String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode = false, bool isEvalCodeInFunction = false, bool inWithOperation = false, bool strictFromOutside = false, bool allowSuperCall = false, bool allowSuperProperty = false, bool allowNewTarget = false, bool needByteCodeGeneration = true, size_t stackSizeRemain = SIZE_MAX);
     InitializeScriptResult initializeScript(String* source, String* srcName, bool isModule)
     {
-        return initializeScript(source, srcName, nullptr, isModule);
+        return initializeScript(nullptr, 0, source, srcName, nullptr, isModule);
     }
+
+    Context* context() const { return m_context; }
 
     void generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain);
 
@@ -85,7 +87,7 @@ private:
 
 #ifdef ESCARGOT_DEBUGGER
     void recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* topCodeBlock);
-    InitializeScriptResult initializeScriptWithDebugger(String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget);
+    InitializeScriptResult initializeScriptWithDebugger(String* originSource, size_t originLineOffset, String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget);
 #endif /* ESCARGOT_DEBUGGER */
 
     Context* m_context;

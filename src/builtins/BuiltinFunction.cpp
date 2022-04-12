@@ -47,7 +47,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
 
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
-    auto functionSource = FunctionObject::createFunctionScript(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false, false, false);
+    auto functionSource = FunctionObject::createDynamicFunctionScript(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false, false, false);
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
     if (!newTarget.hasValue()) {
