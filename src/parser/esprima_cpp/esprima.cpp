@@ -3683,8 +3683,7 @@ public:
 
         closeBlock(blockContext);
 
-        MetaNode node = this->createNode();
-        return this->finalize(node, builder.createBlockStatementNode(block, blockContext.childLexicalBlockIndex));
+        return this->finalize(this->createNode(), builder.createBlockStatementNode(block, blockContext.childLexicalBlockIndex));
     }
 
     // ECMA-262 13.3.1 Let and Const Declarations
@@ -4508,6 +4507,7 @@ public:
         this->expectKeyword(SwitchKeyword);
 
         this->expect(LeftParenthesis);
+        MetaNode node = this->createNode();
         ASTNode discriminant = this->parseExpression(builder);
         this->expect(RightParenthesis);
 
@@ -4555,7 +4555,7 @@ public:
         closeBlock(blockContext);
 
         this->context->inSwitch = previousInSwitch;
-        return this->finalize(this->createNode(), builder.createSwitchStatementNode(discriminant, casesA, deflt, casesB, blockContext.childLexicalBlockIndex));
+        return this->finalize(node, builder.createSwitchStatementNode(discriminant, casesA, deflt, casesB, blockContext.childLexicalBlockIndex));
     }
 
     // ECMA-262 13.13 Labelled Statements
@@ -4708,6 +4708,7 @@ public:
     ASTNode parseTryStatement(ASTBuilder& builder)
     {
         this->expectKeyword(TryKeyword);
+        MetaNode node = this->createNode();
 
         if (!this->match(LeftBrace)) {
             this->throwUnexpectedToken(this->lookahead);
@@ -4726,7 +4727,7 @@ public:
             this->throwError(Messages::NoCatchOrFinally);
         }
 
-        return this->finalize(this->createNode(), builder.createTryStatementNode(block, handler, finalizer));
+        return this->finalize(node, builder.createTryStatementNode(block, handler, finalizer));
     }
 
     // ECMA-262 13.16 The debugger statement

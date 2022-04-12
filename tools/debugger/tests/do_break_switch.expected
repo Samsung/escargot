@@ -1,0 +1,17 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_break_switch.js:42
+(escargot-debugger) break do_break_switch.js:26
+Breakpoint 1 at tools/debugger/tests/do_break_switch.js:26 (in test() at line:21, col:1)
+(escargot-debugger) b do_break_switch.js:38
+Breakpoint 2 at tools/debugger/tests/do_break_switch.js:38 (in f() at line:36, col:1)
+(escargot-debugger) b test
+Breakpoint 3 at tools/debugger/tests/do_break_switch.js:24 (in test() at line:21, col:1)
+(escargot-debugger) c
+Stopped at breakpoint:2 tools/debugger/tests/do_break_switch.js:38 (in f() at line:36, col:1)
+(escargot-debugger) c
+Stopped at breakpoint:3 tools/debugger/tests/do_break_switch.js:24 (in test() at line:21, col:1)
+(escargot-debugger) c
+Stopped at breakpoint:1 tools/debugger/tests/do_break_switch.js:26 (in test() at line:21, col:1)
+(escargot-debugger) c
+Connection closed.
