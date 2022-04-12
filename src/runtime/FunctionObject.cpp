@@ -24,7 +24,6 @@
 #include "runtime/ReloadableString.h"
 #include "interpreter/ByteCode.h"
 #include "parser/ast/ProgramNode.h"
-#include "parser/ScriptParser.h"
 #include "parser/esprima_cpp/esprima.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
@@ -228,7 +227,7 @@ static String* createFunctionSource(ExecutionState& state, AtomicString function
     return scriptSource;
 }
 
-FunctionObject::FunctionSource FunctionObject::createFunctionScript(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyValue, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource, String* sourceName)
+FunctionObject::FunctionSource FunctionObject::createDynamicFunctionScript(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyValue, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource, String* sourceName)
 {
     String* scriptSource = createFunctionSource(state, functionName, argCount, argArray, bodyValue, useStrict, isGenerator, isAsync, isInternalSource);
 
@@ -243,7 +242,8 @@ FunctionObject::FunctionSource FunctionObject::createFunctionScript(ExecutionSta
         }
     }
 
-    Script* script = parser.initializeScript(scriptSource, srcName, nullptr, false, false, false, false, false, allowSuperCall, false, true, false).scriptThrowsExceptionIfParseError(state);
+    Script* script = parser.initializeScript(nullptr, 0, scriptSource, srcName, nullptr, false, false, false, false, false, allowSuperCall, false, true, false).scriptThrowsExceptionIfParseError(state);
+
     InterpretedCodeBlock* cb = script->topCodeBlock()->childBlockAt(0);
     // mark it as dynamic code
     cb->setDynamicSourceCode();
@@ -255,6 +255,31 @@ FunctionObject::FunctionSource FunctionObject::createFunctionScript(ExecutionSta
     fs.outerEnvironment = globalEnvironment;
 
     return fs;
+}
+
+ScriptParser::InitializeScriptResult FunctionObject::createFunctionScript(ExecutionState& state, String* sourceName, AtomicString functionName, size_t argCount, Value* argArray, Value bodyString, bool useStrict)
+{
+    ASSERT(sourceName->length() > 0);
+
+    String* sourceBodyString = bodyString.toString(state);
+    ASSERT(sourceBodyString->length());
+
+    String* scriptSource = createFunctionSource(state, functionName, argCount, argArray, bodyString, useStrict, false, false, false);
+
+    ScriptParser parser(state.context());
+    // originLineOffset is set to 2 because `createFunctionSource` adds 2 lines at start
+    auto result = parser.initializeScript(sourceBodyString, 2, scriptSource, sourceName, nullptr, false, false, false, false, false, false, false, true
+#ifdef ESCARGOT_DEBUGGER
+                                          // in debugger mode, all bytecodes should be compiled at once
+                                          ,
+                                          true
+#else
+                                          ,
+                                          false
+#endif
+    );
+
+    return result;
 }
 
 bool FunctionObject::setName(AtomicString name)

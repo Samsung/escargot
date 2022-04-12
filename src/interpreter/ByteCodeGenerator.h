@@ -54,6 +54,7 @@ struct ClassContextInformation {
 struct ByteCodeBreakpointContext {
     size_t m_lastBreakpointLineOffset; // cache breakpoint's calculated line offset
     size_t m_lastBreakpointIndexOffset; // cache breakpoint's calculated index offset
+    size_t m_originSourceLineOffset; // original source's start line offset
     Debugger::BreakpointLocationsInfo* m_breakpointLocations;
     bool m_parsingEnabled;
 

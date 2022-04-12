@@ -95,7 +95,7 @@ void DebuggerRemote::sendPointer(uint8_t type, const void* ptr)
     send(type, (void*)&ptr, sizeof(void*));
 }
 
-void DebuggerRemote::parseCompleted(String* source, String* srcName, String* error)
+void DebuggerRemote::parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error)
 {
     if (!enabled()) {
         return;
@@ -123,6 +123,18 @@ void DebuggerRemote::parseCompleted(String* source, String* srcName, String* err
     }
 
     size_t breakpointLocationsSize = m_breakpointLocationsVector.size();
+
+    if (originLineOffset > 0) {
+        for (size_t i = 0; i < breakpointLocationsSize; i++) {
+            // adjust line offset for manipulated source code
+            // inserted breakpoint's line info should be bigger than `originLineOffset`
+            BreakpointLocationVector& locationVector = m_breakpointLocationsVector[i]->breakpointLocations;
+            for (size_t j = 0; j < locationVector.size(); j++) {
+                ASSERT(locationVector[j].line > originLineOffset);
+                locationVector[j].line -= originLineOffset;
+            }
+        }
+    }
 
     for (size_t i = 0; i < breakpointLocationsSize; i++) {
         /* Send breakpoint locations. */
@@ -157,7 +169,8 @@ void DebuggerRemote::parseCompleted(String* source, String* srcName, String* err
 
         /* Send function info. */
         char* byteCodeStart = codeBlock->byteCodeBlock()->m_code.data();
-        uint32_t startLine = (uint32_t)codeBlock->functionStart().line;
+        // adjust startLine with originLineOffset
+        uint32_t startLine = (uint32_t)codeBlock->functionStart().line - originLineOffset;
         uint32_t startColumn = (uint32_t)(codeBlock->functionStart().column + 1);
         FunctionInfo functionInfo;
 

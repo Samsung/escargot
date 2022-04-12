@@ -1557,7 +1557,7 @@ bool DebuggerOperationsRef::updateBreakpoint(WeakCodeRef* weakCodeRef, uint32_t 
 
 class DebuggerC : public Debugger {
 public:
-    virtual void parseCompleted(String* source, String* srcName, String* error = nullptr) override;
+    virtual void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) override;
     virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
     virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) override;
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
@@ -1578,7 +1578,7 @@ private:
     DebuggerOperationsRef::DebuggerClient* m_debuggerClient;
 };
 
-void DebuggerC::parseCompleted(String* source, String* srcName, String* error)
+void DebuggerC::parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error)
 {
     if (error != nullptr) {
         m_debuggerClient->parseError(toRef(source), toRef(srcName), toRef(error));
@@ -1586,6 +1586,18 @@ void DebuggerC::parseCompleted(String* source, String* srcName, String* error)
     }
 
     size_t breakpointLocationsSize = m_breakpointLocationsVector.size();
+
+    if (originLineOffset > 0) {
+        for (size_t i = 0; i < breakpointLocationsSize; i++) {
+            // adjust line offset for manipulated source code
+            // inserted breakpoint's line info should be bigger than `originLineOffset`
+            BreakpointLocationVector& locationVector = m_breakpointLocationsVector[i]->breakpointLocations;
+            for (size_t j = 0; j < locationVector.size(); j++) {
+                ASSERT(locationVector[j].line > originLineOffset);
+                locationVector[j].line -= originLineOffset;
+            }
+        }
+    }
 
     for (size_t i = 0; i < breakpointLocationsSize; i++) {
         InterpretedCodeBlock* codeBlock = reinterpret_cast<InterpretedCodeBlock*>(m_breakpointLocationsVector[i]->weakCodeRef);
@@ -2679,7 +2691,7 @@ FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* stateRef, Atomic
         newArgv[i] = toImpl(argumentNameArray[i]);
     }
 
-    auto functionSource = FunctionObject::createFunctionScript(state, toImpl(functionName), argumentCount, newArgv, toImpl(body), false, false, false, false);
+    auto functionSource = FunctionObject::createDynamicFunctionScript(state, toImpl(functionName), argumentCount, newArgv, toImpl(body), false, false, false, false);
 
     Object* proto = state.context()->globalObject()->functionPrototype();
     ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false);
@@ -2697,7 +2709,7 @@ FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* stateRef, String
         newArgv[i] = toImpl(argumentNameArray[i]);
     }
 
-    auto functionSource = FunctionObject::createFunctionScript(state, toImpl(functionName), argumentCount, newArgv, toImpl(body), false, false, false, false, false, toImpl(sourceName));
+    auto functionSource = FunctionObject::createDynamicFunctionScript(state, toImpl(functionName), argumentCount, newArgv, toImpl(body), false, false, false, false, false, toImpl(sourceName));
 
     Object* proto = state.context()->globalObject()->functionPrototype();
     ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false);
@@ -4284,12 +4296,53 @@ ScriptRef* ScriptParserRef::InitializeScriptResult::fetchScriptThrowsExceptionIf
     return script.value();
 }
 
+ScriptParserRef::InitializeFunctionScriptResult::InitializeFunctionScriptResult()
+    : script()
+    , functionObject()
+    , parseErrorMessage(StringRef::emptyString())
+    , parseErrorCode(ErrorObjectRef::Code::None)
+{
+}
+
 ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeScript(StringRef* source, StringRef* srcName, bool isModule)
 {
     auto internalResult = toImpl(this)->initializeScript(toImpl(source), toImpl(srcName), isModule);
     ScriptParserRef::InitializeScriptResult result;
     if (internalResult.script) {
         result.script = toRef(internalResult.script.value());
+    } else {
+        result.parseErrorMessage = toRef(internalResult.parseErrorMessage);
+        result.parseErrorCode = (Escargot::ErrorObjectRef::Code)internalResult.parseErrorCode;
+    }
+
+    return result;
+}
+
+ScriptParserRef::InitializeFunctionScriptResult ScriptParserRef::initializeFunctionScript(StringRef* sourceName, AtomicStringRef* functionName, size_t argumentCount, ValueRef** argumentNameArray, ValueRef* functionBody)
+{
+    // temporal ExecutionState
+    ExecutionState state(toImpl(this)->context());
+
+    Value* argArray = ALLOCA(sizeof(Value) * argumentCount, Value, state);
+    for (size_t i = 0; i < argumentCount; i++) {
+        argArray[i] = toImpl(argumentNameArray[i]);
+    }
+
+    auto internalResult = FunctionObject::createFunctionScript(state, toImpl(sourceName), toImpl(functionName), argumentCount, argArray, toImpl(functionBody), false);
+
+    ScriptParserRef::InitializeFunctionScriptResult result;
+
+    if (internalResult.script) {
+        Script* script = internalResult.script.value();
+        InterpretedCodeBlock* codeBlock = script->topCodeBlock()->childBlockAt(0);
+
+        // create FunctionObject
+        LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, script->topCodeBlock(), state.context()->globalObject(), state.context()->globalDeclarativeRecord(), state.context()->globalDeclarativeStorage()), nullptr);
+        Object* proto = state.context()->globalObject()->functionPrototype();
+        ScriptFunctionObject* func = new ScriptFunctionObject(state, proto, codeBlock, globalEnvironment, true, false);
+
+        result.script = toRef(internalResult.script.value());
+        result.functionObject = toRef(func);
     } else {
         result.parseErrorMessage = toRef(internalResult.parseErrorMessage);
         result.parseErrorCode = (Escargot::ErrorObjectRef::Code)internalResult.parseErrorCode;

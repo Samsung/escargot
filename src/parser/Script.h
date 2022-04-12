@@ -146,12 +146,13 @@ public:
         }
     };
 
-    Script(String* srcName, String* sourceCode, ModuleData* moduleData, bool canExecuteAgain)
+    Script(String* srcName, String* sourceCode, ModuleData* moduleData, bool canExecuteAgain, size_t originLineOffset)
         : m_canExecuteAgain(canExecuteAgain && !moduleData)
         , m_srcName(srcName)
         , m_sourceCode(sourceCode)
         , m_topCodeBlock(nullptr)
         , m_moduleData(moduleData)
+        , m_originSourceLineOffset(originLineOffset)
     {
         // srcName and sourceCode should have valid string (empty string for no name)
         ASSERT(!!srcName && !!sourceCode);
@@ -203,6 +204,8 @@ public:
 
     // https://tc39.es/ecma262/#sec-getmodulenamespace
     ModuleNamespaceObject* getModuleNamespace(ExecutionState& state);
+
+    size_t originSourceLineOffset() const { return m_originSourceLineOffset; }
 
 private:
     Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside = false, bool isEvalCodeOnFunction = false);
@@ -283,7 +286,12 @@ private:
     String* m_sourceCode;
     InterpretedCodeBlock* m_topCodeBlock;
     ModuleData* m_moduleData;
+
+    // original source code's start line offset
+    // default value is zero, but it has other value for source codes manipulated by `createFunctionScript`
+    size_t m_originSourceLineOffset;
 };
+
 } // namespace Escargot
 
 #endif

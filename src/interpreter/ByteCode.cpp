@@ -231,6 +231,11 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
             column = 1;
         }
     }
+
+    // subtract `originSourceLineOffset` for line offset
+    ASSERT(line > codeBlock()->script()->originSourceLineOffset());
+    line -= codeBlock()->script()->originSourceLineOffset();
+
     return ExtendedNodeLOC(line, column, index);
 }
 

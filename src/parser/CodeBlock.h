@@ -906,7 +906,7 @@ protected:
     bool m_allowSuperCall : 1;
     bool m_allowSuperProperty : 1;
     bool m_allowArguments : 1;
-    // represent if its source code is created dynamically by createFunctionScript
+    // represent if its source code is created dynamically by createDynamicFunctionScript
     bool m_hasDynamicSourceCode : 1;
 #ifdef ESCARGOT_DEBUGGER
     // mark that this InterpretedCodeBlock should generate debugging bytecode (breakpoint)

@@ -56,8 +56,8 @@ public:
         {
         }
 
-        uint32_t line;
-        uint32_t offset;
+        uint32_t line; // source code line
+        uint32_t offset; // bytecode offset
     };
 
     typedef std::vector<BreakpointLocation> BreakpointLocationVector;
@@ -156,7 +156,7 @@ public:
 
     static void createDebuggerRemote(const char* options, Context* context);
 
-    virtual void parseCompleted(String* source, String* srcName, String* error = nullptr) = 0;
+    virtual void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) = 0;
     virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) = 0;
     virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) = 0;
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) = 0;
@@ -345,7 +345,7 @@ public:
     void sendPointer(uint8_t type, const void* ptr);
 
     virtual void init(const char* options, Context* context) = 0;
-    virtual void parseCompleted(String* source, String* srcName, String* error = nullptr) override;
+    virtual void parseCompleted(String* source, String* srcName, size_t originLineOffset, String* error = nullptr) override;
     virtual void stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, ExecutionState* state) override;
     virtual void byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock) override;
     virtual void exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace) override;
