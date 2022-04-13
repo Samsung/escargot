@@ -1096,18 +1096,32 @@ void VMInstanceRef::setOnVMInstanceDelete(OnVMInstanceDelete cb)
                                        (void*)cb);
 }
 
-void VMInstanceRef::registerErrorCreationCallback(ErrorCreationCallback cb)
+void VMInstanceRef::registerErrorCreationCallback(ErrorCallback cb)
 {
     toImpl(this)->registerErrorCreationCallback([](ExecutionState& state, ErrorObject* err, void* cb) -> void {
         ASSERT(!!cb);
-        (reinterpret_cast<ErrorCreationCallback>(cb))(toRef(&state), toRef(err));
+        (reinterpret_cast<ErrorCallback>(cb))(toRef(&state), toRef(err));
     },
                                                 (void*)cb);
+}
+
+void VMInstanceRef::registerErrorThrowCallback(ErrorCallback cb)
+{
+    toImpl(this)->registerErrorThrowCallback([](ExecutionState& state, ErrorObject* err, void* cb) -> void {
+        ASSERT(!!cb);
+        (reinterpret_cast<ErrorCallback>(cb))(toRef(&state), toRef(err));
+    },
+                                             (void*)cb);
 }
 
 void VMInstanceRef::unregisterErrorCreationCallback()
 {
     toImpl(this)->unregisterErrorCreationCallback();
+}
+
+void VMInstanceRef::unregisterErrorThrowCallback()
+{
+    toImpl(this)->unregisterErrorThrowCallback();
 }
 
 void VMInstanceRef::registerPromiseHook(PromiseHook promiseHook)
