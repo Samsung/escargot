@@ -179,7 +179,8 @@ class FunctionObject;
 
 #define GLOBALOBJECT_BUILTIN_PROMISE(F, objName) \
     F(promise, FunctionObject, objName)          \
-    F(promisePrototype, Object, objName)
+    F(promisePrototype, Object, objName)         \
+    F(promiseThen, FunctionObject, objName)
 #define GLOBALOBJECT_BUILTIN_PROXY(F, objName) \
     F(proxy, FunctionObject, objName)
 #define GLOBALOBJECT_BUILTIN_REFLECT(F, objName) \

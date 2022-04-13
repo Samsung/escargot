@@ -174,17 +174,20 @@ Object* PromiseObject::then(ExecutionState& state, Value handler)
     return then(state, handler, Value(), newPromiseResultCapability(state)).value();
 }
 
+Object* PromiseObject::then(ExecutionState& state, Value onFulfilled, Value onRejected)
+{
+    return then(state, onFulfilled, onRejected, newPromiseResultCapability(state)).value();
+}
+
 Object* PromiseObject::catchOperation(ExecutionState& state, Value handler)
 {
     return then(state, Value(), handler, newPromiseResultCapability(state)).value();
 }
 
-Optional<Object*> PromiseObject::then(ExecutionState& state, Value onFulfilledValue, Value onRejectedValue, Optional<PromiseReaction::Capability> resultCapability)
+Optional<Object*> PromiseObject::then(ExecutionState& state, Value onFulfilledValue, Value onRejectedValue, PromiseReaction::Capability capability)
 {
     Object* onFulfilled = onFulfilledValue.isCallable() ? onFulfilledValue.asObject() : (Object*)(1);
     Object* onRejected = onRejectedValue.isCallable() ? onRejectedValue.asObject() : (Object*)(2);
-
-    PromiseReaction::Capability capability = resultCapability.hasValue() ? resultCapability.value() : PromiseReaction::Capability(nullptr, nullptr, nullptr);
 
 #ifdef ESCARGOT_DEBUGGER
     if (state.context()->debuggerEnabled()) {
@@ -215,11 +218,7 @@ Optional<Object*> PromiseObject::then(ExecutionState& state, Value onFulfilledVa
         break;
     }
 
-    if (resultCapability) {
-        return capability.m_promise;
-    } else {
-        return nullptr;
-    }
+    return capability.m_promise;
 }
 
 void PromiseObject::triggerPromiseReactions(ExecutionState& state, PromiseObject::Reactions& reactions)

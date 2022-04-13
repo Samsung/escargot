@@ -3620,7 +3620,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         ExtendedNativeFunctionObject* onRejected = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), callDynamicImportRejected, 1));
         onRejected->setInternalSlotAsPointer(0, promiseCapability.m_promise);
         // Perform ! PerformPromiseThen(capability.[[Promise]], onFulfilled, onRejected).
-        innerPromiseCapability.m_promise->asPromiseObject()->then(state, onFulfilled, onRejected);
+        innerPromiseCapability.m_promise->asPromiseObject()->then(state, onFulfilled, onRejected, PromiseReaction::Capability());
 
         Global::platform()->hostImportModuleDynamically(byteCodeBlock->m_codeBlock->context(),
                                                         referencingScriptOrModule, specifierString, innerPromiseCapability.m_promise->asPromiseObject());

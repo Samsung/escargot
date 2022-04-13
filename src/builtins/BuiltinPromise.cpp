@@ -203,8 +203,16 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
             *remainingElementsCount = *remainingElementsCount + 1;
             // Perform ? Invoke(nextPromise, "then", « resolveElement, resultCapability.[[Reject]] »).
             Object* nextPromiseObject = nextPromise.toObject(state);
-            Value argv[] = { Value(resolveElement), Value(promiseCapability.m_rejectFunction) };
-            Object::call(state, nextPromiseObject->get(state, strings->then).value(state, nextPromiseObject), nextPromiseObject, 2, argv);
+            Value then = nextPromiseObject->get(state, strings->then).value(state, nextPromiseObject);
+
+            if (LIKELY(nextPromiseObject->isPromiseObject() && then.isObject() && then.asObject() == state.context()->globalObject()->promiseThen())) {
+                // fast path for then call
+                nextPromiseObject->asPromiseObject()->then(state, resolveElement, promiseCapability.m_rejectFunction);
+            } else {
+                Value argv[] = { Value(resolveElement), Value(promiseCapability.m_rejectFunction) };
+                Object::call(state, then, nextPromiseObject, 2, argv);
+            }
+
             // Increase index by 1.
             index++;
         }
@@ -312,8 +320,15 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
             Value nextPromise = Object::call(state, promiseResolve, C, 1, &nextValue);
             // Perform ? Invoke(nextPromise, "then", « resultCapability.[[Resolve]], resultCapability.[[Reject]] »).
             Object* nextPromiseObject = nextPromise.toObject(state);
-            Value argv[] = { Value(promiseCapability.m_resolveFunction), Value(promiseCapability.m_rejectFunction) };
-            Object::call(state, nextPromiseObject->get(state, strings->then).value(state, nextPromiseObject), nextPromiseObject, 2, argv);
+            Value then = nextPromiseObject->get(state, strings->then).value(state, nextPromiseObject);
+
+            if (LIKELY(nextPromiseObject->isPromiseObject() && then.isObject() && then.asObject() == state.context()->globalObject()->promiseThen())) {
+                // fast path for then call
+                nextPromiseObject->asPromiseObject()->then(state, promiseCapability.m_resolveFunction, promiseCapability.m_rejectFunction);
+            } else {
+                Value argv[] = { Value(promiseCapability.m_resolveFunction), Value(promiseCapability.m_rejectFunction) };
+                Object::call(state, then, nextPromiseObject, 2, argv);
+            }
         }
     } catch (const Value& e) {
         Value exceptionValue = e;
@@ -368,6 +383,12 @@ static Value builtinPromiseCatch(ExecutionState& state, Value thisValue, size_t 
     Object* thisObject = thisValue.toObject(state);
     Value onRejected = argv[0];
     Value then = thisObject->get(state, strings->then).value(state, thisObject);
+
+    if (LIKELY(thisObject->isPromiseObject() && then.isObject() && then.asObject() == state.context()->globalObject()->promiseThen())) {
+        // fast path for then call
+        return thisObject->asPromiseObject()->then(state, Value(), onRejected);
+    }
+
     Value arguments[] = { Value(), onRejected };
     return Object::call(state, then, thisObject, 2, arguments);
 }
@@ -402,17 +423,23 @@ static Value builtinPromiseFinally(ExecutionState& state, Value thisValue, size_
     }
 
     Value then = thisObject->get(state, strings->then).value(state, thisObject);
+
+    if (LIKELY(thisObject->isPromiseObject() && then.isObject() && then.asObject() == state.context()->globalObject()->promiseThen())) {
+        // fast path for then call
+        return thisObject->asPromiseObject()->then(state, arguments[0], arguments[1]);
+    }
+
     return Object::call(state, then, thisObject, 2, arguments);
 }
 
 static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     auto strings = &state.context()->staticStrings();
-    if (!thisValue.isObject() || !thisValue.asObject()->isPromiseObject())
+    if (!thisValue.isObject() || !thisValue.asObject()->isPromiseObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->then.string(), "%s: not a Promise object");
-    Value C = thisValue.asObject()->speciesConstructor(state, state.context()->globalObject()->promise());
-    PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C.asObject(), thisValue.asObject()->asPromiseObject());
-    return thisValue.asObject()->asPromiseObject()->then(state, argv[0], argv[1], promiseCapability).value();
+    }
+
+    return thisValue.asObject()->asPromiseObject()->then(state, argv[0], argv[1]);
 }
 
 // https://tc39.es/ecma262/#sec-performpromiseallsettled
@@ -507,9 +534,17 @@ static Value performPromiseAllSettled(ExecutionState& state, IteratorRecord* ite
 
         // Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] + 1.
         *remainingElementsCount = *remainingElementsCount + 1;
+
         // Perform ? Invoke(nextPromise, "then", « resolveElement, rejectElement »).
-        Value argv[2] = { resolveElement, rejectElement };
-        Object::call(state, Object::getMethod(state, nextPromise, state.context()->staticStrings().then), nextPromise, 2, argv);
+        Value then = Object::getMethod(state, nextPromise, state.context()->staticStrings().then);
+        if (nextPromise.isObject() && nextPromise.asObject()->isPromiseObject() && then.isObject() && then.asObject() == state.context()->globalObject()->promiseThen()) {
+            // fast path for then call
+            nextPromise.asObject()->asPromiseObject()->then(state, resolveElement, rejectElement);
+        } else {
+            Value argv[2] = { resolveElement, rejectElement };
+            Object::call(state, then, nextPromise, 2, argv);
+        }
+
         // Set index to index + 1.
         index++;
     }
@@ -668,8 +703,16 @@ static Value performPromiseAny(ExecutionState& state, IteratorRecord* iteratorRe
 
         // Perform ? Invoke(nextPromise, "then", « resultCapability.[[Resolve]], rejectElement »).
         Object* nextPromiseObject = nextPromise.toObject(state);
-        Value argv2[] = { Value(resultCapability.m_resolveFunction), Value(rejectElement) };
-        Object::call(state, nextPromiseObject->get(state, strings->then).value(state, nextPromiseObject), nextPromiseObject, 2, argv2);
+        Value then = nextPromiseObject->get(state, strings->then).value(state, nextPromiseObject);
+
+        if (LIKELY(nextPromiseObject->isPromiseObject() && then.isObject() && then.asObject() == state.context()->globalObject()->promiseThen())) {
+            // fast path for then call
+            nextPromiseObject->asPromiseObject()->then(state, resultCapability.m_resolveFunction, rejectElement);
+        } else {
+            Value argv2[] = { Value(resultCapability.m_resolveFunction), Value(rejectElement) };
+            Object::call(state, then, nextPromiseObject, 2, argv2);
+        }
+
         // Set index to index + 1.
         index++;
     }
@@ -771,8 +814,6 @@ void GlobalObject::installPromise(ExecutionState& state)
     m_promisePrototype->setGlobalIntrinsicObject(state, true);
 
     m_promisePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_promise, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                                         ObjectPropertyDescriptor(Value(state.context()->staticStrings().Promise.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $25.4.4.1 Promise.all(iterable);
     m_promise->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->all),
@@ -794,10 +835,13 @@ void GlobalObject::installPromise(ExecutionState& state)
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->stringCatch),
                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->stringCatch, builtinPromiseCatch, 1, NativeFunctionInfo::Strict)),
                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     // $25.4.5.3 Promise.prototype.then(onFulfilled, onRejected)
+    m_promiseThen = new NativeFunctionObject(state, NativeFunctionInfo(strings->then, builtinPromiseThen, 2, NativeFunctionInfo::Strict));
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->then),
-                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->then, builtinPromiseThen, 2, NativeFunctionInfo::Strict)),
+                                                         ObjectPropertyDescriptor(m_promiseThen,
                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     // $25.6.5.3 Promise.prototype.finally ( onFinally )
     m_promisePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->finally),
                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->finally, builtinPromiseFinally, 1, NativeFunctionInfo::Strict)),

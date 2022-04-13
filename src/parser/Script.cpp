@@ -1252,7 +1252,7 @@ void Script::moduleExecuteAsyncModule(ExecutionState& state)
     ExtendedNativeFunctionObject* onRejected = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), asyncModuleRejectedFunction, 1));
     onRejected->setInternalSlotAsPointer(0, this);
     // Perform ! PerformPromiseThen(capability.[[Promise]], onFulfilled, onRejected).
-    capability.m_promise->asPromiseObject()->then(state, onFulfilled, onRejected);
+    capability.m_promise->asPromiseObject()->then(state, onFulfilled, onRejected, PromiseReaction::Capability());
 
     // Perform ! module.ExecuteModule(capability).
     moduleExecute(state, capability);

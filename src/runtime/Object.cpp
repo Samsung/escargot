@@ -1993,14 +1993,14 @@ ValueVectorWithInlineStorage Object::enumerableOwnProperties(ExecutionState& sta
 
 Value Object::speciesConstructor(ExecutionState& state, const Value& defaultConstructor)
 {
-    ASSERT(isObject());
+    ASSERT(isObject() & defaultConstructor.isObject());
     Value C = asObject()->get(state, state.context()->staticStrings().constructor).value(state, this);
 
-    if (C.isUndefined()) {
+    if (UNLIKELY(C.isUndefined())) {
         return defaultConstructor;
     }
 
-    if (!C.isObject()) {
+    if (UNLIKELY(!C.isObject())) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "constructor is not an object");
     }
 

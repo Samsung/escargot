@@ -170,7 +170,7 @@ Value AsyncGeneratorObject::asyncGeneratorResumeNext(ExecutionState& state, Asyn
                 ExtendedNativeFunctionObject* onRejected = new ExtendedNativeFunctionObjectImpl<1>(state, NativeFunctionInfo(AtomicString(), asyncGeneratorResumeNextReturnProcessorRejectedFunction, 1));
                 onRejected->setInternalSlot(AsyncGeneratorObject::BuiltinFunctionSlot::Generator, generator);
                 // Perform ! PerformPromiseThen(promise, onFulfilled, onRejected).
-                promise->then(state, onFulfilled, onRejected);
+                promise->then(state, onFulfilled, onRejected, PromiseReaction::Capability());
                 // Return undefined.
                 return Value();
             } else {
