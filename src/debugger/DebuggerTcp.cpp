@@ -116,7 +116,7 @@ static bool tcpSend(EscargotSocket socket, const uint8_t* message, size_t messag
 #ifdef OS_POSIX
         ssize_t result = recv(socket, NULL, 0, MSG_PEEK);
 
-        if (result == 0 && errno != ESCARGOT_EWOULDBLOCK) {
+        if (result == 0 && (errno != ESCARGOT_EWOULDBLOCK && errno != 0)) {
             tcpLogError(tcpGetErrno());
             return false;
         }
