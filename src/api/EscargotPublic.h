@@ -634,11 +634,13 @@ public:
     typedef void (*OnVMInstanceDelete)(VMInstanceRef* instance);
     void setOnVMInstanceDelete(OnVMInstanceDelete cb);
 
-    // register ErrorCreationCallback which is triggered when each Error constructor (e.g. new TypeError()) invoked
-    // parameter `err` is newly created ErrorObject
-    typedef void (*ErrorCreationCallback)(ExecutionStateRef* state, ErrorObjectRef* err);
-    void registerErrorCreationCallback(ErrorCreationCallback cb);
+    // register ErrorCallback which is triggered when each Error constructor (e.g. new TypeError()) invoked or thrown
+    // parameter `err` stands for the newly created ErrorObject
+    typedef void (*ErrorCallback)(ExecutionStateRef* state, ErrorObjectRef* err);
+    void registerErrorCreationCallback(ErrorCallback cb);
+    void registerErrorThrowCallback(ErrorCallback cb);
     void unregisterErrorCreationCallback();
+    void unregisterErrorThrowCallback();
 
     enum PromiseHookType {
         Init,

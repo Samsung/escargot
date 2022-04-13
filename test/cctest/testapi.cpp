@@ -1763,7 +1763,7 @@ TEST(EnumerateObjectOwnProperties, Basic1)
     });
 }
 
-TEST(ErrorCreationCallback, Basic1)
+TEST(ErrorCallback, Basic1)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
         // Register ErrorCreationCallback
@@ -1795,17 +1795,57 @@ TEST(ErrorCreationCallback, Basic1)
 
         EXPECT_TRUE(g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("errorCBResult")));
 
-        // Unregister ErrorCreationCallback
+        // Unregister ErrorCallback
         g_instance.get()->unregisterErrorCreationCallback();
+        g_instance.get()->unregisterErrorThrowCallback();
+        return ValueRef::createUndefined();
+    });
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        // Register ErrorThrowCallback
+        g_instance.get()->registerErrorThrowCallback([](ExecutionStateRef* state, ErrorObjectRef* err) -> void {
+            // customize stack property in ErrorObject
+            err->defineDataProperty(state, StringRef::createFromASCII("stack"), ValueRef::create(2), true, false, true);
+
+            // compute stack trace data
+            auto stackTraceVector = state->computeStackTrace();
+
+            // save stack info
+            ObjectRef* result = ObjectRef::create(state);
+            result->set(state, StringRef::createFromASCII("src"), stackTraceVector[0].srcName);
+            result->set(state, StringRef::createFromASCII("functionName"), stackTraceVector[0].functionName);
+
+            g_context.get()->globalObject()->set(state, StringRef::createFromASCII("errorCBResult"), result);
+        });
+        return ValueRef::createUndefined();
+    });
+
+    result = evalScript(g_context.get(), StringRef::createFromASCII("function test() { try { throw new TypeError(); } catch (e) { this.errorCBResult.stack = e.stack } } test();"), StringRef::createFromASCII("testErrorThrowCallback.js"), false);
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        ValueRef* cbResult = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("errorCBResult"));
+        EXPECT_TRUE(cbResult->isObject());
+        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("src"))->asString()->equalsWithASCIIString("testErrorThrowCallback.js", 25));
+        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("functionName"))->asString()->equalsWithASCIIString("test", 4));
+        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("stack"))->asNumber() == 2);
+
+        EXPECT_TRUE(g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("errorCBResult")));
+
+        // Unregister ErrorCallback
+        g_instance.get()->unregisterErrorCreationCallback();
+        g_instance.get()->unregisterErrorThrowCallback();
         return ValueRef::createUndefined();
     });
 }
 
-TEST(ErrorCreationCallback, Basic2)
+TEST(ErrorCallback, Basic2)
 {
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
         // Register ErrorCreationCallback
         g_instance.get()->registerErrorCreationCallback([](ExecutionStateRef* state, ErrorObjectRef* err) -> void {
+            // customize stack property in ErrorObject
+            err->defineDataProperty(state, StringRef::createFromASCII("stack"), ValueRef::create(1), true, false, true);
+
             // compute stack trace data
             auto stackTraceVector = state->computeStackTrace();
 
@@ -1816,34 +1856,66 @@ TEST(ErrorCreationCallback, Basic2)
 
             g_context.get()->globalObject()->set(state, StringRef::createFromASCII("errorCBResult"), result);
         });
+
+        // Register ErrorThrowCallback
+        g_instance.get()->registerErrorThrowCallback([](ExecutionStateRef* state, ErrorObjectRef* err) -> void {
+            // customize stack property in ErrorObject
+            err->defineDataProperty(state, StringRef::createFromASCII("stack"), ValueRef::create(2), true, false, true);
+
+            // compute stack trace data
+            auto stackTraceVector = state->computeStackTrace();
+
+            // save stack info
+            ObjectRef* result = ObjectRef::create(state);
+            result->set(state, StringRef::createFromASCII("src"), stackTraceVector[0].srcName);
+            result->set(state, StringRef::createFromASCII("functionName"), stackTraceVector[0].functionName);
+
+            g_context.get()->globalObject()->set(state, StringRef::createFromASCII("errorCBResult"), result);
+        });
         return ValueRef::createUndefined();
     });
 
-    auto result1 = evalScript(g_context.get(), StringRef::createFromASCII("var func = new Function('return new SyntaxError();'); func();"), StringRef::createFromASCII("testErrorCreationCallback2.js"), false);
+    auto result1 = evalScript(g_context.get(), StringRef::createFromASCII("var func = new Function('return new SyntaxError();'); var result = func(); errorCBResult.stack = result.stack;"), StringRef::createFromASCII("testErrorCallback1.js"), false);
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
         ValueRef* cbResult = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("errorCBResult"));
         EXPECT_TRUE(cbResult->isObject());
-        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("src"))->asString()->equalsWithASCIIString("testErrorCreationCallback2.js", 29));
+        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("src"))->asString()->equalsWithASCIIString("testErrorCallback1.js", 21));
         EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("functionName"))->asString()->equalsWithASCIIString("anonymous", 9));
+        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("stack"))->asNumber() == 1);
 
         EXPECT_TRUE(g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("errorCBResult")));
 
         return ValueRef::createUndefined();
     });
 
-    auto result2 = evalScript(g_context.get(), StringRef::createFromASCII("eval('new SyntaxError();');"), StringRef::createFromASCII("testErrorCreationCallback2.js"), false);
+    auto result2 = evalScript(g_context.get(), StringRef::createFromASCII("eval('new SyntaxError();');"), StringRef::createFromASCII("testErrorCallback2.js"), false);
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
         ValueRef* cbResult = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("errorCBResult"));
         EXPECT_TRUE(cbResult->isObject());
-        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("src"))->asString()->equalsWithASCIIString("testErrorCreationCallback2.js", 29));
+        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("src"))->asString()->equalsWithASCIIString("testErrorCallback2.js", 21));
         EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("functionName"))->asString()->length() == 0);
 
         EXPECT_TRUE(g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("errorCBResult")));
 
-        // Unregister ErrorCreationCallback
+        return ValueRef::createUndefined();
+    });
+
+    auto result3 = evalScript(g_context.get(), StringRef::createFromASCII("function test() { try { throw new TypeError(); } catch (e) { this.errorCBResult.stack = e.stack } } test();"), StringRef::createFromASCII("testErrorCallback3.js"), false);
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        ValueRef* cbResult = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("errorCBResult"));
+        EXPECT_TRUE(cbResult->isObject());
+        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("src"))->asString()->equalsWithASCIIString("testErrorCallback3.js", 21));
+        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("functionName"))->asString()->equalsWithASCIIString("test", 4));
+        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("stack"))->asNumber() == 2);
+
+        EXPECT_TRUE(g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("errorCBResult")));
+
+        // Unregister ErrorCallback
         g_instance.get()->unregisterErrorCreationCallback();
+        g_instance.get()->unregisterErrorThrowCallback();
         return ValueRef::createUndefined();
     });
 }

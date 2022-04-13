@@ -241,10 +241,21 @@ public:
         return !!m_errorCreationCallback;
     }
 
-    void registerErrorCreationCallback(void (*ErrorCreationCallback)(ExecutionState& state, ErrorObject* err, void* cb), void* callbackPublic)
+    bool isErrorThrowCallbackRegistered()
     {
-        m_errorCreationCallback = ErrorCreationCallback;
+        return !!m_errorThrowCallback;
+    }
+
+    void registerErrorCreationCallback(void (*ErrorCallback)(ExecutionState& state, ErrorObject* err, void* cb), void* callbackPublic)
+    {
+        m_errorCreationCallback = ErrorCallback;
         m_errorCreationCallbackPublic = callbackPublic;
+    }
+
+    void registerErrorThrowCallback(void (*ErrorCallback)(ExecutionState& state, ErrorObject* err, void* cb), void* callbackPublic)
+    {
+        m_errorThrowCallback = ErrorCallback;
+        m_errorThrowCallbackPublic = callbackPublic;
     }
 
     void unregisterErrorCreationCallback()
@@ -253,11 +264,25 @@ public:
         m_errorCreationCallbackPublic = nullptr;
     }
 
+    void unregisterErrorThrowCallback()
+    {
+        m_errorThrowCallback = nullptr;
+        m_errorThrowCallbackPublic = nullptr;
+    }
+
     void triggerErrorCreationCallback(ExecutionState& state, ErrorObject* error)
     {
         ASSERT(!!m_errorCreationCallback);
         if (m_errorCreationCallbackPublic) {
             m_errorCreationCallback(state, error, m_errorCreationCallbackPublic);
+        }
+    }
+
+    void triggerErrorThrowCallback(ExecutionState& state, ErrorObject* error)
+    {
+        ASSERT(!!m_errorThrowCallback);
+        if (m_errorThrowCallbackPublic) {
+            m_errorThrowCallback(state, error, m_errorThrowCallbackPublic);
         }
     }
 
@@ -381,6 +406,8 @@ private:
 
     void (*m_errorCreationCallback)(ExecutionState& state, ErrorObject* err, void* cb);
     void* m_errorCreationCallbackPublic;
+    void (*m_errorThrowCallback)(ExecutionState& state, ErrorObject* err, void* cb);
+    void* m_errorThrowCallbackPublic;
 
     // PromiseHook is triggered for each Promise event
     // Third party app registers PromiseHook when it is necessary

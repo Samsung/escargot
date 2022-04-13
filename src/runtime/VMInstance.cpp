@@ -349,6 +349,8 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     , m_onVMInstanceDestroyData(nullptr)
     , m_errorCreationCallback(nullptr)
     , m_errorCreationCallbackPublic(nullptr)
+    , m_errorThrowCallback(nullptr)
+    , m_errorThrowCallbackPublic(nullptr)
     , m_promiseHook(nullptr)
     , m_promiseHookPublic(nullptr)
     , m_promiseRejectCallback(nullptr)
