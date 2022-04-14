@@ -179,8 +179,6 @@ bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectProperty
     if (!P.isUIntType() && returnValue && P.objectStructurePropertyName() == ObjectStructurePropertyName(state.context()->staticStrings().lastIndex)) {
         if (!structure()->readProperty((size_t)ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).m_descriptor.isWritable()) {
             ensureRareData()->m_hasNonWritableLastIndexRegExpObject = true;
-        } else {
-            ensureRareData()->m_hasNonWritableLastIndexRegExpObject = false;
         }
     }
     return returnValue;
