@@ -166,14 +166,14 @@ void ByteCodeGenerateContext::insertBreakpointAt(size_t line, Node* node)
     }
 }
 
-ByteCodeBreakpointContext::ByteCodeBreakpointContext(Debugger* debugger, InterpretedCodeBlock* codeBlock)
+ByteCodeBreakpointContext::ByteCodeBreakpointContext(Debugger* debugger, InterpretedCodeBlock* codeBlock, bool addBreakpointLocationsInfoToDebugger)
     : m_lastBreakpointLineOffset(0)
     , m_lastBreakpointIndexOffset(0)
     , m_originSourceLineOffset(codeBlock->script()->originSourceLineOffset())
     , m_breakpointLocations()
 {
     m_breakpointLocations = new Debugger::BreakpointLocationsInfo(reinterpret_cast<Debugger::WeakCodeRef*>(codeBlock));
-    if (debugger && codeBlock->markDebugging()) {
+    if (debugger && codeBlock->markDebugging() && addBreakpointLocationsInfoToDebugger) {
         debugger->appendBreakpointLocations(m_breakpointLocations);
     }
 }
@@ -297,7 +297,9 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
     ctx.m_locData = locData;
 
 #ifdef ESCARGOT_DEBUGGER
-    ByteCodeBreakpointContext breakpointContext(context->debugger(), codeBlock);
+    // create a dummy ByteCodeBreakpointContext because we just calculate location info only
+    // unnecessary BreakpointLocationsInfoToDebugger insertion would incur incorrect debugger operations
+    ByteCodeBreakpointContext breakpointContext(context->debugger(), codeBlock, false);
     ctx.m_breakpointContext = &breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */
 

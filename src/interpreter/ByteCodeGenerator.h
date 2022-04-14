@@ -58,7 +58,7 @@ struct ByteCodeBreakpointContext {
     Debugger::BreakpointLocationsInfo* m_breakpointLocations;
     bool m_parsingEnabled;
 
-    ByteCodeBreakpointContext(Debugger* debugger, InterpretedCodeBlock* codeBlock);
+    ByteCodeBreakpointContext(Debugger* debugger, InterpretedCodeBlock* codeBlock, bool addBreakpointLocationsInfoToDebugger = true);
 };
 #endif /* ESCARGOT_DEBUGGER */
 

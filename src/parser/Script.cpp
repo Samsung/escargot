@@ -479,6 +479,10 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
 
     Value resultValue;
     if (LIKELY(!m_topCodeBlock->isAsync())) {
+#ifdef ESCARGOT_DEBUGGER
+        // set the next(first) breakpoint to be stopped in a newer script execution
+        context()->setAsAlwaysStopState();
+#endif
         resultValue = ByteCodeInterpreter::interpret(codeExecutionState, byteCodeBlock, 0, registerFile);
         clearStack<512>();
 
