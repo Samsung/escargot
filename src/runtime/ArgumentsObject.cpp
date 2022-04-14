@@ -255,6 +255,19 @@ ObjectGetResult ArgumentsObject::getIndexedProperty(ExecutionState& state, const
     return result;
 }
 
+Value ArgumentsObject::getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver)
+{
+    size_t index = property.tryToUseAsIndexProperty(state);
+    if (LIKELY(!isModifiedArgument(index) && isMatchedArgument(index))) {
+        return getIndexedPropertyValueQuickly(state, index);
+    }
+
+    if (isMatchedArgument(index)) {
+        return getIndexedPropertyValueQuickly(state, index);
+    }
+    return get(state, ObjectPropertyName(state, property), receiver).value(state, property);
+}
+
 ObjectHasPropertyResult ArgumentsObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)
 {
     size_t index = propertyName.tryToUseAsIndexProperty(state);

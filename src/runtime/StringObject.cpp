@@ -114,6 +114,18 @@ ObjectGetResult StringObject::getIndexedProperty(ExecutionState& state, const Va
     return get(state, ObjectPropertyName(state, property), receiver);
 }
 
+Value StringObject::getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver)
+{
+    size_t idx = property.tryToUseAsIndexProperty(state);
+    if (idx != Value::InvalidIndexPropertyValue) {
+        size_t strLen = m_primitiveValue->length();
+        if (LIKELY(idx < strLen)) {
+            return state.context()->staticStrings().charCodeToString(m_primitiveValue->charAt(idx));
+        }
+    }
+    return get(state, ObjectPropertyName(state, property), receiver).value(state, receiver);
+}
+
 ObjectHasPropertyResult StringObject::hasIndexedProperty(ExecutionState& state, const Value& propertyName)
 {
     size_t idx = propertyName.tryToUseAsIndexProperty(state);

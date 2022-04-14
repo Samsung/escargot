@@ -1297,6 +1297,13 @@ protected:
         }
     }
 
+    // this function returns value instead of ObjectGetResult
+    // can be used for interpreter
+    virtual Value getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver)
+    {
+        return getIndexedProperty(state, property, receiver).value(state, receiver);
+    }
+
     void setGlobalIntrinsicObject(ExecutionState& state, bool isPrototype = false);
 
     void deleteOwnProperty(ExecutionState& state, size_t idx);

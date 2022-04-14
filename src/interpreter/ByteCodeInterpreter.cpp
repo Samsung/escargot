@@ -482,16 +482,23 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             GetObject* code = (GetObject*)programCounter;
             const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
             const Value& property = registerFile[code->m_propertyRegisterIndex];
-            PointerValue* v;
-            if (LIKELY(willBeObject.isObject() && (v = willBeObject.asPointerValue())->hasArrayObjectTag())) {
-                ArrayObject* arr = (ArrayObject*)v;
-                if (LIKELY(arr->hasFastModeDataBuffer())) {
-                    uint32_t idx = property.tryToUseAsIndexProperty(*state);
-                    if (LIKELY(idx < arr->arrayLength(*state))) {
-                        registerFile[code->m_storeRegisterIndex] = arr->m_fastModeData[idx].toValue<true>();
-                        ADD_PROGRAM_COUNTER(GetObject);
-                        NEXT_INSTRUCTION();
+            Object* obj;
+            if (LIKELY(willBeObject.isObject())) {
+                obj = willBeObject.asObject();
+                if (LIKELY(obj->hasArrayObjectTag())) {
+                    ArrayObject* arr = reinterpret_cast<ArrayObject*>(obj);
+                    if (LIKELY(arr->hasFastModeDataBuffer())) {
+                        uint32_t idx = property.tryToUseAsIndexProperty(*state);
+                        if (LIKELY(idx < arr->arrayLength(*state))) {
+                            registerFile[code->m_storeRegisterIndex] = arr->m_fastModeData[idx].toValue<true>();
+                            ADD_PROGRAM_COUNTER(GetObject);
+                            NEXT_INSTRUCTION();
+                        }
                     }
+                } else {
+                    registerFile[code->m_storeRegisterIndex] = obj->getIndexedPropertyValue(*state, property, willBeObject);
+                    ADD_PROGRAM_COUNTER(GetObject);
+                    NEXT_INSTRUCTION();
                 }
             }
             JUMP_INSTRUCTION(GetObjectOpcodeSlowCase);
@@ -506,9 +513,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             if (LIKELY(willBeObject.isObject() && (willBeObject.asPointerValue())->hasArrayObjectTag())) {
                 ArrayObject* arr = willBeObject.asObject()->asArrayObject();
                 if (LIKELY(arr->hasFastModeDataBuffer())) {
-                    uint32_t len = arr->arrayLength(*state);
                     uint32_t idx = property.tryToUseAsIndexProperty(*state);
-                    if (LIKELY(idx < len)) {
+                    if (LIKELY(idx < arr->arrayLength(*state))) {
                         arr->m_fastModeData[idx] = registerFile[code->m_loadRegisterIndex];
                         ADD_PROGRAM_COUNTER(SetObjectOperation);
                         NEXT_INSTRUCTION();
@@ -4348,7 +4354,7 @@ NEVER_INLINE void ByteCodeInterpreter::getObjectOpcodeSlowCase(ExecutionState& s
     } else {
         obj = fastToObject(state, willBeObject);
     }
-    registerFile[code->m_storeRegisterIndex] = obj->getIndexedProperty(state, property).value(state, willBeObject);
+    registerFile[code->m_storeRegisterIndex] = obj->getIndexedPropertyValue(state, property, willBeObject);
 }
 
 NEVER_INLINE void ByteCodeInterpreter::setObjectOpcodeSlowCase(ExecutionState& state, SetObjectOperation* code, Value* registerFile)
