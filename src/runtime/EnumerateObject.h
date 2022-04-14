@@ -53,7 +53,7 @@ protected:
     void update(ExecutionState& state);
 
     virtual void executeEnumeration(ExecutionState& state, EncodedValueTightVector& keys) = 0;
-    virtual bool checkIfModified(ExecutionState& state) = 0;
+    virtual bool checkIfModified(ExecutionState& state);
 
     Object* m_object;
     uint32_t m_arrayLength;

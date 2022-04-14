@@ -230,7 +230,6 @@ bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
             if (idx < len) {
                 if (!m_fastModeData[idx].isEmpty()) {
                     m_fastModeData[idx] = Value(Value::EmptyValue);
-                    ensureRareData()->m_shouldUpdateEnumerateObject = true;
                 }
                 return true;
             }

@@ -61,6 +61,26 @@ void EnumerateObject::update(ExecutionState& state)
     }
 }
 
+bool EnumerateObject::checkIfModified(ExecutionState& state)
+{
+    if (m_object->isArrayObject()) {
+        ArrayObject* obj = m_object->asArrayObject();
+        if (UNLIKELY(obj->arrayLength(state) != m_arrayLength)) {
+            return true;
+        }
+        if (obj->isFastModeArray() && m_index < m_keys.size()) {
+            Value currentKey = m_keys[m_index];
+            auto idx = currentKey.tryToUseAsIndex(state);
+            if (idx < m_arrayLength) {
+                if (obj->m_fastModeData[idx].isEmpty()) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 void* EnumerateObjectWithDestruction::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
@@ -163,16 +183,7 @@ bool EnumerateObjectWithDestruction::checkIfModified(ExecutionState& state)
         return true;
     }
 
-    if (m_object->isArrayObject()) {
-        if (UNLIKELY(m_object->asArrayObject()->arrayLength(state) != m_arrayLength)) {
-            return true;
-        }
-        if (UNLIKELY(m_object->hasRareData() && m_object->rareData()->m_shouldUpdateEnumerateObject)) {
-            return true;
-        }
-    }
-
-    return false;
+    return EnumerateObject::checkIfModified(state);
 }
 
 void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, EncodedValueTightVector& keys)
@@ -296,10 +307,6 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
                                   &keys);
         }
     }
-
-    if (m_object->hasRareData()) {
-        m_object->rareData()->m_shouldUpdateEnumerateObject = false;
-    }
 }
 
 bool EnumerateObjectWithIteration::checkIfModified(ExecutionState& state)
@@ -319,16 +326,7 @@ bool EnumerateObjectWithIteration::checkIfModified(ExecutionState& state)
         }
     }
 
-    if (m_object->isArrayObject()) {
-        if (UNLIKELY(m_object->asArrayObject()->arrayLength(state) != m_arrayLength)) {
-            return true;
-        }
-        if (UNLIKELY(m_object->hasRareData() && m_object->rareData()->m_shouldUpdateEnumerateObject)) {
-            return true;
-        }
-    }
-
-    return false;
+    return EnumerateObject::checkIfModified(state);
 }
 } // namespace Escargot
 ;

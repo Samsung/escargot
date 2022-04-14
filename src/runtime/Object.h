@@ -75,7 +75,6 @@ struct ObjectRareData : public PointerValue {
     bool m_isSpreadArrayObject : 1;
     bool m_isFinalizerRegistered : 1;
     bool m_isInlineCacheable : 1;
-    bool m_shouldUpdateEnumerateObject : 1; // used only for Array Object when ArrayObject::deleteOwnProperty called
     bool m_hasNonWritableLastIndexRegExpObject : 1;
     bool m_hasExtendedExtraData : 1;
 #if defined(ESCARGOT_ENABLE_TEST)
