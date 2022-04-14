@@ -207,7 +207,7 @@ void GlobalObject::installSet(ExecutionState& state)
         m_set->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
 
-    m_setPrototype = new Object(state);
+    m_setPrototype = new PrototypeObject(state);
     m_setPrototype->setGlobalIntrinsicObject(state, true);
     m_setPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_set, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -245,7 +245,7 @@ void GlobalObject::installSet(ExecutionState& state)
     ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_setPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().size), desc);
 
-    m_setIteratorPrototype = new Object(state, m_iteratorPrototype);
+    m_setIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_setIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_setIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),

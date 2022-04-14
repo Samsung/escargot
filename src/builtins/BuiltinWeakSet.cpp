@@ -143,7 +143,7 @@ void GlobalObject::installWeakSet(ExecutionState& state)
     m_weakSet = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakSet, builtinWeakSetConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_weakSet->setGlobalIntrinsicObject(state);
 
-    m_weakSetPrototype = new Object(state);
+    m_weakSetPrototype = new PrototypeObject(state);
     m_weakSetPrototype->setGlobalIntrinsicObject(state, true);
 
     m_weakSetPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakSet, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

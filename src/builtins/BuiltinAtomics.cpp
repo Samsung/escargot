@@ -491,7 +491,7 @@ void GlobalObject::initializeAtomics(ExecutionState& state)
 
 void GlobalObject::installAtomics(ExecutionState& state)
 {
-    m_atomics = new Object(state);
+    m_atomics = new PrototypeObject(state);
     m_atomics->setGlobalIntrinsicObject(state);
 
     m_atomics->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),

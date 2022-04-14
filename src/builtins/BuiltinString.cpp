@@ -1812,7 +1812,7 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_string->setFunctionPrototype(state, m_stringPrototype);
 
-    m_stringIteratorPrototype = new Object(state, m_iteratorPrototype);
+    m_stringIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_stringIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_stringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),

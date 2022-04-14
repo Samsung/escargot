@@ -55,7 +55,7 @@ void GlobalObject::installAsyncFunction(ExecutionState& state)
     m_asyncFunction->setGlobalIntrinsicObject(state);
     m_asyncFunction->setPrototype(state, m_function);
 
-    m_asyncFunctionPrototype = new Object(state, m_functionPrototype);
+    m_asyncFunctionPrototype = new PrototypeObject(state, m_functionPrototype);
     m_asyncFunctionPrototype->setGlobalIntrinsicObject(state, true);
     m_asyncFunction->setFunctionPrototype(state, m_asyncFunctionPrototype);
 

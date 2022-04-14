@@ -264,7 +264,7 @@ void GlobalObject::installMap(ExecutionState& state)
     ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     m_mapPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().size), desc);
 
-    m_mapIteratorPrototype = new Object(state, m_iteratorPrototype);
+    m_mapIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_mapIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_mapIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),

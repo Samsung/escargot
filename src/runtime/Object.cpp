@@ -31,6 +31,7 @@
 #include "SymbolObject.h"
 #include "BigIntObject.h"
 #include "ProxyObject.h"
+#include "PrototypeObject.h"
 #include "ScriptClassConstructorFunctionObject.h"
 
 namespace Escargot {
@@ -479,7 +480,7 @@ Object::Object(ExecutionState& state, Object* proto)
 {
     // proto has been marked as a prototype object
     ASSERT(!!proto);
-    ASSERT(proto->hasRareData() && proto->rareData()->m_isEverSetAsPrototypeObject);
+    ASSERT(proto->isEverSetAsPrototypeObject());
     // create a new ordinary object
     m_values.resizeWithUninitializedValues(0, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER);
 }
@@ -498,15 +499,7 @@ Object::Object(ExecutionState& state, Object* proto, size_t defaultSpace)
 {
     // proto has been marked as a prototype object
     ASSERT(!!proto);
-    ASSERT(proto->hasRareData() && proto->rareData()->m_isEverSetAsPrototypeObject);
-    m_values.resizeWithUninitializedValues(0, defaultSpace);
-}
-
-// this constructor is used only for initialization of GlobalObject
-Object::Object(ExecutionState& state, size_t defaultSpace, ForGlobalBuiltin)
-    : m_structure(state.context()->defaultStructureForObject())
-    , m_prototype(nullptr)
-{
+    ASSERT(proto->isEverSetAsPrototypeObject());
     m_values.resizeWithUninitializedValues(0, defaultSpace);
 }
 
@@ -538,10 +531,9 @@ bool Object::isConcatSpreadable(ExecutionState& state)
 
 Object* Object::createBuiltinObjectPrototype(ExecutionState& state)
 {
-    Object* obj = new Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, Object::__ForGlobalBuiltin__);
+    Object* obj = new PrototypeObject(state, PrototypeObject::__ForGlobalBuiltin__);
     obj->setPrototype(state, Value(Value::Null));
     obj->markThisObjectDontNeedStructureTransitionTable();
-    obj->ensureRareData()->m_isEverSetAsPrototypeObject = true;
 
     return obj;
 }
@@ -549,7 +541,7 @@ Object* Object::createBuiltinObjectPrototype(ExecutionState& state)
 Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function)
 {
     auto ctx = function->codeBlock()->context();
-    Object* obj = new Object(state, ctx->globalObject()->objectPrototype()->asObject(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1);
+    Object* obj = new PrototypeObject(state, ctx->globalObject()->objectPrototype()->asObject(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1);
     obj->m_structure = ctx->defaultStructureForFunctionPrototypeObject();
     obj->m_values[0] = Value(function);
 
@@ -566,7 +558,7 @@ void Object::setGlobalIntrinsicObject(ExecutionState& state, bool isPrototype)
     markThisObjectDontNeedStructureTransitionTable();
 
     if (isPrototype) {
-        ensureRareData()->m_isEverSetAsPrototypeObject = true;
+        markAsPrototypeObject(state);
     }
 }
 
@@ -629,7 +621,11 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
 
 void Object::markAsPrototypeObject(ExecutionState& state)
 {
-    ensureRareData()->m_isEverSetAsPrototypeObject = true;
+    if (hasTag(g_objectTag)) {
+        writeTag(g_prototypeObjectTag);
+    } else {
+        ensureRareData()->m_isEverSetAsPrototypeObject = true;
+    }
 
     if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && (structure()->hasIndexPropertyName() || isProxyObject()))) {
         state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
