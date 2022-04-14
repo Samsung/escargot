@@ -127,7 +127,7 @@ private:
         m_fastModeData[idx] = v;
     }
 
-    ALWAYS_INLINE uint32_t arrayLength(ExecutionState&)
+    ALWAYS_INLINE const uint32_t& arrayLength(ExecutionState&)
     {
         return m_arrayLength;
     }

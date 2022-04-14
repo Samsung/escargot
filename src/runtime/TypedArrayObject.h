@@ -126,10 +126,13 @@ protected:
         }                                                                                                                                          \
         virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver) override;                  \
         virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver) override;         \
+        virtual Value getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver) override;                       \
                                                                                                                                                    \
     private:                                                                                                                                       \
-        inline Value getDirectValueFromBuffer(ExecutionState& state, size_t byteindex, bool isLittleEndian = true);                                \
-        inline void setDirectValueInBuffer(ExecutionState& state, size_t byteindex, const Value& val, bool isLittleEndian = true);                 \
+        template <const bool isLittleEndian = true>                                                                                                \
+        inline Value getDirectValueFromBuffer(ExecutionState& state, size_t byteindex);                                                            \
+        template <const bool isLittleEndian = true>                                                                                                \
+        inline void setDirectValueInBuffer(ExecutionState& state, size_t byteindex, const Value& val);                                             \
     };
 
 FOR_EACH_TYPEDARRAY_TYPES(DECLARE_TYPEDARRAY)
