@@ -829,7 +829,7 @@ void GlobalObject::installRegExp(ExecutionState& state)
 
     REGEXP_LEGACY_DOLLAR_NUMBER_FEATURES(DEFINE_LEGACY_DOLLAR_NUMBER_ATTR);
 
-    m_regexpPrototype = new Object(state);
+    m_regexpPrototype = new PrototypeObject(state);
     m_regexpPrototype->setGlobalIntrinsicObject(state, true);
 
     {
@@ -928,7 +928,7 @@ void GlobalObject::installRegExp(ExecutionState& state)
     m_regexpPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().matchAll),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolMatchAll, builtinRegExpMatchAll, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_regexpStringIteratorPrototype = new Object(state, m_iteratorPrototype);
+    m_regexpStringIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_regexpStringIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_regexpStringIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),

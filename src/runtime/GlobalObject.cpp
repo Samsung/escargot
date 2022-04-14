@@ -44,7 +44,7 @@
 namespace Escargot {
 
 GlobalObject::GlobalObject(ExecutionState& state)
-    : Object(state, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER, Object::__ForGlobalBuiltin__)
+    : PrototypeObject(state, PrototypeObject::__ForGlobalBuiltin__)
     , m_context(state.context())
 #define INIT_BUILTIN_VALUE(builtin, TYPE, objName) \
     , m_##builtin(nullptr)
@@ -927,21 +927,21 @@ void GlobalObject::installOthers(ExecutionState& state)
     m_arrayToString = new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinArrayToString, 0, NativeFunctionInfo::Strict));
 
     // shared builtin objects
-    m_asyncIteratorPrototype = new Object(state);
+    m_asyncIteratorPrototype = new PrototypeObject(state);
     m_asyncIteratorPrototype->setGlobalIntrinsicObject(state, true);
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asynciteratorprototype-asynciterator
     m_asyncIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().asyncIterator),
                                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.asyncIterator]")), builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
                                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_iteratorPrototype = new Object(state);
+    m_iteratorPrototype = new PrototypeObject(state);
     m_iteratorPrototype->setGlobalIntrinsicObject(state, true);
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-%iteratorprototype%-@@iterator
     m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
                                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_genericIteratorPrototype = new Object(state, m_iteratorPrototype);
+    m_genericIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_genericIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_genericIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),

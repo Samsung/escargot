@@ -978,7 +978,7 @@ public:
         return (m_prototype != nullptr && m_prototype->isObjectRareData());
     }
 
-    bool isEverSetAsPrototypeObject() const
+    virtual bool isEverSetAsPrototypeObject() const
     {
         if (LIKELY(!hasRareData())) {
             return false;
@@ -1181,8 +1181,6 @@ protected:
     }
 
     explicit Object(ExecutionState& state, Object* proto, size_t defaultSpace);
-    enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
-    explicit Object(ExecutionState& state, size_t defaultSpace, ForGlobalBuiltin);
     // ctor for ObjectTemplate
     explicit Object(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto);
 

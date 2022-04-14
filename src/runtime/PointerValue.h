@@ -897,6 +897,8 @@ protected:
 
     // tag values for fast type check
     // these values actually have unique virtual table address of each object class
+    static size_t g_objectTag;
+    static size_t g_prototypeObjectTag;
     static size_t g_arrayObjectTag;
     static size_t g_arrayPrototypeObjectTag;
     static size_t g_scriptFunctionObjectTag;

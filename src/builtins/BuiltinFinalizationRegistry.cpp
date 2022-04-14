@@ -116,7 +116,7 @@ void GlobalObject::installFinalizationRegistry(ExecutionState& state)
     m_finalizationRegistry = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().FinalizationRegistry, builtinFinalizationRegistryConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_finalizationRegistry->setGlobalIntrinsicObject(state);
 
-    m_finalizationRegistryPrototype = new Object(state, m_objectPrototype);
+    m_finalizationRegistryPrototype = new PrototypeObject(state, m_objectPrototype);
     m_finalizationRegistryPrototype->setGlobalIntrinsicObject(state, true);
     m_finalizationRegistryPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_finalizationRegistry, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

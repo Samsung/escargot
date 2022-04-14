@@ -522,7 +522,7 @@ void GlobalObject::installDate(ExecutionState& state)
     m_date = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Date, builtinDateConstructor, 7), NativeFunctionObject::__ForBuiltinConstructor__);
     m_date->setGlobalIntrinsicObject(state);
 
-    m_datePrototype = new Object(state);
+    m_datePrototype = new PrototypeObject(state);
     m_datePrototype->setGlobalIntrinsicObject(state, true);
 
     m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_date, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

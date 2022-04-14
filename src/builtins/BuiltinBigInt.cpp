@@ -211,7 +211,7 @@ void GlobalObject::installBigInt(ExecutionState& state)
                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().asIntN, builtinBigIntAsIntN, 2, NativeFunctionInfo::Strict)),
                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_bigIntPrototype = new Object(state);
+    m_bigIntPrototype = new PrototypeObject(state);
     m_bigIntPrototype->setGlobalIntrinsicObject(state, true);
 
     m_bigIntPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_bigInt, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

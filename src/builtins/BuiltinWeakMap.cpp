@@ -155,7 +155,7 @@ void GlobalObject::installWeakMap(ExecutionState& state)
     m_weakMap = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakMap, builtinWeakMapConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_weakMap->setGlobalIntrinsicObject(state);
 
-    m_weakMapPrototype = new Object(state, m_objectPrototype);
+    m_weakMapPrototype = new PrototypeObject(state, m_objectPrototype);
     m_weakMapPrototype->setGlobalIntrinsicObject(state, true);
     m_weakMapPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakMap, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

@@ -693,4 +693,17 @@ ArrayPrototypeObject::ArrayPrototypeObject(ExecutionState& state)
 {
     convertIntoNonFastMode(state);
 }
+
+void ArrayPrototypeObject::markAsPrototypeObject(ExecutionState& state)
+{
+    if (UNLIKELY(!state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty() && (structure()->hasIndexPropertyName() || isProxyObject()))) {
+        state.context()->vmInstance()->somePrototypeObjectDefineIndexedProperty(state);
+    }
+}
+
+bool ArrayPrototypeObject::isEverSetAsPrototypeObject() const
+{
+    ASSERT(!hasRareData() || !rareData()->m_isEverSetAsPrototypeObject);
+    return true;
+}
 } // namespace Escargot

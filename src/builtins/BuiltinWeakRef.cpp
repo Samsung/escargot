@@ -72,7 +72,7 @@ void GlobalObject::installWeakRef(ExecutionState& state)
     m_weakRef = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().WeakRef, builtinWeakRefConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_weakRef->setGlobalIntrinsicObject(state);
 
-    m_weakRefPrototype = new Object(state, m_objectPrototype);
+    m_weakRefPrototype = new PrototypeObject(state, m_objectPrototype);
     m_weakRefPrototype->setGlobalIntrinsicObject(state, true);
     m_weakRefPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakRef, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 

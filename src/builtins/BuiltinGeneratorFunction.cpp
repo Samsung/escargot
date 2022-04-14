@@ -90,7 +90,7 @@ void GlobalObject::installGenerator(ExecutionState& state)
     }
 
     // %GeneratorPrototype% : The initial value of the prototype property of %Generator%
-    m_generatorPrototype = new Object(state, m_iteratorPrototype);
+    m_generatorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_generatorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_generator->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().prototype), ObjectPropertyDescriptor(m_generatorPrototype, ObjectPropertyDescriptor::ConfigurablePresent));

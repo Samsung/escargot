@@ -159,6 +159,9 @@ class ArrayPrototypeObject : public ArrayObject {
 public:
     explicit ArrayPrototypeObject(ExecutionState& state);
 
+    virtual void markAsPrototypeObject(ExecutionState& state) override;
+    virtual bool isEverSetAsPrototypeObject() const override;
+
 private:
     ArrayPrototypeObject()
         : ArrayObject()

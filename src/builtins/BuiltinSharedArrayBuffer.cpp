@@ -153,7 +153,7 @@ void GlobalObject::installSharedArrayBuffer(ExecutionState& state)
     m_sharedArrayBuffer = new NativeFunctionObject(state, NativeFunctionInfo(strings->SharedArrayBuffer, builtinSharedArrayBufferConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_sharedArrayBuffer->setGlobalIntrinsicObject(state);
 
-    m_sharedArrayBufferPrototype = new Object(state, m_objectPrototype);
+    m_sharedArrayBufferPrototype = new PrototypeObject(state, m_objectPrototype);
     m_sharedArrayBufferPrototype->setGlobalIntrinsicObject(state, true);
 
     m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_sharedArrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -2060,7 +2060,7 @@ void GlobalObject::installArray(ExecutionState& state)
 
     m_array->setFunctionPrototype(state, m_arrayPrototype);
 
-    m_arrayIteratorPrototype = new Object(state, m_iteratorPrototype);
+    m_arrayIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_arrayIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
     m_arrayIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),

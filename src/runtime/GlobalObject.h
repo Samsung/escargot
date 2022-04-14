@@ -20,8 +20,9 @@
 #ifndef __EscargotObjectGlobalObject__
 #define __EscargotObjectGlobalObject__
 
-#include "runtime/FunctionObject.h"
 #include "runtime/Object.h"
+#include "runtime/FunctionObject.h"
+#include "runtime/PrototypeObject.h"
 
 namespace Escargot {
 
@@ -320,7 +321,7 @@ class FunctionObject;
 
 Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
-class GlobalObject : public Object {
+class GlobalObject : public PrototypeObject {
 public:
     friend class GlobalEnvironmentRecord;
 
