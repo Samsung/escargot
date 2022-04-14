@@ -35,6 +35,7 @@ class ArrayObject : public Object {
     friend class VMInstance;
     friend class Global;
     friend class ByteCodeInterpreter;
+    friend class EnumerateObject;
     friend class EnumerateObjectWithDestruction;
     friend class EnumerateObjectWithIteration;
     friend Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
