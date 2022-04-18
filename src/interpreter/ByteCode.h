@@ -900,6 +900,8 @@ public:
 #endif
 };
 
+COMPILE_ASSERT(sizeof(BreakpointDisabled) == sizeof(BreakpointEnabled), "");
+
 class CreateObject : public ByteCode {
 public:
     CreateObject(const ByteCodeLOC& loc, const size_t registerIndex)

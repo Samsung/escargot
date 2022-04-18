@@ -259,8 +259,6 @@ FunctionObject::FunctionSource FunctionObject::createDynamicFunctionScript(Execu
 
 ScriptParser::InitializeScriptResult FunctionObject::createFunctionScript(ExecutionState& state, String* sourceName, AtomicString functionName, size_t argCount, Value* argArray, Value bodyString, bool useStrict)
 {
-    ASSERT(sourceName->length() > 0);
-
     String* sourceBodyString = bodyString.toString(state);
     ASSERT(sourceBodyString->length());
 

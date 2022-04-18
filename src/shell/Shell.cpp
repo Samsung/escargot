@@ -1044,7 +1044,6 @@ int main(int argc, char* argv[])
     }
 
     if (wait_before_exit || context->isWaitBeforeExit()) {
-        context->setAsAlwaysStopState();
         auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
             return script->execute(state);
         },
