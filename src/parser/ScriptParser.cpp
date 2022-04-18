@@ -424,7 +424,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
 {
     ASSERT(m_context->astAllocator().isInitialized());
 #ifdef ESCARGOT_DEBUGGER
-    if (LIKELY(needByteCodeGeneration) && m_context->debuggerEnabled() && !m_context->debugger()->skipSourceCode(srcName)) {
+    if (LIKELY(needByteCodeGeneration) && m_context->debuggerEnabled() && srcName->length() && !m_context->debugger()->skipSourceCode(srcName)) {
         return initializeScriptWithDebugger(originSource, originLineOffset, source, srcName, parentCodeBlock, isModule, isEvalMode, isEvalCodeInFunction, inWithOperation, strictFromOutside, allowSuperCall, allowSuperProperty, allowNewTarget);
     }
 #endif /* ESCARGOT_DEBUGGER */
@@ -569,6 +569,9 @@ void ScriptParser::recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* par
 
 ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(String* originSource, size_t originLineOffset, String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget)
 {
+    // src name should have valid string
+    ASSERT(srcName && srcName->length());
+
     GC_disable();
     if (m_context->debuggerEnabled()) {
         m_context->debugger()->setInDebuggingCodeMode(true);

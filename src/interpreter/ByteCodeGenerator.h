@@ -377,6 +377,10 @@ public:
     static void collectByteCodeLOCData(Context* context, InterpretedCodeBlock* codeBlock, std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>>* locData);
     static void relocateByteCode(ByteCodeBlock* block);
 
+#ifdef ESCARGOT_DEBUGGER
+    static bool enableFirstBreakPoint(ByteCodeBlock* block);
+#endif
+
 #ifndef NDEBUG
     static void printByteCode(Context* context, ByteCodeBlock* block);
 #endif

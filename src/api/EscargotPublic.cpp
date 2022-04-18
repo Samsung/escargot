@@ -4336,6 +4336,12 @@ ScriptParserRef::InitializeFunctionScriptResult ScriptParserRef::initializeFunct
         Script* script = internalResult.script.value();
         InterpretedCodeBlock* codeBlock = script->topCodeBlock()->childBlockAt(0);
 
+#ifdef ESCARGOT_DEBUGGER
+        // enable first breakpoint for debugger
+        ASSERT(codeBlock->byteCodeBlock());
+        ByteCodeGenerator::enableFirstBreakPoint(codeBlock->byteCodeBlock());
+#endif
+
         // create FunctionObject
         LexicalEnvironment* globalEnvironment = new LexicalEnvironment(new GlobalEnvironmentRecord(state, script->topCodeBlock(), state.context()->globalObject(), state.context()->globalDeclarativeRecord(), state.context()->globalDeclarativeStorage()), nullptr);
         Object* proto = state.context()->globalObject()->functionPrototype();

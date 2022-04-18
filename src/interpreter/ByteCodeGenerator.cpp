@@ -812,6 +812,39 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
     }
 }
 
+#ifdef ESCARGOT_DEBUGGER
+bool ByteCodeGenerator::enableFirstBreakPoint(ByteCodeBlock* block)
+{
+    // This function should be called after ByteCode relocation (`relocateByteCode`)
+    ASSERT(block && block->m_code.size());
+
+    char* code = block->m_code.data();
+    size_t codeBase = (size_t)code;
+    char* end = code + block->m_code.size();
+
+    while (code < end) {
+        ByteCode* currentCode = reinterpret_cast<ByteCode*>(code);
+
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+        if (currentCode->m_opcodeInAddress == g_opcodeTable.m_addressTable[BreakpointDisabledOpcode]) {
+            currentCode->m_opcodeInAddress = g_opcodeTable.m_addressTable[BreakpointEnabledOpcode];
+            return true;
+        }
+#else
+        if (currentCode->m_opcode == BreakpointDisabledOpcode) {
+            currentCode->m_opcode = BreakpointEnabledOpcode;
+            return true;
+        }
+#endif
+        ASSERT(currentCode->m_orgOpcode != BreakpointEnabledOpcode);
+        ASSERT(currentCode->m_orgOpcode <= EndOpcode);
+        code += byteCodeLengths[currentCode->m_orgOpcode];
+    }
+
+    return false;
+}
+#endif
+
 #ifndef NDEBUG
 void ByteCodeGenerator::printByteCode(Context* context, ByteCodeBlock* block)
 {
