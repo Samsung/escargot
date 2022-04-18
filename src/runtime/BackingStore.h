@@ -20,13 +20,98 @@
 #ifndef __EscargotBackingStore__
 #define __EscargotBackingStore__
 
+#include "runtime/Object.h"
+
 namespace Escargot {
 
 class SharedDataBlockInfo;
 
+template <typename BufferOwnerType>
+class BufferAddressObserverManager {
+public:
+    BufferAddressObserverManager(BufferOwnerType* owner)
+        : m_owner(owner)
+#ifndef NDEBUG
+        , m_isUpdating(false)
+#endif
+    {
+    }
+
+    using BufferAddressObserverCallback = void (*)(BufferOwnerType* bufferOwner, void* newAddress, void* userData);
+    void addObserver(Object* from, BufferAddressObserverCallback cb, void* userData)
+    {
+        ASSERT(!m_isUpdating);
+        from->addFinalizer(objectFinalizer, this);
+        m_observerItems.pushBack(ObserverVectorItem(from, cb, userData));
+    }
+
+    void removeObserver(Object* from, BufferAddressObserverCallback callback, void* userData)
+    {
+        ASSERT(!m_isUpdating);
+        from->removeFinalizer(objectFinalizer, this);
+        for (size_t i = 0; i < m_observerItems.size(); i++) {
+            if (m_observerItems[i].from == from && m_observerItems[i].callback == callback && m_observerItems[i].userData == userData) {
+                m_observerItems.erase(i);
+                break;
+            }
+        }
+    }
+
+protected:
+    void dispose()
+    {
+        for (size_t i = 0; i < m_observerItems.size(); i++) {
+            m_observerItems[i].from->removeFinalizer(objectFinalizer, this);
+        }
+    }
+
+    static void objectFinalizer(Object* obj, void* data)
+    {
+        BufferAddressObserverManager<BufferOwnerType>* self = reinterpret_cast<BufferAddressObserverManager<BufferOwnerType>*>(data);
+        for (size_t i = 0; i < self->m_observerItems.size(); i++) {
+            if (self->m_observerItems[i].from == obj) {
+                self->m_observerItems.erase(i);
+                i--;
+            }
+        }
+    }
+
+    struct ObserverVectorItem {
+        Object* from;
+        BufferAddressObserverCallback callback;
+        void* userData;
+
+        ObserverVectorItem(Object* from, BufferAddressObserverCallback callback, void* userData)
+            : from(from)
+            , callback(callback)
+            , userData(userData)
+        {
+        }
+    };
+
+    BufferOwnerType* m_owner;
+    TightVector<ObserverVectorItem, GCUtil::gc_malloc_atomic_allocator<ObserverVectorItem>> m_observerItems;
+
+#ifndef NDEBUG
+    bool m_isUpdating;
+#endif
+    void bufferAddressUpdated(void* newAddress)
+    {
+#ifndef NDEBUG
+        m_isUpdating = true;
+#endif
+        for (size_t i = 0; i < m_observerItems.size(); i++) {
+            m_observerItems[i].callback(m_owner, newAddress, m_observerItems[i].userData);
+        }
+#ifndef NDEBUG
+        m_isUpdating = false;
+#endif
+    }
+};
+
 using BackingStoreDeleterCallback = void (*)(void* data, size_t length, void* deleterData);
 
-class BackingStore : public gc {
+class BackingStore : public gc, public BufferAddressObserverManager<BackingStore> {
 public:
     static BackingStore* createDefaultNonSharedBackingStore(size_t byteLength);
     static BackingStore* createDefaultResizableNonSharedBackingStore(size_t byteLength, size_t maxByteLength);
@@ -65,6 +150,12 @@ public:
 
     void* operator new(size_t size) = delete;
     void* operator new[](size_t size) = delete;
+
+protected:
+    BackingStore()
+        : BufferAddressObserverManager<BackingStore>(this)
+    {
+    }
 };
 
 class NonSharedBackingStore : public BackingStore {

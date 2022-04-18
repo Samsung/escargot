@@ -62,6 +62,7 @@ NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, Back
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         NonSharedBackingStore* self = (NonSharedBackingStore*)obj;
         self->m_deleter(self->m_data, self->m_byteLength, self->m_deleterData);
+        self->dispose();
     },
                                    nullptr, nullptr, nullptr);
 }
@@ -79,6 +80,7 @@ NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, Back
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         NonSharedBackingStore* self = (NonSharedBackingStore*)obj;
         self->m_deleter(self->m_data, self->m_maxByteLength, nullptr);
+        self->dispose();
     },
                                    nullptr, nullptr, nullptr);
 }
@@ -88,8 +90,9 @@ void* NonSharedBackingStore::operator new(size_t size)
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
-        // only mark m_deleterData
         GC_word obj_bitmap[GC_BITMAP_SIZE(NonSharedBackingStore)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NonSharedBackingStore, m_observerItems));
+        // only mark m_deleterData
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NonSharedBackingStore, m_deleterData));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(NonSharedBackingStore));
         typeInited = true;
@@ -127,6 +130,7 @@ void NonSharedBackingStore::reallocate(size_t newByteLength)
         m_byteLength = newByteLength;
         m_isAllocatedByPlatform = true;
     }
+    bufferAddressUpdated(m_data);
 }
 
 #if defined(ENABLE_THREADING)
@@ -181,6 +185,7 @@ SharedBackingStore::SharedBackingStore(SharedDataBlockInfo* sharedInfo)
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         SharedBackingStore* self = (SharedBackingStore*)obj;
         self->sharedDataBlockInfo()->deref();
+        self->dispose();
     },
                                    nullptr, nullptr, nullptr);
 }
@@ -195,8 +200,15 @@ void SharedBackingStore::resize(size_t newByteLength)
 
 void* SharedBackingStore::operator new(size_t size)
 {
-    // SharedBackingStore does not have any GC member
-    return GC_MALLOC_ATOMIC(size);
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(SharedBackingStore)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(SharedBackingStore, m_observerItems));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(SharedBackingStore));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 #endif
 
