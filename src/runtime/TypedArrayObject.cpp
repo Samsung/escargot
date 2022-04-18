@@ -223,12 +223,11 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
         ASSERT(byteLength());                                                                                                                   \
         size_t elementSize = sizeof(Type);                                                                                                      \
         ASSERT(byteindex + elementSize <= byteLength());                                                                                        \
-        auto bufferAddress = buffer()->data();                                                                                                  \
-        auto offset = byteOffset();                                                                                                             \
+        auto bufferAddress = rawBuffer();                                                                                                       \
         if (UNLIKELY(bufferAddress == nullptr)) {                                                                                               \
             return Value();                                                                                                                     \
         }                                                                                                                                       \
-        uint8_t* rawStart = bufferAddress + offset + byteindex;                                                                                 \
+        uint8_t* rawStart = bufferAddress + byteindex;                                                                                          \
         Type res;                                                                                                                               \
         if (isLittleEndian) {                                                                                                                   \
             res = *((Type*)rawStart);                                                                                                           \
@@ -252,12 +251,8 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
         ASSERT(byteLength());                                                                                                                   \
         size_t elementSize = siz;                                                                                                               \
         ASSERT(byteindex + elementSize <= byteLength());                                                                                        \
-        auto bufferAddress = buffer()->data();                                                                                                  \
-        auto offset = byteOffset();                                                                                                             \
-        if (UNLIKELY(bufferAddress == nullptr)) {                                                                                               \
-            return;                                                                                                                             \
-        }                                                                                                                                       \
-        uint8_t* rawStart = bufferAddress + offset + byteindex;                                                                                 \
+        auto bufferAddress = rawBuffer();                                                                                                       \
+        uint8_t* rawStart = bufferAddress + byteindex;                                                                                          \
                                                                                                                                                 \
         if (isLittleEndian) {                                                                                                                   \
             *((Type*)rawStart) = littleEndianVal;                                                                                               \

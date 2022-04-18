@@ -147,6 +147,9 @@ int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr)
     arr[2].to = (GC_word*)current->m_values.data();
     arr[3].from = (GC_word*)&current->m_backingStore;
     arr[3].to = (GC_word*)(current->m_backingStore.hasValue() ? current->m_backingStore.value() : nullptr);
+    arr[4].from = (GC_word*)&current->m_observerItems;
+    arr[4].to = (GC_word*)current->m_observerItems.data();
+
     return 0;
 }
 
@@ -288,7 +291,7 @@ void initializeCustomAllocators()
                                                                         TRUE);
 
     s_gcKinds[HeapObjectKind::ArrayBufferObjectKind] = GC_new_kind_enumerable(GC_new_free_list(),
-                                                                              GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInArrayBufferObject, 4>), 0),
+                                                                              GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInArrayBufferObject, 5>), 0),
                                                                               FALSE,
                                                                               TRUE);
 

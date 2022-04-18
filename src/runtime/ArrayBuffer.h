@@ -39,7 +39,7 @@ enum class TypedArrayType : unsigned {
     BigUint64
 };
 
-class ArrayBuffer : public Object {
+class ArrayBuffer : public Object, public BufferAddressObserverManager<ArrayBuffer> {
     friend int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr);
 
 public:
@@ -47,8 +47,9 @@ public:
 
     explicit ArrayBuffer(ExecutionState& state, Object* proto)
         : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
-        , m_cachedDataAddress(nullptr)
+        , BufferAddressObserverManager<ArrayBuffer>(this)
     {
+        addFinalizer(arrayBufferFinalizer, nullptr);
     }
 
     virtual bool isArrayBuffer() const override
@@ -69,10 +70,10 @@ public:
 
     ALWAYS_INLINE uint8_t* data()
     {
-        if (LIKELY(m_cachedDataAddress.hasValue())) {
-            return m_cachedDataAddress.unwrap();
+        if (LIKELY(m_backingStore)) {
+            return reinterpret_cast<uint8_t*>(m_backingStore->data());
         }
-        return dataSlowCase();
+        return nullptr;
     }
 
     ALWAYS_INLINE size_t byteLength()
@@ -116,27 +117,36 @@ protected:
     static inline void fillGCDescriptor(GC_word* desc)
     {
         Object::fillGCDescriptor(desc);
+        GC_set_bit(desc, GC_WORD_OFFSET(ArrayBuffer, m_observerItems));
         GC_set_bit(desc, GC_WORD_OFFSET(ArrayBuffer, m_backingStore));
+    }
+
+    static void arrayBufferFinalizer(Object* obj, void* data)
+    {
+        ArrayBuffer* self = reinterpret_cast<ArrayBuffer*>(obj);
+        self->dispose();
+    }
+
+    static void backingStoreObserver(BackingStore* bufferOwner, void* newAddress, void* userData)
+    {
+        reinterpret_cast<ArrayBuffer*>(userData)->bufferAddressUpdated(newAddress);
     }
 
     void updateBackingStore(Optional<BackingStore*> bs)
     {
-        m_backingStore = bs;
-        m_cachedDataAddress = nullptr;
-    }
-
-private:
-    NEVER_INLINE uint8_t* dataSlowCase()
-    {
-        if (LIKELY(m_backingStore)) {
-            m_cachedDataAddress = reinterpret_cast<uint8_t*>(m_backingStore->data());
-            return m_cachedDataAddress.unwrap();
+        if (m_backingStore) {
+            m_backingStore->removeObserver(this, backingStoreObserver, this);
         }
-        return nullptr;
+        m_backingStore = bs;
+        if (m_backingStore) {
+            m_backingStore->addObserver(this, backingStoreObserver, this);
+            bufferAddressUpdated(m_backingStore->data());
+        } else {
+            bufferAddressUpdated(nullptr);
+        }
     }
 
     Optional<BackingStore*> m_backingStore;
-    Optional<uint8_t*> m_cachedDataAddress;
 };
 
 class ArrayBufferView : public Object {
@@ -144,6 +154,7 @@ public:
     explicit ArrayBufferView(ExecutionState& state, Object* proto)
         : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
         , m_buffer(nullptr)
+        , m_cachedRawBufferAddress(nullptr)
         , m_byteLength(0)
         , m_byteOffset(0)
         , m_arrayLength(0)
@@ -156,22 +167,27 @@ public:
     ALWAYS_INLINE size_t arrayLength() { return m_arrayLength; }
     ALWAYS_INLINE uint8_t* rawBuffer()
     {
-        return m_buffer ? (uint8_t*)(m_buffer->data() + m_byteOffset) : nullptr;
+        return m_cachedRawBufferAddress;
     }
 
     ALWAYS_INLINE void setBuffer(ArrayBuffer* bo, size_t byteOffset, size_t byteLength, size_t arrayLength)
     {
+        if (m_buffer) {
+            m_buffer->removeObserver(this, backingStoreObserver, this);
+        }
         m_buffer = bo;
         m_byteOffset = byteOffset;
         m_byteLength = byteLength;
         m_arrayLength = arrayLength;
+        updateCacheAddress();
+        if (m_buffer) {
+            m_buffer->addObserver(this, backingStoreObserver, this);
+        }
     }
 
     ALWAYS_INLINE void setBuffer(ArrayBuffer* bo, size_t byteOffset, size_t byteLength)
     {
-        m_buffer = bo;
-        m_byteOffset = byteOffset;
-        m_byteLength = byteLength;
+        setBuffer(bo, byteOffset, byteLength, 0);
     }
 
     virtual bool isArrayBufferView() const override
@@ -195,7 +211,19 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
+    void updateCacheAddress()
+    {
+        m_cachedRawBufferAddress = (m_buffer && m_buffer->data()) ? m_buffer->data() + m_byteOffset : nullptr;
+    }
+
+    static void backingStoreObserver(ArrayBuffer* bufferOwner, void* newAddress, void* userData)
+    {
+        ArrayBufferView* self = reinterpret_cast<ArrayBufferView*>(userData);
+        self->updateCacheAddress();
+    }
+
     ArrayBuffer* m_buffer;
+    uint8_t* m_cachedRawBufferAddress;
     size_t m_byteLength;
     size_t m_byteOffset;
     size_t m_arrayLength;
