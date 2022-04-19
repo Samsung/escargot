@@ -286,7 +286,9 @@ public:
             size_t oldC = m_capacity;
             T* newBuffer = Allocator().allocate(m_size - c);
             VectorCopier<T>::copy(newBuffer, m_buffer, start);
-            VectorCopier<T>::copy(&newBuffer[end - c], &m_buffer[end], m_size - end);
+            if (m_size > end) {
+                VectorCopier<T>::copy(&newBuffer[end - c], &m_buffer[end], m_size - end);
+            }
 
             if (m_buffer)
                 Allocator().deallocate(m_buffer, oldC);
