@@ -64,7 +64,7 @@ ObjectStructurePropertyName::ObjectStructurePropertyName(ExecutionState& state, 
     }
 
     String* string = value.toString(state);
-    size_t v = string->getTagInFirstDataArea();
+    size_t v = string->getTypeTag();
     if (v > POINTER_VALUE_STRING_TAG_IN_DATA) {
         ASSERT(v == ((v & ~POINTER_VALUE_STRING_TAG_IN_DATA) | OBJECT_PROPERTY_NAME_ATOMIC_STRING_VIAS));
         m_data = v;
@@ -620,8 +620,8 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
 
 void Object::markAsPrototypeObject(ExecutionState& state)
 {
-    if (hasTag(g_objectTag)) {
-        writeTag(g_prototypeObjectTag);
+    if (hasVTag(g_objectTag)) {
+        writeVTag(g_prototypeObjectTag);
     } else {
         ensureRareData()->m_isEverSetAsPrototypeObject = true;
     }

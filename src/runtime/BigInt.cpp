@@ -153,7 +153,7 @@ void BigInt::initFinalizer()
 }
 
 BigInt::BigInt()
-    : m_tag(POINTER_VALUE_BIGINT_TAG_IN_DATA)
+    : m_typeTag(POINTER_VALUE_BIGINT_TAG_IN_DATA)
 {
     bf_init(ThreadLocal::bfContext(), &m_bf);
     initFinalizer();
@@ -199,7 +199,7 @@ BigInt::BigInt(BigIntData&& n)
 }
 
 BigInt::BigInt(bf_t bf)
-    : m_tag(POINTER_VALUE_BIGINT_TAG_IN_DATA)
+    : m_typeTag(POINTER_VALUE_BIGINT_TAG_IN_DATA)
     , m_bf(bf)
 {
     initFinalizer();

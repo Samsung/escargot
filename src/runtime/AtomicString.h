@@ -82,7 +82,7 @@ public:
     ALWAYS_INLINE AtomicString(Context* c, String* name)
     {
         // fast path
-        size_t v = name->getTagInFirstDataArea();
+        size_t v = name->getTypeTag();
         if (v > POINTER_VALUE_STRING_TAG_IN_DATA) {
             m_string = (String*)(v & ~POINTER_VALUE_STRING_TAG_IN_DATA);
             return;

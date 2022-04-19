@@ -90,6 +90,34 @@ class WASMGlobalObject;
 class ExportedFunctionObject;
 #endif
 
+// ScriptSimpleFunctionObject list
+#define FOR_EACH_STRICT_CLEAR_SCRIPTSIMPLEFUNCTION(F) \
+    F(Strict, Clear, true, true, 4)                   \
+    F(Strict, Clear, true, true, 8)                   \
+    F(Strict, Clear, true, true, 16)                  \
+    F(Strict, Clear, true, true, 24)
+#define FOR_EACH_STRICT_NONCLEAR_SCRIPTSIMPLEFUNCTION(F) \
+    F(Strict, NonClear, true, false, 4)                  \
+    F(Strict, NonClear, true, false, 8)                  \
+    F(Strict, NonClear, true, false, 16)                 \
+    F(Strict, NonClear, true, false, 24)
+#define FOR_EACH_NONSTRICT_CLEAR_SCRIPTSIMPLEFUNCTION(F) \
+    F(NonStrict, Clear, false, true, 4)                  \
+    F(NonStrict, Clear, false, true, 8)                  \
+    F(NonStrict, Clear, false, true, 16)                 \
+    F(NonStrict, Clear, false, true, 24)
+#define FOR_EACH_NONSTRICT_NONCLEAR_SCRIPTSIMPLEFUNCTION(F) \
+    F(NonStrict, NonClear, false, false, 4)                 \
+    F(NonStrict, NonClear, false, false, 8)                 \
+    F(NonStrict, NonClear, false, false, 16)                \
+    F(NonStrict, NonClear, false, false, 24)
+#define DECLARE_SCRIPTSIMPLEFUNCTION_LIST(F)         \
+    FOR_EACH_STRICT_CLEAR_SCRIPTSIMPLEFUNCTION(F)    \
+    FOR_EACH_STRICT_NONCLEAR_SCRIPTSIMPLEFUNCTION(F) \
+    FOR_EACH_NONSTRICT_CLEAR_SCRIPTSIMPLEFUNCTION(F) \
+    FOR_EACH_NONSTRICT_NONCLEAR_SCRIPTSIMPLEFUNCTION(F)
+
+
 #define POINTER_VALUE_STRING_TAG_IN_DATA 1
 #define POINTER_VALUE_SYMBOL_TAG_IN_DATA 1 << 1
 #define POINTER_VALUE_BIGINT_TAG_IN_DATA 1 << 2
@@ -97,16 +125,16 @@ class ExportedFunctionObject;
 
 #define POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA (POINTER_VALUE_STRING_TAG_IN_DATA | POINTER_VALUE_SYMBOL_TAG_IN_DATA | POINTER_VALUE_BIGINT_TAG_IN_DATA | POINTER_VALUE_NUMBER_TAG_IN_DATA)
 // Finding the type of PointerValue operation is widely used during the runtime
-// Only Object, String and Symbol are seen in regular runtime-code
+// Only Object, String, Symbol and BigInt are seen in regular runtime-code
 // We can figure out fastly what the type of PointerValue by tag value
 //   - Every data area of Object starts with [<vtable>, m_structure...]
-//   - Every data area of String starts with [<vtable>, m_tag ...]
-//   - Every data area of Symbol starts with [<vtable>, m_tag ...]
-//   - Every data area of BigInt starts with [<vtable>, m_tag ...]
+//   - Every data area of String starts with [<vtable>, m_typeTag ...]
+//   - Every data area of Symbol starts with [<vtable>, m_typeTag ...]
+//   - Every data area of BigInt starts with [<vtable>, m_typeTag ...]
 // Finding what is the type of PointerValue(Object, String, Symbol, BigInt) without accessing vtable gives better performance
-// but, it uses more memory for String, Symbol type
+// but, it uses more memory for String, Symbol, BigInt type
 // POINTER_VALUE_STRING_TAG_IN_DATA is not essential thing for implementing figure type(we can use isObject, isString)
-// so, we can remove each m_tag value in very small device future
+// so, we can remove each m_typeTag value in very small device future
 
 class PointerValue : public gc {
     friend class Object;
@@ -120,42 +148,42 @@ public:
     // fast type check with tag comparison
     inline bool isObject() const
     {
-        return !(getTagInFirstDataArea() & POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA);
+        return !(getTypeTag() & POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA);
     }
 
     inline bool isString() const
     {
-        return getTagInFirstDataArea() & POINTER_VALUE_STRING_TAG_IN_DATA;
+        return getTypeTag() & POINTER_VALUE_STRING_TAG_IN_DATA;
     }
 
     inline bool isSymbol() const
     {
-        return getTagInFirstDataArea() == POINTER_VALUE_SYMBOL_TAG_IN_DATA;
+        return getTypeTag() == POINTER_VALUE_SYMBOL_TAG_IN_DATA;
     }
 
     inline bool isBigInt() const
     {
-        return getTagInFirstDataArea() == POINTER_VALUE_BIGINT_TAG_IN_DATA;
+        return getTypeTag() == POINTER_VALUE_BIGINT_TAG_IN_DATA;
     }
 
     inline bool isArrayObject() const
     {
-        return hasTag(g_arrayObjectTag) || hasTag(g_arrayPrototypeObjectTag);
+        return hasVTag(g_arrayObjectTag) || hasVTag(g_arrayPrototypeObjectTag);
     }
 
     inline bool isArrayPrototypeObject() const
     {
-        return hasTag(g_arrayPrototypeObjectTag);
+        return hasVTag(g_arrayPrototypeObjectTag);
     }
 
     inline bool isObjectRareData() const
     {
-        return hasTag(g_objectRareDataTag);
+        return hasVTag(g_objectRareDataTag);
     }
 
     inline bool hasArrayObjectTag() const
     {
-        return hasTag(g_arrayObjectTag);
+        return hasVTag(g_arrayObjectTag);
     }
 
     // type check by virtual function call
@@ -870,25 +898,29 @@ public:
     }
 #endif
 
-    inline size_t getTagInFirstDataArea() const
+    inline size_t getTypeTag() const
     {
+        // return m_typeTag
         return *((size_t*)(this) + 1);
     }
 
 protected:
-    inline bool hasTag(const size_t tag) const
+    inline bool hasVTag(const size_t tag) const
     {
+        // compare vtable address
         ASSERT(!!tag);
         return tag == *((size_t*)(this));
     }
 
-    inline size_t getTag() const
+    inline size_t getVTag() const
     {
+        // return vtable address
         return *((size_t*)(this));
     }
 
-    inline void writeTag(const size_t tag)
+    inline void writeVTag(const size_t tag)
     {
+        // rewrite vtable address
         *((size_t*)(this)) = tag;
     }
 
@@ -903,6 +935,13 @@ protected:
     static size_t g_arrayPrototypeObjectTag;
     static size_t g_scriptFunctionObjectTag;
     static size_t g_objectRareDataTag;
+
+    // tag values for ScriptSimpleFunctionObject
+#define DECLARE_SCRIPTSIMPLEFUNCTION_TAGS(STRICT, CLEAR, isStrict, isClear, SIZE) \
+    static size_t g_scriptSimpleFunctionObject##STRICT##CLEAR##SIZE##Tag;
+
+    DECLARE_SCRIPTSIMPLEFUNCTION_LIST(DECLARE_SCRIPTSIMPLEFUNCTION_TAGS);
+#undef DECLARE_SCRIPTSIMPLEFUNCTIONOBJECT_TAGS
 };
 } // namespace Escargot
 

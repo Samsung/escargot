@@ -130,7 +130,7 @@ void AtomicString::init(AtomicStringMap* map, const char* src, size_t len, bool 
         }
         map->insert(newStr);
         m_string = newStr;
-        newStr->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        newStr->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     } else {
         m_string = iter.operator*();
     }
@@ -188,7 +188,7 @@ void AtomicString::init(AtomicStringMap* map, const LChar* src, size_t len)
         Latin1String* newStr = new Latin1String(src, len);
         map->insert(newStr);
         m_string = newStr;
-        newStr->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        newStr->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     } else {
         m_string = iter.operator*();
     }
@@ -251,7 +251,7 @@ void AtomicString::init(AtomicStringMap* map, const char16_t* src, size_t len)
         }
         map->insert(newStr);
         m_string = newStr;
-        newStr->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        newStr->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     } else {
         m_string = iter.operator*();
     }
@@ -259,7 +259,7 @@ void AtomicString::init(AtomicStringMap* map, const char16_t* src, size_t len)
 
 AtomicString::AtomicString(Context* c, const StringView& sv)
 {
-    size_t v = sv.getTagInFirstDataArea();
+    size_t v = sv.getTypeTag();
     if (v > POINTER_VALUE_STRING_TAG_IN_DATA) {
         m_string = (String*)(v & ~POINTER_VALUE_STRING_TAG_IN_DATA);
         return;
@@ -278,10 +278,10 @@ AtomicString::AtomicString(Context* c, const StringView& sv)
         ec->insert(newString);
         ASSERT(ec->find(newString) != ec->end());
         m_string = newString;
-        const_cast<StringView&>(sv).m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        const_cast<StringView&>(sv).m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     } else {
         m_string = iter.operator*();
-        const_cast<StringView&>(sv).m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        const_cast<StringView&>(sv).m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     }
 }
 
@@ -290,7 +290,7 @@ void AtomicString::initStaticString(AtomicStringMap* ec, String* name)
     ASSERT(ec->find(name) == ec->end());
     ec->insert(name);
     m_string = name;
-    name->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+    name->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
 }
 
 void AtomicString::init(Context* c, String* name)
@@ -310,10 +310,10 @@ void AtomicString::init(Context* c, String* name)
         ec->insert(name);
         ASSERT(ec->find(name) != ec->end());
         m_string = name;
-        name->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        name->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     } else {
         m_string = iter.operator*();
-        name->m_tag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
+        name->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)m_string;
     }
 }
 } // namespace Escargot

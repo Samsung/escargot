@@ -53,7 +53,7 @@ public:
     }
 #else
         : m_value(v)
-        , m_tag(POINTER_VALUE_NUMBER_TAG_IN_DATA)
+        , m_typeTag(POINTER_VALUE_NUMBER_TAG_IN_DATA)
     {
     }
 #endif
@@ -94,7 +94,7 @@ private:
     uint32_t m_buffer[3];
 #else
     Value m_value;
-    size_t m_tag;
+    size_t m_typeTag;
 #endif
 };
 #pragma pack(pop)

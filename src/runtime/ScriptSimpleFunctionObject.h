@@ -31,9 +31,10 @@
 
 namespace Escargot {
 
-template <bool isStrict = false, bool shouldClearStack = false, unsigned registerFileSize = 12>
+// ScriptSimpleFunctionObject currently supports only 4 registerFileSize (4, 8, 16, 24)
+template <bool isStrict = false, bool shouldClearStack = false, unsigned registerFileSize = 4>
 class ScriptSimpleFunctionObject : public ScriptFunctionObject {
-    friend class ScriptFunctionObject;
+    friend class Global;
 
 protected:
     ScriptSimpleFunctionObject() // ctor for reading tag

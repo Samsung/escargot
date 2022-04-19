@@ -80,38 +80,34 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
     currentCodeSizeTotal += interpretedCodeBlock()->byteCodeBlock()->memoryAllocatedSize();
 
 
-    if (hasTag(g_scriptFunctionObjectTag)) {
+    if (hasVTag(g_scriptFunctionObjectTag)) {
         auto cb = m_codeBlock->asInterpretedCodeBlock();
         auto byteCb = cb->byteCodeBlock();
         size_t registerFileSize = byteCb->m_requiredTotalRegisterNumber;
         bool isStrict = cb->isStrict();
         bool shouldClearStack = byteCb->m_shouldClearStack;
 
-#define DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH(opt1, opt2)                   \
-    if (registerFileSize <= 4) {                                         \
-        writeTag(ScriptSimpleFunctionObject<opt1, opt2, 4>().getTag());  \
-    } else if (registerFileSize <= 8) {                                  \
-        writeTag(ScriptSimpleFunctionObject<opt1, opt2, 8>().getTag());  \
-    } else if (registerFileSize <= 16) {                                 \
-        writeTag(ScriptSimpleFunctionObject<opt1, opt2, 16>().getTag()); \
-    } else {                                                             \
-        writeTag(ScriptSimpleFunctionObject<opt1, opt2, 24>().getTag()); \
+        if (cb->canAllocateEnvironmentOnStack() && registerFileSize <= 24) {
+#define DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH(STRICT, CLEAR, isStrict, isClear, SIZE) \
+    if (registerFileSize <= SIZE) {                                                \
+        writeVTag(g_scriptSimpleFunctionObject##STRICT##CLEAR##SIZE##Tag);         \
+        return;                                                                    \
     }
 
-        if (cb->canAllocateEnvironmentOnStack() && registerFileSize <= 24) {
             if (isStrict) {
                 if (shouldClearStack) {
-                    DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH(true, true);
+                    FOR_EACH_STRICT_CLEAR_SCRIPTSIMPLEFUNCTION(DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH);
                 } else {
-                    DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH(true, false);
+                    FOR_EACH_STRICT_NONCLEAR_SCRIPTSIMPLEFUNCTION(DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH);
                 }
             } else {
                 if (shouldClearStack) {
-                    DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH(false, true);
+                    FOR_EACH_NONSTRICT_CLEAR_SCRIPTSIMPLEFUNCTION(DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH);
                 } else {
-                    DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH(false, false);
+                    FOR_EACH_NONSTRICT_NONCLEAR_SCRIPTSIMPLEFUNCTION(DEFINE_SCRIPTSIMPLEFUNCTION_BRANCH);
                 }
             }
+            ASSERT_NOT_REACHED();
         }
     }
 }
