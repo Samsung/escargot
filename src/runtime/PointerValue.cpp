@@ -30,6 +30,12 @@ size_t PointerValue::g_arrayObjectTag;
 size_t PointerValue::g_arrayPrototypeObjectTag;
 size_t PointerValue::g_scriptFunctionObjectTag;
 size_t PointerValue::g_objectRareDataTag;
+// tag values for ScriptSimpleFunctionObject
+#define DEFINE_SCRIPTSIMPLEFUNCTION_TAGS(STRICT, CLEAR, isStrict, isClear, SIZE) \
+    size_t PointerValue::g_scriptSimpleFunctionObject##STRICT##CLEAR##SIZE##Tag;
+
+DECLARE_SCRIPTSIMPLEFUNCTION_LIST(DEFINE_SCRIPTSIMPLEFUNCTION_TAGS);
+#undef DEFINE_SCRIPTSIMPLEFUNCTION_TAGS
 
 Value PointerValue::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
 {

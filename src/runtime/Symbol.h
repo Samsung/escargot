@@ -29,7 +29,7 @@ class VMInstance;
 class Symbol : public PointerValue {
 public:
     explicit Symbol(Optional<String*> desc = nullptr)
-        : m_tag(POINTER_VALUE_SYMBOL_TAG_IN_DATA)
+        : m_typeTag(POINTER_VALUE_SYMBOL_TAG_IN_DATA)
         , m_description(desc)
     {
     }
@@ -44,7 +44,7 @@ public:
     static Symbol* fromGlobalSymbolRegistry(VMInstance* vm, String* stringKey);
 
 private:
-    size_t m_tag;
+    size_t m_typeTag;
     Optional<String*> m_description;
 };
 } // namespace Escargot

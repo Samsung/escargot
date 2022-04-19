@@ -122,7 +122,7 @@ private:
 
     void initFinalizer();
 
-    size_t m_tag;
+    size_t m_typeTag;
     bf_t m_bf;
 };
 } // namespace Escargot

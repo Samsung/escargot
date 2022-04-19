@@ -115,7 +115,7 @@ inline Value::Value(FromPayloadTag, intptr_t ptr)
 inline Value::Value(PointerValue* ptr)
 {
     // other type of PointerValue(Object) has pointer in first data area
-    if (ptr->getTagInFirstDataArea() & (POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA)) {
+    if (ptr->getTypeTag() & (POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA)) {
         u.asBits.tag = OtherPointerTag;
     } else {
         u.asBits.tag = ObjectPointerTag;

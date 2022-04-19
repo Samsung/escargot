@@ -24,6 +24,7 @@
 #include "runtime/ArrayObject.h"
 #include "runtime/PrototypeObject.h"
 #include "runtime/ScriptFunctionObject.h"
+#include "runtime/ScriptSimpleFunctionObject.h"
 
 namespace Escargot {
 
@@ -48,12 +49,18 @@ void Global::initialize(Platform* platform)
 
     // initialize PointerValue tag values
     // tag values should be initialized once and not changed
-    PointerValue::g_objectTag = Object().getTag();
-    PointerValue::g_prototypeObjectTag = PrototypeObject().getTag();
-    PointerValue::g_arrayObjectTag = ArrayObject().getTag();
-    PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject().getTag();
-    PointerValue::g_scriptFunctionObjectTag = ScriptFunctionObject().getTag();
-    PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getTag();
+    PointerValue::g_objectTag = Object().getVTag();
+    PointerValue::g_prototypeObjectTag = PrototypeObject().getVTag();
+    PointerValue::g_arrayObjectTag = ArrayObject().getVTag();
+    PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject().getVTag();
+    PointerValue::g_scriptFunctionObjectTag = ScriptFunctionObject().getVTag();
+    PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getVTag();
+    // tag values for ScriptSimpleFunctionObject
+#define INIT_SCRIPTSIMPLEFUNCTION_TAGS(STRICT, CLEAR, isStrict, isClear, SIZE) \
+    PointerValue::g_scriptSimpleFunctionObject##STRICT##CLEAR##SIZE##Tag = ScriptSimpleFunctionObject<isStrict, isClear, SIZE>().getVTag();
+
+    DECLARE_SCRIPTSIMPLEFUNCTION_LIST(INIT_SCRIPTSIMPLEFUNCTION_TAGS);
+#undef INIT_SCRIPTSIMPLEFUNCTION_TAGS
 
     called_once = false;
     inited = true;

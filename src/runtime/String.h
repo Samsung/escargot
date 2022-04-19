@@ -217,7 +217,7 @@ class String : public PointerValue {
 protected:
     String()
     {
-        m_tag = POINTER_VALUE_STRING_TAG_IN_DATA;
+        m_typeTag = POINTER_VALUE_STRING_TAG_IN_DATA;
     }
 
     struct StringBufferData {
@@ -382,7 +382,7 @@ public:
 
     bool isAtomicStringSource() const
     {
-        return (m_tag > POINTER_VALUE_STRING_TAG_IN_DATA);
+        return (m_typeTag > POINTER_VALUE_STRING_TAG_IN_DATA);
     }
 
     bool equals(const String* src) const;
@@ -552,7 +552,7 @@ public:
     String* trim(StringTrimWhere where = StringTrimWhere::TrimBoth);
 
 private:
-    size_t m_tag;
+    size_t m_typeTag;
 
 protected:
     StringBufferData m_bufferData;
