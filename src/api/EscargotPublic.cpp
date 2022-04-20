@@ -4338,8 +4338,10 @@ ScriptParserRef::InitializeFunctionScriptResult ScriptParserRef::initializeFunct
 
 #ifdef ESCARGOT_DEBUGGER
         // enable first breakpoint for debugger
-        ASSERT(codeBlock->byteCodeBlock());
-        ByteCodeGenerator::enableFirstBreakPoint(codeBlock->byteCodeBlock());
+        if (codeBlock->markDebugging()) {
+            ASSERT(codeBlock->byteCodeBlock());
+            ByteCodeGenerator::enableFirstBreakPoint(codeBlock->byteCodeBlock());
+        }
 #endif
 
         // create FunctionObject
