@@ -44,7 +44,7 @@ struct RegexMatchResult {
     std::vector<std::vector<RegexMatchResultPiece>> m_matchResults;
 };
 
-class RegExpObject : public Object {
+class RegExpObject : public DerivedObject {
     void initRegExpObject(ExecutionState& state, bool hasLastIndex = true);
 
 public:

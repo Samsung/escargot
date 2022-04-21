@@ -24,7 +24,7 @@
 
 namespace Escargot {
 
-class BooleanObject : public Object {
+class BooleanObject : public DerivedObject {
 public:
     explicit BooleanObject(ExecutionState& state, bool value = false);
     explicit BooleanObject(ExecutionState& state, Object* proto, bool value = false);

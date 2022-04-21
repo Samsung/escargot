@@ -27,7 +27,7 @@ namespace Escargot {
 
 class BigInt;
 
-class BigIntObject : public Object {
+class BigIntObject : public DerivedObject {
 public:
     explicit BigIntObject(ExecutionState& state, BigInt* b);
     explicit BigIntObject(ExecutionState& state, Object* proto, BigInt* b);

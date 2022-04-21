@@ -27,7 +27,7 @@
 namespace Escargot {
 
 BoundFunctionObject::BoundFunctionObject(ExecutionState& state, Object* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv, const Value& length, const Value& name)
-    : Object(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
+    : DerivedObject(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)
     , m_boundTargetFunction(targetFunction)
     , m_boundThis(boundThis)
 {

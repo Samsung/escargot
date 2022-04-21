@@ -24,10 +24,10 @@
 
 namespace Escargot {
 
-class PrototypeObject : public Object {
+class PrototypeObject : public DerivedObject {
     friend class Global;
     explicit PrototypeObject()
-        : Object()
+        : DerivedObject()
     {
         // ctor for reading tag
     }

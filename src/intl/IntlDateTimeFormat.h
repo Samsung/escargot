@@ -26,7 +26,7 @@
 
 namespace Escargot {
 
-class IntlDateTimeFormatObject : public Object {
+class IntlDateTimeFormatObject : public DerivedObject {
 public:
     IntlDateTimeFormatObject(ExecutionState& state, Value locales, Value options);
     IntlDateTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options);

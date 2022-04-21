@@ -29,7 +29,7 @@ namespace Escargot {
 ObjectPropertyValue ArrayObject::DummyArrayElement;
 
 ArrayObject::ArrayObject(ExecutionState& state, ForSpreadArray)
-    : Object(state, state.context()->globalObject()->arrayPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+    : DerivedObject(state, state.context()->globalObject()->arrayPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
     , m_arrayLength(0)
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
     , m_fastModeData()
@@ -48,7 +48,7 @@ ArrayObject::ArrayObject(ExecutionState& state)
 }
 
 ArrayObject::ArrayObject(ExecutionState& state, Object* proto)
-    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+    : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
     , m_arrayLength(0)
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
     , m_fastModeData()
@@ -226,7 +226,7 @@ NonFastPath:
     if (idx != Value::InvalidIndexPropertyValue) {
         if ((idx >= oldLen) && !isLengthPropertyWritable())
             return false;
-        bool succeeded = Object::defineOwnProperty(state, P, desc);
+        bool succeeded = DerivedObject::defineOwnProperty(state, P, desc);
         if (!succeeded)
             return false;
         if (idx >= oldLen) {
@@ -235,7 +235,7 @@ NonFastPath:
         return true;
     }
 
-    return Object::defineOwnProperty(state, P, desc);
+    return DerivedObject::defineOwnProperty(state, P, desc);
 }
 
 bool ArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)

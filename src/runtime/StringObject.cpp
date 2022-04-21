@@ -29,7 +29,7 @@ StringObject::StringObject(ExecutionState& state, String* value)
 }
 
 StringObject::StringObject(ExecutionState& state, Object* proto, String* value)
-    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1)
+    : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1)
     , m_primitiveValue(value)
 {
     m_structure = state.context()->defaultStructureForStringObject();
@@ -80,7 +80,7 @@ bool StringObject::defineOwnProperty(ExecutionState& state, const ObjectProperty
     auto r = getOwnProperty(state, P);
     if (r.hasValue() && !r.isConfigurable())
         return false;
-    return Object::defineOwnProperty(state, P, desc);
+    return DerivedObject::defineOwnProperty(state, P, desc);
 }
 
 bool StringObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)

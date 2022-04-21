@@ -27,7 +27,7 @@ namespace Escargot {
 class Script;
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-module-namespace-exotic-objects
-class ModuleNamespaceObject : public Object {
+class ModuleNamespaceObject : public DerivedObject {
 public:
     ModuleNamespaceObject(ExecutionState& state, Script* script);
 

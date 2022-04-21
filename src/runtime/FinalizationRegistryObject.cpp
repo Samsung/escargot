@@ -35,7 +35,7 @@ FinalizationRegistryObject::FinalizationRegistryObject(ExecutionState& state, Ob
 }
 
 FinalizationRegistryObject::FinalizationRegistryObject(ExecutionState& state, Object* proto, Object* cleanupCallback, Context* realm)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_cleanupCallback(cleanupCallback)
     , m_realm(realm)
 {

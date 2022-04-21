@@ -29,7 +29,7 @@ BooleanObject::BooleanObject(ExecutionState& state, bool value)
 }
 
 BooleanObject::BooleanObject(ExecutionState& state, Object* proto, bool value)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_primitiveValue(value)
 {
 }

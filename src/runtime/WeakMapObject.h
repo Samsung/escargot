@@ -24,7 +24,7 @@
 
 namespace Escargot {
 
-class WeakMapObject : public Object {
+class WeakMapObject : public DerivedObject {
 public:
     struct WeakMapObjectDataItem : public gc {
         Object* key;

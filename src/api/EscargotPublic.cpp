@@ -1930,10 +1930,10 @@ ObjectRef* ObjectRef::create(ExecutionStateRef* state)
 
 
 // can not redefine or delete virtual property
-class ExposableObject : public Object {
+class ExposableObject : public DerivedObject {
 public:
     ExposableObject(ExecutionState& state, ExposableObjectGetOwnPropertyCallback getOwnPropetyCallback, ExposableObjectDefineOwnPropertyCallback defineOwnPropertyCallback, ExposableObjectEnumerationCallback enumerationCallback, ExposableObjectDeleteOwnPropertyCallback deleteOwnPropertyCallback)
-        : Object(state)
+        : DerivedObject(state)
         , m_getOwnPropetyCallback(getOwnPropetyCallback)
         , m_defineOwnPropertyCallback(defineOwnPropertyCallback)
         , m_enumerationCallback(enumerationCallback)
@@ -1961,7 +1961,7 @@ public:
                 return true;
             }
         }
-        return Object::defineOwnProperty(state, P, desc);
+        return DerivedObject::defineOwnProperty(state, P, desc);
     }
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override
     {

@@ -32,7 +32,7 @@ NumberObject::NumberObject(ExecutionState& state, double value)
 }
 
 NumberObject::NumberObject(ExecutionState& state, Object* proto, double value)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_primitiveValue(value)
 {
 }

@@ -44,7 +44,7 @@ struct WASMHostFunctionEnvironment : public gc {
     wasm_functype_t* functype;
 };
 
-class WASMModuleObject : public Object {
+class WASMModuleObject : public DerivedObject {
 public:
     explicit WASMModuleObject(ExecutionState& state, Object* proto, wasm_module_t* module);
 
@@ -66,7 +66,7 @@ private:
     wasm_module_t* m_module;
 };
 
-class WASMInstanceObject : public Object {
+class WASMInstanceObject : public DerivedObject {
 public:
     explicit WASMInstanceObject(ExecutionState& state, wasm_instance_t* instance, Object* exports);
     explicit WASMInstanceObject(ExecutionState& state, Object* proto, wasm_instance_t* instance, Object* exports);
@@ -96,7 +96,7 @@ private:
     Object* m_exports;
 };
 
-class WASMMemoryObject : public Object {
+class WASMMemoryObject : public DerivedObject {
 public:
     explicit WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBufferObject* buffer);
     explicit WASMMemoryObject(ExecutionState& state, Object* proto, wasm_memory_t* memory, ArrayBufferObject* buffer);
@@ -125,7 +125,7 @@ private:
     ArrayBufferObject* m_buffer;
 };
 
-class WASMTableObject : public Object {
+class WASMTableObject : public DerivedObject {
 public:
     explicit WASMTableObject(ExecutionState& state, wasm_table_t* table);
     explicit WASMTableObject(ExecutionState& state, Object* proto, wasm_table_t* table);
@@ -150,7 +150,7 @@ private:
     wasm_table_t* m_table;
 };
 
-class WASMGlobalObject : public Object {
+class WASMGlobalObject : public DerivedObject {
 public:
     explicit WASMGlobalObject(ExecutionState& state, wasm_global_t* global);
     explicit WASMGlobalObject(ExecutionState& state, Object* proto, wasm_global_t* global);

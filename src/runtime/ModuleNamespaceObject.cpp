@@ -27,7 +27,7 @@
 namespace Escargot {
 
 ModuleNamespaceObject::ModuleNamespaceObject(ExecutionState& state, Script* script)
-    : Object(state)
+    : DerivedObject(state)
     , m_isInitialized(false)
     , m_script(script)
 {
@@ -62,7 +62,7 @@ ModuleNamespaceObject::ModuleNamespaceObject(ExecutionState& state, Script* scri
               });
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-@@tostringtag
-    Object::defineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)), ObjectPropertyDescriptor(Value(state.context()->staticStrings().Module.string()), ObjectPropertyDescriptor::NotPresent));
+    DerivedObject::defineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)), ObjectPropertyDescriptor(Value(state.context()->staticStrings().Module.string()), ObjectPropertyDescriptor::NotPresent));
 
     m_isInitialized = true;
 }
@@ -95,7 +95,7 @@ bool ModuleNamespaceObject::defineOwnProperty(ExecutionState& state, const Objec
     // If Type(P) is Symbol, return OrdinaryDefineOwnProperty(O, P, Desc).
     auto pAsPropertyName = P.toObjectStructurePropertyName(state);
     if (pAsPropertyName.isSymbol()) {
-        return Object::defineOwnProperty(state, P, desc);
+        return DerivedObject::defineOwnProperty(state, P, desc);
     }
     // Let current be ? O.[[GetOwnProperty]](P).
     auto current = getOwnProperty(state, P);

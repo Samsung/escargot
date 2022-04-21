@@ -30,7 +30,7 @@ MapObject::MapObject(ExecutionState& state)
 }
 
 MapObject::MapObject(ExecutionState& state, Object* proto)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
 {
 }
 
@@ -209,9 +209,9 @@ std::pair<Value, bool> MapIteratorObject::advance(ExecutionState& state)
         } else if (itemKind == Type::TypeValue) {
             result = e.second;
         } else if (itemKind == Type::TypeKeyValue) {
-            ArrayObject* arr = new ArrayObject(state);
-            arr->defineOwnProperty(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptor(e.first, ObjectPropertyDescriptor::AllPresent));
-            arr->defineOwnProperty(state, ObjectPropertyName(state, Value(1)), ObjectPropertyDescriptor(e.second, ObjectPropertyDescriptor::AllPresent));
+            ArrayObject* arr = new ArrayObject(state, 2, false);
+            arr->defineOwnIndexedPropertyWithoutExpanding(state, 0, e.first);
+            arr->defineOwnIndexedPropertyWithoutExpanding(state, 1, e.second);
             result = arr;
         }
         return std::make_pair(result, false);

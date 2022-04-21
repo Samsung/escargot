@@ -34,7 +34,7 @@ class ScriptClassConstructorFunctionObject;
 class NativeFunctionObject;
 class FunctionObjectProcessCallGenerator;
 
-class FunctionObject : public Object {
+class FunctionObject : public DerivedObject {
     friend class Object;
     friend class ObjectGetResult;
     friend class GlobalObject;
@@ -120,7 +120,7 @@ protected:
     FunctionObject(ExecutionState& state, Object* proto, size_t defaultSpace); // function for derived classes. derived class MUST initlize member variable of FunctionObject.
     FunctionObject(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto); // ctor for FunctionTemplate
     FunctionObject() // ctor for reading tag
-        : Object()
+        : DerivedObject()
         , m_codeBlock(nullptr)
     {
     }

@@ -25,17 +25,17 @@
 namespace Escargot {
 
 PrototypeObject::PrototypeObject(ExecutionState& state)
-    : Object(state)
+    : DerivedObject(state)
 {
 }
 
 PrototypeObject::PrototypeObject(ExecutionState& state, Object* proto, size_t defaultSpace)
-    : Object(state, proto, defaultSpace)
+    : DerivedObject(state, proto, defaultSpace)
 {
 }
 
 PrototypeObject::PrototypeObject(ExecutionState& state, ForGlobalBuiltin)
-    : Object(state, Object::PrototypeIsNull)
+    : DerivedObject(state, Object::PrototypeIsNull)
 {
 }
 

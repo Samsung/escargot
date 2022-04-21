@@ -27,7 +27,7 @@
 
 namespace Escargot {
 
-class GeneratorObject : public Object {
+class GeneratorObject : public DerivedObject {
     friend class ByteCodeInterpreter;
     friend class ExecutionPauser;
 

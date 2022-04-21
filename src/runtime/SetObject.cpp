@@ -30,7 +30,7 @@ SetObject::SetObject(ExecutionState& state)
 }
 
 SetObject::SetObject(ExecutionState& state, Object* proto)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
 {
 }
 
@@ -184,9 +184,9 @@ std::pair<Value, bool> SetIteratorObject::advance(ExecutionState& state)
 
         Value result;
         if (itemKind == Type::TypeKeyValue) {
-            ArrayObject* arr = new ArrayObject(state);
-            arr->defineOwnProperty(state, ObjectPropertyName(state, Value(0)), ObjectPropertyDescriptor(e, ObjectPropertyDescriptor::AllPresent));
-            arr->defineOwnProperty(state, ObjectPropertyName(state, Value(1)), ObjectPropertyDescriptor(e, ObjectPropertyDescriptor::AllPresent));
+            ArrayObject* arr = new ArrayObject(state, 2, false);
+            arr->defineOwnIndexedPropertyWithoutExpanding(state, 0, e);
+            arr->defineOwnIndexedPropertyWithoutExpanding(state, 1, e);
             result = arr;
         } else {
             result = e;

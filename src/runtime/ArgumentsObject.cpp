@@ -48,7 +48,7 @@ static void ArgumentsObjectNativeSetter(ExecutionState& state, Object* self, con
 }
 
 ArgumentsObject::ArgumentsObject(ExecutionState& state, Object* proto, ScriptFunctionObject* sourceFunctionObject, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, bool isMapped)
-    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3)
+    : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 3)
     , m_targetRecord(environmentRecordWillArgumentsObjectBeLocatedIn->isFunctionEnvironmentRecordOnStack() ? nullptr : environmentRecordWillArgumentsObjectBeLocatedIn)
     , m_sourceFunctionObject(sourceFunctionObject)
     , m_argc((argc << 1) | 1)
@@ -186,7 +186,7 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
                 rareData()->m_isExtensible = true;
             }
             ObjectPropertyDescriptor initDesc(getIndexedPropertyValueQuickly(state, index), ObjectPropertyDescriptor::AllPresent);
-            Object::defineOwnProperty(state, P, initDesc);
+            DerivedObject::defineOwnProperty(state, P, initDesc);
             if (!extensibleBefore) {
                 rareData()->m_isExtensible = false;
             }
@@ -202,7 +202,7 @@ bool ArgumentsObject::defineOwnProperty(ExecutionState& state, const ObjectPrope
         }
     }
 
-    return Object::defineOwnProperty(state, P, newDesc);
+    return DerivedObject::defineOwnProperty(state, P, newDesc);
 }
 
 bool ArgumentsObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)

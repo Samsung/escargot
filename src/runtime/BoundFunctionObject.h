@@ -24,7 +24,7 @@
 
 namespace Escargot {
 
-class BoundFunctionObject : public Object {
+class BoundFunctionObject : public DerivedObject {
 public:
     BoundFunctionObject(ExecutionState& state, Object* targetFunction, Value& boundThis, size_t boundArgc, Value* boundArgv, const Value& length, const Value& name);
 

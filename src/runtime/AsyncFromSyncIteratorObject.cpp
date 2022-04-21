@@ -26,7 +26,7 @@
 namespace Escargot {
 
 AsyncFromSyncIteratorObject::AsyncFromSyncIteratorObject(ExecutionState& state, Object* proto, IteratorRecord* syncIteratorRecord)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_syncIteratorRecord(syncIteratorRecord)
 {
 }

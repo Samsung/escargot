@@ -28,7 +28,7 @@
 
 namespace Escargot {
 
-class ProxyObject : public Object {
+class ProxyObject : public DerivedObject {
 public:
     enum BuiltinFunctionSlot : size_t {
         RevocableProxy = 0,

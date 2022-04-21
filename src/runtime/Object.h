@@ -282,6 +282,7 @@ typedef VectorWithInlineStorage<48, ObjectPropertyName, GCUtil::gc_malloc_alloca
 class JSGetterSetter : public PointerValue {
     friend class ObjectPropertyDescriptor;
     friend class Object;
+    friend class DerivedObject;
 
 public:
     JSGetterSetter(Value getter, Value setter)
@@ -338,6 +339,7 @@ private:
 
 class ObjectPropertyDescriptor {
     friend class Object;
+    friend class DerivedObject;
 
 public:
     enum PresentAttribute {
@@ -1314,6 +1316,39 @@ protected:
 
     // redefine function used only for builtin installation
     void redefineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
+};
+
+class DerivedObject : public Object {
+    // DerivedObject is a pure virtual class for sub classes of `Object`
+
+public:
+    virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
+
+protected:
+    DerivedObject()
+        : Object()
+    {
+    }
+    DerivedObject(ExecutionState& state)
+        : Object(state)
+    {
+    }
+    DerivedObject(ExecutionState& state, Object::PrototypeIsNullTag)
+        : Object(state, Object::PrototypeIsNull)
+    {
+    }
+    DerivedObject(ExecutionState& state, Object* proto)
+        : Object(state, proto)
+    {
+    }
+    DerivedObject(ExecutionState& state, Object* proto, size_t defaultSpace)
+        : Object(state, proto, defaultSpace)
+    {
+    }
+    DerivedObject(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto)
+        : Object(structure, std::move(values), proto)
+    {
+    }
 };
 } // namespace Escargot
 

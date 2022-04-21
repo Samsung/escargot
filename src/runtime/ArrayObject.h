@@ -31,7 +31,7 @@ namespace Escargot {
 
 class ArrayIteratorObject;
 
-class ArrayObject : public Object {
+class ArrayObject : public DerivedObject {
     friend class VMInstance;
     friend class Global;
     friend class ByteCodeInterpreter;
@@ -65,12 +65,6 @@ public:
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual ObjectGetResult getOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
-    void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
-    {
-        if (!ArrayObject::defineOwnProperty(state, P, desc)) {
-            throwCannotDefineError(state, P.toObjectStructurePropertyName(state));
-        }
-    }
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) override;
     virtual void sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override;
@@ -87,19 +81,19 @@ public:
 
     static void iterateArrays(ExecutionState& state, HeapObjectIteratorCallback callback);
 
-    void defineOwnIndexedPropertyWithExpandedLength(ExecutionState& state, const size_t& index, const Value& value)
+    void defineOwnIndexedPropertyWithoutExpanding(ExecutionState& state, const size_t& index, const Value& value)
     {
         ASSERT(index < arrayLength(state));
         if (LIKELY(isFastModeArray())) {
             setFastModeArrayValueWithoutExpanding(state, index, value);
         } else {
-            defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(index)), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
+            DerivedObject::defineOwnProperty(state, ObjectPropertyName(state, index), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
         }
     }
 
 protected:
     ArrayObject()
-        : Object()
+        : DerivedObject()
         , m_arrayLength(0)
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
         , m_fastModeData()

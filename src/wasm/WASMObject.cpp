@@ -64,7 +64,7 @@ void* WASMHostFunctionEnvironment::operator new(size_t size)
 }
 
 WASMModuleObject::WASMModuleObject(ExecutionState& state, Object* proto, wasm_module_t* module)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_module(module)
 {
     ASSERT(!!m_module);
@@ -95,7 +95,7 @@ WASMInstanceObject::WASMInstanceObject(ExecutionState& state, wasm_instance_t* i
 }
 
 WASMInstanceObject::WASMInstanceObject(ExecutionState& state, Object* proto, wasm_instance_t* instance, Object* exports)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_instance(instance)
     , m_exports(exports)
 {
@@ -128,7 +128,7 @@ WASMMemoryObject::WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory,
 }
 
 WASMMemoryObject::WASMMemoryObject(ExecutionState& state, Object* proto, wasm_memory_t* memory, ArrayBufferObject* buffer)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_memory(memory)
     , m_buffer(buffer)
 {
@@ -213,7 +213,7 @@ WASMTableObject::WASMTableObject(ExecutionState& state, wasm_table_t* table)
 }
 
 WASMTableObject::WASMTableObject(ExecutionState& state, Object* proto, wasm_table_t* table)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_table(table)
 {
     ASSERT(!!m_table);
@@ -271,7 +271,7 @@ WASMGlobalObject::WASMGlobalObject(ExecutionState& state, wasm_global_t* global)
 }
 
 WASMGlobalObject::WASMGlobalObject(ExecutionState& state, Object* proto, wasm_global_t* global)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_global(global)
 {
     ASSERT(!!m_global);

@@ -30,7 +30,7 @@ WeakRefObject::WeakRefObject(ExecutionState& state, Object* target)
 }
 
 WeakRefObject::WeakRefObject(ExecutionState& state, Object* proto, Object* target)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_target(target)
 {
     ASSERT(m_target);
