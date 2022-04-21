@@ -42,6 +42,11 @@ class ArrayObject : public Object {
     friend void initializeCustomAllocators();
     friend int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr);
 
+    // dummy element to represent non-fast mode array
+    static ObjectPropertyValue DummyArrayElement;
+
+    enum ForSpreadArray { __ForSpreadArray__ };
+
 public:
     explicit ArrayObject(ExecutionState& state);
     explicit ArrayObject(ExecutionState& state, Object* proto);
@@ -96,23 +101,29 @@ protected:
     ArrayObject()
         : Object()
         , m_arrayLength(0)
-#if !defined(ESCARGOT_64) || !defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        , m_fastModeData()
+#else
         , m_fastModeData(nullptr)
 #endif
     {
-        // dummy default constructor
+        // default constructor
         // only called by Global::initialize to set tag value
     }
+
+    // constructor for SpreadArray (ArrayObject::createSpreadArray)
+    ArrayObject(ExecutionState& state, ForSpreadArray);
 
     void convertIntoNonFastMode(ExecutionState& state);
 
 private:
     ALWAYS_INLINE bool isFastModeArray()
     {
-        if (UNLIKELY(hasRareData())) {
-            return rareData()->m_isFastModeArrayObject;
-        }
-        return true;
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        return (m_fastModeData.data() != &ArrayObject::DummyArrayElement);
+#else
+        return (m_fastModeData != &ArrayObject::DummyArrayElement);
+#endif
     }
 
     bool isLengthPropertyWritable()
@@ -132,15 +143,6 @@ private:
         return m_arrayLength;
     }
 
-    bool hasFastModeDataBuffer()
-    {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-        return !!m_fastModeData.data();
-#else
-        return !!m_fastModeData;
-#endif
-    }
-
     bool setArrayLength(ExecutionState& state, const Value& newLength);
     bool setArrayLength(ExecutionState& state, const uint32_t newLength, bool useFitStorage = false, bool considerHole = true);
 
@@ -148,7 +150,7 @@ private:
 
     uint32_t m_arrayLength;
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    TightVectorWithNoSize<EncodedSmallValue, CustomAllocator<EncodedSmallValue>> m_fastModeData;
+    TightVectorWithNoSize<ObjectPropertyValue, CustomAllocator<ObjectPropertyValue>> m_fastModeData;
 #else
     ObjectPropertyValue* m_fastModeData;
 #endif

@@ -108,7 +108,6 @@ ObjectStructurePropertyName ObjectPropertyName::toObjectStructurePropertyNameUin
 ObjectRareData::ObjectRareData(Object* obj)
     : m_isExtensible(true)
     , m_isEverSetAsPrototypeObject(false)
-    , m_isFastModeArrayObject(true)
     , m_isArrayObjectLengthWritable(true)
     , m_isSpreadArrayObject(false)
     , m_isFinalizerRegistered(false)
