@@ -92,7 +92,6 @@ void* NonSharedBackingStore::operator new(size_t size)
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(NonSharedBackingStore)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NonSharedBackingStore, m_observerItems));
-        // only mark m_deleterData
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(NonSharedBackingStore, m_deleterData));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(NonSharedBackingStore));
         typeInited = true;
