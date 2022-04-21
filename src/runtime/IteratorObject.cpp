@@ -34,7 +34,7 @@ IteratorObject::IteratorObject(ExecutionState& state)
 }
 
 IteratorObject::IteratorObject(ExecutionState& state, Object* proto)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
 {
 }
 

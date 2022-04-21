@@ -26,7 +26,7 @@
 
 namespace Escargot {
 
-class IntlLocaleObject : public Object {
+class IntlLocaleObject : public DerivedObject {
 public:
     IntlLocaleObject(ExecutionState& state, String* tag, Optional<Object*> options);
     IntlLocaleObject(ExecutionState& state, Object* proto, String* tag, Optional<Object*> options);

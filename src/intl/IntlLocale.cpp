@@ -201,7 +201,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, String* tag, Optional<
 }
 
 IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String* tag, Optional<Object*> options)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
 {
     // Set tag to ? ApplyOptionsToTag(tag, options).
     Intl::CanonicalizedLangunageTag buildResult = applyOptionsToTag(state, tag, options);

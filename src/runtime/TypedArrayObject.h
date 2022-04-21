@@ -37,10 +37,10 @@ namespace Escargot {
     F(BigInt64, bigInt64, 8, int64_t);        \
     F(BigUint64, bigUint64, 8, uint64_t);
 
-class TypedArrayPrototypeObject : public Object {
+class TypedArrayPrototypeObject : public DerivedObject {
 public:
     TypedArrayPrototypeObject(ExecutionState& state)
-        : Object(state)
+        : DerivedObject(state)
     {
     }
 

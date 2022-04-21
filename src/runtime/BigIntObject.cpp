@@ -29,7 +29,7 @@ BigIntObject::BigIntObject(ExecutionState& state, BigInt* value)
 }
 
 BigIntObject::BigIntObject(ExecutionState& state, Object* proto, BigInt* value)
-    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1)
+    : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1)
     , m_primitiveValue(value)
 {
 }

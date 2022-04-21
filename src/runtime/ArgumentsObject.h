@@ -29,7 +29,7 @@ class FunctionEnvironmentRecord;
 class InterpretedCodeBlock;
 class ScriptFunctionObject;
 
-class ArgumentsObject : public Object {
+class ArgumentsObject : public DerivedObject {
 public:
     ArgumentsObject(ExecutionState& state, Object* proto, ScriptFunctionObject* sourceFunctionObject, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, bool isMapped);
     virtual ObjectHasPropertyResult hasProperty(ExecutionState& state, const ObjectPropertyName& P) override;

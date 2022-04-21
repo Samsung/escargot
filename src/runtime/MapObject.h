@@ -27,7 +27,7 @@ namespace Escargot {
 
 class MapIteratorObject;
 
-class MapObject : public Object {
+class MapObject : public DerivedObject {
     friend class MapIteratorObject;
 
 public:

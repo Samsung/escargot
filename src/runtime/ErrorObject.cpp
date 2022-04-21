@@ -130,7 +130,7 @@ void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* er
 }
 
 ErrorObject::ErrorObject(ExecutionState& state, Object* proto, String* errorMessage)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_stackTraceData(nullptr)
 {
     if (errorMessage->length()) {

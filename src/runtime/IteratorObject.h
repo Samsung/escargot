@@ -50,7 +50,7 @@ public:
     }
 };
 
-class IteratorObject : public Object {
+class IteratorObject : public DerivedObject {
 public:
     explicit IteratorObject(ExecutionState& state);
     explicit IteratorObject(ExecutionState& state, Object* proto);

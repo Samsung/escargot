@@ -30,7 +30,7 @@
 namespace Escargot {
 
 AsyncGeneratorObject::AsyncGeneratorObject(ExecutionState& state, Object* proto, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_asyncGeneratorState(SuspendedStart)
     , m_executionPauser(state, this, executionState, registerFile, blk)
 {

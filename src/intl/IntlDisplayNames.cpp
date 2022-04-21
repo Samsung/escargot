@@ -31,7 +31,7 @@
 namespace Escargot {
 
 IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* proto, Value locales, Value options)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
 {
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
     UVersionInfo versionArray;

@@ -26,7 +26,7 @@
 namespace Escargot {
 
 ProxyObject::ProxyObject(ExecutionState& state)
-    : Object(state)
+    : DerivedObject(state)
     , m_isCallable(false)
     , m_isConstructible(false)
     , m_target(nullptr)

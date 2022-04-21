@@ -27,7 +27,7 @@ namespace Escargot {
 class ByteCodeBlock;
 class SandBox;
 
-class ErrorObject : public Object {
+class ErrorObject : public DerivedObject {
 public:
     class Messages {
     public:

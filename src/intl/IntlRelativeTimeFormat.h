@@ -26,7 +26,7 @@
 
 namespace Escargot {
 
-class IntlRelativeTimeFormatObject : public Object {
+class IntlRelativeTimeFormatObject : public DerivedObject {
 public:
     IntlRelativeTimeFormatObject(ExecutionState& state, Value locales, Value options);
     IntlRelativeTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options);

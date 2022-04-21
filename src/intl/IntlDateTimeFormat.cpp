@@ -314,7 +314,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Value 
 }
 
 IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_locale(String::emptyString)
     , m_calendar(String::emptyString)
     , m_numberingSystem(String::emptyString)

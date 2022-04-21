@@ -29,7 +29,7 @@ namespace Escargot {
 class IteratorRecord;
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-async-from-sync-iterator-objects
-class AsyncFromSyncIteratorObject : public Object {
+class AsyncFromSyncIteratorObject : public DerivedObject {
 public:
     AsyncFromSyncIteratorObject(ExecutionState& state, Object* proto, IteratorRecord* syncIteratorRecord);
 

@@ -39,14 +39,14 @@ enum class TypedArrayType : unsigned {
     BigUint64
 };
 
-class ArrayBuffer : public Object, public BufferAddressObserverManager<ArrayBuffer> {
+class ArrayBuffer : public DerivedObject, public BufferAddressObserverManager<ArrayBuffer> {
     friend int getValidValueInArrayBufferObject(void* ptr, GC_mark_custom_result* arr);
 
 public:
     static const uint64_t maxArrayBufferSize = 210000000;
 
     explicit ArrayBuffer(ExecutionState& state, Object* proto)
-        : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+        : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
         , BufferAddressObserverManager<ArrayBuffer>(this)
     {
         addFinalizer(arrayBufferFinalizer, nullptr);
@@ -149,10 +149,10 @@ protected:
     Optional<BackingStore*> m_backingStore;
 };
 
-class ArrayBufferView : public Object {
+class ArrayBufferView : public DerivedObject {
 public:
     explicit ArrayBufferView(ExecutionState& state, Object* proto)
-        : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+        : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
         , m_buffer(nullptr)
         , m_cachedRawBufferAddress(nullptr)
         , m_byteLength(0)

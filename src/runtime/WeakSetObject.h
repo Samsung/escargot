@@ -24,7 +24,7 @@
 
 namespace Escargot {
 
-class WeakSetObject : public Object {
+class WeakSetObject : public DerivedObject {
 public:
     typedef Vector<Object*, GCUtil::gc_malloc_atomic_allocator<Object*>> WeakSetObjectData;
 

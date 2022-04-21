@@ -70,10 +70,10 @@ private:
     void* m_data;
 };
 
-class ObjectWithPropertyHandler : public Object {
+class ObjectWithPropertyHandler : public DerivedObject {
 public:
     ObjectWithPropertyHandler(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto, ObjectTemplatePropertyHandlerData* namedData, ObjectTemplatePropertyHandlerData* indexedData)
-        : Object(structure, std::move(values), proto)
+        : DerivedObject(structure, std::move(values), proto)
         , m_namedPropertyHandler(namedData)
         , m_indexedPropertyHandler(indexedData)
     {
@@ -132,7 +132,7 @@ public:
             }
         }
 
-        return Object::defineOwnProperty(state, P, desc);
+        return DerivedObject::defineOwnProperty(state, P, desc);
     }
 
     virtual bool hasOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override

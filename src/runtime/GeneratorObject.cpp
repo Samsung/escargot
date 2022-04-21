@@ -28,7 +28,7 @@
 namespace Escargot {
 
 GeneratorObject::GeneratorObject(ExecutionState& state, Object* proto, ExecutionState* executionState, Value* registerFile, ByteCodeBlock* blk)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_generatorState(GeneratorState::SuspendedStart)
     , m_executionPauser(state, this, executionState, registerFile, blk)
 {

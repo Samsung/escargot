@@ -55,7 +55,7 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
 }
 
 IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value optionsInput)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
 {
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
     UVersionInfo versionArray;

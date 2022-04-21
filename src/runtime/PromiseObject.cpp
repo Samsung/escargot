@@ -41,7 +41,7 @@ PromiseObject::PromiseObject(ExecutionState& state)
 }
 
 PromiseObject::PromiseObject(ExecutionState& state, Object* proto)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_state(PromiseState::Pending)
 {
 }

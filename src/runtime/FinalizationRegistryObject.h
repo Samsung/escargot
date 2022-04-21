@@ -24,7 +24,7 @@
 
 namespace Escargot {
 
-class FinalizationRegistryObject : public Object {
+class FinalizationRegistryObject : public DerivedObject {
     friend class CleanupSomeJob;
 
 public:

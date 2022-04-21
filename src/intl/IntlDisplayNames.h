@@ -26,7 +26,7 @@
 
 namespace Escargot {
 
-class IntlDisplayNamesObject : public Object {
+class IntlDisplayNamesObject : public DerivedObject {
 public:
     IntlDisplayNamesObject(ExecutionState& state, Object* proto, Value locales, Value options);
 

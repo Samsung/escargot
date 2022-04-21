@@ -29,7 +29,7 @@ SymbolObject::SymbolObject(ExecutionState& state, Symbol* value)
 }
 
 SymbolObject::SymbolObject(ExecutionState& state, Object* proto, Symbol* value)
-    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+    : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
     , m_primitiveValue(value)
 {
 }

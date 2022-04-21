@@ -49,7 +49,7 @@ static const int64_t const_Date_msPerDay = const_Date_msPerHour * const_Date_hou
 static const int64_t const_Date_msPerMonth = 2629743000;
 
 
-class DateObject : public Object {
+class DateObject : public DerivedObject {
 public:
     explicit DateObject(ExecutionState& state);
     explicit DateObject(ExecutionState& state, Object* proto);

@@ -27,7 +27,7 @@ namespace Escargot {
 
 class SetIteratorObject;
 
-class SetObject : public Object {
+class SetObject : public DerivedObject {
     friend class SetIteratorObject;
 
 public:

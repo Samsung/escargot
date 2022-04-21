@@ -26,7 +26,7 @@
 
 namespace Escargot {
 
-class IntlListFormatObject : public Object {
+class IntlListFormatObject : public DerivedObject {
 public:
     IntlListFormatObject(ExecutionState& state, Object* proto, Value locales, Value options);
 

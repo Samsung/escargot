@@ -132,7 +132,7 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
     } else if (value.IsArray()) {
         ArrayObject* arr = new ArrayObject(state, value.Size(), false);
         for (size_t i = 0; i < value.Size(); i++) {
-            arr->defineOwnIndexedPropertyWithExpandedLength(state, i, parseJSONWorker<CharType, JSONCharType>(state, value[i]));
+            arr->defineOwnIndexedPropertyWithoutExpanding(state, i, parseJSONWorker<CharType, JSONCharType>(state, value[i]));
         }
         return arr;
     } else if (value.IsObject()) {

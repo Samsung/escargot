@@ -30,7 +30,7 @@ WeakSetObject::WeakSetObject(ExecutionState& state)
 }
 
 WeakSetObject::WeakSetObject(ExecutionState& state, Object* proto)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
 {
     addFinalizer([](Object* self, void* data) {
         auto ws = self->asWeakSetObject();

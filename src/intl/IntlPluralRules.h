@@ -26,7 +26,7 @@
 
 namespace Escargot {
 
-class IntlPluralRulesObject : public Object {
+class IntlPluralRulesObject : public DerivedObject {
 public:
     // https://www.ecma-international.org/ecma-402/6.0/index.html#sec-intl-pluralrules-constructor
     IntlPluralRulesObject(ExecutionState& state, Object* proto, Value locales, Value options);

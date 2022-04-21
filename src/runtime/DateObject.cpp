@@ -159,7 +159,7 @@ DateObject::DateObject(ExecutionState& state)
 }
 
 DateObject::DateObject(ExecutionState& state, Object* proto)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
     , m_primitiveValue(TIME64NAN)
     , m_cachedLocal()
     , m_isCacheDirty(false)

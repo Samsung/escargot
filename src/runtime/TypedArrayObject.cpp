@@ -70,7 +70,7 @@ bool TypedArrayObject::defineOwnProperty(ExecutionState& state, const ObjectProp
         }
     }
 
-    return Object::defineOwnProperty(state, P, desc);
+    return DerivedObject::defineOwnProperty(state, P, desc);
 }
 
 bool TypedArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)

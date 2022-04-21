@@ -76,7 +76,7 @@ public:
     Object* m_handler;
 };
 
-class PromiseObject : public Object {
+class PromiseObject : public DerivedObject {
 public:
     enum PromiseState : size_t {
         Pending,

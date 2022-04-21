@@ -55,7 +55,7 @@ RegExpObject::RegExpObject(ExecutionState& state, Object* proto, String* source,
 }
 
 RegExpObject::RegExpObject(ExecutionState& state, Object* proto, bool hasLastIndex)
-    : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + (hasLastIndex ? 5 : 4))
+    : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + (hasLastIndex ? 5 : 4))
     , m_source(NULL)
     , m_optionString(NULL)
     , m_legacyFeaturesEnabled(true)
@@ -170,7 +170,7 @@ void RegExpObject::init(ExecutionState& state, String* source, String* option)
 
 bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
-    bool returnValue = Object::defineOwnProperty(state, P, desc);
+    bool returnValue = DerivedObject::defineOwnProperty(state, P, desc);
     if (!P.isUIntType() && returnValue) {
         if (P.objectStructurePropertyName().isPlainString()) {
             auto name = P.objectStructurePropertyName().plainString();
@@ -449,7 +449,6 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
     }
 
     ArrayObject* arr = new ArrayObject(state, len);
-
     arr->addNonExistentProperty(state, state.context()->staticStrings().index, ObjectPropertyDescriptor(Value(result.m_matchResults[0][0].m_start)));
     arr->addNonExistentProperty(state, state.context()->staticStrings().input, ObjectPropertyDescriptor(Value(input)));
 
@@ -457,9 +456,9 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
     for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
         for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
             if (result.m_matchResults[i][j].m_start == std::numeric_limits<unsigned>::max()) {
-                arr->defineOwnIndexedPropertyWithExpandedLength(state, idx++, Value());
+                arr->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value());
             } else {
-                arr->defineOwnIndexedPropertyWithExpandedLength(state, idx++, Value(new StringView(input, result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end)));
+                arr->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value(new StringView(input, result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end)));
             }
         }
     }

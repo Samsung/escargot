@@ -25,10 +25,10 @@
 
 namespace Escargot {
 
-class GlobalObjectProxyObject : public Object {
+class GlobalObjectProxyObject : public DerivedObject {
 public:
     GlobalObjectProxyObject(ExecutionState& state, GlobalObject* target, GlobalObjectProxyObjectRef::SecurityCheckCallback securityCheckCallback)
-        : Object(state, Object::PrototypeIsNull)
+        : DerivedObject(state, Object::PrototypeIsNull)
         , m_target(target)
         , m_securityCheckCallback(securityCheckCallback)
     {

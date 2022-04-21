@@ -30,7 +30,7 @@ WeakMapObject::WeakMapObject(ExecutionState& state)
 }
 
 WeakMapObject::WeakMapObject(ExecutionState& state, Object* proto)
-    : Object(state, proto)
+    : DerivedObject(state, proto)
 {
     addFinalizer([](Object* self, void* data) {
         auto wm = self->asWeakMapObject();
