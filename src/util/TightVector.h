@@ -370,6 +370,14 @@ public:
         return m_buffer;
     }
 
+    // used for specific case
+    // should not have any valid data
+    void reset(T* resetData)
+    {
+        ASSERT(!m_buffer);
+        m_buffer = resetData;
+    }
+
 protected:
     T* m_buffer;
 };

@@ -70,7 +70,6 @@ struct ObjectExtendedExtraData : public gc {
 struct ObjectRareData : public PointerValue {
     bool m_isExtensible : 1;
     bool m_isEverSetAsPrototypeObject : 1;
-    bool m_isFastModeArrayObject : 1;
     bool m_isArrayObjectLengthWritable : 1;
     bool m_isSpreadArrayObject : 1;
     bool m_isFinalizerRegistered : 1;

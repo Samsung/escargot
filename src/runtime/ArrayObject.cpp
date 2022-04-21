@@ -26,6 +26,22 @@
 
 namespace Escargot {
 
+ObjectPropertyValue ArrayObject::DummyArrayElement;
+
+ArrayObject::ArrayObject(ExecutionState& state, ForSpreadArray)
+    : Object(state, state.context()->globalObject()->arrayPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+    , m_arrayLength(0)
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    , m_fastModeData()
+#else
+    , m_fastModeData(nullptr)
+#endif
+{
+    // SpreadArray should be fast mode
+    // it does not affect or be affected by indexed property in other prototype objects
+    ensureRareData();
+}
+
 ArrayObject::ArrayObject(ExecutionState& state)
     : ArrayObject(state, state.context()->globalObject()->arrayPrototype())
 {
@@ -34,12 +50,18 @@ ArrayObject::ArrayObject(ExecutionState& state)
 ArrayObject::ArrayObject(ExecutionState& state, Object* proto)
     : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
     , m_arrayLength(0)
-#if !defined(ESCARGOT_64) || !defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    , m_fastModeData()
+#else
     , m_fastModeData(nullptr)
 #endif
 {
     if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
-        ensureRareData()->m_isFastModeArrayObject = false;
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        m_fastModeData.reset(&ArrayObject::DummyArrayElement);
+#else
+        m_fastModeData = &ArrayObject::DummyArrayElement;
+#endif
     }
 }
 
@@ -89,8 +111,7 @@ ArrayObject* ArrayObject::createSpreadArray(ExecutionState& state)
 {
     // SpreadArray is a Fixed Array which has no __proto__ property
     // Array.Prototype should not affect any SpreadArray operation
-    ArrayObject* spreadArray = new ArrayObject(state);
-    spreadArray->ensureRareData()->m_isFastModeArrayObject = true;
+    ArrayObject* spreadArray = new ArrayObject(state, __ForSpreadArray__);
     spreadArray->rareData()->m_isSpreadArrayObject = true;
     spreadArray->rareData()->m_prototype = nullptr;
 
@@ -323,20 +344,28 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
 
     m_structure = structure()->convertToNonTransitionStructure();
 
-    ensureRareData()->m_isFastModeArrayObject = false;
+    // convert to non-fast mode first because it could affect Object::defineOwnProperty
+    // hold a temporal array until the end of non-fast mode conversion
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    TightVectorWithNoSize<ObjectPropertyValue, CustomAllocator<ObjectPropertyValue>> tempFastModeData(std::move(m_fastModeData));
+    m_fastModeData.reset(&ArrayObject::DummyArrayElement);
+#else
+    ObjectPropertyValue* tempFastModeData = m_fastModeData;
+    m_fastModeData = &ArrayObject::DummyArrayElement;
+#endif
 
     auto length = arrayLength(state);
     for (size_t i = 0; i < length; i++) {
-        if (!m_fastModeData[i].isEmpty()) {
-            defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor(m_fastModeData[i], ObjectPropertyDescriptor::AllPresent));
+        if (!tempFastModeData[i].isEmpty()) {
+            Object::defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(i)), ObjectPropertyDescriptor(tempFastModeData[i], ObjectPropertyDescriptor::AllPresent));
         }
     }
 
+    // deallocate fast mode data
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    m_fastModeData.resizeWithUninitializedValues(length, 0);
+    tempFastModeData.resizeWithUninitializedValues(length, 0);
 #else
-    GC_FREE(m_fastModeData);
-    m_fastModeData = nullptr;
+    GC_FREE(tempFastModeData);
 #endif
 }
 
