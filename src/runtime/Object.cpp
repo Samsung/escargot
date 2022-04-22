@@ -836,6 +836,22 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     }
 }
 
+void Object::addNonExistentProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
+{
+    ASSERT(isOrdinary());
+    ASSERT(!hasOwnProperty(state, P));
+    ASSERT(isExtensible(state));
+
+    ObjectStructurePropertyName propertyName = P.toObjectStructurePropertyName(state);
+    m_structure = m_structure->addProperty(propertyName, desc.toObjectStructurePropertyDescriptor());
+    if (LIKELY(desc.isDataProperty())) {
+        const Value& val = desc.isValuePresent() ? desc.value() : Value();
+        m_values.pushBack(val, m_structure->propertyCount());
+    } else {
+        m_values.pushBack(Value(new JSGetterSetter(desc.getterSetter())), m_structure->propertyCount());
+    }
+}
+
 bool Object::deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P)
 {
     auto result = getOwnProperty(state, P);
