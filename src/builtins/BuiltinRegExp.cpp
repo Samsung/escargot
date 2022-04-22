@@ -58,7 +58,7 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
         source = patternRegExp->source();
         // If flags is undefined, let F be the value of pattern’s [[OriginalFlags]] internal slot.
         // Else, let F be flags.
-        option = flags.isUndefined() ? patternRegExp->optionString(state) : flags.toString(state);
+        option = flags.isUndefined() ? RegExpObject::computeRegExpOptionString(state, patternRegExp) : flags.toString(state);
     } else if (patternIsRegExp) {
         Value P = pattern.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().source)).value(state, pattern);
         source = P.isUndefined() ? String::emptyString : P.toString(state);
@@ -178,8 +178,8 @@ static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_
 
     Object* thisObject = thisValue.asObject();
     StringBuilder builder;
-    String* pattern = thisObject->get(state, state.context()->staticStrings().source).value(state, thisObject).toString(state);
-    Value flagsValue = thisObject->get(state, state.context()->staticStrings().flags).value(state, thisObject);
+    String* pattern = RegExpObject::regexpSourceValue(state, thisObject);
+    Value flagsValue = RegExpObject::regexpFlagsValue(state, thisObject);
 
     builder.appendString("/");
     builder.appendString(pattern);
@@ -597,7 +597,7 @@ static Value builtinRegExpFlagsGetter(ExecutionState& state, Value thisValue, si
         ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-object");
     }
 
-    return Value(thisValue.asObject()->optionString(state));
+    return Value(RegExpObject::computeRegExpOptionString(state, thisValue.asObject()));
 }
 
 static Value builtinRegExpGlobalGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -829,7 +829,7 @@ void GlobalObject::installRegExp(ExecutionState& state)
 
     REGEXP_LEGACY_DOLLAR_NUMBER_FEATURES(DEFINE_LEGACY_DOLLAR_NUMBER_ATTR);
 
-    m_regexpPrototype = new PrototypeObject(state);
+    m_regexpPrototype = new RegExpPrototypeObject(state);
     m_regexpPrototype->setGlobalIntrinsicObject(state, true);
 
     {

@@ -23,6 +23,7 @@
 #include "runtime/Object.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/IteratorObject.h"
+#include "runtime/PrototypeObject.h"
 
 
 namespace JSC {
@@ -138,8 +139,13 @@ public:
         return m_lastIndex;
     }
 
-    void setLastIndex(ExecutionState& state, const Value& v);
-
+    void setLastIndex(ExecutionState& state, const Value& v)
+    {
+        if (UNLIKELY(m_hasNonWritableLastIndexRegExpObject && (option() & (Option::Sticky | Option::Global)))) {
+            Object::throwCannotWriteError(state, ObjectStructurePropertyName(state, String::fromASCII("lastIndex")));
+        }
+        m_lastIndex = v;
+    }
 
     bool legacyFeaturesEnabled()
     {
@@ -162,6 +168,10 @@ public:
     ArrayObject* createRegExpMatchedArray(ExecutionState& state, const RegexMatchResult& result, String* input);
     void pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObject* array, size_t& index, const size_t limit, const RegexMatchResult& result, String* str);
 
+    static String* computeRegExpOptionString(ExecutionState& state, Object* obj);
+    static String* regexpSourceValue(ExecutionState& state, Object* obj);
+    static Value regexpFlagsValue(ExecutionState& state, Object* obj);
+
 protected:
     explicit RegExpObject(ExecutionState& state, Object* proto, bool hasLastIndex = true);
 
@@ -174,6 +184,7 @@ private:
     void internalInit(ExecutionState& state, String* source, Option option = None);
 
     static RegExpCacheEntry& getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option);
+    static bool isRegExpObjectDontHaveAnyOwnPropertyWhichHasDefinedFromRegExpPrototype(ExecutionState& state, Object* obj);
 
     Option parseOption(ExecutionState& state, String* optionString);
 
@@ -181,6 +192,8 @@ private:
     String* m_optionString;
     Option m_option : 16;
     bool m_legacyFeaturesEnabled : 1;
+    bool m_hasNonWritableLastIndexRegExpObject : 1;
+    bool m_hasOwnPropertyWhichHasDefinedFromRegExpPrototype : 1; // source, option, global, ignoreCase...
     JSC::Yarr::YarrPattern* m_yarrPattern;
     JSC::Yarr::BytecodePattern* m_bytecodePattern;
     EncodedValue m_lastIndex;
@@ -218,6 +231,21 @@ typedef std::unordered_map<RegExpObject::RegExpCacheKey, RegExpObject::RegExpCac
                            std::hash<RegExpObject::RegExpCacheKey>, std::equal_to<RegExpObject::RegExpCacheKey>,
                            GCUtil::gc_malloc_allocator<std::pair<const RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry>>>
     RegExpCacheMap;
+
+
+class RegExpPrototypeObject : public PrototypeObject {
+public:
+    explicit RegExpPrototypeObject(ExecutionState& state)
+        : PrototypeObject(state)
+    {
+    }
+
+    virtual bool isRegExpPrototypeObject() const override
+    {
+        return true;
+    }
+};
+
 } // namespace Escargot
 
 namespace std {
