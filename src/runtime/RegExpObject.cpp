@@ -21,6 +21,7 @@
 #include "ThreadLocal.h"
 #include "RegExpObject.h"
 #include "Context.h"
+#include "VMInstance.h"
 #include "ArrayObject.h"
 
 #include "WTFBridge.h"
@@ -58,6 +59,8 @@ RegExpObject::RegExpObject(ExecutionState& state, Object* proto, bool hasLastInd
     , m_source(NULL)
     , m_optionString(NULL)
     , m_legacyFeaturesEnabled(true)
+    , m_hasNonWritableLastIndexRegExpObject(false)
+    , m_hasOwnPropertyWhichHasDefinedFromRegExpPrototype(false)
     , m_yarrPattern(NULL)
     , m_bytecodePattern(NULL)
     , m_lastIndex(Value(0))
@@ -165,20 +168,29 @@ void RegExpObject::init(ExecutionState& state, String* source, String* option)
     m_optionString = option;
 }
 
-void RegExpObject::setLastIndex(ExecutionState& state, const Value& v)
-{
-    if (UNLIKELY(hasRareData() && rareData()->m_hasNonWritableLastIndexRegExpObject && (option() & (Option::Sticky | Option::Global)))) {
-        Object::throwCannotWriteError(state, ObjectStructurePropertyName(state.context()->staticStrings().lastIndex));
-    }
-    m_lastIndex = v;
-}
-
 bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
     bool returnValue = Object::defineOwnProperty(state, P, desc);
-    if (!P.isUIntType() && returnValue && P.objectStructurePropertyName() == ObjectStructurePropertyName(state.context()->staticStrings().lastIndex)) {
-        if (!structure()->readProperty((size_t)ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).m_descriptor.isWritable()) {
-            ensureRareData()->m_hasNonWritableLastIndexRegExpObject = true;
+    if (!P.isUIntType() && returnValue) {
+        if (P.objectStructurePropertyName().isPlainString()) {
+            auto name = P.objectStructurePropertyName().plainString();
+
+            if (name->equals(state.context()->staticStrings().global.string())
+                || name->equals(state.context()->staticStrings().ignoreCase.string())
+                || name->equals(state.context()->staticStrings().multiline.string())
+                || name->equals(state.context()->staticStrings().unicode.string())
+                || name->equals(state.context()->staticStrings().sticky.string())
+                || name->equals(state.context()->staticStrings().dotAll.string())
+                || name->equals(state.context()->staticStrings().source.string())
+                || name->equals(state.context()->staticStrings().flags.string())) {
+                m_hasOwnPropertyWhichHasDefinedFromRegExpPrototype = true;
+            }
+
+            if (name->equals(state.context()->staticStrings().lastIndex.string())) {
+                if (!structure()->readProperty((size_t)ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER).m_descriptor.isWritable()) {
+                    m_hasNonWritableLastIndexRegExpObject = true;
+                }
+            }
         }
     }
     return returnValue;
@@ -492,6 +504,113 @@ void RegExpObject::pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObje
                 return;
         }
     }
+}
+
+bool RegExpObject::isRegExpObjectDontHaveAnyOwnPropertyWhichHasDefinedFromRegExpPrototype(ExecutionState& state, Object* obj)
+{
+    if (obj->isRegExpObject() && !obj->asRegExpObject()->m_hasOwnPropertyWhichHasDefinedFromRegExpPrototype
+        && obj->getPrototypeObject(state) && obj->getPrototypeObject(state)->isRegExpPrototypeObject()) {
+        return true;
+    }
+    return false;
+}
+
+String* RegExpObject::regexpSourceValue(ExecutionState& state, Object* obj)
+{
+    if (isRegExpObjectDontHaveAnyOwnPropertyWhichHasDefinedFromRegExpPrototype(state, obj)) {
+        return obj->asRegExpObject()->source();
+    } else {
+        return obj->get(state, state.context()->staticStrings().source).value(state, obj).toString(state);
+    }
+}
+
+Value RegExpObject::regexpFlagsValue(ExecutionState& state, Object* obj)
+{
+    if (isRegExpObjectDontHaveAnyOwnPropertyWhichHasDefinedFromRegExpPrototype(state, obj)) {
+        return computeRegExpOptionString(state, obj);
+    } else {
+        return obj->get(state, state.context()->staticStrings().flags).value(state, obj);
+    }
+}
+
+String* RegExpObject::computeRegExpOptionString(ExecutionState& state, Object* obj)
+{
+    char flags[7] = { 0 };
+    size_t flagsIdx = 0;
+    size_t cacheIndex = 0;
+
+    if (isRegExpObjectDontHaveAnyOwnPropertyWhichHasDefinedFromRegExpPrototype(state, obj)) {
+        auto opt = obj->asRegExpObject()->option();
+        if (opt & RegExpObject::Option::Global) {
+            flags[flagsIdx++] = 'g';
+            cacheIndex |= 1 << 0;
+        }
+
+        if (opt & RegExpObject::Option::IgnoreCase) {
+            flags[flagsIdx++] = 'i';
+            cacheIndex |= 1 << 1;
+        }
+
+        if (opt & RegExpObject::Option::MultiLine) {
+            flags[flagsIdx++] = 'm';
+            cacheIndex |= 1 << 2;
+        }
+
+        if (opt & RegExpObject::Option::DotAll) {
+            flags[flagsIdx++] = 's';
+            cacheIndex |= 1 << 3;
+        }
+
+        if (opt & RegExpObject::Option::Unicode) {
+            flags[flagsIdx++] = 'u';
+            cacheIndex |= 1 << 4;
+        }
+
+        if (opt & RegExpObject::Option::Sticky) {
+            flags[flagsIdx++] = 'y';
+            cacheIndex |= 1 << 5;
+        }
+    } else {
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, obj).toBoolean(state)) {
+            flags[flagsIdx++] = 'g';
+            cacheIndex |= 1 << 0;
+        }
+
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().ignoreCase)).value(state, obj).toBoolean(state)) {
+            flags[flagsIdx++] = 'i';
+            cacheIndex |= 1 << 1;
+        }
+
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().multiline)).value(state, obj).toBoolean(state)) {
+            flags[flagsIdx++] = 'm';
+            cacheIndex |= 1 << 2;
+        }
+
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().dotAll)).value(state, obj).toBoolean(state)) {
+            flags[flagsIdx++] = 's';
+            cacheIndex |= 1 << 3;
+        }
+
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, obj).toBoolean(state)) {
+            flags[flagsIdx++] = 'u';
+            cacheIndex |= 1 << 4;
+        }
+
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().sticky)).value(state, obj).toBoolean(state)) {
+            flags[flagsIdx++] = 'y';
+            cacheIndex |= 1 << 5;
+        }
+    }
+
+    ASCIIString* result;
+    auto cache = state.context()->vmInstance()->regexpOptionStringCache();
+    if (cache[cacheIndex]) {
+        result = cache[cacheIndex];
+    } else {
+        result = cache[cacheIndex] = new ASCIIString(flags, flagsIdx);
+    }
+
+    return result;
 }
 
 RegExpStringIteratorObject::RegExpStringIteratorObject(ExecutionState& state, bool global, bool unicode, RegExpObject* regexp, String* string)

@@ -112,7 +112,6 @@ ObjectRareData::ObjectRareData(Object* obj)
     , m_isSpreadArrayObject(false)
     , m_isFinalizerRegistered(false)
     , m_isInlineCacheable(true)
-    , m_hasNonWritableLastIndexRegExpObject(false)
     , m_hasExtendedExtraData(false)
 #if defined(ESCARGOT_ENABLE_TEST)
     , m_isHTMLDDA(false)
@@ -2010,53 +2009,6 @@ Value Object::speciesConstructor(ExecutionState& state, const Value& defaultCons
 
     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "invalid speciesConstructor return");
     return Value();
-}
-
-String* Object::optionString(ExecutionState& state)
-{
-    char flags[7] = { 0 };
-    size_t flagsIdx = 0;
-    size_t cacheIndex = 0;
-
-    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, this).toBoolean(state)) {
-        flags[flagsIdx++] = 'g';
-        cacheIndex |= 1 << 0;
-    }
-
-    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().ignoreCase)).value(state, this).toBoolean(state)) {
-        flags[flagsIdx++] = 'i';
-        cacheIndex |= 1 << 1;
-    }
-
-    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().multiline)).value(state, this).toBoolean(state)) {
-        flags[flagsIdx++] = 'm';
-        cacheIndex |= 1 << 2;
-    }
-
-    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().dotAll)).value(state, this).toBoolean(state)) {
-        flags[flagsIdx++] = 's';
-        cacheIndex |= 1 << 3;
-    }
-
-    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, this).toBoolean(state)) {
-        flags[flagsIdx++] = 'u';
-        cacheIndex |= 1 << 4;
-    }
-
-    if (this->get(state, ObjectPropertyName(state, state.context()->staticStrings().sticky)).value(state, this).toBoolean(state)) {
-        flags[flagsIdx++] = 'y';
-        cacheIndex |= 1 << 5;
-    }
-
-    ASCIIString* result;
-    auto cache = state.context()->vmInstance()->regexpOptionStringCache();
-    if (cache[cacheIndex]) {
-        result = cache[cacheIndex];
-    } else {
-        result = cache[cacheIndex] = new ASCIIString(flags, flagsIdx);
-    }
-
-    return result;
 }
 
 bool Object::isRegExp(ExecutionState& state)

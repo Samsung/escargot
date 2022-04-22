@@ -74,7 +74,6 @@ struct ObjectRareData : public PointerValue {
     bool m_isSpreadArrayObject : 1;
     bool m_isFinalizerRegistered : 1;
     bool m_isInlineCacheable : 1;
-    bool m_hasNonWritableLastIndexRegExpObject : 1;
     bool m_hasExtendedExtraData : 1;
 #if defined(ESCARGOT_ENABLE_TEST)
     bool m_isHTMLDDA : 1;
@@ -784,8 +783,6 @@ public:
     {
         return true;
     }
-
-    String* optionString(ExecutionState& state);
 
     bool isConcatSpreadable(ExecutionState& state);
 

@@ -277,6 +277,11 @@ public:
         return false;
     }
 
+    virtual bool isRegExpPrototypeObject() const
+    {
+        return false;
+    }
+
     virtual bool isErrorObject() const
     {
         return false;
