@@ -36,6 +36,80 @@ using namespace WTF;
 namespace JSC {
 namespace Yarr {
 
+// This searches in log2 time over ~400-600 entries, so should typically result in 9 compares.
+const CanonicalizationRange* canonicalRangeInfoFor(UChar32 ch, CanonicalMode canonicalMode)
+{
+    const CanonicalizationRange* info = canonicalMode == CanonicalMode::UCS2 ? ucs2RangeInfo : unicodeRangeInfo;
+    size_t entries = canonicalMode == CanonicalMode::UCS2 ? UCS2_CANONICALIZATION_RANGES : UNICODE_CANONICALIZATION_RANGES;
+
+    while (true) {
+        size_t candidate = entries >> 1;
+        const CanonicalizationRange* candidateInfo = info + candidate;
+        if (ch < candidateInfo->begin)
+            entries = candidate;
+        else if (ch <= candidateInfo->end)
+            return candidateInfo;
+        else {
+            info = candidateInfo + 1;
+            entries -= (candidate + 1);
+        }
+    }
+}
+
+// Should only be called for characters that have one canonically matching value.
+UChar32 getCanonicalPair(const CanonicalizationRange* info, UChar32 ch)
+{
+    ASSERT(ch >= info->begin && ch <= info->end);
+    switch (info->type) {
+    case CanonicalizeRangeLo:
+        return ch + info->value;
+    case CanonicalizeRangeHi:
+        return ch - info->value;
+    case CanonicalizeAlternatingAligned:
+        return ch ^ 1;
+    case CanonicalizeAlternatingUnaligned:
+        return ((ch - 1) ^ 1) + 1;
+    default:
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    RELEASE_ASSERT_NOT_REACHED();
+    return 0;
+}
+
+// Returns true if no other UCS2 codepoint can match this value.
+bool isCanonicallyUnique(UChar32 ch, CanonicalMode canonicalMode)
+{
+    return canonicalRangeInfoFor(ch, canonicalMode)->type == CanonicalizeUnique;
+}
+
+// Returns true if values are equal, under the canonicalization rules.
+bool areCanonicallyEquivalent(UChar32 a, UChar32 b, CanonicalMode canonicalMode)
+{
+    const CanonicalizationRange* info = canonicalRangeInfoFor(a, canonicalMode);
+    switch (info->type) {
+    case CanonicalizeUnique:
+        return a == b;
+    case CanonicalizeSet: {
+        for (const UChar32* set = canonicalCharacterSetInfo(info->value, canonicalMode); (a = *set); ++set) {
+            if (a == b)
+                return true;
+        }
+        return false;
+    }
+    case CanonicalizeRangeLo:
+        return (a == b) || (a + info->value == b);
+    case CanonicalizeRangeHi:
+        return (a == b) || (a - info->value == b);
+    case CanonicalizeAlternatingAligned:
+        return (a | 1) == (b | 1);
+    case CanonicalizeAlternatingUnaligned:
+        return ((a - 1) | 1) == ((b - 1) | 1);
+    }
+
+    RELEASE_ASSERT_NOT_REACHED();
+    return false;
+}
+
 template <typename CharType>
 class Interpreter {
 public:
@@ -63,8 +137,8 @@ public:
 
     struct DisjunctionContext {
         DisjunctionContext()
-            : term(0)
         {
+            // member variables are inited later
         }
 
         void* operator new(size_t, void* where)
@@ -72,7 +146,7 @@ public:
             return where;
         }
 
-        int term;
+        ByteTerm* term;
         unsigned matchBegin;
         unsigned matchEnd;
         uintptr_t frame[1];
@@ -180,12 +254,14 @@ public:
             unsigned p = pos - negativePositionOffest;
             ASSERT(p < length);
             int result = input[p];
-            if (U16_IS_LEAD(result) && decodeSurrogatePairs && p + 1 < length && U16_IS_TRAIL(input[p + 1])) {
-                if (atEnd())
-                    return -1;
+            if (std::is_same<UChar, CharType>()) {
+                if (U16_IS_LEAD(result) && decodeSurrogatePairs && p + 1 < length && U16_IS_TRAIL(input[p + 1])) {
+                    if (atEnd())
+                        return -1;
 
-                result = U16_GET_SUPPLEMENTARY(result, input[p + 1]);
-                next();
+                    result = U16_GET_SUPPLEMENTARY(result, input[p + 1]);
+                    next();
+                }
             }
             return result;
         }
@@ -199,9 +275,11 @@ public:
                 return -1;
 
             int first = input[p];
-            int second = input[p + 1];
-            if (U16_IS_LEAD(first) && U16_IS_TRAIL(second))
-                return U16_GET_SUPPLEMENTARY(first, second);
+            if (std::is_same<UChar, CharType>()) {
+                int second = input[p + 1];
+                if (U16_IS_LEAD(first) && U16_IS_TRAIL(second))
+                    return U16_GET_SUPPLEMENTARY(first, second);
+            }
 
             return -1;
         }
@@ -210,8 +288,10 @@ public:
         {
             ASSERT(from < length);
             int result = input[from];
-            if (U16_IS_LEAD(result) && decodeSurrogatePairs && from + 1 < length && U16_IS_TRAIL(input[from + 1]))
-                result = U16_GET_SUPPLEMENTARY(result, input[from + 1]);
+            if (std::is_same<UChar, CharType>()) {
+                if (U16_IS_LEAD(result) && decodeSurrogatePairs && from + 1 < length && U16_IS_TRAIL(input[from + 1]))
+                    result = U16_GET_SUPPLEMENTARY(result, input[from + 1]);
+            }
             return result;
         }
 
@@ -1236,29 +1316,29 @@ public:
 
 #define MATCH_NEXT()     \
     {                    \
-        ++context->term; \
+        ++term; \
         goto matchAgain; \
     }
 #define BACKTRACK()      \
     {                    \
-        --context->term; \
+        --term; \
         goto backtrack;  \
     }
-#define currentTerm() (disjunction->terms[context->term])
+#define currentTerm() (*term)
     JSRegExpResult matchDisjunction(ByteDisjunction* disjunction, DisjunctionContext* context, bool btrack = false)
     {
         if (!--remainingMatchCount)
             return JSRegExpErrorHitLimit;
 
+        ByteTerm*& term = context->term;
+
         if (btrack)
             BACKTRACK();
 
         context->matchBegin = input.getPos();
-        context->term = 0;
+        term = disjunction->terms.data();
 
     matchAgain:
-        ASSERT(context->term < static_cast<int>(disjunction->terms.size()));
-
         switch (currentTerm().type) {
         case ByteTerm::TypeSubpatternBegin:
             MATCH_NEXT();
@@ -1280,7 +1360,7 @@ public:
             int offset = currentTerm().alternative.end;
             BackTrackInfoAlternative* backTrack = reinterpret_cast<BackTrackInfoAlternative*>(context->frame + currentTerm().frameLocation);
             backTrack->offset = offset;
-            context->term += offset;
+            term += offset;
             MATCH_NEXT();
         }
 
@@ -1455,8 +1535,6 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
 
     backtrack:
-        ASSERT(context->term < static_cast<int>(disjunction->terms.size()));
-
         switch (currentTerm().type) {
         case ByteTerm::TypeSubpatternBegin:
             return JSRegExpNoMatch;
@@ -1466,7 +1544,7 @@ public:
         case ByteTerm::TypeBodyAlternativeBegin:
         case ByteTerm::TypeBodyAlternativeDisjunction: {
             int offset = currentTerm().alternative.next;
-            context->term += offset;
+            term += offset;
             if (offset > 0)
                 MATCH_NEXT();
 
@@ -1478,7 +1556,7 @@ public:
             context->matchBegin = input.getPos();
 
             if (currentTerm().alternative.onceThrough)
-                context->term += currentTerm().alternative.next;
+                term += currentTerm().alternative.next;
 
             MATCH_NEXT();
         }
@@ -1488,7 +1566,7 @@ public:
         case ByteTerm::TypeAlternativeBegin:
         case ByteTerm::TypeAlternativeDisjunction: {
             int offset = currentTerm().alternative.next;
-            context->term += offset;
+            term += offset;
             if (offset > 0)
                 MATCH_NEXT();
             BACKTRACK();
@@ -1497,7 +1575,7 @@ public:
             // We should never backtrack back into an alternative of the main body of the regex.
             BackTrackInfoAlternative* backTrack = reinterpret_cast<BackTrackInfoAlternative*>(context->frame + currentTerm().frameLocation);
             unsigned offset = backTrack->offset;
-            context->term -= offset;
+            term -= offset;
             BACKTRACK();
         }
 

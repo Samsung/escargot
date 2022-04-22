@@ -66,79 +66,13 @@ inline const UChar32* canonicalCharacterSetInfo(unsigned index, CanonicalMode ca
     const UChar32* const* rangeInfo = canonicalMode == CanonicalMode::UCS2 ? ucs2CharacterSetInfo : unicodeCharacterSetInfo;
     return rangeInfo[index];
 }
-
 // This searches in log2 time over ~400-600 entries, so should typically result in 9 compares.
-inline const CanonicalizationRange* canonicalRangeInfoFor(UChar32 ch, CanonicalMode canonicalMode = CanonicalMode::UCS2)
-{
-    const CanonicalizationRange* info = canonicalMode == CanonicalMode::UCS2 ? ucs2RangeInfo : unicodeRangeInfo;
-    size_t entries = canonicalMode == CanonicalMode::UCS2 ? UCS2_CANONICALIZATION_RANGES : UNICODE_CANONICALIZATION_RANGES;
-
-    while (true) {
-        size_t candidate = entries >> 1;
-        const CanonicalizationRange* candidateInfo = info + candidate;
-        if (ch < candidateInfo->begin)
-            entries = candidate;
-        else if (ch <= candidateInfo->end)
-            return candidateInfo;
-        else {
-            info = candidateInfo + 1;
-            entries -= (candidate + 1);
-        }
-    }
-}
-
+const CanonicalizationRange* canonicalRangeInfoFor(UChar32 ch, CanonicalMode canonicalMode = CanonicalMode::UCS2);
 // Should only be called for characters that have one canonically matching value.
-inline UChar32 getCanonicalPair(const CanonicalizationRange* info, UChar32 ch)
-{
-    ASSERT(ch >= info->begin && ch <= info->end);
-    switch (info->type) {
-    case CanonicalizeRangeLo:
-        return ch + info->value;
-    case CanonicalizeRangeHi:
-        return ch - info->value;
-    case CanonicalizeAlternatingAligned:
-        return ch ^ 1;
-    case CanonicalizeAlternatingUnaligned:
-        return ((ch - 1) ^ 1) + 1;
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-    RELEASE_ASSERT_NOT_REACHED();
-    return 0;
-}
-
+UChar32 getCanonicalPair(const CanonicalizationRange* info, UChar32 ch);
 // Returns true if no other UCS2 codepoint can match this value.
-inline bool isCanonicallyUnique(UChar32 ch, CanonicalMode canonicalMode = CanonicalMode::UCS2)
-{
-    return canonicalRangeInfoFor(ch, canonicalMode)->type == CanonicalizeUnique;
-}
-
+bool isCanonicallyUnique(UChar32 ch, CanonicalMode canonicalMode = CanonicalMode::UCS2);
 // Returns true if values are equal, under the canonicalization rules.
-inline bool areCanonicallyEquivalent(UChar32 a, UChar32 b, CanonicalMode canonicalMode = CanonicalMode::UCS2)
-{
-    const CanonicalizationRange* info = canonicalRangeInfoFor(a, canonicalMode);
-    switch (info->type) {
-    case CanonicalizeUnique:
-        return a == b;
-    case CanonicalizeSet: {
-        for (const UChar32* set = canonicalCharacterSetInfo(info->value, canonicalMode); (a = *set); ++set) {
-            if (a == b)
-                return true;
-        }
-        return false;
-    }
-    case CanonicalizeRangeLo:
-        return (a == b) || (a + info->value == b);
-    case CanonicalizeRangeHi:
-        return (a == b) || (a - info->value == b);
-    case CanonicalizeAlternatingAligned:
-        return (a | 1) == (b | 1);
-    case CanonicalizeAlternatingUnaligned:
-        return ((a - 1) | 1) == ((b - 1) | 1);
-    }
-
-    RELEASE_ASSERT_NOT_REACHED();
-    return false;
-}
+bool areCanonicallyEquivalent(UChar32 a, UChar32 b, CanonicalMode canonicalMode = CanonicalMode::UCS2);
 }
 } // JSC::Yarr

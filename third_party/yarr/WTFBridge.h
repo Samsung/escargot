@@ -96,6 +96,11 @@ public:
         return impl[i];
     }
 
+    T* data()
+    {
+        return impl.data();
+    }
+
     iterator begin()
     {
         return impl.begin();
@@ -488,5 +493,8 @@ std::unique_ptr<T> make_unique(Ts&&... params)
 #endif
 
 #include "ASCIICType.h"
+
+#undef RELEASE_ASSERT
+#define RELEASE_ASSERT ASSERT
 
 #endif /* yarr_wtfbridge_h */
