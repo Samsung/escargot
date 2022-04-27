@@ -146,6 +146,19 @@ static std::string evalScript(ContextRef* context, StringRef* str, StringRef* fi
     return result;
 }
 
+static ValueRef* eval(ContextRef* context, StringRef* str)
+{
+    auto scriptInitializeResult = context->scriptParser()->initializeScript(str, StringRef::createFromASCII("eval"), false);
+    EXPECT_TRUE(scriptInitializeResult.script.hasValue());
+    auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
+        return script->execute(state);
+    },
+                                         scriptInitializeResult.script.get());
+
+    EXPECT_TRUE(evalResult.isSuccessful());
+    return evalResult.result;
+}
+
 static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRef> state, const char* fileName, const char* builtinName)
 {
     FILE* fp = fopen(fileName, "r");
@@ -550,6 +563,65 @@ TEST(EvalScript, RuntimeError)
 {
     auto s = evalScript(g_context.get(), StringRef::createFromASCII("throw 1"), StringRef::createFromASCII("test.js"), false);
     EXPECT_TRUE(s.find("Uncaught 1") == 0);
+}
+
+TEST(Object, ConstructorName)
+{
+    ObjectRef* testObj = eval(g_context.get(), StringRef::createFromASCII("function foo(){}; var ctorNameTest = new foo(); ctorNameTest;"))->asObject();
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
+        StringRef* c = testObj->constructorName(state);
+        EXPECT_TRUE(c->toStdUTF8String() == "foo");
+        return ValueRef::createUndefined();
+    },
+                       testObj);
+
+    testObj = eval(g_context.get(), StringRef::createFromASCII("ctorNameTest = {}; ctorNameTest;"))->asObject();
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
+        StringRef* c = testObj->constructorName(state);
+        EXPECT_TRUE(c->toStdUTF8String() == "Object");
+        return ValueRef::createUndefined();
+    },
+                       testObj);
+
+    testObj = eval(g_context.get(), StringRef::createFromASCII("var ctorNameTest = new foo(); ctorNameTest.__proto__=null; ctorNameTest;"))->asObject();
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
+        StringRef* c = testObj->constructorName(state);
+        EXPECT_TRUE(c->toStdUTF8String() == "foo");
+        return ValueRef::createUndefined();
+    },
+                       testObj);
+
+    testObj = eval(g_context.get(), StringRef::createFromASCII("var ctorNameTest = {}; ctorNameTest.__proto__=foo.prototype; ctorNameTest;"))->asObject();
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
+        StringRef* c = testObj->constructorName(state);
+        EXPECT_TRUE(c->toStdUTF8String() == "foo");
+        return ValueRef::createUndefined();
+    },
+                       testObj);
+
+    testObj = eval(g_context.get(), StringRef::createFromASCII("class foobar{};  ctorNameTest = new foobar(); ctorNameTest;"))->asObject();
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
+        StringRef* c = testObj->constructorName(state);
+        EXPECT_TRUE(c->toStdUTF8String() == "foobar");
+        return ValueRef::createUndefined();
+    },
+                       testObj);
+
+    testObj = eval(g_context.get(), StringRef::createFromASCII("ctorNameTest = new foobar(); ctorNameTest.__proto__=foo.prototype;  ctorNameTest;"))->asObject();
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
+        StringRef* c = testObj->constructorName(state);
+        EXPECT_TRUE(c->toStdUTF8String() == "foobar");
+        return ValueRef::createUndefined();
+    },
+                       testObj);
+
+    testObj = eval(g_context.get(), StringRef::createFromASCII("ctorNameTest = new foobar(); ctorNameTest.__proto__=null;  ctorNameTest;"))->asObject();
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
+        StringRef* c = testObj->constructorName(state);
+        EXPECT_TRUE(c->toStdUTF8String() == "foobar");
+        return ValueRef::createUndefined();
+    },
+                       testObj);
 }
 
 TEST(ObjectTemplate, Basic1)

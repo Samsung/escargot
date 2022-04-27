@@ -220,11 +220,13 @@ static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t 
 {
     if (!argv[0].isObject() && !argv[0].isNull())
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().create.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotObjectAndNotNull);
-    Object* obj = new Object(state);
-    if (argv[0].isNull())
-        obj->setPrototype(state, Value(Value::Null));
-    else
+    Object* obj;
+    if (argv[0].isNull()) {
+        obj = new Object(state, Object::PrototypeIsNull);
+    } else {
+        obj = new Object(state);
         obj->setPrototype(state, argv[0]);
+    }
 
     if (!argv[1].isUndefined())
         return objectDefineProperties(state, obj, argv[1]);

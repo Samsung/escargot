@@ -530,16 +530,27 @@ bool Object::isConcatSpreadable(ExecutionState& state)
 Object* Object::createBuiltinObjectPrototype(ExecutionState& state)
 {
     Object* obj = new PrototypeObject(state, PrototypeObject::__ForGlobalBuiltin__);
-    obj->setPrototype(state, Value(Value::Null));
     obj->markThisObjectDontNeedStructureTransitionTable();
-
     return obj;
 }
+
+class FunctionPrototypeObject : public PrototypeObject {
+public:
+    explicit FunctionPrototypeObject(ExecutionState& state, Object* proto, size_t defaultSpace)
+        : PrototypeObject(state, proto, defaultSpace)
+    {
+    }
+
+    virtual bool isFunctionPrototypeObject() const override
+    {
+        return true;
+    }
+};
 
 Object* Object::createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function)
 {
     auto ctx = function->codeBlock()->context();
-    Object* obj = new PrototypeObject(state, ctx->globalObject()->objectPrototype()->asObject(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1);
+    Object* obj = new FunctionPrototypeObject(state, ctx->globalObject()->objectPrototype()->asObject(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 1);
     obj->m_structure = ctx->defaultStructureForFunctionPrototypeObject();
     obj->m_values[0] = Value(function);
 
@@ -560,6 +571,37 @@ void Object::setGlobalIntrinsicObject(ExecutionState& state, bool isPrototype)
     }
 }
 
+String* Object::constructorName(ExecutionState& state)
+{
+    Optional<FunctionObject*> ctor;
+    if (hasRareData() && rareData()->m_hasExtendedExtraData && ensureObjectExtendedExtraData()->m_meaningfulConstructor) {
+        ctor = ensureObjectExtendedExtraData()->m_meaningfulConstructor;
+    } else {
+        Optional<Object*> object = getPrototypeObject(state);
+        if (object) {
+            Value c = object->getOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, object.value());
+            if (c.isFunction()) {
+                ctor = c.asFunction();
+            }
+        }
+    }
+
+    Value name;
+    if (ctor) {
+        if (ctor->isScriptClassConstructorFunctionObject()) {
+            name = ctor->getOwnProperty(state, state.context()->staticStrings().name).value(state, ctor.value());
+        } else {
+            name = ctor->codeBlock()->functionName().string();
+        }
+    }
+
+    if (name.isString()) {
+        return name.asString();
+    } else {
+        return state.context()->staticStrings().Object.string();
+    }
+}
+
 bool Object::setPrototype(ExecutionState& state, const Value& proto)
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-setprototypeof-v
@@ -570,7 +612,8 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
 
     // 3. Let current be the value of the [[Prototype]] internal slot of O.
     // 4. If SameValue(V, current), return true.
-    if (proto == this->getPrototype(state)) {
+    Value lastPrototype = this->getPrototype(state);
+    if (proto == lastPrototype) {
         return true;
     }
 
@@ -611,6 +654,29 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
         rareData()->m_prototype = o;
     } else {
         m_prototype = o;
+    }
+
+    bool hadPrototypeAsObject = lastPrototype.isObject();
+
+    if (UNLIKELY(
+            // if new prototype is null and last prototype was object
+            (!o && hadPrototypeAsObject)
+            ||
+            // if last prototype is function's prototype
+            (hadPrototypeAsObject && lastPrototype.asObject()->isFunctionPrototypeObject())
+            ||
+            // if last prototype is class's prototype
+            (hadPrototypeAsObject && lastPrototype.asObject()->isScriptClassConstructorPrototypeObject()))) {
+        if (!hasRareData() || !rareData()->m_hasExtendedExtraData || !rareData()->m_extendedExtraData->m_meaningfulConstructor.hasValue()) {
+            if (lastPrototype.asObject()->isScriptClassConstructorPrototypeObject()) {
+                ensureObjectExtendedExtraData()->m_meaningfulConstructor = lastPrototype.asObject()->asScriptClassConstructorPrototypeObject()->constructor();
+            } else {
+                auto ctor = lastPrototype.asObject()->readConstructorSlotWithoutState();
+                if (ctor && ctor.value().isFunction()) {
+                    ensureObjectExtendedExtraData()->m_meaningfulConstructor = ctor.value().asFunction();
+                }
+            }
+        }
     }
 
     // 10. Return true.
