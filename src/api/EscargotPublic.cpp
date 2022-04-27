@@ -2192,6 +2192,11 @@ bool ObjectRef::setPrototype(ExecutionStateRef* state, ValueRef* value)
     return toImpl(this)->setPrototype(*toImpl(state), toImpl(value));
 }
 
+StringRef* ObjectRef::constructorName(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->constructorName(*toImpl(state)));
+}
+
 OptionalRef<ContextRef> ObjectRef::creationContext()
 {
     Optional<Object*> o = toImpl(this);

@@ -1356,6 +1356,8 @@ public:
     OptionalRef<ObjectRef> getPrototypeObject(ExecutionStateRef* state); // if __proto__ is not object(undefined or null), this function returns nullptr instead of orginal value.
     bool setPrototype(ExecutionStateRef* state, ValueRef* value);
 
+    StringRef* constructorName(ExecutionStateRef* state);
+
     OptionalRef<ContextRef> creationContext();
 
     ValueVectorRef* ownPropertyKeys(ExecutionStateRef* state);

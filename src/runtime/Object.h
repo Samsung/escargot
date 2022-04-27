@@ -61,6 +61,7 @@ struct ObjectExtendedExtraData : public gc {
     void* m_extraData;
     TightVector<std::pair<ObjectFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<ObjectFinalizer, void*>>> m_finalizer;
     Optional<ObjectPrivateMemberDataChain*> m_privateMemberChain;
+    Optional<FunctionObject*> m_meaningfulConstructor;
     ObjectExtendedExtraData(void* e)
         : m_extraData(e)
     {
@@ -852,6 +853,8 @@ public:
 
         return Optional<Value>();
     }
+
+    String* constructorName(ExecutionState& state);
 
     // internal [[prototype]]
     virtual bool setPrototype(ExecutionState& state, const Value& proto);

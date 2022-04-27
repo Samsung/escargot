@@ -21,16 +21,17 @@
 #define __EscargotScriptClassConstructorFunctionObject__
 
 #include "runtime/ScriptFunctionObject.h"
+#include "runtime/PrototypeObject.h"
 
 namespace Escargot {
 
 class ScriptClassConstructorFunctionObject;
 
-class ScriptClassConstructorPrototypeObject : public Object {
+class ScriptClassConstructorPrototypeObject : public PrototypeObject {
 public:
     friend class ScriptClassConstructorFunctionObject;
     explicit ScriptClassConstructorPrototypeObject(ExecutionState& state)
-        : Object(state)
+        : PrototypeObject(state)
         , m_constructor(nullptr)
     {
     }

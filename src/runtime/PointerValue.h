@@ -237,6 +237,11 @@ public:
         return false;
     }
 
+    virtual bool isFunctionPrototypeObject() const
+    {
+        return false;
+    }
+
     virtual bool isScriptClassConstructorFunctionObject() const
     {
         return false;

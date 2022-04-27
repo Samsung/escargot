@@ -44,7 +44,7 @@
 namespace Escargot {
 
 GlobalObject::GlobalObject(ExecutionState& state)
-    : PrototypeObject(state, PrototypeObject::__ForGlobalBuiltin__)
+    : PrototypeObject(state, Object::createBuiltinObjectPrototype(state))
     , m_context(state.context())
 #define INIT_BUILTIN_VALUE(builtin, TYPE, objName) \
     , m_##builtin(nullptr)
@@ -53,9 +53,8 @@ GlobalObject::GlobalObject(ExecutionState& state)
 #undef INIT_BUILTIN_VALUE
 {
     // m_objectPrototype should be initialized ahead of any other builtins
-    m_objectPrototype = Object::createBuiltinObjectPrototype(state);
+    m_objectPrototype = m_prototype;
 
-    Object::setPrototype(state, m_objectPrototype);
     Object::setGlobalIntrinsicObject(state);
 }
 
