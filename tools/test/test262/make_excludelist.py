@@ -17,6 +17,7 @@
 from __future__ import print_function
 
 import os
+import re
 import traceback
 import sys
 import subprocess
@@ -30,6 +31,7 @@ from subprocess import PIPE, Popen
 PROJECT_SOURCE_DIR = dirname(dirname(dirname(dirname(abspath(__file__)))))
 SCRIPT_SOURCE_DIR = dirname(abspath(__file__))
 DEFAULT_ESCARGOT = join(PROJECT_SOURCE_DIR, 'escargot')
+DEFAULT_EXCLUDE_LIST = join(SCRIPT_SOURCE_DIR, 'excludelist.orig.xml')
 
 COLOR_RED = '\033[31m'
 COLOR_GREEN = '\033[32m'
@@ -40,7 +42,7 @@ def run_all_test262(engine, arch):
     empty_list = template_file.read()
     template_file.close()
 
-    exclude_file = open(join(SCRIPT_SOURCE_DIR, 'excludelist.orig.xml'), 'w')
+    exclude_file = open(DEFAULT_EXCLUDE_LIST, 'w')
     exclude_file.write(empty_list)
     exclude_file.write(rear_template())
     exclude_file.close()
@@ -92,7 +94,7 @@ def main():
     if full.find('- All tests succeeded') >= 0:
         sys.exit(COLOR_RED + 'already passed all test262 tcs' + COLOR_RESET)
 
-    with open(join(SCRIPT_SOURCE_DIR, 'excludelist.orig.xml'), 'w') as out_file:
+    with open(DEFAULT_EXCLUDE_LIST, 'w') as out_file:
         summary = full.split('=== Test262 Summary ===')[1]
 
         out_list = []
@@ -125,6 +127,19 @@ def main():
         for item in out_list:
             out_file.write(item)
         out_file.write(rear_template())
+
+    numstat = subprocess.check_output(["git", "diff", "--numstat", DEFAULT_EXCLUDE_LIST]).split("\t")
+    lines = sorted(re.findall(r'^[+|-][^+|-].*', subprocess.check_output(["git", "diff", "--unified=0", DEFAULT_EXCLUDE_LIST]), re.MULTILINE), key=lambda x:x[:1])
+
+    for i in lines:
+        if i[0] == "+":
+            print(COLOR_RED + i + COLOR_RESET)
+        else:
+            print(COLOR_GREEN + i + COLOR_RESET)
+
+    if len(numstat) > 2:
+        print(COLOR_RED + "Failed tests: " + numstat[0] + COLOR_RESET)
+        print(COLOR_GREEN + "New successful tests: " + numstat[1] + COLOR_RESET)
 
     print(COLOR_GREEN + 'success: new exclude list generated' + COLOR_RESET)
     sys.exit()
