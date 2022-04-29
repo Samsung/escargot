@@ -184,7 +184,9 @@ private:
     void internalInit(ExecutionState& state, String* source, Option option = None);
 
     static RegExpCacheEntry& getCacheEntryAndCompileIfNeeded(ExecutionState& state, String* source, const Option& option);
-    static bool isRegExpObjectDontHaveAnyOwnPropertyWhichHasDefinedFromRegExpPrototype(ExecutionState& state, Object* obj);
+
+    // has source, option...
+    static bool hasOwnRegExpProperty(ExecutionState& state, Object* obj);
 
     Option parseOption(ExecutionState& state, String* optionString);
 

@@ -506,18 +506,18 @@ void RegExpObject::pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObje
     }
 }
 
-bool RegExpObject::isRegExpObjectDontHaveAnyOwnPropertyWhichHasDefinedFromRegExpPrototype(ExecutionState& state, Object* obj)
+bool RegExpObject::hasOwnRegExpProperty(ExecutionState& state, Object* obj)
 {
     if (obj->isRegExpObject() && !obj->asRegExpObject()->m_hasOwnPropertyWhichHasDefinedFromRegExpPrototype
         && obj->getPrototypeObject(state) && obj->getPrototypeObject(state)->isRegExpPrototypeObject()) {
-        return true;
+        return false;
     }
-    return false;
+    return true;
 }
 
 String* RegExpObject::regexpSourceValue(ExecutionState& state, Object* obj)
 {
-    if (isRegExpObjectDontHaveAnyOwnPropertyWhichHasDefinedFromRegExpPrototype(state, obj)) {
+    if (!hasOwnRegExpProperty(state, obj)) {
         return obj->asRegExpObject()->source();
     } else {
         return obj->get(state, state.context()->staticStrings().source).value(state, obj).toString(state);
@@ -526,7 +526,7 @@ String* RegExpObject::regexpSourceValue(ExecutionState& state, Object* obj)
 
 Value RegExpObject::regexpFlagsValue(ExecutionState& state, Object* obj)
 {
-    if (isRegExpObjectDontHaveAnyOwnPropertyWhichHasDefinedFromRegExpPrototype(state, obj)) {
+    if (!hasOwnRegExpProperty(state, obj)) {
         return computeRegExpOptionString(state, obj);
     } else {
         return obj->get(state, state.context()->staticStrings().flags).value(state, obj);
@@ -539,7 +539,7 @@ String* RegExpObject::computeRegExpOptionString(ExecutionState& state, Object* o
     size_t flagsIdx = 0;
     size_t cacheIndex = 0;
 
-    if (isRegExpObjectDontHaveAnyOwnPropertyWhichHasDefinedFromRegExpPrototype(state, obj)) {
+    if (!hasOwnRegExpProperty(state, obj)) {
         auto opt = obj->asRegExpObject()->option();
         if (opt & RegExpObject::Option::Global) {
             flags[flagsIdx++] = 'g';

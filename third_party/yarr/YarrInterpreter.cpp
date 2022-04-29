@@ -137,8 +137,13 @@ public:
 
     struct DisjunctionContext {
         DisjunctionContext()
+#ifndef NDEBUG
+            : term(reinterpret_cast<ByteTerm*>(-1))
+            , matchBegin(-1)
+            , matchEnd(-1)
+#endif
         {
-            // member variables are inited later
+            // member variables will be inited in interpreter
         }
 
         void* operator new(size_t, void* where)
