@@ -246,7 +246,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryPlus* code = (BinaryPlus*)programCounter;
             const Value& v0 = registerFile[code->m_srcIndex0];
             const Value& v1 = registerFile[code->m_srcIndex1];
-            Value ret(Value::ForceUninitialized);
+            Value& ret = registerFile[code->m_dstIndex];
             if (v0.isInt32() && v1.isInt32()) {
                 int32_t a = v0.asInt32();
                 int32_t b = v1.asInt32();
@@ -262,7 +262,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             } else {
                 ret = plusSlowCase(*state, v0, v1);
             }
-            registerFile[code->m_dstIndex] = ret;
             ADD_PROGRAM_COUNTER(BinaryPlus);
             NEXT_INSTRUCTION();
         }
@@ -273,7 +272,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryMinus* code = (BinaryMinus*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            Value ret(Value::ForceUninitialized);
+            Value& ret = registerFile[code->m_dstIndex];
             if (left.isInt32() && right.isInt32()) {
                 int32_t a = left.asInt32();
                 int32_t b = right.asInt32();
@@ -289,7 +288,6 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             } else {
                 ret = minusSlowCase(*state, left, right);
             }
-            registerFile[code->m_dstIndex] = ret;
             ADD_PROGRAM_COUNTER(BinaryMinus);
             NEXT_INSTRUCTION();
         }
@@ -300,7 +298,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryMultiply* code = (BinaryMultiply*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            Value ret(Value::ForceUninitialized);
+            Value& ret = registerFile[code->m_dstIndex];
             if (left.isInt32() && right.isInt32()) {
                 int32_t a = left.asInt32();
                 int32_t b = right.asInt32();
@@ -316,11 +314,10 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                     }
                 }
             } else if (LIKELY(left.isNumber() && right.isNumber())) {
-                ret = Value(Value::EncodeAsDouble, left.asNumber() * right.asNumber());
+                ret = Value(left.asNumber() * right.asNumber());
             } else {
                 ret = multiplySlowCase(*state, left, right);
             }
-            registerFile[code->m_dstIndex] = ret;
             ADD_PROGRAM_COUNTER(BinaryMultiply);
             NEXT_INSTRUCTION();
         }
@@ -331,10 +328,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryDivision* code = (BinaryDivision*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
+            Value& ret = registerFile[code->m_dstIndex];
             if (LIKELY(left.isNumber() && right.isNumber())) {
-                registerFile[code->m_dstIndex] = Value(left.asNumber() / right.asNumber());
+                ret = Value(left.asNumber() / right.asNumber());
             } else {
-                registerFile[code->m_dstIndex] = divisionSlowCase(*state, left, right);
+                ret = divisionSlowCase(*state, left, right);
             }
             ADD_PROGRAM_COUNTER(BinaryDivision);
             NEXT_INSTRUCTION();
@@ -1633,7 +1631,7 @@ NEVER_INLINE Value ByteCodeInterpreter::multiplySlowCase(ExecutionState& state, 
     if (UNLIKELY(lnum.second)) {
         return Value(lnum.first.asBigInt()->multiply(state, rnum.first.asBigInt()));
     } else {
-        return Value(Value::EncodeAsDouble, lnum.first.asNumber() * rnum.first.asNumber());
+        return Value(lnum.first.asNumber() * rnum.first.asNumber());
     }
 }
 
@@ -1650,7 +1648,7 @@ NEVER_INLINE Value ByteCodeInterpreter::divisionSlowCase(ExecutionState& state, 
         }
         return Value(lnum.first.asBigInt()->division(state, rnum.first.asBigInt()));
     } else {
-        return Value(Value::EncodeAsDouble, lnum.first.asNumber() / rnum.first.asNumber());
+        return Value(lnum.first.asNumber() / rnum.first.asNumber());
     }
 }
 
