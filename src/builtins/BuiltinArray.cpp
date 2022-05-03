@@ -65,7 +65,7 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
 
     if (interpretArgumentsAsElements) {
         Value val = argv[0];
-        if (argc > 1 || !val.isInt32()) {
+        if (argc > 1 || !val.isNumber()) {
             if (array->isFastModeArray()) {
                 for (size_t idx = 0; idx < argc; idx++) {
                     array->m_fastModeData[idx] = argv[idx];

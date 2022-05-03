@@ -175,7 +175,7 @@ inline Value::Value(FromTagTag, uint32_t tag)
     u.asBits.payload = 0;
 }
 
-inline Value::Value(EncodeAsDoubleTag, double d)
+inline Value::Value(EncodeAsDoubleTag, const double& d)
 {
     u.asDouble = d;
 }
@@ -412,7 +412,7 @@ inline double reinterpretInt64ToDouble(int64_t value)
     return bitwise_cast<double>(value);
 }
 
-inline Value::Value(EncodeAsDoubleTag, double d)
+inline Value::Value(EncodeAsDoubleTag, const double& d)
 {
     u.asInt64 = reinterpretDoubleToInt64(d) + DoubleEncodeOffset;
 }
@@ -589,19 +589,38 @@ inline intptr_t Value::payload() const
 // ===common architecture========================================================
 // ==============================================================================
 
-inline Value::Value(double d)
+ALWAYS_INLINE bool Value::isInt32ConvertibleDouble(const double& d)
 {
-    const int32_t asInt32 = static_cast<int32_t>(d);
-    if (asInt32 != d || (!asInt32 && std::signbit(d))) { // true for -0.0
-#ifdef ESCARGOT_64
-        if (UNLIKELY((bitwise_cast<int64_t>(d) & DoubleInvalidBeginning) == DoubleInvalidBeginning)) {
-            d = std::numeric_limits<double>::quiet_NaN();
-        }
-#endif
-        *this = Value(EncodeAsDouble, d);
+    int32_t asInt32 = static_cast<int32_t>(d);
+    if (LIKELY(LIKELY(asInt32 != d) || UNLIKELY(!asInt32 && std::signbit(d)))) { // true for -0.0
+        return false;
+    }
+    return true;
+}
+
+ALWAYS_INLINE bool Value::isInt32ConvertibleDouble(const double& d, int32_t& asInt32)
+{
+    asInt32 = static_cast<int32_t>(d);
+    if (LIKELY(LIKELY(asInt32 != d) || UNLIKELY(!asInt32 && std::signbit(d)))) { // true for -0.0
+        return false;
+    }
+    return true;
+}
+
+inline Value::Value(const double& d)
+{
+    int32_t asInt32;
+    if (UNLIKELY(isInt32ConvertibleDouble(d, asInt32))) {
+        *this = Value(asInt32);
         return;
     }
-    *this = Value(static_cast<int32_t>(d));
+#ifdef ESCARGOT_64
+    if (UNLIKELY((bitwise_cast<int64_t>(d) & DoubleInvalidBeginning) == DoubleInvalidBeginning)) {
+        *this = Value(EncodeAsDouble, std::numeric_limits<double>::quiet_NaN());
+        return;
+    }
+#endif
+    *this = Value(EncodeAsDouble, d);
 }
 
 inline Value::Value(char i)
@@ -626,25 +645,28 @@ inline Value::Value(unsigned short i)
 
 inline Value::Value(unsigned i)
 {
-    if (static_cast<int32_t>(i) < 0) {
+    const int32_t asInt32 = static_cast<int32_t>(i);
+    if (UNLIKELY(asInt32 < 0)) {
         *this = Value(EncodeAsDouble, static_cast<double>(i));
         return;
     }
-    *this = Value(static_cast<int32_t>(i));
+    *this = Value(asInt32);
 }
 
 inline Value::Value(long i)
 {
-    if (static_cast<int32_t>(i) != i) {
+    const int32_t asInt32 = static_cast<int32_t>(i);
+    if (UNLIKELY(asInt32 != i)) {
         *this = Value(EncodeAsDouble, static_cast<double>(i));
         return;
     }
-    *this = Value(static_cast<int32_t>(i));
+    *this = Value(asInt32);
 }
 
 inline Value::Value(unsigned long i)
 {
-    if (static_cast<uint32_t>(i) != i) {
+    const uint32_t asInt32 = static_cast<uint32_t>(i);
+    if (UNLIKELY(asInt32 != i)) {
         *this = Value(EncodeAsDouble, static_cast<double>(i));
         return;
     }
@@ -653,20 +675,22 @@ inline Value::Value(unsigned long i)
 
 inline Value::Value(long long i)
 {
-    if (static_cast<int32_t>(i) != i) {
+    const int32_t asInt32 = static_cast<int32_t>(i);
+    if (UNLIKELY(asInt32 != i)) {
         *this = Value(EncodeAsDouble, static_cast<double>(i));
         return;
     }
-    *this = Value(static_cast<int32_t>(i));
+    *this = Value(asInt32);
 }
 
 inline Value::Value(unsigned long long i)
 {
-    if (static_cast<uint32_t>(i) != i) {
+    const uint32_t asInt32 = static_cast<uint32_t>(i);
+    if (UNLIKELY(asInt32 != i)) {
         *this = Value(EncodeAsDouble, static_cast<double>(i));
         return;
     }
-    *this = Value(static_cast<uint32_t>(i));
+    *this = Value(asInt32);
 }
 
 inline bool Value::isUInt32() const
@@ -887,7 +911,7 @@ uint32_t Value::tryToUseAsIndexProperty(ExecutionState& ec) const
 
 inline double Value::toInteger(ExecutionState& state) const
 {
-    if (isInt32()) {
+    if (LIKELY(isInt32())) {
         return asInt32();
     }
 
@@ -903,7 +927,7 @@ inline double Value::toInteger(ExecutionState& state) const
 
 inline bool Value::isInteger(ExecutionState& state) const
 {
-    if (isInt32()) {
+    if (LIKELY(isInt32())) {
         return true;
     }
 
@@ -917,7 +941,7 @@ inline bool Value::isInteger(ExecutionState& state) const
 inline uint64_t Value::toLength(ExecutionState& state) const
 {
     double len = toInteger(state);
-    if (len <= 0.0) {
+    if (UNLIKELY(len <= 0.0)) {
         return 0;
     }
     return std::min(len, maximumLength());
