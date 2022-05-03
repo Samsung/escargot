@@ -143,8 +143,8 @@ public:
 #endif
 
     // Numbers
-    Value(EncodeAsDoubleTag, double);
-    explicit Value(double);
+    Value(EncodeAsDoubleTag, const double&);
+    explicit Value(const double&);
     explicit Value(bool);
     explicit Value(char);
     explicit Value(unsigned char);
@@ -273,6 +273,9 @@ public:
 
     intptr_t payload() const;
     static constexpr double maximumLength();
+
+    static bool isInt32ConvertibleDouble(const double& d);
+    static bool isInt32ConvertibleDouble(const double& d, int32_t& asInt32);
 
 private:
     ValueDescriptor u;
