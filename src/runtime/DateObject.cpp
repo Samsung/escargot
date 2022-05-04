@@ -172,14 +172,14 @@ DateObject::DateObject(ExecutionState& state, Object* proto)
 struct timespec {
     long tv_sec;
     long tv_nsec;
-}; //header part
-static int clock_gettime(int, struct timespec* spec) //C-file part
+}; // header part
+static int clock_gettime(int, struct timespec* spec) // C-file part
 {
     __int64 wintime;
     GetSystemTimeAsFileTime((FILETIME*)&wintime);
-    wintime -= 116444736000000000i64; //1jan1601 to 1jan1970
-    spec->tv_sec = wintime / 10000000i64; //seconds
-    spec->tv_nsec = wintime % 10000000i64 * 100; //nano-seconds
+    wintime -= 116444736000000000i64; // 1jan1601 to 1jan1970
+    spec->tv_sec = wintime / 10000000i64; // seconds
+    spec->tv_nsec = wintime % 10000000i64 * 100; // nano-seconds
     return 0;
 }
 #endif
@@ -1418,5 +1418,50 @@ void* DateObject::operator new(size_t size)
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+Value DateObject::makeDay(ExecutionState& state, const Value& year, const Value& month, const Value& day)
+{
+    if (!std::isfinite(year.asNumber()) && !std::isfinite(month.asNumber()) && !std::isfinite(day.asNumber())) {
+        return Value(std::numeric_limits<double>::quiet_NaN());
+    }
+
+    double y = year.asNumber();
+    double m = month.asNumber() - 1;
+    double dt = day.asNumber();
+
+    time64_t result = 0;
+
+    double ym = y + std::floor(m / const_Date_monthsPerYear);
+
+    if (!std::isfinite(ym)) {
+        return Value(std::numeric_limits<double>::quiet_NaN());
+    }
+
+    result += const_Date_msPerDay * DAYS_IN_YEAR * (ym - 1970) + const_Date_msPerMonth * ((int)m % const_Date_monthsPerYear);
+    return Value(std::floor(result / const_Date_msPerDay) + dt - 1);
+}
+
+Value DateObject::makeTime(ExecutionState& state, const Value& hour, const Value& minute, const Value& sec, const Value& ms)
+{
+    if (!std::isfinite(hour.asNumber()) && !std::isfinite(minute.asNumber()) && !std::isfinite(sec.asNumber()) && !std::isfinite(ms.asNumber())) {
+        return Value(std::numeric_limits<double>::quiet_NaN());
+    }
+
+    double h = hour.asNumber();
+    double m = minute.asNumber();
+    double s = sec.asNumber();
+    double milli = ms.asNumber();
+
+    return Value(h * const_Date_msPerHour + m * const_Date_msPerMinute + s * const_Date_msPerSecond + milli);
+}
+
+Value DateObject::makeDate(ExecutionState& state, const Value& day, const Value& time)
+{
+    if (!std::isfinite(day.asNumber()) && !std::isfinite(time.asNumber())) {
+        return Value(std::numeric_limits<double>::quiet_NaN());
+    }
+
+    return Value(day.toLength(state) * const_Date_msPerDay + time.toLength(state));
 }
 } // namespace Escargot

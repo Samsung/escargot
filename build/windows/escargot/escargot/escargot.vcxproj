@@ -366,6 +366,7 @@ xcopy   /Y /F .\..\..\..\..\third_party\windows\icu\source\data\out\*.dat $(Solu
     <ClInclude Include="..\..\..\..\src\runtime\StringView.h" />
     <ClInclude Include="..\..\..\..\src\runtime\Symbol.h" />
     <ClInclude Include="..\..\..\..\src\runtime\SymbolObject.h" />
+    <ClInclude Include="..\..\..\..\src\runtime\TemporalObject.h" />
     <ClInclude Include="..\..\..\..\src\runtime\ToStringRecursionPreventer.h" />
     <ClInclude Include="..\..\..\..\src\runtime\TypedArrayObject.h" />
     <ClInclude Include="..\..\..\..\src\runtime\Value.h" />
