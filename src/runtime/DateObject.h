@@ -28,6 +28,7 @@ namespace Escargot {
 #define IS_VALID_TIME(time) ((time != TIME64NAN) ? true : false)
 #define IS_IN_TIME_RANGE(millisec) \
     (millisec <= const_Date_MaximumDatePrimitiveValue && millisec >= -const_Date_MaximumDatePrimitiveValue)
+#define DAYS_IN_YEAR 365.2425
 
 typedef int64_t time64_t;
 
@@ -45,6 +46,7 @@ static const int64_t const_Date_msPerSecond = 1000;
 static const int64_t const_Date_msPerMinute = const_Date_msPerSecond * const_Date_secondsPerMinute;
 static const int64_t const_Date_msPerHour = const_Date_msPerSecond * const_Date_secondsPerHour;
 static const int64_t const_Date_msPerDay = const_Date_msPerHour * const_Date_hoursPerDay;
+static const int64_t const_Date_msPerMonth = 2629743000;
 
 
 class DateObject : public Object {
@@ -53,6 +55,10 @@ public:
     explicit DateObject(ExecutionState& state, Object* proto);
 
     static time64_t currentTime();
+
+    static Value makeDay(ExecutionState& state, const Value& year, const Value& month, const Value& day);
+    static Value makeTime(ExecutionState& state, const Value& hour, const Value& minute, const Value& sec, const Value& ms);
+    static Value makeDate(ExecutionState& state, const Value& day, const Value& time);
 
     double primitiveValue()
     {

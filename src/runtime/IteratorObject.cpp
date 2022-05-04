@@ -208,4 +208,27 @@ ValueVectorWithInlineStorage IteratorObject::iterableToList(ExecutionState& stat
 
     return values;
 }
+
+/*13.1 IterableToListOfType*/
+ValueVector IteratorObject::iterableToListOfType(ExecutionState& state, const Value items, const String* elementTypes)
+{
+    IteratorRecord* iteratorRecord = IteratorObject::getIterator(state, items, true);
+    ValueVector values;
+    Optional<Object*> next;
+
+    while (true) {
+        next = IteratorObject::iteratorStep(state, iteratorRecord);
+        if (!next.hasValue()) {
+            break;
+        }
+        Value nextValue = IteratorObject::iteratorValue(state, next->asObject());
+        if (!nextValue.isString()) {
+            Value throwCompletion = ErrorObject::createError(state, ErrorObject::RangeError, new ASCIIString("Got invalid value"));
+            return { IteratorObject::iteratorClose(state, iteratorRecord, throwCompletion, true) };
+        }
+        values.pushBack(nextValue);
+    }
+    return values;
+}
+
 } // namespace Escargot

@@ -104,6 +104,7 @@ public:
     static Object* createIterResultObject(ExecutionState& state, const Value& value, bool done);
     // https://www.ecma-international.org/ecma-262/10.0/#sec-iterabletolist
     static ValueVectorWithInlineStorage iterableToList(ExecutionState& state, const Value& items, Optional<Value> method = Optional<Value>());
+    static ValueVector iterableToListOfType(ExecutionState& state, const Value items, const String* elementTypes);
 };
 } // namespace Escargot
 

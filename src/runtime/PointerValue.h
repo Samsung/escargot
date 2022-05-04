@@ -70,6 +70,9 @@ class GeneratorObject;
 class AsyncGeneratorObject;
 class AsyncFromSyncIteratorObject;
 class GlobalObjectProxyObject;
+class TemporalObject;
+class TemporalPlainDate;
+class TemporalCalendar;
 class TypedArrayObject;
 class ModuleNamespaceObject;
 class SharedArrayBufferObject;
@@ -322,6 +325,21 @@ public:
         return false;
     }
 
+    virtual bool isTemporalObject() const
+    {
+        return false;
+    }
+
+    virtual bool isTemporalCalendarObject() const
+    {
+        return false;
+    }
+
+    virtual bool isTemporalPlainDateObject() const
+    {
+        return false;
+    }
+
     virtual bool isTypedArrayObject() const
     {
         return false;
@@ -570,6 +588,24 @@ public:
     {
         ASSERT(isFunctionObject());
         return (FunctionObject*)this;
+    }
+
+    TemporalObject* asTemporalObject()
+    {
+        ASSERT(isTemporalObject());
+        return (TemporalObject*)this;
+    }
+
+    TemporalCalendar* asTemporalCalendarObject()
+    {
+        ASSERT(isTemporalCalendarObject());
+        return (TemporalCalendar*)this;
+    }
+
+    TemporalPlainDate* asTemporalPlainDateObject()
+    {
+        ASSERT(isTemporalPlainDateObject());
+        return (TemporalPlainDate*)this;
     }
 
     TypedArrayObject* asTypedArrayObject()

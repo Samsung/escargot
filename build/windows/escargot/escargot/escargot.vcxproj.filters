@@ -956,6 +956,9 @@
     <ClInclude Include="..\..\..\..\src\runtime\SymbolObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\..\src\runtime\TemporalObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\..\src\runtime\ToStringRecursionPreventer.h">
       <Filter>Header Files</Filter>
     </ClInclude>

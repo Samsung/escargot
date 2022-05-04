@@ -797,6 +797,22 @@ namespace Escargot {
 #define FOR_EACH_LAZY_INTL_STATIC_STRING(F)
 #endif
 
+#define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F) \
+    F(PlainDate, "PlainDate")                   \
+    F(Temporal, "Temporal")                     \
+    F(Now, "Now")                               \
+    F(Calendar, "Calendar")                     \
+    F(dateFromFields, "dateFromFields")         \
+    F(fields, "fields")                         \
+    F(id, "id")                                 \
+    F(inLeapYear, "inLeapYear")                 \
+    F(mergeFields, "mergeFields")               \
+    F(plainDateISO, "plainDateISO")             \
+    F(plainDateTimeISO, "plainDateTimeISO")     \
+    F(plainTimeISO, "plainTimeISO")             \
+    F(timeZone, "timeZone")                     \
+    F(zonedDateTimeISO, "zonedDateTimeISO")
+
 #if defined(ENABLE_THREADING)
 #define FOR_EACH_LAZY_THREADING_STATIC_STRING(F) \
     F(NotEqual, "not-equal")                     \
@@ -933,6 +949,8 @@ public:
     AtomicString symbolReplace;
     AtomicString symbolSearch;
     AtomicString symbolSplit;
+    AtomicString temporalDotNow;
+    AtomicString temporalDotPlainDate;
 
 #if defined(ENABLE_WASM)
     AtomicString getExports;
@@ -958,6 +976,7 @@ public:
 #define DECLARE_LAZY_STATIC_STRING(Name, unused) AtomicString lazy##Name();
     FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_THREADING_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 #undef DECLARE_LAZY_STATIC_STRING
 
@@ -974,6 +993,7 @@ protected:
 #define DECLARE_LAZY_STATIC_STRING(Name, unused) AtomicString m_lazy##Name;
     FOR_EACH_LAZY_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_INTL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
+    FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
     FOR_EACH_LAZY_THREADING_STATIC_STRING(DECLARE_LAZY_STATIC_STRING);
 #undef DECLARE_LAZY_STATIC_STRING
 };
