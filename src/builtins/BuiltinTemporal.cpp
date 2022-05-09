@@ -209,7 +209,7 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalPlainDate = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDate(), builtinTemporalPlainDateConstructor, 4), NativeFunctionObject::__ForBuiltinConstructor__);
     m_temporalPlainDate->setGlobalIntrinsicObject(state);
 
-    m_temporalPlainDatePrototype = new TemporalCalendar(state, m_objectPrototype);
+    m_temporalPlainDatePrototype = new PrototypeObject(state);
     m_temporalPlainDatePrototype->setGlobalIntrinsicObject(state, true);
 
     m_temporalPlainDatePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_temporalPlainDate, (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
@@ -219,7 +219,7 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalCalendar = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCalendar(), builtinTemporalCalendarConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_temporalCalendar->setGlobalIntrinsicObject(state);
 
-    m_temporalCalendarPrototype = new TemporalCalendar(state, m_objectPrototype);
+    m_temporalCalendarPrototype = new PrototypeObject(state);
     m_temporalCalendarPrototype->setGlobalIntrinsicObject(state, true);
 
     m_temporalCalendarPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_temporalCalendar, (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));

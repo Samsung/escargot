@@ -25,10 +25,10 @@
 
 namespace Escargot {
 
-class Temporal : public Object {
+class Temporal : public DerivedObject {
 public:
     explicit Temporal(ExecutionState& state, Object* proto)
-        : Object(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+        : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
     {
     }
 
