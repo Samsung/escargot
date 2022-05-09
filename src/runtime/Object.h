@@ -1187,6 +1187,8 @@ protected:
     // ctor for ObjectTemplate
     explicit Object(ObjectStructure* structure, ObjectPropertyValueVector&& values, Object* proto);
 
+    bool defineOwnPropertyMethod(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
+
     inline ObjectRareData* rareData() const
     {
         ASSERT(hasRareData());
