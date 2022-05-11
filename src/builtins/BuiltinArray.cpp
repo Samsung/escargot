@@ -64,13 +64,13 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
     ArrayObject* array = new ArrayObject(state, proto, size);
 
     if (interpretArgumentsAsElements) {
-        Value val = argv[0];
-        if (argc > 1 || !val.isNumber()) {
+        if (argc > 1 || !argv[0].isNumber()) {
             if (array->isFastModeArray()) {
                 for (size_t idx = 0; idx < argc; idx++) {
                     array->m_fastModeData[idx] = argv[idx];
                 }
             } else {
+                Value val = argv[0];
                 for (size_t idx = 0; idx < argc; idx++) {
                     array->defineOwnProperty(state, ObjectPropertyName(state, idx), ObjectPropertyDescriptor(val, ObjectPropertyDescriptor::AllPresent));
                     val = argv[idx + 1];

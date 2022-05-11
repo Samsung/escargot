@@ -258,7 +258,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                     ret = Value(Value::EncodeAsDouble, (double)a + (double)b);
                 }
             } else if (v0.isNumber() && v1.isNumber()) {
-                ret = Value(v0.asNumber() + v1.asNumber());
+                // most cases are double
+                ret = Value(Value::EncodeAsDouble, v0.asNumber() + v1.asNumber());
             } else {
                 ret = plusSlowCase(*state, v0, v1);
             }
@@ -284,7 +285,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                     ret = Value(Value::EncodeAsDouble, (double)a - (double)b);
                 }
             } else if (LIKELY(left.isNumber() && right.isNumber())) {
-                ret = Value(left.asNumber() - right.asNumber());
+                // most cases are double
+                ret = Value(Value::EncodeAsDouble, left.asNumber() - right.asNumber());
             } else {
                 ret = minusSlowCase(*state, left, right);
             }
@@ -314,7 +316,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                     }
                 }
             } else if (LIKELY(left.isNumber() && right.isNumber())) {
-                ret = Value(left.asNumber() * right.asNumber());
+                // most cases are double
+                ret = Value(Value::EncodeAsDouble, left.asNumber() * right.asNumber());
             } else {
                 ret = multiplySlowCase(*state, left, right);
             }
@@ -330,7 +333,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             const Value& right = registerFile[code->m_srcIndex1];
             Value& ret = registerFile[code->m_dstIndex];
             if (LIKELY(left.isNumber() && right.isNumber())) {
-                ret = Value(left.asNumber() / right.asNumber());
+                // most cases are double
+                ret = Value(Value::EncodeAsDouble, left.asNumber() / right.asNumber());
             } else {
                 ret = divisionSlowCase(*state, left, right);
             }

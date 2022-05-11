@@ -326,10 +326,11 @@ public:
         return operator Escargot::Value().toUint32(state);
     }
 
-    void operator=(PointerValue* from)
+    const EncodedValue& operator=(PointerValue* from)
     {
         ASSERT(from);
         m_data.payload = (intptr_t)from;
+        return *this;
     }
 
     bool operator==(const EncodedValue& other) const
@@ -337,35 +338,39 @@ public:
         return m_data.payload == other.payload();
     }
 
-    ALWAYS_INLINE void operator=(const Value& from)
+    ALWAYS_INLINE const EncodedValue& operator=(const Value& from)
     {
         if (from.isPointerValue()) {
 #ifdef ESCARGOT_32
             ASSERT(!from.isEmpty());
 #endif
             m_data.payload = (intptr_t)from.asPointerValue();
-            return;
+            return *this;
         }
 
         int32_t i32;
         if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
             m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
-            return;
+            return *this;
         }
 
         if (from.isNumber()) {
+            Value mutableFrom(from);
+            if (UNLIKELY(Value::isInt32ConvertibleDouble(mutableFrom.asNumber(), i32))) {
+                mutableFrom = Value(i32);
+            }
             intptr_t payload = m_data.payload;
 
             if (!HAS_SMI_TAG(payload) && ((size_t)payload > (size_t)ValueLast)) {
                 void* v = (void*)payload;
                 if (readPointerIsNumberEncodedValue(v)) {
-                    ((NumberInEncodedValue*)m_data.payload)->setValue(from);
-                    return;
+                    ((NumberInEncodedValue*)m_data.payload)->setValue(mutableFrom);
+                    return *this;
                 }
             }
-            m_data.payload = reinterpret_cast<intptr_t>(new NumberInEncodedValue(from));
+            m_data.payload = reinterpret_cast<intptr_t>(new NumberInEncodedValue(mutableFrom));
             ASSERT(readPointerIsNumberEncodedValue((void*)m_data.payload));
-            return;
+            return *this;
         }
 
 #ifdef ESCARGOT_32
@@ -373,6 +378,7 @@ public:
 #else
         m_data.payload = from.payload();
 #endif
+        return *this;
     }
 
 protected:
@@ -394,7 +400,11 @@ protected:
             if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
                 m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
             } else if (from.isNumber()) {
-                m_data.payload = reinterpret_cast<intptr_t>(new NumberInEncodedValue(from));
+                if (UNLIKELY(Value::isInt32ConvertibleDouble(from.asNumber(), i32) && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32))) {
+                    m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32);
+                } else {
+                    m_data.payload = reinterpret_cast<intptr_t>(new NumberInEncodedValue(from));
+                }
             } else {
 #ifdef ESCARGOT_32
                 m_data.payload = ~from.tag();
@@ -439,7 +449,11 @@ public:
             if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
                 setPayload(EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32));
             } else if (from.isNumber()) {
-                setPayload(reinterpret_cast<intptr_t>(new NumberInEncodedValue(from)));
+                if (UNLIKELY(Value::isInt32ConvertibleDouble(from.asNumber(), i32) && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32))) {
+                    setPayload(EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32));
+                } else {
+                    setPayload(reinterpret_cast<intptr_t>(new NumberInEncodedValue(from)));
+                }
             } else {
                 setPayload(from.payload());
             }
@@ -518,38 +532,44 @@ public:
         return payload() == other.payload();
     }
 
-    ALWAYS_INLINE void operator=(const EncodedValue& from)
+    ALWAYS_INLINE const EncodedSmallValue& operator=(const EncodedValue& from)
     {
         setPayload(from.payload());
+        return *this;
     }
 
-    ALWAYS_INLINE void operator=(const Value& from)
+    ALWAYS_INLINE const EncodedSmallValue& operator=(const Value& from)
     {
         if (from.isPointerValue()) {
             setPayload(reinterpret_cast<intptr_t>(from.asPointerValue()));
-            return;
+            return *this;
         }
 
         int32_t i32;
         if (from.isInt32() && EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i32 = from.asInt32())) {
             setPayload(EncodedValueImpl::PlatformSmiTagging::IntToSmi(i32));
-            return;
+            return *this;
         }
 
         if (from.isNumber()) {
+            Value mutableFrom(from);
+            if (UNLIKELY(Value::isInt32ConvertibleDouble(mutableFrom.asNumber(), i32))) {
+                mutableFrom = Value(i32);
+            }
             auto pl = payload();
             if (!isSMI() && ((size_t)pl > (size_t)ValueLast)) {
                 void* v = reinterpret_cast<void*>(pl);
                 if (EncodedValue::readPointerIsNumberEncodedValue(v)) {
-                    reinterpret_cast<NumberInEncodedValue*>(v)->setValue(from);
-                    return;
+                    reinterpret_cast<NumberInEncodedValue*>(v)->setValue(mutableFrom);
+                    return *this;
                 }
             }
-            setPayload(reinterpret_cast<intptr_t>(new NumberInEncodedValue(from)));
+            setPayload(reinterpret_cast<intptr_t>(new NumberInEncodedValue(mutableFrom)));
             ASSERT(EncodedValue::readPointerIsNumberEncodedValue((void*)payload()));
-            return;
+            return *this;
         }
         setPayload(from.payload());
+        return *this;
     }
 
 private:
