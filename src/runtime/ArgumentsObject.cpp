@@ -335,7 +335,7 @@ void ArgumentsObject::setIndexedPropertyValueQuickly(ExecutionState& state, size
         ASSERT(m_targetRecord != nullptr);
         ArgumentsObjectNativeSetter(state, this, value, m_targetRecord, m_sourceFunctionObject->interpretedCodeBlock(), m_parameterMap[index].second);
     } else {
-        return m_parameterMap[index].first = value;
+        m_parameterMap[index].first = value;
     }
 }
 

@@ -91,6 +91,26 @@ Context::Context(VMInstance* instance)
     ExecutionState stateForInit(this);
     m_globalObjectProxy = m_globalObject = new GlobalObject(stateForInit);
     m_globalObject->initializeBuiltins(stateForInit);
+
+#if !defined(NDEBUG)
+    // Int32 convertible double value test
+    Value v(Value::EncodeAsDouble, 2.0);
+    ASSERT(v.isDouble());
+    ASSERT(v.isNumber());
+    ASSERT(v.isInteger(stateForInit));
+    ASSERT(v.toIndex(stateForInit) == 2);
+    ASSERT(v.toIndex32(stateForInit) == 2);
+    ASSERT(v.toInt32(stateForInit) == 2);
+    ASSERT(v.toInteger(stateForInit) == 2);
+    ASSERT(v.toLength(stateForInit) == 2);
+    ASSERT(v.toNumber(stateForInit) == 2);
+    ASSERT(v.toNumeric(stateForInit).first.asDouble() == 2);
+    ASSERT(v.toPropertyKey(stateForInit).toIndex(stateForInit) == 2);
+    ASSERT(v.tryToUseAsIndex(stateForInit) == 2);
+    ASSERT(v.tryToUseAsIndex32(stateForInit) == 2);
+    ASSERT(v.equalsTo(stateForInit, Value(2)));
+    ASSERT(v.abstractEqualsTo(stateForInit, Value(2)));
+#endif
 }
 
 void Context::throwException(ExecutionState& state, const Value& exception)

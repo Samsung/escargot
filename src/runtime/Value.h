@@ -89,6 +89,10 @@ inline ToType bitwise_cast(FromType from)
 #define CellPayloadOffset PayloadOffset
 #endif
 
+// basic class for representing ECMAScript Value
+// Int32 convertible double value can exist rarely(for interpreter performance)
+// but Int32 convertible double case is not exist with EncodedValue
+// so, public API users should not care the case
 class Value {
 public:
     static constexpr const double MinusZeroIndex = std::numeric_limits<double>::min();
