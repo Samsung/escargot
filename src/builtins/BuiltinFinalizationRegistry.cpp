@@ -118,23 +118,23 @@ void GlobalObject::installFinalizationRegistry(ExecutionState& state)
 
     m_finalizationRegistryPrototype = new PrototypeObject(state, m_objectPrototype);
     m_finalizationRegistryPrototype->setGlobalIntrinsicObject(state, true);
-    m_finalizationRegistryPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_finalizationRegistry, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_finalizationRegistryPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_finalizationRegistry, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_finalizationRegistryPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                                                      ObjectPropertyDescriptor(Value(state.context()->staticStrings().FinalizationRegistry.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_finalizationRegistryPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                             ObjectPropertyDescriptor(Value(state.context()->staticStrings().FinalizationRegistry.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // FinalizationRegistry.prototype.unregister
-    m_finalizationRegistryPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().unregister),
-                                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().unregister, builtinfinalizationRegistryUnregister, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_finalizationRegistryPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().unregister),
+                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().unregister, builtinfinalizationRegistryUnregister, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // FinalizationRegistry.prototype.register
-    m_finalizationRegistryPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringRegister),
-                                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringRegister, builtinfinalizationRegistryRegister, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_finalizationRegistryPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringRegister),
+                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringRegister, builtinfinalizationRegistryRegister, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // https://github.com/tc39/proposal-cleanup-some
     // FinalizationRegistry.prototype.cleanupSome
-    m_finalizationRegistryPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().cleanupSome),
-                                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().cleanupSome, builtinfinalizationRegistryCleanupSome, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_finalizationRegistryPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().cleanupSome),
+                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().cleanupSome, builtinfinalizationRegistryCleanupSome, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_finalizationRegistry->setFunctionPrototype(state, m_finalizationRegistryPrototype);
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().FinalizationRegistry),

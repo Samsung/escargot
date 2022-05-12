@@ -78,40 +78,40 @@ void GlobalObject::installGenerator(ExecutionState& state)
     m_generatorFunction->setFunctionPrototype(state, m_generator);
 
     // 25.2.3.1 The initial value of GeneratorFunction.prototype.constructor is the intrinsic object %GeneratorFunction%.
-    m_generator->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_generatorFunction, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_generator->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_generatorFunction, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
         ASSERT(!!m_callerAndArgumentsGetterSetter);
         JSGetterSetter gs(m_callerAndArgumentsGetterSetter, m_callerAndArgumentsGetterSetter);
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
 
-        m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().caller), desc);
-        m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().arguments), desc);
+        m_generator->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().caller), desc);
+        m_generator->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().arguments), desc);
     }
 
     // %GeneratorPrototype% : The initial value of the prototype property of %Generator%
     m_generatorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_generatorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_generator->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().prototype), ObjectPropertyDescriptor(m_generatorPrototype, ObjectPropertyDescriptor::ConfigurablePresent));
+    m_generator->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().prototype), ObjectPropertyDescriptor(m_generatorPrototype, ObjectPropertyDescriptor::ConfigurablePresent));
 
     // 25.2.3.3 GeneratorFunction.prototype [ @@toStringTag ]
     // The initial value of the @@toStringTag property is the String value "GeneratorFunction"..
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }.
-    m_generator->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                                  ObjectPropertyDescriptor(Value(state.context()->staticStrings().GeneratorFunction.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_generator->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                         ObjectPropertyDescriptor(Value(state.context()->staticStrings().GeneratorFunction.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // The initial value of Generator.prototype.constructor is the intrinsic object %Generator%.
-    m_generatorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_generator, ObjectPropertyDescriptor::ConfigurablePresent));
+    m_generatorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_generator, ObjectPropertyDescriptor::ConfigurablePresent));
 
-    m_generatorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
-                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinGeneratorNext, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_generatorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringReturn),
-                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringReturn, builtinGeneratorReturn, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_generatorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringThrow),
-                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringThrow, builtinGeneratorThrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_generatorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinGeneratorNext, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_generatorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringReturn),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringReturn, builtinGeneratorReturn, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_generatorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringThrow),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringThrow, builtinGeneratorThrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // http://www.ecma-international.org/ecma-262/6.0/#sec-generatorfunction.prototype-@@tostringtag
-    m_generatorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                                           ObjectPropertyDescriptor(Value(state.context()->staticStrings().Generator.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_generatorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                  ObjectPropertyDescriptor(Value(state.context()->staticStrings().Generator.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

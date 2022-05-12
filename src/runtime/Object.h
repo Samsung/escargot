@@ -1165,7 +1165,7 @@ public:
     FastLookupSymbolResult fastLookupForSymbol(ExecutionState& state, Symbol* s, Optional<Object*> protochainSearchStopAt = nullptr);
 
     // special util function for adding property in builtins
-    void addNonExistentProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
+    void directDefineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
 
 protected:
     static inline void fillGCDescriptor(GC_word* desc)

@@ -74,14 +74,14 @@ void GlobalObject::installWeakRef(ExecutionState& state)
 
     m_weakRefPrototype = new PrototypeObject(state, m_objectPrototype);
     m_weakRefPrototype->setGlobalIntrinsicObject(state, true);
-    m_weakRefPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakRef, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakRefPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_weakRef, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_weakRefPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().deref),
-                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().deref, builtinWeakRefDeRef, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakRefPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().deref),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().deref, builtinWeakRefDeRef, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // WeakRef.prototype.deref
-    m_weakRefPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                                         ObjectPropertyDescriptor(Value(state.context()->staticStrings().WeakRef.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_weakRefPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                ObjectPropertyDescriptor(Value(state.context()->staticStrings().WeakRef.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_weakRef->setFunctionPrototype(state, m_weakRefPrototype);
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakRef),

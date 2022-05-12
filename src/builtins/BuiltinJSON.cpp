@@ -728,21 +728,21 @@ void GlobalObject::installJSON(ExecutionState& state)
 {
     m_json = new Object(state);
     m_json->setGlobalIntrinsicObject(state);
-    m_json->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                             ObjectPropertyDescriptor(Value(state.context()->staticStrings().JSON.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_json->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                    ObjectPropertyDescriptor(Value(state.context()->staticStrings().JSON.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().JSON),
                         ObjectPropertyDescriptor(m_json, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_jsonParse = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().parse, builtinJSONParse, 2, NativeFunctionInfo::Strict));
-    m_json->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().parse),
-                              ObjectPropertyDescriptor(m_jsonParse,
-                                                       (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_json->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().parse),
+                                    ObjectPropertyDescriptor(m_jsonParse,
+                                                             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_jsonStringify = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringify, builtinJSONStringify, 3, NativeFunctionInfo::Strict));
-    m_json->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringify),
-                              ObjectPropertyDescriptor(m_jsonStringify,
-                                                       (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_json->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringify),
+                                    ObjectPropertyDescriptor(m_jsonStringify,
+                                                             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

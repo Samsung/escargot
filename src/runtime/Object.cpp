@@ -910,8 +910,9 @@ bool Object::defineOwnProperty(ExecutionState& state, const ObjectPropertyName& 
     return defineOwnPropertyMethod(state, P, desc);
 }
 
-void Object::addNonExistentProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
+void Object::directDefineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
 {
+    // directly add a property
     ASSERT(isOrdinary());
     ASSERT(!hasOwnProperty(state, P));
     ASSERT(isExtensible(state));

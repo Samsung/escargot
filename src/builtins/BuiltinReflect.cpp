@@ -298,47 +298,47 @@ void GlobalObject::installReflect(ExecutionState& state)
     m_reflect = new Object(state);
     m_reflect->setGlobalIntrinsicObject(state);
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().apply),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().apply, builtinReflectApply, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().apply),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().apply, builtinReflectApply, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().construct),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().construct, builtinReflectConstruct, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().construct),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().construct, builtinReflectConstruct, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().defineProperty),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().defineProperty, builtinReflectDefineProperty, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().defineProperty),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().defineProperty, builtinReflectDefineProperty, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().deleteProperty),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().deleteProperty, builtinReflectDeleteProperty, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().deleteProperty),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().deleteProperty, builtinReflectDeleteProperty, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().get),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().get, builtinReflectGet, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().get),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().get, builtinReflectGet, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().getOwnPropertyDescriptor),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getOwnPropertyDescriptor, builtinReflectGetOwnPropertyDescriptor, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getOwnPropertyDescriptor),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getOwnPropertyDescriptor, builtinReflectGetOwnPropertyDescriptor, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().getPrototypeOf),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getPrototypeOf, builtinReflectGetPrototypeOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getPrototypeOf),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getPrototypeOf, builtinReflectGetPrototypeOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().has),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().has, builtinReflectHas, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().has),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().has, builtinReflectHas, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().isExtensible),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isExtensible, builtinReflectIsExtensible, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isExtensible),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isExtensible, builtinReflectIsExtensible, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().preventExtensions),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().preventExtensions, builtinReflectPreventExtensions, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().preventExtensions),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().preventExtensions, builtinReflectPreventExtensions, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().ownKeys),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ownKeys, builtinReflectOwnKeys, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().ownKeys),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().ownKeys, builtinReflectOwnKeys, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().set),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().set, builtinReflectSet, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().set),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().set, builtinReflectSet, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().setPrototypeOf),
-                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().setPrototypeOf, builtinReflectSetPrototypeOf, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().setPrototypeOf),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().setPrototypeOf, builtinReflectSetPrototypeOf, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_reflect->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                                ObjectPropertyDescriptor(state.context()->staticStrings().Reflect.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_reflect->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                       ObjectPropertyDescriptor(state.context()->staticStrings().Reflect.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     redefineOwnProperty(state, ObjectPropertyName(strings->Reflect),
                         ObjectPropertyDescriptor(m_reflect, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -156,40 +156,40 @@ void GlobalObject::installSharedArrayBuffer(ExecutionState& state)
     m_sharedArrayBufferPrototype = new PrototypeObject(state, m_objectPrototype);
     m_sharedArrayBufferPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_sharedArrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_sharedArrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                                                   ObjectPropertyDescriptor(Value(strings->SharedArrayBuffer.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_sharedArrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                          ObjectPropertyDescriptor(Value(strings->SharedArrayBuffer.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
         JSGetterSetter speciesGS(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
         ObjectPropertyDescriptor speciesDesc(speciesGS, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_sharedArrayBuffer->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), speciesDesc);
+        m_sharedArrayBuffer->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), speciesDesc);
 
         JSGetterSetter byteLengthGS(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinSharedArrayBufferByteLengthGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor byteLengthDesc(byteLengthGS, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
+        m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
 
         JSGetterSetter maxByteLengthGS(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getmaxByteLength, builtinSharedArrayBufferMaxByteLengthGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor maxByteLengthDesc(maxByteLengthGS, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->maxByteLength), maxByteLengthDesc);
+        m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->maxByteLength), maxByteLengthDesc);
 
         JSGetterSetter growableGS(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getgrowable, builtinSharedArrayBufferGrowableGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor growableDesc(growableGS, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_sharedArrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->growable), growableDesc);
+        m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->growable), growableDesc);
     }
 
-    m_sharedArrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->grow),
-                                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->grow, builtinSharedArrayBufferGrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->grow),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->grow, builtinSharedArrayBufferGrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_sharedArrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->slice),
-                                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinSharedArrayBufferSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_sharedArrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->slice),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinSharedArrayBufferSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_sharedArrayBuffer->setFunctionPrototype(state, m_sharedArrayBufferPrototype);
 

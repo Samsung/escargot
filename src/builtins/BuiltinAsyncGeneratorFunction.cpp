@@ -79,28 +79,28 @@ void GlobalObject::installAsyncGenerator(ExecutionState& state)
 
     m_asyncGeneratorFunction->setFunctionPrototype(state, m_asyncGenerator);
 
-    m_asyncGenerator->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor),
-                                        ObjectPropertyDescriptor(m_asyncGeneratorFunction, ObjectPropertyDescriptor::ConfigurablePresent));
+    m_asyncGenerator->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor),
+                                              ObjectPropertyDescriptor(m_asyncGeneratorFunction, ObjectPropertyDescriptor::ConfigurablePresent));
 
-    m_asyncGenerator->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                        ObjectPropertyDescriptor(state.context()->staticStrings().AsyncGeneratorFunction.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+    m_asyncGenerator->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                              ObjectPropertyDescriptor(state.context()->staticStrings().AsyncGeneratorFunction.string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-properties-of-asyncgenerator-prototype
     m_asyncGeneratorPrototype = new PrototypeObject(state, m_asyncIteratorPrototype);
     m_asyncGeneratorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_asyncGenerator->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().prototype), ObjectPropertyDescriptor(m_asyncGeneratorPrototype, ObjectPropertyDescriptor::ConfigurablePresent));
-    m_asyncGeneratorPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_asyncGenerator, ObjectPropertyDescriptor::ConfigurablePresent));
+    m_asyncGenerator->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().prototype), ObjectPropertyDescriptor(m_asyncGeneratorPrototype, ObjectPropertyDescriptor::ConfigurablePresent));
+    m_asyncGeneratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_asyncGenerator, ObjectPropertyDescriptor::ConfigurablePresent));
 
-    m_asyncGeneratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
-                                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinAsyncGeneratorNext, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_asyncGeneratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringReturn),
-                                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringReturn, builtinAsyncGeneratorReturn, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_asyncGeneratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().stringThrow),
-                                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringThrow, builtinAsyncGeneratorThrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_asyncGeneratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinAsyncGeneratorNext, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_asyncGeneratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringReturn),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringReturn, builtinAsyncGeneratorReturn, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_asyncGeneratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringThrow),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringThrow, builtinAsyncGeneratorThrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_asyncGeneratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                                                ObjectPropertyDescriptor(Value(state.context()->staticStrings().AsyncGenerator.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_asyncGeneratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                       ObjectPropertyDescriptor(Value(state.context()->staticStrings().AsyncGenerator.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 
 } // namespace Escargot

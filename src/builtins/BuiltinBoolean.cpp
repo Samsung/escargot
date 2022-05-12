@@ -81,16 +81,16 @@ void GlobalObject::installBoolean(ExecutionState& state)
 
     m_booleanPrototype = new BooleanObject(state, m_objectPrototype, false);
     m_booleanPrototype->setGlobalIntrinsicObject(state, true);
-    m_booleanPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_booleanPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_boolean, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $19.3.3.2 Boolean.prototype.toString
-    m_booleanPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->toString),
-                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinBooleanToString, 0, NativeFunctionInfo::Strict)),
-                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_booleanPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinBooleanToString, 0, NativeFunctionInfo::Strict)),
+                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $19.3.3.3 Boolean.prototype.valueOf
-    m_booleanPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->valueOf),
-                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinBooleanValueOf, 0, NativeFunctionInfo::Strict)),
-                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_booleanPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->valueOf),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinBooleanValueOf, 0, NativeFunctionInfo::Strict)),
+                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_boolean->setFunctionPrototype(state, m_booleanPrototype);
 
