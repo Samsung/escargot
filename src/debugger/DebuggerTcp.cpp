@@ -438,6 +438,7 @@ bool DebuggerTcp::skipSourceCode(String* srcName) const
 
 #define ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT 0x80
 #define ESCARGOT_DEBUGGER_WEBSOCKET_BINARY_FRAME 2
+#define ESCARGOT_DEBUGGER_WEBSOCKET_CLOSE_FRAME 8
 #define ESCARGOT_DEBUGGER_WEBSOCKET_OPCODE_MASK 0x0f
 #define ESCARGOT_DEBUGGER_WEBSOCKET_LENGTH_MASK 0x7f
 #define ESCARGOT_DEBUGGER_WEBSOCKET_ONE_BYTE_LEN_MAX 125
@@ -459,7 +460,7 @@ bool DebuggerTcp::send(uint8_t type, const void* buffer, size_t length)
         return true;
     }
 
-    close();
+    close(CloseAbortConnection);
     return false;
 }
 
@@ -493,7 +494,7 @@ bool DebuggerTcp::receive(uint8_t* buffer, size_t& length)
                         m_receiveBuffer + m_receiveBufferFill,
                         ESCARGOT_DEBUGGER_MAX_MESSAGE_LENGTH + 2 + sizeof(uint32_t) - m_receiveBufferFill,
                         &receivedLength)) {
-            close();
+            close(CloseAbortConnection);
             return false;
         }
 
@@ -509,16 +510,21 @@ bool DebuggerTcp::receive(uint8_t* buffer, size_t& length)
             return false;
         }
 
-        if ((m_receiveBuffer[0] & ~ESCARGOT_DEBUGGER_WEBSOCKET_OPCODE_MASK) != ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT
-            || !(m_receiveBuffer[1] & ESCARGOT_DEBUGGER_WEBSOCKET_MASK_BIT)) {
-            ESCARGOT_LOG_ERROR("Unsupported Websocket message.\n");
-            close();
+        if ((m_receiveBuffer[0] & ESCARGOT_DEBUGGER_WEBSOCKET_OPCODE_MASK) != ESCARGOT_DEBUGGER_WEBSOCKET_BINARY_FRAME) {
+            if ((m_receiveBuffer[0] & ESCARGOT_DEBUGGER_WEBSOCKET_OPCODE_MASK) == ESCARGOT_DEBUGGER_WEBSOCKET_CLOSE_FRAME) {
+                close(CloseEndConnection);
+                return false;
+            }
+
+            ESCARGOT_LOG_ERROR("Unsupported Websocket opcode.\n");
+            close(CloseProtocolUnsupported);
             return false;
         }
 
-        if ((m_receiveBuffer[0] & ESCARGOT_DEBUGGER_WEBSOCKET_OPCODE_MASK) != ESCARGOT_DEBUGGER_WEBSOCKET_BINARY_FRAME) {
-            ESCARGOT_LOG_ERROR("Unsupported Websocket opcode.\n");
-            close();
+        if ((m_receiveBuffer[0] & ~ESCARGOT_DEBUGGER_WEBSOCKET_OPCODE_MASK) != ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT
+            || !(m_receiveBuffer[1] & ESCARGOT_DEBUGGER_WEBSOCKET_MASK_BIT)) {
+            ESCARGOT_LOG_ERROR("Unsupported Websocket message.\n");
+            close(CloseProtocolUnsupported);
             return false;
         }
 
@@ -526,7 +532,7 @@ bool DebuggerTcp::receive(uint8_t* buffer, size_t& length)
 
         if (m_messageLength == 0 || m_messageLength > ESCARGOT_DEBUGGER_WEBSOCKET_ONE_BYTE_LEN_MAX) {
             ESCARGOT_LOG_ERROR("Unsupported Websocket message size.\n");
-            close();
+            close(CloseProtocolUnsupported);
             return false;
         }
     }
@@ -563,12 +569,32 @@ bool DebuggerTcp::receive(uint8_t* buffer, size_t& length)
     return true;
 }
 
-void DebuggerTcp::close(void)
+void DebuggerTcp::close(CloseReason reason)
 {
-    if (enabled()) {
-        tcpCloseSocket(m_socket);
-        disable();
+    if (!enabled()) {
+        return;
     }
+
+    if (reason != CloseAbortConnection) {
+        uint8_t message[4];
+        uint16_t reasonID = 1000;
+
+        if (reason == CloseProtocolUnsupported) {
+            reasonID = 1003;
+        } else if (reason == CloseProtocolError) {
+            reasonID = 1002;
+        }
+
+        message[0] = ESCARGOT_DEBUGGER_WEBSOCKET_FIN_BIT | ESCARGOT_DEBUGGER_WEBSOCKET_CLOSE_FRAME;
+        message[1] = 2;
+        message[2] = static_cast<uint8_t>(reasonID >> 8);
+        message[3] = static_cast<uint8_t>(reasonID);
+
+        tcpSend(m_socket, message, sizeof(message));
+    }
+
+    tcpCloseSocket(m_socket);
+    disable();
 }
 } // namespace Escargot
 #endif /* ESCARGOT_DEBUGGER */

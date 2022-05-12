@@ -425,7 +425,7 @@ bool DebuggerRemote::doEval(ExecutionState* state, Optional<ByteCodeBlock*> byte
 
 error:
     ESCARGOT_LOG_ERROR("Invalid eval message received. Closing connection.\n");
-    close();
+    close(CloseProtocolError);
     return false;
 }
 
@@ -1017,7 +1017,7 @@ bool DebuggerRemote::processEvents(ExecutionState* state, Optional<ByteCodeBlock
         }
 
         ESCARGOT_LOG_ERROR("Invalid message received. Closing connection.\n");
-        close();
+        close(CloseProtocolError);
         return false;
     }
     return enabled();

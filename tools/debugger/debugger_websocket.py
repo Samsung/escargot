@@ -18,6 +18,7 @@ import struct
 
 MAX_BUFFER_SIZE = 128
 WEBSOCKET_BINARY_FRAME = 2
+WEBSOCKET_CLOSE_FRAME = 8
 WEBSOCKET_FIN_BIT = 0x80
 
 class WebSocket(object):
@@ -109,10 +110,14 @@ class WebSocket(object):
         while True:
             if len(self.receive_buffer) >= 2:
                 if self.receive_buffer[0] != WEBSOCKET_BINARY_FRAME | WEBSOCKET_FIN_BIT:
+                    self.close()
+                    if self.receive_buffer[0] == WEBSOCKET_CLOSE_FRAME | WEBSOCKET_FIN_BIT:
+                        return None
                     raise Exception("Unexpected data frame")
 
                 size = self.receive_buffer[1]
                 if size == 0 or size >= 126:
+                    self.close()
                     raise Exception("Unexpected data frame")
 
                 if len(self.receive_buffer) >= size + 2:

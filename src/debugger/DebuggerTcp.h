@@ -55,7 +55,7 @@ protected:
     virtual bool send(uint8_t type, const void* buffer, size_t length) override;
     virtual bool receive(uint8_t* buffer, size_t& length) override;
     virtual bool isThereAnyEvent() override;
-    virtual void close(void) override;
+    virtual void close(CloseReason reason) override;
 
 private:
     void receiveData();
