@@ -358,6 +358,13 @@ public:
     void waitForResolvingPendingBreakpoints();
 
 protected:
+    enum CloseReason {
+        CloseEndConnection,
+        CloseAbortConnection,
+        CloseProtocolUnsupported,
+        CloseProtocolError,
+    };
+
     DebuggerRemote()
         : m_exitClient(false)
         , m_pendingWait(false)
@@ -372,7 +379,7 @@ protected:
     virtual bool send(uint8_t type, const void* buffer, size_t length) = 0;
     virtual bool receive(uint8_t* buffer, size_t& length) = 0;
     virtual bool isThereAnyEvent() = 0;
-    virtual void close(void) = 0;
+    virtual void close(CloseReason reason) = 0;
 
 private:
     // Packed structure definitions to reduce network traffic
