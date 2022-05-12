@@ -203,33 +203,33 @@ void GlobalObject::installBigInt(ExecutionState& state)
     m_bigInt = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().BigInt, builtinBigIntConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_bigInt->setGlobalIntrinsicObject(state);
 
-    m_bigInt->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().asUintN),
-                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().asUintN, builtinBigIntAsUintN, 2, NativeFunctionInfo::Strict)),
-                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_bigInt->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().asUintN),
+                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().asUintN, builtinBigIntAsUintN, 2, NativeFunctionInfo::Strict)),
+                                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_bigInt->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().asIntN),
-                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().asIntN, builtinBigIntAsIntN, 2, NativeFunctionInfo::Strict)),
-                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_bigInt->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().asIntN),
+                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().asIntN, builtinBigIntAsIntN, 2, NativeFunctionInfo::Strict)),
+                                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_bigIntPrototype = new PrototypeObject(state);
     m_bigIntPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_bigIntPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_bigInt, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_bigIntPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_bigInt, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_bigIntPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                                        ObjectPropertyDescriptor(state.context()->staticStrings().BigInt.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_bigIntPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                               ObjectPropertyDescriptor(state.context()->staticStrings().BigInt.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_bigIntPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toString),
-                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinBigIntToString, 0, NativeFunctionInfo::Strict)),
-                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_bigIntPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toString),
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinBigIntToString, 0, NativeFunctionInfo::Strict)),
+                                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_bigIntPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().valueOf),
-                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().valueOf, builtinBigIntValueOf, 0, NativeFunctionInfo::Strict)),
-                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_bigIntPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().valueOf),
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().valueOf, builtinBigIntValueOf, 0, NativeFunctionInfo::Strict)),
+                                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_bigIntPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().toLocaleString),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLocaleString, builtinBigIntToLocaleString, 0, NativeFunctionInfo::Strict)),
-                                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_bigIntPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toLocaleString),
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLocaleString, builtinBigIntToLocaleString, 0, NativeFunctionInfo::Strict)),
+                                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
     m_bigInt->setFunctionPrototype(state, m_bigIntPrototype);

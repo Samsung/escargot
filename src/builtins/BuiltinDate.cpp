@@ -525,81 +525,81 @@ void GlobalObject::installDate(ExecutionState& state)
     m_datePrototype = new PrototypeObject(state);
     m_datePrototype->setGlobalIntrinsicObject(state, true);
 
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_date, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_date, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_date->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().now),
-                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().now, builtinDateNow, 0, NativeFunctionInfo::Strict)),
-                                                       (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_date->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().parse),
-                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().parse, builtinDateParse, 1, NativeFunctionInfo::Strict)),
-                                                       (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_date->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().UTC),
-                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().UTC, builtinDateUTC, 7, NativeFunctionInfo::Strict)),
-                                                       (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_date->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().now),
+                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().now, builtinDateNow, 0, NativeFunctionInfo::Strict)),
+                                                             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_date->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().parse),
+                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().parse, builtinDateParse, 1, NativeFunctionInfo::Strict)),
+                                                             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_date->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().UTC),
+                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().UTC, builtinDateUTC, 7, NativeFunctionInfo::Strict)),
+                                                             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getTime),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getTime, builtinDateGetTime, 0, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().setTime),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().setTime, builtinDateSetTime, 1, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().valueOf),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().valueOf, builtinDateValueOf, 0, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getTime),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getTime, builtinDateGetTime, 0, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().setTime),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().setTime, builtinDateSetTime, 1, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().valueOf),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().valueOf, builtinDateValueOf, 0, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toString),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinDateToString, 0, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toDateString),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toDateString, builtinDateToDateString, 0, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toTimeString),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toTimeString, builtinDateToTimeString, 0, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toLocaleString),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLocaleString, builtinDateToLocaleString, 0, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toLocaleDateString),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLocaleDateString, builtinDateToLocaleDateString, 0, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toLocaleTimeString),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLocaleTimeString, builtinDateToLocaleTimeString, 0, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toISOString),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toISOString, builtinDateToISOString, 0, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toJSON),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toJSON, builtinDateToJSON, 1, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toString),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinDateToString, 0, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toDateString),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toDateString, builtinDateToDateString, 0, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toTimeString),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toTimeString, builtinDateToTimeString, 0, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toLocaleString),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLocaleString, builtinDateToLocaleString, 0, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toLocaleDateString),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLocaleDateString, builtinDateToLocaleDateString, 0, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toLocaleTimeString),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toLocaleTimeString, builtinDateToLocaleTimeString, 0, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toISOString),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toISOString, builtinDateToISOString, 0, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toJSON),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toJSON, builtinDateToJSON, 1, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     FunctionObject* toUTCString = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toUTCString, builtinDateToUTCString, 0, NativeFunctionInfo::Strict));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toUTCString),
-                                       ObjectPropertyDescriptor(toUTCString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toGMTString),
-                                       ObjectPropertyDescriptor(toUTCString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getYear),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getYear, builtinDateGetYear, 0, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().setYear),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().setYear, builtinDateSetYear, 1, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getTimezoneOffset),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getTimezoneOffset, builtinDateGetTimezoneOffset, 0, NativeFunctionInfo::Strict)),
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_datePrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toPrimitive)),
-                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.toPrimitive]")), builtinDateToPrimitive, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
-#define DATE_DEFINE_GETTER(dname, unused1, unused2, unused3)                                                                                                                                                            \
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().get##dname),                                                                                                          \
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().get##dname, builtinDateGet##dname, 0, NativeFunctionInfo::Strict)), \
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toUTCString),
+                                             ObjectPropertyDescriptor(toUTCString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toGMTString),
+                                             ObjectPropertyDescriptor(toUTCString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getYear),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getYear, builtinDateGetYear, 0, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().setYear),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().setYear, builtinDateSetYear, 1, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getTimezoneOffset),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getTimezoneOffset, builtinDateGetTimezoneOffset, 0, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toPrimitive)),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.toPrimitive]")), builtinDateToPrimitive, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+#define DATE_DEFINE_GETTER(dname, unused1, unused2, unused3)                                                                                                                                                                  \
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().get##dname),                                                                                                          \
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().get##dname, builtinDateGet##dname, 0, NativeFunctionInfo::Strict)), \
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     FOR_EACH_DATE_VALUES(DATE_DEFINE_GETTER);
     DATE_DEFINE_GETTER(Day, -, -, -);
     DATE_DEFINE_GETTER(UTCDay, -, -, -);
 
-#define DATE_DEFINE_SETTER(dname, unused1, length, unused3)                                                                                                                                                                  \
-    m_datePrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().set##dname),                                                                                                               \
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().set##dname, builtinDateSet##dname, length, NativeFunctionInfo::Strict)), \
-                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+#define DATE_DEFINE_SETTER(dname, unused1, length, unused3)                                                                                                                                                                        \
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().set##dname),                                                                                                               \
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().set##dname, builtinDateSet##dname, length, NativeFunctionInfo::Strict)), \
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     FOR_EACH_DATE_VALUES(DATE_DEFINE_SETTER);
 

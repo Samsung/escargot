@@ -208,50 +208,50 @@ void GlobalObject::installArrayBuffer(ExecutionState& state)
     m_arrayBuffer = new NativeFunctionObject(state, NativeFunctionInfo(strings->ArrayBuffer, builtinArrayBufferConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_arrayBuffer->setGlobalIntrinsicObject(state);
 
-    m_arrayBuffer->defineOwnProperty(state, ObjectPropertyName(strings->isView),
-                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isView, builtinArrayBufferIsView, 1, NativeFunctionInfo::Strict)),
-                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayBuffer->directDefineOwnProperty(state, ObjectPropertyName(strings->isView),
+                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isView, builtinArrayBufferIsView, 1, NativeFunctionInfo::Strict)),
+                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_arrayBufferPrototype = new PrototypeObject(state, m_objectPrototype);
     m_arrayBufferPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                                             ObjectPropertyDescriptor(Value(strings->ArrayBuffer.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_arrayBuffer, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                    ObjectPropertyDescriptor(Value(strings->ArrayBuffer.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
         JSGetterSetter speciesGS(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getSymbolSpecies, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)), Value(Value::EmptyValue));
         ObjectPropertyDescriptor speciesDesc(speciesGS, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_arrayBuffer->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), speciesDesc);
+        m_arrayBuffer->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), speciesDesc);
 
         JSGetterSetter byteLengthGS(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinArrayBufferByteLengthGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor byteLengthDesc(byteLengthGS, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
+        m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
 
         JSGetterSetter maxByteLengthGS(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getmaxByteLength, builtinArrayBufferMaxByteLengthGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor maxByteLengthDesc(maxByteLengthGS, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->maxByteLength), maxByteLengthDesc);
+        m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->maxByteLength), maxByteLengthDesc);
 
         JSGetterSetter resizableGS(
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getresizable, builtinArrayBufferResizableGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor resizableDesc(resizableGS, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_arrayBufferPrototype->defineOwnProperty(state, ObjectPropertyName(strings->resizable), resizableDesc);
+        m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->resizable), resizableDesc);
     }
 
-    m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->resize),
-                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resize, builtinArrayBufferResize, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->resize),
+                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resize, builtinArrayBufferResize, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->transfer),
-                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->transfer, builtinArrayBufferTransfer, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->transfer),
+                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->transfer, builtinArrayBufferTransfer, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_arrayBufferPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->slice),
-                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinArrayBufferSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->slice),
+                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinArrayBufferSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_arrayBuffer->setFunctionPrototype(state, m_arrayBufferPrototype);
 

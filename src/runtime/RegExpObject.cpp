@@ -449,8 +449,8 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
     }
 
     ArrayObject* arr = new ArrayObject(state, len);
-    arr->addNonExistentProperty(state, state.context()->staticStrings().index, ObjectPropertyDescriptor(Value(result.m_matchResults[0][0].m_start)));
-    arr->addNonExistentProperty(state, state.context()->staticStrings().input, ObjectPropertyDescriptor(Value(input)));
+    arr->directDefineOwnProperty(state, state.context()->staticStrings().index, ObjectPropertyDescriptor(Value(result.m_matchResults[0][0].m_start)));
+    arr->directDefineOwnProperty(state, state.context()->staticStrings().input, ObjectPropertyDescriptor(Value(input)));
 
     size_t idx = 0;
     for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
@@ -471,11 +471,11 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
         for (auto it = m_yarrPattern->m_captureGroupNames.begin(); it != m_yarrPattern->m_captureGroupNames.end(); ++it) {
             auto foundMapElement = m_yarrPattern->m_namedGroupToParenIndex.find(*it);
             if (foundMapElement != m_yarrPattern->m_namedGroupToParenIndex.end()) {
-                groups->addNonExistentProperty(state, ObjectPropertyName(state, it->impl()),
-                                               ObjectPropertyDescriptor(arr->getOwnProperty(state, ObjectPropertyName(state, foundMapElement->second)).value(state, this), ObjectPropertyDescriptor::AllPresent));
+                groups->directDefineOwnProperty(state, ObjectPropertyName(state, it->impl()),
+                                                ObjectPropertyDescriptor(arr->getOwnProperty(state, ObjectPropertyName(state, foundMapElement->second)).value(state, this), ObjectPropertyDescriptor::AllPresent));
             }
         }
-        arr->addNonExistentProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
+        arr->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
     }
 
     // FIXME RegExp should have own Realm internal slot when allocated

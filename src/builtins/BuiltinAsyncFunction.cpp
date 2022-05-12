@@ -59,10 +59,10 @@ void GlobalObject::installAsyncFunction(ExecutionState& state)
     m_asyncFunctionPrototype->setGlobalIntrinsicObject(state, true);
     m_asyncFunction->setFunctionPrototype(state, m_asyncFunctionPrototype);
 
-    m_asyncFunctionPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor),
-                                                ObjectPropertyDescriptor(m_asyncFunction, ObjectPropertyDescriptor::ConfigurablePresent));
+    m_asyncFunctionPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor),
+                                                      ObjectPropertyDescriptor(m_asyncFunction, ObjectPropertyDescriptor::ConfigurablePresent));
 
-    m_asyncFunctionPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                                ObjectPropertyDescriptor(state.context()->staticStrings().AsyncFunction.string(), ObjectPropertyDescriptor::ConfigurablePresent));
+    m_asyncFunctionPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                      ObjectPropertyDescriptor(state.context()->staticStrings().AsyncFunction.string(), ObjectPropertyDescriptor::ConfigurablePresent));
 }
 } // namespace Escargot

@@ -175,18 +175,18 @@ void GlobalObject::installDataView(ExecutionState& state)
     m_dataViewPrototype->setGlobalIntrinsicObject(state, true);
     m_dataView->setFunctionPrototype(state, m_dataViewPrototype);
 
-    m_dataViewPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_dataView, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_dataViewPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                                          ObjectPropertyDescriptor(Value(state.context()->staticStrings().DataView.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
-#define DATAVIEW_DEFINE_GETTER(Name)                                                                                                                                                                                          \
-    m_dataViewPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().get##Name),                                                                                                             \
-                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().get##Name, builtinDataViewGet##Name, 1, NativeFunctionInfo::Strict)), \
-                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_dataViewPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_dataView, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_dataViewPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
+                                                 ObjectPropertyDescriptor(Value(state.context()->staticStrings().DataView.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+#define DATAVIEW_DEFINE_GETTER(Name)                                                                                                                                                                                                \
+    m_dataViewPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().get##Name),                                                                                                             \
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().get##Name, builtinDataViewGet##Name, 1, NativeFunctionInfo::Strict)), \
+                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-#define DATAVIEW_DEFINE_SETTER(Name)                                                                                                                                                                                          \
-    m_dataViewPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().set##Name),                                                                                                             \
-                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().set##Name, builtinDataViewSet##Name, 2, NativeFunctionInfo::Strict)), \
-                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+#define DATAVIEW_DEFINE_SETTER(Name)                                                                                                                                                                                                \
+    m_dataViewPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().set##Name),                                                                                                             \
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().set##Name, builtinDataViewSet##Name, 2, NativeFunctionInfo::Strict)), \
+                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     FOR_EACH_DATAVIEW_TYPES(DATAVIEW_DEFINE_GETTER);
     FOR_EACH_DATAVIEW_TYPES(DATAVIEW_DEFINE_SETTER);
@@ -198,7 +198,7 @@ void GlobalObject::installDataView(ExecutionState& state)
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getBuffer, builtinDataViewBufferGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor bufferDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_dataViewPrototype->defineOwnProperty(state, ObjectPropertyName(strings->buffer), bufferDesc);
+        m_dataViewPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->buffer), bufferDesc);
     }
 
     {
@@ -206,7 +206,7 @@ void GlobalObject::installDataView(ExecutionState& state)
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getbyteLength, builtinDataViewByteLengthGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor byteLengthDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_dataViewPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
+        m_dataViewPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->byteLength), byteLengthDesc);
     }
 
     {
@@ -214,7 +214,7 @@ void GlobalObject::installDataView(ExecutionState& state)
             new NativeFunctionObject(state, NativeFunctionInfo(strings->getbyteOffset, builtinDataViewByteOffsetGetter, 0, NativeFunctionInfo::Strict)),
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor byteOffsetDesc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_dataViewPrototype->defineOwnProperty(state, ObjectPropertyName(strings->byteOffset), byteOffsetDesc);
+        m_dataViewPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->byteOffset), byteOffsetDesc);
     }
 
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().DataView),
