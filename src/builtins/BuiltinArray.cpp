@@ -72,8 +72,7 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
             } else {
                 Value val = argv[0];
                 for (size_t idx = 0; idx < argc; idx++) {
-                    array->defineOwnProperty(state, ObjectPropertyName(state, idx), ObjectPropertyDescriptor(val, ObjectPropertyDescriptor::AllPresent));
-                    val = argv[idx + 1];
+                    array->defineOwnProperty(state, ObjectPropertyName(state, idx), ObjectPropertyDescriptor(argv[idx], ObjectPropertyDescriptor::AllPresent));
                 }
             }
         }
