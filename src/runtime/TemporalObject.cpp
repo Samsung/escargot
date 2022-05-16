@@ -143,7 +143,7 @@ std::map<std::string, std::string> TemporalObject::parseValidIso8601String(Execu
 
     if (!time.empty()) {
         size_t hasTimeZone = (time.find('Z') == std::string::npos ? (time.find('+') == std::string::npos ? time.find('-') : time.find('+')) : time.find('Z'));
-        if (time.find(',')) {
+        if (time.find(',') != std::string::npos) {
             std::replace(isoDate.begin(), isoDate.end(), ',', '.');
         }
         if (time.find(':') != std::string::npos && time.length() > 4) {
@@ -300,42 +300,6 @@ TemporalPlainTime::TemporalPlainTime(ExecutionState& state)
 TemporalPlainTime::TemporalPlainTime(ExecutionState& state, Object* proto)
     : Temporal(state, proto)
 {
-}
-
-Value TemporalPlainTime::createTemporalTime(ExecutionState& state, size_t argc, Value* argv, Optional<Object*> newTarget)
-{
-    Value hour, min, sec, ms, qs, ns;
-
-    if (argc > 5) {
-        hour = argv[0];
-        min = argv[1];
-        sec = argv[2];
-        ms = argv[3];
-        qs = argv[4];
-        ns = argv[5];
-    } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Too few arguments");
-    }
-
-    ASSERT(hour.isInteger(state) && min.isInteger(state) && sec.isInteger(state) && ms.isInteger(state) && qs.isInteger(state) && ns.isInteger(state));
-
-    time64_t timeInMs = hour.asInt32() * 3600000 + min.asInt32() * 60000 + sec.asInt32() * 1000 + ms.asInt32();
-
-    if (!IS_IN_TIME_RANGE(timeInMs)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
-    }
-
-    TemporalPlainTime* temporalPlainTime;
-
-    if (!newTarget.hasValue()) {
-        newTarget = state.resolveCallee();
-    }
-
-    temporalPlainTime = new TemporalPlainTime(state, newTarget->asObject());
-
-    temporalPlainTime->setTime(hour.asInt32(), min.asInt32(), sec.asInt32(), ms.asInt32(), qs.asInt32(), ns.asInt32());
-    temporalPlainTime->setCalendar(state, new ASCIIString("iso8601"), newTarget);
-    return temporalPlainTime;
 }
 
 void TemporalPlainTime::setTime(char h, char m, char s, short ms, short qs, short ns)

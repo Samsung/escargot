@@ -111,7 +111,6 @@ public:
     explicit TemporalPlainTime(ExecutionState& state);
     explicit TemporalPlainTime(ExecutionState& state, Object* proto);
 
-    static Value createTemporalTime(ExecutionState& state, size_t argc, Value* argv, Optional<Object*> newTarget);
     static bool isValidTime(ExecutionState& state, const int h, const int m, const int s, const int ms, const int us, const int ns);
     static std::map<std::string, int> balanceTime(ExecutionState& state, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond);
 

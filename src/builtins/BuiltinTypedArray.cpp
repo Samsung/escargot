@@ -330,8 +330,8 @@ static void initializeTypedArrayFromList(ExecutionState& state, TypedArrayObject
     size_t len = values.size();
 
     // Perform ? AllocateTypedArrayBuffer(O, len).
-    size_t elementSize = obj->elementSize();
-    uint64_t byteLength = len * elementSize;
+    uint64_t elementSize = obj->elementSize();
+    uint64_t byteLength = ((uint64_t)len) * elementSize;
     ArrayBufferObject* buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), byteLength);
     obj->setBuffer(buffer, 0, byteLength, len);
 
