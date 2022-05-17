@@ -6731,6 +6731,8 @@ public:
     {
         pushScopeContext(new (this->allocator) ASTScopeContext(this->allocator, this->context->strict));
 
+        MetaNode node = this->createNode();
+
         ParserBlockContext blockContext;
         openBlock(blockContext);
 
@@ -6756,7 +6758,7 @@ public:
             testClassPrivateNameRules(this->outerClassInfo);
         }
 
-        return this->finalize(endNode, programNode);
+        return this->finalize(node, programNode);
     }
 
     FunctionNode* parseScriptFunction(NodeGenerator& builder)

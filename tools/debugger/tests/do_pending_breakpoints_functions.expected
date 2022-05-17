@@ -17,24 +17,24 @@ Pending breakpoint 3 at non-existing-breakingpoint()
  3: non-existing-breakingpoint() (pending)
 (escargot-debugger) c
 Print: pending-breakpoints_functions
-Breakpoint 4 at eval input:2 (in f() at line:1, col:1)
-Breakpoint 5 at eval input:2 (in b() at line:1, col:1)
-Stopped at breakpoint:4 eval input:2 (in f() at line:1, col:1)
+Breakpoint 4 at eval code:2 (in f() at line:1, col:1)
+Breakpoint 5 at eval code:2 (in b() at line:1, col:1)
+Stopped at breakpoint:4 eval code:2 (in f() at line:1, col:1)
 (escargot-debugger) list
 === Active breakpoints ===
- 4: eval input:2 (in f() at line:1, col:1)
- 5: eval input:2 (in b() at line:1, col:1)
+ 4: eval code:2 (in f() at line:1, col:1)
+ 5: eval code:2 (in b() at line:1, col:1)
 === Pending breakpoints ===
  3: non-existing-breakingpoint() (pending)
 (escargot-debugger) source
-Source: eval input
+Source: eval code
    1   function f()
    2 > { return 5 }
 (escargot-debugger) c
 Print: 5
-Stopped at breakpoint:5 eval input:2 (in b() at line:1, col:1)
+Stopped at breakpoint:5 eval code:2 (in b() at line:1, col:1)
 (escargot-debugger) source
-Source: eval input
+Source: eval code
    1   function b()
    2 > { return 8 }
 (escargot-debugger) c

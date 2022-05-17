@@ -694,7 +694,7 @@ struct ASTScopeContext {
         , m_classPrivateNames(nullptr)
         , m_firstChild(nullptr)
         , m_nextSibling(nullptr)
-        , m_functionStartLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+        , m_functionStartLOC(1, 1, 0) // set default start location at the start of the code
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
         , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #else

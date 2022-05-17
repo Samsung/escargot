@@ -269,7 +269,7 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
 
     // Parsing
     Node* ast = nullptr;
-    if (codeBlock->isGlobalCodeBlock()) {
+    if (codeBlock->isGlobalScope()) {
         ast = esprima::parseProgram(context, codeBlock->src(), esprima::generateClassInfoFrom(context, codeBlock->parent()),
                                     codeBlock->script()->isModule(), codeBlock->isStrict(), codeBlock->inWith(), SIZE_MAX, false, false, false, true);
     } else {

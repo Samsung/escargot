@@ -174,7 +174,30 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
         }
 
         if (!alreadyExists) {
-            if (!callee && es && es->lexicalEnvironment()) {
+            if (pstate->codeBlock() && pstate->codeBlock()->isInterpretedCodeBlock()) {
+                // for eval code case
+                CodeBlock* cb = pstate->codeBlock();
+                ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+                ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
+                if (pstate->m_programCounter != nullptr) {
+                    loc.byteCodePosition = *pstate->m_programCounter - (size_t)b->m_code.data();
+                    loc.actualCodeBlock = b;
+                }
+                SandBox::StackTraceData data;
+                data.loc = loc;
+                data.srcName = cb->asInterpretedCodeBlock()->script()->srcName();
+                data.sourceCode = cb->asInterpretedCodeBlock()->script()->sourceCode();
+                data.isEval = true;
+                data.isFunction = false;
+                data.isAssociatedWithJavaScriptCode = true;
+                data.isConstructor = false;
+#ifdef ESCARGOT_DEBUGGER
+                data.executionStateDepth = executionStateDepthIndex;
+#endif /* ESCARGOT_DEBUGGER */
+
+                stateStack.push_back(es);
+                stackTraceDataVector.pushBack(data);
+            } else if (!callee && es && es->lexicalEnvironment()) {
                 // can be null on module outer env
                 InterpretedCodeBlock* cb = nullptr;
                 if (es->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
@@ -206,23 +229,6 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
                     stateStack.push_back(es);
                     stackTraceDataVector.pushBack(data);
                 }
-            } else if (pstate->codeBlock() && pstate->codeBlock()->isInterpretedCodeBlock() && pstate->codeBlock()->asInterpretedCodeBlock()->isEvalCodeInFunction()) {
-                CodeBlock* cb = pstate->codeBlock();
-                ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
-                SandBox::StackTraceData data;
-                data.loc = loc;
-                data.srcName = cb->asInterpretedCodeBlock()->script()->srcName();
-                data.sourceCode = String::emptyString;
-                data.isEval = true;
-                data.isFunction = false;
-                data.isAssociatedWithJavaScriptCode = true;
-                data.isConstructor = false;
-#ifdef ESCARGOT_DEBUGGER
-                data.executionStateDepth = executionStateDepthIndex;
-#endif /* ESCARGOT_DEBUGGER */
-
-                stateStack.push_back(es);
-                stackTraceDataVector.pushBack(data);
             } else if (callee) {
                 CodeBlock* cb = callee->codeBlock();
                 ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);

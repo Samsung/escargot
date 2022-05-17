@@ -553,6 +553,26 @@ TEST(EvalScript, Run2)
     EXPECT_EQ(s, "0");
 }
 
+TEST(EvalScript, Run3)
+{
+    // local eval call
+    auto s1 = evalScript(g_context.get(), StringRef::createFromASCII(R"(
+    var code = 'function tt() { throw new Error(); }; tt();';
+    eval(code);
+    )"),
+                         StringRef::createFromASCII("evalTest.js"), false);
+    EXPECT_EQ(s1, "Uncaught Error:\neval code (1:22)\neval code (1:39)\nevalTest.js (3:5)\n");
+
+    // global eval call
+    auto s2 = evalScript(g_context.get(), StringRef::createFromASCII(R"(
+    var code = 'function tt() { throw new Error(); }; tt();';
+    var indirectEval = eval;
+    indirectEval(code);
+    )"),
+                         StringRef::createFromASCII("evalTest2.js"), false);
+    EXPECT_EQ(s2, "Uncaught Error:\neval code (1:22)\neval code (1:39)\n");
+}
+
 TEST(EvalScript, ParseError)
 {
     auto s = evalScript(g_context.get(), StringRef::createFromASCII("."), StringRef::createFromASCII("test.js"), false);
@@ -1966,7 +1986,7 @@ TEST(ErrorCallback, Basic2)
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
         ValueRef* cbResult = g_context.get()->globalObject()->get(state, StringRef::createFromASCII("errorCBResult"));
         EXPECT_TRUE(cbResult->isObject());
-        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("src"))->asString()->equalsWithASCIIString("testErrorCallback2.js", 21));
+        EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("src"))->asString()->equalsWithASCIIString("eval code", 9));
         EXPECT_TRUE(cbResult->asObject()->get(state, StringRef::createFromASCII("functionName"))->asString()->length() == 0);
 
         EXPECT_TRUE(g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("errorCBResult")));
