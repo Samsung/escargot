@@ -9,13 +9,13 @@ Pending breakpoint 1 at :1
  1: :1 (pending)
 (escargot-debugger) c
 Print: pending-breakpoints_lines
-Breakpoint 2 at eval input:1
-Stopped at breakpoint:2 eval input:1
+Breakpoint 2 at eval code:1
+Stopped at breakpoint:2 eval code:1
 (escargot-debugger) list
 === Active breakpoints ===
- 2: eval input:1
+ 2: eval code:1
 (escargot-debugger) source
-Source: eval input
+Source: eval code
    1 > 1;var a = 1
 (escargot-debugger) c
 Print: 1

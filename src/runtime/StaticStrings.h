@@ -660,7 +660,7 @@ namespace Escargot {
 // name on code, string
 #define FOR_EACH_LAZY_STATIC_STRING(F)               \
     F(DotDotDotArgs, "...args")                      \
-    F(EvalInput, "eval input")                       \
+    F(EvalCode, "eval code")                         \
     F(Fulfilled, "fulfilled")                        \
     F(ObjectArgumentsToString, "[object Arguments]") \
     F(ObjectArrayToString, "[object Array]")         \
