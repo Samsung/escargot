@@ -321,7 +321,7 @@ public:
     void initDebugger(Debugger* debugger);
     void removeDebugger();
     bool debuggerEnabled() const;
-    void printDebugger(StringView* output);
+    void printDebugger(String* output);
     void pumpDebuggerEvents();
     void setAsAlwaysStopState();
     bool inDebuggingCodeMode() const;

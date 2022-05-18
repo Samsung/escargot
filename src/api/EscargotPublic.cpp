@@ -2844,8 +2844,7 @@ bool ContextRef::isWaitBeforeExit()
 void ContextRef::printDebugger(StringRef* output)
 {
 #ifdef ESCARGOT_DEBUGGER
-    StringView* outputStr = new StringView(toImpl(output));
-    toImpl(this)->printDebugger(outputStr);
+    toImpl(this)->printDebugger(toImpl(output));
 #endif /* ESCARGOT_DEBUGGER */
 }
 

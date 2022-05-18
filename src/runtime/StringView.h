@@ -26,6 +26,12 @@ namespace Escargot {
 
 class StringView : public String {
 public:
+    // For temporal StringView that is allocated on the stack
+    void* operator new(size_t size, void* p)
+    {
+        return p;
+    }
+
     ALWAYS_INLINE StringView(String* str, const size_t s, const size_t e)
         : String()
     {

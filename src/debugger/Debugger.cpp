@@ -55,7 +55,7 @@ void DebuggerRemote::sendSubtype(uint8_t type, uint8_t subType)
     send(type, &subType, 1);
 }
 
-void DebuggerRemote::sendString(uint8_t type, String* string)
+void DebuggerRemote::sendString(uint8_t type, const String* string)
 {
     size_t length = string->length();
 
@@ -159,8 +159,7 @@ void DebuggerRemote::parseCompleted(String* source, String* srcName, size_t orig
 
         /* Send function name. */
         if (functionName->length() > 0) {
-            StringView* functionNameView = new StringView(functionName);
-            sendString(ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT, functionNameView);
+            sendString(ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT, functionName);
 
             if (!enabled()) {
                 return;
@@ -417,8 +416,7 @@ bool DebuggerRemote::doEval(ExecutionState* state, Optional<ByteCodeBlock*> byte
     m_stopState = ESCARGOT_DEBUGGER_IN_WAIT_MODE;
 
     if (enabled()) {
-        StringView* strView = new StringView(str);
-        sendString(type, strView);
+        sendString(type, str);
     }
 
     return true;
@@ -577,7 +575,7 @@ void DebuggerRemote::getScopeChain(ExecutionState* state, uint32_t stateIndex)
 static void sendProperty(DebuggerRemote* debugger, ExecutionState* state, AtomicString name, Value value)
 {
     uint8_t type = DebuggerRemote::ESCARGOT_VARIABLE_UNDEFINED;
-    StringView* valueView = nullptr;
+    String* valueStr = nullptr;
 
     if (value.isNull()) {
         type = DebuggerRemote::ESCARGOT_VARIABLE_NULL;
@@ -588,33 +586,28 @@ static void sendProperty(DebuggerRemote* debugger, ExecutionState* state, Atomic
     } else if (value.isNumber()) {
         type = DebuggerRemote::ESCARGOT_VARIABLE_NUMBER;
 
-        String* valueString = value.toString(*state);
-        valueView = new StringView(valueString);
+        valueStr = value.toString(*state);
     } else if (value.isString() || value.isSymbol() || value.isBigInt()) {
-        String* valueString;
         if (value.isString()) {
             type = DebuggerRemote::ESCARGOT_VARIABLE_STRING;
-            valueString = value.asString();
+            valueStr = value.asString();
         } else if (value.isBigInt()) {
             type = DebuggerRemote::ESCARGOT_VARIABLE_BIGINT;
-            valueString = value.asBigInt()->toString();
+            valueStr = value.asBigInt()->toString();
         } else {
             type = DebuggerRemote::ESCARGOT_VARIABLE_SYMBOL;
             Symbol* symbol = value.asSymbol();
 
-            valueString = String::emptyString;
+            valueStr = String::emptyString;
             if (symbol->description().hasValue()) {
-                valueString = symbol->description().value();
+                valueStr = symbol->description().value();
             }
         }
-        size_t valueLength = valueString->length();
 
-        if (valueLength >= ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
+        if (valueStr->length() >= ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
             type |= DebuggerRemote::ESCARGOT_VARIABLE_LONG_VALUE;
-            valueLength = ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH;
+            valueStr = new (alloca(sizeof(StringView))) StringView(valueStr, 0, ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH);
         }
-
-        valueView = new StringView(valueString, 0, valueLength);
     } else if (value.isFunction()) {
         type = DebuggerRemote::ESCARGOT_VARIABLE_FUNCTION;
     } else if (value.isObject()) {
@@ -627,11 +620,10 @@ static void sendProperty(DebuggerRemote* debugger, ExecutionState* state, Atomic
         }
     }
 
-    size_t nameLength = name.string()->length();
-
-    if (nameLength > ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
+    String* nameStr = name.string();
+    if (nameStr->length() > ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
         type |= DebuggerRemote::ESCARGOT_VARIABLE_LONG_NAME;
-        nameLength = ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH;
+        nameStr = new (alloca(sizeof(StringView))) StringView(nameStr, 0, ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH);
     }
 
     if ((type & DebuggerRemote::ESCARGOT_VARIABLE_TYPE_MASK) < DebuggerRemote::ESCARGOT_VARIABLE_OBJECT) {
@@ -641,30 +633,28 @@ static void sendProperty(DebuggerRemote* debugger, ExecutionState* state, Atomic
     }
 
     if (debugger->connected()) {
-        StringView* nameView = new StringView(name.string(), 0, nameLength);
-        debugger->sendString(DebuggerRemote::ESCARGOT_MESSAGE_STRING_8BIT, nameView);
+        debugger->sendString(DebuggerRemote::ESCARGOT_MESSAGE_STRING_8BIT, nameStr);
     }
 
-    if (valueView && debugger->connected()) {
-        debugger->sendString(DebuggerRemote::ESCARGOT_MESSAGE_STRING_8BIT, valueView);
+    if (valueStr && debugger->connected()) {
+        debugger->sendString(DebuggerRemote::ESCARGOT_MESSAGE_STRING_8BIT, valueStr);
     }
 }
 
 static void sendUnaccessibleProperty(DebuggerRemote* debugger, AtomicString name)
 {
     uint8_t type = DebuggerRemote::ESCARGOT_VARIABLE_UNACCESSIBLE;
-    size_t nameLength = name.string()->length();
+    String* nameStr = name.string();
 
-    if (nameLength > ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
+    if (nameStr->length() > ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {
         type |= DebuggerRemote::ESCARGOT_VARIABLE_LONG_NAME;
-        nameLength = ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH;
+        nameStr = new (alloca(sizeof(StringView))) StringView(nameStr, 0, ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH);
     }
 
     debugger->sendSubtype(DebuggerRemote::ESCARGOT_MESSAGE_VARIABLE, type);
 
     if (debugger->connected()) {
-        StringView* nameView = new StringView(name.string(), 0, nameLength);
-        debugger->sendString(DebuggerRemote::ESCARGOT_MESSAGE_STRING_8BIT, nameView);
+        debugger->sendString(DebuggerRemote::ESCARGOT_MESSAGE_STRING_8BIT, nameStr);
     }
 }
 
