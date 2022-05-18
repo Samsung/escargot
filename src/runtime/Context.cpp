@@ -158,7 +158,7 @@ bool Context::debuggerEnabled() const
     return m_debugger != nullptr;
 }
 
-void Context::printDebugger(StringView* output)
+void Context::printDebugger(String* output)
 {
     if (debuggerEnabled()) {
         m_debugger->consoleOut(output);

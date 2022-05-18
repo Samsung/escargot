@@ -341,7 +341,7 @@ public:
 
     void sendType(uint8_t type);
     void sendSubtype(uint8_t type, uint8_t subType);
-    void sendString(uint8_t type, String* string);
+    void sendString(uint8_t type, const String* string);
     void sendPointer(uint8_t type, const void* ptr);
 
     virtual void init(const char* options, Context* context) = 0;
