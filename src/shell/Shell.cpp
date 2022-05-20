@@ -921,8 +921,16 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
     return context;
 }
 
+#if defined(ESCARGOT_GPERF)
+#include <gperftools/profiler.h>
+#endif
+
+
 int main(int argc, char* argv[])
 {
+#if defined(ESCARGOT_GPERF)
+    ProfilerStart("profile.log");
+#endif
 #ifndef NDEBUG
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
@@ -1089,6 +1097,10 @@ int main(int argc, char* argv[])
     instance.release();
 
     Globals::finalize();
+
+#if defined(ESCARGOT_GPERF)
+    ProfilerStop();
+#endif
 
     return 0;
 }
