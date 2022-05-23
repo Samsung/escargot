@@ -492,7 +492,11 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                     if (LIKELY(arr->isFastModeArray())) {
                         uint32_t idx = property.tryToUseAsIndexProperty(*state);
                         if (LIKELY(idx < arr->arrayLength(*state))) {
-                            registerFile[code->m_storeRegisterIndex] = arr->m_fastModeData[idx].toValue<true>();
+                            if (UNLIKELY(arr->m_fastModeData[idx].isEmpty())) {
+                                registerFile[code->m_storeRegisterIndex] = Value();
+                            } else {
+                                registerFile[code->m_storeRegisterIndex] = arr->m_fastModeData[idx];
+                            }
                             ADD_PROGRAM_COUNTER(GetObject);
                             NEXT_INSTRUCTION();
                         }

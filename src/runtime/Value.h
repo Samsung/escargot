@@ -28,6 +28,96 @@
 
 namespace Escargot {
 
+namespace EncodedValueImpl {
+
+const int kApiAlignSize = 4;
+const int kApiIntSize = sizeof(int);
+const int kApiInt64Size = sizeof(int64_t);
+
+// Tag information for small immediate. Other values are heap objects.
+const int kSmiTag = 1;
+const int kSmiTagSize = 1;
+const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
+
+template <size_t ptr_size>
+struct SmiTagging;
+
+template <int kSmiShiftSize>
+inline int32_t IntToSmiT(int value)
+{
+    int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
+    uintptr_t tagged_value = (static_cast<uintptr_t>(value) << smi_shift_bits) | kSmiTag;
+    return (int32_t)(tagged_value);
+}
+
+// Smi constants for 32-bit systems.
+template <>
+struct SmiTagging<4> {
+    enum {
+        kSmiShiftSize = 0,
+        kSmiValueSize = 31
+    };
+    static int SmiShiftSize()
+    {
+        return kSmiShiftSize;
+    }
+    static int SmiValueSize()
+    {
+        return kSmiValueSize;
+    }
+    inline static int SmiToInt(intptr_t value)
+    {
+        int shift_bits = kSmiTagSize + kSmiShiftSize;
+        // Throw away top 32 bits and shift down (requires >> to be sign extending).
+        return static_cast<int>(value >> shift_bits);
+    }
+    inline static int32_t IntToSmi(int value)
+    {
+        return IntToSmiT<kSmiShiftSize>(value);
+    }
+    inline static bool IsValidSmi(intptr_t value)
+    {
+        // To be representable as an tagged small integer, the two
+        // most-significant bits of 'value' must be either 00 or 11 due to
+        // sign-extension. To check this we add 01 to the two
+        // most-significant bits, and check if the most-significant bit is 0
+        //
+        // CAUTION: The original code below:
+        // bool result = ((value + 0x40000000) & 0x80000000) == 0;
+        // may lead to incorrect results according to the C language spec, and
+        // in fact doesn't work correctly with gcc4.1.1 in some cases: The
+        // compiler may produce undefined results in case of signed integer
+        // overflow. The computation must be done w/ unsigned ints.
+        return static_cast<uintptr_t>(value + 0x40000000U) < 0x80000000U;
+    }
+};
+
+typedef SmiTagging<kApiAlignSize> PlatformSmiTagging;
+const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
+const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
+
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#define HAS_SMI_TAG(value) \
+    ((static_cast<intptr_t>((long int)value) & ::Escargot::EncodedValueImpl::kSmiTagMask) == ::Escargot::EncodedValueImpl::kSmiTag)
+#else
+#define HAS_SMI_TAG(value) \
+    ((static_cast<intptr_t>(value) & ::Escargot::EncodedValueImpl::kSmiTagMask) == ::Escargot::EncodedValueImpl::kSmiTag)
+#endif
+} // namespace EncodedValueImpl
+
+struct ValueData {
+    intptr_t payload;
+    ValueData()
+        : payload(0)
+    {
+    }
+
+    explicit ValueData(void* ptr)
+        : payload((intptr_t)ptr)
+    {
+    }
+};
+
 class PointerValue;
 class ExecutionState;
 class Object;
@@ -131,6 +221,10 @@ public:
     explicit Value(TrueInitTag);
     explicit Value(FalseInitTag);
     explicit Value(FromPayloadTag, intptr_t ptr);
+
+    explicit Value(PointerValue* ptr);
+    Value(const PointerValue* ptr);
+    /*
 #ifdef ESCARGOT_64
     explicit Value(PointerValue* ptr);
     Value(const PointerValue* ptr);
@@ -145,7 +239,7 @@ public:
     Value(const String* ptr);
     explicit Value(FromTagTag, uint32_t tag);
 #endif
-
+     */
     // Numbers
     Value(EncodeAsDoubleTag, const double&);
     explicit Value(const double&);
@@ -175,7 +269,7 @@ public:
     double asDouble() const;
     bool asBoolean() const;
     double asNumber() const;
-    uint64_t asRawData() const;
+    intptr_t asRawData() const;
     inline PointerValue* asPointerValue() const;
     inline Object* asObject() const;
     inline FunctionObject* asFunction() const;
@@ -202,6 +296,7 @@ public:
     inline bool isPrimitive() const;
     bool isGetterSetter() const;
     bool isCustomGetterSetter() const;
+    inline bool isHeapValue() const;
     inline bool isPointerValue() const;
     bool isObject() const;
     bool isCallable() const;
@@ -250,39 +345,20 @@ public:
     bool abstractEqualsToSlowCase(ExecutionState& ec, const Value& val) const;
     inline bool equalsTo(ExecutionState& ec, const Value& val) const;
     bool equalsToSlowCase(ExecutionState& ec, const Value& val) const;
-    bool equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const;
-    bool equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value& val) const;
+    bool equalsToByTheSameValueAlgorithm(const Value& val) const;
+    bool equalsToByTheSameValueZeroAlgorithm(const Value& val) const;
     bool instanceOf(ExecutionState& ec, const Value& other) const;
 
-
-#ifdef ESCARGOT_32
-    uint32_t tag() const;
-#elif ESCARGOT_64
-// These values are #defines since using static const integers here is a ~1% regression!
-
-// This value is 2^48, used to encode doubles such that the encoded value will begin
-// with a 16-bit pattern within the range 0x0001..0xFFFE.
-#define DoubleEncodeOffset 0x1000000000000ll
-// DoubleEncodeOffset assumes that double value will begin with 0x0000..0xFFFD,
-// but there can be invalid inputs start with 0xFFFE or 0xFFFF.
-// So it is used to filter those values.
-#define DoubleInvalidBeginning 0xfffe000000000000ll
-// If all bits in the mask are set, this indicates an integer number,
-// if any but not all are set this value is a double precision number.
-#define TagTypeNumber 0xffff000000000000ll
-
-// TagMask is used to check for all types of immediate values (either number or 'other').
-#define TagMask (TagTypeNumber | TagBitTypeOther)
-#endif
-
-    intptr_t payload() const;
     static constexpr double maximumLength();
 
     static bool isInt32ConvertibleDouble(const double& d);
     static bool isInt32ConvertibleDouble(const double& d, int32_t& asInt32);
-
 private:
-    ValueDescriptor u;
+    const uint8_t readPointerValueTag() const
+    {
+        return *(reinterpret_cast<size_t*>(m_data.payload) + 1);
+    }
+    ValueData m_data;
     double toNumberSlowCase(ExecutionState& ec) const; // $7.1.3 ToNumber
     std::pair<Value, bool> toNumericSlowCase(ExecutionState& ec) const;
     String* toStringSlowCase(ExecutionState& ec) const; // $7.1.12 ToString

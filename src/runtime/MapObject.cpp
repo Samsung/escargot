@@ -75,7 +75,7 @@ bool MapObject::deleteOperation(ExecutionState& state, const Value& key)
         if (existingKey.isEmpty()) {
             continue;
         }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+        if (existingKey.equalsToByTheSameValueZeroAlgorithm(key)) {
             m_storage[i] = std::make_pair(Value(Value::EmptyValue), Value(Value::EmptyValue));
             return true;
         }
@@ -90,7 +90,7 @@ Value MapObject::get(ExecutionState& state, const Value& key)
         if (existingKey.isEmpty()) {
             continue;
         }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+        if (existingKey.equalsToByTheSameValueZeroAlgorithm(key)) {
             return m_storage[i].second;
         }
     }
@@ -104,7 +104,7 @@ bool MapObject::has(ExecutionState& state, const Value& key)
         if (existingKey.isEmpty()) {
             continue;
         }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+        if (existingKey.equalsToByTheSameValueZeroAlgorithm(key)) {
             return true;
         }
     }
@@ -118,7 +118,7 @@ void MapObject::set(ExecutionState& state, const Value& key, const Value& value)
         if (existingKey.isEmpty()) {
             continue;
         }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+        if (existingKey.equalsToByTheSameValueZeroAlgorithm(key)) {
             m_storage[i].second = value;
             return;
         }

@@ -809,7 +809,7 @@ bool Object::defineOwnPropertyMethod(ExecutionState& state, const ObjectProperty
                 }
                 // If the [[Writable]] field of current is false, then
                 // Reject, if the [[Value]] field of Desc is present and SameValue(Desc.[[Value]], current.[[Value]]) is false.
-                if (!item->m_descriptor.isWritable() && desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(state, getOwnDataPropertyUtilForObject(state, idx, this))) {
+                if (!item->m_descriptor.isWritable() && desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(getOwnDataPropertyUtilForObject(state, idx, this))) {
                     return false;
                 }
             }
@@ -1471,7 +1471,7 @@ bool Object::isCompatiblePropertyDescriptor(ExecutionState& state, bool extensib
             // ii. If the [[Writable]] field of current is false, then
             if (!current.isWritable()) {
                 // 1. Return false, if the [[Value]] field of Desc is present and SameValue(Desc.[[Value]], current.[[Value]]) is false.
-                if (desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(state, current.value(state, Value()))) {
+                if (desc.isValuePresent() && !desc.value().equalsToByTheSameValueAlgorithm(current.value(state, Value()))) {
                     return false;
                 }
             }

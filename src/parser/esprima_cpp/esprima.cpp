@@ -1078,6 +1078,10 @@ public:
         // raw = this->getTokenRaw(token);
         if (builder.isNodeGenerator()) {
             auto d = token->valueNumberLiteral(this->scanner);
+            if (d.first.asRawData() == 0) {
+                puts("123");
+                token->valueNumberLiteral(this->scanner);
+            }
             if (LIKELY(!d.second)) {
                 if (minus) {
                     d.first = Value(-d.first.asNumber());

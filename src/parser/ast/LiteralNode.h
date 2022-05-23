@@ -50,8 +50,10 @@ public:
                 }
             } else {
                 ASSERT(m_value.asPointerValue()->isBigInt());
-                codeBlock->m_otherLiteralData.pushBack(m_value.asPointerValue()->asBigInt());
+                codeBlock->m_otherLiteralData.pushBack(m_value.asPointerValue());
             }
+        } else if (m_value.isHeapValue()) {
+            codeBlock->m_otherLiteralData.pushBack(reinterpret_cast<void*>(m_value.asRawData()));
         }
         if (dstRegister < REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT) {
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, m_value), context, this);

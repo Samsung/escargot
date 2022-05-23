@@ -34,7 +34,7 @@ class PointerValue;
 
 #ifdef ESCARGOT_32
 COMPILE_ASSERT(sizeof(EncodedValueData) == 4, "");
-COMPILE_ASSERT(sizeof(Value) == 8, "");
+COMPILE_ASSERT(sizeof(Value) == 4, "");
 #else
 COMPILE_ASSERT(sizeof(EncodedValueData) == 8, "");
 #endif
@@ -99,85 +99,103 @@ private:
 };
 #pragma pack(pop)
 
-namespace EncodedValueImpl {
+class EncodedValue {
+public:
+    enum ForceUninitializedTag { ForceUninitialized };
+    enum EmptyValueInitTag { EmptyValue };
+    COMPILE_ASSERT(EncodedValue::EmptyValue == 0, "");
+    friend class EncodedSmallValue;
 
-const int kApiAlignSize = 4;
-const int kApiIntSize = sizeof(int);
-const int kApiInt64Size = sizeof(int64_t);
+    EncodedValue(const Value& v = Value())
+        : m_value(v)
+    {
+    }
 
-// Tag information for small immediate. Other values are heap objects.
-const int kSmiTag = 1;
-const int kSmiTagSize = 1;
-const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
+    explicit EncodedValue(PointerValue* v)
+        : m_value(v)
+    {
+    }
 
-template <size_t ptr_size>
-struct SmiTagging;
+    static EncodedValue fromPayload(const void* p)
+    {
+        return Value(Value::FromPayload, reinterpret_cast<intptr_t>(p));
+    }
 
-template <int kSmiShiftSize>
-inline int32_t IntToSmiT(int value)
-{
-    int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-    uintptr_t tagged_value = (static_cast<uintptr_t>(value) << smi_shift_bits) | kSmiTag;
-    return (int32_t)(tagged_value);
-}
+    explicit EncodedValue(const uint32_t from)
+        : m_value(Value(from))
+    {
+    }
 
-// Smi constants for 32-bit systems.
-template <>
-struct SmiTagging<4> {
-    enum {
-        kSmiShiftSize = 0,
-        kSmiValueSize = 31
-    };
-    static int SmiShiftSize()
+    EncodedValue(ForceUninitializedTag)
     {
-        return kSmiShiftSize;
     }
-    static int SmiValueSize()
+
+    EncodedValue(EmptyValueInitTag)
     {
-        return kSmiValueSize;
+        m_value = Value(Value::EmptyValue);
     }
-    inline static int SmiToInt(intptr_t value)
+
+    const EncodedValue& operator=(PointerValue* from)
     {
-        int shift_bits = kSmiTagSize + kSmiShiftSize;
-        // Throw away top 32 bits and shift down (requires >> to be sign extending).
-        return static_cast<int>(value >> shift_bits);
+        ASSERT(from);
+        m_value = Value(from);
+        return *this;
     }
-    inline static int32_t IntToSmi(int value)
+
+    bool operator==(const EncodedValue& other) const
     {
-        return IntToSmiT<kSmiShiftSize>(value);
+        return Value(m_value) == Value(other);
     }
-    inline static bool IsValidSmi(intptr_t value)
+
+    bool isStoredInHeap() const
     {
-        // To be representable as an tagged small integer, the two
-        // most-significant bits of 'value' must be either 00 or 11 due to
-        // sign-extension. To check this we add 01 to the two
-        // most-significant bits, and check if the most-significant bit is 0
-        //
-        // CAUTION: The original code below:
-        // bool result = ((value + 0x40000000) & 0x80000000) == 0;
-        // may lead to incorrect results according to the C language spec, and
-        // in fact doesn't work correctly with gcc4.1.1 in some cases: The
-        // compiler may produce undefined results in case of signed integer
-        // overflow. The computation must be done w/ unsigned ints.
-        return static_cast<uintptr_t>(value + 0x40000000U) < 0x80000000U;
+        return m_value.isHeapValue();
     }
+
+    intptr_t payload() const
+    {
+        return m_value.asRawData();
+    }
+
+    bool isEmpty() const
+    {
+        return m_value.isEmpty();
+    }
+
+    bool isInt32()
+    {
+        return m_value.isInt32();
+    }
+
+    bool isUInt32()
+    {
+        return m_value.isUInt32();
+    }
+
+    int32_t asInt32()
+    {
+        return m_value.asInt32();
+    }
+
+    uint32_t asUInt32()
+    {
+        return m_value.asUInt32();
+    }
+
+    ALWAYS_INLINE operator Value&()
+    {
+        return m_value;
+    }
+
+    ALWAYS_INLINE operator const Value&() const
+    {
+        return m_value;
+    }
+private:
+    Value m_value;
 };
 
-
-typedef SmiTagging<kApiAlignSize> PlatformSmiTagging;
-const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
-const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
-
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-#define HAS_SMI_TAG(value) \
-    ((static_cast<intptr_t>((long int)value) & ::Escargot::EncodedValueImpl::kSmiTagMask) == ::Escargot::EncodedValueImpl::kSmiTag)
-#else
-#define HAS_SMI_TAG(value) \
-    ((static_cast<intptr_t>(value) & ::Escargot::EncodedValueImpl::kSmiTagMask) == ::Escargot::EncodedValueImpl::kSmiTag)
-#endif
-} // namespace EncodedValueImpl
-
-
+/*
 // EncodedValue turns int, double values into pointer or odd value
 // so there is no conservative gc leak(there is no even value looks like pointer without pointers)
 // developers should use this class if want to save some Value on Heap
@@ -423,6 +441,7 @@ protected:
 private:
     EncodedValueData m_data;
 };
+*/
 
 #if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
 class EncodedSmallValue {

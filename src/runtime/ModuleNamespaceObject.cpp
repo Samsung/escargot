@@ -121,7 +121,7 @@ bool ModuleNamespaceObject::defineOwnProperty(ExecutionState& state, const Objec
     }
     // If Desc.[[Value]] is present, return SameValue(Desc.[[Value]], current.[[Value]]).
     if (desc.isValuePresent()) {
-        return desc.value().equalsToByTheSameValueAlgorithm(state, current.value(state, this));
+        return desc.value().equalsToByTheSameValueAlgorithm(current.value(state, this));
     }
     // Return true.
     return true;

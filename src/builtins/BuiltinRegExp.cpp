@@ -227,13 +227,13 @@ static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t 
     RESOLVE_THIS_BINDING_TO_OBJECT(rx, Object, search);
     String* s = argv[0].toString(state);
     Value previousLastIndex = rx->get(state, ObjectPropertyName(state.context()->staticStrings().lastIndex)).value(state, thisValue);
-    if (!previousLastIndex.equalsToByTheSameValueAlgorithm(state, Value(0))) {
+    if (!previousLastIndex.equalsToByTheSameValueAlgorithm(Value(0))) {
         rx->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), Value(0), thisValue);
     }
     Value result = regExpExec(state, rx, s);
 
     Value currentLastIndex = rx->get(state, ObjectPropertyName(state.context()->staticStrings().lastIndex)).value(state, thisValue);
-    if (!previousLastIndex.equalsToByTheSameValueAlgorithm(state, currentLastIndex)) {
+    if (!previousLastIndex.equalsToByTheSameValueAlgorithm(currentLastIndex)) {
         rx->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lastIndex), previousLastIndex, thisValue);
     }
     if (result.isNull()) {

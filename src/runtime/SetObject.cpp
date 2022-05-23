@@ -62,7 +62,7 @@ bool SetObject::deleteOperation(ExecutionState& state, const Value& key)
         if (existingKey.isEmpty()) {
             continue;
         }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+        if (existingKey.equalsToByTheSameValueZeroAlgorithm(key)) {
             m_storage[i] = Value(Value::EmptyValue);
             return true;
         }
@@ -77,7 +77,7 @@ void SetObject::add(ExecutionState& state, const Value& key)
         if (existingKey.isEmpty()) {
             continue;
         }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+        if (existingKey.equalsToByTheSameValueZeroAlgorithm(key)) {
             return;
         }
     }
@@ -97,7 +97,7 @@ bool SetObject::has(ExecutionState& state, const Value& key)
         if (existingKey.isEmpty()) {
             continue;
         }
-        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+        if (existingKey.equalsToByTheSameValueZeroAlgorithm(key)) {
             return true;
         }
     }

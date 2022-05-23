@@ -57,21 +57,13 @@ void getNextValidInValueVector(GC_word* ptr, GC_word* end, GC_word** next_ptr, G
 {
     while (ptr < end) {
         Value* current = (Value*)ptr;
-        if (current->isPointerValue()) {
-#ifdef ESCARGOT_32
-            *next_ptr = ptr + 2;
-#else
+        if (current->isHeapValue()) {
             *next_ptr = ptr + 1;
-#endif
             *from = ptr;
-            *to = (GC_word*)current->asPointerValue();
+            *to = (GC_word*)current->asRawData();
             return;
         }
-#ifdef ESCARGOT_32
-        ptr = ptr + 2;
-#else
         ptr = ptr + 1;
-#endif
     }
 
     *next_ptr = end;
@@ -353,13 +345,13 @@ template <>
 Value* CustomAllocator<Value>::allocate(size_type GC_n, const void*)
 {
     // Un-comment this to use default allocator
-    // return (Value*)GC_MALLOC(sizeof(Value) * GC_n);
-    int kind = s_gcKinds[HeapObjectKind::ValueVectorKind];
-    size_t size = sizeof(Value) * GC_n;
+    return (Value*)GC_MALLOC(sizeof(Value) * GC_n);
+    // int kind = s_gcKinds[HeapObjectKind::ValueVectorKind];
+    // size_t size = sizeof(Value) * GC_n;
 
-    Value* ret;
-    ret = (Value*)GC_GENERIC_MALLOC(size, kind);
-    return ret;
+    // Value* ret;
+    //     ret = (Value*)GC_GENERIC_MALLOC(size, kind);
+    // return ret;
 }
 
 template <>

@@ -316,7 +316,7 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
 
         return a == b;
     } else {
-        if (u.asInt64 == val.u.asInt64) {
+        if (m_data.payload == val.m_data.payload) {
             return true;
         }
 
@@ -443,9 +443,9 @@ bool Value::equalsToSlowCase(ExecutionState& state, const Value& val) const
             return a == b;
         }
 
-        return u.asInt64 == val.u.asInt64;
+        return m_data.payload == val.m_data.payload;
     } else {
-        if (u.asInt64 == val.u.asInt64) {
+        if (m_data.payload == val.m_data.payload) {
             return true;
         }
 
@@ -470,7 +470,7 @@ bool Value::equalsToSlowCase(ExecutionState& state, const Value& val) const
     return false;
 }
 
-bool Value::equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val) const
+bool Value::equalsToByTheSameValueAlgorithm(const Value& val) const
 {
     if (!val.isPointerValue()) {
         if (isNumber() && val.isNumber()) {
@@ -489,9 +489,9 @@ bool Value::equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val
             return a == b && std::signbit(a) == std::signbit(b);
         }
 
-        return u.asInt64 == val.u.asInt64;
+        return m_data.payload == val.m_data.payload;
     } else {
-        if (u.asInt64 == val.u.asInt64) {
+        if (m_data.payload == val.m_data.payload) {
             return true;
         }
 
@@ -518,7 +518,7 @@ bool Value::equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val
     return false;
 }
 
-bool Value::equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value& val) const
+bool Value::equalsToByTheSameValueZeroAlgorithm(const Value& val) const
 {
     if (LIKELY(!val.isPointerValue())) {
         if (isNumber() && val.isNumber()) {
@@ -532,9 +532,9 @@ bool Value::equalsToByTheSameValueZeroAlgorithm(ExecutionState& ec, const Value&
             return a == b;
         }
 
-        return u.asInt64 == val.u.asInt64;
+        return m_data.payload == val.m_data.payload;
     } else {
-        if (u.asInt64 == val.u.asInt64) {
+        if (m_data.payload == val.m_data.payload) {
             return true;
         }
 

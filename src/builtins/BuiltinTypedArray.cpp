@@ -658,7 +658,7 @@ static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, s
         // Let elementK be the result of ? Get(O, ! ToString(k)).
         Value elementK = O->getIndexedProperty(state, Value(k)).value(state, O);
         // If SameValueZero(searchElement, elementK) is true, return true.
-        if (elementK.equalsToByTheSameValueZeroAlgorithm(state, searchElement)) {
+        if (elementK.equalsToByTheSameValueZeroAlgorithm(searchElement)) {
             return Value(true);
         }
         // Increase k by 1.

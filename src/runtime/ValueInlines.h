@@ -50,297 +50,70 @@ constexpr double Value::maximumLength()
     return 9007199254740991.0;
 }
 
+#pragma pack(push, 1)
+// NumberInEncodedValue stores its tag in `this + sizeof(size_t)`
+// the location is same with PointerValues
+// store double
+class DoubleInValue : public gc {
+public:
+    explicit DoubleInValue(const double& v)
+#ifdef ESCARGOT_32
+    {
+        m_buffer[1] = POINTER_VALUE_NUMBER_TAG_IN_DATA;
+        setValue(v);
+    }
+#else
+        : m_value(v)
+        , m_typeTag(POINTER_VALUE_NUMBER_TAG_IN_DATA)
+    {
+    }
+#endif
+
+    void* operator new(size_t size)
+    {
+        return GC_MALLOC_ATOMIC(size);
+    }
+    void* operator new[](size_t size) = delete;
+
+    double value() const
+    {
+#ifdef ESCARGOT_32
+        double ret;
+        uint32_t* buf = reinterpret_cast<uint32_t*>(&ret);
+        buf[0] = m_buffer[0];
+        buf[1] = m_buffer[2];
+        return ret;
+#else
+        return m_value;
+#endif
+    }
+
+    void setValue(const double& v)
+    {
+#ifdef ESCARGOT_32
+        const uint32_t* buf = reinterpret_cast<const uint32_t*>(&v);
+        m_buffer[0] = buf[0];
+        m_buffer[2] = buf[1];
+#else
+        m_value = v;
+#endif
+    }
+
+private:
+#ifdef ESCARGOT_32
+    uint32_t m_buffer[3];
+#else
+    double m_value;
+    size_t m_typeTag;
+#endif
+};
+#pragma pack(pop)
+
 // ==============================================================================
 // ===32-bit architecture========================================================
 // ==============================================================================
 
 #ifdef ESCARGOT_32
-
-inline Value::Value(ForceUninitializedTag)
-{
-}
-
-inline Value::Value()
-{
-    u.asBits.tag = UndefinedTag;
-    u.asBits.payload = 0;
-}
-
-inline Value::Value(NullInitTag)
-{
-    u.asBits.tag = NullTag;
-    u.asBits.payload = 0;
-}
-
-inline Value::Value(UndefinedInitTag)
-{
-    u.asBits.tag = UndefinedTag;
-    u.asBits.payload = 0;
-}
-
-inline Value::Value(EmptyValueInitTag)
-{
-    u.asBits.tag = EmptyValueTag;
-    u.asBits.payload = 0;
-}
-
-inline Value::Value(TrueInitTag)
-{
-    u.asBits.tag = BooleanTrueTag;
-    u.asBits.payload = 0;
-}
-
-inline Value::Value(FalseInitTag)
-{
-    u.asBits.tag = BooleanFalseTag;
-    u.asBits.payload = 0;
-}
-
-inline Value::Value(bool b)
-{
-    u.asBits.tag = BooleanFalseTag ^ (((uint32_t)b) << TagTypeShift);
-    u.asBits.payload = 0;
-}
-
-inline Value::Value(FromPayloadTag, intptr_t ptr)
-{
-    u.asBits.tag = OtherPointerTag;
-#if defined(COMPILER_MSVC)
-    u.asBits.payload = (int32_t)(ptr);
-#else
-    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
-#endif
-}
-
-inline Value::Value(PointerValue* ptr)
-{
-    // other type of PointerValue(Object) has pointer in first data area
-    if (ptr->getTypeTag() & (POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA)) {
-        u.asBits.tag = OtherPointerTag;
-    } else {
-        u.asBits.tag = ObjectPointerTag;
-    }
-    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<PointerValue*>(ptr));
-}
-
-inline Value::Value(const PointerValue* ptr)
-{
-    if (ptr->isObject()) {
-        u.asBits.tag = ObjectPointerTag;
-    } else {
-        u.asBits.tag = OtherPointerTag;
-    }
-    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<PointerValue*>(ptr));
-}
-
-inline Value::Value(const PointerValue* ptr, FromNonObjectPointerTag)
-{
-    ASSERT(!ptr->isObject());
-    u.asBits.tag = OtherPointerTag;
-    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<PointerValue*>(ptr));
-}
-
-inline Value::Value(String* ptr)
-{
-    ASSERT(ptr != NULL);
-    u.asBits.tag = OtherPointerTag;
-    u.asBits.payload = reinterpret_cast<int32_t>(ptr);
-}
-
-inline Value::Value(const String* ptr)
-{
-    ASSERT(ptr != NULL);
-    u.asBits.tag = OtherPointerTag;
-    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<String*>(ptr));
-}
-
-inline Value::Value(Object* ptr)
-{
-    u.asBits.tag = ObjectPointerTag;
-    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<Object*>(ptr));
-}
-
-inline Value::Value(const Object* ptr)
-{
-    u.asBits.tag = ObjectPointerTag;
-    u.asBits.payload = reinterpret_cast<int32_t>(const_cast<Object*>(ptr));
-}
-
-inline Value::Value(FromTagTag, uint32_t tag)
-{
-    ASSERT(tag == BooleanFalseTag || tag == BooleanTrueTag || tag == NullTag
-           || tag == UndefinedTag || tag == EmptyValueTag);
-
-    u.asBits.tag = tag;
-    u.asBits.payload = 0;
-}
-
-inline Value::Value(EncodeAsDoubleTag, const double& d)
-{
-    u.asDouble = d;
-}
-
-inline Value::Value(int i)
-{
-    u.asBits.tag = Int32Tag;
-    u.asBits.payload = i;
-}
-
-inline bool Value::operator==(const Value& other) const
-{
-    return u.asInt64 == other.u.asInt64;
-}
-
-inline bool Value::operator!=(const Value& other) const
-{
-    return u.asInt64 != other.u.asInt64;
-}
-
-inline uint32_t Value::tag() const
-{
-    return u.asBits.tag;
-}
-
-inline int32_t Value::payload() const
-{
-    return u.asBits.payload;
-}
-
-ALWAYS_INLINE bool Value::isInt32() const
-{
-    return tag() == Int32Tag;
-}
-
-ALWAYS_INLINE bool Value::isDouble() const
-{
-    return tag() < LowestTag;
-}
-
-inline int32_t Value::asInt32() const
-{
-    ASSERT(isInt32());
-    return u.asBits.payload;
-}
-
-inline bool Value::asBoolean() const
-{
-    ASSERT(isBoolean());
-    return u.asBits.tag == BooleanTrueTag;
-}
-
-inline double Value::asDouble() const
-{
-    ASSERT(isDouble());
-    return u.asDouble;
-}
-
-inline bool Value::isEmpty() const
-{
-    return tag() == EmptyValueTag;
-}
-
-ALWAYS_INLINE bool Value::isNumber() const
-{
-    return isInt32() || isDouble();
-}
-
-inline bool Value::isPointerValue() const
-{
-    return (tag() == ObjectPointerTag) || (tag() == OtherPointerTag);
-}
-
-inline bool Value::isUndefined() const
-{
-    return tag() == UndefinedTag;
-}
-
-inline bool Value::isNull() const
-{
-    return tag() == NullTag;
-}
-
-inline bool Value::isBoolean() const
-{
-    /* BooleanTrueTag and BooleanFalseTag are inverted values
-       of ValueTrue and ValueFalse respectively. */
-    COMPILE_ASSERT(BooleanFalseTag == (BooleanTrueTag | (1 << TagTypeShift)), "");
-
-    return (tag() | (1 << TagTypeShift)) == BooleanFalseTag;
-}
-
-inline bool Value::isTrue() const
-{
-    return tag() == BooleanTrueTag;
-}
-
-inline bool Value::isFalse() const
-{
-    return tag() == BooleanFalseTag;
-}
-
-inline PointerValue* Value::asPointerValue() const
-{
-    ASSERT(isPointerValue());
-    return reinterpret_cast<PointerValue*>(u.asBits.payload);
-}
-
-inline bool Value::isString() const
-{
-    return tag() == OtherPointerTag && asPointerValue()->isString();
-}
-
-inline bool Value::isSymbol() const
-{
-    return tag() == OtherPointerTag && asPointerValue()->isSymbol();
-}
-
-inline bool Value::isBigInt() const
-{
-    return tag() == OtherPointerTag && asPointerValue()->isBigInt();
-}
-
-inline String* Value::asString() const
-{
-    ASSERT(isString());
-    return asPointerValue()->asString();
-}
-
-inline Symbol* Value::asSymbol() const
-{
-    ASSERT(isSymbol());
-    return asPointerValue()->asSymbol();
-}
-
-inline BigInt* Value::asBigInt() const
-{
-    ASSERT(isBigInt());
-    return asPointerValue()->asBigInt();
-}
-
-inline bool Value::isObject() const
-{
-    return tag() == ObjectPointerTag;
-}
-
-inline Object* Value::asObject() const
-{
-    return asPointerValue()->asObject();
-}
-
-inline bool Value::isFunction() const
-{
-    return isObject() && asPointerValue()->isFunctionObject();
-}
-
-inline bool Value::isExtendedNativeFunctionObject() const
-{
-    return isObject() && asPointerValue()->isExtendedNativeFunctionObject();
-}
-
-inline FunctionObject* Value::asFunction() const
-{
-    return asPointerValue()->asFunctionObject();
-}
 
 #else
 
@@ -348,138 +121,172 @@ inline FunctionObject* Value::asFunction() const
 // ===64-bit architecture========================================================
 // ==============================================================================
 
+#endif
 
-inline Value::Value()
-{
-    u.asInt64 = ValueUndefined;
-}
+// ==============================================================================
+// ===common architecture========================================================
+// ==============================================================================
 
 inline Value::Value(ForceUninitializedTag)
 {
 }
 
+inline Value::Value()
+{
+    m_data.payload = ValueUndefined;
+}
+
 inline Value::Value(NullInitTag)
 {
-    u.asInt64 = ValueNull;
+    m_data.payload =  ValueNull;
 }
 
 inline Value::Value(UndefinedInitTag)
 {
-    u.asInt64 = ValueUndefined;
+    m_data.payload = ValueUndefined;
 }
 
 inline Value::Value(EmptyValueInitTag)
 {
-    u.asInt64 = ValueEmpty;
+    m_data.payload = ValueEmpty;
 }
 
 inline Value::Value(TrueInitTag)
 {
-    u.asInt64 = ValueTrue;
+    m_data.payload = ValueTrue;
 }
 
 inline Value::Value(FalseInitTag)
 {
-    u.asInt64 = ValueFalse;
-}
-
-inline Value::Value(FromPayloadTag, intptr_t ptr)
-{
-    u.ptr = (PointerValue*)ptr;
+    m_data.payload = ValueFalse;
 }
 
 inline Value::Value(bool b)
 {
-    u.asInt64 = (TagBitTypeOther | (b << TagTypeShift));
+    m_data.payload = b ? ValueTrue : ValueFalse;
+}
+
+inline Value::Value(FromPayloadTag, intptr_t ptr)
+{
+    m_data.payload = ptr;
 }
 
 inline Value::Value(PointerValue* ptr)
 {
-    u.ptr = ptr;
+    m_data.payload = reinterpret_cast<intptr_t>(ptr);
 }
 
 inline Value::Value(const PointerValue* ptr)
 {
-    u.ptr = const_cast<PointerValue*>(ptr);
-}
-
-inline int64_t reinterpretDoubleToInt64(double value)
-{
-    return bitwise_cast<int64_t>(value);
-}
-inline double reinterpretInt64ToDouble(int64_t value)
-{
-    return bitwise_cast<double>(value);
-}
-
-inline Value::Value(EncodeAsDoubleTag, const double& d)
-{
-    u.asInt64 = reinterpretDoubleToInt64(d) + DoubleEncodeOffset;
+    m_data.payload = reinterpret_cast<intptr_t>(ptr);
 }
 
 inline Value::Value(int i)
 {
-    u.asInt64 = TagTypeNumber | static_cast<uint32_t>(i);
+    if (LIKELY(EncodedValueImpl::PlatformSmiTagging::IsValidSmi(i))) {
+        m_data.payload = EncodedValueImpl::PlatformSmiTagging::IntToSmi(i);
+    } else {
+        *this = Value(Value::EncodeAsDouble, static_cast<double>(i));
+    }
+}
+
+inline Value::Value(EncodeAsDoubleTag, const double& v)
+{
+    m_data.payload = reinterpret_cast<intptr_t>(new DoubleInValue(v));
+}
+
+inline intptr_t Value::asRawData() const
+{
+    return m_data.payload;
 }
 
 inline bool Value::operator==(const Value& other) const
 {
-    return u.asInt64 == other.u.asInt64;
+    return equalsToByTheSameValueAlgorithm(other);
 }
 
 inline bool Value::operator!=(const Value& other) const
 {
-    return u.asInt64 != other.u.asInt64;
+    return !equalsToByTheSameValueAlgorithm(other);
 }
 
 ALWAYS_INLINE bool Value::isInt32() const
 {
-#ifdef ESCARGOT_LITTLE_ENDIAN
-    ASSERT(sizeof(short) == 2);
-    unsigned short* firstByte = (unsigned short*)&u.asInt64;
-    return firstByte[3] == 0xffff;
-#else
-    return (u.asInt64 & TagTypeNumber) == TagTypeNumber;
-#endif
+    return HAS_SMI_TAG(m_data.payload);
 }
 
-inline bool Value::isDouble() const
+ALWAYS_INLINE bool Value::isDouble() const
 {
-    return isNumber() && !isInt32();
+    return isHeapValue() && readPointerValueTag() == POINTER_VALUE_NUMBER_TAG_IN_DATA;
 }
 
 inline int32_t Value::asInt32() const
 {
     ASSERT(isInt32());
-    return static_cast<int32_t>(u.asInt64);
+    return EncodedValueImpl::PlatformSmiTagging::SmiToInt(m_data.payload);
 }
 
 inline bool Value::asBoolean() const
 {
     ASSERT(isBoolean());
-    return u.asInt64 == ValueTrue;
+    return m_data.payload == ValueTrue;
 }
 
 inline double Value::asDouble() const
 {
     ASSERT(isDouble());
-    return reinterpretInt64ToDouble(u.asInt64 - DoubleEncodeOffset);
+    return reinterpret_cast<DoubleInValue*>(m_data.payload)->value();
 }
 
 inline bool Value::isEmpty() const
 {
-    return u.asInt64 == ValueEmpty;
+    return m_data.payload == ValueEmpty;
 }
 
 ALWAYS_INLINE bool Value::isNumber() const
 {
-#ifdef ESCARGOT_LITTLE_ENDIAN
-    ASSERT(sizeof(short) == 2);
-    unsigned short* firstByte = (unsigned short*)&u.asInt64;
-    return firstByte[3];
-#else
-    return u.asInt64 & TagTypeNumber;
-#endif
+    return isInt32() || isDouble();
+}
+
+inline bool Value::isHeapValue() const
+{
+    return !(m_data.payload & (EncodedValueImpl::kSmiTagMask | TagBitTypeOther));
+}
+
+inline bool Value::isPointerValue() const
+{
+    return isHeapValue() && readPointerValueTag() != POINTER_VALUE_NUMBER_TAG_IN_DATA;
+}
+
+inline bool Value::isUndefined() const
+{
+    return m_data.payload == ValueUndefined;
+}
+
+inline bool Value::isNull() const
+{
+    return m_data.payload == ValueNull;
+}
+
+inline bool Value::isBoolean() const
+{
+    return (m_data.payload | (1 << TagTypeShift)) == ValueTrue;
+}
+
+inline bool Value::isTrue() const
+{
+    return m_data.payload == ValueTrue;
+}
+
+inline bool Value::isFalse() const
+{
+    return m_data.payload == ValueFalse;
+}
+
+inline PointerValue* Value::asPointerValue() const
+{
+    ASSERT(isPointerValue());
+    return reinterpret_cast<PointerValue*>(m_data.payload);
 }
 
 inline bool Value::isString() const
@@ -515,47 +322,14 @@ inline BigInt* Value::asBigInt() const
     return asPointerValue()->asBigInt();
 }
 
-inline bool Value::isPointerValue() const
-{
-    return !(u.asInt64 & TagMask);
-}
-
-inline bool Value::isUndefined() const
-{
-    return u.asInt64 == ValueUndefined;
-}
-
-inline bool Value::isNull() const
-{
-    return u.asInt64 == ValueNull;
-}
-
-inline bool Value::isBoolean() const
-{
-    COMPILE_ASSERT(ValueTrue == (ValueFalse | (1 << TagTypeShift)), "");
-
-    return (u.asInt64 | (1 << TagTypeShift)) == ValueTrue;
-}
-
-inline bool Value::isTrue() const
-{
-    return u.asInt64 == ValueTrue;
-}
-
-inline bool Value::isFalse() const
-{
-    return u.asInt64 == ValueFalse;
-}
-
-inline PointerValue* Value::asPointerValue() const
-{
-    ASSERT(isPointerValue());
-    return u.ptr;
-}
-
 inline bool Value::isObject() const
 {
-    return isPointerValue() && asPointerValue()->isObject();
+    if (LIKELY(isHeapValue())) {
+        if (LIKELY(!(readPointerValueTag() & POINTER_VALUE_NOT_OBJECT_TAG_IN_DATA))) {
+            return true;
+        }
+    }
+    return false;
 }
 
 inline Object* Value::asObject() const
@@ -568,26 +342,15 @@ inline bool Value::isFunction() const
     return isPointerValue() && asPointerValue()->isFunctionObject();
 }
 
+inline bool Value::isExtendedNativeFunctionObject() const
+{
+    return isPointerValue() && asPointerValue()->isExtendedNativeFunctionObject();
+}
+
 inline FunctionObject* Value::asFunction() const
 {
     return asPointerValue()->asFunctionObject();
 }
-
-inline ExtendedNativeFunctionObject* Value::asExtendedNativeFunctionObject() const
-{
-    return asPointerValue()->asExtendedNativeFunctionObject();
-}
-
-inline intptr_t Value::payload() const
-{
-    return u.asInt64;
-}
-
-#endif
-
-// ==============================================================================
-// ===common architecture========================================================
-// ==============================================================================
 
 ALWAYS_INLINE bool Value::isInt32ConvertibleDouble(const double& d)
 {
@@ -614,12 +377,6 @@ inline Value::Value(const double& d)
         *this = Value(asInt32);
         return;
     }
-#ifdef ESCARGOT_64
-    if (UNLIKELY((bitwise_cast<int64_t>(d) & DoubleInvalidBeginning) == DoubleInvalidBeginning)) {
-        *this = Value(EncodeAsDouble, std::numeric_limits<double>::quiet_NaN());
-        return;
-    }
-#endif
     *this = Value(EncodeAsDouble, d);
 }
 
@@ -712,11 +469,7 @@ ALWAYS_INLINE double Value::asNumber() const
 
 inline bool Value::isPrimitive() const
 {
-#ifdef ESCARGOT_32
-    return tag() != ObjectPointerTag;
-#else
     return isUndefined() || isNull() || isNumber() || isString() || isBoolean() || isSymbol() || isBigInt();
-#endif
 }
 
 inline bool Value::isCallable() const
@@ -730,21 +483,10 @@ inline bool Value::isCallable() const
 // https://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
 inline double Value::toNumber(ExecutionState& state) const
 {
-#ifdef ESCARGOT_64
-    auto n = u.asInt64 & TagTypeNumber;
-    if (LIKELY(n)) {
-        if (n == TagTypeNumber) {
-            return FastI2D(asInt32());
-        } else {
-            return asDouble();
-        }
-    }
-#else
     if (LIKELY(isInt32()))
         return FastI2D(asInt32());
     else if (isDouble())
         return asDouble();
-#endif
     else if (isUndefined())
         return std::numeric_limits<double>::quiet_NaN();
     else if (isNull())
@@ -758,20 +500,11 @@ inline double Value::toNumber(ExecutionState& state) const
 
 inline std::pair<Value, bool> Value::toNumeric(ExecutionState& state) const // <Value, isBigInt>
 {
-// fast path
-#ifdef ESCARGOT_64
-    auto n = u.asInt64 & TagTypeNumber;
-    if (LIKELY(n)) {
-        return std::make_pair(*this, false);
-    }
-#else
     if (LIKELY(isInt32())) {
         return std::make_pair(*this, false);
     } else if (isDouble()) {
         return std::make_pair(*this, false);
-    }
-#endif
-    else if (isUndefined()) {
+    } else if (isUndefined()) {
         return std::make_pair(Value(std::numeric_limits<double>::quiet_NaN()), false);
     } else if (isNull()) {
         return std::make_pair(Value(0), false);
@@ -803,11 +536,7 @@ inline Value Value::toPrimitive(ExecutionState& ec, PrimitiveTypeHint preferredT
 inline bool Value::abstractEqualsTo(ExecutionState& state, const Value& val) const
 {
     if (isInt32() && val.isInt32()) {
-#ifdef ESCARGOT_64
-        return u.asInt64 == val.u.asInt64;
-#else
-        return u.asBits.payload == val.u.asBits.payload;
-#endif
+        return m_data.payload == val.m_data.payload;
     } else {
         return abstractEqualsToSlowCase(state, val);
     }
@@ -816,11 +545,7 @@ inline bool Value::abstractEqualsTo(ExecutionState& state, const Value& val) con
 inline bool Value::equalsTo(ExecutionState& state, const Value& val) const
 {
     if (isInt32() && val.isInt32()) {
-#ifdef ESCARGOT_64
-        return u.asInt64 == val.u.asInt64;
-#else
-        return u.asBits.payload == val.u.asBits.payload;
-#endif
+        return m_data.payload == val.m_data.payload;
     } else {
         return equalsToSlowCase(state, val);
     }

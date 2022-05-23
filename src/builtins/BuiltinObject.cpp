@@ -596,7 +596,7 @@ static Value builtinObjectIs(ExecutionState& state, Value thisValue, size_t argc
     // 19.1.2.10 Object.is ( value1, value2 )
 
     // Return SameValue(value1, value2).
-    return Value(argv[0].equalsToByTheSameValueAlgorithm(state, argv[1]));
+    return Value(argv[0].equalsToByTheSameValueAlgorithm(argv[1]));
 }
 
 static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

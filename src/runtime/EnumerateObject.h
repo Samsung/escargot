@@ -38,14 +38,16 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+    Object* m_object;
+    uint32_t m_arrayLength;
     size_t m_index;
     EncodedValueTightVector m_keys;
 
 protected:
     EnumerateObject(Object* obj)
-        : m_index(0)
-        , m_object(obj)
+        : m_object(obj)
         , m_arrayLength(0)
+        , m_index(0)
     {
         ASSERT(!!m_object);
     }
@@ -54,9 +56,6 @@ protected:
 
     virtual void executeEnumeration(ExecutionState& state, EncodedValueTightVector& keys) = 0;
     virtual bool checkIfModified(ExecutionState& state);
-
-    Object* m_object;
-    uint32_t m_arrayLength;
 };
 
 // enumerate object for destruction operation e.g. var obj = { a, ...b };
