@@ -133,15 +133,6 @@ void ByteCodeGenerateContext::insertBreakpoint(size_t index, Node* node)
     // dynamically generated code should not insert any debugging code
     ASSERT(!m_codeBlock->hasDynamicSourceCode());
 
-    // handle eval code
-    // insert one break point only at the start with line 1
-    if (UNLIKELY(m_isEvalCode)) {
-        if (m_breakpointContext->m_breakpointLocations->breakpointLocations.size() == 0) {
-            insertBreakpointAt(1, node);
-        }
-        return;
-    }
-
     // previous breakpoint's line offset
     size_t lastLineOffset = m_breakpointContext->m_lastBreakpointLineOffset;
     ExtendedNodeLOC sourceElementStart = m_codeBlock->functionStart();
@@ -269,7 +260,7 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
 
     // Parsing
     Node* ast = nullptr;
-    if (codeBlock->isGlobalScope()) {
+    if (codeBlock->isGlobalCodeBlock() || codeBlock->isEvalCode()) {
         ast = esprima::parseProgram(context, codeBlock->src(), esprima::generateClassInfoFrom(context, codeBlock->parent()),
                                     codeBlock->script()->isModule(), codeBlock->isStrict(), codeBlock->inWith(), SIZE_MAX, false, false, false, true);
     } else {

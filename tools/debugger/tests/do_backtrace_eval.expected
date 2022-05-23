@@ -1,0 +1,61 @@
+Connecting to: localhost:6501
+Connection created!!!
+Stopped at tools/debugger/tests/do_backtrace_eval.js:1
+(escargot-debugger) s
+Stopped at eval code:1
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_backtrace_eval.js:2
+(escargot-debugger) s
+Stopped at eval code:2 (in f() at line:1, col:1)
+(escargot-debugger) bt
+eval code:2:1 [depth:0] (in f)
+tools/debugger/tests/do_backtrace_eval.js:2:1 [depth:1]
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_backtrace_eval.js:8
+(escargot-debugger) s
+Stopped at eval code:1
+(escargot-debugger) s
+Stopped at eval code:2
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_backtrace_eval.js:5 (in g() at line:4, col:1)
+(escargot-debugger) bt
+tools/debugger/tests/do_backtrace_eval.js:5:3 [depth:0] (in g)
+eval code:2:1 [depth:1]
+tools/debugger/tests/do_backtrace_eval.js:8:1 [depth:2]
+(escargot-debugger) s
+Stopped at eval code:3
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_backtrace_eval.js:5 (in g() at line:4, col:1)
+(escargot-debugger) bt
+tools/debugger/tests/do_backtrace_eval.js:5:3 [depth:0] (in g)
+eval code:3:1 [depth:1]
+tools/debugger/tests/do_backtrace_eval.js:8:1 [depth:2]
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_backtrace_eval.js:17
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_backtrace_eval.js:11 (in h() at line:10, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_backtrace_eval.js:12 (in h() at line:10, col:1)
+(escargot-debugger) s
+Stopped at eval code:1
+(escargot-debugger) s
+Stopped at eval code:2
+(escargot-debugger) bt
+eval code:2:1 [depth:0]
+tools/debugger/tests/do_backtrace_eval.js:12:3 [depth:1] (in h)
+tools/debugger/tests/do_backtrace_eval.js:17:1 [depth:2]
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_backtrace_eval.js:13 (in h() at line:10, col:1)
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_backtrace_eval.js:14 (in h() at line:10, col:1)
+(escargot-debugger) s
+Stopped at eval code:1
+(escargot-debugger) s
+Stopped at eval code:3
+(escargot-debugger) s
+Stopped at tools/debugger/tests/do_backtrace_eval.js:5 (in g() at line:4, col:1)
+(escargot-debugger) bt
+tools/debugger/tests/do_backtrace_eval.js:5:3 [depth:0] (in g)
+eval code:3:1 [depth:1]
+(escargot-debugger) c
+Connection closed.
