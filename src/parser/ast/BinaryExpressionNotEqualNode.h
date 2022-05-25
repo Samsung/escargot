@@ -52,7 +52,7 @@ public:
         if (dstRegister == REGISTER_LIMIT) {
             codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), src0, src1, false, false), context, this);
         } else {
-            codeBlock->pushCode(BinaryNotEqual(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
+            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), src0, src1, dstRegister, 1), context, this);
         }
 
         context->m_canSkipCopyToRegister = directBefore;

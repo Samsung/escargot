@@ -685,13 +685,11 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         case BinaryDivisionOpcode:
         case BinaryModOpcode:
         case BinaryEqualOpcode:
-        case BinaryNotEqualOpcode:
         case BinaryLessThanOpcode:
         case BinaryLessThanOrEqualOpcode:
         case BinaryGreaterThanOpcode:
         case BinaryGreaterThanOrEqualOpcode:
         case BinaryStrictEqualOpcode:
-        case BinaryNotStrictEqualOpcode:
         case BinaryBitwiseAndOpcode:
         case BinaryBitwiseOrOpcode:
         case BinaryBitwiseXorOpcode:
