@@ -72,6 +72,9 @@ class AsyncFromSyncIteratorObject;
 class GlobalObjectProxyObject;
 class TemporalObject;
 class TemporalPlainDate;
+class TemporalZonedDateTime;
+class TemporalPlainDateTime;
+class TemporalInstant;
 class TemporalCalendar;
 class TypedArrayObject;
 class ModuleNamespaceObject;
@@ -336,6 +339,26 @@ public:
     }
 
     virtual bool isTemporalPlainDateObject() const
+    {
+        return false;
+    }
+
+    virtual bool isTemporalPlainDateTimeObject() const
+    {
+        return false;
+    }
+
+    virtual bool isTemporalZonedDateTimeObject() const
+    {
+        return false;
+    }
+
+    virtual bool isTemporalInstantObject() const
+    {
+        return false;
+    }
+
+    virtual bool isTemporalYearMonthObject() const
     {
         return false;
     }
@@ -606,6 +629,24 @@ public:
     {
         ASSERT(isTemporalPlainDateObject());
         return (TemporalPlainDate*)this;
+    }
+
+    TemporalZonedDateTime* asTemporalZonedDateTimeObject()
+    {
+        ASSERT(isTemporalZonedDateTimeObject());
+        return (TemporalZonedDateTime*)this;
+    }
+
+    TemporalPlainDateTime* asTemporalPlainDateTimeObject()
+    {
+        ASSERT(isTemporalPlainDateTimeObject());
+        return (TemporalPlainDateTime*)this;
+    }
+
+    TemporalInstant* asTemporalInstantObject()
+    {
+        ASSERT(isTemporalInstantObject());
+        return (TemporalInstant*)this;
     }
 
     TypedArrayObject* asTypedArrayObject()

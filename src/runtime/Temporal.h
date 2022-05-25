@@ -22,6 +22,8 @@
 #define __EscargotTemporal__
 
 #include "Escargot.h"
+#include "intl/Intl.h"
+#include "runtime/VMInstance.h"
 
 namespace Escargot {
 
@@ -37,9 +39,45 @@ public:
         return true;
     }
 
-    bool hasInitializedTemporalDate() const
+    static Value toTemporalOverflow(ExecutionState& state, const Value& normalizedOptions)
     {
-        return false;
+        if (normalizedOptions.isUndefined()) {
+            return state.context()->staticStrings().lazyConstrain().string();
+        }
+        Value matcherValues[2] = { state.context()->staticStrings().lazyConstrain().string(), state.context()->staticStrings().reject.string() };
+        return Intl::getOption(state, normalizedOptions.asObject(), state.context()->staticStrings().lazyoverflow().string(), Intl::StringValue, matcherValues, 2, matcherValues[0]);
+    }
+
+    static Value prepareTemporalFields(ExecutionState& state, const Value& fields, const ValueVector& fieldNames, const ValueVector& requiredFields)
+    {
+        ASSERT(fields.isObject());
+        auto* result = new Object(state);
+        for (auto property : fieldNames) {
+            Value value = fields.asObject()->get(state, ObjectPropertyName(state, fields), property).value(state, Value());
+            String* prop = property.asString();
+            if (value.isUndefined()) {
+                if (std::find(requiredFields.begin(), requiredFields.end(), property) != requiredFields.end()) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("requiredFields contains property"));
+                }
+                if (prop->equals("year") || prop->equals("month") || prop->equals("monthCode") || prop->equals("day") || prop->equals("offset") || prop->equals("era") || prop->equals("eraYear") || prop->equals("timeZone")) {
+                    value = Value();
+                } else {
+                    value = Value(0);
+                }
+            } else {
+                if (!prop->equals("timeZone")) {
+                    if (prop->equals("monthCode") || prop->equals("offset") || prop->equals("era")) {
+                        value = Value(value.toString(state));
+                    } else if (prop->equals("month") || prop->equals("day")) {
+                        value = Value(value.toUint32(state));
+                    } else {
+                        value = Value(value.toInteger(state));
+                    }
+                }
+            }
+            result->defineOwnProperty(state, ObjectPropertyName(AtomicString(state, property.asString())), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
+        }
+        return Value(result);
     }
 };
 

@@ -246,12 +246,14 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_FINALIZATIONREGISTRY(F, objName) \
     F(finalizationRegistry, FunctionObject, objName)          \
     F(finalizationRegistryPrototype, Object, objName)
-#define GLOBALOBJECT_BUILTIN_TEMPORAL(F, objName)  \
-    F(temporal, Object, objName)                   \
-    F(temporalCalendar, FunctionObject, objName)   \
-    F(temporalCalendarPrototype, Object, objName)  \
-    F(temporalPlainDate, FunctionObject, objName)  \
-    F(temporalPlainDatePrototype, Object, objName) \
+#define GLOBALOBJECT_BUILTIN_TEMPORAL(F, objName)      \
+    F(temporal, Object, objName)                       \
+    F(temporalCalendar, FunctionObject, objName)       \
+    F(temporalCalendarPrototype, Object, objName)      \
+    F(temporalPlainDate, FunctionObject, objName)      \
+    F(temporalPlainDatePrototype, Object, objName)     \
+    F(temporalPlainDateTime, FunctionObject, objName)  \
+    F(temporalPlainDateTimePrototype, Object, objName) \
     F(temporalNow, Object, objName)
 
 #if defined(ENABLE_THREADING)
