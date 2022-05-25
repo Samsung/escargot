@@ -51,9 +51,7 @@ struct GlobalVariableAccessCacheItem;
     F(BinaryLessThanOrEqual, 1, 2)                          \
     F(BinaryGreaterThan, 1, 2)                              \
     F(BinaryGreaterThanOrEqual, 1, 2)                       \
-    F(BinaryNotEqual, 1, 2)                                 \
     F(BinaryStrictEqual, 1, 2)                              \
-    F(BinaryNotStrictEqual, 1, 2)                           \
     F(BinaryBitwiseAnd, 1, 2)                               \
     F(BinaryBitwiseOr, 1, 2)                                \
     F(BinaryBitwiseXor, 1, 2)                               \
@@ -834,16 +832,19 @@ public:
 #define DEFINE_BINARY_OPERATION(CodeName, HumanName)                                                                                      \
     class Binary##CodeName : public ByteCode {                                                                                            \
     public:                                                                                                                               \
-        Binary##CodeName(const ByteCodeLOC& loc, const size_t registerIndex0, const size_t registerIndex1, const size_t dstRegisterIndex) \
+        Binary##CodeName(const ByteCodeLOC& loc, const size_t registerIndex0, const size_t registerIndex1, const size_t dstRegisterIndex, \
+                         const size_t extraData = 0)                                                                                      \
             : ByteCode(Opcode::Binary##CodeName##Opcode, loc)                                                                             \
             , m_srcIndex0(registerIndex0)                                                                                                 \
             , m_srcIndex1(registerIndex1)                                                                                                 \
             , m_dstIndex(dstRegisterIndex)                                                                                                \
+            , m_extraData(extraData)                                                                                                      \
         {                                                                                                                                 \
         }                                                                                                                                 \
         ByteCodeRegisterIndex m_srcIndex0;                                                                                                \
         ByteCodeRegisterIndex m_srcIndex1;                                                                                                \
         ByteCodeRegisterIndex m_dstIndex;                                                                                                 \
+        ByteCodeRegisterIndex m_extraData;                                                                                                \
         DEFINE_BINARY_OPERATION_DUMP(HumanName)                                                                                           \
     };
 
@@ -863,8 +864,6 @@ DEFINE_BINARY_OPERATION(LessThanOrEqual, "lessthan or equal");
 DEFINE_BINARY_OPERATION(Minus, "minus");
 DEFINE_BINARY_OPERATION(Mod, "mod");
 DEFINE_BINARY_OPERATION(Multiply, "multiply");
-DEFINE_BINARY_OPERATION(NotEqual, "notequal");
-DEFINE_BINARY_OPERATION(NotStrictEqual, "not strict equal");
 DEFINE_BINARY_OPERATION(Plus, "plus");
 DEFINE_BINARY_OPERATION(SignedRightShift, "signed right shift");
 DEFINE_BINARY_OPERATION(StrictEqual, "strict equal");

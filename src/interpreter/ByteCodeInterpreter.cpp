@@ -348,19 +348,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryEqual* code = (BinaryEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(left.abstractEqualsTo(*state, right));
+            registerFile[code->m_dstIndex] = Value(static_cast<bool>(left.abstractEqualsTo(*state, right) ^ code->m_extraData));
             ADD_PROGRAM_COUNTER(BinaryEqual);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(BinaryNotEqual)
-            :
-        {
-            BinaryNotEqual* code = (BinaryNotEqual*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(!left.abstractEqualsTo(*state, right));
-            ADD_PROGRAM_COUNTER(BinaryNotEqual);
             NEXT_INSTRUCTION();
         }
 
@@ -370,19 +359,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryStrictEqual* code = (BinaryStrictEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(left.equalsTo(*state, right));
+            registerFile[code->m_dstIndex] = Value(static_cast<bool>(left.equalsTo(*state, right) ^ code->m_extraData));
             ADD_PROGRAM_COUNTER(BinaryStrictEqual);
-            NEXT_INSTRUCTION();
-        }
-
-        DEFINE_OPCODE(BinaryNotStrictEqual)
-            :
-        {
-            BinaryNotStrictEqual* code = (BinaryNotStrictEqual*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(!left.equalsTo(*state, right));
-            ADD_PROGRAM_COUNTER(BinaryNotStrictEqual);
             NEXT_INSTRUCTION();
         }
 
