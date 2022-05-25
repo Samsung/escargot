@@ -99,6 +99,14 @@ public:
     static time64_t timeinfoToMs(ExecutionState& state, int year, int month, int day, int hour, int minute, int64_t second, int64_t millisecond); //
     static time64_t applyLocalTimezoneOffset(ExecutionState& state, time64_t t); //
 
+    static int yearFromTime(time64_t t);
+    static int monthFromTime(time64_t t);
+    static int dateFromTime(time64_t t);
+    static int hourFromTime(time64_t t);
+    static int minFromTime(time64_t t);
+    static int secFromTime(time64_t t);
+    static int msFromTime(time64_t t);
+
     String* toDateString(ExecutionState& state);
     String* toTimeString(ExecutionState& state);
     String* toFullString(ExecutionState& state);
@@ -172,7 +180,6 @@ protected:
     static int daysFromTime(time64_t t); // return the number of days after 1970.1.1
     static time64_t daysToMs(int year, int month, int date);
     static time64_t timeFromYear(int year) { return const_Date_msPerDay * daysFromYear(year); }
-    static int yearFromTime(time64_t t);
     static void getYMDFromTime(time64_t t, struct timeinfo& cachedLocal);
     static bool inLeapYear(int year);
 };

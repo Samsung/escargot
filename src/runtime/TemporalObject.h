@@ -40,6 +40,8 @@ public:
     static Value toISODate(ExecutionState& state, DateObject& d);
     static Value toISOTime(ExecutionState& state, DateObject& d);
     static std::map<std::string, std::string> parseValidIso8601String(ExecutionState& state, const Value& str);
+    static std::map<std::string, std::string> parseTemporalDateString(ExecutionState& state, std::string isoString);
+    static std::map<std::string, std::string> parseTemporalDateTimeString(ExecutionState& state, String* isoString);
 };
 
 class TemporalCalendar : public Temporal {
@@ -56,11 +58,21 @@ public:
     static bool isBuiltinCalendar(String* id);
     static Value getBuiltinCalendar(ExecutionState& state, String* id);
     static Value getISO8601Calendar(ExecutionState& state);
+    static ValueVector calendarFields(ExecutionState& state, const Value& calendar, const ValueVector& fieldNames);
     static Value toTemporalCalendar(ExecutionState& state, const Value& calendar);
     static Value toTemporalCalendarWithISODefault(ExecutionState& state, const Value& calendar);
+    static Value getTemporalCalendarWithISODefault(ExecutionState& state, const Value& item);
+    static Value dateFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options);
     static Value parseTemporalCalendarString(ExecutionState& state, const Value& isoString);
-    static Value ISODaysInMonth(ExecutionState& state, const Value& year, const Value& month);
-    static bool isIsoLeapYear(ExecutionState& state, const Value& year);
+    static Value ISODaysInYear(ExecutionState& state, const int year);
+    static Value ISODaysInMonth(ExecutionState& state, const int year, const int month);
+    static bool isIsoLeapYear(ExecutionState& state, const int year);
+    static std::string buildISOMonthCode(ExecutionState& state, const int month);
+    static int ISOYear(ExecutionState& state, const Value& temporalObject);
+    static int ISOMonth(ExecutionState& state, const Value& temporalObject);
+    static std::string ISOMonthCode(ExecutionState& state, const Value& temporalObject);
+    static int ISODay(ExecutionState& state, const Value& temporalObject);
+
     static Value defaultMergeFields(ExecutionState& state, const Value& fields, const Value& additionalFields);
     String* getIdentifier() const;
     void setIdentifier(String* identifier);
@@ -71,20 +83,21 @@ private:
 
 class TemporalPlainDate : public Temporal {
 public:
-    explicit TemporalPlainDate(ExecutionState& state, Value isoYear, Value isoMonth, Value isoDay, Optional<Value> calendarLike);
-    explicit TemporalPlainDate(ExecutionState& state, Object* proto, Value isoYear, Value isoMonth, Value isoDay, Optional<Value> calendarLike);
+    explicit TemporalPlainDate(ExecutionState& state, int isoYear, int isoMonth, int isoDay, Optional<Value> calendarLike);
+    explicit TemporalPlainDate(ExecutionState& state, Object* proto, int isoYear, int isoMonth, int isoDay, Optional<Value> calendarLike);
 
-    static Value createTemporalDate(ExecutionState& state, const Value& isoYear, const Value& isoMonth, const Value& isoDay, const Value& calendar, Optional<Object*> newTarget);
-    static bool isValidISODate(ExecutionState& state, const Value& year, const Value& month, const Value& day);
+    static std::map<std::string, int> createISODateRecord(ExecutionState& state, const int year, const int month, const int day);
+    static Value createTemporalDate(ExecutionState& state, const int isoYear, const int isoMonth, const int isoDay, const Value& calendar, Optional<Object*> newTarget = nullptr);
+    static bool isValidISODate(ExecutionState& state, const int year, const int month, const int day);
 
-    bool hasInitializedTemporalDate() const
-    {
-        return true;
-    }
+    static Value toTemporalDate(ExecutionState& state, const Value& item, Optional<Object*> options = nullptr);
+    static std::map<std::string, int> balanceISODate(ExecutionState& state, int year, int month, int day);
+
 
     int year() const { return m_y; }
     int month() const { return m_m; }
     int day() const { return m_d; }
+    Value calendar() const { return m_calendar; }
 
 private:
     int m_y;
@@ -99,11 +112,11 @@ public:
     explicit TemporalPlainTime(ExecutionState& state, Object* proto);
 
     static Value createTemporalTime(ExecutionState& state, size_t argc, Value* argv, Optional<Object*> newTarget);
-    static bool isValidTime(ExecutionState& state, const Value& hour, const Value& minute, const Value& second, const Value& millisecond, const Value& microsecond, const Value& nanosecond);
+    static bool isValidTime(ExecutionState& state, const int h, const int m, const int s, const int ms, const int us, const int ns);
+    static std::map<std::string, int> balanceTime(ExecutionState& state, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond);
 
     void setTime(char h, char m, char s, short ms, short qs, short ns);
     void setCalendar(ExecutionState& state, String* calendar, Optional<Object*> newTarget);
-
 
 private:
     short m_year;
@@ -122,10 +135,164 @@ private:
 class TemporalPlainDateTime : public Temporal {
 public:
     explicit TemporalPlainDateTime(ExecutionState& state);
-    explicit TemporalPlainDateTime(ExecutionState& state, Object* proto);
+    explicit TemporalPlainDateTime(ExecutionState& state, Object* proto, const int year, const int month, const int day, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond);
 
-    static Value getEpochFromISOParts(ExecutionState& state, const Value& year, const Value& month, const Value& day, const Value& hour, const Value& minute, const Value& second, const Value& millisecond, const Value& microsecond, const Value& nanosecond);
-    static bool ISODateTimeWithinLimits(ExecutionState& state, const Value& year, const Value& month, const Value& day, const Value& hour, const Value& minute, const Value& second, const Value& millisecond, const Value& microsecond, const Value& nanosecond);
+    static Value getEpochFromISOParts(ExecutionState& state, const int year, const int month, const int day, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond);
+    static bool ISODateTimeWithinLimits(ExecutionState& state, const int year, const int month, const int day, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond);
+    static std::map<std::string, std::string> interpretTemporalDateTimeFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options);
+    static Value toTemporalDateTime(ExecutionState& state, const Value& item, const Value& options = Value());
+    static std::map<std::string, int> balanceISODateTime(ExecutionState& state, const int year, const int month, const int day, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond);
+    static Value createTemporalDateTime(ExecutionState& state, const int isoYear, const int isoMonth, const int isoDay, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond, const Value& calendar, Optional<Object*> newTarget);
+
+    short getYear() const
+    {
+        return m_year;
+    }
+    char getMonth() const
+    {
+        return m_month;
+    }
+    char getDay() const
+    {
+        return m_day;
+    }
+    char getHour() const
+    {
+        return m_hour;
+    }
+    char getMinute() const
+    {
+        return m_minute;
+    }
+    char getSecond() const
+    {
+        return m_second;
+    }
+    short getMillisecond() const
+    {
+        return m_millisecond;
+    }
+    short getMicrosecond() const
+    {
+        return m_microsecond;
+    }
+    short getNanosecond() const
+    {
+        return m_nanosecond;
+    }
+
+    Value getCalendar() const
+    {
+        return Value(m_calendar);
+    }
+    void setCalendar(const Value mCalendar)
+    {
+        m_calendar = mCalendar.asObject()->asTemporalCalendarObject();
+    }
+
+private:
+    short m_year;
+    char m_month;
+    char m_day;
+    char m_hour;
+    char m_minute;
+    char m_second;
+    short m_millisecond;
+    short m_microsecond;
+    short m_nanosecond;
+
+    TemporalCalendar* m_calendar;
+};
+
+class TemporalZonedDateTime : public Temporal {
+public:
+    explicit TemporalZonedDateTime(ExecutionState& state);
+    explicit TemporalZonedDateTime(ExecutionState& state, Object* proto);
+
+    bool isTemporalZonedDateTimeObject() const override
+    {
+        return true;
+    }
+
+    const BigInt* getNanoseconds() const
+    {
+        return m_nanoseconds;
+    }
+
+    void setNanoseconds(BigInt* mNanoseconds)
+    {
+        m_nanoseconds = mNanoseconds;
+    }
+
+    const Value& getTimeZone() const
+    {
+        return m_timeZone;
+    }
+
+    void setTimeZone(const Value& mTimeZone)
+    {
+        m_timeZone = mTimeZone;
+    }
+
+    const Value getCalendar() const
+    {
+        return Value(m_calendar);
+    }
+
+    void setCalendar(const Value mCalendar)
+    {
+        m_calendar = mCalendar.asObject()->asTemporalCalendarObject();
+    }
+
+private:
+    BigInt* m_nanoseconds;
+    Value m_timeZone;
+    TemporalCalendar* m_calendar;
+};
+
+class TemporalInstant : public Temporal {
+public:
+    explicit TemporalInstant(ExecutionState& state);
+    explicit TemporalInstant(ExecutionState& state, Object* proto);
+
+    static bool isValidEpochNanoseconds(const Value& epochNanoseconds);
+    static Value createTemporalInstant(ExecutionState& state, const Value& epochNanoseconds, Optional<Object*> newTarget = nullptr);
+
+    bool isTemporalInstantObject() const override
+    {
+        return true;
+    }
+
+    const BigInt* getNanoseconds() const
+    {
+        return m_nanoseconds;
+    }
+
+    void setNanoseconds(BigInt* mNanoseconds)
+    {
+        m_nanoseconds = mNanoseconds;
+    }
+
+private:
+    BigInt* m_nanoseconds;
+};
+
+class TemporalPlainYearMonth : public Temporal {
+public:
+    explicit TemporalPlainYearMonth(ExecutionState& state);
+    explicit TemporalPlainYearMonth(ExecutionState& state, Object* proto);
+
+    static std::map<std::string, int> balanceISOYearMonth(ExecutionState& state, int year, int month);
+};
+
+class TemporalTimeZone : public Temporal {
+public:
+    explicit TemporalTimeZone(ExecutionState& state);
+    explicit TemporalTimeZone(ExecutionState& state, Object* proto);
+
+    static std::map<std::string, int> getISOPartsFromEpoch(ExecutionState& state, const Value& epochNanoseconds);
+    static Value getOffsetNanosecondsFor(ExecutionState& state, const Value& timeZone, const Value& instant);
+    static Value builtinTimeZoneGetPlainDateTimeFor(ExecutionState& state, const Value& timeZone, const Value& instant, const Value& calendar);
 };
 
 } // namespace Escargot

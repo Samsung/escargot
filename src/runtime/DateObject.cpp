@@ -152,6 +152,7 @@ static const char days[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
 static const char months[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 static const char* invalidDate = "Invalid Date";
+static const int monthNumberHelper[] = { 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
 
 DateObject::DateObject(ExecutionState& state)
     : DateObject(state, state.context()->globalObject()->datePrototype())
@@ -1050,6 +1051,67 @@ int DateObject::yearFromTime(time64_t t)
     return estimate;
 }
 
+int DateObject::monthFromTime(time64_t t)
+{
+    int day = DateObject::daysInYear(yearFromTime(t));
+    bool leap = DateObject::inLeapYear(yearFromTime(t));
+    int l = 0, r = 10;
+
+    if (day < 31) {
+        return 0;
+    }
+
+    day -= leap;
+
+    while (true) {
+        int m = l + (r - l) / 2;
+        if (monthNumberHelper[m] >= day && monthNumberHelper[m - 1] < day) {
+            return m + (monthNumberHelper[m] == day);
+        } else if (monthNumberHelper[m] < day) {
+            l = m + 1;
+        } else {
+            r = m - 1;
+        }
+    }
+}
+
+int DateObject::dateFromTime(time64_t t)
+{
+    bool leap = DateObject::inLeapYear(yearFromTime(t));
+    int dayWithinYear = daysFromTime(t) - daysFromYear(yearFromTime(t));
+
+    int monthNumber = DateObject::monthFromTime(t);
+
+    if (monthNumber == 0) {
+        return dayWithinYear + 1;
+    }
+
+    if (monthNumber == 1) {
+        return dayWithinYear - monthNumberHelper[monthNumber + 1] - 1;
+    }
+
+    return dayWithinYear - monthNumberHelper[monthNumber + 1] - 1 - leap;
+}
+
+int DateObject::hourFromTime(time64_t t)
+{
+    return (int)std::floor(t / const_Date_msPerHour) % const_Date_hoursPerDay;
+}
+
+int DateObject::minFromTime(time64_t t)
+{
+    return (int)std::floor(t / const_Date_msPerMinute) % const_Date_minutesPerHour;
+}
+
+int DateObject::secFromTime(time64_t t)
+{
+    return (int)std::floor(t / const_Date_msPerSecond) % const_Date_secondsPerMinute;
+}
+
+int DateObject::msFromTime(time64_t t)
+{
+    return t % const_Date_msPerSecond;
+}
 
 inline bool DateObject::inLeapYear(int year)
 {

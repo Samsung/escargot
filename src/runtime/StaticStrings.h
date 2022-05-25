@@ -699,6 +699,7 @@ namespace Escargot {
     F(CompactDisplay, "compactDisplay")                     \
     F(CompareFunction, "compareFunction")                   \
     F(Conjunction, "conjunction")                           \
+    F(Constrain, "constrain")                               \
     F(Currency, "currency")                                 \
     F(CurrencyDisplay, "currencyDisplay")                   \
     F(CurrencySign, "currencySign")                         \
@@ -797,20 +798,28 @@ namespace Escargot {
 #define FOR_EACH_LAZY_INTL_STATIC_STRING(F)
 #endif
 
-#define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F) \
-    F(PlainDate, "PlainDate")                   \
-    F(Temporal, "Temporal")                     \
-    F(Now, "Now")                               \
-    F(Calendar, "Calendar")                     \
-    F(dateFromFields, "dateFromFields")         \
-    F(fields, "fields")                         \
-    F(id, "id")                                 \
-    F(inLeapYear, "inLeapYear")                 \
-    F(mergeFields, "mergeFields")               \
-    F(plainDateISO, "plainDateISO")             \
-    F(plainDateTimeISO, "plainDateTimeISO")     \
-    F(plainTimeISO, "plainTimeISO")             \
-    F(timeZone, "timeZone")                     \
+#define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)           \
+    F(PlainDate, "PlainDate")                             \
+    F(PlainDateTime, "PlainDateTime")                     \
+    F(Temporal, "Temporal")                               \
+    F(Now, "Now")                                         \
+    F(Calendar, "Calendar")                               \
+    F(dateFromFields, "dateFromFields")                   \
+    F(DateTime, "DateTime")                               \
+    F(day, "day")                                         \
+    F(fields, "fields")                                   \
+    F(getOffsetNanosecondsFor, "getOffsetNanosecondsFor") \
+    F(id, "id")                                           \
+    F(inLeapYear, "inLeapYear")                           \
+    F(mergeFields, "mergeFields")                         \
+    F(month, "month")                                     \
+    F(monthCode, "monthCode")                             \
+    F(overflow, "overflow")                               \
+    F(plainDateISO, "plainDateISO")                       \
+    F(plainDateTimeISO, "plainDateTimeISO")               \
+    F(plainTimeISO, "plainTimeISO")                       \
+    F(timeZone, "timeZone")                               \
+    F(year, "year")                                       \
     F(zonedDateTimeISO, "zonedDateTimeISO")
 
 #if defined(ENABLE_THREADING)
