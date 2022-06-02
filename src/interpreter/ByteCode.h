@@ -1144,7 +1144,8 @@ struct GetObjectInlineCacheData {
 typedef Vector<GetObjectInlineCacheData, CustomAllocator<GetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> GetObjectInlineCacheDataVector;
 
 struct GetObjectInlineCacheComplexCase {
-    GetObjectInlineCacheComplexCase()
+    GetObjectInlineCacheComplexCase(ObjectStructurePropertyName propertyName)
+        : m_propertyName(propertyName)
     {
     }
 
@@ -1152,12 +1153,15 @@ struct GetObjectInlineCacheComplexCase {
     void* operator new[](size_t size) = delete;
 
     GetObjectInlineCacheDataVector m_cache;
+
+    ObjectStructurePropertyName m_propertyName;
 };
 
 struct GetObjectInlineCacheSimpleCase : public gc {
-    GetObjectInlineCacheSimpleCase()
+    GetObjectInlineCacheSimpleCase(ObjectStructurePropertyName propertyName)
+        : m_propertyName(propertyName)
     {
-        memset(this, 0, sizeof(GetObjectInlineCacheSimpleCase));
+        memset(m_cachedStructures, 0, sizeof(ObjectStructure*) * inlineBufferSize);
     }
 
     void* operator new(size_t size);
@@ -1167,6 +1171,8 @@ struct GetObjectInlineCacheSimpleCase : public gc {
 
     ObjectStructure* m_cachedStructures[inlineBufferSize];
     uint8_t m_cachedIndexes[inlineBufferSize];
+
+    ObjectStructurePropertyName m_propertyName;
 };
 
 class GetObjectPreComputedCase : public ByteCode {
@@ -1178,16 +1184,10 @@ public:
         , m_isLength(propertyName.plainString()->equals("length"))
         , m_inlineCacheProtoTraverseMaxIndex(0)
         , m_cacheMissCount(0)
-        , m_simpleInlineCache(nullptr)
+        , m_propertyName(propertyName)
         , m_objectRegisterIndex(objectRegisterIndex)
         , m_storeRegisterIndex(storeRegisterIndex)
-        , m_propertyName(propertyName)
     {
-    }
-
-    bool hasInlineCache() const
-    {
-        return !!m_simpleInlineCache;
     }
 
     static constexpr size_t inlineCacheProtoTraverseMaxCount = 12;
@@ -1205,11 +1205,11 @@ public:
     union {
         GetObjectInlineCacheSimpleCase* m_simpleInlineCache;
         GetObjectInlineCacheComplexCase* m_complexInlineCache;
+        ObjectStructurePropertyName m_propertyName;
     };
 
     ByteCodeRegisterIndex m_objectRegisterIndex;
     ByteCodeRegisterIndex m_storeRegisterIndex;
-    ObjectStructurePropertyName m_propertyName;
 #ifndef NDEBUG
     void dump()
     {
