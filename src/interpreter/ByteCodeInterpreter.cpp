@@ -2117,26 +2117,35 @@ NEVER_INLINE void ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMis
     const size_t minCacheFillCount = 4;
     const size_t maxCacheCount = 24;
 
+    ObjectStructurePropertyName propertyName;
+    if (code->m_inlineCacheMode == GetObjectPreComputedCase::None) {
+        propertyName = code->m_propertyName;
+    } else if (code->m_inlineCacheMode == GetObjectPreComputedCase::Simple) {
+        propertyName = code->m_simpleInlineCache->m_propertyName;
+    } else {
+        propertyName = code->m_complexInlineCache->m_propertyName;
+    }
+
     // cache miss.
     if (code->m_cacheMissCount > maxCacheMissCount) {
-        registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, code->m_propertyName)).value(state, receiver);
+        registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, propertyName)).value(state, receiver);
         return;
     }
 
     code->m_cacheMissCount++;
     if (code->m_cacheMissCount <= minCacheFillCount) {
-        registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, code->m_propertyName)).value(state, receiver);
+        registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, propertyName)).value(state, receiver);
         return;
     }
 
     if (UNLIKELY(!obj->isInlineCacheable())) {
         code->m_cacheMissCount = maxCacheMissCount + 1;
-        registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, code->m_propertyName)).value(state, receiver);
+        registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, propertyName)).value(state, receiver);
         return;
     }
 
     if (UNLIKELY(code->m_cacheMissCount == maxCacheMissCount)) {
-        registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, code->m_propertyName)).value(state, receiver);
+        registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, propertyName)).value(state, receiver);
         return;
     }
 
@@ -2150,7 +2159,7 @@ NEVER_INLINE void ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMis
     while (true) {
         auto s = obj->structure();
         cachedhiddenClassChain.push_back(s);
-        auto result = s->findProperty(code->m_propertyName);
+        auto result = s->findProperty(propertyName);
 
         if (result.first != SIZE_MAX) {
             if (UNLIKELY(result.first > GetObjectInlineCacheData::inlineCacheCachedIndexMax)) {
@@ -2186,7 +2195,7 @@ NEVER_INLINE void ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMis
     if (isPlainDataProperty && cachedhiddenClassChain.size() == 1 && cachedIndex <= std::numeric_limits<uint8_t>::max()
         && code->m_inlineCacheMode <= GetObjectPreComputedCase::Simple) {
         if (code->m_inlineCacheMode != GetObjectPreComputedCase::Simple) {
-            code->m_simpleInlineCache = new GetObjectInlineCacheSimpleCase();
+            code->m_simpleInlineCache = new GetObjectInlineCacheSimpleCase(propertyName);
             block->m_inlineCacheDataSize += sizeof(GetObjectInlineCacheSimpleCase);
             currentCodeSizeTotal += sizeof(GetObjectInlineCacheSimpleCase);
             code->m_inlineCacheMode = GetObjectPreComputedCase::Simple;
@@ -2216,7 +2225,7 @@ NEVER_INLINE void ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMis
         if (code->m_inlineCacheMode == GetObjectPreComputedCase::Simple) {
             // convert simple case to complex case
             GetObjectInlineCacheSimpleCase* old = code->m_simpleInlineCache;
-            auto inlineCache = code->m_complexInlineCache = new GetObjectInlineCacheComplexCase();
+            auto inlineCache = code->m_complexInlineCache = new GetObjectInlineCacheComplexCase(propertyName);
             block->m_otherLiteralData.push_back(code->m_complexInlineCache);
             code->m_inlineCacheMode = GetObjectPreComputedCase::Complex;
             block->m_inlineCacheDataSize += sizeof(GetObjectInlineCacheComplexCase) - sizeof(GetObjectInlineCacheSimpleCase);
@@ -2234,7 +2243,7 @@ NEVER_INLINE void ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMis
                 item.m_isPlainDataProperty = true;
             }
         } else if (code->m_inlineCacheMode == GetObjectPreComputedCase::None) {
-            code->m_complexInlineCache = new GetObjectInlineCacheComplexCase();
+            code->m_complexInlineCache = new GetObjectInlineCacheComplexCase(propertyName);
             block->m_otherLiteralData.push_back(code->m_complexInlineCache);
             code->m_inlineCacheMode = GetObjectPreComputedCase::Complex;
             block->m_inlineCacheDataSize += sizeof(GetObjectInlineCacheComplexCase);
@@ -2278,9 +2287,9 @@ NEVER_INLINE void ByteCodeInterpreter::getObjectPrecomputedCaseOperationCacheMis
 
 GiveUp:
     code->m_inlineCacheMode = GetObjectPreComputedCase::None;
-    code->m_simpleInlineCache = nullptr;
+    code->m_propertyName = propertyName;
     code->m_cacheMissCount = maxCacheMissCount + 1;
-    registerFile[code->m_storeRegisterIndex] = orgObj->get(state, ObjectPropertyName(state, code->m_propertyName)).value(state, receiver);
+    registerFile[code->m_storeRegisterIndex] = orgObj->get(state, ObjectPropertyName(state, propertyName)).value(state, receiver);
 }
 
 ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
