@@ -79,6 +79,7 @@ struct GlobalVariableAccessCacheItem;
     F(GetObject, 1, 2)                                      \
     F(SetObjectOperation, 0, 2)                             \
     F(GetObjectPreComputedCase, 1, 1)                       \
+    F(GetObjectPreComputedCaseSimpleInlineCache, 1, 1)      \
     F(SetObjectPreComputedCase, 0, 1)                       \
     F(GetGlobalVariable, 1, 1)                              \
     F(SetGlobalVariable, 0, 1)                              \
@@ -210,6 +211,15 @@ public:
 #endif
     }
 #endif
+
+    void changeOpcode(Opcode code)
+    {
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+        m_opcodeInAddress = g_opcodeTable.m_addressTable[code];
+#else
+        m_opcode = code;
+#endif
+    }
 
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
     void* m_opcodeInAddress;
@@ -1143,8 +1153,8 @@ struct GetObjectInlineCacheData {
 
 typedef Vector<GetObjectInlineCacheData, CustomAllocator<GetObjectInlineCacheData>, ComputeReservedCapacityFunctionWithLog2<>> GetObjectInlineCacheDataVector;
 
-struct GetObjectInlineCacheComplexCase {
-    GetObjectInlineCacheComplexCase(ObjectStructurePropertyName propertyName)
+struct GetObjectInlineCacheComplexCaseData {
+    GetObjectInlineCacheComplexCaseData(ObjectStructurePropertyName propertyName)
         : m_propertyName(propertyName)
     {
     }
@@ -1157,8 +1167,8 @@ struct GetObjectInlineCacheComplexCase {
     ObjectStructurePropertyName m_propertyName;
 };
 
-struct GetObjectInlineCacheSimpleCase : public gc {
-    GetObjectInlineCacheSimpleCase(ObjectStructurePropertyName propertyName)
+struct GetObjectInlineCacheSimpleCaseData : public gc {
+    GetObjectInlineCacheSimpleCaseData(ObjectStructurePropertyName propertyName)
         : m_propertyName(propertyName)
     {
         memset(m_cachedStructures, 0, sizeof(ObjectStructure*) * inlineBufferSize);
@@ -1190,6 +1200,11 @@ public:
     {
     }
 
+    bool hasInlineCache() const
+    {
+        return m_inlineCacheMode != None;
+    }
+
     static constexpr size_t inlineCacheProtoTraverseMaxCount = 12;
 
     enum GetInlineCacheMode {
@@ -1203,8 +1218,8 @@ public:
     unsigned char m_inlineCacheProtoTraverseMaxIndex : 8;
     size_t m_cacheMissCount : 16;
     union {
-        GetObjectInlineCacheSimpleCase* m_simpleInlineCache;
-        GetObjectInlineCacheComplexCase* m_complexInlineCache;
+        GetObjectInlineCacheSimpleCaseData* m_simpleInlineCache;
+        GetObjectInlineCacheComplexCaseData* m_complexInlineCache;
         ObjectStructurePropertyName m_propertyName;
     };
 
@@ -1217,6 +1232,12 @@ public:
     }
 #endif
 };
+
+class GetObjectPreComputedCaseSimpleInlineCache : public GetObjectPreComputedCase {
+public:
+};
+
+COMPILE_ASSERT(sizeof(GetObjectPreComputedCaseSimpleInlineCache) == sizeof(GetObjectPreComputedCase), "");
 
 struct SetObjectInlineCacheData {
     SetObjectInlineCacheData()
