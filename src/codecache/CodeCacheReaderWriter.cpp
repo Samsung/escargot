@@ -612,6 +612,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 STORE_ATOMICSTRING_RELOC(m_templateDataString);
                 break;
             }
+            case GetObjectPreComputedCaseSimpleInlineCacheOpcode:
             case ExecutionResumeOpcode:
                 RELEASE_ASSERT_NOT_REACHED();
                 break;

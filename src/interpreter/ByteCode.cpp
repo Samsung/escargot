@@ -332,30 +332,31 @@ void ByteCodeBlock::pushPauseStatementExtraData(ByteCodeGenerateContext* context
     }
 }
 
-void* GetObjectInlineCacheSimpleCase::operator new(size_t size)
+void* GetObjectInlineCacheSimpleCaseData::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCacheSimpleCase)] = { 0 };
+        GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCacheSimpleCaseData)] = { 0 };
         for (size_t i = 0; i < inlineBufferSize; i++) {
-            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheSimpleCase, m_cachedStructures) + i);
+            GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheSimpleCaseData, m_cachedStructures) + i);
         }
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCacheSimpleCase));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheSimpleCaseData, m_propertyName));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCacheSimpleCaseData));
         typeInited = true;
     }
 
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-void* GetObjectInlineCacheComplexCase::operator new(size_t size)
+void* GetObjectInlineCacheComplexCaseData::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCacheComplexCase)] = { 0 };
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheComplexCase, m_cache));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCacheComplexCase));
+        GC_word obj_bitmap[GC_BITMAP_SIZE(GetObjectInlineCacheComplexCaseData)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(GetObjectInlineCacheComplexCaseData, m_cache));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(GetObjectInlineCacheComplexCaseData));
         typeInited = true;
     }
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
