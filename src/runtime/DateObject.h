@@ -92,6 +92,9 @@ public:
         }
     }
 
+    static int weekDay(time64_t t) { return (daysFromTime(t) + 4) % const_Date_daysPerWeek; }
+    static int daysInYear(int year);
+
     void setTimeValue(time64_t t);
     void setTimeValue(ExecutionState& state, const Value& str);
     void setTimeValue(ExecutionState& state, int year, int month, int date, int hour, int minute, int64_t second, int64_t millisecond, bool convertToUTC = true);
@@ -174,7 +177,6 @@ protected:
     static time64_t parseStringToDate(ExecutionState& state, String* istr);
     static time64_t parseStringToDate_1(ExecutionState& state, String* istr, bool& haveTZ, int& offset);
     static time64_t parseStringToDate_2(ExecutionState& state, String* istr, bool& haveTZ);
-    static int daysInYear(int year);
     static int daysFromMonth(int year, int month);
     static int daysFromYear(int year);
     static int daysFromTime(time64_t t); // return the number of days after 1970.1.1

@@ -566,6 +566,85 @@ ValueVector TemporalCalendar::calendarFields(ExecutionState& state, const Value&
     return IteratorObject::iterableToListOfType(state, fieldsArray, new ASCIIString("String"));
 }
 
+Value TemporalCalendar::getterHelper(ExecutionState& state, const Value& callee, Object* thisValue, Value* argv)
+{
+    Value result = Object::call(state, callee, thisValue, 1, argv);
+
+    if (result.isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Undefined");
+    }
+
+    return result;
+}
+
+Value TemporalCalendar::calendarYear(ExecutionState& state, Object* calendar, const Value& dateLike)
+{
+    return TemporalCalendar::getterHelper(state, calendar->get(state, state.context()->staticStrings().lazyYear()).value(state, calendar), calendar, const_cast<Value*>(&dateLike));
+}
+
+Value TemporalCalendar::calendarMonth(ExecutionState& state, Object* calendar, const Value& dateLike)
+{
+    return TemporalCalendar::getterHelper(state, calendar->get(state, state.context()->staticStrings().lazyMonth()).value(state, calendar), calendar, const_cast<Value*>(&dateLike));
+}
+
+Value TemporalCalendar::calendarMonthCode(ExecutionState& state, Object* calendar, const Value& dateLike)
+{
+    return TemporalCalendar::getterHelper(state, calendar->get(state, state.context()->staticStrings().lazymonthCode()).value(state, calendar), calendar, const_cast<Value*>(&dateLike));
+}
+
+Value TemporalCalendar::calendarDay(ExecutionState& state, Object* calendar, const Value& dateLike)
+{
+    return TemporalCalendar::getterHelper(state, calendar->get(state, state.context()->staticStrings().lazyDay()).value(state, calendar), calendar, const_cast<Value*>(&dateLike));
+}
+
+Value TemporalCalendar::calendarDayOfWeek(ExecutionState& state, Object* calendar, const Value& dateLike)
+{
+    Value dayOfWeek = calendar->get(state, state.context()->staticStrings().lazydayOfWeek()).value(state, calendar);
+    return Object::call(state, dayOfWeek, calendar, 1, const_cast<Value*>(&dateLike));
+}
+
+Value TemporalCalendar::calendarDayOfYear(ExecutionState& state, Object* calendar, const Value& dateLike)
+{
+    Value dayOfYear = calendar->get(state, state.context()->staticStrings().lazydayOfYear()).value(state, calendar);
+    return Object::call(state, dayOfYear, calendar, 1, const_cast<Value*>(&dateLike));
+}
+
+Value TemporalCalendar::calendarWeekOfYear(ExecutionState& state, Object* calendar, const Value& dateLike)
+{
+    Value weekOfYear = calendar->get(state, state.context()->staticStrings().lazyweekOfYear()).value(state, calendar);
+    return Object::call(state, weekOfYear, calendar, 1, const_cast<Value*>(&dateLike));
+}
+
+Value TemporalCalendar::calendarDaysInWeek(ExecutionState& state, Object* calendar, const Value& dateLike)
+{
+    Value daysInWeek = calendar->get(state, state.context()->staticStrings().lazydaysInWeek()).value(state, calendar);
+    return Object::call(state, daysInWeek, calendar, 1, const_cast<Value*>(&dateLike));
+}
+
+Value TemporalCalendar::calendarDaysInMonth(ExecutionState& state, Object* calendar, const Value& dateLike)
+{
+    Value daysInMonth = calendar->get(state, state.context()->staticStrings().lazydaysInMonth()).value(state, calendar);
+    return Object::call(state, daysInMonth, calendar, 1, const_cast<Value*>(&dateLike));
+}
+
+Value TemporalCalendar::calendarDaysInYear(ExecutionState& state, Object* calendar, const Value& dateLike)
+{
+    Value daysInYear = calendar->get(state, state.context()->staticStrings().lazydaysInYear()).value(state, calendar);
+    return Object::call(state, daysInYear, calendar, 1, const_cast<Value*>(&dateLike));
+}
+
+Value TemporalCalendar::calendarMonthsInYear(ExecutionState& state, Object* calendar, const Value& dateLike)
+{
+    Value monthsInYear = calendar->get(state, state.context()->staticStrings().lazymonthsInYear()).value(state, calendar);
+    return Object::call(state, monthsInYear, calendar, 1, const_cast<Value*>(&dateLike));
+}
+
+Value TemporalCalendar::calendarInLeapYear(ExecutionState& state, Object* calendar, const Value& dateLike)
+{
+    Value inLeapYear = calendar->get(state, state.context()->staticStrings().lazyinLeapYear()).value(state, calendar);
+    return Object::call(state, inLeapYear, calendar, 1, const_cast<Value*>(&dateLike));
+}
+
 Value TemporalCalendar::dateFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options)
 {
     ASSERT(calendar.isObject());
@@ -579,6 +658,20 @@ Value TemporalCalendar::dateFromFields(ExecutionState& state, const Value& calen
 Value TemporalCalendar::ISODaysInYear(ExecutionState& state, const int year)
 {
     return Value(TemporalCalendar::isIsoLeapYear(state, year) ? 366 : 355);
+}
+
+int TemporalCalendar::toISOWeekOfYear(ExecutionState& state, const int year, const int month, const int day)
+{
+    Value epochDays = DateObject::makeDay(state, Value(year), Value(month - 1), Value(day));
+    int dayOfYear = TemporalCalendar::dayOfYear(state, epochDays);
+    int dayOfWeek = DateObject::weekDay(DateObject::makeDate(state, epochDays, Value(0)).toUint32(state));
+    int dayOfWeekOfJanFirst = DateObject::weekDay(DateObject::makeDate(state, DateObject::makeDay(state, Value(year), Value(0), Value(1)), Value(0)).toUint32(state));
+    int weekNum = (dayOfYear + 6) / 7;
+    if (dayOfWeek < dayOfWeekOfJanFirst) {
+        ++weekNum;
+    }
+
+    return weekNum;
 }
 
 bool TemporalPlainDate::isValidISODate(ExecutionState& state, const int year, const int month, const int day)
