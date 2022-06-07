@@ -25,6 +25,7 @@
 #include "runtime/Object.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/Temporal.h"
+#include "runtime/DateObject.h"
 
 namespace Escargot {
 
@@ -54,15 +55,30 @@ public:
         return true;
     }
 
+    static Value getterHelper(ExecutionState& state, const Value& callee, Object* thisValue, Value* argv);
+
     static TemporalCalendar* createTemporalCalendar(ExecutionState& state, String* id, Optional<Object*> newTarget = Optional<Object*>());
     static bool isBuiltinCalendar(String* id);
     static Value getBuiltinCalendar(ExecutionState& state, String* id);
     static Value getISO8601Calendar(ExecutionState& state);
     static ValueVector calendarFields(ExecutionState& state, const Value& calendar, const ValueVector& fieldNames);
+    static Value calendarYear(ExecutionState& state, Object* calendar, const Value& dateLike);
+    static Value calendarMonth(ExecutionState& state, Object* calendar, const Value& dateLike);
+    static Value calendarMonthCode(ExecutionState& state, Object* calendar, const Value& dateLike);
+    static Value calendarDay(ExecutionState& state, Object* calendar, const Value& dateLike);
+    static Value calendarDayOfWeek(ExecutionState& state, Object* calendar, const Value& dateLike);
+    static Value calendarDayOfYear(ExecutionState& state, Object* calendar, const Value& dateLike);
+    static Value calendarWeekOfYear(ExecutionState& state, Object* calendar, const Value& dateLike);
+    static Value calendarDaysInWeek(ExecutionState& state, Object* calendar, const Value& dateLike);
+    static Value calendarDaysInMonth(ExecutionState& state, Object* calendar, const Value& dateLike);
+    static Value calendarDaysInYear(ExecutionState& state, Object* calendar, const Value& dateLike);
+    static Value calendarMonthsInYear(ExecutionState& state, Object* calendar, const Value& dateLike);
+    static Value calendarInLeapYear(ExecutionState& state, Object* calendar, const Value& dateLike);
     static Value toTemporalCalendar(ExecutionState& state, const Value& calendar);
     static Value toTemporalCalendarWithISODefault(ExecutionState& state, const Value& calendar);
     static Value getTemporalCalendarWithISODefault(ExecutionState& state, const Value& item);
     static Value dateFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options);
+    static int toISOWeekOfYear(ExecutionState& state, const int year, const int month, const int day);
     static Value parseTemporalCalendarString(ExecutionState& state, const Value& isoString);
     static Value ISODaysInYear(ExecutionState& state, const int year);
     static Value ISODaysInMonth(ExecutionState& state, const int year, const int month);
@@ -77,6 +93,8 @@ public:
     String* getIdentifier() const;
     void setIdentifier(String* identifier);
 
+    static int dayOfYear(ExecutionState& state, const Value& epochDays) { return DateObject::daysInYear(DateObject::makeDate(state, epochDays, Value(0)).toInt32(state)) + 1; }
+
 private:
     String* m_identifier;
 };
@@ -85,6 +103,11 @@ class TemporalPlainDate : public Temporal {
 public:
     explicit TemporalPlainDate(ExecutionState& state, int isoYear, int isoMonth, int isoDay, Optional<Value> calendarLike);
     explicit TemporalPlainDate(ExecutionState& state, Object* proto, int isoYear, int isoMonth, int isoDay, Optional<Value> calendarLike);
+
+    bool isTemporalPlainDateObject() const override
+    {
+        return true;
+    }
 
     static std::map<std::string, int> createISODateRecord(ExecutionState& state, const int year, const int month, const int day);
     static Value createTemporalDate(ExecutionState& state, const int isoYear, const int isoMonth, const int isoDay, const Value& calendar, Optional<Object*> newTarget = nullptr);
@@ -136,6 +159,11 @@ class TemporalPlainDateTime : public Temporal {
 public:
     explicit TemporalPlainDateTime(ExecutionState& state);
     explicit TemporalPlainDateTime(ExecutionState& state, Object* proto, const int year, const int month, const int day, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond);
+
+    bool isTemporalPlainDateTimeObject() const override
+    {
+        return true;
+    }
 
     static Value getEpochFromISOParts(ExecutionState& state, const int year, const int month, const int day, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond);
     static bool ISODateTimeWithinLimits(ExecutionState& state, const int year, const int month, const int day, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond);

@@ -804,9 +804,15 @@ namespace Escargot {
     F(Temporal, "Temporal")                               \
     F(Now, "Now")                                         \
     F(Calendar, "Calendar")                               \
+    F(calendar, "calendar")                               \
     F(dateFromFields, "dateFromFields")                   \
     F(DateTime, "DateTime")                               \
     F(day, "day")                                         \
+    F(daysInMonth, "daysInMonth")                         \
+    F(daysInYear, "daysInYear")                           \
+    F(daysInWeek, "daysInWeek")                           \
+    F(dayOfWeek, "dayOfWeek")                             \
+    F(dayOfYear, "dayOfYear")                             \
     F(fields, "fields")                                   \
     F(getOffsetNanosecondsFor, "getOffsetNanosecondsFor") \
     F(id, "id")                                           \
@@ -814,11 +820,13 @@ namespace Escargot {
     F(mergeFields, "mergeFields")                         \
     F(month, "month")                                     \
     F(monthCode, "monthCode")                             \
+    F(monthsInYear, "monthsInYear")                       \
     F(overflow, "overflow")                               \
     F(plainDateISO, "plainDateISO")                       \
     F(plainDateTimeISO, "plainDateTimeISO")               \
     F(plainTimeISO, "plainTimeISO")                       \
     F(timeZone, "timeZone")                               \
+    F(weekOfYear, "weekOfYear")                           \
     F(year, "year")                                       \
     F(zonedDateTimeISO, "zonedDateTimeISO")
 

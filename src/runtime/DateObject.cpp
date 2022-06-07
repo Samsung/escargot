@@ -1008,7 +1008,7 @@ time64_t DateObject::parseStringToDate(ExecutionState& state, String* istr)
 }
 
 
-inline int DateObject::daysInYear(int year)
+int DateObject::daysInYear(int year)
 {
     if (year % 4 != 0) {
         return const_Date_daysPerYear;
