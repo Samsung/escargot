@@ -63,6 +63,7 @@ protected:
         ByteCodeBlock* blk = codeBlock->byteCodeBlock();
         Context* ctx = codeBlock->context();
         const size_t registerSize = blk->m_requiredOperandRegisterNumber;
+        const size_t programStart = reinterpret_cast<const size_t>(blk->m_code.data());
 
 #if !defined(NDEBUG)
         const size_t stackStorageSize = codeBlock->totalStackAllocatedVariableSize();
@@ -97,11 +98,11 @@ protected:
         }
 
         if (shouldClearStack) {
-            const Value returnValue = ByteCodeInterpreter::interpret(&newState, blk, 0, registerFile);
+            const Value returnValue = ByteCodeInterpreter::interpret(&newState, blk, programStart, registerFile);
             clearStack<512>();
             return returnValue;
         } else {
-            return ByteCodeInterpreter::interpret(&newState, blk, 0, registerFile);
+            return ByteCodeInterpreter::interpret(&newState, blk, programStart, registerFile);
         }
     }
 
@@ -167,7 +168,7 @@ protected:
 
         record.setNewTarget(newTarget);
 
-        const Value returnValue = ByteCodeInterpreter::interpret(&newState, blk, 0, registerFile);
+        const Value returnValue = ByteCodeInterpreter::interpret(&newState, blk, reinterpret_cast<const size_t>(blk->m_code.data()), registerFile);
         if (shouldClearStack) {
             clearStack<512>();
         }
