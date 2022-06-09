@@ -483,7 +483,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         // set the next(first) breakpoint to be stopped in a newer script execution
         context()->setAsAlwaysStopState();
 #endif
-        resultValue = ByteCodeInterpreter::interpret(codeExecutionState, byteCodeBlock, 0, registerFile);
+        resultValue = ByteCodeInterpreter::interpret(codeExecutionState, byteCodeBlock, reinterpret_cast<size_t>(byteCodeBlock->m_code.data()), registerFile);
         clearStack<512>();
 
         // we give up program bytecodeblock after first excution for reducing memory usage
@@ -611,7 +611,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     }
 
     newState.ensureRareData()->m_codeBlock = m_topCodeBlock;
-    Value resultValue = ByteCodeInterpreter::interpret(&newState, byteCodeBlock, 0, registerFile);
+    Value resultValue = ByteCodeInterpreter::interpret(&newState, byteCodeBlock, reinterpret_cast<size_t>(byteCodeBlock->m_code.data()), registerFile);
     clearStack<512>();
 
     return resultValue;
@@ -1093,7 +1093,7 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
 
     if (LIKELY(!m_topCodeBlock->isAsync())) {
         try {
-            ByteCodeInterpreter::interpret(newState, byteCodeBlock, 0, registerFile);
+            ByteCodeInterpreter::interpret(newState, byteCodeBlock, reinterpret_cast<size_t>(byteCodeBlock->m_code.data()), registerFile);
         } catch (const Value& e) {
             resultValue = e;
             gotException = true;

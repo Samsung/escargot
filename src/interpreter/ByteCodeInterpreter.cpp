@@ -59,30 +59,6 @@ ALWAYS_INLINE size_t jumpTo(char* codeBuffer, const size_t jumpPosition)
     return (size_t)&codeBuffer[jumpPosition];
 }
 
-ALWAYS_INLINE size_t resolveProgramCounter(char* codeBuffer, const size_t programCounter)
-{
-    return programCounter - (size_t)codeBuffer;
-}
-
-class ExecutionStateProgramCounterBinder {
-public:
-    ExecutionStateProgramCounterBinder(ExecutionState& state, size_t* newAddress)
-        : m_state(state)
-    {
-        m_oldAddress = state.m_programCounter;
-        state.m_programCounter = newAddress;
-    }
-
-    ~ExecutionStateProgramCounterBinder()
-    {
-        m_state.m_programCounter = m_oldAddress;
-    }
-
-private:
-    ExecutionState& m_state;
-    size_t* m_oldAddress;
-};
-
 template <typename T>
 class ExecutionStateVariableChanger {
 public:
@@ -114,20 +90,18 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
     ASSERT(registerFile != nullptr);
 
     {
-        ExecutionStateProgramCounterBinder binder(*state, &programCounter);
-        char* codeBuffer = byteCodeBlock->m_code.data();
-        programCounter = (size_t)(codeBuffer + programCounter);
+        state->m_programCounter = &programCounter;
 
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define DEFINE_OPCODE(codeName) codeName##OpcodeLbl
 #define DEFINE_DEFAULT
-#define NEXT_INSTRUCTION() \
-    goto*(((ByteCode*)programCounter)->m_opcodeInAddress);
+#define NEXT_INSTRUCTION() goto NextInstruction;
 #define JUMP_INSTRUCTION(opcode) \
     goto opcode##OpcodeLbl;
 
+    NextInstruction:
         /* Execute first instruction. */
-        NEXT_INSTRUCTION();
+        goto*(((ByteCode*)programCounter)->m_opcodeInAddress);
 #else
 
 #define DEFINE_OPCODE(codeName) case codeName##Opcode
@@ -1160,7 +1134,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             CheckLastEnumerateKey* code = (CheckLastEnumerateKey*)programCounter;
-            checkLastEnumerateKey(*state, code, codeBuffer, programCounter, registerFile);
+            checkLastEnumerateKey(*state, code, byteCodeBlock->m_code.data(), programCounter, registerFile);
             NEXT_INSTRUCTION();
         }
 
@@ -1188,7 +1162,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             IteratorOperation* code = (IteratorOperation*)programCounter;
-            iteratorOperation(*state, programCounter, registerFile, codeBuffer);
+            iteratorOperation(*state, programCounter, registerFile, byteCodeBlock->m_code.data());
             NEXT_INSTRUCTION();
         }
 
@@ -1345,7 +1319,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ExecutionPause* code = (ExecutionPause*)programCounter;
-            executionPauseOperation(*state, registerFile, programCounter, codeBuffer);
+            executionPauseOperation(*state, registerFile, programCounter, byteCodeBlock->m_code.data());
             return Value();
         }
 
@@ -1379,7 +1353,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         DEFINE_OPCODE(TaggedTemplateOperation)
             :
         {
-            taggedTemplateOperation(*state, programCounter, registerFile, codeBuffer, byteCodeBlock);
+            taggedTemplateOperation(*state, programCounter, registerFile, byteCodeBlock->m_code.data(), byteCodeBlock);
             NEXT_INSTRUCTION();
         }
 
@@ -1406,7 +1380,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
 #ifdef ESCARGOT_DEBUGGER
             if (state->context()->debuggerEnabled()) {
-                state->context()->debugger()->processDisabledBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)codeBuffer), state);
+                state->context()->debugger()->processDisabledBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)byteCodeBlock->m_code.data()), state);
             }
 #endif /* ESCARGOT_DEBUGGER */
 
@@ -1419,7 +1393,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
 #ifdef ESCARGOT_DEBUGGER
             if (state->context()->debuggerEnabled()) {
-                state->context()->debugger()->stopAtBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)codeBuffer), state);
+                state->context()->debugger()->stopAtBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)byteCodeBlock->m_code.data()), state);
             }
 #endif /* ESCARGOT_DEBUGGER */
 
@@ -2772,7 +2746,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
             });
 
             size_t newPc = programCounter + sizeof(TryOperation);
-            interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
+            interpret(newState, byteCodeBlock, newPc, registerFile);
             if (newState->inExecutionStopState()) {
                 return Value();
             }
@@ -2822,7 +2796,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
                     ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
                         state.m_onCatch = in;
                     });
-                    interpret(newState, byteCodeBlock, code->m_catchPosition, registerFile);
+                    interpret(newState, byteCodeBlock, (size_t)codeBuffer + code->m_catchPosition, registerFile);
                     if (newState->inExecutionStopState()) {
                         return Value();
                     }
@@ -2837,7 +2811,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
             ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
                 state.m_onCatch = in;
             });
-            interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, programCounter + sizeof(TryOperation)), registerFile);
+            interpret(newState, byteCodeBlock, programCounter + sizeof(TryOperation), registerFile);
             if (UNLIKELY(newState->inExecutionStopState() || newState->parent()->inExecutionStopState())) {
                 return Value();
             }
@@ -2854,7 +2828,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
         ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
             state.m_onFinally = in;
         });
-        interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, programCounter + sizeof(TryOperation)), registerFile);
+        interpret(newState, byteCodeBlock, programCounter + sizeof(TryOperation), registerFile);
         if (newState->inExecutionStopState() || newState->parent()->inExecutionStopState()) {
             return Value();
         }
@@ -2873,7 +2847,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
         ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
             state.m_onFinally = in;
         });
-        interpret(newState, byteCodeBlock, code->m_tryCatchEndPosition, registerFile);
+        interpret(newState, byteCodeBlock, (size_t)codeBuffer + code->m_tryCatchEndPosition, registerFile);
         if (newState->inExecutionStopState()) {
             return Value();
         }
@@ -3174,7 +3148,7 @@ NEVER_INLINE Value ByteCodeInterpreter::openLexicalEnvironment(ExecutionState*& 
     size_t newPc = programCounter + sizeof(OpenLexicalEnvironment);
     char* codeBuffer = byteCodeBlock->m_code.data();
 
-    interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
+    interpret(newState, byteCodeBlock, newPc, registerFile);
 
     if (newState->inExecutionStopState() || (!inWithStatement && newState->parent()->inExecutionStopState())) {
         return Value();
@@ -3296,7 +3270,7 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, B
         newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
     }
 
-    interpret(newState, byteCodeBlock, resolveProgramCounter(codeBuffer, newPc), registerFile);
+    interpret(newState, byteCodeBlock, newPc, registerFile);
     if (newState->inExecutionStopState() || (inPauserResumeProcess && newState->parent()->inExecutionStopState())) {
         return Value();
     }

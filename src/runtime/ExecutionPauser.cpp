@@ -138,17 +138,18 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
     // AsyncGeneratorFunction
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorstart
 
+    const size_t programStart = reinterpret_cast<const size_t>(self->m_byteCodeBlock->m_code.data());
     Value result;
     try {
         ExecutionState* es;
         size_t startPos = self->m_byteCodePosition;
         if (startPos == SIZE_MAX) {
             // need to fresh start
-            startPos = 0;
+            startPos = programStart;
             es = self->m_executionState;
         } else {
             // resume
-            startPos = (size_t)self->m_pausedCode.data() - (size_t)self->m_byteCodeBlock->m_code.data();
+            startPos = reinterpret_cast<const size_t>(self->m_pausedCode.data());
 
             LexicalEnvironment* env;
             if (originalState->resolveCallee() && originalState->resolveCallee()->isScriptFunctionObject()) {
@@ -255,6 +256,10 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         }
     }
 
+    if (self->m_executionState) {
+        self->m_executionState->m_programCounter = nullptr;
+    }
+
     return result;
 }
 
@@ -292,6 +297,7 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
 
     // we need to reset parent here beacuse asyncGeneratorResolve access parent
     originalState->rareData()->m_parent = nullptr;
+    originalState->m_programCounter = nullptr;
 
     self->m_pausedCode.clear();
 

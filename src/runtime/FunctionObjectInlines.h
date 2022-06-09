@@ -110,8 +110,8 @@ public:
         ByteCodeBlock* blk = codeBlock->byteCodeBlock();
         Context* ctx = codeBlock->context();
         bool isStrict = codeBlock->isStrict();
-        size_t registerFileSize = blk->m_requiredTotalRegisterNumber;
-        size_t generalRegisterSize = blk->m_requiredOperandRegisterNumber;
+        const size_t registerFileSize = blk->m_requiredTotalRegisterNumber;
+        const size_t generalRegisterSize = blk->m_requiredOperandRegisterNumber;
 
         // prepare env, ec
         FunctionEnvironmentRecord* record;
@@ -220,7 +220,7 @@ public:
         ReturnValueBinder returnValueBinder;
         const Value returnValue = returnValueBinder(state, *newState, self,
                                                     std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value ? ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async)
-                                                                                                                       : ByteCodeInterpreter::interpret(newState, blk, 0, registerFile),
+                                                                                                                       : ByteCodeInterpreter::interpret(newState, blk, reinterpret_cast<const size_t>(blk->m_code.data()), registerFile),
                                                     thisArgument, record);
 
         if (UNLIKELY(blk->m_shouldClearStack)) {
