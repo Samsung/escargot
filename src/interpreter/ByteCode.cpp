@@ -35,14 +35,6 @@ OpcodeTable g_opcodeTable;
 static MAY_THREAD_LOCAL size_t g_dumpCodeStartPosition;
 #endif
 
-OpcodeTable::OpcodeTable()
-{
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
-    // Dummy bytecode execution to initialize the OpcodeTable.
-    ByteCodeInterpreter::interpret(nullptr, nullptr, 0, nullptr);
-#endif
-}
-
 #ifndef NDEBUG
 void ByteCode::dumpCode(const char* byteCodeStart, const size_t endPos)
 {

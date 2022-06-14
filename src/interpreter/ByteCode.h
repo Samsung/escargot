@@ -132,6 +132,7 @@ struct GlobalVariableAccessCacheItem;
     F(BindingCalleeIntoRegister, 0, 0)                      \
     F(ResolveNameAddress, 1, 0)                             \
     F(StoreByNameWithAddress, 0, 1)                         \
+    F(FillOpcodeTable, 0, 0)                                \
     F(End, 0, 0)
 
 
@@ -2814,6 +2815,21 @@ public:
     void dump()
     {
         printf("store with address r%u, %s <- r%u", m_addressRegisterIndex, m_name.string()->toUTF8StringData().data(), m_valueRegisterIndex);
+    }
+#endif
+};
+
+class FillOpcodeTable : public ByteCode {
+public:
+    explicit FillOpcodeTable(const ByteCodeLOC& loc)
+        : ByteCode(Opcode::FillOpcodeTableOpcode, loc)
+    {
+    }
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("fill opcode table");
     }
 #endif
 };

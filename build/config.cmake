@@ -161,6 +161,7 @@ ENDIF()
 
 IF (ESCARGOT_THREADING)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_THREADING -DGC_THREAD_ISOLATE)
+    SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} atomic) # needs for atomic operations
 ENDIF()
 
 #######################################################
