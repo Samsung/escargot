@@ -50,6 +50,8 @@
 #include "parser/ScriptParser.h"
 #include "CheckedArithmetic.h"
 
+extern char FillOpcodeTableAsmLbl[];
+
 namespace Escargot {
 
 #define ADD_PROGRAM_COUNTER(CodeType) programCounter += sizeof(CodeType);
@@ -78,20 +80,21 @@ private:
     T m_changer;
 };
 
-Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile)
+
+OpcodeTable::OpcodeTable()
 {
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
-    if (UNLIKELY(byteCodeBlock == nullptr)) {
-        goto FillOpcodeTableLbl;
-    }
+    // Dummy bytecode execution to initialize the OpcodeTable.
+    ExecutionState state(nullptr);
+    size_t dummyCode = reinterpret_cast<size_t>(FillOpcodeTableAsmLbl);
+    ByteCodeInterpreter::interpret(&state, nullptr, reinterpret_cast<size_t>(&dummyCode), nullptr);
 #endif
+}
 
-    ASSERT(byteCodeBlock != nullptr);
-    ASSERT(registerFile != nullptr);
-
+Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile)
+{
+    state->m_programCounter = &programCounter;
     {
-        state->m_programCounter = &programCounter;
-
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define DEFINE_OPCODE(codeName) codeName##OpcodeLbl
 #define DEFINE_DEFAULT
@@ -1401,13 +1404,14 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             NEXT_INSTRUCTION();
         }
 
-        DEFINE_DEFAULT
-    }
-
-    ASSERT_NOT_REACHED();
-
+        DEFINE_OPCODE(FillOpcodeTable)
+            :
+        {
+#if defined(COMPILER_GCC) && __GNUC__ >= 9
+            __attribute__((cold));
+#endif
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
-FillOpcodeTableLbl:
+            asm volatile("FillOpcodeTableAsmLbl:");
 #if defined(ENABLE_CODE_CACHE)
 #define REGISTER_TABLE(opcode, pushCount, popCount)                     \
     g_opcodeTable.m_addressTable[opcode##Opcode] = &&opcode##OpcodeLbl; \
@@ -1416,10 +1420,17 @@ FillOpcodeTableLbl:
 #define REGISTER_TABLE(opcode, pushCount, popCount) \
     g_opcodeTable.m_addressTable[opcode##Opcode] = &&opcode##OpcodeLbl;
 #endif
-    FOR_EACH_BYTECODE_OP(REGISTER_TABLE);
+            FOR_EACH_BYTECODE_OP(REGISTER_TABLE);
 
 #undef REGISTER_TABLE
 #endif
+            return Value();
+        }
+
+        DEFINE_DEFAULT
+    }
+
+    ASSERT_NOT_REACHED();
 
     return Value();
 }
