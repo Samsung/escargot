@@ -175,7 +175,7 @@ public:
 protected:
     Debugger()
         : m_delay(ESCARGOT_DEBUGGER_MESSAGE_PROCESS_DELAY)
-        , m_stopState(ESCARGOT_DEBUGGER_ALWAYS_STOP)
+        , m_stopState(nullptr)
         , m_context(nullptr)
         , m_activeSavedStackTraceExecutionState(nullptr)
         , m_activeSavedStackTrace(nullptr)
