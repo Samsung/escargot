@@ -142,6 +142,11 @@ void DebuggerRemote::parseCompleted(String* source, String* srcName, size_t orig
         BreakpointLocation* ptr = m_breakpointLocationsVector[i]->breakpointLocations.data();
         size_t length = m_breakpointLocationsVector[i]->breakpointLocations.size();
 
+        if (length == 0) {
+            // empty breakpoint info, so continue to the next breakpoint info
+            continue;
+        }
+
         while (length > maxPacketLength) {
             if (!send(ESCARGOT_MESSAGE_BREAKPOINT_LOCATION, ptr, maxPacketLength * sizeof(BreakpointLocation))) {
                 return;
