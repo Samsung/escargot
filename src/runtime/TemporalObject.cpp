@@ -68,228 +68,263 @@ Value TemporalObject::toISOTime(ExecutionState& state, DateObject& d)
     return Value(new ASCIIString(result.data(), result.length()));
 }
 
-std::map<std::string, std::string> TemporalObject::parseValidIso8601String(ExecutionState& state, const Value& str)
+
+std::string TemporalObject::getNNumberFromString(std::string& isoString, const int n, unsigned int& index)
 {
-    ASSERT(str.isString());
-    size_t pos = str.asString()->toNonGCUTF8StringData().find('[');
-    std::string isoDate = str.asString()->toNonGCUTF8StringData().substr(0, pos);
-    std::string extra;
-
-    if (pos != std::string::npos) {
-        extra = str.asString()->toNonGCUTF8StringData().substr(pos);
+    std::string retVal;
+    if (!TemporalObject::isNumber(isoString.substr(index, n))) {
+        return "";
     }
-
-    pos = isoDate.find('T');
-
-    if (pos != std::string::npos) {
-        std::replace(isoDate.begin(), isoDate.end(), 'T', ' ');
-    }
-
-    pos = isoDate.find(' ');
-    std::string date = str.asString()->toNonGCUTF8StringData().substr(0, pos);
-    std::string time = str.asString()->toNonGCUTF8StringData().substr(pos + 1);
-    std::string year;
-    std::string month;
-    std::string week;
-    std::string day;
-    pos = date.find('-');
-
-    if (pos != std::string::npos) {
-        if (pos == 0 && date.length() > 4) {
-            if (date.substr(pos + 1).find('-') == 0) {
-                date.erase(std::remove(date.begin(), date.end(), '-'), date.end());
-                if (date.length() == 4) {
-                    month = date.substr(1, 2);
-                    day = date.substr(3, 2);
-                    year = "";
-                }
-            } else {
-                year = date;
-            }
-        } else if (date.length() > 4) {
-            year = date.substr(0, pos);
-            date = date.substr(pos + 1);
-            if (date.find('W') != std::string::npos && date.length() == 5) {
-                week = date.substr(0, 3);
-                day = date.substr(4);
-            } else if (date.length() > 2) {
-                month = date.substr(0, 2);
-                if (date[2] == '-' && date.length() == 5) {
-                    day = date.substr(3, 2);
-                }
-            }
-        }
-    } else if (date.length() > 3) {
-        year = date.substr(0, 4);
-        if (date.find('W') != std::string::npos && date.length() > 6) {
-            week = date.substr(4, 3);
-            if (date.length() > 7) {
-                day = date[8];
-            }
-        } else if (date.length() > 7) {
-            month = date.substr(4, 2);
-            day = date.substr(6, 2);
-        }
-    }
-
-    std::string hour;
-    std::string minute;
-    std::string second;
-    std::string millisecond = "0";
-    std::string microSecond = "0";
-    std::string nanoSecond = "0";
-    std::string timeZone;
-    std::string fraction;
-
-    if (!time.empty()) {
-        size_t hasTimeZone = (time.find('Z') == std::string::npos ? (time.find('+') == std::string::npos ? time.find('-') : time.find('+')) : time.find('Z'));
-        if (time.find(',') != std::string::npos) {
-            std::replace(isoDate.begin(), isoDate.end(), ',', '.');
-        }
-        if (time.find(':') != std::string::npos && time.length() > 4) {
-            hour = time.substr(0, 2);
-            minute = time.substr(2, 2);
-            if (time.length() > 6) {
-                second = time.substr(6, 2);
-            }
-        } else if (time.length() > 1) {
-            hour = time.substr(0, 2);
-            minute = time.substr(2, 2);
-            second = time.substr(4, 2);
-        }
-        pos = time.find('.');
-        if (pos != std::string::npos) {
-            fraction = time.substr(pos + 1, hasTimeZone);
-        }
-        if (hasTimeZone != std::string::npos) {
-            timeZone = time.substr(hasTimeZone);
-        }
-    }
-
-    std::string timeZoneExtension;
-    std::string calendar;
-
-    if (!extra.empty()) {
-        size_t n = std::count(extra.begin(), extra.end(), '[');
-        if (n == 2) {
-            pos = extra.find("[]");
-            timeZoneExtension = extra.substr(0, pos);
-            calendar = extra.substr(pos + 2, extra.length() - 1);
-        } else if (n == 1) {
-            timeZoneExtension = extra.substr(1, extra.length() - 1);
-        }
-    }
-
-    if (year == "-000000") {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid year");
-    }
-
-    if (month.empty()) {
-        month = "1";
-    }
-
-    if (day.empty()) {
-        day = "1";
-    }
-
-    if (second == "60") {
-        second = "59";
-    }
-
-    if (!fraction.empty()) {
-        fraction += "000000000";
-        millisecond = fraction.substr(0, 3);
-        microSecond = fraction.substr(3, 3);
-        nanoSecond = fraction.substr(6, 3);
-    }
-
-    if (!TemporalPlainDate::isValidISODate(state, Value(year.c_str()).asInt32(), Value(month.c_str()).asInt32(), Value(day.c_str()).asInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO Date");
-    }
-
-    if (!TemporalPlainTime::isValidTime(state, Value(hour.c_str()).asInt32(), Value(minute.c_str()).asInt32(), Value(second.c_str()).asInt32(), Value(millisecond.c_str()).asInt32(), Value(microSecond.c_str()).asInt32(), Value(nanoSecond.c_str()).asInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid time");
-    }
-
-    return std::map<std::string, std::string>{ { "Year", year }, { "Month", month }, { "Day", day }, { "Hour", hour }, { "Minute", minute }, { "Second", second }, { "Millisecond", millisecond }, { "Microsecond", microSecond }, { "Nanosecond", nanoSecond }, { "Calendar", calendar } };
+    retVal = isoString.substr(index, n);
+    index += n;
+    return retVal;
 }
 
-std::map<std::string, std::string> TemporalObject::parseTemporalDateString(ExecutionState& state, std::string isoString)
+std::map<std::string, int> TemporalObject::getSeconds(ExecutionState& state, std::string& isoString, unsigned int& index)
 {
-    size_t pos = isoString.find('[');
-    std::string isoDate = isoString.substr(0, pos);
-    std::string extra;
-
-    if (pos != std::string::npos) {
-        extra = isoString.substr(pos);
+    int counter = 1;
+    while (std::isdigit(isoString[counter++]))
+        ;
+    if (counter == 1 || counter > 9) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
     }
 
-    pos = isoDate.find('T');
+    std::string tmp = isoString.substr(1, counter - 1);
 
-    if (pos != std::string::npos) {
-        std::replace(isoDate.begin(), isoDate.end(), 'T', ' ');
+    index += counter;
+
+    for (int i = counter; i <= 9; ++i) {
+        tmp += '0';
     }
 
-    pos = isoDate.find(' ');
-    std::string date = isoString.substr(0, pos);
-    std::string time = isoString.substr(pos + 1);
-    std::string year;
-    std::string month;
-    std::string week;
-    std::string day;
-    std::string timeZoneExtension;
-    std::string calendar;
-    pos = date.find('-');
-
-    if (pos != std::string::npos) {
-        if (pos == 0 && date.length() > 4) {
-            if (date.substr(pos + 1).find('-') == 0) {
-                date.erase(std::remove(date.begin(), date.end(), '-'), date.end());
-                if (date.length() == 4) {
-                    goto good;
-                }
-            } else {
-                goto good;
-            }
-        } else if (date.length() > 4) {
-            if (date.find('W') != std::string::npos && date.length() == 5) {
-                goto good;
-            } else if (date.length() > 2) {
-                if (date[2] == '-' && date.length() == 5) {
-                    goto good;
-                }
-            }
-        }
-    } else if (date.length() > 3) {
-        if (date.find('W') != std::string::npos && date.length() > 6) {
-            if (date.length() > 7) {
-                goto good;
-            }
-        } else if (date.length() > 7) {
-            goto good;
-        }
-    }
-
-    if (!extra.empty()) {
-        size_t n = std::count(extra.begin(), extra.end(), '[');
-        if (n == 1 || n == 2) {
-            goto good;
-        }
-    }
-
-
-    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO Date");
-
-good:
-    return TemporalObject::parseValidIso8601String(state, Value(new ASCIIString(isoString.c_str())));
+    return { { "milliSecond", std::stoi(tmp.substr(0, 3)) },
+             { "microSecond", std::stoi(tmp.substr(3, 3)) },
+             { "nanoSecond", std::stoi(tmp.substr(6, 3)) } };
 }
 
-std::map<std::string, std::string> TemporalObject::parseTemporalDateTimeString(ExecutionState& state, String* isoString)
+void TemporalObject::offset(ExecutionState& state, std::string& isoString, unsigned int& index)
 {
-    if (isoString->contains(new ASCIIString("z")) || isoString->contains(new ASCIIString("Z"))) {
+    ++index;
+    if (!(((isoString[index] == '0' || isoString[index] == '1') && isoString[index + 1] >= '0' && isoString[index + 1] <= '9') || (isoString[index] == '2' && isoString[index + 1] >= 0 && isoString[index + 1] <= '3'))) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+    }
+
+    index += 2;
+    int counter = 0;
+    while (isoString[index] == ':') {
+        if (isoString[index + 1] >= '0' && isoString[index + 1] <= '5' && std::isdigit(isoString[index + 2])) {
+            index += 3;
+            counter++;
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+        }
+    }
+
+    if (isoString[index] == '.' || isoString[index] == ',') {
+        if (counter != 2) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+        }
+        TemporalObject::getSeconds(state, isoString, index);
+    }
+}
+
+std::string TemporalObject::tzComponent(ExecutionState& state, std::string& isoString, unsigned int& index)
+{
+    std::string timeZoneID;
+    unsigned int i = 0;
+    if (isoString[index] == '\\') {
+        index++;
+        if (isoString[index] == '.') {
+            for (i = index + 2; i < 14; ++i) {
+                if (!(isoString[i] == '-' || isoString[i] == '_' || isoString[i] == '.' || std::isalpha(isoString[i]))) {
+                    break;
+                }
+            }
+            if (!(isoString[index + 1] != '.' && (isoString[index + 1] == '-' || isoString[index + 1] == '_' || std::isalpha(isoString[index + 1]))) || (isoString[index + 1] == '.' && i == 2)) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+            }
+        } else if (isoString[index] == '_' || std::isalpha(isoString[index])) {
+            for (i = index + 1; i < 13; ++i) {
+                if (!(isoString[i] == '-' || isoString[i] == '_' || isoString[i] == '.' || std::isalpha(isoString[i]))) {
+                    break;
+                }
+            }
+        }
+    }
+
+    timeZoneID = isoString.substr(index, i - index);
+
+    if (i != 0) {
+        index = i;
+    }
+
+    return timeZoneID;
+}
+
+TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState& state, std::string isoString)
+{
+    DateTime dateTime = { 0, 1, 1, 0, 0, 0, 0, 0, 0, "" };
+
+    unsigned int index = 0;
+
+    bool monthDay = false;
+
+    bool end = false;
+
+    if (isoString[index] != 'T') {
+        // Date
+        if (isoString.rfind("−", index) == 0 && TemporalObject::isNumber(isoString.substr(3 + index, 4))) {
+            dateTime.year = std::stoi("-" + isoString.substr(3 + index, 4));
+            index += 7;
+        } else if (TemporalObject::isNumber(isoString.substr(index, 4))) {
+            dateTime.year = std::stoi(isoString.substr(0, 4));
+            index += 4;
+        } else if (isoString.rfind("--", 0) == 0) {
+            monthDay = true;
+            index += 2;
+        }
+
+        if (isoString[index] == '-') {
+            ++index;
+        }
+
+        if ((isoString[index] == '0' && std::isdigit(isoString[index + 1])) || (isoString[index] == '1' && isoString[index + 1] >= '0' && isoString[index + 1] <= '2')) {
+            dateTime.month = std::stoi(isoString.substr(index, 2));
+            index += 2;
+            end = index == isoString.length();
+        }
+
+        if (isoString[index] != '-' && monthDay) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+        } else if (isoString[index] == '-') {
+            ++index;
+        }
+
+        if ((isoString[index] >= '0' && isoString[index] <= '2' && std::isdigit(isoString[index + 1])) || (isoString[index] == '3' && (isoString[index + 1] == '0' || isoString[index + 1] == '1'))) {
+            dateTime.day = std::stoi(isoString.substr(index, 2));
+            index += 2;
+            if (monthDay) {
+                if (index != isoString.length()) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+                }
+                end = true;
+            }
+        } else if (!end) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+        }
+    }
+
+    if (!end) {
+        // Time
+        if (isoString[index] == 'T' || isoString.rfind("\\s", index) == 0) {
+            ++index;
+            for (; isoString[index] == 's'; ++index)
+                ;
+
+            dateTime.hour = std::stoi(TemporalObject::getNNumberFromString(isoString, 2, index));
+
+            if (isoString[index] == ':') {
+                ++index;
+            }
+
+            dateTime.minute = std::stoi(TemporalObject::getNNumberFromString(isoString, 2, index));
+
+            if (isoString[index] == ':') {
+                ++index;
+            }
+
+            dateTime.second = std::stoi(TemporalObject::getNNumberFromString(isoString, 2, index));
+
+            if (isoString[index] == '.' || isoString[index] == ',') {
+                std::map<std::string, int> seconds;
+                seconds = TemporalObject::getSeconds(state, isoString, index);
+                dateTime.millisecond = seconds["milliSecond"];
+                dateTime.microsecond = seconds["microSecond"];
+                dateTime.nanosecond = seconds["NanoSecond"];
+            }
+        }
+
+        // Offset
+        if (isoString[index] == 'z' || isoString[index] == 'Z') {
+            ++index;
+        } else if (isoString[index] == '+' || isoString[index] == '-' || isoString.rfind("−", index) == 0) {
+            TemporalObject::offset(state, isoString, index);
+        }
+
+        // TimeZone
+        if (isoString[index] != 'E') {
+            while (TemporalObject::tzComponent(state, isoString, index).length() != 0)
+                ;
+        } else if (isoString.rfind("Etc/GMT", index) == 0) {
+            isoString = isoString.substr(index + 7);
+            if (isoString[index] == '+' || isoString[index] == '-') {
+                if (!std::isdigit(isoString[index + 1])) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+                }
+
+                if (isNumber(isoString.substr(index + 1, 2))) {
+                    index += 3;
+                }
+                index += 2;
+            }
+        } else if (isoString[index] == '+' || isoString[index] == '-' || isoString.rfind("−", index) == 0) {
+            TemporalObject::offset(state, isoString, index);
+        }
+
+        // Calendar
+        if (isoString.rfind("[u-ca=") == 0) {
+            index += 6;
+            for (int i = 0; isoString[index] != ']'; ++i) {
+                // Check if current char is a number or
+                if (std::isalpha(isoString[index]) || std::isdigit(isoString[index])) {
+                    dateTime.calendar += isoString[index];
+                    ++index;
+                }
+
+                // A calendar can't be longer than 8 character
+                if (i == 8) {
+                    if (isoString[index] != '-' && isoString[index] != ']') {
+                        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+                    }
+                    i = 0;
+                }
+
+                // A calendar must be at least 3 character
+                if (i < 3 && (isoString[index] == '-' || isoString[index] == ']')) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+                }
+            }
+            if (isoString[index] == ']') {
+                index++;
+            }
+        }
+    }
+    if (isoString.length() != index) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+    }
+
+    if (!TemporalPlainDate::isValidISODate(state, dateTime.year, dateTime.month, dateTime.day)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO date");
+    }
+
+    if (!TemporalPlainTime::isValidTime(state, dateTime.hour, dateTime.minute, dateTime.second, dateTime.millisecond, dateTime.microsecond, dateTime.nanosecond)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO time");
+    }
+
+    return dateTime;
+}
+
+TemporalObject::DateTime TemporalObject::parseTemporalDateString(ExecutionState& state, const std::string& isoString)
+{
+    return TemporalObject::parseTemporalDateTimeString(state, isoString);
+}
+
+TemporalObject::DateTime TemporalObject::parseTemporalDateTimeString(ExecutionState& state, const std::string& isoString)
+{
+    if (isoString.find('z') != std::string::npos || isoString.find('Z') != std::string::npos) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "isoString contains UTCDesignator");
     }
-    return TemporalObject::parseValidIso8601String(state, Value(isoString));
+    return TemporalObject::parseValidIso8601String(state, isoString);
 }
 
 TemporalPlainTime::TemporalPlainTime(ExecutionState& state)
@@ -370,7 +405,7 @@ TemporalCalendar* TemporalCalendar::createTemporalCalendar(ExecutionState& state
     }
 
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
-        return constructorRealm->globalObject()->aggregateErrorPrototype();
+        return constructorRealm->globalObject()->temporalCalendarPrototype();
     });
 
     auto* O = new TemporalCalendar(state, proto);
@@ -432,8 +467,8 @@ Value TemporalCalendar::toTemporalCalendar(ExecutionState& state, const Value& c
 Value TemporalCalendar::parseTemporalCalendarString(ExecutionState& state, const Value& isoString)
 {
     ASSERT(isoString.isString());
-
-    return TemporalObject::parseValidIso8601String(state, isoString).at("Calendar").empty() ? Value("iso8601") : Value(TemporalObject::parseValidIso8601String(state, isoString).at("Calendar").c_str());
+    TemporalObject::DateTime time = TemporalObject::parseValidIso8601String(state, isoString.asString()->toNonGCUTF8StringData());
+    return time.calendar.empty() ? Value(new ASCIIString("iso8601")) : Value(time.calendar.c_str());
 }
 
 Value TemporalCalendar::ISODaysInMonth(ExecutionState& state, const int year, const int m)
@@ -763,13 +798,10 @@ Value TemporalPlainDate::toTemporalDate(ExecutionState& state, const Value& item
     }
 
     Temporal::toTemporalOverflow(state, options.value());
-    String* string = item.toString(state);
-    auto result = TemporalObject::parseTemporalDateString(state, string->toNonGCUTF8StringData());
-    ASSERT(TemporalPlainDate::isValidISODate(state, Value(result.at("year").c_str()).asInt32(), Value(result.at("month").c_str()).asInt32(), Value(result.at("day").c_str()).asInt32()));
+    auto result = TemporalObject::parseTemporalDateString(state, item.toString(state)->toNonGCUTF8StringData());
+    ASSERT(TemporalPlainDate::isValidISODate(state, result.year, result.month, result.day));
 
-    Value calendar = TemporalCalendar::toTemporalCalendarWithISODefault(state, Value(result.at("calendar").c_str()));
-
-    return TemporalPlainDate::createTemporalDate(state, Value(result.at("year").c_str()).asInt32(), Value(result.at("month").c_str()).asInt32(), Value(result.at("day").c_str()).asInt32(), Value(result.at("calendar").c_str()), new Object(state));
+    return TemporalPlainDate::createTemporalDate(state, result.year, result.month, result.day, TemporalCalendar::toTemporalCalendarWithISODefault(state, Value(result.calendar.c_str())), new Object(state));
 }
 
 std::map<std::string, int> TemporalPlainDate::balanceISODate(ExecutionState& state, int year, int month, int day)
@@ -895,15 +927,14 @@ Value TemporalPlainDateTime::toTemporalDateTime(ExecutionState& state, const Val
         ValueVector fieldNames = TemporalCalendar::calendarFields(state, calendar, values);
         Value fields = Temporal::prepareTemporalFields(state, item, fieldNames, ValueVector());
         result = TemporalPlainDateTime::interpretTemporalDateTimeFields(state, calendar, fields, options);
-    } else {
-        Temporal::toTemporalOverflow(state, options);
-        String* string = item.toString(state);
-        result = TemporalObject::parseTemporalDateTimeString(state, string);
-        ASSERT(TemporalPlainDate::isValidISODate(state, Value(result["Year"].c_str()).asInt32(), Value(result["Month"].c_str()).asInt32(), Value(result["Day"].c_str()).asInt32()));
-        ASSERT(TemporalPlainTime::isValidTime(state, Value(result["Hour"].c_str()).asInt32(), Value(result["Minute"].c_str()).asInt32(), Value(result["Second"].c_str()).asInt32(), Value(result["Millisecond"].c_str()).asInt32(), Value(result["Microsecond"].c_str()).asInt32(), Value(result["Nanosecond"].c_str()).asInt32()));
-        calendar = TemporalCalendar::toTemporalCalendarWithISODefault(state, Value(result["Calendar"].c_str()));
+        return TemporalPlainDateTime::createTemporalDateTime(state, Value(result["Year"].c_str()).asInt32(), Value(result["Month"].c_str()).asInt32(), Value(result["Day"].c_str()).asInt32(), Value(result["Hour"].c_str()).asInt32(), Value(result["Minute"].c_str()).asInt32(), Value(result["Second"].c_str()).asInt32(), Value(result["Millisecond"].c_str()).asInt32(), Value(result["Microsecond"].c_str()).asInt32(), Value(result["Nanosecond"].c_str()).asInt32(), calendar, new Object(state));
     }
-    return TemporalPlainDateTime::createTemporalDateTime(state, Value(result["Year"].c_str()).asInt32(), Value(result["Month"].c_str()).asInt32(), Value(result["Day"].c_str()).asInt32(), Value(result["Hour"].c_str()).asInt32(), Value(result["Minute"].c_str()).asInt32(), Value(result["Second"].c_str()).asInt32(), Value(result["Millisecond"].c_str()).asInt32(), Value(result["Microsecond"].c_str()).asInt32(), Value(result["Nanosecond"].c_str()).asInt32(), calendar, new Object(state));
+    Temporal::toTemporalOverflow(state, options);
+    auto tmp = TemporalObject::parseTemporalDateTimeString(state, item.toString(state)->toNonGCUTF8StringData());
+    ASSERT(TemporalPlainDate::isValidISODate(state, tmp.year, tmp.month, tmp.day));
+    ASSERT(TemporalPlainTime::isValidTime(state, tmp.hour, tmp.minute, tmp.second, tmp.millisecond, tmp.microsecond, tmp.nanosecond));
+
+    return TemporalPlainDateTime::createTemporalDateTime(state, tmp.year, tmp.month, tmp.day, tmp.hour, tmp.minute, tmp.second, tmp.millisecond, tmp.microsecond, tmp.nanosecond, TemporalCalendar::toTemporalCalendarWithISODefault(state, Value(tmp.calendar.c_str())), new Object(state));
 }
 
 TemporalZonedDateTime::TemporalZonedDateTime(ExecutionState& state)

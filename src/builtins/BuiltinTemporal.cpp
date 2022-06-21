@@ -324,8 +324,11 @@ static Value builtinTemporalCalendarFrom(ExecutionState& state, Value thisValue,
 
 static Value builtinTemporalCalendarPrototypeId(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value calendar = thisValue;
-    return calendar.asObject()->asTemporalCalendarObject()->getIdentifier();
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalCalendarObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+    }
+
+    return thisValue.asObject()->asTemporalCalendarObject()->getIdentifier();
 }
 
 static Value builtinTemporalCalendarPrototypeDateFromFields(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -752,6 +755,12 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalCalendarPrototype = new PrototypeObject(state);
     m_temporalCalendarPrototype->setGlobalIntrinsicObject(state, true);
 
+    JSGetterSetter calendarIDGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyid(), builtinTemporalCalendarPrototypeId, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor calendarIDDesc(calendarIDGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyid()), calendarIDDesc);
+
     m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_temporalCalendar, (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
 
 
@@ -780,9 +789,6 @@ void GlobalObject::installTemporal(ExecutionState& state)
 
     m_temporalCalendar->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalCalendarFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
-
-    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyid()),
-                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyid(), builtinTemporalCalendarPrototypeId, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
 
     m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazydateFromFields()),
                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazydateFromFields(), builtinTemporalCalendarPrototypeDateFromFields, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));

@@ -35,14 +35,35 @@ static int monthDayLookUpTable[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 3
 
 class TemporalObject : public Temporal {
 public:
+    struct DateTime {
+        int year;
+        int month;
+        int day;
+        int hour;
+        int minute;
+        int second;
+        int millisecond;
+        int microsecond;
+        int nanosecond;
+        std::string calendar;
+    };
+
     explicit TemporalObject(ExecutionState& state);
     explicit TemporalObject(ExecutionState& state, Object* proto);
     static Value toISODateTime(ExecutionState& state, DateObject& d);
     static Value toISODate(ExecutionState& state, DateObject& d);
     static Value toISOTime(ExecutionState& state, DateObject& d);
-    static std::map<std::string, std::string> parseValidIso8601String(ExecutionState& state, const Value& str);
-    static std::map<std::string, std::string> parseTemporalDateString(ExecutionState& state, std::string isoString);
-    static std::map<std::string, std::string> parseTemporalDateTimeString(ExecutionState& state, String* isoString);
+    static TemporalObject::DateTime parseValidIso8601String(ExecutionState& state, std::string isoString);
+    static TemporalObject::DateTime parseTemporalDateString(ExecutionState& state, const std::string& isoString);
+    static TemporalObject::DateTime parseTemporalDateTimeString(ExecutionState& state, const std::string& isoString);
+    static std::string getNNumberFromString(std::string& isoString, int n, unsigned int& index);
+    static std::map<std::string, int> getSeconds(ExecutionState& state, std::string& isoString, unsigned int& index);
+    static void offset(ExecutionState& state, std::string& isoString, unsigned int& index);
+    static std::string tzComponent(ExecutionState& state, std::string& isoString, unsigned int& index);
+    static bool isNumber(const std::string& s)
+    {
+        return !s.empty() && std::find_if(s.begin(), s.end(), [](unsigned char c) { return !std::isdigit(c); }) == s.end();
+    }
 };
 
 class TemporalCalendar : public Temporal {
