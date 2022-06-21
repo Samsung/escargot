@@ -532,11 +532,8 @@
     <test id="built-ins/Temporal/Calendar/from/calendar-object"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/from/calendar-object-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/from/calendar-object-operations"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Calendar/from/calendar-string-builtin"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Calendar/from/calendar-string-not-builtin"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/from/calendar-temporal-object"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/from/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Calendar/from/subclassing-ignored"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/missing-arguments"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dateAdd/add-days"><reason>TODO</reason></test>
@@ -664,7 +661,6 @@
     <test id="built-ins/Temporal/Calendar/prototype/fields/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/fields/repeated-throw"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/fields/reverse"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Calendar/prototype/id/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/inLeapYear/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/inLeapYear/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-out-of-range"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/inLeapYear/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-wrong-type"><reason>TODO</reason></test>
