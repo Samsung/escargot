@@ -142,10 +142,10 @@ public:
         m_platform->markJSJobEnqueued(toRef(relatedContext));
     }
 
-    virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) override
+    virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc, ModuleType type) override
     {
         LoadModuleResult result;
-        auto refResult = m_platform->onLoadModule(toRef(relatedContext), toRef(whereRequestFrom), toRef(moduleSrc));
+        auto refResult = m_platform->onLoadModule(toRef(relatedContext), toRef(whereRequestFrom), toRef(moduleSrc), static_cast<Escargot::PlatformRef::ModuleType>(type));
 
         result.script = toImpl(refResult.script.get());
         result.errorMessage = toImpl(refResult.errorMessage);
@@ -163,9 +163,9 @@ public:
         }
     }
 
-    virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, PromiseObject* promise) override
+    virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, ModuleType type, PromiseObject* promise) override
     {
-        m_platform->hostImportModuleDynamically(toRef(relatedContext), toRef(referrer), toRef(src), toRef(promise));
+        m_platform->hostImportModuleDynamically(toRef(relatedContext), toRef(referrer), toRef(src), static_cast<Escargot::PlatformRef::ModuleType>(type), toRef(promise));
     }
 
     virtual bool canBlockExecution(Context* relatedContext) override
@@ -4352,6 +4352,14 @@ ScriptParserRef::InitializeFunctionScriptResult ScriptParserRef::initializeFunct
         result.parseErrorCode = (Escargot::ErrorObjectRef::Code)internalResult.parseErrorCode;
     }
 
+    return result;
+}
+
+ScriptParserRef::InitializeScriptResult ScriptParserRef::initializeJSONModule(StringRef* sourceCode, StringRef* srcName)
+{
+    ScriptParserRef::InitializeScriptResult result;
+
+    result.script = toRef(toImpl(this)->initializeJSONModule(toImpl(sourceCode), toImpl(srcName)));
     return result;
 }
 

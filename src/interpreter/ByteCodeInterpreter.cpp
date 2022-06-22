@@ -3608,7 +3608,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         innerPromiseCapability.m_promise->asPromiseObject()->then(state, onFulfilled, onRejected);
 
         Global::platform()->hostImportModuleDynamically(byteCodeBlock->m_codeBlock->context(),
-                                                        referencingScriptOrModule, specifierString, innerPromiseCapability.m_promise->asPromiseObject());
+                                                        referencingScriptOrModule, specifierString, Platform::ModuleES, innerPromiseCapability.m_promise->asPromiseObject());
 
         // Return promiseCapability.[[Promise]].
         registerFile[code->m_resultIndex] = promiseCapability.m_promise;

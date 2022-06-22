@@ -6284,15 +6284,15 @@ public:
     // ECMA-262 15.2 Modules
     // ECMA-262 15.2.2 Imports
 
-    void appendToRequestedModulesIfNeeds(String* src)
+    void appendToRequestedModulesIfNeeds(String* src, Platform::ModuleType type)
     {
         for (size_t i = 0; i < this->moduleData->m_requestedModules.size(); i++) {
-            if (src->equals(moduleData->m_requestedModules[i])) {
+            if (moduleData->m_requestedModules[i].m_type == type && src->equals(moduleData->m_requestedModules[i].m_specifier)) {
                 return;
             }
         }
 
-        this->moduleData->m_requestedModules.pushBack(src);
+        this->moduleData->m_requestedModules.pushBack(Script::ModuleRequest(src, type));
     }
 
     template <class ASTBuilder>
@@ -6310,6 +6310,41 @@ public:
         // const raw = this->getTokenRaw(token);
         ASSERT(token->type == Token::StringLiteralToken);
         return this->finalize(node, builder.createLiteralNode(token->valueStringLiteralToValue(this->scanner)));
+    }
+
+    template <class ASTBuilder>
+    Platform::ModuleType parseModuleAssert(ASTBuilder& builder)
+    {
+        // Parse: assert { type: "json" }
+
+        if (this->hasLineTerminator || this->lookahead.relatedSource(this->scanner->source) != "assert") {
+            return Platform::ModuleES;
+        }
+
+        this->nextToken();
+        expect(LeftBrace);
+
+        if (this->lookahead.relatedSource(this->scanner->source) != "type") {
+            this->throwError("Unsupported key in assertion");
+        }
+
+        this->nextToken();
+        expect(Colon);
+
+        if (this->lookahead.type != StringLiteralToken) {
+            this->throwUnexpectedToken(this->lookahead, Messages::UnexpectedToken);
+        }
+
+        ParserStringView type = this->lookahead.valueStringLiteral(this->scanner);
+
+        if (!type.equals("json")) {
+            this->throwError("Unsupported value for 'type'");
+        }
+
+        this->nextToken();
+        expect(RightBrace);
+
+        return Platform::ModuleJSON;
     }
 
     // import {<foo as bar>} ...;
@@ -6377,20 +6412,16 @@ public:
         MetaNode node = this->createNode();
         this->expectKeyword(KeywordKind::ImportKeyword);
 
-        ASTNode src = nullptr;
-
         Script::ImportEntryVector importEntrys;
         ASTNodeList specifiers;
         if (this->lookahead.type == Token::StringLiteralToken) {
+            // import 'foo';
             if (this->sourceType != Module) {
                 this->throwUnexpectedToken(this->lookahead, Messages::IllegalImportDeclaration);
             }
             if (this->context->inFunctionBody || this->lexicalBlockIndex != 0) {
                 this->throwError(Messages::IllegalImportDeclaration);
             }
-            // import 'foo';
-            src = this->parseModuleSpecifier(builder);
-            appendToRequestedModulesIfNeeds(src->asLiteral()->value().asString());
         } else {
             if (this->match(PunctuatorKind::Period) || this->match(PunctuatorKind::LeftParenthesis)) {
                 rewind(startMarker);
@@ -6479,14 +6510,17 @@ public:
                 this->throwUnexpectedToken(this->lookahead);
             }
             this->nextToken();
-            src = this->parseModuleSpecifier(builder);
-            appendToRequestedModulesIfNeeds(src->asLiteral()->value().asString());
         }
+
+        ASTNode src = this->parseModuleSpecifier(builder);
+        Platform::ModuleType type = parseModuleAssert(builder);
+        appendToRequestedModulesIfNeeds(src->asLiteral()->value().asString(), type);
         this->consumeSemicolon();
 
         if (builder.willGenerateByteCode()) {
+            Script::ModuleRequest moduleRequest(src->asLiteral()->value().asString(), type);
             for (size_t i = 0; i < importEntrys.size(); i++) {
-                importEntrys[i].m_moduleRequest = src->asLiteral()->value().asString();
+                importEntrys[i].m_moduleRequest = moduleRequest;
                 addDeclaredNameIntoContext(importEntrys[i].m_localName, this->lexicalBlockIndex, KeywordKind::ConstKeyword);
                 this->moduleData->m_importEntries.insert(this->moduleData->m_importEntries.size(), importEntrys[i]);
             }
@@ -6540,36 +6574,40 @@ public:
             if (localNameExistInImportedBoundNamesIndex == SIZE_MAX) {
                 // Append ee to localExportEntries.
                 this->moduleData->m_localExportEntries.push_back(ee);
-            } else {
-                // Let ie be the element of importEntries whose [[LocalName]] is the same as ee.[[LocalName]].
-                Script::ImportEntry ie = this->moduleData->m_importEntries[localNameExistInImportedBoundNamesIndex];
-                // If ie.[[ImportName]] is "*", then
-                if (ie.m_importName == this->escargotContext->staticStrings().asciiTable[(unsigned char)'*']) {
-                    // Assert: this is a re-export of an imported module namespace object.
-                    // Append ee to localExportEntries.
-                    this->moduleData->m_localExportEntries.push_back(ee);
-                } else {
-                    // Else, this is a re-export of a single name
-                    // Append to indirectExportEntries the Record {[[ModuleRequest]]: ie.[[ModuleRequest]], [[ImportName]]: ie.[[ImportName]], [[LocalName]]: null, [[ExportName]]: ee.[[ExportName]] }.
-                    Script::ExportEntry newEntry;
-                    newEntry.m_moduleRequest = ie.m_moduleRequest;
-                    newEntry.m_importName = ie.m_importName;
-                    newEntry.m_exportName = ee.m_exportName;
-
-                    this->moduleData->m_indirectExportEntries.push_back(newEntry);
-
-                    appendToRequestedModulesIfNeeds(newEntry.m_moduleRequest.value());
-                }
+                return;
             }
-        } else if (ee.m_importName == this->escargotContext->staticStrings().asciiTable[(unsigned char)'*']) {
+
+            // Let ie be the element of importEntries whose [[LocalName]] is the same as ee.[[LocalName]].
+            Script::ImportEntry ie = this->moduleData->m_importEntries[localNameExistInImportedBoundNamesIndex];
+            // If ie.[[ImportName]] is "*", then
+            if (ie.m_importName == this->escargotContext->staticStrings().asciiTable[(unsigned char)'*']) {
+                // Assert: this is a re-export of an imported module namespace object.
+                // Append ee to localExportEntries.
+                this->moduleData->m_localExportEntries.push_back(ee);
+                return;
+            }
+
+            // Else, this is a re-export of a single name
+            // Append to indirectExportEntries the Record {[[ModuleRequest]]: ie.[[ModuleRequest]], [[ImportName]]: ie.[[ImportName]], [[LocalName]]: null, [[ExportName]]: ee.[[ExportName]] }.
+            Script::ExportEntry newEntry;
+            newEntry.m_moduleRequest = ie.m_moduleRequest;
+            newEntry.m_importName = ie.m_importName;
+            newEntry.m_exportName = ee.m_exportName;
+
+            this->moduleData->m_indirectExportEntries.push_back(newEntry);
+            // Module has been added to the requested modules when the import has been parsed
+            return;
+        }
+
+        if (ee.m_importName == this->escargotContext->staticStrings().asciiTable[(unsigned char)'*']) {
             // Else, if ee.[[ImportName]] is "*", then
             this->moduleData->m_starExportEntries.push_back(ee);
-            appendToRequestedModulesIfNeeds(ee.m_moduleRequest.value());
         } else {
             // Append ee to indirectExportEntries.
             this->moduleData->m_indirectExportEntries.push_back(ee);
-            appendToRequestedModulesIfNeeds(ee.m_moduleRequest.value());
         }
+
+        appendToRequestedModulesIfNeeds(ee.m_moduleRequest.value().m_specifier, ee.m_moduleRequest.value().m_type);
     }
 
     template <class ASTBuilder>
@@ -6666,11 +6704,12 @@ public:
                     this->throwUnexpectedToken(this->lookahead);
                 }
                 ASTNode src = this->parseModuleSpecifier(builder);
+                Platform::ModuleType type = parseModuleAssert(builder);
 
                 if (builder.willGenerateByteCode()) {
                     Script::ExportEntry entry;
                     entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
-                    entry.m_moduleRequest = src->asLiteral()->value().asString();
+                    entry.m_moduleRequest = Script::ModuleRequest(src->asLiteral()->value().asString(), type);
                     entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
                     addExportDeclarationEntry(entry);
                 }
@@ -6699,15 +6738,16 @@ public:
                 this->nextToken();
 
                 ASTNode src = this->parseModuleSpecifier(builder);
+                Platform::ModuleType type = parseModuleAssert(builder);
 
                 if (builder.willGenerateByteCode()) {
                     Script::ExportEntry entry;
                     entry.m_exportName = name;
-                    entry.m_moduleRequest = src->asLiteral()->value().asString();
+                    entry.m_moduleRequest = Script::ModuleRequest(src->asLiteral()->value().asString(), type);
                     entry.m_importName = this->escargotContext->staticStrings().asciiTable[(unsigned char)'*'];
                     addDeclaredNameIntoContext(this->escargotContext->staticStrings().stringStarNamespaceStar, this->lexicalBlockIndex, KeywordKind::LetKeyword);
                     this->moduleData->m_indirectExportEntries.push_back(entry);
-                    appendToRequestedModulesIfNeeds(src->asLiteral()->value().asString());
+                    appendToRequestedModulesIfNeeds(src->asLiteral()->value().asString(), type);
                 }
 
                 exportDeclaration = this->finalize(node, builder.createExportStarAsNamedFromDeclarationNode(idNode, src));
@@ -6775,13 +6815,16 @@ public:
             this->expect(PunctuatorKind::RightBrace);
 
             bool seenFrom = false;
+            Platform::ModuleType type = Platform::ModuleES;
+
             if (this->matchContextualKeyword(FromKeyword)) {
                 seenFrom = true;
                 // export {default} from 'foo';
                 // export {foo} from 'foo';
                 this->nextToken();
                 source = this->parseModuleSpecifier(builder);
-                appendToRequestedModulesIfNeeds(source->asLiteral()->value().asString());
+                type = parseModuleAssert(builder);
+                appendToRequestedModulesIfNeeds(source->asLiteral()->value().asString(), type);
                 this->consumeSemicolon();
             } else if (isExportFromIdentifier) {
                 // export {default}; // missing fromClause
@@ -6797,7 +6840,7 @@ public:
                     if (seenFrom) {
                         entry.m_exportName = specifier->astNode()->asExportSpecifier()->exported()->name();
                         entry.m_importName = specifier->astNode()->asExportSpecifier()->local()->name();
-                        entry.m_moduleRequest = source->asLiteral()->value().asString();
+                        entry.m_moduleRequest = Script::ModuleRequest(source->asLiteral()->value().asString(), type);
                     } else {
                         entry.m_exportName = specifier->astNode()->asExportSpecifier()->exported()->name();
                         entry.m_localName = specifier->astNode()->asExportSpecifier()->local()->name();

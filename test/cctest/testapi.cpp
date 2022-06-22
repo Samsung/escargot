@@ -264,7 +264,7 @@ public:
     }
 
     std::vector<std::tuple<std::string /* abs path */, ContextRef*, PersistentRefHolder<ScriptRef>>> loadedModules;
-    virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc) override
+    virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc, ModuleType type) override
     {
         std::string referrerPath = whereRequestFrom->src()->toStdUTF8String();
 
@@ -312,9 +312,9 @@ public:
         loadedModules.push_back(std::make_tuple(path, relatedContext, PersistentRefHolder<ScriptRef>(loadedModule)));
     }
 
-    virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise) override
+    virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, ModuleType type, PromiseObjectRef* promise) override
     {
-        LoadModuleResult loadedModuleResult = onLoadModule(relatedContext, referrer, src);
+        LoadModuleResult loadedModuleResult = onLoadModule(relatedContext, referrer, src, type);
         notifyHostImportModuleDynamicallyResult(relatedContext, referrer, src, promise, loadedModuleResult);
     }
 };

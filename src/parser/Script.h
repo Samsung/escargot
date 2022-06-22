@@ -22,6 +22,7 @@
 
 #include "runtime/Value.h"
 #include "runtime/PromiseObject.h"
+#include "runtime/Platform.h"
 
 namespace Escargot {
 
@@ -36,19 +37,34 @@ class Script : public gc {
     friend class ModuleNamespaceObject;
 
 public:
+    struct ModuleRequest {
+        // Specifier (name) of the module (usually a file system entry)
+        String* m_specifier;
+        // Type of the module (cached value of [[Assertions]] where items.[[Key]] is "type")
+        Platform::ModuleType m_type;
+
+        ModuleRequest()
+            : m_specifier(nullptr)
+            , m_type(Platform::ModuleES)
+        {
+        }
+
+        ModuleRequest(String* specifier, Platform::ModuleType type)
+            : m_specifier(specifier)
+            , m_type(type)
+        {
+        }
+    };
+    typedef Vector<ModuleRequest, GCUtil::gc_malloc_allocator<ModuleRequest>> ModuleRequestVector;
+
     // https://tc39.es/ecma262/#importentry-record
     struct ImportEntry {
-        // [[ModuleRequest]]   String  String value of the ModuleSpecifier of the ImportDeclaration.
-        String* m_moduleRequest;
+        // [[ModuleRequest]]  ModuleRequest  The value of the ModuleSpecifier and its assertions of the ImportDeclaration.
+        ModuleRequest m_moduleRequest;
         // [[ImportName]]  String  The name under which the desired binding is exported by the module identified by [[ModuleRequest]]. The value "*" indicates that the import request is for the target module’s namespace object.
         AtomicString m_importName;
         // [[LocalName]]   String  The name that is used to locally access the imported value from within the importing module.
         AtomicString m_localName;
-
-        ImportEntry()
-            : m_moduleRequest(String::emptyString)
-        {
-        }
     };
     typedef Vector<ImportEntry, GCUtil::gc_malloc_allocator<ImportEntry>> ImportEntryVector;
 
@@ -56,8 +72,8 @@ public:
     struct ExportEntry {
         // [[ExportName]]  String  The name used to export this binding by this module.
         Optional<AtomicString> m_exportName;
-        // [[ModuleRequest]]   String | null   The String value of the ModuleSpecifier of the ExportDeclaration. null if the ExportDeclaration does not have a ModuleSpecifier.
-        Optional<String*> m_moduleRequest;
+        // [[ModuleRequest]]   ModuleRequest | null   The value of the ModuleSpecifier of the ExportDeclaration. null if the ExportDeclaration does not have a ModuleSpecifier.
+        Optional<ModuleRequest> m_moduleRequest;
         // [[ImportName]]  String | null   The name under which the desired binding is exported by the module identified by [[ModuleRequest]]. null if the ExportDeclaration does not have a ModuleSpecifier. "*" indicates that the export request is for all exported bindings.
         Optional<AtomicString> m_importName;
         // [[LocalName]]   String | null   The name that is used to locally access the exported value from within the importing module. null if the exported value is not locally accessible from within the module.
@@ -105,7 +121,7 @@ public:
         // [[DFSAncestorIndex]]
         Optional<uint32_t> m_dfsAncestorIndex;
         // [[RequestedModules]] is same with moduleRequests
-        StringVector m_requestedModules;
+        ModuleRequestVector m_requestedModules;
 
         // + https://tc39.es/proposal-top-level-await/#sec-cyclic-module-records
         // [[CycleRoot]]
@@ -209,7 +225,7 @@ public:
 
 private:
     Value executeLocal(ExecutionState& state, Value thisValue, InterpretedCodeBlock* parentCodeBlock, bool isStrictModeOutside = false, bool isEvalCodeOnFunction = false);
-    Script* loadModuleFromScript(ExecutionState& state, String* src);
+    Script* loadModuleFromScript(ExecutionState& state, ModuleRequest& request);
     void loadExternalModule(ExecutionState& state);
     Value executeModule(ExecutionState& state, Optional<Script*> referrer);
     struct ResolveExportResult {

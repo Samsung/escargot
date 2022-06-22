@@ -68,6 +68,8 @@ public:
         return initializeScript(nullptr, 0, source, srcName, nullptr, isModule);
     }
 
+    Script* initializeJSONModule(String* source, String* srcName);
+
     Context* context() const { return m_context; }
 
     void generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain);

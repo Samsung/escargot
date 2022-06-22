@@ -39,14 +39,18 @@ public:
     virtual void markJSJobEnqueued(Context* relatedContext) = 0;
 
     // Module
+    enum ModuleType {
+        ModuleES,
+        ModuleJSON,
+    };
     struct LoadModuleResult {
         Optional<Script*> script;
         String* errorMessage;
         int errorCode;
     };
-    virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc) = 0;
+    virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc, ModuleType type) = 0;
     virtual void didLoadModule(Context* relatedContext, Optional<Script*> whereRequestFrom, Script* loadedModule) = 0;
-    virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, PromiseObject* promise) = 0;
+    virtual void hostImportModuleDynamically(Context* relatedContext, Script* referrer, String* src, ModuleType type, PromiseObject* promise) = 0;
 
     virtual bool canBlockExecution(Context* relatedContext) = 0;
 

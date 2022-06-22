@@ -541,6 +541,26 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     GC_enable();
 }
 
+Script* ScriptParser::initializeJSONModule(String* source, String* srcName)
+{
+    Script::ModuleData* moduleData = new Script::ModuleData();
+
+    Script::ExportEntry entry;
+    entry.m_exportName = m_context->staticStrings().stringDefault;
+    entry.m_localName = m_context->staticStrings().stringStarDefaultStar;
+
+    moduleData->m_localExportEntries.push_back(entry);
+
+    Script* script = new Script(srcName, source, moduleData, false, 0);
+
+    ModuleEnvironmentRecord* moduleRecord = new ModuleEnvironmentRecord(script);
+    moduleData->m_moduleRecord = moduleRecord;
+
+    moduleData->m_cycleRoot = script;
+    moduleData->m_status = Script::ModuleData::Linked;
+    return script;
+}
+
 #ifdef ESCARGOT_DEBUGGER
 
 void ScriptParser::recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* parent)

@@ -562,7 +562,7 @@ public:
         // ignore. we always check pending job after eval script
     }
 
-    virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc) override
+    virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc, ModuleType type) override
     {
         std::string referrerPath = whereRequestFrom->src()->toStdUTF8String();
         auto& loadedModules = *reinterpret_cast<std::vector<std::tuple<std::string, ContextRef*, PersistentRefHolder<ScriptRef>>>*>(threadLocalCustomData());
@@ -592,7 +592,15 @@ public:
             return LoadModuleResult(ErrorObjectRef::Code::None, StringRef::createFromUTF8(s.data(), s.length()));
         }
 
-        auto parseResult = relatedContext->scriptParser()->initializeScript(source.value(), StringRef::createFromUTF8(absPath.data(), absPath.size()), true);
+        ScriptParserRef::InitializeScriptResult parseResult;
+        StringRef* srcName = StringRef::createFromUTF8(absPath.data(), absPath.size());
+
+        if (type == ModuleJSON) {
+            parseResult = relatedContext->scriptParser()->initializeJSONModule(source.value(), srcName);
+        } else {
+            parseResult = relatedContext->scriptParser()->initializeScript(source.value(), srcName, true);
+        }
+
         if (!parseResult.isSuccessful()) {
             return LoadModuleResult(parseResult.parseErrorCode, parseResult.parseErrorMessage);
         }
@@ -612,9 +620,9 @@ public:
         loadedModules.push_back(std::make_tuple(path, relatedContext, PersistentRefHolder<ScriptRef>(loadedModule)));
     }
 
-    virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise) override
+    virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, ModuleType type, PromiseObjectRef* promise) override
     {
-        LoadModuleResult loadedModuleResult = onLoadModule(relatedContext, referrer, src);
+        LoadModuleResult loadedModuleResult = onLoadModule(relatedContext, referrer, src, type);
         notifyHostImportModuleDynamicallyResult(relatedContext, referrer, src, promise, loadedModuleResult);
     }
 
