@@ -27,9 +27,9 @@
 #include "runtime/Global.h"
 #include "runtime/Environment.h"
 #include "runtime/EnvironmentRecord.h"
-#include "runtime/Platform.h"
 #include "runtime/ErrorObject.h"
 #include "runtime/ExtendedNativeFunctionObject.h"
+#include "runtime/JSON.h"
 #include "runtime/SandBox.h"
 #include "runtime/ScriptFunctionObject.h"
 #include "runtime/ScriptAsyncFunctionObject.h"
@@ -80,9 +80,9 @@ Context* Script::context()
     return m_topCodeBlock->context();
 }
 
-Script* Script::loadModuleFromScript(ExecutionState& state, String* src)
+Script* Script::loadModuleFromScript(ExecutionState& state, ModuleRequest& request)
 {
-    Platform::LoadModuleResult result = Global::platform()->onLoadModule(context(), this, src);
+    Platform::LoadModuleResult result = Global::platform()->onLoadModule(context(), this, request.m_specifier, request.m_type);
     if (!result.script) {
         ErrorObject::throwBuiltinError(state, (ErrorObject::Code)result.errorCode, result.errorMessage->toNonGCUTF8StringData().data());
     }
@@ -104,7 +104,7 @@ size_t Script::moduleRequestsLength()
 String* Script::moduleRequest(size_t i)
 {
     ASSERT(isModule());
-    return m_moduleData->m_requestedModules[i];
+    return m_moduleData->m_requestedModules[i].m_specifier;
 }
 
 Value Script::moduleInstantiate(ExecutionState& state)
@@ -231,6 +231,10 @@ Script::ResolveExportResult Script::resolveExport(ExecutionState& state, AtomicS
             // Return Record{[[module]]: module, [[bindingName]]: e.[[LocalName]]}.
             return Script::ResolveExportResult(Script::ResolveExportResult::Record, Optional<std::tuple<Script*, AtomicString>>(std::make_tuple(module, localExportEntries[i].m_localName.value())));
         }
+    }
+
+    if (m_topCodeBlock == nullptr) {
+        return Script::ResolveExportResult(Script::ResolveExportResult::Null);
     }
 
     // For each ExportEntry Record e in module.[[IndirectExportEntries]], do
@@ -706,7 +710,7 @@ Script::ModuleExecutionResult Script::innerModuleLinking(ExecutionState& state, 
     size_t rmLength = moduleRequestsLength();
     for (size_t i = 0; i < rmLength; i++) {
         // Let requiredModule be ! HostResolveImportedModule(module, required).
-        Script* requiredModule = loadModuleFromScript(state, moduleRequest(i));
+        Script* requiredModule = loadModuleFromScript(state, m_moduleData->m_requestedModules[i]);
         // NOTE: Instantiate must be completed successfully prior to invoking this method, so every requested module is guaranteed to resolve successfully.
         // Set index to ? innerModuleInstantiation(requiredModule, stack, index).
         auto result = requiredModule->innerModuleLinking(state, stack, index);
@@ -864,7 +868,7 @@ Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& stat
     size_t rmLength = moduleRequestsLength();
     for (size_t i = 0; i < rmLength; i++) {
         // Let requiredModule be ! HostResolveImportedModule(module, required).
-        Script* requiredModule = loadModuleFromScript(state, moduleRequest(i));
+        Script* requiredModule = loadModuleFromScript(state, m_moduleData->m_requestedModules[i]);
         // NOTE: Instantiate must be completed successfully prior to invoking this method, so every requested module is guaranteed to resolve successfully.
         // Set index to ? InnerModuleEvaluation(requiredModule, stack, index).
         auto result = requiredModule->innerModuleEvaluation(state, stack, index);
@@ -914,8 +918,19 @@ Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& stat
         }
     }
 
-    // If module.[[PendingAsyncDependencies]] > 0, set module.[[AsyncEvaluating]] to true.
-    if (md->m_pendingAsyncDependencies.hasValue() && md->m_pendingAsyncDependencies.value() > 0) {
+    if (m_topCodeBlock == nullptr) {
+        // Synthetic module evaluation
+        ModuleEnvironmentRecord* moduleRecord = md->m_moduleRecord;
+        moduleRecord->createBinding(state, state.context()->staticStrings().stringStarDefaultStar, false, false, false);
+
+        try {
+            moduleRecord->initializeBinding(state, state.context()->staticStrings().stringStarDefaultStar, JSON::parse(state, sourceCode(), Value()));
+        } catch (const Value& e) {
+            md->m_evaluationError = EncodedValue(e);
+        }
+
+    } else if (md->m_pendingAsyncDependencies.hasValue() && md->m_pendingAsyncDependencies.value() > 0) {
+        // If module.[[PendingAsyncDependencies]] > 0, set module.[[AsyncEvaluating]] to true.
         md->m_asyncEvaluating = true;
     } else if (m_topCodeBlock->isAsync()) {
         // Otherwise, if module.[[Async]] is true, perform ! ExecuteAsyncModule(module).
@@ -1018,7 +1033,7 @@ Value Script::moduleInitializeEnvironment(ExecutionState& state)
             if (resolution.m_type == Script::ResolveExportResult::Null) {
                 StringBuilder builder;
                 builder.appendString("The requested module '");
-                builder.appendString(in.m_moduleRequest);
+                builder.appendString(in.m_moduleRequest.m_specifier);
                 builder.appendString("' does not provide an export named '");
                 builder.appendString(in.m_localName.string());
                 builder.appendString("'");
@@ -1026,7 +1041,7 @@ Value Script::moduleInitializeEnvironment(ExecutionState& state)
             } else if (resolution.m_type == Script::ResolveExportResult::Ambiguous) {
                 StringBuilder builder;
                 builder.appendString("The requested module '");
-                builder.appendString(in.m_moduleRequest);
+                builder.appendString(in.m_moduleRequest.m_specifier);
                 builder.appendString("' does not provide an export named '");
                 builder.appendString(in.m_localName.string());
                 builder.appendString("' correctly");

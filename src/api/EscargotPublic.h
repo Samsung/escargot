@@ -2046,6 +2046,8 @@ public:
     // convert the input body source into a function and parse it
     // generate Script and FunctionObject
     InitializeFunctionScriptResult initializeFunctionScript(StringRef* sourceName, AtomicStringRef* functionName, size_t argumentCount, ValueRef** argumentNameArray, ValueRef* functionBody);
+    // parse the input JSON data and return the result (Script)
+    InitializeScriptResult initializeJSONModule(StringRef* sourceCode, StringRef* srcName);
 };
 
 class ESCARGOT_EXPORT ScriptRef {
@@ -2105,6 +2107,11 @@ public:
     virtual void markJSJobEnqueued(ContextRef* relatedContext) = 0;
 
     // Module
+    enum ModuleType {
+        ModuleES,
+        ModuleJSON,
+    };
+
     // client needs cache module map<absolute_module_path, ScriptRef*>
     struct ESCARGOT_EXPORT LoadModuleResult {
         LoadModuleResult(ScriptRef* result);
@@ -2114,13 +2121,13 @@ public:
         StringRef* errorMessage;
         ErrorObjectRef::Code errorCode;
     };
-    virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc) = 0;
+    virtual LoadModuleResult onLoadModule(ContextRef* relatedContext, ScriptRef* whereRequestFrom, StringRef* moduleSrc, ModuleType type) = 0;
     virtual void didLoadModule(ContextRef* relatedContext, OptionalRef<ScriptRef> whereRequestFrom, ScriptRef* loadedModule) = 0;
 
     // Dynamic Import
-    virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise)
+    virtual void hostImportModuleDynamically(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, ModuleType type, PromiseObjectRef* promise)
     {
-        notifyHostImportModuleDynamicallyResult(relatedContext, referrer, src, promise, onLoadModule(relatedContext, referrer, src));
+        notifyHostImportModuleDynamicallyResult(relatedContext, referrer, src, promise, onLoadModule(relatedContext, referrer, src, type));
     }
     void notifyHostImportModuleDynamicallyResult(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise, LoadModuleResult loadModuleResult);
 

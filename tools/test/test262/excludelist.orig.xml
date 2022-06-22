@@ -3703,16 +3703,7 @@
     <test id="language/identifiers/start-unicode-9.0.0"><reason>TODO</reason></test>
     <test id="language/identifiers/start-zwj-escaped"><reason>TODO</reason></test>
     <test id="language/identifiers/start-zwnj-escaped"><reason>TODO</reason></test>
-    <test id="language/import/json-extensibility-array"><reason>TODO</reason></test>
-    <test id="language/import/json-extensibility-object"><reason>TODO</reason></test>
     <test id="language/import/json-idempotency"><reason>TODO</reason></test>
-    <test id="language/import/json-value-array"><reason>TODO</reason></test>
-    <test id="language/import/json-value-boolean"><reason>TODO</reason></test>
-    <test id="language/import/json-value-null"><reason>TODO</reason></test>
-    <test id="language/import/json-value-number"><reason>TODO</reason></test>
-    <test id="language/import/json-value-object"><reason>TODO</reason></test>
-    <test id="language/import/json-value-string"><reason>TODO</reason></test>
-    <test id="language/import/json-via-namespace"><reason>TODO</reason></test>
     <test id="language/literals/regexp/early-err-bad-flag"><reason>TODO</reason></test>
     <test id="language/literals/regexp/early-err-dup-flag"><reason>TODO</reason></test>
     <test id="language/literals/regexp/early-err-pattern"><reason>TODO</reason></test>
