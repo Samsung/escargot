@@ -1,8 +1,11 @@
 PROJECT(WASM)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 if (NOT "${CMAKE_PROJECT_VERSION}")
-  set(CMAKE_PROJECT_VERSION "1.0.19")
+  set(CMAKE_PROJECT_VERSION "1.0.29")
 endif ()
 
 if (MSVC)
@@ -51,6 +54,8 @@ configure_file(${WABT_ROOT}/src/config.h.in ${PROJECT_SOURCE_DIR}/config.h)
 include_directories(${WABT_ROOT} ${PROJECT_SOURCE_DIR})
 
 set(WABT_SRC
+    ${PROJECT_SOURCE_DIR}/config.h
+
     wabt/src/apply-names.h
     wabt/src/apply-names.cc
     wabt/src/binary.h
@@ -71,7 +76,6 @@ set(WABT_SRC
     wabt/src/color.cc
     wabt/src/common.h
     wabt/src/common.cc
-    wabt/src/config.h
     wabt/src/config.cc
     wabt/src/decompiler.h
     wabt/src/decompiler-ast.h
@@ -88,8 +92,6 @@ set(WABT_SRC
     wabt/src/filenames.cc
     wabt/src/generate-names.h
     wabt/src/generate-names.cc
-    wabt/src/hash-util.h
-    wabt/src/hash-util.cc
     wabt/src/ir.h
     wabt/src/ir.cc
     wabt/src/ir-util.h
@@ -114,8 +116,7 @@ set(WABT_SRC
     wabt/src/shared-validator.cc
     wabt/src/stream.h
     wabt/src/stream.cc
-    wabt/src/string-view.h
-    wabt/src/string-view.cc
+    wabt/src/string-util.h
     wabt/src/token.h
     wabt/src/token.cc
     wabt/src/tracing.h
@@ -134,6 +135,7 @@ set(WABT_SRC
     wabt/src/wat-writer.h
     wabt/src/wat-writer.cc
 
+    # TODO(binji): Move this into its own library?
     wabt/src/interp/binary-reader-interp.h
     wabt/src/interp/binary-reader-interp.cc
     wabt/src/interp/interp.h
@@ -153,7 +155,7 @@ set(WASM_CXX_FLAGS_INTERNAL
 )
 
 # set c++ flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wold-style-cast")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wold-style-cast")
 
 # Need to define __STDC_*_MACROS because C99 specifies that C++ shouldn't
 # define format (e.g. PRIu64) or limit (e.g. UINT32_MAX) macros without the
