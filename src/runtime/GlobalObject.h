@@ -96,7 +96,7 @@ class FunctionObject;
     F(generatorFunction, FunctionObject, objName)  \
     F(generator, FunctionObject, objName)          \
     F(generatorPrototype, Object, objName)
-//INTL
+// INTL
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
 #if defined(ENABLE_INTL_DISPLAYNAMES)
 #define GLOBALOBJECT_BUILTIN_INTL_DISPLAYNAMES(F, objName) \
@@ -252,6 +252,8 @@ class FunctionObject;
     F(temporalCalendarPrototype, Object, objName)      \
     F(temporalPlainDate, FunctionObject, objName)      \
     F(temporalPlainDatePrototype, Object, objName)     \
+    F(temporalPlainTime, FunctionObject, objName)      \
+    F(temporalPlainTimePrototype, Object, objName)     \
     F(temporalPlainDateTime, FunctionObject, objName)  \
     F(temporalPlainDateTimePrototype, Object, objName) \
     F(temporalNow, Object, objName)
@@ -267,7 +269,7 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_SHAREDARRAYBUFFER(F, objName)
 #endif
 
-//WebAssembly
+// WebAssembly
 #if defined(ENABLE_WASM)
 #define GLOBALOBJECT_BUILTIN_WASM(F, objName)     \
     F(wasm, Object, objName)                      \

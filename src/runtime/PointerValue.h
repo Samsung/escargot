@@ -73,6 +73,7 @@ class GlobalObjectProxyObject;
 class TemporalObject;
 class TemporalPlainDate;
 class TemporalZonedDateTime;
+class TemporalPlainTime;
 class TemporalPlainDateTime;
 class TemporalInstant;
 class TemporalCalendar;
@@ -343,6 +344,11 @@ public:
         return false;
     }
 
+    virtual bool isTemporalPlainTimeObject() const
+    {
+        return false;
+    }
+
     virtual bool isTemporalPlainDateTimeObject() const
     {
         return false;
@@ -359,6 +365,11 @@ public:
     }
 
     virtual bool isTemporalYearMonthObject() const
+    {
+        return false;
+    }
+
+    virtual bool isTemporalMonthDayObject() const
     {
         return false;
     }
@@ -629,6 +640,12 @@ public:
     {
         ASSERT(isTemporalPlainDateObject());
         return (TemporalPlainDate*)this;
+    }
+
+    TemporalPlainTime* asTemporalPlainTimeObject()
+    {
+        ASSERT(isTemporalPlainTimeObject());
+        return (TemporalPlainTime*)this;
     }
 
     TemporalZonedDateTime* asTemporalZonedDateTimeObject()

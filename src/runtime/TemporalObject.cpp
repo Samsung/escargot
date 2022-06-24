@@ -327,6 +327,19 @@ TemporalObject::DateTime TemporalObject::parseTemporalDateTimeString(ExecutionSt
     return TemporalObject::parseValidIso8601String(state, isoString);
 }
 
+Value TemporalPlainTime::createTemporalTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, Optional<Object*> newTarget)
+{
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->temporalPlainTimePrototype();
+    });
+
+    auto temporalPlainTime = new TemporalPlainTime(state, proto);
+
+    temporalPlainTime->setTime(hour, minute, second, millisecond, microsecond, nanosecond);
+    temporalPlainTime->setCalendar(state, new ASCIIString("iso8601"), newTarget);
+    return temporalPlainTime;
+}
+
 TemporalPlainTime::TemporalPlainTime(ExecutionState& state)
     : TemporalPlainTime(state, state.context()->globalObject()->objectPrototype())
 {
@@ -377,6 +390,127 @@ std::map<std::string, int> TemporalPlainTime::balanceTime(ExecutionState& state,
     result["Minute"] %= 60;
     result["Days"] = std::floor(result["Hour"] / 24);
     result["hour"] %= 24;
+
+    return result;
+}
+
+Value TemporalPlainTime::toTemporalTime(ExecutionState& state, const Value& item, Value options)
+{
+    if (options.isUndefined()) {
+        options = Value(state.context()->staticStrings().lazyConstrain().string());
+    }
+
+    ASSERT(options.asString()->equals(state.context()->staticStrings().lazyConstrain().string()) || options.asString()->equals(state.context()->staticStrings().lazyRejected().string()));
+
+    std::map<std::string, int> result;
+
+    if (item.isObject()) {
+        if (item.asObject()->isTemporalPlainTimeObject()) {
+            return item;
+        }
+
+        if (item.asObject()->isTemporalZonedDateTimeObject()) {
+            Value instant = TemporalInstant::createTemporalInstant(state, item.asObject()->asTemporalZonedDateTimeObject()->getNanoseconds());
+            TemporalPlainDateTime* plainDateTime = TemporalTimeZone::builtinTimeZoneGetPlainDateTimeFor(state, item.asObject()->asTemporalZonedDateTimeObject()->getTimeZone(), instant, item.asObject()->asTemporalZonedDateTimeObject()->getCalendar()).asObject()->asTemporalPlainDateTimeObject();
+            return TemporalPlainTime::createTemporalTime(state, plainDateTime->getHour(), plainDateTime->getMinute(), plainDateTime->getSecond(), plainDateTime->getMillisecond(), plainDateTime->getMicrosecond(), plainDateTime->getNanosecond(), new Object(state));
+        }
+
+        if (item.asObject()->isTemporalPlainDateTimeObject()) {
+            TemporalPlainDateTime* plainDateTime = item.asObject()->asTemporalPlainDateTimeObject();
+            return TemporalPlainTime::createTemporalTime(state, plainDateTime->getHour(), plainDateTime->getMinute(), plainDateTime->getSecond(), plainDateTime->getMillisecond(), plainDateTime->getMicrosecond(), plainDateTime->getNanosecond(), new Object(state));
+        }
+
+        Value calendar = TemporalCalendar::getTemporalCalendarWithISODefault(state, item);
+
+        if (!calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601")) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Calendar is not ISO8601");
+        }
+        result = TemporalPlainTime::toTemporalTimeRecord(state, item);
+        result = TemporalPlainTime::regulateTime(state, result["hour"], result["minute"], result["second"], result["millisecond"], result["microsecond"], result["nanosecond"], options);
+        return TemporalPlainTime::createTemporalTime(state, result["hour"], result["minute"], result["second"], result["millisecond"], result["microsecond"], result["nanosecond"], new Object(state));
+    }
+
+    Temporal::toTemporalOverflow(state, options);
+    auto tmp = TemporalObject::parseTemporalDateTimeString(state, item.asString()->toNonGCUTF8StringData());
+    ASSERT(TemporalPlainTime::isValidTime(state, tmp.hour, tmp.minute, tmp.second, tmp.millisecond, tmp.microsecond, tmp.nanosecond));
+    if (!tmp.calendar.empty() && tmp.calendar != "iso8601") {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Calendar is not ISO8601");
+    }
+
+    return TemporalPlainTime::createTemporalTime(state, tmp.hour, tmp.minute, tmp.second, tmp.millisecond, tmp.microsecond, tmp.nanosecond, new Object(state));
+}
+
+std::map<std::string, int> TemporalPlainTime::toTemporalTimeRecord(ExecutionState& state, const Value& temporalTimeLike)
+{
+    ASSERT(temporalTimeLike.isObject());
+    std::map<std::string, int> result = { { "hour", 0 }, { "minute", 0 }, { "second", 0 }, { "millisecond", 0 }, { "microsecond", 0 }, { "nanosecond", 0 } };
+    String temporalTimeLikeProp[6] = { ASCIIString("hour"), ASCIIString("microsecond"), ASCIIString("millisecond"), ASCIIString("minute"), ASCIIString("nanosecond"), ASCIIString("second") };
+
+    bool any = false;
+    for (auto i : temporalTimeLikeProp) {
+        Value value = temporalTimeLike.asObject()->get(state, ObjectPropertyName(state, &i)).value(state, temporalTimeLike);
+        any = !value.isUndefined();
+        result[i.toNonGCUTF8StringData()] = value.asInt32();
+    }
+    if (!any) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "any is false");
+    }
+
+    return result;
+}
+
+std::map<std::string, int> TemporalPlainTime::regulateTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, const Value& overflow)
+{
+    ASSERT(overflow.asString()->equals(state.context()->staticStrings().lazyConstrain().string()) || overflow.asString()->equals(state.context()->staticStrings().lazyRejected().string()));
+
+    if (overflow.asString()->equals(state.context()->staticStrings().lazyConstrain().string())) {
+        return TemporalPlainTime::constrainTime(state, hour, minute, second, millisecond, microsecond, nanosecond);
+    }
+
+    if (TemporalPlainTime::isValidTime(state, hour, minute, second, millisecond, microsecond, nanosecond)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid time");
+    }
+
+    return { { "hour", hour }, { "minute", minute }, { "second", second }, { "millisecond", millisecond }, { "microsecond", microsecond }, { "nanosecond", nanosecond } };
+}
+
+std::map<std::string, int> TemporalPlainTime::constrainTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond)
+{
+    return { { "hour", std::max(0, std::min(hour, 23)) }, { "minute", std::max(0, std::min(minute, 59)) }, { "second", std::max(0, std::min(second, 59)) }, { "millisecond", std::max(0, std::min(millisecond, 999)) }, { "microsecond", std::max(0, std::min(microsecond, 999)) }, { "nanosecond", std::max(0, std::min(nanosecond, 999)) } };
+}
+
+int TemporalPlainTime::compareTemporalTime(ExecutionState& state, const int time1[6], const int time2[6])
+{
+    for (int i = 0; i < 6; ++i) {
+        if (time1[i] > time2[i]) {
+            return 1;
+        }
+
+        if (time1[i] < time2[i]) {
+            return -1;
+        }
+    }
+    return 0;
+}
+std::map<std::string, Value> TemporalPlainTime::toPartialTime(ExecutionState& state, const Value& temporalTimeLike)
+{
+    ASSERT(temporalTimeLike.isObject());
+    std::map<std::string, Value> result = { { "hour", Value() }, { "minute", Value() }, { "second", Value() }, { "millisecond", Value() }, { "microsecond", Value() }, { "nanosecond", Value() } };
+
+    String temporalTimeLikeProp[6] = { ASCIIString("hour"), ASCIIString("microsecond"), ASCIIString("millisecond"), ASCIIString("minute"), ASCIIString("nanosecond"), ASCIIString("second") };
+
+    bool any = false;
+    for (auto i : temporalTimeLikeProp) {
+        Value value = temporalTimeLike.asObject()->get(state, ObjectPropertyName(state, &i)).value(state, temporalTimeLike);
+        if (!value.isUndefined()) {
+            any = true;
+            result[i.toNonGCUTF8StringData()] = value;
+        }
+    }
+
+    if (!any) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "any is false");
+    }
 
     return result;
 }

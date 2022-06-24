@@ -801,6 +801,7 @@ namespace Escargot {
 #define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)           \
     F(PlainDate, "PlainDate")                             \
     F(PlainDateTime, "PlainDateTime")                     \
+    F(PlainTime, "PlainTime")                             \
     F(Temporal, "Temporal")                               \
     F(Now, "Now")                                         \
     F(Calendar, "Calendar")                               \
@@ -813,19 +814,31 @@ namespace Escargot {
     F(daysInWeek, "daysInWeek")                           \
     F(dayOfWeek, "dayOfWeek")                             \
     F(dayOfYear, "dayOfYear")                             \
+    F(equals, "equals")                                   \
     F(fields, "fields")                                   \
+    F(getISOFields, "getISOFields")                       \
     F(getOffsetNanosecondsFor, "getOffsetNanosecondsFor") \
     F(id, "id")                                           \
     F(inLeapYear, "inLeapYear")                           \
+    F(isoHour, "isoHour")                                 \
+    F(isoMicrosecond, "isoMicrosecond")                   \
+    F(isoMillisecond, "isoMillisecond")                   \
+    F(isoMinute, "isoMinute")                             \
+    F(isoNanosecond, "isoNanosecond")                     \
+    F(isoSecond, "isoSecond")                             \
     F(mergeFields, "mergeFields")                         \
+    F(microsecond, "microsecond")                         \
+    F(millisecond, "millisecond")                         \
     F(month, "month")                                     \
     F(monthCode, "monthCode")                             \
     F(monthsInYear, "monthsInYear")                       \
+    F(nanosecond, "nanosecond")                           \
     F(overflow, "overflow")                               \
     F(plainDateISO, "plainDateISO")                       \
     F(plainDateTimeISO, "plainDateTimeISO")               \
     F(plainTimeISO, "plainTimeISO")                       \
     F(timeZone, "timeZone")                               \
+    F(toPlainDateTime, "toPlainDateTime")                 \
     F(weekOfYear, "weekOfYear")                           \
     F(year, "year")                                       \
     F(zonedDateTimeISO, "zonedDateTimeISO")

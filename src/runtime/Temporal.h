@@ -39,6 +39,19 @@ public:
         return true;
     }
 
+    static Value getOptionsObject(ExecutionState& state, const Value& options)
+    {
+        if (options.isObject()) {
+            return options;
+        }
+
+        if (!options.isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "options must be object");
+        }
+
+        return {};
+    }
+
     static Value toTemporalOverflow(ExecutionState& state, const Value& normalizedOptions)
     {
         if (normalizedOptions.isUndefined()) {
@@ -78,6 +91,22 @@ public:
             result->defineOwnProperty(state, ObjectPropertyName(AtomicString(state, property.asString())), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
         }
         return Value(result);
+    }
+
+    static void rejectObjectWithCalendarOrTimeZone(ExecutionState& state, const Value& object)
+    {
+        ASSERT(object.isObject());
+        if (object.asObject()->isTemporalPlainDateObject() || object.asObject()->isTemporalPlainDateTimeObject() || object.asObject()->isTemporalPlainTimeObject() || object.asObject()->isTemporalZonedDateTimeObject() || object.asObject()->isTemporalYearMonthObject() || object.asObject()->isTemporalMonthDayObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("Invalid type of Object"));
+        }
+
+        if (!object.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazycalendar().string())).value(state, object).isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("Object has calendar property"));
+        }
+
+        if (!object.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazytimeZone().string())).value(state, object).isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("Object has timezone property"));
+        }
     }
 };
 

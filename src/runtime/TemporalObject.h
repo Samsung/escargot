@@ -155,11 +155,64 @@ public:
     explicit TemporalPlainTime(ExecutionState& state);
     explicit TemporalPlainTime(ExecutionState& state, Object* proto);
 
+    bool isTemporalPlainTimeObject() const override
+    {
+        return true;
+    }
+
+    static Value toTemporalTime(ExecutionState& state, const Value& item, Value options);
+    static std::map<std::string, Value> toPartialTime(ExecutionState& state, const Value& temporalTimeLike);
+    static std::map<std::string, int> regulateTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, const Value& overflow);
+    static Value createTemporalTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, Optional<Object*> newTarget);
     static bool isValidTime(ExecutionState& state, const int h, const int m, const int s, const int ms, const int us, const int ns);
     static std::map<std::string, int> balanceTime(ExecutionState& state, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond);
+    static std::map<std::string, int> constrainTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond);
+    static std::map<std::string, int> toTemporalTimeRecord(ExecutionState& state, const Value& temporalTimeLike);
+    static int compareTemporalTime(ExecutionState& state, const int time1[6], const int time2[6]);
 
     void setTime(char h, char m, char s, short ms, short qs, short ns);
     void setCalendar(ExecutionState& state, String* calendar, Optional<Object*> newTarget);
+
+    short getYear() const
+    {
+        return m_year;
+    }
+    char getMonth() const
+    {
+        return m_month;
+    }
+    char getDay() const
+    {
+        return m_day;
+    }
+    char getHour() const
+    {
+        return m_hour;
+    }
+    char getMinute() const
+    {
+        return m_minute;
+    }
+    char getSecond() const
+    {
+        return m_second;
+    }
+    short getMillisecond() const
+    {
+        return m_millisecond;
+    }
+    short getMicrosecond() const
+    {
+        return m_microsecond;
+    }
+    short getNanosecond() const
+    {
+        return m_nanosecond;
+    }
+    TemporalCalendar* getCalendar() const
+    {
+        return calendar;
+    }
 
 private:
     short m_year;
