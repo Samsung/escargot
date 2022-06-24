@@ -1047,7 +1047,7 @@ int main(int argc, char* argv[])
         auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
             return script->execute(state);
         },
-                                             context->scriptParser()->initializeScript(StringRef::createFromASCII(""), StringRef::createFromASCII("<ScriptEnd>"), seenModule).script.get());
+                                             context->scriptParser()->initializeScript(StringRef::createFromASCII("/* Escargot is about to terminate.\n   Global values can be inspected before exit. */"), StringRef::createFromASCII("<ScriptEnd>"), seenModule).script.get());
     }
 
     while (runShell) {

@@ -3,7 +3,7 @@ Connection created!!!
 Stopped at tools/debugger/tests/do_wait_exit1.js:1
 (escargot-debugger) c
 Print: 5
-Stopped at <ScriptEnd>:1
+Stopped at <ScriptEnd>:2
 (escargot-debugger) p a
 5(escargot-debugger) p b
 alma(escargot-debugger) p c
