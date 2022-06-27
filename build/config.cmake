@@ -212,7 +212,6 @@ ENDIF()
 #######################################################
 # FLAGS FOR DEBUGGER
 #######################################################
-SET (DEBUGGER_FLAGS)
 IF (ESCARGOT_DEBUGGER)
-    SET (DEBUGGER_FLAGS ${DEBUGGER_FLAGS} -DESCARGOT_DEBUGGER)
+    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DESCARGOT_DEBUGGER)
 ENDIF()
