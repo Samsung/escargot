@@ -3176,6 +3176,7 @@ public:
                     ASSERT(exprNode->isIdentifier());
                     this->validateParam(list, this->lookahead, exprNode->asIdentifier()->name());
                     list.params.push_back(builder.convertToParameterSyntaxNode(exprNode));
+                    this->currentScopeContext->m_isAsync = isAsync;
                 } else {
                     this->scanner->index = startMarker.index;
                     this->scanner->lineNumber = startMarker.lineNumber;
