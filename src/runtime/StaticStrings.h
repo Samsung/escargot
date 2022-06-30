@@ -799,16 +799,19 @@ namespace Escargot {
 #endif
 
 #define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)           \
+    F(Duration, "Duration")                               \
     F(PlainDate, "PlainDate")                             \
     F(PlainDateTime, "PlainDateTime")                     \
     F(PlainTime, "PlainTime")                             \
     F(Temporal, "Temporal")                               \
     F(Now, "Now")                                         \
+    F(blank, "blank")                                     \
     F(Calendar, "Calendar")                               \
     F(calendar, "calendar")                               \
     F(dateFromFields, "dateFromFields")                   \
     F(DateTime, "DateTime")                               \
     F(day, "day")                                         \
+    F(days, "days")                                       \
     F(daysInMonth, "daysInMonth")                         \
     F(daysInYear, "daysInYear")                           \
     F(daysInWeek, "daysInWeek")                           \
@@ -818,6 +821,7 @@ namespace Escargot {
     F(fields, "fields")                                   \
     F(getISOFields, "getISOFields")                       \
     F(getOffsetNanosecondsFor, "getOffsetNanosecondsFor") \
+    F(hours, "hours")                                     \
     F(id, "id")                                           \
     F(inLeapYear, "inLeapYear")                           \
     F(isoHour, "isoHour")                                 \
@@ -828,19 +832,30 @@ namespace Escargot {
     F(isoSecond, "isoSecond")                             \
     F(mergeFields, "mergeFields")                         \
     F(microsecond, "microsecond")                         \
+    F(microseconds, "microseconds")                       \
     F(millisecond, "millisecond")                         \
+    F(milliseconds, "milliseconds")                       \
+    F(minutes, "minutes")                                 \
     F(month, "month")                                     \
+    F(months, "months")                                   \
     F(monthCode, "monthCode")                             \
     F(monthsInYear, "monthsInYear")                       \
     F(nanosecond, "nanosecond")                           \
+    F(nanoseconds, "nanoseconds")                         \
+    F(negated, "negated")                                 \
+    F(offset, "offset")                                   \
     F(overflow, "overflow")                               \
     F(plainDateISO, "plainDateISO")                       \
     F(plainDateTimeISO, "plainDateTimeISO")               \
     F(plainTimeISO, "plainTimeISO")                       \
+    F(relativeTo, "relativeTo")                           \
+    F(seconds, "seconds")                                 \
     F(timeZone, "timeZone")                               \
     F(toPlainDateTime, "toPlainDateTime")                 \
     F(weekOfYear, "weekOfYear")                           \
     F(year, "year")                                       \
+    F(years, "years")                                     \
+    F(weeks, "weeks")                                     \
     F(zonedDateTimeISO, "zonedDateTimeISO")
 
 #if defined(ENABLE_THREADING)

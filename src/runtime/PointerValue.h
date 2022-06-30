@@ -77,6 +77,7 @@ class TemporalPlainTime;
 class TemporalPlainDateTime;
 class TemporalInstant;
 class TemporalCalendar;
+class TemporalDuration;
 class TypedArrayObject;
 class ModuleNamespaceObject;
 class SharedArrayBufferObject;
@@ -374,6 +375,11 @@ public:
         return false;
     }
 
+    virtual bool isTemporalDurationObject() const
+    {
+        return false;
+    }
+
     virtual bool isTypedArrayObject() const
     {
         return false;
@@ -664,6 +670,12 @@ public:
     {
         ASSERT(isTemporalInstantObject());
         return (TemporalInstant*)this;
+    }
+
+    TemporalDuration* asTemporalDurationObject()
+    {
+        ASSERT(isTemporalDurationObject());
+        return (TemporalDuration*)this;
     }
 
     TypedArrayObject* asTypedArrayObject()

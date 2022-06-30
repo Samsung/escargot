@@ -18,6 +18,7 @@
  *  USA
  */
 
+#include <array>
 #include "Escargot.h"
 #include "TemporalObject.h"
 #include "DateObject.h"
@@ -327,10 +328,152 @@ TemporalObject::DateTime TemporalObject::parseTemporalDateTimeString(ExecutionSt
     return TemporalObject::parseValidIso8601String(state, isoString);
 }
 
+std::map<std::string, int> TemporalObject::parseTemporalDurationString(ExecutionState& state, const std::string& isoString)
+{
+    int sign = 1;
+    unsigned int index = 0;
+
+    int years = -1;
+    int months = -1;
+    int weeks = -1;
+    int days = -1;
+    int hours = -1;
+    int minutes = -1;
+    int seconds = -1;
+    int fHours = -1;
+    int fMinutes = -1;
+    int fSeconds = -1;
+
+    if (isoString.length() < 3 || isoString[index + 1] != 'P') {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+    }
+
+    if (isoString.rfind("−", index) == 0) {
+        sign = -1;
+        index += 4;
+
+        if (isoString.length() < 5) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+        }
+    } else {
+        index += 2;
+    }
+
+    while (isoString[index] == '/') {
+        index++;
+        std::string value;
+        unsigned int start = index;
+        while (std::isdigit(isoString[index])) {
+            index++;
+        }
+
+        value = isoString.substr(start, index - start);
+
+        switch (isoString[index]) {
+        case 'Y':
+            years = std::stoi(value);
+            break;
+        case 'M':
+            months = std::stoi(value);
+            break;
+        case 'W':
+            weeks = std::stoi(value);
+            break;
+        case 'D':
+            days = std::stoi(value);
+            break;
+        default:
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+        }
+        index++;
+    }
+
+    if (isoString[index] == 'T') {
+        std::string value;
+        std::string fvalue;
+        unsigned int start = index;
+        while (std::isdigit(isoString[index])) {
+            index++;
+        }
+
+        value = isoString.substr(start, index - start);
+
+        if (isoString[index] == '.' || isoString[index] == ',') {
+            start = index;
+            while (std::isdigit(isoString[index])) {
+                index++;
+                if (index - start == 10) {
+                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+                }
+            }
+            fvalue = isoString.substr(start, index - start);
+        }
+
+        switch (isoString[index]) {
+        case 'H':
+            hours = std::stoi(value);
+            if (!fvalue.empty()) {
+                fHours = std::stoi(fvalue);
+            }
+            break;
+        case 'M':
+            minutes = std::stoi(value);
+            if (!fvalue.empty()) {
+                fMinutes = std::stoi(fvalue);
+            }
+            break;
+        case 'S':
+            seconds = std::stoi(value);
+            if (!fvalue.empty()) {
+                fSeconds = std::stoi(fvalue);
+            }
+            break;
+        default:
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+        }
+        index++;
+    }
+
+    int minutesMV;
+    int secondsMV;
+    int milliSecondsMV;
+
+    if (fHours != -1) {
+        if (minutes != -1 || fMinutes != -1 || seconds != -1 || fSeconds != -1) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+        }
+        minutesMV = fHours / pow(10, trunc(log10(fHours)) + 1) * 60;
+    } else {
+        minutesMV = minutes;
+    }
+
+    if (fMinutes != -1) {
+        if (seconds != -1 || fSeconds != -1) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+        }
+        secondsMV = fMinutes / pow(10, trunc(log10(fMinutes)) + 1) * 60;
+    } else if (seconds != -1) {
+        secondsMV = seconds;
+    } else {
+        secondsMV = (minutesMV % 1) * 60;
+    }
+
+    if (fSeconds != -1) {
+        milliSecondsMV = fSeconds / pow(10, trunc(log10(fSeconds)) + 1) * 60;
+    } else {
+        milliSecondsMV = (secondsMV % 1) * 1000;
+    }
+
+    int microSecondsMV = (milliSecondsMV % 1) * 1000;
+    int nanoSecondsMV = (microSecondsMV % 1) * 1000;
+
+    return TemporalDuration::createDurationRecord(state, years * sign, months * sign, weeks * sign, days * sign, hours * sign, std::floor(minutesMV) * sign, std::floor(secondsMV) * sign, std::floor(milliSecondsMV) * sign, std::floor(microSecondsMV) * sign, std::floor(nanoSecondsMV) * sign);
+}
+
 Value TemporalPlainTime::createTemporalTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, Optional<Object*> newTarget)
 {
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
-        return constructorRealm->globalObject()->temporalPlainTimePrototype();
+        return constructorRealm->globalObject()->temporal()->asTemporalObject()->getTemporalPlainTimePrototype();
     });
 
     auto temporalPlainTime = new TemporalPlainTime(state, proto);
@@ -362,7 +505,7 @@ void TemporalPlainTime::setTime(char h, char m, char s, short ms, short qs, shor
 
 void TemporalPlainTime::setCalendar(ExecutionState& state, String* id, Optional<Object*> newTarget)
 {
-    this->calendar = TemporalCalendar::createTemporalCalendar(state, id, newTarget);
+    this->m_calendar = TemporalCalendar::createTemporalCalendar(state, id, newTarget);
 }
 
 bool TemporalPlainTime::isValidTime(ExecutionState& state, const int h, const int m, const int s, const int ms, const int us, const int ns)
@@ -539,7 +682,7 @@ TemporalCalendar* TemporalCalendar::createTemporalCalendar(ExecutionState& state
     }
 
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
-        return constructorRealm->globalObject()->temporalCalendarPrototype();
+        return constructorRealm->globalObject()->temporal()->asTemporalObject()->getTemporalCalendarPrototype();
     });
 
     auto* O = new TemporalCalendar(state, proto);
@@ -564,7 +707,7 @@ Value TemporalCalendar::getBuiltinCalendar(ExecutionState& state, String* id)
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::IsNotDefined);
     }
     Value argv[1] = { Value(id) };
-    return Object::construct(state, state.context()->globalObject()->temporalCalendar(), 1, argv).toObject(state);
+    return Object::construct(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalCalendar(), 1, argv).toObject(state);
 }
 
 Value TemporalCalendar::getISO8601Calendar(ExecutionState& state)
@@ -873,7 +1016,7 @@ Value TemporalPlainDate::createTemporalDate(ExecutionState& state, const int iso
         newTargetVariable = newTarget.value();
     }
     Object* proto = Object::getPrototypeFromConstructor(state, newTargetVariable, [](ExecutionState& state, Context* realm) -> Object* {
-        return realm->globalObject()->temporalPlainDatePrototype();
+        return realm->globalObject()->temporal()->asTemporalObject()->getTemporalPlainDatePrototype();
     });
     Object* object = new TemporalPlainDate(state, proto, isoYear, isoMonth, isoDay, calendar);
 
@@ -881,15 +1024,13 @@ Value TemporalPlainDate::createTemporalDate(ExecutionState& state, const int iso
 }
 
 TemporalPlainDate::TemporalPlainDate(ExecutionState& state, int isoYear, int isoMonth, int isoDay, Optional<Value> calendarLike)
-    : TemporalPlainDate(state, state.context()->globalObject()->temporalPlainDatePrototype(), isoYear, isoMonth, isoDay, calendarLike)
+    : TemporalPlainDate(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalPlainDatePrototype(), isoYear, isoMonth, isoDay, calendarLike)
 {
 }
 
-TemporalPlainDate::TemporalPlainDate(ExecutionState& state, Object* proto, int isoYear, int isoMonth, int isoDay, Optional<Value> calendarLike)
+TemporalPlainDate::TemporalPlainDate(ExecutionState& state, Object* proto, short isoYear, char isoMonth, char isoDay, Optional<Value> calendarLike)
     : Temporal(state, proto)
-    , m_y(isoYear)
-    , m_m(isoMonth)
-    , m_d(isoDay)
+    , TemporalDate(isoYear, isoMonth, isoDay)
     , m_calendar(calendarLike.value())
 {
 }
@@ -961,16 +1102,9 @@ TemporalPlainDateTime::TemporalPlainDateTime(ExecutionState& state)
 
 TemporalPlainDateTime::TemporalPlainDateTime(ExecutionState& state, Object* proto, const int year, const int month, const int day, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond)
     : Temporal(state, proto)
+    , TemporalDate(year, month, day)
+    , TemporalTime(hour, minute, second, microsecond, millisecond, nanosecond)
 {
-    this->m_year = year;
-    this->m_month = month;
-    this->m_day = day;
-    this->m_hour = hour;
-    this->m_minute = minute;
-    this->m_second = second;
-    this->m_millisecond = millisecond;
-    this->m_microsecond = microsecond;
-    this->m_nanosecond = nanosecond;
 }
 
 Value TemporalPlainDateTime::getEpochFromISOParts(ExecutionState& state, const int year, const int month, const int day, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond)
@@ -1019,7 +1153,7 @@ Value TemporalPlainDateTime::createTemporalDateTime(ExecutionState& state, const
         newTarget = state.resolveCallee();
     }
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
-        return constructorRealm->globalObject()->temporalPlainDateTimePrototype();
+        return constructorRealm->globalObject()->temporal()->asTemporalObject()->getTemporalPlainDateTimePrototype();
     });
     Object* object = new TemporalPlainDateTime(state, proto, isoYear, isoMonth, isoDay, hour, minute, second, millisecond, microsecond, millisecond);
     return Value(object);
@@ -1195,6 +1329,162 @@ std::map<std::string, int> TemporalPlainYearMonth::balanceISOYearMonth(Execution
     result["Year"] = year + (int)std::floor((month - 1) / 12);
     result["Month"] = (month - 1) % 13;
     return result;
+}
+
+TemporalDuration::TemporalDuration(ExecutionState& state, int years = 0, int months = 0, int weeks = 0, int days = 0, int hours = 0, int minutes = 0, int seconds = 0, int milliseconds = 0, int microseconds = 0, int nanoseconds = 0)
+    : TemporalDuration(state, state.context()->globalObject()->objectPrototype(), years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds)
+{
+}
+
+TemporalDuration::TemporalDuration(ExecutionState& state, Object* proto, int years = 0, int months = 0, int weeks = 0, int days = 0, int hours = 0, int minutes = 0, int seconds = 0, int milliseconds = 0, int microseconds = 0, int nanoseconds = 0)
+    : Temporal(state, proto)
+    , TemporalDate(years, months, days)
+    , TemporalTime(hours, minutes, seconds, microseconds, milliseconds, nanoseconds)
+{
+}
+
+bool TemporalDuration::isValidDuration(const int fields[])
+{
+    int sign = TemporalDuration::durationSign(fields);
+    for (int i = 0; i < 10; i++) {
+        if ((fields[i] < 0 && sign > 0) || (fields[i] > 0 && sign < 0)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+int TemporalDuration::durationSign(const int fields[])
+{
+    for (int i = 0; i < 10; i++) {
+        if (fields[i] < 0) {
+            return -1;
+        } else if (fields[i] > 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+Value TemporalDuration::createTemporalDuration(ExecutionState& state, int years, int months, int weeks, int days, int hours, int minutes, int seconds, int milliseconds, int microseconds, int nanoseconds, Optional<Object*> newTarget)
+{
+    int dateTime[] = { years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds };
+    if (isValidDuration(dateTime)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid time");
+    }
+
+    if (!newTarget.hasValue()) {
+        newTarget = state.resolveCallee();
+    }
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->temporal()->asTemporalObject()->getTemporalDurationPrototype();
+    });
+
+    return new TemporalDuration(state, proto, years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds);
+}
+Value TemporalDuration::toTemporalDuration(ExecutionState& state, const Value& item)
+{
+    if (item.isObject() && item.asObject()->asTemporalDurationObject()) {
+        return item;
+    }
+
+    auto result = TemporalDuration::toTemporalDurationRecord(state, item);
+
+    return TemporalDuration::createTemporalDuration(state, result["years"], result["months"], result["weeks"], result["days"], result["hours"], result["minutes"], result["seconds"], result["milliseconds"], result["microseconds"], result["nanoseconds"], nullptr);
+}
+
+std::map<std::string, int> TemporalDuration::toTemporalDurationRecord(ExecutionState& state, const Value& temporalDurationLike)
+{
+    if (!temporalDurationLike.isObject()) {
+        return TemporalObject::parseTemporalDurationString(state, temporalDurationLike.asString()->toNonGCUTF8StringData());
+    } else if (temporalDurationLike.asObject()->isTemporalDurationObject()) {
+        auto duration = temporalDurationLike.asObject()->asTemporalDurationObject();
+        return TemporalDuration::createDurationRecord(state, duration->getYear(), duration->getMonth(), duration->getWeek(), duration->getDay(), duration->getHour(), duration->getMinute(), duration->getSecond(), duration->getMillisecond(), duration->getMicrosecond(), duration->getNanosecond());
+    }
+
+    std::map<std::string, int> result = { { "years", 0 }, { "months", 0 }, { "weeks", 0 }, { "days", 0 }, { "hours", 0 }, { "minutes", 0 }, { "seconds", 0 }, { "milliseconds", 0 }, { "microseconds", 0 }, { "nanoseconds", 0 } };
+    auto partial = TemporalDuration::toTemporalPartialDurationRecord(state, temporalDurationLike);
+
+    for (auto const& x : partial) {
+        if (!x.second.isUndefined()) {
+            result[x.first] = x.second.asInt32();
+        }
+    }
+
+    int dateTime[] = { result["years"], result["months"], result["weeks"], result["days"], result["hours"], result["minutes"], result["seconds"], result["milliseconds"], result["microseconds"], result["nanoseconds"] };
+
+    if (!TemporalDuration::isValidDuration(dateTime)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration");
+    }
+
+    return result;
+}
+
+std::map<std::string, Value> TemporalDuration::toTemporalPartialDurationRecord(ExecutionState& state, const Value& temporalDurationLike)
+{
+    if (!temporalDurationLike.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Expected object");
+    }
+
+    std::map<std::string, Value> result;
+
+    String temporalTimeLikeProp[10] = { ASCIIString("years"), ASCIIString("months"), ASCIIString("weeks"), ASCIIString("days"), ASCIIString("hours"), ASCIIString("microseconds"), ASCIIString("milliseconds"), ASCIIString("minutes"), ASCIIString("nanoseconds"), ASCIIString("seconds") };
+
+    bool any = false;
+    for (auto i : temporalTimeLikeProp) {
+        Value value = temporalDurationLike.asObject()->get(state, ObjectPropertyName(state, &i)).value(state, temporalDurationLike);
+        if (!value.isUndefined()) {
+            any = true;
+            result[i.toNonGCUTF8StringData()] = value;
+        }
+    }
+    if (!any) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "any is false");
+    }
+    return result;
+}
+
+std::map<std::string, int> TemporalDuration::createDurationRecord(ExecutionState& state, int years, int months, int weeks, int days, int hours, int minutes, int seconds, int milliseconds, int microseconds, int nanoseconds)
+{
+    int dateTime[] = { years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds };
+
+    if (!TemporalDuration::isValidDuration(dateTime)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration");
+    }
+    return { { "years", years }, { "months", months }, { "weeks", weeks }, { "days", days }, { "hours", hours }, { "minutes", minutes }, { "seconds", seconds }, { "milliseconds", milliseconds }, { "microseconds", microseconds }, { "nanoseconds", nanoseconds } };
+}
+
+Value TemporalDuration::createNegatedTemporalDuration(ExecutionState& state, const Value& duration)
+{
+    auto durationObject = duration.asObject()->asTemporalDurationObject();
+    return TemporalDuration::createTemporalDuration(state, -durationObject->m_year, -durationObject->m_month, -durationObject->m_week, -durationObject->m_day, -durationObject->m_hour, -durationObject->m_minute, -durationObject->m_second, -durationObject->m_millisecond, -durationObject->m_microsecond, -durationObject->m_nanosecond, nullptr);
+}
+
+TemporalDate::TemporalDate(short mYear, char mMonth, char mDay)
+    : m_year(mYear)
+    , m_month(mMonth)
+    , m_day(mDay)
+{
+}
+
+TemporalTime::TemporalTime(char mHour, char mMinute, char mSecond, short mMillisecond, short mMicrosecond, short mNanosecond)
+    : m_hour(mHour)
+    , m_minute(mMinute)
+    , m_second(mSecond)
+    , m_millisecond(mMillisecond)
+    , m_microsecond(mMicrosecond)
+    , m_nanosecond(mNanosecond)
+{
+}
+TemporalTime::TemporalTime()
+    : m_hour(0)
+    , m_minute(0)
+    , m_second(0)
+    , m_millisecond(0)
+    , m_microsecond(0)
+    , m_nanosecond(0)
+{
 }
 } // namespace Escargot
 

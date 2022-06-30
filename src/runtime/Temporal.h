@@ -34,6 +34,42 @@ public:
     {
     }
 
+    Temporal(ExecutionState& state, Object* temporalCalendar, Object* temporalCalendarPrototype, Object* temporalDurationPrototype, Object* temporalPlainDatePrototype, Object* temporalPlainTimePrototype, Object* temporalPlainDateTimePrototype)
+        : DerivedObject(state)
+        , m_temporalCalendar(temporalCalendar)
+        , m_temporalCalendarPrototype(temporalCalendarPrototype)
+        , m_temporalDurationPrototype(temporalDurationPrototype)
+        , m_temporalPlainDatePrototype(temporalPlainDatePrototype)
+        , m_temporalPlainTimePrototype(temporalPlainTimePrototype)
+        , m_temporalPlainDateTimePrototype(temporalPlainDateTimePrototype)
+    {
+    }
+
+    Object* getTemporalCalendar() const
+    {
+        return m_temporalCalendar;
+    }
+    Object* getTemporalCalendarPrototype() const
+    {
+        return m_temporalCalendarPrototype;
+    }
+    Object* getTemporalDurationPrototype() const
+    {
+        return m_temporalDurationPrototype;
+    }
+    Object* getTemporalPlainDatePrototype() const
+    {
+        return m_temporalPlainDatePrototype;
+    }
+    Object* getTemporalPlainTimePrototype() const
+    {
+        return m_temporalPlainTimePrototype;
+    }
+    Object* getTemporalPlainDateTimePrototype() const
+    {
+        return m_temporalPlainDateTimePrototype;
+    }
+
     bool isTemporalObject() const override
     {
         return true;
@@ -108,6 +144,14 @@ public:
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("Object has timezone property"));
         }
     }
+
+private:
+    Object* m_temporalCalendar;
+    Object* m_temporalCalendarPrototype;
+    Object* m_temporalDurationPrototype;
+    Object* m_temporalPlainDatePrototype;
+    Object* m_temporalPlainTimePrototype;
+    Object* m_temporalPlainDateTimePrototype;
 };
 
 } // namespace Escargot
