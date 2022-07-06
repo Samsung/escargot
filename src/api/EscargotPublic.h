@@ -39,6 +39,7 @@
 #include <type_traits>
 #include <utility>
 #include <sstream>
+#include <atomic>
 
 #if !defined(NDEBUG) && defined(__GLIBCXX__) && !defined(_GLIBCXX_DEBUG)
 #pragma message("You should define `_GLIBCXX_DEBUG` in {debug mode + libstdc++} because Escargot uses it")
@@ -126,15 +127,10 @@ ESCARGOT_REF_LIST(DECLARE_REF_CLASS);
 
 class ESCARGOT_EXPORT Globals {
 public:
-    // Escargot has thread-independent Globals.
-    // Users should call initialize, finalize once in the main program
+    // Escargot has thread-dependent Globals.
+    // Users should call initialize, finalize once in each thread
     static void initialize(PlatformRef* platform);
     static void finalize();
-
-    // Globals also used for thread initialization
-    // Users need to call initializeThread, finalizeThread function for each thread
-    static void initializeThread();
-    static void finalizeThread();
 
     static bool supportsThreading();
 
@@ -2157,6 +2153,18 @@ public:
     }
 
     void* threadLocalCustomData();
+
+protected:
+    friend class PlatformBridge;
+    PlatformRef()
+        : m_refCount(0)
+    {
+    }
+
+    void ref();
+    void deref();
+
+    std::atomic_size_t m_refCount;
 };
 
 class ESCARGOT_EXPORT WASMOperationsRef {

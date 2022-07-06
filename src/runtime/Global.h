@@ -38,8 +38,8 @@ class Platform;
 
 // Global is a global interface used by all threads
 class Global {
-    static bool inited;
-    static Platform* g_platform;
+    static MAY_THREAD_LOCAL bool inited;
+    static MAY_THREAD_LOCAL Platform* g_platform;
 #if defined(ENABLE_ATOMICS_GLOBAL_LOCK)
     static SpinLock g_atomicsLock;
 #endif

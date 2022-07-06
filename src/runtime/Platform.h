@@ -59,6 +59,8 @@ public:
     virtual void customInfoLogger(const char* format, va_list arg) = 0;
     virtual void customErrorLogger(const char* format, va_list arg) = 0;
 #endif
+
+protected:
 };
 } // namespace Escargot
 

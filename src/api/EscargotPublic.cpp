@@ -113,12 +113,13 @@ public:
     PlatformBridge(PlatformRef* p)
         : m_platform(p)
     {
+        m_platform->ref();
     }
 
     virtual ~PlatformBridge()
     {
-        // delete PlatformRef, so we don't care about PlatformRef's lifetime
-        delete m_platform;
+        // deref PlatformRef, so we don't care about PlatformRef's lifetime
+        m_platform->deref();
     }
 
     virtual void* onMallocArrayBufferObjectDataBuffer(size_t sizeInByte) override
@@ -247,12 +248,24 @@ void* PlatformRef::threadLocalCustomData()
     return ThreadLocal::customData();
 }
 
+void PlatformRef::ref()
+{
+    m_refCount++;
+}
+
+void PlatformRef::deref()
+{
+    if (m_refCount.fetch_sub(1) == 1) {
+        delete this;
+    }
+}
+
 thread_local bool g_globalsInited;
 void Globals::initialize(PlatformRef* platform)
 {
     // initialize global value or context including thread-local variables
-    // this function should be invoked once at the start of the program
-    // argument `platform` will be deleted automatically when Globals::finalize called
+    // this function should be invoked once at the start of the thread
+    // argument `platform` will be deleted automatically when Globals::finalize is called and refCount is zero
     RELEASE_ASSERT(!g_globalsInited);
     Global::initialize(new PlatformBridge(platform));
     ThreadLocal::initialize();
@@ -262,31 +275,13 @@ void Globals::initialize(PlatformRef* platform)
 void Globals::finalize()
 {
     // finalize global value or context including thread-local variables
-    // this function should be invoked once at the end of the program
+    // this function should be invoked once at the end of the thread
     RELEASE_ASSERT(!!g_globalsInited);
     ThreadLocal::finalize();
 
-    // Global::finalize should be called at the end of program
+    // Global::finalize should be called at the end of thread
     // because it holds Platform which could be used in other Object's finalizer
     Global::finalize();
-    g_globalsInited = false;
-}
-
-void Globals::initializeThread()
-{
-    // initialize thread-local variables
-    // this function should be invoked at the start of sub-thread
-    RELEASE_ASSERT(!g_globalsInited);
-    ThreadLocal::initialize();
-    g_globalsInited = true;
-}
-
-void Globals::finalizeThread()
-{
-    // finalize thread-local variables
-    // this function should be invoked once at the end of sub-thread
-    RELEASE_ASSERT(!!g_globalsInited);
-    ThreadLocal::finalize();
     g_globalsInited = false;
 }
 

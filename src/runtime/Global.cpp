@@ -28,8 +28,11 @@
 
 namespace Escargot {
 
-bool Global::inited;
-Platform* Global::g_platform;
+#if defined(ENABLE_THREADING)
+std::atomic_size_t g_initCount;
+#endif
+MAY_THREAD_LOCAL bool Global::inited;
+MAY_THREAD_LOCAL Platform* Global::g_platform;
 #if defined(ENABLE_ATOMICS_GLOBAL_LOCK)
 SpinLock Global::g_atomicsLock;
 #endif
@@ -40,27 +43,33 @@ std::vector<Global::Waiter*> Global::g_waiter;
 
 void Global::initialize(Platform* platform)
 {
-    // initialize should be invoked only once in the program
-    static bool called_once = true;
+    // initialize should be invoked only once in the thread
+    static MAY_THREAD_LOCAL bool called_once = true;
     RELEASE_ASSERT(called_once && !inited);
 
     ASSERT(!g_platform);
     g_platform = platform;
 
-    // initialize PointerValue tag values
-    // tag values should be initialized once and not changed
-    PointerValue::g_objectTag = Object().getVTag();
-    PointerValue::g_prototypeObjectTag = PrototypeObject().getVTag();
-    PointerValue::g_arrayObjectTag = ArrayObject().getVTag();
-    PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject().getVTag();
-    PointerValue::g_scriptFunctionObjectTag = ScriptFunctionObject().getVTag();
-    PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getVTag();
-    // tag values for ScriptSimpleFunctionObject
+#if defined(ENABLE_THREADING)
+    if (g_initCount.fetch_add(1) == 0) {
+#endif
+        // initialize PointerValue tag values
+        // tag values should be initialized once and not changed
+        PointerValue::g_objectTag = Object().getVTag();
+        PointerValue::g_prototypeObjectTag = PrototypeObject().getVTag();
+        PointerValue::g_arrayObjectTag = ArrayObject().getVTag();
+        PointerValue::g_arrayPrototypeObjectTag = ArrayPrototypeObject().getVTag();
+        PointerValue::g_scriptFunctionObjectTag = ScriptFunctionObject().getVTag();
+        PointerValue::g_objectRareDataTag = ObjectRareData(nullptr).getVTag();
+        // tag values for ScriptSimpleFunctionObject
 #define INIT_SCRIPTSIMPLEFUNCTION_TAGS(STRICT, CLEAR, isStrict, isClear, SIZE) \
     PointerValue::g_scriptSimpleFunctionObject##STRICT##CLEAR##SIZE##Tag = ScriptSimpleFunctionObject<isStrict, isClear, SIZE>().getVTag();
 
-    DECLARE_SCRIPTSIMPLEFUNCTION_LIST(INIT_SCRIPTSIMPLEFUNCTION_TAGS);
+        DECLARE_SCRIPTSIMPLEFUNCTION_LIST(INIT_SCRIPTSIMPLEFUNCTION_TAGS);
 #undef INIT_SCRIPTSIMPLEFUNCTION_TAGS
+#if defined(ENABLE_THREADING)
+    }
+#endif
 
     called_once = false;
     inited = true;
@@ -68,16 +77,17 @@ void Global::initialize(Platform* platform)
 
 void Global::finalize()
 {
-    // finalize should be invoked only once in the program
-    static bool called_once = true;
+    // finalize should be invoked only once in the thread
+    static MAY_THREAD_LOCAL bool called_once = true;
     RELEASE_ASSERT(called_once && inited);
 
-
 #if defined(ENABLE_THREADING)
-    for (size_t i = 0; i < g_waiter.size(); i++) {
-        delete g_waiter[i];
+    if (g_initCount.fetch_sub(1) == 1) {
+        for (size_t i = 0; i < g_waiter.size(); i++) {
+            delete g_waiter[i];
+        }
+        std::vector<Waiter*>().swap(g_waiter);
     }
-    std::vector<Waiter*>().swap(g_waiter);
 #endif
 
     delete g_platform;

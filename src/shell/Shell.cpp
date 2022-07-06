@@ -271,278 +271,6 @@ static ValueRef* builtinGc(ExecutionStateRef* state, ValueRef* thisValue, size_t
     return ValueRef::createUndefined();
 }
 
-PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, bool isMainThread = true);
-
-#if defined(ESCARGOT_ENABLE_TEST)
-
-static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcName, bool shouldPrintScriptResult, bool isModule);
-
-static ValueRef* builtinUneval(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    if (argc) {
-        if (argv[0]->isSymbol()) {
-            return argv[0]->asSymbol()->symbolDescriptiveString();
-        }
-        return argv[0]->toString(state);
-    }
-    return StringRef::emptyString();
-}
-
-static ValueRef* builtinDrainJobQueue(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    ContextRef* context = state->context();
-    while (context->vmInstance()->hasPendingJob()) {
-        auto jobResult = context->vmInstance()->executePendingJob();
-        if (jobResult.error) {
-            return ValueRef::create(false);
-        }
-    }
-    return ValueRef::create(true);
-}
-
-static ValueRef* builtinAddPromiseReactions(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    if (argc >= 3) {
-        PromiseObjectRef* promise = argv[0]->toObject(state)->asPromiseObject();
-        promise->then(state, argv[1], argv[2]);
-    } else {
-        state->throwException(TypeErrorObjectRef::create(state, StringRef::emptyString()));
-    }
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtinCreateNewGlobalObject(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    return ContextRef::create(state->context()->vmInstance())->globalObject();
-}
-
-static ValueRef* builtin262CreateRealm(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    auto newContext = createEscargotContext(state->context()->vmInstance(), false);
-    return newContext->globalObject()->get(state, StringRef::createFromASCII("$262"));
-}
-
-static ValueRef* builtin262DetachArrayBuffer(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    if (argv[0]->isArrayBufferObject()) {
-        argv[0]->asArrayBufferObject()->detachArrayBuffer();
-    }
-
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtin262EvalScript(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    StringRef* src = argv[0]->toString(state);
-    auto script = state->context()->scriptParser()->initializeScript(src, StringRef::createFromASCII("$262.evalScript input"), false).fetchScriptThrowsExceptionIfParseError(state);
-    return script->execute(state);
-}
-
-static ValueRef* builtin262IsHTMLDDA(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    return ValueRef::createNull();
-}
-
-struct WorkerThreadData {
-    std::string message;
-    bool running;
-    volatile bool ended;
-
-    WorkerThreadData()
-        : running(true)
-        , ended(false)
-    {
-    }
-};
-std::mutex workerMutex;
-std::vector<std::pair<std::thread, WorkerThreadData>> workerThreads;
-std::vector<std::string> messagesFromWorkers;
-
-static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    std::string script = argv[0]->toString(state)->toStdUTF8String();
-
-    std::thread worker([](std::string script) {
-        Globals::initializeThread();
-
-        Memory::setGCFrequency(24);
-
-        PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
-        PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get(), false);
-
-        evalScript(context.get(), StringRef::createFromUTF8(script.data(), script.size()),
-                   StringRef::createFromASCII("from main thread"), false, false);
-
-        while (true) {
-            {
-                bool running = false;
-                std::lock_guard<std::mutex> guard(workerMutex);
-                for (size_t i = 0; i < workerThreads.size(); i++) {
-                    if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
-                        running = workerThreads[i].second.running;
-                        break;
-                    }
-                }
-                if (!running) {
-                    break;
-                }
-            }
-
-            // readmessage if exists
-            std::string message;
-            {
-                std::lock_guard<std::mutex> guard(workerMutex);
-                for (size_t i = 0; i < workerThreads.size(); i++) {
-                    if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
-                        message = std::move(workerThreads[i].second.message);
-                        break;
-                    }
-                }
-            }
-
-            if (message.length()) {
-                std::istringstream istream(message);
-                ValueRef* val1 = SerializerRef::deserializeFrom(context.get(), istream);
-                ValueRef* val2 = SerializerRef::deserializeFrom(context.get(), istream);
-
-                ValueRef* callback = (ValueRef*)context.get()->globalObject()->extraData();
-                if (callback) {
-                    Evaluator::execute(context.get(), [](ExecutionStateRef* state, ValueRef* callback, ValueRef* v1, ValueRef* v2) -> ValueRef* {
-                        ValueRef* argv[2] = { v1, v2 };
-                        return callback->call(state, ValueRef::createUndefined(), 2, argv);
-                    },
-                                       callback, val1, val2);
-                }
-            }
-
-            usleep(10 * 1000);
-        }
-
-        context.release();
-        instance.release();
-
-        Globals::finalizeThread();
-
-        std::lock_guard<std::mutex> guard(workerMutex);
-        for (size_t i = 0; i < workerThreads.size(); i++) {
-            if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
-                workerThreads[i].second.ended = true;
-            }
-        }
-    },
-                       script);
-
-    {
-        std::lock_guard<std::mutex> guard(workerMutex);
-        workerThreads.push_back(std::make_pair(std::move(worker), WorkerThreadData()));
-    }
-
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtin262AgentBroadcast(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    std::ostringstream ostream;
-    if (argc > 0) {
-        SerializerRef::serializeInto(argv[0], ostream);
-    } else {
-        SerializerRef::serializeInto(ValueRef::createUndefined(), ostream);
-    }
-    if (argc > 1) {
-        SerializerRef::serializeInto(argv[1], ostream);
-    } else {
-        SerializerRef::serializeInto(ValueRef::createUndefined(), ostream);
-    }
-
-
-    std::string message(ostream.str());
-    {
-        std::lock_guard<std::mutex> guard(workerMutex);
-        for (size_t i = 0; i < workerThreads.size(); i++) {
-            workerThreads[i].second.message = message;
-        }
-    }
-
-    while (true) {
-        bool thereIsNoMessage = true;
-        {
-            std::lock_guard<std::mutex> guard(workerMutex);
-            for (size_t i = 0; i < workerThreads.size(); i++) {
-                if (workerThreads[i].second.message.size()) {
-                    thereIsNoMessage = false;
-                    break;
-                }
-            }
-        }
-
-        if (thereIsNoMessage) {
-            break;
-        }
-
-        usleep(10 * 1000); // sleep 10ms
-    }
-
-
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtin262AgentReport(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    std::string message;
-    if (argc > 0) {
-        message = argv[0]->toString(state)->toStdUTF8String();
-    }
-    std::lock_guard<std::mutex> guard(workerMutex);
-    messagesFromWorkers.push_back(message);
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtin262AgentLeaving(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    std::lock_guard<std::mutex> guard(workerMutex);
-    for (size_t i = 0; i < workerThreads.size(); i++) {
-        if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
-            workerThreads[i].second.running = false;
-            break;
-        }
-    }
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtin262AgentReceiveBroadcast(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    state->context()->globalObject()->setExtraData(argv[0]);
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtin262AgentGetReport(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    std::lock_guard<std::mutex> guard(workerMutex);
-    if (messagesFromWorkers.size()) {
-        std::string message = messagesFromWorkers.front();
-        messagesFromWorkers.erase(messagesFromWorkers.begin());
-        return StringRef::createFromUTF8(message.data(), message.size());
-    } else {
-        return ValueRef::createNull();
-    }
-}
-
-static ValueRef* builtin262AgentMonotonicNow(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return ValueRef::create((uint64_t)tv.tv_sec * 1000UL + tv.tv_usec / 1000UL);
-}
-
-static ValueRef* builtin262AgentSleep(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    double m = argv[0]->toNumber(state);
-    usleep(m * 1000.0);
-    return ValueRef::createUndefined();
-}
-
-#endif
-
 class ShellPlatform : public PlatformRef {
 public:
     bool m_canBlock;
@@ -670,6 +398,279 @@ private:
         return utf8AbsolutePath;
     }
 };
+
+ShellPlatform* g_platform;
+PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, bool isMainThread = true);
+
+#if defined(ESCARGOT_ENABLE_TEST)
+
+static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcName, bool shouldPrintScriptResult, bool isModule);
+
+static ValueRef* builtinUneval(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argc) {
+        if (argv[0]->isSymbol()) {
+            return argv[0]->asSymbol()->symbolDescriptiveString();
+        }
+        return argv[0]->toString(state);
+    }
+    return StringRef::emptyString();
+}
+
+static ValueRef* builtinDrainJobQueue(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    ContextRef* context = state->context();
+    while (context->vmInstance()->hasPendingJob()) {
+        auto jobResult = context->vmInstance()->executePendingJob();
+        if (jobResult.error) {
+            return ValueRef::create(false);
+        }
+    }
+    return ValueRef::create(true);
+}
+
+static ValueRef* builtinAddPromiseReactions(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argc >= 3) {
+        PromiseObjectRef* promise = argv[0]->toObject(state)->asPromiseObject();
+        promise->then(state, argv[1], argv[2]);
+    } else {
+        state->throwException(TypeErrorObjectRef::create(state, StringRef::emptyString()));
+    }
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtinCreateNewGlobalObject(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    return ContextRef::create(state->context()->vmInstance())->globalObject();
+}
+
+static ValueRef* builtin262CreateRealm(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    auto newContext = createEscargotContext(state->context()->vmInstance(), false);
+    return newContext->globalObject()->get(state, StringRef::createFromASCII("$262"));
+}
+
+static ValueRef* builtin262DetachArrayBuffer(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argv[0]->isArrayBufferObject()) {
+        argv[0]->asArrayBufferObject()->detachArrayBuffer();
+    }
+
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtin262EvalScript(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    StringRef* src = argv[0]->toString(state);
+    auto script = state->context()->scriptParser()->initializeScript(src, StringRef::createFromASCII("$262.evalScript input"), false).fetchScriptThrowsExceptionIfParseError(state);
+    return script->execute(state);
+}
+
+static ValueRef* builtin262IsHTMLDDA(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    return ValueRef::createNull();
+}
+
+struct WorkerThreadData {
+    std::string message;
+    bool running;
+    volatile bool ended;
+
+    WorkerThreadData()
+        : running(true)
+        , ended(false)
+    {
+    }
+};
+std::mutex workerMutex;
+std::vector<std::pair<std::thread, WorkerThreadData>> workerThreads;
+std::vector<std::string> messagesFromWorkers;
+
+static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    std::string script = argv[0]->toString(state)->toStdUTF8String();
+
+    std::thread worker([](std::string script) {
+        Globals::initialize(g_platform);
+
+        Memory::setGCFrequency(24);
+
+        PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+        PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get(), false);
+
+        evalScript(context.get(), StringRef::createFromUTF8(script.data(), script.size()),
+                   StringRef::createFromASCII("from main thread"), false, false);
+
+        while (true) {
+            {
+                bool running = false;
+                std::lock_guard<std::mutex> guard(workerMutex);
+                for (size_t i = 0; i < workerThreads.size(); i++) {
+                    if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
+                        running = workerThreads[i].second.running;
+                        break;
+                    }
+                }
+                if (!running) {
+                    break;
+                }
+            }
+
+            // readmessage if exists
+            std::string message;
+            {
+                std::lock_guard<std::mutex> guard(workerMutex);
+                for (size_t i = 0; i < workerThreads.size(); i++) {
+                    if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
+                        message = std::move(workerThreads[i].second.message);
+                        break;
+                    }
+                }
+            }
+
+            if (message.length()) {
+                std::istringstream istream(message);
+                ValueRef* val1 = SerializerRef::deserializeFrom(context.get(), istream);
+                ValueRef* val2 = SerializerRef::deserializeFrom(context.get(), istream);
+
+                ValueRef* callback = (ValueRef*)context.get()->globalObject()->extraData();
+                if (callback) {
+                    Evaluator::execute(context.get(), [](ExecutionStateRef* state, ValueRef* callback, ValueRef* v1, ValueRef* v2) -> ValueRef* {
+                        ValueRef* argv[2] = { v1, v2 };
+                        return callback->call(state, ValueRef::createUndefined(), 2, argv);
+                    },
+                                       callback, val1, val2);
+                }
+            }
+
+            usleep(10 * 1000);
+        }
+
+        context.release();
+        instance.release();
+
+        Globals::finalize();
+
+        std::lock_guard<std::mutex> guard(workerMutex);
+        for (size_t i = 0; i < workerThreads.size(); i++) {
+            if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
+                workerThreads[i].second.ended = true;
+            }
+        }
+    },
+                       script);
+
+    {
+        std::lock_guard<std::mutex> guard(workerMutex);
+        workerThreads.push_back(std::make_pair(std::move(worker), WorkerThreadData()));
+    }
+
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtin262AgentBroadcast(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    std::ostringstream ostream;
+    if (argc > 0) {
+        SerializerRef::serializeInto(argv[0], ostream);
+    } else {
+        SerializerRef::serializeInto(ValueRef::createUndefined(), ostream);
+    }
+    if (argc > 1) {
+        SerializerRef::serializeInto(argv[1], ostream);
+    } else {
+        SerializerRef::serializeInto(ValueRef::createUndefined(), ostream);
+    }
+
+
+    std::string message(ostream.str());
+    {
+        std::lock_guard<std::mutex> guard(workerMutex);
+        for (size_t i = 0; i < workerThreads.size(); i++) {
+            workerThreads[i].second.message = message;
+        }
+    }
+
+    while (true) {
+        bool thereIsNoMessage = true;
+        {
+            std::lock_guard<std::mutex> guard(workerMutex);
+            for (size_t i = 0; i < workerThreads.size(); i++) {
+                if (workerThreads[i].second.message.size()) {
+                    thereIsNoMessage = false;
+                    break;
+                }
+            }
+        }
+
+        if (thereIsNoMessage) {
+            break;
+        }
+
+        usleep(10 * 1000); // sleep 10ms
+    }
+
+
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtin262AgentReport(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    std::string message;
+    if (argc > 0) {
+        message = argv[0]->toString(state)->toStdUTF8String();
+    }
+    std::lock_guard<std::mutex> guard(workerMutex);
+    messagesFromWorkers.push_back(message);
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtin262AgentLeaving(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    std::lock_guard<std::mutex> guard(workerMutex);
+    for (size_t i = 0; i < workerThreads.size(); i++) {
+        if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
+            workerThreads[i].second.running = false;
+            break;
+        }
+    }
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtin262AgentReceiveBroadcast(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    state->context()->globalObject()->setExtraData(argv[0]);
+    return ValueRef::createUndefined();
+}
+
+static ValueRef* builtin262AgentGetReport(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    std::lock_guard<std::mutex> guard(workerMutex);
+    if (messagesFromWorkers.size()) {
+        std::string message = messagesFromWorkers.front();
+        messagesFromWorkers.erase(messagesFromWorkers.begin());
+        return StringRef::createFromUTF8(message.data(), message.size());
+    } else {
+        return ValueRef::createNull();
+    }
+}
+
+static ValueRef* builtin262AgentMonotonicNow(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return ValueRef::create((uint64_t)tv.tv_sec * 1000UL + tv.tv_usec / 1000UL);
+}
+
+static ValueRef* builtin262AgentSleep(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    double m = argv[0]->toNumber(state);
+    usleep(m * 1000.0);
+    return ValueRef::createUndefined();
+}
+
+#endif
 
 static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcName, bool shouldPrintScriptResult, bool isModule)
 {
@@ -937,8 +938,8 @@ int main(int argc, char* argv[])
 
     bool wait_before_exit = false;
 
-    ShellPlatform* platform = new ShellPlatform();
-    Globals::initialize(platform);
+    g_platform = new ShellPlatform();
+    Globals::initialize(g_platform);
 
     Memory::setGCFrequency(24);
 
@@ -966,7 +967,7 @@ int main(int argc, char* argv[])
                     continue;
                 }
                 if (strcmp(argv[i], "--canblock-is-false") == 0) {
-                    platform->setCanBlock(false);
+                    g_platform->setCanBlock(false);
                     continue;
                 }
                 if (strstr(argv[i], "--filename-as=") == argv[i]) {
