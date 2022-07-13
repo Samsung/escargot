@@ -202,6 +202,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_isFunctionDeclaration(false)
     , m_isArrowFunctionExpression(false)
     , m_isOneExpressionOnlyVirtualArrowFunctionExpression(false)
+    , m_isFunctionBodyOnlyVirtualArrowFunctionExpression(false)
     , m_isClassConstructor(false)
     , m_isDerivedClassConstructor(false)
     , m_isObjectMethod(false)
@@ -263,6 +264,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringV
     , m_isFunctionDeclaration(false)
     , m_isArrowFunctionExpression(false)
     , m_isOneExpressionOnlyVirtualArrowFunctionExpression(false)
+    , m_isFunctionBodyOnlyVirtualArrowFunctionExpression(false)
     , m_isClassConstructor(false)
     , m_isDerivedClassConstructor(false)
     , m_isObjectMethod(false)
@@ -324,6 +326,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
     , m_isFunctionDeclaration(false)
     , m_isArrowFunctionExpression(false)
     , m_isOneExpressionOnlyVirtualArrowFunctionExpression(false)
+    , m_isFunctionBodyOnlyVirtualArrowFunctionExpression(false)
     , m_isClassConstructor(false)
     , m_isDerivedClassConstructor(false)
     , m_isObjectMethod(false)
@@ -411,6 +414,7 @@ void InterpretedCodeBlock::recordFunctionParsingInfo(ASTScopeContext* scopeCtx, 
 
     m_isArrowFunctionExpression = scopeCtx->m_isArrowFunctionExpression;
     m_isOneExpressionOnlyVirtualArrowFunctionExpression = scopeCtx->m_isOneExpressionOnlyVirtualArrowFunctionExpression;
+    m_isFunctionBodyOnlyVirtualArrowFunctionExpression = scopeCtx->m_isFunctionBodyOnlyVirtualArrowFunctionExpression;
     m_isClassConstructor = scopeCtx->m_isClassConstructor;
     m_isDerivedClassConstructor = scopeCtx->m_isDerivedClassConstructor;
     m_isObjectMethod = scopeCtx->m_isObjectMethod;

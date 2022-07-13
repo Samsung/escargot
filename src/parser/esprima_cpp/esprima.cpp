@@ -1104,7 +1104,7 @@ public:
 
         switch (this->lookahead.type) {
         case Token::IdentifierToken: {
-            if ((this->sourceType == SourceType::Module || this->currentScopeContext->m_isAsync) && this->lookahead.equalsToKeyword(AwaitKeyword)) {
+            if ((this->sourceType == SourceType::Module || this->currentScopeContext->m_isAsync || this->currentScopeContext->m_isFunctionBodyOnlyVirtualArrowFunctionExpression) && this->lookahead.equalsToKeyword(AwaitKeyword)) {
                 this->throwUnexpectedToken(this->lookahead);
             }
             if (this->matchAsyncFunction()) {
@@ -1640,6 +1640,79 @@ public:
     }
 
     template <class ASTBuilder>
+    ASTNode parseClassStaticInitializer(ASTBuilder& builder, const AtomicString& className, size_t debuggerLineStart)
+    {
+        UNUSED_VARIABLE(debuggerLineStart);
+
+        ASTNode result;
+        if (!this->isParsingSingleFunction) {
+            BEGIN_FUNCTION_SCANNING(AtomicString());
+            auto startNode = this->createNode();
+
+            this->currentScopeContext->m_functionStartLOC.index = startNode.index;
+            this->currentScopeContext->m_functionStartLOC.column = startNode.column;
+            this->currentScopeContext->m_functionStartLOC.line = startNode.line;
+            this->currentScopeContext->m_allowSuperCall = false;
+            this->currentScopeContext->m_allowSuperProperty = true;
+            this->currentScopeContext->m_allowArguments = false;
+            this->currentScopeContext->m_isArrowFunctionExpression = true;
+            this->currentScopeContext->m_isFunctionBodyOnlyVirtualArrowFunctionExpression = true;
+            this->currentScopeContext->m_nodeType = ASTNodeType::ArrowFunctionExpression;
+#ifdef ESCARGOT_DEBUGGER
+            this->currentScopeContext->m_needRareData = true;
+            this->currentScopeContext->m_debuggerLineStart = debuggerLineStart;
+#endif /* ESCARGOT_DEBUGGER */
+
+            bool allowYield = this->context->allowYield;
+            bool await = this->context->await;
+            bool arguments = this->context->allowArguments;
+
+            this->context->allowYield = false;
+            this->context->await = false;
+            this->context->allowArguments = false;
+
+            this->parseFunctionSourceElements(newBuilder);
+            auto lastContext = this->lastPoppedScopeContext;
+
+            this->context->allowYield = allowYield;
+            this->context->await = await;
+            this->context->allowArguments = arguments;
+
+            this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
+#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
+            this->currentScopeContext->m_bodyEndLOC.line = this->lastMarker.lineNumber;
+            this->currentScopeContext->m_bodyEndLOC.column = this->lastMarker.index - this->lastMarker.lineStart;
+#endif
+            END_FUNCTION_SCANNING();
+
+            this->lastPoppedScopeContext = lastContext;
+
+            // wrap right expression with arrow function
+            result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
+        } else {
+            auto startNode = this->createNode();
+            InterpretedCodeBlock* currentTarget = this->codeBlock;
+            size_t orgIndex = this->lookahead.start;
+
+            InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
+            this->scanner->index = childBlock->src().length() + childBlock->functionStart().index - currentTarget->functionStart().index;
+            this->scanner->lineNumber = childBlock->functionStart().line;
+            this->scanner->lineStart = childBlock->functionStart().index - childBlock->functionStart().column;
+
+            this->lookahead.lineNumber = this->scanner->lineNumber;
+            this->lookahead.lineStart = this->scanner->lineStart;
+            this->nextToken();
+
+            // increase subCodeBlockIndex because parsing of an internal function is skipped
+            this->subCodeBlockIndex++;
+
+            result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
+        }
+
+        return result;
+    }
+
+    template <class ASTBuilder>
     ASTNode parseClassFieldInitializer(ASTBuilder& builder, size_t debuggerLineStart)
     {
         ASSERT(this->match(Substitution));
@@ -1945,6 +2018,10 @@ public:
 
         // check if restricted words are used as target in array/object initializer
         if (shorthand && this->context->strict && token->type == Token::IdentifierToken) {
+            if (this->currentScopeContext->m_isFunctionBodyOnlyVirtualArrowFunctionExpression && token->equalsToKeyword(AwaitKeyword)) {
+                this->throwUnexpectedToken(*token);
+            }
+
             AtomicString name;
             name = keyNode->asIdentifier()->name();
             if (this->scanner->isRestrictedWord(name)) {
@@ -3783,7 +3860,7 @@ public:
             } else if (this->context->strict || token->type != Token::KeywordToken || !token->equalsToKeywordNoEscape(LetKeyword) || kind != VarKeyword) {
                 this->throwUnexpectedToken(*token);
             }
-        } else if ((this->sourceType == Module || this->currentScopeContext->m_isAsync) && token->type == Token::IdentifierToken && token->equalsToKeyword(AwaitKeyword)) {
+        } else if ((this->sourceType == Module || this->currentScopeContext->m_isAsync || this->currentScopeContext->m_isFunctionBodyOnlyVirtualArrowFunctionExpression) && token->type == Token::IdentifierToken && token->equalsToKeyword(AwaitKeyword)) {
             this->throwUnexpectedToken(*token);
         } else if (UNLIKELY(this->context->strict && token->type == Token::IdentifierToken
                             && token->hasAllocatedString && token->isStrictModeReservedWord())) {
@@ -4421,7 +4498,7 @@ public:
     template <class ASTBuilder>
     ASTNode parseReturnStatement(ASTBuilder& builder)
     {
-        if (!this->context->inFunctionBody) {
+        if (!this->context->inFunctionBody || this->currentScopeContext->m_isFunctionBodyOnlyVirtualArrowFunctionExpression) {
             this->throwError(Messages::IllegalReturn);
         }
 
@@ -5283,7 +5360,7 @@ public:
             ALLOC_TOKEN(token);
             *token = this->lookahead;
             TrackUsingNameBlocker blocker(this);
-            id = (!this->context->strict && !isGenerator && this->matchKeyword(YieldKeyword)) ? this->parseIdentifierName(builder) : this->parseVariableIdentifier(builder);
+            id = ((!this->context->strict && !isGenerator && this->matchKeyword(YieldKeyword)) || (this->currentScopeContext->m_isFunctionBodyOnlyVirtualArrowFunctionExpression && this->sourceType != Module && token->type == Token::IdentifierToken && token->equalsToKeyword(AwaitKeyword))) ? this->parseIdentifierName(builder) : this->parseVariableIdentifier(builder);
 
             if (this->context->strict) {
                 if (this->scanner->isRestrictedWord(token->relatedSource(this->scanner->source))) {
@@ -5760,12 +5837,16 @@ public:
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
 
-            if (token->type == Token::KeywordToken && token->equalsToKeywordNoEscape(StaticKeyword) && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply) || this->match(Hash))) {
+            if (token->type == Token::KeywordToken && token->equalsToKeywordNoEscape(StaticKeyword) && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply) || this->match(Hash) || this->match(LeftBrace))) {
                 *token = this->lookahead;
                 isStatic = true;
 #ifdef ESCARGOT_DEBUGGER
                 debuggerLineStart = token->lineNumber;
 #endif /* ESCARGOT_DEBUGGER */
+                if (this->match(LeftBrace)) {
+                    value = this->parseClassStaticInitializer(builder, className, debuggerLineStart);
+                    return this->finalize(node, builder.createClassElementNode(keyNode, value, ClassElementNode::Kind::StaticInitializer, false, true, false));
+                }
                 mayMethodStartNode = this->createNode();
                 computed = this->match(LeftSquareBracket);
                 if (this->match(Multiply)) {
@@ -6141,7 +6222,7 @@ public:
             idNode = this->parseVariableIdentifier(builder);
             id = idNode->asIdentifier()->name();
 
-            if (this->sourceType == Module && idToken->equalsToKeyword(AwaitKeyword)) {
+            if ((this->sourceType == Module || this->currentScopeContext->m_isFunctionBodyOnlyVirtualArrowFunctionExpression) && idToken->equalsToKeyword(AwaitKeyword)) {
                 this->throwUnexpectedToken(*idToken, Messages::UnexpectedReserved);
             }
             if (idToken->isStrictModeReservedWord()) {
@@ -6796,7 +6877,7 @@ public:
             this->nextToken();
         }
 
-        if (UNLIKELY(this->codeBlock->isOneExpressionOnlyVirtualArrowFunctionExpression())) {
+        if (UNLIKELY(this->codeBlock->isOneExpressionOnlyVirtualArrowFunctionExpression() || this->codeBlock->isFunctionBodyOnlyVirtualArrowFunctionExpression())) {
             params = builder.createStatementContainer();
 
             if (this->codeBlock->parameterNames().size()) {
@@ -6823,13 +6904,17 @@ public:
             bool previousAllowYield = this->context->allowYield;
             this->context->allowYield = false;
 
-            MetaNode nodeStart = this->createNode();
-            Node* expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<NodeGenerator, false>);
+            if (this->codeBlock->isFunctionBodyOnlyVirtualArrowFunctionExpression()) {
+                body = parseFunctionBody(builder);
+            } else {
+                MetaNode nodeStart = this->createNode();
+                Node* expr = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<NodeGenerator, false>);
 
-            StatementContainer* container = builder.createStatementContainer();
-            Node* node = this->finalize(nodeStart, builder.createReturnStatementNode(expr));
-            container->appendChild(node, nullptr);
-            body = this->finalize(nodeStart, builder.createBlockStatementNode(container));
+                StatementContainer* container = builder.createStatementContainer();
+                Node* node = this->finalize(nodeStart, builder.createReturnStatementNode(expr));
+                container->appendChild(node, nullptr);
+                body = this->finalize(nodeStart, builder.createBlockStatementNode(container));
+            }
 
             this->context->strict = previousStrict;
             this->context->allowYield = previousAllowYield;
