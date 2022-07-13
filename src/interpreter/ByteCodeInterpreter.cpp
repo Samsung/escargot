@@ -2685,7 +2685,7 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
         Object* homeObject = (cb->isObjectMethod() || cb->isClassMethod() || cb->isClassStaticMethod()) ? registerFile[code->m_homeObjectRegisterIndex].asObject() : nullptr;
         registerFile[code->m_registerIndex] = new ScriptAsyncFunctionObject(state, proto, cb, outerLexicalEnvironment, thisValue, homeObject);
     } else if (cb->isArrowFunctionExpression()) {
-        if (UNLIKELY(cb->isOneExpressionOnlyVirtualArrowFunctionExpression())) {
+        if (UNLIKELY(cb->isOneExpressionOnlyVirtualArrowFunctionExpression() || cb->isFunctionBodyOnlyVirtualArrowFunctionExpression())) {
             registerFile[code->m_registerIndex] = new ScriptVirtualArrowFunctionObject(state, proto, cb, outerLexicalEnvironment);
         } else {
             registerFile[code->m_registerIndex] = new ScriptArrowFunctionObject(state, proto, cb, outerLexicalEnvironment, registerFile[code->m_homeObjectRegisterIndex]);
@@ -3041,6 +3041,9 @@ NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& 
             } else {
                 classConstructor->addPrivateField(state, contextObject, AtomicString(state, Value(std::get<0>(classConstructor->m_staticFieldInitData[code->m_staticPrivateFieldSetIndex])).asString()), v);
             }
+        } else if (code->m_stage == InitializeClass::RunStaticInitializer) {
+            Value v = registerFile[code->m_staticPropertySetRegisterIndex];
+            v = v.asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(classConstructor), classConstructor);
         } else {
             ASSERT(code->m_stage == InitializeClass::CleanupStaticData);
             classConstructor->m_staticFieldInitData.clear();

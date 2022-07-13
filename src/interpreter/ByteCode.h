@@ -458,6 +458,7 @@ public:
         InitStaticPrivateField,
         SetStaticFieldData,
         SetStaticPrivateFieldData,
+        RunStaticInitializer,
         CleanupStaticData,
     };
 
@@ -582,6 +583,17 @@ public:
     {
     }
 
+    enum RunStaticInitializerTag {
+        RunStaticInitializerTagValue
+    };
+    InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex, const size_t valueIndex, RunStaticInitializerTag)
+        : ByteCode(Opcode::InitializeClassOpcode, loc)
+        , m_stage(Stage::RunStaticInitializer)
+        , m_classConstructorRegisterIndex(classRegisterIndex)
+        , m_staticPropertySetRegisterIndex(valueIndex)
+    {
+    }
+
     InitializeClass(const ByteCodeLOC& loc, const size_t classRegisterIndex)
         : ByteCode(Opcode::InitializeClassOpcode, loc)
         , m_stage(Stage::CleanupStaticData)
@@ -666,6 +678,8 @@ public:
             printf("set static field r%u.? = r%u", m_classConstructorRegisterIndex, m_staticPropertySetRegisterIndex);
         } else if (m_stage == Stage::SetStaticPrivateFieldData) {
             printf("set static private field r%u.? = r%u(%u)", m_classConstructorRegisterIndex, m_staticPrivatePropertySetRegisterIndex, m_setStaticPrivateFieldType);
+        } else if (m_stage == Stage::RunStaticInitializer) {
+            printf("run static initializer r%u(r%u)", m_classConstructorRegisterIndex, m_staticPropertySetRegisterIndex);
         } else {
             ASSERT(m_stage == Stage::CleanupStaticData);
             printf("cleanup static field data r%u", m_classConstructorRegisterIndex);

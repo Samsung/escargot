@@ -211,6 +211,14 @@ public:
                 }
                 context->giveUpRegister();
                 continue;
+            } else if (p->kind() == ClassElementNode::StaticInitializer) {
+                ByteCodeRegisterIndex valueIndex = context->getRegister();
+                p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
+                codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, valueIndex,
+                                                    InitializeClass::RunStaticInitializerTagValue),
+                                    context, this);
+                context->giveUpRegister();
+                continue;
             }
 
             bool hasKeyName = p->key()->isIdentifier() && !p->isComputed();

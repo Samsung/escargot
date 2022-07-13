@@ -33,8 +33,8 @@ public:
         Set,
         Method,
         Field,
+        StaticInitializer,
     };
-
 
     ClassElementNode(Node* key, Node* value, Kind kind, bool isComputed, bool isStatic, bool isPrivate)
         : Node()
