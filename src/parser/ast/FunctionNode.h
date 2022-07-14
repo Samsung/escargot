@@ -120,23 +120,14 @@ public:
 
     void generateFunctionNameByteCode(ByteCodeBlock* block, ByteCodeGenerateContext* context)
     {
+        // we only care about isFunctionNameSaveOnHeap case
+        // function object (callee) is stored at REGULAR_REGISTER_LIMIT + 1 index by default
         InterpretedCodeBlock* codeBlock = block->codeBlock();
         AtomicString name = codeBlock->functionName();
-        if (name.string()->length()) {
-            if (UNLIKELY(codeBlock->isFunctionNameExplicitlyDeclared())) {
-                if (codeBlock->canUseIndexedVariableStorage()) {
-                    if (!codeBlock->isFunctionNameSaveOnHeap()) {
-                        auto r = context->getRegister();
-                        block->pushCode(LoadLiteral(ByteCodeLOC(0), r, Value()), context, nullptr);
-                        block->pushCode(Move(ByteCodeLOC(0), r, REGULAR_REGISTER_LIMIT + 1), context, nullptr);
-                        context->giveUpRegister();
-                    }
-                }
-            } else if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap() && !name.string()->equals("arguments"))) {
-                context->m_isVarDeclaredBindingInitialization = true;
-                IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(codeBlock->functionName());
-                id->generateStoreByteCode(block, context, REGULAR_REGISTER_LIMIT + 1, true);
-            }
+        if (UNLIKELY(codeBlock->isFunctionNameSaveOnHeap() && !codeBlock->isFunctionNameExplicitlyDeclared() && !name.string()->equals("arguments"))) {
+            context->m_isVarDeclaredBindingInitialization = true;
+            IdentifierNode* id = new (alloca(sizeof(IdentifierNode))) IdentifierNode(codeBlock->functionName());
+            id->generateStoreByteCode(block, context, REGULAR_REGISTER_LIMIT + 1, true);
         }
     }
 
