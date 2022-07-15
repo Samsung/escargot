@@ -148,7 +148,7 @@ enum KeywordKind : uint8_t {
     ContinueKeyword,
     DebuggerKeyword,
     InstanceofKeyword,
-    StrictModeReservedWord,
+    StrictModeReservedWord, // Start of strict mode reserved keywords
     ImplementsKeyword,
     InterfaceKeyword,
     PackageKeyword,
@@ -158,6 +158,15 @@ enum KeywordKind : uint8_t {
     StaticKeyword,
     YieldKeyword,
     LetKeyword,
+    OtherKeyword, // Other keywords, which can be identifiers or tokens
+    NullKeyword,
+    TrueKeyword,
+    FalseKeyword,
+    OfKeyword,
+    AsyncKeyword,
+    AwaitKeyword,
+    AsKeyword,
+    FromKeyword,
     KeywordKindEnd
 };
 
@@ -267,12 +276,12 @@ public:
     public:
         ScannerResult()
             : type(InvalidToken)
+            , secondaryKeywordKind(NotKeyword)
             , startWithZero(false)
             , octal(false)
             , hasAllocatedString(false)
             , hasNonComputedNumberLiteral(false)
             , hasNumberSeparatorOnNumberLiteral(false)
-            , prec(0)
             , lineNumber(0)
             , lineStart(0)
             , start(0)
@@ -284,15 +293,19 @@ public:
         // ScannerResult always allocated on the stack
         MAKE_STACK_ALLOCATED();
 
-        unsigned char type : 4;
+        uint8_t type;
+        union {
+            uint8_t secondaryKeywordKind;
+            // Init prec is unnuecessary, since prec is initialized by another function before use
+            uint8_t prec; // max prec is 11
+        };
+
+        // Boolean fields.
         bool startWithZero : 1;
         bool octal : 1;
         bool hasAllocatedString : 1;
         bool hasNonComputedNumberLiteral : 1;
         bool hasNumberSeparatorOnNumberLiteral : 1;
-        unsigned char prec : 8; // max prec is 11
-        // we don't needs init prec.
-        // prec is initialized by another function before use
 
         size_t lineNumber;
         size_t lineStart;
@@ -320,18 +333,19 @@ public:
             return this->type != InvalidToken;
         }
 
-        inline void reset()
+        void resetResult()
         {
             this->type = InvalidToken;
+            this->startWithZero = false;
+            this->octal = false;
+            this->hasAllocatedString = false;
+            this->hasNonComputedNumberLiteral = false;
+            this->secondaryKeywordKind = NotKeyword;
         }
 
         void setResult(Token type, size_t lineNumber, size_t lineStart, size_t start, size_t end)
         {
             this->type = type;
-            this->startWithZero = false;
-            this->octal = false;
-            this->hasAllocatedString = false;
-            this->hasNonComputedNumberLiteral = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
@@ -342,10 +356,6 @@ public:
         void setPunctuatorResult(size_t lineNumber, size_t lineStart, size_t start, size_t end, PunctuatorKind p)
         {
             this->type = Token::PunctuatorToken;
-            this->startWithZero = false;
-            this->octal = false;
-            this->hasAllocatedString = false;
-            this->hasNonComputedNumberLiteral = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
@@ -356,10 +366,6 @@ public:
         void setKeywordResult(size_t lineNumber, size_t lineStart, size_t start, size_t end, KeywordKind p)
         {
             this->type = Token::KeywordToken;
-            this->startWithZero = false;
-            this->octal = false;
-            this->hasAllocatedString = false;
-            this->hasNonComputedNumberLiteral = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
@@ -370,9 +376,7 @@ public:
         void setResult(Token type, String* s, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool octal = false)
         {
             this->type = type;
-            this->startWithZero = false;
             this->octal = octal;
-            this->hasNonComputedNumberLiteral = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
@@ -385,15 +389,13 @@ public:
         void setResult(Token type, size_t stringStart, size_t stringEnd, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool octal = false)
         {
             this->type = type;
-            this->startWithZero = false;
             this->octal = octal;
-            this->hasNonComputedNumberLiteral = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
             this->end = end;
 
-            this->hasAllocatedString = false;
+            ASSERT(!this->hasAllocatedString);
             this->valueStringLiteralData.m_start = stringStart;
             this->valueStringLiteralData.m_end = stringEnd;
             ASSERT(this->valueStringLiteralData.m_start <= this->valueStringLiteralData.m_end);
@@ -402,9 +404,6 @@ public:
         void setNumericLiteralResult(double value, size_t lineNumber, size_t lineStart, size_t start, size_t end, bool hasNonComputedNumberLiteral, bool hasNumberSeparatorOnNumberLiteral)
         {
             this->type = Token::NumericLiteralToken;
-            this->startWithZero = false;
-            this->octal = false;
-            this->hasAllocatedString = false;
             this->hasNonComputedNumberLiteral = hasNonComputedNumberLiteral;
             this->hasNumberSeparatorOnNumberLiteral = hasNumberSeparatorOnNumberLiteral;
             this->lineNumber = lineNumber;
@@ -417,15 +416,29 @@ public:
         void setTemplateTokenResult(ScanTemplateResult* value, size_t lineNumber, size_t lineStart, size_t start, size_t end)
         {
             this->type = Token::TemplateToken;
-            this->startWithZero = false;
-            this->octal = false;
-            this->hasAllocatedString = false;
-            this->hasNonComputedNumberLiteral = false;
             this->lineNumber = lineNumber;
             this->lineStart = lineStart;
             this->start = start;
             this->end = end;
             this->valueTemplate = value;
+        }
+
+        bool isStrictModeReservedWord()
+        {
+            ASSERT(this->type == KeywordToken || this->type == Token::IdentifierToken);
+            return (this->secondaryKeywordKind > StrictModeReservedWord && this->secondaryKeywordKind < OtherKeyword);
+        }
+
+        bool equalsToKeyword(KeywordKind keywordKind)
+        {
+            ASSERT(this->type == Token::IdentifierToken || this->type == BooleanLiteralToken || this->type == KeywordToken);
+            return (this->secondaryKeywordKind == keywordKind);
+        }
+
+        bool equalsToKeywordNoEscape(KeywordKind keywordKind)
+        {
+            ASSERT(this->type == Token::IdentifierToken || this->type == BooleanLiteralToken || this->type == KeywordToken);
+            return (this->secondaryKeywordKind == keywordKind && !this->hasAllocatedString);
         }
 
     private:
@@ -610,30 +623,11 @@ public:
 
     void convertToKeywordInStrictMode(ScannerResult* token)
     {
-        ASSERT(token->type == Token::IdentifierToken);
+        ASSERT(token->type == KeywordToken || token->type == Token::IdentifierToken);
+        ASSERT(token->secondaryKeywordKind > StrictModeReservedWord && token->secondaryKeywordKind < OtherKeyword);
 
-        const auto& keyword = token->relatedSource(this->source);
-        if (keyword.equals("let")) {
-            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::LetKeyword);
-        } else if (keyword.equals("yield")) {
-            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::YieldKeyword);
-        } else if (keyword.equals("static")) {
-            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::StaticKeyword);
-        } else if (keyword.equals("public")) {
-            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::PublicKeyword);
-        } else if (keyword.equals("private")) {
-            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::PrivateKeyword);
-        } else if (keyword.equals("package")) {
-            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::PackageKeyword);
-        } else if (keyword.equals("protected")) {
-            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::ProtectedKeyword);
-        } else if (keyword.equals("interface")) {
-            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::InterfaceKeyword);
-        } else if (keyword.equals("implements")) {
-            token->setKeywordResult(token->lineNumber, token->lineStart, token->start, token->end, KeywordKind::ImplementsKeyword);
-        } else {
-            RELEASE_ASSERT_NOT_REACHED();
-        }
+        token->type = Token::KeywordToken;
+        token->valueKeywordKind = static_cast<KeywordKind>(token->secondaryKeywordKind);
     }
 
     template <typename T>
