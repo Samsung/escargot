@@ -143,11 +143,14 @@ namespace Escargot {
     F(asin)                       \
     F(asinh)                      \
     F(assign)                     \
+    F(async)                      \
     F(asyncIterator)              \
     F(at)                         \
     F(atan)                       \
     F(atan2)                      \
     F(atanh)                      \
+    F(as)                         \
+    F(await)                      \
     F(baseName)                   \
     F(big)                        \
     F(bigint)                     \

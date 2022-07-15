@@ -282,7 +282,7 @@ public:
         this->scanner->lex(next);
         this->hasLineTerminator = false;
 
-        if (this->context->strict && next->type == Token::IdentifierToken && this->scanner->isStrictModeReservedWord(next->relatedSource(this->scanner->source))) {
+        if (this->context->strict && next->type == Token::IdentifierToken && next->isStrictModeReservedWord()) {
             this->scanner->convertToKeywordInStrictMode(next);
         }
     }
@@ -667,7 +667,7 @@ public:
         this->scanner->lex(next);
         this->hasLineTerminator = tokenLineNumber != next->lineNumber;
 
-        if (this->context->strict && next->type == Token::IdentifierToken && this->scanner->isStrictModeReservedWord(next->relatedSource(this->scanner->source))) {
+        if (this->context->strict && next->type == Token::IdentifierToken && next->isStrictModeReservedWord()) {
             this->scanner->convertToKeywordInStrictMode(next);
         }
         //this->lookahead = *next;
@@ -810,10 +810,9 @@ public:
     // Return true if the next token matches the specified contextual keyword
     // (where an identifier is sometimes a keyword depending on the context)
 
-    template <const size_t len>
-    bool matchContextualKeyword(const char (&keyword)[len])
+    bool matchContextualKeyword(KeywordKind keywordKind)
     {
-        return this->lookahead.type == Token::IdentifierToken && !this->lookahead.hasAllocatedString && this->lookahead.valueStringLiteral(this->scanner).equals(keyword);
+        return this->lookahead.type == Token::IdentifierToken && this->lookahead.equalsToKeywordNoEscape(keywordKind);
     }
 
     // Return true if the next token is an assignment operator
@@ -1018,7 +1017,7 @@ public:
         if (a.length == 1 && firstCh < ESCARGOT_ASCII_TABLE_MAX) {
             ret = builder.createIdentifierNode(this->escargotContext->staticStrings().asciiTable[firstCh]);
         } else {
-            if (token->hasAllocatedString) {
+            if (token->hasAllocatedString && token->type != Token::KeywordToken) {
                 ret = builder.createIdentifierNode(AtomicString(this->escargotContext, token->valueStringLiteralData.m_stringIfNewlyAllocated));
             } else {
                 ret = builder.createIdentifierNode(AtomicString(this->escargotContext, &sv));
@@ -1105,7 +1104,7 @@ public:
 
         switch (this->lookahead.type) {
         case Token::IdentifierToken: {
-            if ((this->sourceType == SourceType::Module || this->currentScopeContext->m_isAsync) && this->lookahead.relatedSource(this->scanner->source) == "await") {
+            if ((this->sourceType == SourceType::Module || this->currentScopeContext->m_isAsync) && this->lookahead.equalsToKeyword(AwaitKeyword)) {
                 this->throwUnexpectedToken(this->lookahead);
             }
             if (this->matchAsyncFunction()) {
@@ -1143,7 +1142,7 @@ public:
             // token.value = (token.value === 'true');
             // raw = this->getTokenRaw(token);
             {
-                bool value = token->relatedSource(this->scanner->source) == "true";
+                bool value = token->equalsToKeyword(TrueKeyword);
                 if (builder.willGenerateByteCode()) {
                     this->insertNumeralLiteral(Value(value));
                 }
@@ -1518,7 +1517,7 @@ public:
 
     bool matchAsyncFunction()
     {
-        bool match = this->matchContextualKeyword("async");
+        bool match = this->matchContextualKeyword(AsyncKeyword);
         if (match) {
             ScanState state = this->scanner->saveState();
             this->collectComments();
@@ -2350,7 +2349,7 @@ public:
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
-        bool maybeAsync = this->matchContextualKeyword("async");
+        bool maybeAsync = this->matchContextualKeyword(AsyncKeyword);
         bool previousAllowIn = this->context->allowIn;
         this->context->allowIn = true;
 
@@ -2791,7 +2790,7 @@ public:
 
                 return exprNode;
             }
-        } else if (this->matchContextualKeyword("await")) {
+        } else if (this->matchContextualKeyword(AwaitKeyword)) {
             bool parseAwait = false;
             if (this->context->await) {
                 parseAwait = true;
@@ -3711,7 +3710,7 @@ public:
 
         ASTNode init = nullptr;
         if (kind == KeywordKind::ConstKeyword) {
-            if (!this->matchKeyword(KeywordKind::InKeyword) && !this->matchContextualKeyword("of")) {
+            if (!this->matchKeyword(KeywordKind::InKeyword) && !this->matchContextualKeyword(OfKeyword)) {
                 this->expect(Substitution);
                 init = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
             }
@@ -3783,17 +3782,17 @@ public:
                 this->throwUnexpectedToken(*token);
             }
         } else if (token->type != Token::IdentifierToken) {
-            if (this->context->strict && token->type == Token::KeywordToken && this->scanner->isStrictModeReservedWord(token->relatedSource(this->scanner->source))) {
+            if (this->context->strict && token->type == Token::KeywordToken && token->isStrictModeReservedWord()) {
                 this->throwUnexpectedToken(*token, Messages::StrictReservedWord);
             } else {
                 if (this->context->strict || token->relatedSource(this->scanner->source) != "let" || (kind != VarKeyword)) {
                     this->throwUnexpectedToken(*token);
                 }
             }
-        } else if ((this->sourceType == Module || this->currentScopeContext->m_isAsync) && token->type == Token::IdentifierToken && token->relatedSource(this->scanner->source) == "await") {
+        } else if ((this->sourceType == Module || this->currentScopeContext->m_isAsync) && token->type == Token::IdentifierToken && token->equalsToKeyword(AwaitKeyword)) {
             this->throwUnexpectedToken(*token);
         } else if (UNLIKELY(this->context->strict && token->type == Token::IdentifierToken
-                            && token->hasAllocatedString && this->scanner->isStrictModeReservedWord(token->valueStringLiteral(this->scanner)))) {
+                            && token->hasAllocatedString && token->isStrictModeReservedWord())) {
             this->throwUnexpectedToken(*token, Messages::StrictReservedWord);
         }
 
@@ -4088,7 +4087,7 @@ public:
         MetaNode node = this->createNode();
 
         if (UNLIKELY(this->context->await || (this->sourceType == Module && inGlobalSourceCodeParsing()))) {
-            seenAwait = this->matchContextualKeyword("await");
+            seenAwait = this->matchContextualKeyword(AwaitKeyword);
             if (seenAwait) {
                 this->nextToken();
             }
@@ -5064,7 +5063,7 @@ public:
     ASTNode parseFunctionDeclaration(ASTBuilder& builder, bool disallowAsyncOrGenerator = false)
     {
         MetaNode node = this->createNode();
-        bool isAsync = this->matchContextualKeyword("async");
+        bool isAsync = this->matchContextualKeyword(AsyncKeyword);
         if (isAsync) {
             this->nextToken();
         }
@@ -5100,20 +5099,20 @@ public:
                 if (this->scanner->isRestrictedWord(token->relatedSource(this->scanner->source))) {
                     firstRestricted = *token;
                     message = Messages::StrictFunctionName;
-                } else if (this->scanner->isStrictModeReservedWord(token->relatedSource(this->scanner->source))) {
+                } else if (token->isStrictModeReservedWord()) {
                     firstRestricted = *token;
                     message = Messages::StrictReservedWord;
                 }
             }
 
             if (UNLIKELY(this->context->strict && isGenerator)) {
-                if (id->asIdentifier()->name().string()->equals("yield")) {
+                if (token->equalsToKeyword(YieldKeyword)) {
                     this->throwUnexpectedToken(*token, Messages::UnexpectedReserved);
                 }
             }
             // in global scope, await is allowed
             if (UNLIKELY(isAsync && !builder.willGenerateByteCode())) {
-                if (id->asIdentifier()->name().string()->equals("await")) {
+                if (token->equalsToKeyword(AwaitKeyword)) {
                     this->throwUnexpectedToken(*token, Messages::UnexpectedReserved);
                 }
             }
@@ -5260,7 +5259,7 @@ public:
     {
         MetaNode node = this->createNode();
 
-        bool isAsync = this->matchContextualKeyword("async");
+        bool isAsync = this->matchContextualKeyword(AsyncKeyword);
         if (isAsync) {
             this->nextToken();
         }
@@ -5300,20 +5299,20 @@ public:
                 if (this->scanner->isRestrictedWord(token->relatedSource(this->scanner->source))) {
                     firstRestricted = *token;
                     message = Messages::StrictFunctionName;
-                } else if (this->scanner->isStrictModeReservedWord(token->relatedSource(this->scanner->source))) {
+                } else if (token->isStrictModeReservedWord()) {
                     firstRestricted = *token;
                     message = Messages::StrictReservedWord;
                 }
             }
 
             if (UNLIKELY(this->context->strict && isGenerator)) {
-                if (id->asIdentifier()->name().string()->equals("yield")) {
+                if (token->equalsToKeyword(YieldKeyword)) {
                     this->throwUnexpectedToken(*token, Messages::UnexpectedReserved);
                 }
             }
             // in global scope, await is allowed
             if (UNLIKELY(isAsync && !builder.willGenerateByteCode())) {
-                if (id->asIdentifier()->name().string()->equals("await")) {
+                if (token->equalsToKeyword(AwaitKeyword)) {
                     this->throwUnexpectedToken(*token, Messages::UnexpectedReserved);
                 }
             }
@@ -5445,7 +5444,7 @@ public:
                 this->hasLineTerminator = tokenLineNumber != token->lineNumber;
 
                 if (this->context->strict && token->type == Token::IdentifierToken
-                    && this->scanner->isStrictModeReservedWord(token->relatedSource(this->scanner->source))) {
+                    && token->isStrictModeReservedWord()) {
                     this->scanner->convertToKeywordInStrictMode(token);
                 }
 
@@ -5767,7 +5766,7 @@ public:
             computed = this->match(LeftSquareBracket);
             keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
 
-            if (token->type == Token::KeywordToken && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply) || this->match(Hash)) && token->relatedSource(this->scanner->source) == "static") {
+            if (token->type == Token::KeywordToken && token->equalsToKeywordNoEscape(StaticKeyword) && (this->qualifiedPropertyName(&this->lookahead) || this->match(Multiply) || this->match(Hash))) {
                 *token = this->lookahead;
                 isStatic = true;
 #ifdef ESCARGOT_DEBUGGER
@@ -6148,10 +6147,10 @@ public:
             idNode = this->parseVariableIdentifier(builder);
             id = idNode->asIdentifier()->name();
 
-            if (this->sourceType == Module && id.string()->equals("await")) {
+            if (this->sourceType == Module && idToken->equalsToKeyword(AwaitKeyword)) {
                 this->throwUnexpectedToken(*idToken, Messages::UnexpectedReserved);
             }
-            if (this->scanner->isStrictModeReservedWord(id)) {
+            if (idToken->isStrictModeReservedWord()) {
                 this->throwUnexpectedToken(*idToken, Messages::UnexpectedReserved);
             }
         }
@@ -6234,7 +6233,7 @@ public:
 
         ASTNode local = nullptr;
         ASTNode imported = this->parseIdentifierName(builder);
-        if (this->matchContextualKeyword("as")) {
+        if (this->matchContextualKeyword(AsKeyword)) {
             this->nextToken();
             local = this->parseVariableIdentifier(builder);
         } else {
@@ -6276,7 +6275,7 @@ public:
         MetaNode node = this->createNode();
 
         this->expect(PunctuatorKind::Multiply);
-        if (!this->matchContextualKeyword("as")) {
+        if (!this->matchContextualKeyword(AsKeyword)) {
             this->throwError(Messages::NoAsAfterImportNamespace);
         }
         this->nextToken();
@@ -6389,7 +6388,7 @@ public:
                 this->throwUnexpectedToken(*token);
             }
 
-            if (!this->matchContextualKeyword("from")) {
+            if (!this->matchContextualKeyword(FromKeyword)) {
                 this->throwUnexpectedToken(this->lookahead);
             }
             this->nextToken();
@@ -6418,7 +6417,7 @@ public:
         ASTNode local = this->parseIdentifierName(builder);
 
         ASTNode exported = local;
-        if (this->matchContextualKeyword("as")) {
+        if (this->matchContextualKeyword(AsKeyword)) {
             this->nextToken();
             exported = this->parseIdentifierName(builder);
         }
@@ -6539,11 +6538,11 @@ public:
 
                     exportDeclaration = this->finalize(node, builder.createExportDefaultDeclarationNode(classNode, entry.m_exportName.value(), entry.m_localName.value()));
                 }
-            } else if (this->matchContextualKeyword("async")) {
+            } else if (this->matchContextualKeyword(AsyncKeyword)) {
                 // TODO
                 this->throwUnexpectedToken(this->lookahead, "async keyword in export is not supported yet");
             } else {
-                if (this->matchContextualKeyword("from")) {
+                if (this->matchContextualKeyword(FromKeyword)) {
                     this->throwUnexpectedToken(this->lookahead);
                 }
                 // export default {};
@@ -6573,7 +6572,7 @@ public:
 
         } else if (this->match(PunctuatorKind::Multiply)) {
             this->nextToken();
-            if (this->matchContextualKeyword("from")) {
+            if (this->matchContextualKeyword(FromKeyword)) {
                 // export * from 'foo';
                 this->nextToken();
                 if (this->lookahead.type != Token::StringLiteralToken) {
@@ -6590,7 +6589,7 @@ public:
                 }
 
                 exportDeclaration = this->finalize(node, builder.createExportAllDeclarationNode(src));
-            } else if (this->matchContextualKeyword("as")) {
+            } else if (this->matchContextualKeyword(AsKeyword)) {
                 // export * as ns from "mod";
                 this->nextToken();
 
@@ -6607,7 +6606,7 @@ public:
                 }
                 this->nextToken();
 
-                if (!this->matchContextualKeyword("from")) {
+                if (!this->matchContextualKeyword(FromKeyword)) {
                     this->throwUnexpectedToken(this->lookahead);
                 }
                 this->nextToken();
@@ -6689,7 +6688,7 @@ public:
             this->expect(PunctuatorKind::RightBrace);
 
             bool seenFrom = false;
-            if (this->matchContextualKeyword("from")) {
+            if (this->matchContextualKeyword(FromKeyword)) {
                 seenFrom = true;
                 // export {default} from 'foo';
                 // export {foo} from 'foo';

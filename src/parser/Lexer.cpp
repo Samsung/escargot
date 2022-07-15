@@ -417,6 +417,22 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
         return ctx->staticStrings().yield;
     case LetKeyword:
         return ctx->staticStrings().let;
+    case NullKeyword:
+        return ctx->staticStrings().null;
+    case TrueKeyword:
+        return ctx->staticStrings().stringTrue;
+    case FalseKeyword:
+        return ctx->staticStrings().stringFalse;
+    case OfKeyword:
+        return ctx->staticStrings().of;
+    case AsyncKeyword:
+        return ctx->staticStrings().async;
+    case AwaitKeyword:
+        return ctx->staticStrings().await;
+    case AsKeyword:
+        return ctx->staticStrings().as;
+    case FromKeyword:
+        return ctx->staticStrings().from;
     default:
         ASSERT_NOT_REACHED();
         return ctx->staticStrings().error;
@@ -1947,7 +1963,7 @@ void Scanner::scanRegExp(Scanner::ScannerResult* token)
 }
 
 // ECMA-262 11.6.2.1 Keywords
-static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
+static ALWAYS_INLINE KeywordKind getKeyword(const StringBufferAccessData& data)
 {
     // 'const' is specialized as Keyword in V8.
     // 'yield' and 'let' are for compatibility with SpiderMonkey and ES.next.
@@ -1956,7 +1972,24 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
     size_t length = data.length;
     char16_t first = data.charAt(0);
     char16_t second;
+
     switch (first) {
+    case 'a':
+        switch (length) {
+        case 2:
+            if (data.charAt(1) == 's') {
+                return AsKeyword;
+            }
+            break;
+        case 5:
+            second = data.charAt(1);
+            if (second == 's' && data.equalsSameLength("async", 2)) {
+                return AsyncKeyword;
+            } else if (second == 'w' && data.equalsSameLength("await", 2)) {
+                return AwaitKeyword;
+            }
+        }
+        break;
     case 'b':
         if (length == 5 && data.equalsSameLength("break", 1)) {
             return BreakKeyword;
@@ -1981,22 +2014,27 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
         }
         break;
     case 'd':
-        if (length == 8) {
-            if (data.equalsSameLength("debugger", 1)) {
-                return DebuggerKeyword;
-            }
-        } else if (length == 2) {
-            if (data.equalsSameLength("do", 1)) {
+        switch (length) {
+        case 2:
+            if (data.charAt(1) == 'o') {
                 return DoKeyword;
             }
-        } else if (length == 6) {
+            break;
+        case 6:
             if (data.equalsSameLength("delete", 1)) {
                 return DeleteKeyword;
             }
-        } else if (length == 7) {
+            break;
+        case 7:
             if (data.equalsSameLength("default", 1)) {
                 return DefaultKeyword;
             }
+            break;
+        case 8:
+            if (data.equalsSameLength("debugger", 1)) {
+                return DebuggerKeyword;
+            }
+            break;
         }
         break;
     case 'e':
@@ -2014,26 +2052,62 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
         }
         break;
     case 'f':
-        if (length == 3 && data.equalsSameLength("for", 1)) {
-            return ForKeyword;
-        } else if (length == 7 && data.equalsSameLength("finally", 1)) {
-            return FinallyKeyword;
-        } else if (length == 8 && data.equalsSameLength("function", 1)) {
-            return FunctionKeyword;
+        switch (length) {
+        case 3:
+            if (data.equalsSameLength("for", 1)) {
+                return ForKeyword;
+            }
+            break;
+        case 4:
+            if (data.equalsSameLength("from", 1)) {
+                return FromKeyword;
+            }
+            break;
+        case 5:
+            if (data.equalsSameLength("false", 1)) {
+                return FalseKeyword;
+            }
+            break;
+        case 7:
+            if (data.equalsSameLength("finally", 1)) {
+                return FinallyKeyword;
+            }
+            break;
+        case 8:
+            if (data.equalsSameLength("function", 1)) {
+                return FunctionKeyword;
+            }
+            break;
         }
         break;
     case 'i':
-        if (length == 2) {
+        switch (length) {
+        case 2:
             second = data.charAt(1);
             if (second == 'f') {
                 return IfKeyword;
             } else if (second == 'n') {
                 return InKeyword;
             }
-        } else if (length == 6 && data.equalsSameLength("import", 1)) {
-            return ImportKeyword;
-        } else if (length == 10 && data.equalsSameLength("instanceof", 1)) {
-            return InstanceofKeyword;
+            break;
+        case 6:
+            if (data.equalsSameLength("import", 1)) {
+                return ImportKeyword;
+            }
+            break;
+        case 9:
+            if (data.equalsSameLength("interface", 1)) {
+                return InterfaceKeyword;
+            }
+            break;
+        case 10:
+            second = data.charAt(1);
+            if (second == 'n' && data.equalsSameLength("instanceof", 2)) {
+                return InstanceofKeyword;
+            } else if (second == 'm' && data.equalsSameLength("implements", 2)) {
+                return ImplementsKeyword;
+            }
+            break;
         }
         break;
     case 'l':
@@ -2044,6 +2118,35 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
     case 'n':
         if (length == 3 && data.equalsSameLength("new", 1)) {
             return NewKeyword;
+        } else if (length == 4 && data.equalsSameLength("null", 1)) {
+            return NullKeyword;
+        }
+        break;
+    case 'o':
+        if (length == 2 && data.charAt(1) == 'f') {
+            return OfKeyword;
+        }
+        break;
+    case 'p':
+        switch (length) {
+        case 6:
+            if (data.equalsSameLength("public", 1)) {
+                return PublicKeyword;
+            }
+            break;
+        case 7:
+            second = data.charAt(1);
+            if (second == 'a' && data.equalsSameLength("package", 2)) {
+                return PackageKeyword;
+            } else if (second == 'r' && data.equalsSameLength("private", 2)) {
+                return PrivateKeyword;
+            }
+            break;
+        case 9:
+            if (data.equalsSameLength("protected", 1)) {
+                return ProtectedKeyword;
+            }
+            break;
         }
         break;
     case 'r':
@@ -2054,8 +2157,13 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
     case 's':
         if (length == 5 && data.equalsSameLength("super", 1)) {
             return SuperKeyword;
-        } else if (length == 6 && data.equalsSameLength("switch", 1)) {
-            return SwitchKeyword;
+        } else if (length == 6) {
+            second = data.charAt(1);
+            if (second == 'w' && data.equalsSameLength("switch", 2)) {
+                return SwitchKeyword;
+            } else if (second == 't' && data.equalsSameLength("static", 2)) {
+                return StaticKeyword;
+            }
         }
         break;
     case 't':
@@ -2066,8 +2174,11 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
             }
             break;
         case 4:
-            if (data.equalsSameLength("this", 1)) {
+            second = data.charAt(1);
+            if (second == 'h' && data.equalsSameLength("this", 2)) {
                 return ThisKeyword;
+            } else if (second == 'r' && data.equalsSameLength("true", 2)) {
+                return TrueKeyword;
             }
             break;
         case 5:
@@ -2108,34 +2219,42 @@ static ALWAYS_INLINE KeywordKind isKeyword(const StringBufferAccessData& data)
 ALWAYS_INLINE void Scanner::scanIdentifier(Scanner::ScannerResult* token, char16_t ch0)
 {
     ASSERT(token != nullptr);
-    Token type;
+    Token type = Token::IdentifierToken;
     const size_t start = this->index;
 
     // Backslash (U+005C) starts an escaped character.
     ScanIDResult id = UNLIKELY(ch0 == 0x5C) ? this->getComplexIdentifier() : this->getIdentifier();
+    const auto& data = std::get<0>(id);
     const size_t end = this->index;
 
     // There is no keyword or literal with only one character.
     // Thus, it must be an identifier.
-    KeywordKind keywordKind;
-    const auto& data = std::get<0>(id);
-    if (data.length == 1) {
-        type = Token::IdentifierToken;
-    } else if ((keywordKind = isKeyword(data))) {
-        token->setKeywordResult(this->lineNumber, this->lineStart, start, this->index, keywordKind);
-        return;
-    } else if (data.length == 4) {
-        if (data.equalsSameLength("null")) {
+    if (data.length > 1) {
+        KeywordKind keywordKind = getKeyword(data);
+
+        token->secondaryKeywordKind = keywordKind;
+
+        switch (keywordKind) {
+        case NotKeyword:
+            break;
+        case NullKeyword:
             type = Token::NullLiteralToken;
-        } else if (data.equalsSameLength("true")) {
-            type = Token::BooleanLiteralToken;
-        } else {
-            type = Token::IdentifierToken;
+            break;
+        case TrueKeyword:
+        case FalseKeyword:
+            type = BooleanLiteralToken;
+            break;
+        case YieldKeyword:
+        case LetKeyword:
+            token->setKeywordResult(this->lineNumber, this->lineStart, start, this->index, keywordKind);
+            return;
+        default:
+            if (keywordKind >= StrictModeReservedWord) {
+                break;
+            }
+            token->setKeywordResult(this->lineNumber, this->lineStart, start, this->index, keywordKind);
+            return;
         }
-    } else if (data.length == 5 && data.equalsSameLength("false")) {
-        type = Token::BooleanLiteralToken;
-    } else {
-        type = Token::IdentifierToken;
     }
 
     if (UNLIKELY(std::get<1>(id) != nullptr)) {
@@ -2148,13 +2267,15 @@ ALWAYS_INLINE void Scanner::scanIdentifier(Scanner::ScannerResult* token, char16
 void Scanner::lex(Scanner::ScannerResult* token)
 {
     ASSERT(token != nullptr);
+
+    token->resetResult();
+
     if (UNLIKELY(this->eof())) {
         token->setResult(Token::EOFToken, this->lineNumber, this->lineStart, this->index, this->index);
         return;
     }
 
     char16_t cp = this->peekCharWithoutEOF();
-
 
     if (UNLIKELY(cp >= 128 && this->peekChar() >= 0xD800 && this->peekChar() < 0xDFFF)) {
         cp = peekChar();
