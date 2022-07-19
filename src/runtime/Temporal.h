@@ -93,8 +93,9 @@ public:
         if (normalizedOptions.isUndefined()) {
             return state.context()->staticStrings().lazyConstrain().string();
         }
+        auto options = normalizedOptions.toObject(state);
         Value matcherValues[2] = { state.context()->staticStrings().lazyConstrain().string(), state.context()->staticStrings().reject.string() };
-        return Intl::getOption(state, normalizedOptions.asObject(), state.context()->staticStrings().lazyoverflow().string(), Intl::StringValue, matcherValues, 2, matcherValues[0]);
+        return Intl::getOption(state, options, state.context()->staticStrings().lazyoverflow().string(), Intl::StringValue, matcherValues, 2, matcherValues[0]);
     }
 
     static Value prepareTemporalFields(ExecutionState& state, const Value& fields, const ValueVector& fieldNames, const ValueVector& requiredFields)
