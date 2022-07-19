@@ -535,7 +535,6 @@
     <test id="built-ins/Temporal/Calendar/from/calendar-temporal-object"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/from/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/missing-arguments"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Calendar/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dateAdd/add-days"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dateAdd/add-months"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dateAdd/add-months-weeks"><reason>TODO</reason></test>
@@ -790,7 +789,6 @@
     <test id="built-ins/Temporal/Duration/name"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Duration/nanoseconds-undefined"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Duration/negative-infinity-throws-rangeerror"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Duration/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Duration/prototype/abs/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Duration/prototype/abs/subclassing-ignored"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Duration/prototype/add/argument-string-negative-fractional-units"><reason>TODO</reason></test>
@@ -1347,7 +1345,6 @@
     <test id="built-ins/Temporal/PlainDate/missing-arguments"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/name"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/negative-infinity-throws-rangeerror"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainDate/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/prototype/add/argument-not-object"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/prototype/add/argument-string"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/prototype/add/argument-string-negative-fractional-units"><reason>TODO</reason></test>
@@ -1612,7 +1609,6 @@
     <test id="built-ins/Temporal/PlainDateTime/nanosecond-undefined"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDateTime/negative-infinity-throws-rangeerror"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDateTime/order-of-operations"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainDateTime/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDateTime/prototype/add/argument-not-object"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDateTime/prototype/add/argument-string"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDateTime/prototype/add/argument-string-negative-fractional-units"><reason>TODO</reason></test>
@@ -2030,14 +2026,12 @@
     <test id="built-ins/Temporal/PlainMonthDay/prototype/with/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainMonthDay/prototype/with/subclassing-ignored"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainMonthDay/refisoyear-undefined"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainTime/basic"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/compare/argument-zoneddatetime-negative-epochnanoseconds"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/compare/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/compare/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-out-of-range"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/compare/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/compare/calendar-temporal-object"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/compare/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainTime/from/argument-string-with-calendar"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/from/argument-zoneddatetime-balance-negative-time-units"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/from/argument-zoneddatetime-negative-epochnanoseconds"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/from/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
@@ -2059,7 +2053,6 @@
     <test id="built-ins/Temporal/PlainTime/name"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/nanosecond-undefined"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/negative-infinity-throws-rangeerror"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainTime/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/add/argument-not-object"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/add/argument-string"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/add/argument-string-negative-fractional-units"><reason>TODO</reason></test>
@@ -2074,8 +2067,6 @@
     <test id="built-ins/Temporal/PlainTime/prototype/add/order-of-operations"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/add/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/add/subclassing-ignored"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainTime/prototype/calendar/branding"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainTime/prototype/calendar/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/equals/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/equals/argument-zoneddatetime-balance-negative-time-units"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/equals/argument-zoneddatetime-negative-epochnanoseconds"><reason>TODO</reason></test>
