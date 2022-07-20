@@ -102,7 +102,9 @@ public:
             return std::make_pair(argStartIndex, hasSpreadElement);
         }
 
-        return std::make_pair(REGISTER_LIMIT, false);
+        // set default register index as `0` for non-argument case
+        // if REGISTER_LIMIT is used, then call operation would access a too far stack location which will never be read
+        return std::make_pair(0, false);
     }
 
     static bool canUseDirectRegister(ByteCodeGenerateContext* context, Node* callee, const NodeList& args)

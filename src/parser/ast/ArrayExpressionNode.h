@@ -98,14 +98,14 @@ public:
         codeBlock->m_shouldClearStack = true;
 
         if (m_additionalPropertyExpression) {
-            ByteCodeRegisterIndex additionalPropertyExpressionRegsiter = m_additionalPropertyExpression->getRegister(codeBlock, context);
-            m_additionalPropertyExpression->generateExpressionByteCode(codeBlock, context, additionalPropertyExpressionRegsiter);
-            codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstRegister, m_additionalPropertyName, additionalPropertyExpressionRegsiter, ObjectPropertyDescriptor::NotPresent), context, this);
+            ByteCodeRegisterIndex additionalPropertyExpressionRegister = m_additionalPropertyExpression->getRegister(codeBlock, context);
+            m_additionalPropertyExpression->generateExpressionByteCode(codeBlock, context, additionalPropertyExpressionRegister);
+            codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstRegister, m_additionalPropertyName, additionalPropertyExpressionRegister, ObjectPropertyDescriptor::NotPresent), context, this);
 
             if (m_isTaggedTemplateExpression) {
                 auto freezeFunctionRegister = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), freezeFunctionRegister, Value(codeBlock->m_codeBlock->context()->globalObject()->objectFreeze())), context, this);
-                codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), freezeFunctionRegister, additionalPropertyExpressionRegsiter, freezeFunctionRegister, 1), context, this);
+                codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), freezeFunctionRegister, additionalPropertyExpressionRegister, freezeFunctionRegister, 1), context, this);
                 context->giveUpRegister();
             }
 
