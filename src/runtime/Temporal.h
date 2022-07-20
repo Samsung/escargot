@@ -137,7 +137,7 @@ public:
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("Invalid type of Object"));
         }
 
-        if (!object.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazycalendar().string())).value(state, object).isUndefined()) {
+        if (!object.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().calendar.string())).value(state, object).isUndefined()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("Object has calendar property"));
         }
 

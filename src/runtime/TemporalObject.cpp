@@ -481,7 +481,7 @@ Value TemporalPlainTime::createTemporalTime(ExecutionState& state, int hour, int
     auto temporalPlainTime = new TemporalPlainTime(state, proto);
 
     temporalPlainTime->setTime(hour, minute, second, millisecond, microsecond, nanosecond);
-    temporalPlainTime->setCalendar(state, new ASCIIString("iso8601"));
+    temporalPlainTime->setCalendar(state, state.context()->staticStrings().lazyISO8601().string());
     return temporalPlainTime;
 }
 
@@ -575,7 +575,7 @@ Value TemporalPlainTime::toTemporalTime(ExecutionState& state, const Value& item
 
         Value calendar = TemporalCalendar::getTemporalCalendarWithISODefault(state, item);
 
-        if (!calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601")) {
+        if (!calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals(state.context()->staticStrings().lazyISO8601().string())) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Calendar is not ISO8601");
         }
         result = TemporalPlainTime::toTemporalTimeRecord(state, item);
@@ -710,7 +710,7 @@ Value TemporalCalendar::getBuiltinCalendar(ExecutionState& state, String* id)
 
 Value TemporalCalendar::getISO8601Calendar(ExecutionState& state)
 {
-    return TemporalCalendar::getBuiltinCalendar(state, new ASCIIString("iso8601"));
+    return TemporalCalendar::getBuiltinCalendar(state, state.context()->staticStrings().lazyISO8601().string());
 }
 
 Value TemporalCalendar::toTemporalCalendar(ExecutionState& state, const Value& calendar)
@@ -721,14 +721,11 @@ Value TemporalCalendar::toTemporalCalendar(ExecutionState& state, const Value& c
         if (calendarObject->internalSlot()->isTemporalObject()) {
             return Value(calendarObject->getIdentifier());
         }
-        if (!calendarObject->hasProperty(state, AtomicString(state, "calendar"))) {
-            return calendar;
-        }
-        calendar.asObject()->get(state, AtomicString(state, "calendar"), calendar);
-        if (!calendarObject->hasProperty(state, AtomicString(state, "calendar"))) {
+        if (!calendarObject->hasProperty(state, state.context()->staticStrings().calendar)) {
             return calendar;
         }
     }
+
     String* identifier = calendar.asString();
     if (!TemporalCalendar::isBuiltinCalendar(identifier)) {
         identifier = TemporalCalendar::parseTemporalCalendarString(state, identifier).asString();
@@ -743,7 +740,7 @@ Value TemporalCalendar::parseTemporalCalendarString(ExecutionState& state, const
 {
     ASSERT(isoString.isString());
     TemporalObject::DateTime time = TemporalObject::parseValidIso8601String(state, isoString.asString()->toNonGCUTF8StringData());
-    return time.calendar.empty() ? Value(new ASCIIString("iso8601")) : Value(time.calendar.c_str());
+    return time.calendar.empty() ? Value(state.context()->staticStrings().lazyISO8601().string()) : Value(time.calendar.c_str());
 }
 
 Value TemporalCalendar::ISODaysInMonth(ExecutionState& state, const int year, const int m)
@@ -814,6 +811,8 @@ Value TemporalCalendar::toTemporalCalendarWithISODefault(ExecutionState& state, 
 
 Value TemporalCalendar::defaultMergeFields(ExecutionState& state, const Value& fields, const Value& additionalFields)
 {
+    auto& strings = state.context()->staticStrings();
+
     Object* merged = Object::getPrototypeFromConstructor(state, state.resolveCallee(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->objectPrototype();
     });
@@ -821,7 +820,7 @@ Value TemporalCalendar::defaultMergeFields(ExecutionState& state, const Value& f
     auto originalKeys = Object::enumerableOwnProperties(state, fields.asObject(), EnumerableOwnPropertiesType::Key);
 
     for (auto nextKey : originalKeys) {
-        if (!nextKey.asString()->equals("month") || !nextKey.asString()->equals("monthCode")) {
+        if (!nextKey.asString()->equals(strings.lazyMonth().string()) || !nextKey.asString()->equals(strings.lazymonthCode().string())) {
             Value propValue;
             fields.asObject()->get(state, AtomicString(state, nextKey.asString()), propValue);
             if (!propValue.isUndefined()) {
@@ -834,7 +833,7 @@ Value TemporalCalendar::defaultMergeFields(ExecutionState& state, const Value& f
 
     for (unsigned int i = 0; i < newKeys.size(); ++i) {
         Value nextKey = originalKeys[i];
-        if (!nextKey.asString()->equals("month") || !nextKey.asString()->equals("monthCode")) {
+        if (!nextKey.asString()->equals(strings.lazyMonth().string()) || !nextKey.asString()->equals(strings.lazymonthCode().string())) {
             containsMonth = true;
         }
         Value propValue;
@@ -873,7 +872,7 @@ ValueVector TemporalCalendar::calendarFields(ExecutionState& state, const Value&
         fieldsArray = Object::call(state, fields, calendar, 1, &fieldsArray);
     }
 
-    return IteratorObject::iterableToListOfType(state, fieldsArray, new ASCIIString("String"));
+    return IteratorObject::iterableToListOfType(state, fieldsArray, state.context()->staticStrings().String.string());
 }
 
 Value TemporalCalendar::getterHelper(ExecutionState& state, const Value& callee, Object* thisValue, Value* argv)
@@ -1055,16 +1054,16 @@ Value TemporalPlainDate::toTemporalDate(ExecutionState& state, const Value& item
 
         if (tItem->isTemporalPlainDateTimeObject()) {
             TemporalPlainDateTime* tmp = tItem->asTemporalPlainDateTimeObject();
-            return TemporalPlainDate::createTemporalDate(state, tmp->getYear(), tmp->getMonth(), tmp->getDay(), Value("iso8601"),
+            return TemporalPlainDate::createTemporalDate(state, tmp->getYear(), tmp->getMonth(), tmp->getDay(), Value(state.context()->staticStrings().lazyISO8601().string()),
                                                          nullptr);
         }
 
         Value calendar = TemporalCalendar::getTemporalCalendarWithISODefault(state, item);
         ValueVector requiredFields{
-            Value(new ASCIIString("day")),
-            Value(new ASCIIString("month")),
-            Value(new ASCIIString("monthCode")),
-            Value(new ASCIIString("year"))
+            Value(state.context()->staticStrings().lazyDay().string()),
+            Value(state.context()->staticStrings().lazyMonth().string()),
+            Value(state.context()->staticStrings().lazymonthCode().string()),
+            Value(state.context()->staticStrings().lazyYear().string())
         };
         ValueVector fieldNames = TemporalCalendar::calendarFields(state, calendar, ValueVector());
         Value fields = Temporal::prepareTemporalFields(state, item, fieldNames, ValueVector());
@@ -1182,16 +1181,16 @@ Value TemporalPlainDateTime::toTemporalDateTime(ExecutionState& state, const Val
         }
 
         calendar = TemporalCalendar::getTemporalCalendarWithISODefault(state, item);
-        ValueVector values = { Value(new ASCIIString("day")),
-                               Value(new ASCIIString("hour")),
-                               Value(new ASCIIString("microsecond")),
-                               Value(new ASCIIString("millisecond")),
-                               Value(new ASCIIString("minute")),
-                               Value(new ASCIIString("month")),
-                               Value(new ASCIIString("monthCode")),
-                               Value(new ASCIIString("nanosecond")),
-                               Value(new ASCIIString("second")),
-                               Value(new ASCIIString("year")) };
+        ValueVector values = { Value(state.context()->staticStrings().lazyDay().string()),
+                               Value(state.context()->staticStrings().lazyHour().string()),
+                               Value(state.context()->staticStrings().lazymicrosecond().string()),
+                               Value(state.context()->staticStrings().lazymillisecond().string()),
+                               Value(state.context()->staticStrings().lazyMinute().string()),
+                               Value(state.context()->staticStrings().lazyMonth().string()),
+                               Value(state.context()->staticStrings().lazymonthCode().string()),
+                               Value(state.context()->staticStrings().lazynanosecond().string()),
+                               Value(state.context()->staticStrings().lazySecond().string()),
+                               Value(state.context()->staticStrings().lazyYear().string()) };
         ValueVector fieldNames = TemporalCalendar::calendarFields(state, calendar, values);
         Value fields = Temporal::prepareTemporalFields(state, item, fieldNames, ValueVector());
         result = TemporalPlainDateTime::interpretTemporalDateTimeFields(state, calendar, fields, options);
@@ -1247,9 +1246,11 @@ bool TemporalInstant::isValidEpochNanoseconds(const Value& epochNanoseconds)
 {
     ASSERT(epochNanoseconds.isBigInt());
     /* Maximum possible and minimum possible Nanoseconds */
-    BigInt minEpoch = BigInt(new ASCIIString("-8640000000000000000000"));
-    BigInt maxEpoch = BigInt(new ASCIIString("8640000000000000000000"));
-    return epochNanoseconds.asBigInt()->greaterThanEqual(&minEpoch) && epochNanoseconds.asBigInt()->lessThanEqual(&maxEpoch);
+    const char min[] = "-8640000000000000000000";
+    const char max[] = "8640000000000000000000";
+    BigInt* minEpoch = BigInt::parseString(min, sizeof(min) - 1).value();
+    BigInt* maxEpoch = BigInt::parseString(max, sizeof(max) - 1).value();
+    return epochNanoseconds.asBigInt()->greaterThanEqual(minEpoch) && epochNanoseconds.asBigInt()->lessThanEqual(maxEpoch);
 }
 
 TemporalTimeZone::TemporalTimeZone(ExecutionState& state)
@@ -1284,7 +1285,7 @@ Value TemporalTimeZone::getOffsetNanosecondsFor(ExecutionState& state, const Val
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "offsetNanoseconds is not an Integer");
     }
 
-    BigInt maxEpoch = BigInt(new ASCIIString("86400000000000"));
+    BigInt maxEpoch = BigInt(86400000000000);
     if (offsetNanoseconds.asBigInt()->isNegative() ? offsetNanoseconds.asBigInt()->negativeValue(state)->greaterThan(&maxEpoch) : offsetNanoseconds.asBigInt()->greaterThan(&maxEpoch)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "offsetNanoseconds is out of range");
     }
@@ -1295,7 +1296,7 @@ Value TemporalTimeZone::getOffsetNanosecondsFor(ExecutionState& state, const Val
 std::map<TemporalObject::DateTimeUnits, int> TemporalTimeZone::getISOPartsFromEpoch(ExecutionState& state, const Value& epochNanoseconds)
 {
     ASSERT(TemporalInstant::isValidEpochNanoseconds(epochNanoseconds));
-    BigInt ns = BigInt(new ASCIIString("1000000"));
+    BigInt ns = BigInt((uint64_t)1000000);
     time64_t remainderNs = epochNanoseconds.asBigInt()->remainder(state, &ns)->toInt64();
     time64_t epochMilliseconds = epochNanoseconds.asBigInt()->subtraction(state, new BigInt(remainderNs))->remainder(state, &ns)->toInt64();
     std::map<TemporalObject::DateTimeUnits, int> result;

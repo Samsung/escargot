@@ -794,23 +794,19 @@ namespace Escargot {
     F(Weekday, "weekday")                                   \
     F(WeekInfo, "weekInfo")                                 \
     F(Year, "year")
-#else
-#define FOR_EACH_LAZY_INTL_STATIC_STRING(F)
-#endif
 
 #define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)           \
+    F(Calendar, "Calendar")                               \
+    F(DateTime, "DateTime")                               \
     F(Duration, "Duration")                               \
+    F(ISO8601, "iso8601")                                 \
+    F(Now, "Now")                                         \
     F(PlainDate, "PlainDate")                             \
     F(PlainDateTime, "PlainDateTime")                     \
     F(PlainTime, "PlainTime")                             \
     F(Temporal, "Temporal")                               \
-    F(Now, "Now")                                         \
     F(blank, "blank")                                     \
-    F(Calendar, "Calendar")                               \
-    F(calendar, "calendar")                               \
     F(dateFromFields, "dateFromFields")                   \
-    F(DateTime, "DateTime")                               \
-    F(day, "day")                                         \
     F(days, "days")                                       \
     F(daysInMonth, "daysInMonth")                         \
     F(daysInYear, "daysInYear")                           \
@@ -836,7 +832,6 @@ namespace Escargot {
     F(millisecond, "millisecond")                         \
     F(milliseconds, "milliseconds")                       \
     F(minutes, "minutes")                                 \
-    F(month, "month")                                     \
     F(months, "months")                                   \
     F(monthCode, "monthCode")                             \
     F(monthsInYear, "monthsInYear")                       \
@@ -853,10 +848,12 @@ namespace Escargot {
     F(timeZone, "timeZone")                               \
     F(toPlainDateTime, "toPlainDateTime")                 \
     F(weekOfYear, "weekOfYear")                           \
-    F(year, "year")                                       \
     F(years, "years")                                     \
     F(weeks, "weeks")                                     \
     F(zonedDateTimeISO, "zonedDateTimeISO")
+#else
+#define FOR_EACH_LAZY_INTL_STATIC_STRING(F)
+#endif
 
 #if defined(ENABLE_THREADING)
 #define FOR_EACH_LAZY_THREADING_STATIC_STRING(F) \
