@@ -82,11 +82,6 @@ typedef union {
     } xparts;
 } ieee_double_shape_type;
 
-#define __HI(x) *(1 + (int *)&x)
-#define __LO(x) *(int *)&x
-#define __HIp(x) *(1 + (int *)x)
-#define __LOp(x) *(int *)x
-
 #else
 
 typedef union {
@@ -99,11 +94,6 @@ typedef union {
         uint64_t w;
     } xparts;
 } ieee_double_shape_type;
-
-#define __HI(x) *(int *)&x
-#define __LO(x) *(1 + (int *)&x)
-#define __HIp(x) *(int *)x
-#define __LOp(x) *(1 + (int *)x)
 
 #endif
 
@@ -2930,10 +2920,11 @@ double tanh(double x)
 double ceil(double x)
 {
     constexpr double huge = 1.0e300;
-    int i0, i1, j0;
+    int32_t i0, j0;
+    uint32_t i1;
     unsigned i, j;
-    i0 = __HI(x);
-    i1 = __LO(x);
+    GET_HIGH_WORD(i0, x);
+    GET_LOW_WORD(i1, x);
     j0 = ((i0 >> 20) & 0x7ff) - 0x3ff;
     if (j0 < 20) {
         if (j0 < 0) { /* raise inexact if x != 0 */
@@ -2980,8 +2971,8 @@ double ceil(double x)
             i1 &= (~i);
         }
     }
-    __HI(x) = i0;
-    __LO(x) = i1;
+    SET_HIGH_WORD(x, i0);
+    SET_LOW_WORD(x, i1);
     return x;
 }
 
