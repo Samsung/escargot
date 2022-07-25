@@ -278,6 +278,9 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
     Value TYPE##ArrayObject::getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver)                       \
     {                                                                                                                                           \
         if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength())) {                                                       \
+            if (UNLIKELY(buffer()->isDetachedBuffer())) {                                                                                       \
+                return Value();                                                                                                                 \
+            }                                                                                                                                   \
             size_t indexedPosition = property.asUInt32() * siz;                                                                                 \
             return getDirectValueFromBuffer(state, indexedPosition);                                                                            \
         }                                                                                                                                       \

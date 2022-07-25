@@ -114,13 +114,6 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    static inline void fillGCDescriptor(GC_word* desc)
-    {
-        Object::fillGCDescriptor(desc);
-        GC_set_bit(desc, GC_WORD_OFFSET(ArrayBuffer, m_observerItems));
-        GC_set_bit(desc, GC_WORD_OFFSET(ArrayBuffer, m_backingStore));
-    }
-
     static void arrayBufferFinalizer(Object* obj, void* data)
     {
         ArrayBuffer* self = reinterpret_cast<ArrayBuffer*>(obj);
