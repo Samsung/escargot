@@ -1195,7 +1195,18 @@ protected:
         return (ObjectRareData*)m_prototype;
     }
 
-    ObjectExtendedExtraData* ensureObjectExtendedExtraData()
+    inline bool hasExtendedExtraData() const
+    {
+        return (hasRareData() && rareData()->m_hasExtendedExtraData);
+    }
+
+    ObjectExtendedExtraData* extendedExtraData()
+    {
+        ASSERT(hasExtendedExtraData());
+        return rareData()->m_extendedExtraData;
+    }
+
+    ObjectExtendedExtraData* ensureExtendedExtraData()
     {
         auto rd = ensureRareData();
         if (!rd->m_hasExtendedExtraData) {
