@@ -85,8 +85,8 @@ jobs:
         sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_i386.deb
-        dpkg -X libicu-dev_67.1-6ubuntu2_i386.deb $GITHUB_WORKSPACE/icu32
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_i386.deb
+        dpkg -X libicu-dev_70.1-2ubuntu1_i386.deb $GITHUB_WORKSPACE/icu32
     - name: Build x86
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -127,8 +127,8 @@ jobs:
         sudo apt install -y ninja-build
     - name: Install ICU
       run: |
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_amd64.deb
-        dpkg -X libicu-dev_67.1-6ubuntu2_amd64.deb $GITHUB_WORKSPACE/icu64
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_amd64.deb
+        dpkg -X libicu-dev_70.1-2ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -158,10 +158,10 @@ jobs:
         sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_i386.deb
-        dpkg -X libicu-dev_67.1-6ubuntu2_i386.deb $GITHUB_WORKSPACE/icu32
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_amd64.deb
-        dpkg -X libicu-dev_67.1-6ubuntu2_amd64.deb $GITHUB_WORKSPACE/icu64
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_i386.deb
+        dpkg -X libicu-dev_70.1-2ubuntu1_i386.deb $GITHUB_WORKSPACE/icu32
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_amd64.deb
+        dpkg -X libicu-dev_70.1-2ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Build x86/x64
       env:
         BUILD_OPTIONS_X86: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -197,8 +197,8 @@ jobs:
         sudo apt install -y ninja-build
     - name: Install ICU
       run: |
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_amd64.deb
-        dpkg -X libicu-dev_67.1-6ubuntu2_amd64.deb $GITHUB_WORKSPACE/icu64
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_amd64.deb
+        dpkg -X libicu-dev_70.1-2ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Build
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_DEBUGGER=1 -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -228,10 +228,10 @@ jobs:
         sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_i386.deb
-        dpkg -X libicu-dev_67.1-6ubuntu2_i386.deb $GITHUB_WORKSPACE/icu32
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_amd64.deb
-        dpkg -X libicu-dev_67.1-6ubuntu2_amd64.deb $GITHUB_WORKSPACE/icu64
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_i386.deb
+        dpkg -X libicu-dev_70.1-2ubuntu1_i386.deb $GITHUB_WORKSPACE/icu32
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_amd64.deb
+        dpkg -X libicu-dev_70.1-2ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Build x86/x64
       env:
         BUILD_OPTIONS_X86: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_THREADING=1 -DESCARGOT_DEBUGGER=1 -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=cctest -GNinja
@@ -267,10 +267,10 @@ jobs:
         sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_i386.deb
-        dpkg -X libicu-dev_67.1-6ubuntu2_i386.deb $GITHUB_WORKSPACE/icu32
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_amd64.deb
-        dpkg -X libicu-dev_67.1-6ubuntu2_amd64.deb $GITHUB_WORKSPACE/icu64
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_i386.deb
+        dpkg -X libicu-dev_70.1-2ubuntu1_i386.deb $GITHUB_WORKSPACE/icu32
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_amd64.deb
+        dpkg -X libicu-dev_70.1-2ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Build x86
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_CODE_CACHE=ON -DESCARGOT_OUTPUT=shell_test -GNinja
@@ -332,10 +332,10 @@ jobs:
         sudo apt install -y ninja-build gcc-multilib g++-multilib
     - name: Install ICU
       run: |
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_i386.deb
-        dpkg -X libicu-dev_67.1-6ubuntu2_i386.deb $GITHUB_WORKSPACE/icu32
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_67.1-6ubuntu2_amd64.deb
-        dpkg -X libicu-dev_67.1-6ubuntu2_amd64.deb $GITHUB_WORKSPACE/icu64
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_i386.deb
+        dpkg -X libicu-dev_70.1-2ubuntu1_i386.deb $GITHUB_WORKSPACE/icu32
+        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_amd64.deb
+        dpkg -X libicu-dev_70.1-2ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Patch WABT
       working-directory: ./third_party/wasm/wabt
       run: |
