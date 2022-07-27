@@ -59,11 +59,13 @@ struct ObjectPrivateMemberDataChain : public gc {
 
 struct ObjectExtendedExtraData : public gc {
     void* m_extraData;
+    size_t m_removedFinalizerCount;
     TightVector<std::pair<ObjectFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<ObjectFinalizer, void*>>> m_finalizer;
     Optional<ObjectPrivateMemberDataChain*> m_privateMemberChain;
     Optional<FunctionObject*> m_meaningfulConstructor;
     ObjectExtendedExtraData(void* e)
         : m_extraData(e)
+        , m_removedFinalizerCount(0)
     {
     }
 };
@@ -1195,7 +1197,18 @@ protected:
         return (ObjectRareData*)m_prototype;
     }
 
-    ObjectExtendedExtraData* ensureObjectExtendedExtraData()
+    inline bool hasExtendedExtraData() const
+    {
+        return (hasRareData() && rareData()->m_hasExtendedExtraData);
+    }
+
+    ObjectExtendedExtraData* extendedExtraData()
+    {
+        ASSERT(hasExtendedExtraData());
+        return rareData()->m_extendedExtraData;
+    }
+
+    ObjectExtendedExtraData* ensureExtendedExtraData()
     {
         auto rd = ensureRareData();
         if (!rd->m_hasExtendedExtraData) {

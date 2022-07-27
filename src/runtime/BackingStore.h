@@ -31,6 +31,7 @@ class BufferAddressObserverManager {
 public:
     BufferAddressObserverManager(BufferOwnerType* owner)
         : m_owner(owner)
+        , m_removedObserverCount(0)
 #ifndef NDEBUG
         , m_isUpdating(false)
 #endif
@@ -40,8 +41,25 @@ public:
     using BufferAddressObserverCallback = void (*)(BufferOwnerType* bufferOwner, void* newAddress, void* userData);
     void addObserver(Object* from, BufferAddressObserverCallback cb, void* userData)
     {
-        ASSERT(!m_isUpdating);
+        ASSERT(!m_isUpdating && !!from);
         from->addFinalizer(objectFinalizer, this);
+
+        if (m_removedObserverCount > 0) {
+            // search backward
+            for (size_t i = m_observerItems.size() - 1; i >= 0; i--) {
+                if (m_observerItems[i].from == nullptr) {
+                    ASSERT(m_observerItems[i].callback == nullptr);
+                    ASSERT(m_observerItems[i].userData == nullptr);
+                    m_observerItems[i].from = from;
+                    m_observerItems[i].callback = cb;
+                    m_observerItems[i].userData = userData;
+                    m_removedObserverCount--;
+                    return;
+                }
+            }
+            ASSERT_NOT_REACHED();
+        }
+
         m_observerItems.pushBack(ObserverVectorItem(from, cb, userData));
     }
 
@@ -51,7 +69,10 @@ public:
         from->removeFinalizer(objectFinalizer, this);
         for (size_t i = 0; i < m_observerItems.size(); i++) {
             if (m_observerItems[i].from == from && m_observerItems[i].callback == callback && m_observerItems[i].userData == userData) {
-                m_observerItems.erase(i);
+                m_observerItems[i].from = nullptr;
+                m_observerItems[i].callback = nullptr;
+                m_observerItems[i].userData = nullptr;
+                m_removedObserverCount++;
                 break;
             }
         }
@@ -61,8 +82,11 @@ protected:
     void dispose()
     {
         for (size_t i = 0; i < m_observerItems.size(); i++) {
-            m_observerItems[i].from->removeFinalizer(objectFinalizer, this);
+            if (m_observerItems[i].from) {
+                m_observerItems[i].from->removeFinalizer(objectFinalizer, this);
+            }
         }
+        m_observerItems.clear();
     }
 
     static void objectFinalizer(Object* obj, void* data)
@@ -70,8 +94,10 @@ protected:
         BufferAddressObserverManager<BufferOwnerType>* self = reinterpret_cast<BufferAddressObserverManager<BufferOwnerType>*>(data);
         for (size_t i = 0; i < self->m_observerItems.size(); i++) {
             if (self->m_observerItems[i].from == obj) {
-                self->m_observerItems.erase(i);
-                i--;
+                self->m_observerItems[i].from = nullptr;
+                self->m_observerItems[i].callback = nullptr;
+                self->m_observerItems[i].userData = nullptr;
+                self->m_removedObserverCount++;
             }
         }
     }
@@ -90,6 +116,7 @@ protected:
     };
 
     BufferOwnerType* m_owner;
+    size_t m_removedObserverCount;
     TightVector<ObserverVectorItem, GCUtil::gc_malloc_atomic_allocator<ObserverVectorItem>> m_observerItems;
 
 #ifndef NDEBUG
@@ -101,7 +128,9 @@ protected:
         m_isUpdating = true;
 #endif
         for (size_t i = 0; i < m_observerItems.size(); i++) {
-            m_observerItems[i].callback(m_owner, newAddress, m_observerItems[i].userData);
+            if (LIKELY(!!m_observerItems[i].callback)) {
+                m_observerItems[i].callback(m_owner, newAddress, m_observerItems[i].userData);
+            }
         }
 #ifndef NDEBUG
         m_isUpdating = false;

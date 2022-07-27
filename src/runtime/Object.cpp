@@ -575,8 +575,8 @@ void Object::setGlobalIntrinsicObject(ExecutionState& state, bool isPrototype)
 String* Object::constructorName(ExecutionState& state)
 {
     Optional<FunctionObject*> ctor;
-    if (hasRareData() && rareData()->m_hasExtendedExtraData && ensureObjectExtendedExtraData()->m_meaningfulConstructor) {
-        ctor = ensureObjectExtendedExtraData()->m_meaningfulConstructor;
+    if (hasExtendedExtraData() && extendedExtraData()->m_meaningfulConstructor) {
+        ctor = extendedExtraData()->m_meaningfulConstructor;
     } else {
         Optional<Object*> object = getPrototypeObject(state);
         if (object) {
@@ -670,11 +670,11 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
             (hadPrototypeAsObject && lastPrototype.asObject()->isScriptClassConstructorPrototypeObject()))) {
         if (!hasRareData() || !rareData()->m_hasExtendedExtraData || !rareData()->m_extendedExtraData->m_meaningfulConstructor.hasValue()) {
             if (lastPrototype.asObject()->isScriptClassConstructorPrototypeObject()) {
-                ensureObjectExtendedExtraData()->m_meaningfulConstructor = lastPrototype.asObject()->asScriptClassConstructorPrototypeObject()->constructor();
+                ensureExtendedExtraData()->m_meaningfulConstructor = lastPrototype.asObject()->asScriptClassConstructorPrototypeObject()->constructor();
             } else {
                 auto ctor = lastPrototype.asObject()->readConstructorSlotWithoutState();
                 if (ctor && ctor.value().isFunction()) {
-                    ensureObjectExtendedExtraData()->m_meaningfulConstructor = ctor.value().asFunction();
+                    ensureExtendedExtraData()->m_meaningfulConstructor = ctor.value().asFunction();
                 }
             }
         }
@@ -1865,17 +1865,17 @@ static void addPrivateMember(ExecutionState& state, ObjectExtendedExtraData* e, 
 
 void Object::addPrivateField(ExecutionState& state, Object* contextObject, AtomicString propertyName, const Value& value)
 {
-    addPrivateMember(state, ensureObjectExtendedExtraData(), contextObject, propertyName, ObjectPrivateMemberStructureItemKind::Field, value);
+    addPrivateMember(state, ensureExtendedExtraData(), contextObject, propertyName, ObjectPrivateMemberStructureItemKind::Field, value);
 }
 
 void Object::addPrivateMethod(ExecutionState& state, Object* contextObject, AtomicString propertyName, FunctionObject* fn)
 {
-    addPrivateMember(state, ensureObjectExtendedExtraData(), contextObject, propertyName, ObjectPrivateMemberStructureItemKind::Method, EncodedValue(fn));
+    addPrivateMember(state, ensureExtendedExtraData(), contextObject, propertyName, ObjectPrivateMemberStructureItemKind::Method, EncodedValue(fn));
 }
 
 void Object::addPrivateAccessor(ExecutionState& state, Object* contextObject, AtomicString propertyName, FunctionObject* callback, bool isGetter, bool isSetter)
 {
-    auto e = ensureObjectExtendedExtraData();
+    auto e = ensureExtendedExtraData();
     ObjectPrivateMemberDataChain* piece = ensurePieceOnPrivateMemberChain(state, e, contextObject);
 
     auto r = piece->m_privateMemberStructure->findProperty(propertyName);
@@ -1919,7 +1919,7 @@ static Optional<ObjectPrivateMemberDataChain*> findPieceOnPrivateMemberChain(Exe
 
 Value Object::getPrivateMember(ExecutionState& state, Object* contextObject, AtomicString propertyName, bool shouldReferOuterClass)
 {
-    auto e = ensureObjectExtendedExtraData();
+    auto e = ensureExtendedExtraData();
     auto piece = findPieceOnPrivateMemberChain(state, e, contextObject);
     if (piece) {
         auto r = piece->m_privateMemberStructure->findProperty(propertyName);
@@ -1945,7 +1945,7 @@ Value Object::getPrivateMember(ExecutionState& state, Object* contextObject, Ato
 
 void Object::setPrivateMember(ExecutionState& state, Object* contextObject, AtomicString propertyName, const Value& value, bool shouldReferOuterClass)
 {
-    auto e = ensureObjectExtendedExtraData();
+    auto e = ensureExtendedExtraData();
     auto piece = findPieceOnPrivateMemberChain(state, e, contextObject);
     if (piece) {
         auto r = piece->m_privateMemberStructure->findProperty(propertyName);
@@ -2113,18 +2113,19 @@ bool Object::isRegExp(ExecutionState& state)
 
 void Object::addFinalizer(ObjectFinalizer fn, void* data)
 {
-    auto r = ensureObjectExtendedExtraData();
+    auto r = ensureExtendedExtraData();
     if (!rareData()->m_isFinalizerRegistered) {
         rareData()->m_isFinalizerRegistered = true;
 
-#define FINALIZER_CALLBACK()                                     \
-    GC_disable();                                                \
-    Object* self = (Object*)obj;                                 \
-    auto r = self->ensureObjectExtendedExtraData();              \
-    for (size_t i = 0; i < r->m_finalizer.size(); i++) {         \
-        r->m_finalizer[i].first(self, r->m_finalizer[i].second); \
-    }                                                            \
-    GC_enable();
+#define FINALIZER_CALLBACK()                                         \
+    Object* self = (Object*)obj;                                     \
+    auto r = self->extendedExtraData();                              \
+    for (size_t i = 0; i < r->m_finalizer.size(); i++) {             \
+        if (LIKELY(!!r->m_finalizer[i].first)) {                     \
+            r->m_finalizer[i].first(self, r->m_finalizer[i].second); \
+        }                                                            \
+    }                                                                \
+    r->m_finalizer.clear();
 
 #ifndef NDEBUG
         GC_finalization_proc of = nullptr;
@@ -2144,15 +2145,32 @@ void Object::addFinalizer(ObjectFinalizer fn, void* data)
             nullptr, nullptr, nullptr);
 #endif
     }
+
+    if (UNLIKELY(r->m_removedFinalizerCount > 0)) {
+        // search backward
+        for (size_t i = r->m_finalizer.size() - 1; i >= 0; i--) {
+            if (r->m_finalizer[i].first == nullptr) {
+                ASSERT(r->m_finalizer[i].second == nullptr);
+                r->m_finalizer[i].first = fn;
+                r->m_finalizer[i].second = data;
+                r->m_removedFinalizerCount--;
+                return;
+            }
+        }
+        ASSERT_NOT_REACHED();
+    }
+
     r->m_finalizer.pushBack(std::make_pair(fn, data));
 }
 
 bool Object::removeFinalizer(ObjectFinalizer fn, void* data)
 {
-    auto r = ensureObjectExtendedExtraData();
+    auto r = extendedExtraData();
     for (size_t i = 0; i < r->m_finalizer.size(); i++) {
         if (r->m_finalizer[i].first == fn && r->m_finalizer[i].second == data) {
-            r->m_finalizer.erase(i);
+            r->m_finalizer[i].first = nullptr;
+            r->m_finalizer[i].second = nullptr;
+            r->m_removedFinalizerCount++;
             return true;
         }
     }
