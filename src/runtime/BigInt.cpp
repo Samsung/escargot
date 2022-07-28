@@ -293,69 +293,69 @@ uint64_t BigInt::toUint64() const
 }
 
 
-bool BigInt::equals(BigInt* b)
+bool BigInt::equals(const BigInt* b) const
 {
     return bf_cmp_eq(&m_bf, &b->m_bf);
 }
 
-bool BigInt::equals(const BigIntData& b)
+bool BigInt::equals(const BigIntData& b) const
 {
     return bf_cmp_eq(&m_bf, &b.m_data);
 }
 
-bool BigInt::equals(String* s)
+bool BigInt::equals(String* s) const
 {
     BigIntData bd(s);
     return equals(bd);
 }
 
-bool BigInt::equals(double b)
+bool BigInt::equals(double b) const
 {
     BigIntData bd(b);
     return equals(bd);
 }
 
-bool BigInt::lessThan(const BigIntData& b)
+bool BigInt::lessThan(const BigIntData& b) const
 {
     return bf_cmp_lt(&m_bf, &b.m_data);
 }
 
-bool BigInt::lessThanEqual(const BigIntData& b)
+bool BigInt::lessThanEqual(const BigIntData& b) const
 {
     return bf_cmp_le(&m_bf, &b.m_data);
 }
 
-bool BigInt::greaterThan(const BigIntData& b)
+bool BigInt::greaterThan(const BigIntData& b) const
 {
     return bf_cmp(&m_bf, &b.m_data) > 0;
 }
 
-bool BigInt::greaterThanEqual(const BigIntData& b)
+bool BigInt::greaterThanEqual(const BigIntData& b) const
 {
     return bf_cmp(&m_bf, &b.m_data) >= 0;
 }
 
-bool BigInt::lessThan(BigInt* b)
+bool BigInt::lessThan(const BigInt* b) const
 {
     return bf_cmp_lt(&m_bf, &b->m_bf);
 }
 
-bool BigInt::lessThanEqual(BigInt* b)
+bool BigInt::lessThanEqual(const BigInt* b) const
 {
     return bf_cmp_le(&m_bf, &b->m_bf);
 }
 
-bool BigInt::greaterThan(BigInt* b)
+bool BigInt::greaterThan(const BigInt* b) const
 {
     return bf_cmp(&m_bf, &b->m_bf) > 0;
 }
 
-bool BigInt::greaterThanEqual(BigInt* b)
+bool BigInt::greaterThanEqual(const BigInt* b) const
 {
     return bf_cmp(&m_bf, &b->m_bf) >= 0;
 }
 
-BigInt* BigInt::addition(ExecutionState& state, BigInt* b)
+BigInt* BigInt::addition(ExecutionState& state, const BigInt* b) const
 {
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -367,7 +367,7 @@ BigInt* BigInt::addition(ExecutionState& state, BigInt* b)
     return new BigInt(r);
 }
 
-BigInt* BigInt::subtraction(ExecutionState& state, BigInt* b)
+BigInt* BigInt::subtraction(ExecutionState& state, const BigInt* b) const
 {
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -379,7 +379,7 @@ BigInt* BigInt::subtraction(ExecutionState& state, BigInt* b)
     return new BigInt(r);
 }
 
-BigInt* BigInt::multiply(ExecutionState& state, BigInt* b)
+BigInt* BigInt::multiply(ExecutionState& state, const BigInt* b) const
 {
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -391,7 +391,7 @@ BigInt* BigInt::multiply(ExecutionState& state, BigInt* b)
     return new BigInt(r);
 }
 
-BigInt* BigInt::division(ExecutionState& state, BigInt* b)
+BigInt* BigInt::division(ExecutionState& state, const BigInt* b) const
 {
     bf_t r, rem;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -406,7 +406,7 @@ BigInt* BigInt::division(ExecutionState& state, BigInt* b)
     return new BigInt(r);
 }
 
-BigInt* BigInt::remainder(ExecutionState& state, BigInt* b)
+BigInt* BigInt::remainder(ExecutionState& state, const BigInt* b) const
 {
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -420,7 +420,7 @@ BigInt* BigInt::remainder(ExecutionState& state, BigInt* b)
     return new BigInt(r);
 }
 
-BigInt* BigInt::pow(ExecutionState& state, BigInt* b)
+BigInt* BigInt::pow(ExecutionState& state, const BigInt* b) const
 {
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -432,7 +432,7 @@ BigInt* BigInt::pow(ExecutionState& state, BigInt* b)
     return new BigInt(r);
 }
 
-BigInt* BigInt::bitwiseAnd(ExecutionState& state, BigInt* b)
+BigInt* BigInt::bitwiseAnd(ExecutionState& state, const BigInt* b) const
 {
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -444,7 +444,7 @@ BigInt* BigInt::bitwiseAnd(ExecutionState& state, BigInt* b)
     return new BigInt(r);
 }
 
-BigInt* BigInt::bitwiseOr(ExecutionState& state, BigInt* b)
+BigInt* BigInt::bitwiseOr(ExecutionState& state, const BigInt* b) const
 {
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -456,7 +456,7 @@ BigInt* BigInt::bitwiseOr(ExecutionState& state, BigInt* b)
     return new BigInt(r);
 }
 
-BigInt* BigInt::bitwiseXor(ExecutionState& state, BigInt* b)
+BigInt* BigInt::bitwiseXor(ExecutionState& state, const BigInt* b) const
 {
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -468,7 +468,7 @@ BigInt* BigInt::bitwiseXor(ExecutionState& state, BigInt* b)
     return new BigInt(r);
 }
 
-BigInt* BigInt::leftShift(ExecutionState& state, BigInt* src)
+BigInt* BigInt::leftShift(ExecutionState& state, BigInt* src) const
 {
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -498,7 +498,7 @@ BigInt* BigInt::leftShift(ExecutionState& state, BigInt* src)
     return new BigInt(r);
 }
 
-BigInt* BigInt::rightShift(ExecutionState& state, BigInt* src)
+BigInt* BigInt::rightShift(ExecutionState& state, BigInt* src) const
 {
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -531,7 +531,7 @@ BigInt* BigInt::rightShift(ExecutionState& state, BigInt* src)
     return new BigInt(r);
 }
 
-BigInt* BigInt::increment(ExecutionState& state)
+BigInt* BigInt::increment(ExecutionState& state) const
 {
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -543,7 +543,7 @@ BigInt* BigInt::increment(ExecutionState& state)
     return new BigInt(r);
 }
 
-BigInt* BigInt::decrement(ExecutionState& state)
+BigInt* BigInt::decrement(ExecutionState& state) const
 {
     bf_t r;
     bf_init(ThreadLocal::bfContext(), &r);
@@ -555,7 +555,7 @@ BigInt* BigInt::decrement(ExecutionState& state)
     return new BigInt(r);
 }
 
-BigInt* BigInt::bitwiseNot(ExecutionState& state)
+BigInt* BigInt::bitwiseNot(ExecutionState& state) const
 {
     // The abstract operation BigInt::bitwiseNOT with an argument x of BigInt type returns the one's complement of x; that is, -x - 1.
     bf_t r;
@@ -603,22 +603,22 @@ BigInt* BigInt::negativeValue()
     return new BigInt(r);
 }
 
-bool BigInt::isZero()
+bool BigInt::isZero() const
 {
     return bf_is_zero(&m_bf);
 }
 
-bool BigInt::isNaN()
+bool BigInt::isNaN() const
 {
     return bf_is_nan(&m_bf);
 }
 
-bool BigInt::isInfinity()
+bool BigInt::isInfinity() const
 {
     return !bf_is_finite(&m_bf);
 }
 
-bool BigInt::isNegative()
+bool BigInt::isNegative() const
 {
     return m_bf.sign;
 }
