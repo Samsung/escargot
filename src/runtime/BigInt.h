@@ -72,45 +72,45 @@ public:
     int64_t toInt64() const;
     uint64_t toUint64() const;
 
-    bool equals(BigInt* b);
-    bool equals(const BigIntData& b);
-    bool equals(String* s);
-    bool equals(double b);
+    bool equals(const BigInt* b) const;
+    bool equals(const BigIntData& b) const;
+    bool equals(String* s) const;
+    bool equals(double b) const;
 
-    bool lessThan(const BigIntData& b);
-    bool lessThanEqual(const BigIntData& b);
-    bool greaterThan(const BigIntData& b);
-    bool greaterThanEqual(const BigIntData& b);
+    bool lessThan(const BigIntData& b) const;
+    bool lessThanEqual(const BigIntData& b) const;
+    bool greaterThan(const BigIntData& b) const;
+    bool greaterThanEqual(const BigIntData& b) const;
 
-    bool lessThan(BigInt* b);
-    bool lessThanEqual(BigInt* b);
-    bool greaterThan(BigInt* b);
-    bool greaterThanEqual(BigInt* b);
+    bool lessThan(const BigInt* b) const;
+    bool lessThanEqual(const BigInt* b) const;
+    bool greaterThan(const BigInt* b) const;
+    bool greaterThanEqual(const BigInt* b) const;
 
     // Binary BigInt Operations
-    BigInt* addition(ExecutionState& state, BigInt* b);
-    BigInt* subtraction(ExecutionState& state, BigInt* b);
-    BigInt* multiply(ExecutionState& state, BigInt* b);
-    BigInt* division(ExecutionState& state, BigInt* b);
-    BigInt* remainder(ExecutionState& state, BigInt* b);
-    BigInt* pow(ExecutionState& state, BigInt* b);
-    BigInt* bitwiseAnd(ExecutionState& state, BigInt* b);
-    BigInt* bitwiseOr(ExecutionState& state, BigInt* b);
-    BigInt* bitwiseXor(ExecutionState& state, BigInt* b);
-    BigInt* leftShift(ExecutionState& state, BigInt* c);
-    BigInt* rightShift(ExecutionState& state, BigInt* c);
+    BigInt* addition(ExecutionState& state, const BigInt* b) const;
+    BigInt* subtraction(ExecutionState& state, const BigInt* b) const;
+    BigInt* multiply(ExecutionState& state, const BigInt* b) const;
+    BigInt* division(ExecutionState& state, const BigInt* b) const;
+    BigInt* remainder(ExecutionState& state, const BigInt* b) const;
+    BigInt* pow(ExecutionState& state, const BigInt* b) const;
+    BigInt* bitwiseAnd(ExecutionState& state, const BigInt* b) const;
+    BigInt* bitwiseOr(ExecutionState& state, const BigInt* b) const;
+    BigInt* bitwiseXor(ExecutionState& state, const BigInt* b) const;
+    BigInt* leftShift(ExecutionState& state, BigInt* c) const;
+    BigInt* rightShift(ExecutionState& state, BigInt* c) const;
 
     // Unary BigInt Operations
-    BigInt* increment(ExecutionState& state);
-    BigInt* decrement(ExecutionState& state);
-    BigInt* bitwiseNot(ExecutionState& state);
+    BigInt* increment(ExecutionState& state) const;
+    BigInt* decrement(ExecutionState& state) const;
+    BigInt* bitwiseNot(ExecutionState& state) const;
     BigInt* negativeValue(ExecutionState& state);
     BigInt* negativeValue();
 
-    bool isZero();
-    bool isNaN();
-    bool isInfinity();
-    bool isNegative();
+    bool isZero() const;
+    bool isNaN() const;
+    bool isInfinity() const;
+    bool isNegative() const;
 
     bf_t* bf()
     {
