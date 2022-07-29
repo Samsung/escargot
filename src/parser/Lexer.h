@@ -162,6 +162,8 @@ enum KeywordKind : uint8_t {
     NullKeyword,
     TrueKeyword,
     FalseKeyword,
+    GetKeyword,
+    SetKeyword,
     OfKeyword,
     AsyncKeyword,
     AwaitKeyword,
@@ -475,8 +477,12 @@ public:
         MAKE_STACK_ALLOCATED();
 
         static void* operator new(size_t, void* p) { return p; } // for VectorWithInlineStorage
-        unsigned char type : 4;
-        char prec : 8; // max prec is 11
+        uint8_t type;
+
+        union {
+            uint8_t secondaryKeywordKind;
+            uint8_t prec; // max prec is 11
+        };
 
         size_t lineNumber;
         size_t lineStart;
@@ -496,6 +502,12 @@ public:
         inline void reset()
         {
             this->type = InvalidToken;
+        }
+
+        bool equalsToKeyword(KeywordKind keywordKind) const
+        {
+            ASSERT(this->type == Token::IdentifierToken || this->type == BooleanLiteralToken || this->type == KeywordToken);
+            return (this->secondaryKeywordKind == keywordKind);
         }
 
         ParserStringView relatedSource(const ParserStringView& source) const;
