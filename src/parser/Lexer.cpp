@@ -423,6 +423,10 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
         return ctx->staticStrings().stringTrue;
     case FalseKeyword:
         return ctx->staticStrings().stringFalse;
+    case GetKeyword:
+        return ctx->staticStrings().get;
+    case SetKeyword:
+        return ctx->staticStrings().set;
     case OfKeyword:
         return ctx->staticStrings().of;
     case AsyncKeyword:
@@ -2080,6 +2084,11 @@ static ALWAYS_INLINE KeywordKind getKeyword(const StringBufferAccessData& data)
             break;
         }
         break;
+    case 'g':
+        if (length == 3 && data.equalsSameLength("get", 1)) {
+            return GetKeyword;
+        }
+        break;
     case 'i':
         switch (length) {
         case 2:
@@ -2155,15 +2164,25 @@ static ALWAYS_INLINE KeywordKind getKeyword(const StringBufferAccessData& data)
         }
         break;
     case 's':
-        if (length == 5 && data.equalsSameLength("super", 1)) {
-            return SuperKeyword;
-        } else if (length == 6) {
+        switch (length) {
+        case 3:
+            if (data.equalsSameLength("set", 1)) {
+                return SetKeyword;
+            }
+            break;
+        case 5:
+            if (data.equalsSameLength("super", 1)) {
+                return SuperKeyword;
+            }
+            break;
+        case 6:
             second = data.charAt(1);
             if (second == 'w' && data.equalsSameLength("switch", 2)) {
                 return SwitchKeyword;
             } else if (second == 't' && data.equalsSameLength("static", 2)) {
                 return StaticKeyword;
             }
+            break;
         }
         break;
     case 't':

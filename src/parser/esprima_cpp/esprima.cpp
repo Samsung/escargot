@@ -1235,9 +1235,9 @@ public:
     void validateParam(ParseFormalParametersResult& options, const Scanner::SmallScannerResult& param, AtomicString name)
     {
         ASSERT(param);
-        if (UNLIKELY(this->currentScopeContext->m_isGenerator && name.string()->equals("yield"))) {
+        if (UNLIKELY(this->currentScopeContext->m_isGenerator && param.equalsToKeyword(YieldKeyword))) {
             this->throwUnexpectedToken(param, Messages::UnexpectedToken);
-        } else if (UNLIKELY(this->currentScopeContext->m_isAsync && name.string()->equals("await"))) {
+        } else if (UNLIKELY(this->currentScopeContext->m_isAsync && param.equalsToKeyword(AwaitKeyword))) {
             this->throwUnexpectedToken(param, Messages::UnexpectedToken);
         }
 
@@ -1829,7 +1829,7 @@ public:
         if (token->type == Token::IdentifierToken) {
             this->nextToken();
             computed = this->match(LeftSquareBracket);
-            isAsync = !this->hasLineTerminator && (token->relatedSource(this->scanner->source) == "async") && !this->match(Colon) && !this->match(LeftParenthesis) && !this->match(Comma);
+            isAsync = !this->hasLineTerminator && token->equalsToKeywordNoEscape(AsyncKeyword) && !this->match(Colon) && !this->match(LeftParenthesis) && !this->match(Comma);
             if (isAsync) {
                 isGenerator = this->match(Multiply);
                 if (isGenerator) {
@@ -1852,21 +1852,17 @@ public:
         bool isGet = false;
         bool isSet = false;
         if (token->type == Token::IdentifierToken && !isAsync && lookaheadPropertyKey) {
-            ParserStringView sv = token->valueStringLiteral(this->scanner);
-            const auto& d = sv.bufferAccessData();
-            if (d.length == 3) {
-                if (d.equalsSameLength("get")) {
-                    isGet = true;
-                    // if token->hasAllocatedString is true, the token has escaped string like '\uxxet'
-                    if (UNLIKELY(token->hasAllocatedString)) {
-                        this->throwUnexpectedToken(*token, Messages::KeywordMustNotContainEscapedCharacters);
-                    }
-                } else if (d.equalsSameLength("set")) {
-                    isSet = true;
-                    // if token->hasAllocatedString is true, the token has escaped string like '\uxxet'
-                    if (UNLIKELY(token->hasAllocatedString)) {
-                        this->throwUnexpectedToken(*token, Messages::KeywordMustNotContainEscapedCharacters);
-                    }
+            if (token->equalsToKeyword(GetKeyword)) {
+                isGet = true;
+                // if token->hasAllocatedString is true, the token has escaped string like '\uxxet'
+                if (UNLIKELY(token->hasAllocatedString)) {
+                    this->throwUnexpectedToken(*token, Messages::KeywordMustNotContainEscapedCharacters);
+                }
+            } else if (token->equalsToKeyword(SetKeyword)) {
+                isSet = true;
+                // if token->hasAllocatedString is true, the token has escaped string like '\uxxet'
+                if (UNLIKELY(token->hasAllocatedString)) {
+                    this->throwUnexpectedToken(*token, Messages::KeywordMustNotContainEscapedCharacters);
                 }
             }
         }
@@ -3119,7 +3115,7 @@ public:
             bool isAsync = false;
             exprNode = this->parseConditionalExpression(builder);
 
-            if (token->type == Token::IdentifierToken && (token->lineNumber == this->lookahead.lineNumber) && token->relatedSource(this->scanner->source) == "async") {
+            if (token->type == Token::IdentifierToken && (token->lineNumber == this->lookahead.lineNumber) && token->equalsToKeywordNoEscape(AsyncKeyword)) {
                 if (this->lookahead.type == Token::IdentifierToken || this->matchKeyword(YieldKeyword)) {
                     ASTNode arg = this->parsePrimaryExpression(builder);
                     arg = builder.reinterpretExpressionAsPattern(arg);
@@ -3784,10 +3780,8 @@ public:
         } else if (token->type != Token::IdentifierToken) {
             if (this->context->strict && token->type == Token::KeywordToken && token->isStrictModeReservedWord()) {
                 this->throwUnexpectedToken(*token, Messages::StrictReservedWord);
-            } else {
-                if (this->context->strict || token->relatedSource(this->scanner->source) != "let" || (kind != VarKeyword)) {
-                    this->throwUnexpectedToken(*token);
-                }
+            } else if (this->context->strict || token->type != Token::KeywordToken || !token->equalsToKeywordNoEscape(LetKeyword) || kind != VarKeyword) {
+                this->throwUnexpectedToken(*token);
             }
         } else if ((this->sourceType == Module || this->currentScopeContext->m_isAsync) && token->type == Token::IdentifierToken && token->equalsToKeyword(AwaitKeyword)) {
             this->throwUnexpectedToken(*token);
@@ -4124,7 +4118,7 @@ public:
                     left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, VarKeyword));
                     this->nextToken();
                     type = statementTypeForIn;
-                } else if (declarationList.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource(this->scanner->source) == "of") {
+                } else if (declarationList.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.equalsToKeywordNoEscape(OfKeyword)) {
                     left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, VarKeyword));
                     this->nextToken();
                     type = statementTypeForOf;
@@ -4198,7 +4192,7 @@ public:
                             left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
                             this->nextToken();
                             type = statementTypeForIn;
-                        } else if (declarationList.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource(this->scanner->source) == "of") {
+                        } else if (declarationList.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.equalsToKeywordNoEscape(OfKeyword)) {
                             left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
                             this->nextToken();
                             type = statementTypeForOf;
@@ -4236,7 +4230,7 @@ public:
                     left = init;
                     init = nullptr;
                     type = statementTypeForIn;
-                } else if (this->lookahead.type == Token::IdentifierToken && this->lookahead.relatedSource(this->scanner->source) == "of") {
+                } else if (this->lookahead.type == Token::IdentifierToken && this->lookahead.equalsToKeywordNoEscape(OfKeyword)) {
                     if (!this->context->isAssignmentTarget || (initNodeType >= ASTNodeType::AssignmentExpression && initNodeType <= ASTNodeType::AssignmentExpressionSimple)) {
                         this->throwError(Messages::InvalidLHSInForLoop);
                     }
@@ -5780,7 +5774,7 @@ public:
                     keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
                 }
             }
-            if ((token->type == Token::IdentifierToken) && !this->hasLineTerminator && (token->relatedSource(this->scanner->source) == "async")) {
+            if ((token->type == Token::IdentifierToken) && !this->hasLineTerminator && (token->equalsToKeywordNoEscape(AsyncKeyword))) {
                 bool isPunctuator = this->lookahead.type == Token::PunctuatorToken;
                 PunctuatorKind punctuator = this->lookahead.valuePunctuatorKind;
                 isGenerator = isPunctuator && punctuator == Multiply;
@@ -5801,12 +5795,12 @@ public:
 
         bool lookaheadPropertyKey = this->qualifiedPropertyName(&this->lookahead) || this->match(PunctuatorKind::Hash);
         if (token->type == Token::IdentifierToken) {
-            if (token->valueStringLiteral(this->scanner) == "get" && lookaheadPropertyKey) {
+            if (token->equalsToKeyword(GetKeyword) && lookaheadPropertyKey) {
                 kind = ClassElementNode::Kind::Get;
                 computed = this->match(LeftSquareBracket);
                 keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
                 value = this->parseGetterMethod(builder, mayMethodStartNode);
-            } else if (token->valueStringLiteral(this->scanner) == "set" && lookaheadPropertyKey) {
+            } else if (token->equalsToKeyword(SetKeyword) && lookaheadPropertyKey) {
                 kind = ClassElementNode::Kind::Set;
                 computed = this->match(LeftSquareBracket);
                 keyNode = this->parseObjectPropertyKey(builder, !computed, &isPrivate);
