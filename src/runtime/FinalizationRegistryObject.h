@@ -37,6 +37,14 @@ public:
         FinalizationRegistryObject* source;
         Optional<Object*> unregisterToken;
 
+        void reset()
+        {
+            weakRefTarget = nullptr;
+            heldValue = Value();
+            source = nullptr;
+            unregisterToken.reset();
+        }
+
         void* operator new(size_t size);
         void* operator new[](size_t size) = delete;
     };
@@ -51,8 +59,9 @@ public:
         return true;
     }
 
-    void setCell(ExecutionState& state, Object* weakRefTarget, const Value& heldValue, Optional<Object*> unregisterToken);
-    bool deleteCell(ExecutionState& state, Object* unregisterToken);
+    void setCell(Object* weakRefTarget, const Value& heldValue, Optional<Object*> unregisterToken);
+    bool deleteCell(Object* unregisterToken);
+    bool deleteCellOnly(FinalizationRegistryObjectItem* item);
     void cleanupSome(ExecutionState& state, Optional<Object*> callback);
 
     void* operator new(size_t size);
@@ -61,9 +70,12 @@ public:
 private:
     static void finalizer(Object* self, void* data);
 
+    void tryToShrinkCells();
+
     Optional<Object*> m_cleanupCallback;
     Context* m_realm;
     FinalizationRegistryObjectCells m_cells;
+    size_t m_deletedCellCount;
 };
 } // namespace Escargot
 

@@ -1329,6 +1329,8 @@ protected:
 
     void markAsNonInlineCachable();
 
+    void tryToShrinkFinalizers();
+
     // redefine function used only for builtin installation
     void redefineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
 };

@@ -73,6 +73,22 @@ public:
         return *this;
     }
 
+    const TightVector<T, Allocator>& operator=(TightVector<T, Allocator>&& other)
+    {
+        if (&other == this)
+            return *this;
+
+        if (other.size()) {
+            m_size = other.size();
+            m_buffer = other.m_buffer;
+            other.m_buffer = nullptr;
+            other.m_size = 0;
+        } else {
+            clear();
+        }
+        return *this;
+    }
+
     TightVector(const TightVector<T, Allocator>& other, const T& newItem)
     {
         m_size = other.size() + 1;

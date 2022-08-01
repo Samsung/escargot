@@ -68,7 +68,7 @@ static Value builtinfinalizationRegistryRegister(ExecutionState& state, Value th
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "unregisterToken is not undefined");
         }
     }
-    finalRegistry->setCell(state, argv[0].asObject(), argv[1], unregisterToken);
+    finalRegistry->setCell(argv[0].asObject(), argv[1], unregisterToken);
     return Value();
 }
 
@@ -78,7 +78,7 @@ static Value builtinfinalizationRegistryUnregister(ExecutionState& state, Value 
     if (argc == 0 || !argv[0].isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "unregisterToken is not object");
     }
-    return Value(finalRegistry->deleteCell(state, argv[0].asObject()));
+    return Value(finalRegistry->deleteCell(argv[0].asObject()));
 }
 
 static Value builtinfinalizationRegistryCleanupSome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

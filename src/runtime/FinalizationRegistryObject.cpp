@@ -38,13 +38,17 @@ FinalizationRegistryObject::FinalizationRegistryObject(ExecutionState& state, Ob
     : DerivedObject(state, proto)
     , m_cleanupCallback(cleanupCallback)
     , m_realm(realm)
+    , m_deletedCellCount(0)
 {
     addFinalizer([](Object* self, void* data) {
         FinalizationRegistryObject* s = self->asFinalizationRegistryObject();
         for (size_t i = 0; i < s->m_cells.size(); i++) {
-            s->m_cells[i]->weakRefTarget->removeFinalizer(finalizer, s->m_cells[i]);
+            if (s->m_cells[i]->weakRefTarget) {
+                s->m_cells[i]->weakRefTarget->removeFinalizer(finalizer, s->m_cells[i]);
+            }
         }
         s->m_cells.clear();
+        s->m_deletedCellCount = 0;
     },
                  nullptr);
 }
@@ -65,30 +69,67 @@ void* FinalizationRegistryObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-void FinalizationRegistryObject::setCell(ExecutionState& state, Object* weakRefTarget, const Value& heldValue, Optional<Object*> unregisterToken)
+void FinalizationRegistryObject::setCell(Object* weakRefTarget, const Value& heldValue, Optional<Object*> unregisterToken)
 {
-    auto newCell = new FinalizationRegistryObjectItem();
+    ASSERT(!!weakRefTarget);
+    FinalizationRegistryObjectItem* newCell = nullptr;
+
+    if (m_deletedCellCount) {
+        for (size_t i = 0; i < m_cells.size(); i++) {
+            if (!m_cells[i]->weakRefTarget) {
+                newCell = m_cells[i];
+                m_deletedCellCount--;
+                break;
+            }
+        }
+    } else {
+        newCell = new FinalizationRegistryObjectItem();
+        m_cells.pushBack(newCell);
+    }
+
+    ASSERT(!!newCell);
     newCell->weakRefTarget = weakRefTarget;
     newCell->heldValue = heldValue;
     newCell->source = this;
     newCell->unregisterToken = unregisterToken;
-    m_cells.pushBack(newCell);
 
     weakRefTarget->addFinalizer(finalizer, newCell);
 }
 
-bool FinalizationRegistryObject::deleteCell(ExecutionState& state, Object* unregisterToken)
+bool FinalizationRegistryObject::deleteCell(Object* unregisterToken)
 {
+    ASSERT(!!unregisterToken);
     bool removed = false;
     for (size_t i = 0; i < m_cells.size(); i++) {
         if (m_cells[i]->unregisterToken.hasValue() && m_cells[i]->unregisterToken.value() == unregisterToken) {
+            ASSERT(!!m_cells[i]->weakRefTarget);
             m_cells[i]->weakRefTarget->removeFinalizer(finalizer, m_cells[i]);
-            m_cells.erase(i);
-            i--;
+            m_cells[i]->reset();
+            m_deletedCellCount++;
+
             removed = true;
         }
     }
+
+    tryToShrinkCells();
     return removed;
+}
+
+bool FinalizationRegistryObject::deleteCellOnly(FinalizationRegistryObjectItem* item)
+{
+    // delete cell only without removing finalizer in weakRefTarget
+    ASSERT(!!item);
+    for (size_t i = 0; i < m_cells.size(); i++) {
+        if (m_cells[i] == item) {
+            ASSERT(!!m_cells[i]->weakRefTarget);
+            m_cells[i]->reset();
+            m_deletedCellCount++;
+
+            tryToShrinkCells();
+            return true;
+        }
+    }
+    return false;
 }
 
 void FinalizationRegistryObject::cleanupSome(ExecutionState& state, Optional<Object*> callback)
@@ -117,32 +158,49 @@ void* FinalizationRegistryObject::FinalizationRegistryObjectItem::operator new(s
 
 void FinalizationRegistryObject::finalizer(Object* self, void* data)
 {
+    UNUSED_PARAMETER(self);
     FinalizationRegistryObjectItem* item = (FinalizationRegistryObjectItem*)data;
-    auto copyedCells = item->source->m_cells;
-    for (size_t i = 0; i < item->source->m_cells.size(); i++) {
-        if (self == item->source->m_cells[i]->weakRefTarget) {
-            item->source->m_cells.erase(i);
-            i--;
-        }
+
+    ASSERT(!!item->source);
+    if (item->source->m_cleanupCallback) {
+        SandBox sb(item->source->m_realm);
+        struct ExecutionData {
+            FinalizationRegistryObjectItem* item;
+        } ed;
+        ed.item = item;
+        sb.run([](ExecutionState& state, void* data) -> Value {
+            ExecutionData* ed = (ExecutionData*)data;
+            Value argv = ed->item->heldValue;
+            Object::call(state, ed->item->source->m_cleanupCallback.value(), Value(), 1, &argv);
+            return Value();
+        },
+               &ed);
     }
 
-    if (item->source->m_cleanupCallback) {
-        for (size_t i = 0; i < copyedCells.size(); i++) {
-            if (self == copyedCells[i]->weakRefTarget) {
-                SandBox sb(item->source->m_realm);
-                struct ExecutionData {
-                    FinalizationRegistryObjectItem* item;
-                } ed;
-                ed.item = item;
-                sb.run([](ExecutionState& state, void* data) -> Value {
-                    ExecutionData* ed = (ExecutionData*)data;
-                    Value argv = ed->item->heldValue;
-                    Object::call(state, ed->item->source->m_cleanupCallback.value(), Value(), 1, &argv);
-                    return Value();
-                },
-                       &ed);
+    // remove item from FinalizationRegistryObject
+    bool deleteResult = item->source->deleteCellOnly(item);
+    ASSERT(deleteResult);
+}
+
+void FinalizationRegistryObject::tryToShrinkCells()
+{
+    size_t oldSize = m_cells.size();
+    if (m_deletedCellCount > ((oldSize / 2) + 1)) {
+        ASSERT(m_deletedCellCount <= oldSize);
+        size_t newSize = oldSize - m_deletedCellCount;
+        FinalizationRegistryObjectCells newCells;
+        newCells.resizeWithUninitializedValues(newSize);
+
+        size_t j = 0;
+        for (size_t i = 0; i < oldSize; i++) {
+            if (m_cells[i]->weakRefTarget) {
+                newCells[j++] = m_cells[i];
             }
         }
+        ASSERT(j == newSize);
+
+        m_cells = std::move(newCells);
+        m_deletedCellCount = 0;
     }
 }
 

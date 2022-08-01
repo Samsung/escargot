@@ -2146,9 +2146,8 @@ void Object::addFinalizer(ObjectFinalizer fn, void* data)
 #endif
     }
 
-    if (UNLIKELY(r->m_removedFinalizerCount > 0)) {
-        // search backward
-        for (size_t i = r->m_finalizer.size() - 1; i >= 0; i--) {
+    if (UNLIKELY(r->m_removedFinalizerCount)) {
+        for (size_t i = 0; i < r->m_finalizer.size(); i++) {
             if (r->m_finalizer[i].first == nullptr) {
                 ASSERT(r->m_finalizer[i].second == nullptr);
                 r->m_finalizer[i].first = fn;
@@ -2171,10 +2170,38 @@ bool Object::removeFinalizer(ObjectFinalizer fn, void* data)
             r->m_finalizer[i].first = nullptr;
             r->m_finalizer[i].second = nullptr;
             r->m_removedFinalizerCount++;
+
+            tryToShrinkFinalizers();
             return true;
         }
     }
     return false;
+}
+
+void Object::tryToShrinkFinalizers()
+{
+    auto r = extendedExtraData();
+    auto oldFinalizer = r->m_finalizer;
+    size_t oldSize = oldFinalizer.size();
+    if (r->m_removedFinalizerCount > ((oldSize / 2) + 1)) {
+        ASSERT(r->m_removedFinalizerCount <= oldSize);
+        size_t newSize = oldSize - r->m_removedFinalizerCount;
+        TightVector<std::pair<ObjectFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<ObjectFinalizer, void*>>> newFinalizer;
+        newFinalizer.resizeWithUninitializedValues(newSize);
+
+        size_t j = 0;
+        for (size_t i = 0; i < oldSize; i++) {
+            if (oldFinalizer[i].first) {
+                newFinalizer[j].first = oldFinalizer[i].first;
+                newFinalizer[j].second = oldFinalizer[i].second;
+                j++;
+            }
+        }
+        ASSERT(j == newSize);
+
+        r->m_finalizer = std::move(newFinalizer);
+        r->m_removedFinalizerCount = 0;
+    }
 }
 
 Object::FastLookupSymbolResult Object::fastLookupForSymbol(ExecutionState& state, Symbol* s, Optional<Object*> protochainSearchStopAt)
