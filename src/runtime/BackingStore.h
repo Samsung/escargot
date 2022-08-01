@@ -44,9 +44,9 @@ public:
         ASSERT(!m_isUpdating && !!from);
         from->addFinalizer(objectFinalizer, this);
 
-        if (m_removedObserverCount > 0) {
+        if (m_removedObserverCount) {
             // search backward
-            for (size_t i = m_observerItems.size() - 1; i >= 0; i--) {
+            for (size_t i = 0; i < m_observerItems.size(); i++) {
                 if (m_observerItems[i].from == nullptr) {
                     ASSERT(m_observerItems[i].callback == nullptr);
                     ASSERT(m_observerItems[i].userData == nullptr);
