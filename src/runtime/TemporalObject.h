@@ -88,6 +88,7 @@ public:
     static TemporalObject::DateTime parseTemporalDateString(ExecutionState& state, const std::string& isoString);
     static TemporalObject::DateTime parseTemporalDateTimeString(ExecutionState& state, const std::string& isoString);
     static std::map<TemporalObject::DateTimeUnits, int> parseTemporalDurationString(ExecutionState& state, const std::string& isoString);
+    static TemporalObject::DateTime parseTemporalYearMonthString(ExecutionState& state, const std::string& isoString);
     static std::string getNNumberFromString(std::string& isoString, int n, unsigned int& index);
     static std::map<TemporalObject::DateTimeUnits, int> getSeconds(ExecutionState& state, std::string& isoString, unsigned int& index);
     static void offset(ExecutionState& state, std::string& isoString, unsigned int& index);
@@ -131,8 +132,10 @@ public:
     static Value toTemporalCalendarWithISODefault(ExecutionState& state, const Value& calendar);
     static Value getTemporalCalendarWithISODefault(ExecutionState& state, const Value& item);
     static Value dateFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options);
+    static Value calendarYearMonthFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options);
     static int toISOWeekOfYear(ExecutionState& state, int year, int month, int day);
     static Value parseTemporalCalendarString(ExecutionState& state, const Value& isoString);
+    static bool calendarEquals(const TemporalCalendar& firstCalendar, const TemporalCalendar& secondCalendar);
     static Value ISODaysInYear(ExecutionState& state, int year);
     static Value ISODaysInMonth(ExecutionState& state, int year, int month);
     static bool isIsoLeapYear(ExecutionState& state, int year);
@@ -148,6 +151,9 @@ public:
     }
 
     static int dayOfYear(ExecutionState& state, const Value& epochDays) { return DateObject::daysInYear(DateObject::makeDate(state, epochDays, Value(0)).toInt32(state)) + 1; }
+
+    bool operator==(const TemporalCalendar& rhs) const;
+    bool operator!=(const TemporalCalendar& rhs) const;
 
 private:
     String* m_identifier;
@@ -168,7 +174,7 @@ public:
     static bool isValidISODate(ExecutionState& state, int year, int month, int day);
     static Value toTemporalDate(ExecutionState& state, const Value& item, Optional<Object*> options = nullptr);
     static std::map<TemporalObject::DateTimeUnits, int> balanceISODate(ExecutionState& state, int year, int month, int day);
-
+    static int compareISODate(int firstYear, int firstMonth, int firstDay, int secondYear, int secondMonth, int secondDay);
 
     short year() const
     {
@@ -455,7 +461,34 @@ private:
 class TemporalPlainYearMonth : public Temporal {
 public:
     explicit TemporalPlainYearMonth(ExecutionState& state);
-    explicit TemporalPlainYearMonth(ExecutionState& state, Object* proto);
+    explicit TemporalPlainYearMonth(ExecutionState& state, Object* proto, int isoYear = 0, int isoMonth = 0, Object* calendar = nullptr, int referenceISODay = 0);
+
+    static Value createTemporalYearMonth(ExecutionState& state, int isoYear, int isoMonth, const Value& calendar, int referenceISODay, Optional<Object*> newTarget = nullptr);
+    static bool isoYearMonthWithinLimits(int isoYear, int isoMonth);
+    static Value toTemporalYearMonth(ExecutionState& state, const Value& item, const Value& options);
+
+    int getIsoYear() const
+    {
+        return m_isoYear;
+    }
+    int getIsoMonth() const
+    {
+        return m_isoMonth;
+    }
+    Object* getCalendar() const
+    {
+        return m_calendar;
+    }
+    int getReferenceIsoDay() const
+    {
+        return m_referenceISODay;
+    }
+
+private:
+    int m_isoYear;
+    int m_isoMonth;
+    Object* m_calendar;
+    int m_referenceISODay;
 };
 
 class TemporalTimeZone : public Temporal {

@@ -807,6 +807,7 @@ namespace Escargot {
     F(PlainDate, "PlainDate")                             \
     F(PlainDateTime, "PlainDateTime")                     \
     F(PlainTime, "PlainTime")                             \
+    F(PlainYearMonth, "PlainYearMonth")                   \
     F(Temporal, "Temporal")                               \
     F(blank, "blank")                                     \
     F(dateFromFields, "dateFromFields")                   \
@@ -851,6 +852,8 @@ namespace Escargot {
     F(timeZone, "timeZone")                               \
     F(toPlainDateTime, "toPlainDateTime")                 \
     F(weekOfYear, "weekOfYear")                           \
+    F(year, "year")                                       \
+    F(yearMonthFromFields, "yearMonthFromFields")         \
     F(years, "years")                                     \
     F(weeks, "weeks")                                     \
     F(zonedDateTimeISO, "zonedDateTimeISO")

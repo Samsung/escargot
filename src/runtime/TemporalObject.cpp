@@ -467,6 +467,10 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalObject::parseTemporalDurati
 
     return TemporalDuration::createDurationRecord(state, years * sign, months * sign, weeks * sign, days * sign, hours * sign, std::floor(minutesMV) * sign, std::floor(secondsMV) * sign, std::floor(milliSecondsMV) * sign, std::floor(microSecondsMV) * sign, std::floor(nanoSecondsMV) * sign);
 }
+TemporalObject::DateTime TemporalObject::parseTemporalYearMonthString(ExecutionState& state, const std::string& isoString)
+{
+    return TemporalObject::parseTemporalDateTimeString(state, isoString);
+}
 
 Value TemporalPlainTime::createTemporalTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, Optional<Object*> newTarget)
 {
@@ -983,6 +987,27 @@ int TemporalCalendar::toISOWeekOfYear(ExecutionState& state, const int year, con
     return weekNum;
 }
 
+Value TemporalCalendar::calendarYearMonthFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options)
+{
+    Value argv[] = { fields, options };
+    return Object::call(state, Object::getMethod(state, calendar, ObjectPropertyName(state.context()->staticStrings().lazyyearMonthFromFields())), calendar, 2, argv);
+}
+
+bool TemporalCalendar::calendarEquals(const TemporalCalendar& firstCalendar, const TemporalCalendar& secondCalendar)
+{
+    return &firstCalendar == &secondCalendar || firstCalendar.getIdentifier() == secondCalendar.getIdentifier();
+}
+
+bool TemporalCalendar::operator==(const TemporalCalendar& rhs) const
+{
+    return calendarEquals(*this, rhs);
+}
+
+bool TemporalCalendar::operator!=(const TemporalCalendar& rhs) const
+{
+    return !(rhs == *this);
+}
+
 bool TemporalPlainDate::isValidISODate(ExecutionState& state, const int year, const int month, const int day)
 {
     if (month < 1 || month > 12) {
@@ -1093,6 +1118,28 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalPlainDate::createISODateRec
 {
     ASSERT(TemporalPlainDate::isValidISODate(state, year, month, day));
     return { { TemporalObject::YEAR_UNIT, year }, { TemporalObject::MONTH_UNIT, month }, { TemporalObject::DAY_UNIT, day } };
+}
+
+int TemporalPlainDate::compareISODate(int firstYear, int firstMonth, int firstDay, int secondYear, int secondMonth, int secondDay)
+{
+    if (firstYear > secondYear) {
+        return 1;
+    } else if (firstYear < secondYear) {
+        return -1;
+    }
+
+    if (firstMonth > secondMonth) {
+        return 1;
+    } else if (firstMonth < secondMonth) {
+        return -1;
+    }
+
+    if (firstDay > secondDay) {
+        return 1;
+    } else if (firstDay < secondDay) {
+        return -1;
+    }
+    return 0;
 }
 
 TemporalPlainDateTime::TemporalPlainDateTime(ExecutionState& state)
@@ -1319,9 +1366,60 @@ TemporalPlainYearMonth::TemporalPlainYearMonth(ExecutionState& state)
 {
 }
 
-TemporalPlainYearMonth::TemporalPlainYearMonth(ExecutionState& state, Object* proto)
+TemporalPlainYearMonth::TemporalPlainYearMonth(ExecutionState& state, Object* proto, int isoYear, int isoMonth, Object* calendar, int referenceISODay)
     : Temporal(state, proto)
+    , m_isoYear(isoYear)
+    , m_isoMonth(isoMonth)
+    , m_calendar(calendar)
+    , m_referenceISODay(referenceISODay)
 {
+}
+
+Value TemporalPlainYearMonth::createTemporalYearMonth(ExecutionState& state, int isoYear, int isoMonth, const Value& calendar, int referenceISODay, Optional<Object*> newTarget)
+{
+    ASSERT(calendar.isObject());
+
+    if (!TemporalPlainDate::isValidISODate(state, isoYear, isoMonth, referenceISODay)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid date");
+    }
+
+    if (!TemporalPlainYearMonth::isoYearMonthWithinLimits(isoYear, isoMonth)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid date");
+    }
+
+    if (!newTarget.hasValue()) {
+        newTarget = state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalPlainYearMonthPrototype();
+    }
+
+    return new TemporalPlainYearMonth(state, newTarget.value(), isoYear, isoMonth, calendar.asObject(), referenceISODay);
+}
+
+bool TemporalPlainYearMonth::isoYearMonthWithinLimits(int isoYear, int isoMonth)
+{
+    return (isoYear > -271821 && isoYear < 275760) || (isoYear == -271821 && isoMonth < 4) || (isoYear == 275760 && isoMonth < 9);
+}
+
+Value TemporalPlainYearMonth::toTemporalYearMonth(ExecutionState& state, const Value& item, const Value& options)
+{
+    ASSERT(options.isObject() || options.isUndefined());
+
+    if (item.isObject()) {
+        if (item.asObject()->isTemporalPlainYearMonthObject()) {
+            return item;
+        }
+
+        auto calendar = TemporalCalendar::getTemporalCalendarWithISODefault(state, item);
+        auto fieldNames = TemporalCalendar::calendarFields(state, calendar, { new ASCIIString("month"), new ASCIIString("monthCode"), new ASCIIString("year") });
+        auto fields = Temporal::prepareTemporalFields(state, item, fieldNames, {});
+        return TemporalCalendar::calendarYearMonthFromFields(state, calendar, fields, options);
+    }
+
+    Temporal::toTemporalOverflow(state, options);
+    auto result = TemporalObject::parseTemporalYearMonthString(state, item.asString()->toNonGCUTF8StringData());
+    auto calendar = TemporalCalendar::toTemporalCalendarWithISODefault(state, Value(result.calendar.c_str()));
+    auto retVal = TemporalPlainYearMonth::createTemporalYearMonth(state, result.year, result.month, calendar, result.day);
+
+    return TemporalCalendar::calendarYearMonthFromFields(state, calendar, retVal, Value());
 }
 
 TemporalDuration::TemporalDuration(ExecutionState& state, int years = 0, int months = 0, int weeks = 0, int days = 0, int hours = 0, int minutes = 0, int seconds = 0, int milliseconds = 0, int microseconds = 0, int nanoseconds = 0)
