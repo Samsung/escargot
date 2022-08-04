@@ -805,6 +805,7 @@ namespace Escargot {
     F(ISO8601, "iso8601")                                 \
     F(Instant, "Instant")                                 \
     F(Now, "Now")                                         \
+    F(PlainMonthDay, "PlainMonthDay")                     \
     F(PlainDate, "PlainDate")                             \
     F(PlainDateTime, "PlainDateTime")                     \
     F(PlainTime, "PlainTime")                             \
@@ -847,6 +848,7 @@ namespace Escargot {
     F(minutes, "minutes")                                 \
     F(months, "months")                                   \
     F(monthCode, "monthCode")                             \
+    F(monthDayFromFields, "monthDayFromFields")           \
     F(monthsInYear, "monthsInYear")                       \
     F(nanosecond, "nanosecond")                           \
     F(nanoseconds, "nanoseconds")                         \
