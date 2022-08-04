@@ -34,7 +34,7 @@ public:
     {
     }
 
-    Temporal(ExecutionState& state, Object* temporalCalendar, Object* temporalCalendarPrototype, Object* temporalDurationPrototype, Object* temporalPlainDatePrototype, Object* temporalPlainTimePrototype, Object* temporalPlainDateTimePrototype, Object* temporalPlainYearMonthPrototype, Object* temporalInstantPrototype)
+    Temporal(ExecutionState& state, Object* temporalCalendar, Object* temporalCalendarPrototype, Object* temporalDurationPrototype, Object* temporalPlainDatePrototype, Object* temporalPlainTimePrototype, Object* temporalPlainDateTimePrototype, Object* temporalPlainYearMonthPrototype, Object* temporalInstantPrototype, Object* temporalPlainMonthDayPrototype)
         : DerivedObject(state)
         , m_temporalCalendar(temporalCalendar)
         , m_temporalCalendarPrototype(temporalCalendarPrototype)
@@ -44,6 +44,7 @@ public:
         , m_temporalPlainDateTimePrototype(temporalPlainDateTimePrototype)
         , m_temporalPlainYearMonthPrototype(temporalPlainYearMonthPrototype)
         , m_temporalInstantPrototype(temporalInstantPrototype)
+        , m_temporalPlainMonthDayPrototype(temporalPlainMonthDayPrototype)
     {
     }
 
@@ -75,6 +76,10 @@ public:
     Object* getTemporalPlainDateTimePrototype() const
     {
         return m_temporalPlainDateTimePrototype;
+    }
+    Object* getTemporalPlainMonthDayPrototype() const
+    {
+        return m_temporalPlainMonthDayPrototype;
     }
 
     Object* getTemporalPlainYearMonthPrototype() const
@@ -172,6 +177,7 @@ private:
     Object* m_temporalPlainDateTimePrototype;
     Object* m_temporalPlainYearMonthPrototype;
     Object* m_temporalInstantPrototype;
+    Object* m_temporalPlainMonthDayPrototype;
 };
 
 } // namespace Escargot
