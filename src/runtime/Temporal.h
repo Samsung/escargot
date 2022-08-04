@@ -34,7 +34,7 @@ public:
     {
     }
 
-    Temporal(ExecutionState& state, Object* temporalCalendar, Object* temporalCalendarPrototype, Object* temporalDurationPrototype, Object* temporalPlainDatePrototype, Object* temporalPlainTimePrototype, Object* temporalPlainDateTimePrototype)
+    Temporal(ExecutionState& state, Object* temporalCalendar, Object* temporalCalendarPrototype, Object* temporalDurationPrototype, Object* temporalPlainDatePrototype, Object* temporalPlainTimePrototype, Object* temporalPlainDateTimePrototype, Object* temporalPlainYearMonthPrototype)
         : DerivedObject(state)
         , m_temporalCalendar(temporalCalendar)
         , m_temporalCalendarPrototype(temporalCalendarPrototype)
@@ -42,6 +42,7 @@ public:
         , m_temporalPlainDatePrototype(temporalPlainDatePrototype)
         , m_temporalPlainTimePrototype(temporalPlainTimePrototype)
         , m_temporalPlainDateTimePrototype(temporalPlainDateTimePrototype)
+        , m_temporalPlainYearMonthPrototype(temporalPlainYearMonthPrototype)
     {
     }
 
@@ -68,6 +69,11 @@ public:
     Object* getTemporalPlainDateTimePrototype() const
     {
         return m_temporalPlainDateTimePrototype;
+    }
+
+    Object* getTemporalPlainYearMonthPrototype() const
+    {
+        return m_temporalPlainYearMonthPrototype;
     }
 
     bool isTemporalObject() const override
@@ -133,7 +139,7 @@ public:
     static void rejectObjectWithCalendarOrTimeZone(ExecutionState& state, const Value& object)
     {
         ASSERT(object.isObject());
-        if (object.asObject()->isTemporalPlainDateObject() || object.asObject()->isTemporalPlainDateTimeObject() || object.asObject()->isTemporalPlainTimeObject() || object.asObject()->isTemporalZonedDateTimeObject() || object.asObject()->isTemporalYearMonthObject() || object.asObject()->isTemporalMonthDayObject()) {
+        if (object.asObject()->isTemporalPlainDateObject() || object.asObject()->isTemporalPlainDateTimeObject() || object.asObject()->isTemporalPlainTimeObject() || object.asObject()->isTemporalZonedDateTimeObject() || object.asObject()->isTemporalPlainYearMonthObject() || object.asObject()->isTemporalMonthDayObject()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("Invalid type of Object"));
         }
 
@@ -153,6 +159,7 @@ private:
     Object* m_temporalPlainDatePrototype;
     Object* m_temporalPlainTimePrototype;
     Object* m_temporalPlainDateTimePrototype;
+    Object* m_temporalPlainYearMonthPrototype;
 };
 
 } // namespace Escargot

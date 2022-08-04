@@ -78,6 +78,7 @@ class TemporalPlainDateTime;
 class TemporalInstant;
 class TemporalCalendar;
 class TemporalDuration;
+class TemporalPlainYearMonth;
 class TypedArrayObject;
 class ModuleNamespaceObject;
 class SharedArrayBufferObject;
@@ -365,7 +366,7 @@ public:
         return false;
     }
 
-    virtual bool isTemporalYearMonthObject() const
+    virtual bool isTemporalPlainYearMonthObject() const
     {
         return false;
     }
@@ -676,6 +677,12 @@ public:
     {
         ASSERT(isTemporalDurationObject());
         return (TemporalDuration*)this;
+    }
+
+    TemporalPlainYearMonth* asTemporalPlainYearMonthObject()
+    {
+        ASSERT(isTemporalPlainYearMonthObject());
+        return (TemporalPlainYearMonth*)this;
     }
 
     TypedArrayObject* asTypedArrayObject()

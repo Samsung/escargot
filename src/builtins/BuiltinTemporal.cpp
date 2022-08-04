@@ -29,6 +29,14 @@
 namespace Escargot {
 #if defined(ESCARGOT_ENABLE_TEMPORAL)
 
+#define CHECK_TEMPORAL_OBJECT_HAS_YEAR_AND_MONTH(temporalDateLike) \
+    !(temporalDateLike.isObject() && (temporalDateLike.asObject()->isTemporalPlainDateObject() || temporalDateLike.asObject()->isTemporalPlainDateTimeObject() || temporalDateLike.asObject()->isTemporalPlainYearMonthObject()))
+
+#define CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, value)                                  \
+    if (!(value.isObject() && value.asObject()->isTemporalPlainYearMonthObject())) {   \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type"); \
+    }
+
 static void checkTemporalCalendar(ExecutionState& state, const Value& thisValue, unsigned long argc)
 {
     if (!(thisValue.isObject() && thisValue.asObject()->isTemporalCalendarObject())) {
@@ -591,6 +599,128 @@ static Value builtinTemporalDurationPrototypeAbs(ExecutionState& state, Value th
     return TemporalDuration::createTemporalDuration(state, std::abs(duration->getYear()), std::abs(duration->getMonth()), std::abs(duration->getWeek()), std::abs(duration->getDay()), std::abs(duration->getHour()), std::abs(duration->getMinute()), std::abs(duration->getSecond()), std::abs(duration->getMillisecond()), std::abs(duration->getMicrosecond()), std::abs(duration->getNanosecond()), nullptr);
 }
 
+static Value builtinTemporalPlainYearMonthConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
+    }
+
+    int referenceISODay = 1;
+
+    if (argc >= 4) {
+        if (argv[3].isInt32()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type");
+        }
+        referenceISODay = argv[3].asInt32();
+    }
+
+    return TemporalPlainYearMonth::createTemporalYearMonth(state, argv[0].asInt32(), argv[1].asInt32(), TemporalCalendar::toTemporalCalendarWithISODefault(state, argc >= 3 ? argv[2] : Value()), referenceISODay, newTarget);
+}
+
+static Value builtinTemporalPlainYearMonthFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    auto options = Temporal::getOptionsObject(state, argc == 2 ? argv[1] : Value());
+    if (argv[0].isObject() && argv[0].asObject()->isTemporalPlainYearMonthObject()) {
+        Temporal::toTemporalOverflow(state, options);
+        auto item = argv[0].asObject()->asTemporalPlainYearMonthObject();
+        return TemporalPlainYearMonth::createTemporalYearMonth(state, item->getIsoYear(), item->getIsoMonth(), item->getCalendar(), item->getReferenceIsoDay());
+    }
+    return TemporalPlainYearMonth::toTemporalYearMonth(state, argv[0], options);
+}
+
+static Value builtinTemporalPlainYearMonthCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    auto firstTemporalYearMonth = TemporalPlainYearMonth::toTemporalYearMonth(state, argv[0], Value()).asObject()->asTemporalPlainYearMonthObject();
+    auto secondTemporalYearMonth = TemporalPlainYearMonth::toTemporalYearMonth(state, argv[1], Value()).asObject()->asTemporalPlainYearMonthObject();
+    return Value(TemporalPlainDate::compareISODate(firstTemporalYearMonth->getIsoYear(), firstTemporalYearMonth->getIsoMonth(), firstTemporalYearMonth->getReferenceIsoDay(), secondTemporalYearMonth->getIsoYear(), secondTemporalYearMonth->getIsoMonth(), secondTemporalYearMonth->getReferenceIsoDay()));
+}
+
+static Value builtinTemporalPlainYearMonthCalendar(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar();
+}
+
+static Value builtinTemporalPlainYearMonthYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return TemporalCalendar::calendarYear(state, thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainYearMonthMonth(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return TemporalCalendar::calendarMonth(state, thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainYearMonthMonthCode(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return TemporalCalendar::calendarMonthCode(state, thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainYearMonthDay(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return TemporalCalendar::calendarDay(state, thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainYearMonthDayOfWeek(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return TemporalCalendar::calendarDayOfWeek(state, thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainYearMonthDayOfYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return TemporalCalendar::calendarDayOfYear(state, thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainYearMonthWeekOfYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return TemporalCalendar::calendarWeekOfYear(state, thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainYearMonthDaysInWeek(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return TemporalCalendar::calendarDaysInWeek(state, thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainYearMonthDaysInMonth(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return TemporalCalendar::calendarDaysInMonth(state, thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainYearMonthDaysInYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return TemporalCalendar::calendarDaysInYear(state, thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainYearMonthMonthsInYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return TemporalCalendar::calendarMonthsInYear(state, thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainYearMonthInLeapYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+    return TemporalCalendar::calendarInLeapYear(state, thisValue.asObject()->asTemporalPlainYearMonthObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainYearMonthPrototypeEquals(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    auto other = TemporalPlainYearMonth::toTemporalYearMonth(state, argv[0], Value()).asObject()->asTemporalPlainYearMonthObject();
+    auto yearMonth = thisValue.asObject()->asTemporalPlainYearMonthObject();
+
+    return Value(!(yearMonth->getIsoYear() != other->getIsoYear() || yearMonth->getIsoMonth() != other->getIsoMonth() || yearMonth->getReferenceIsoDay() != other->getReferenceIsoDay()) || yearMonth->getCalendar()->asTemporalCalendarObject() == other->getCalendar()->asTemporalCalendarObject());
+}
+
 static Value builtinTemporalCalendarConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
@@ -642,7 +772,7 @@ static Value builtinTemporalCalendarPrototypeYear(ExecutionState& state, Value t
     Value calendar = thisValue;
     ASSERT(calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));
     Value temporalDateLike = argv[0];
-    if (!(temporalDateLike.isObject() && (temporalDateLike.asObject()->isTemporalPlainDateObject() || temporalDateLike.asObject()->isTemporalPlainDateTimeObject() || temporalDateLike.asObject()->isTemporalYearMonthObject()))) {
+    if (CHECK_TEMPORAL_OBJECT_HAS_YEAR_AND_MONTH(temporalDateLike)) {
         temporalDateLike = TemporalPlainDate::toTemporalDate(state, temporalDateLike);
     }
 
@@ -654,7 +784,7 @@ static Value builtinTemporalCalendarPrototypeMonth(ExecutionState& state, Value 
     Value calendar = thisValue;
     ASSERT(calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));
     Value temporalDateLike = argv[0];
-    if (!(temporalDateLike.isObject() && (temporalDateLike.asObject()->isTemporalPlainDateObject() || temporalDateLike.asObject()->isTemporalPlainDateTimeObject() || temporalDateLike.asObject()->isTemporalYearMonthObject()))) {
+    if (CHECK_TEMPORAL_OBJECT_HAS_YEAR_AND_MONTH(temporalDateLike)) {
         temporalDateLike = TemporalPlainDate::toTemporalDate(state, temporalDateLike);
     }
 
@@ -666,7 +796,7 @@ static Value builtinTemporalCalendarPrototypeMonthCode(ExecutionState& state, Va
     Value calendar = thisValue;
     ASSERT(calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));
     Value temporalDateLike = argv[0];
-    if (!(temporalDateLike.isObject() && (temporalDateLike.asObject()->isTemporalPlainDateObject() || temporalDateLike.asObject()->isTemporalPlainDateTimeObject() || temporalDateLike.asObject()->isTemporalYearMonthObject()))) {
+    if (CHECK_TEMPORAL_OBJECT_HAS_YEAR_AND_MONTH(temporalDateLike)) {
         temporalDateLike = TemporalPlainDate::toTemporalDate(state, temporalDateLike);
     }
 
@@ -721,7 +851,7 @@ static Value builtinTemporalCalendarPrototypeDaysInMonth(ExecutionState& state, 
 
     TemporalPlainDate* temporalDate;
 
-    if (!argv[0].isObject() || !(argv[0].asObject()->isTemporalPlainDateObject() || argv[0].asObject()->isTemporalPlainDateTimeObject() || argv[0].asObject()->isTemporalYearMonthObject())) {
+    if (!argv[0].isObject() || !(argv[0].asObject()->isTemporalPlainDateObject() || argv[0].asObject()->isTemporalPlainDateTimeObject() || argv[0].asObject()->isTemporalPlainYearMonthObject())) {
         temporalDate = TemporalPlainDate::toTemporalDate(state, argv[0]).asObject()->asTemporalPlainDateObject();
     } else {
         temporalDate = argv[0].asObject()->asTemporalPlainDateObject();
@@ -736,7 +866,7 @@ static Value builtinTemporalCalendarPrototypeDaysInYear(ExecutionState& state, V
 
     TemporalPlainDate* temporalDate;
 
-    if (!argv[0].isObject() || !(argv[0].asObject()->isTemporalPlainDateObject() || argv[0].asObject()->isTemporalPlainDateTimeObject() || argv[0].asObject()->isTemporalYearMonthObject())) {
+    if (!argv[0].isObject() || !(argv[0].asObject()->isTemporalPlainDateObject() || argv[0].asObject()->isTemporalPlainDateTimeObject() || argv[0].asObject()->isTemporalPlainYearMonthObject())) {
         temporalDate = TemporalPlainDate::toTemporalDate(state, argv[0]).asObject()->asTemporalPlainDateObject();
     } else {
         temporalDate = argv[0].asObject()->asTemporalPlainDateObject();
@@ -749,7 +879,7 @@ static Value builtinTemporalCalendarPrototypeMonthsInYear(ExecutionState& state,
 {
     checkTemporalCalendar(state, thisValue, argc);
 
-    if (!argv[0].isObject() || !(argv[0].asObject()->isTemporalPlainDateObject() || argv[0].asObject()->isTemporalPlainDateTimeObject() || argv[0].asObject()->isTemporalYearMonthObject())) {
+    if (!argv[0].isObject() || !(argv[0].asObject()->isTemporalPlainDateObject() || argv[0].asObject()->isTemporalPlainDateTimeObject() || argv[0].asObject()->isTemporalPlainYearMonthObject())) {
         TemporalPlainDate::toTemporalDate(state, argv[0]);
     }
 
@@ -761,7 +891,7 @@ static Value builtinTemporalCalendarInLeapYear(ExecutionState& state, Value this
     Value calendar = thisValue;
     ASSERT(calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));
     Value temporalDateLike = argv[0];
-    if (!temporalDateLike.isObject() || !(temporalDateLike.asObject()->isTemporalPlainDateObject() || temporalDateLike.asObject()->isTemporalPlainDateTimeObject() || temporalDateLike.asObject()->isTemporalYearMonthObject())) {
+    if (!temporalDateLike.isObject() || !(temporalDateLike.asObject()->isTemporalPlainDateObject() || temporalDateLike.asObject()->isTemporalPlainDateTimeObject() || temporalDateLike.asObject()->isTemporalPlainYearMonthObject())) {
         temporalDateLike = TemporalPlainDate::toTemporalDate(state, temporalDateLike);
     }
 
@@ -1192,6 +1322,103 @@ void GlobalObject::installTemporal(ExecutionState& state)
     temporalDuration->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalDurationFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
 
+    auto temporalPlainYearMonth = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyPlainYearMonth(), builtinTemporalPlainYearMonthConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__);
+    temporalPlainYearMonth->setGlobalIntrinsicObject(state);
+
+    auto temporalPlainYearMonthPrototype = new PrototypeObject(state);
+    temporalPlainYearMonthPrototype->setGlobalIntrinsicObject(state, true);
+
+    temporalPlainYearMonth->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
+                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalPlainYearMonthFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalPlainYearMonth->directDefineOwnProperty(state, ObjectPropertyName(strings->compare),
+                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->compare, builtinTemporalPlainYearMonthCompare, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    JSGetterSetter yearMonthCalendarGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->calendar, builtinTemporalPlainYearMonthCalendar, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthCalendarDesc(yearMonthCalendarGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), yearMonthCalendarDesc);
+
+    JSGetterSetter yearMonthYearGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyYear(), builtinTemporalPlainYearMonthYear, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthYearDesc(yearMonthYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYear()), yearMonthYearDesc);
+
+    JSGetterSetter yearMonthMonthGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonth(), builtinTemporalPlainYearMonthMonth, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthMonthDesc(yearMonthMonthGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonth()), yearMonthMonthDesc);
+
+    JSGetterSetter yearMonthMonthCodeGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazymonthCode(), builtinTemporalPlainYearMonthMonthCode, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthMonthCodeDesc(yearMonthMonthCodeGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazymonthCode()), yearMonthMonthCodeDesc);
+
+    JSGetterSetter yearMonthDayGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDay(), builtinTemporalPlainYearMonthDay, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthDayDesc(yearMonthDayGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()), yearMonthDayDesc);
+
+    JSGetterSetter yearMonthDayOfWeekGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazydayOfWeek(), builtinTemporalPlainYearMonthDayOfWeek, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthDayOfWeekDesc(yearMonthDayOfWeekGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazydayOfWeek()), yearMonthDayOfWeekDesc);
+
+    JSGetterSetter yearMonthDayOfYearGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazydayOfYear(), builtinTemporalPlainYearMonthDayOfYear, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthDayOfYearDesc(yearMonthDayOfYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazydayOfYear()), yearMonthDayOfYearDesc);
+
+    JSGetterSetter yearMonthWeekOfYearGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyweekOfYear(), builtinTemporalPlainYearMonthWeekOfYear, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthWeekOfYearDesc(yearMonthWeekOfYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyweekOfYear()), yearMonthWeekOfYearDesc);
+
+    JSGetterSetter yearMonthDaysInWeekGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazydaysInWeek(), builtinTemporalPlainYearMonthDaysInWeek, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthDaysInWeekDesc(yearMonthDaysInWeekGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazydaysInWeek()), yearMonthDaysInWeekDesc);
+
+    JSGetterSetter yearMonthDaysInMonthGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazydaysInMonth(), builtinTemporalPlainYearMonthDaysInMonth, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthDaysInMonthDesc(yearMonthDaysInMonthGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazydaysInMonth()), yearMonthDaysInMonthDesc);
+
+    JSGetterSetter yearMonthDaysInYearGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazydaysInYear(), builtinTemporalPlainYearMonthDaysInYear, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthDaysInYearDesc(yearMonthDaysInYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazydaysInYear()), yearMonthDaysInYearDesc);
+
+    JSGetterSetter yearMonthMonthsInYearGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazymonthsInYear(), builtinTemporalPlainYearMonthMonthsInYear, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthMonthsInYearDesc(yearMonthMonthsInYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazymonthsInYear()), yearMonthMonthsInYearDesc);
+
+    JSGetterSetter yearMonthInLeapYearGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyinLeapYear(), builtinTemporalPlainYearMonthInLeapYear, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor yearMonthInLeapYearDesc(yearMonthInLeapYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyinLeapYear()), yearMonthInLeapYearDesc);
+
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalPlainYearMonth, (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyequals()),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyequals(), builtinTemporalPlainYearMonthPrototypeEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalPlainYearMonth->setFunctionPrototype(state, temporalPlainYearMonthPrototype);
+
     auto temporalCalendar = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCalendar(), builtinTemporalCalendarConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     temporalCalendar->setGlobalIntrinsicObject(state);
 
@@ -1282,7 +1509,7 @@ void GlobalObject::installTemporal(ExecutionState& state)
     temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toJSON),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toJSON, builtinTemporalCalendarToJSON, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_temporal = new Temporal(state, temporalCalendar, temporalCalendarPrototype, temporalDurationPrototype, temporalPlainDatePrototype, temporalPlainTimePrototype, temporalPlainDateTimePrototype);
+    m_temporal = new Temporal(state, temporalCalendar, temporalCalendarPrototype, temporalDurationPrototype, temporalPlainDatePrototype, temporalPlainTimePrototype, temporalPlainDateTimePrototype, temporalPlainYearMonthPrototype);
     m_temporal->setGlobalIntrinsicObject(state);
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
@@ -1302,6 +1529,9 @@ void GlobalObject::installTemporal(ExecutionState& state)
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDuration()),
                                         ObjectPropertyDescriptor(temporalDuration, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyPlainYearMonth()),
+                                        ObjectPropertyDescriptor(temporalPlainYearMonth, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCalendar()),
                                         ObjectPropertyDescriptor(temporalCalendar, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
