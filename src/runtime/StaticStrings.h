@@ -803,6 +803,7 @@ namespace Escargot {
     F(DateTime, "DateTime")                               \
     F(Duration, "Duration")                               \
     F(ISO8601, "iso8601")                                 \
+    F(Instant, "Instant")                                 \
     F(Now, "Now")                                         \
     F(PlainDate, "PlainDate")                             \
     F(PlainDateTime, "PlainDateTime")                     \
@@ -817,8 +818,16 @@ namespace Escargot {
     F(daysInWeek, "daysInWeek")                           \
     F(dayOfWeek, "dayOfWeek")                             \
     F(dayOfYear, "dayOfYear")                             \
+    F(epochMicroseconds, "epochMicroseconds")             \
+    F(epochMilliseconds, "epochMilliseconds")             \
+    F(epochNanoseconds, "epochNanoseconds")               \
+    F(epochSeconds, "epochSeconds")                       \
     F(equals, "equals")                                   \
     F(fields, "fields")                                   \
+    F(fromEpochMicroseconds, "fromEpochMicroseconds")     \
+    F(fromEpochMilliseconds, "fromEpochMilliseconds")     \
+    F(fromEpochNanoseconds, "fromEpochNanoseconds")       \
+    F(fromEpochSeconds, "fromEpochSeconds")               \
     F(getISOFields, "getISOFields")                       \
     F(getOffsetNanosecondsFor, "getOffsetNanosecondsFor") \
     F(hours, "hours")                                     \

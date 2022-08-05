@@ -64,6 +64,10 @@ public:
         int microsecond;
         int nanosecond;
         std::string calendar;
+
+        std::string z;
+        std::string offsetString;
+        std::string name;
     };
 
     enum DateTimeUnits {
@@ -84,14 +88,15 @@ public:
     static Value toISODateTime(ExecutionState& state, DateObject& d);
     static Value toISODate(ExecutionState& state, DateObject& d);
     static Value toISOTime(ExecutionState& state, DateObject& d);
-    static TemporalObject::DateTime parseValidIso8601String(ExecutionState& state, std::string isoString);
+    static TemporalObject::DateTime parseValidIso8601String(ExecutionState& state, std::string isoString, bool parseTimeZone);
+    static TemporalObject::DateTime parseTemporalInstantString(ExecutionState& state, const std::string& isoString);
     static TemporalObject::DateTime parseTemporalDateString(ExecutionState& state, const std::string& isoString);
     static TemporalObject::DateTime parseTemporalDateTimeString(ExecutionState& state, const std::string& isoString);
     static std::map<TemporalObject::DateTimeUnits, int> parseTemporalDurationString(ExecutionState& state, const std::string& isoString);
     static TemporalObject::DateTime parseTemporalYearMonthString(ExecutionState& state, const std::string& isoString);
     static std::string getNNumberFromString(std::string& isoString, int n, unsigned int& index);
     static std::map<TemporalObject::DateTimeUnits, int> getSeconds(ExecutionState& state, std::string& isoString, unsigned int& index);
-    static void offset(ExecutionState& state, std::string& isoString, unsigned int& index);
+    static std::string offset(ExecutionState& state, std::string& isoString, unsigned int& index);
     static std::string tzComponent(ExecutionState& state, std::string& isoString, unsigned int& index);
     static bool isNumber(const std::string& s)
     {
@@ -260,7 +265,7 @@ public:
         return true;
     }
 
-    static Value getEpochFromISOParts(ExecutionState& state, int year, int month, int day, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond);
+    static uint64_t getEpochFromISOParts(ExecutionState& state, int year, int month, int day, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond);
     static bool ISODateTimeWithinLimits(ExecutionState& state, int year, int month, int day, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond);
     static std::map<TemporalObject::DateTimeUnits, std::string> interpretTemporalDateTimeFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options);
     static Value toTemporalDateTime(ExecutionState& state, const Value& item, const Value& options = Value());
@@ -433,11 +438,22 @@ private:
 
 class TemporalInstant : public Temporal {
 public:
+    static const int64_t HourToNanosecond = 3600000000000;
+    static const int64_t MinuteToNanosecond = 60000000000;
+    static const int64_t SecondToNanosecond = 1000000000;
+    static const int64_t MillisecondToNanosecond = 1000000;
+    static const int64_t MicrosecondToNanosecond = 1000;
+
     explicit TemporalInstant(ExecutionState& state);
     explicit TemporalInstant(ExecutionState& state, Object* proto);
 
     static bool isValidEpochNanoseconds(const Value& epochNanoseconds);
     static Value createTemporalInstant(ExecutionState& state, const Value& epochNanoseconds, Optional<Object*> newTarget = nullptr);
+    static Value toTemporalInstant(ExecutionState& state, const Value& item);
+    static Value parseTemporalInstant(ExecutionState& state, const std::string& isoString);
+    static int compareEpochNanoseconds(ExecutionState& state, const BigInt& firstNanoSeconds, const BigInt& secondNanoSeconds);
+
+    static int64_t offsetStringToNanoseconds(ExecutionState& state, const std::string& offsetString);
 
     bool isTemporalInstantObject() const override
     {
