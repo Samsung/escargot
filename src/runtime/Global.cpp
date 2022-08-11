@@ -43,9 +43,7 @@ std::vector<Global::Waiter*> Global::g_waiter;
 
 void Global::initialize(Platform* platform)
 {
-    // initialize should be invoked only once in the thread
-    static MAY_THREAD_LOCAL bool called_once = true;
-    RELEASE_ASSERT(called_once && !inited);
+    RELEASE_ASSERT(!inited);
 
     ASSERT(!g_platform);
     g_platform = platform;
@@ -71,15 +69,12 @@ void Global::initialize(Platform* platform)
     }
 #endif
 
-    called_once = false;
     inited = true;
 }
 
 void Global::finalize()
 {
-    // finalize should be invoked only once in the thread
-    static MAY_THREAD_LOCAL bool called_once = true;
-    RELEASE_ASSERT(called_once && inited);
+    RELEASE_ASSERT(inited);
 
 #if defined(ENABLE_THREADING)
     if (g_initCount.fetch_sub(1) == 1) {
@@ -93,7 +88,6 @@ void Global::finalize()
     delete g_platform;
     g_platform = nullptr;
 
-    called_once = false;
     inited = false;
 }
 
