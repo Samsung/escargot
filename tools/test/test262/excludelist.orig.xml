@@ -1003,9 +1003,7 @@
     <test id="built-ins/Temporal/Instant/prototype/add/result-out-of-range"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/add/subclassing-ignored"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/builtin"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/epochMicroseconds/basic"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/epochMilliseconds/basic"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/epochNanoseconds/basic"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/epochSeconds/basic"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/equals/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/equals/argument-zoneddatetime"><reason>TODO</reason></test>
@@ -1016,7 +1014,6 @@
     <test id="built-ins/Temporal/Instant/prototype/round/builtin"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/round/length"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/round/name"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/round/options-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/round/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/round/roundingincrement-nan"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/round/roundingincrement-non-integer"><reason>TODO</reason></test>
@@ -1838,7 +1835,6 @@
     <test id="built-ins/Temporal/PlainMonthDay/basic"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainMonthDay/calendar-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainMonthDay/calendar-temporal-object"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainMonthDay/calendar-undefined"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainMonthDay/from/calendar-fields-iterable"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainMonthDay/from/calendar-temporal-object"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainMonthDay/from/fields-leap-day"><reason>TODO</reason></test>

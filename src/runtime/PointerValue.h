@@ -70,16 +70,18 @@ class GeneratorObject;
 class AsyncGeneratorObject;
 class AsyncFromSyncIteratorObject;
 class GlobalObjectProxyObject;
+#if defined(ESCARGOT_ENABLE_TEMPORAL)
 class TemporalObject;
-class TemporalPlainDate;
-class TemporalZonedDateTime;
-class TemporalPlainTime;
-class TemporalPlainDateTime;
-class TemporalInstant;
-class TemporalCalendar;
-class TemporalDuration;
-class TemporalPlainYearMonth;
-class TemporalPlainMonthDay;
+class TemporalPlainDateObject;
+class TemporalZonedDateTimeObject;
+class TemporalPlainTimeObject;
+class TemporalPlainDateTimeObject;
+class TemporalInstantObject;
+class TemporalCalendarObject;
+class TemporalDurationObject;
+class TemporalPlainYearMonthObject;
+class TemporalPlainMonthDayObject;
+#endif
 class TypedArrayObject;
 class ModuleNamespaceObject;
 class SharedArrayBufferObject;
@@ -332,6 +334,7 @@ public:
         return false;
     }
 
+#if defined(ESCARGOT_ENABLE_TEMPORAL)
     virtual bool isTemporalObject() const
     {
         return false;
@@ -386,6 +389,7 @@ public:
     {
         return false;
     }
+#endif
 
     virtual bool isTypedArrayObject() const
     {
@@ -637,65 +641,67 @@ public:
         return (FunctionObject*)this;
     }
 
+#if defined(ESCARGOT_ENABLE_TEMPORAL)
     TemporalObject* asTemporalObject()
     {
         ASSERT(isTemporalObject());
         return (TemporalObject*)this;
     }
 
-    TemporalCalendar* asTemporalCalendarObject()
+    TemporalCalendarObject* asTemporalCalendarObject()
     {
         ASSERT(isTemporalCalendarObject());
-        return (TemporalCalendar*)this;
+        return (TemporalCalendarObject*)this;
     }
 
-    TemporalPlainDate* asTemporalPlainDateObject()
+    TemporalPlainDateObject* asTemporalPlainDateObject()
     {
         ASSERT(isTemporalPlainDateObject());
-        return (TemporalPlainDate*)this;
+        return (TemporalPlainDateObject*)this;
     }
 
-    TemporalPlainTime* asTemporalPlainTimeObject()
+    TemporalPlainTimeObject* asTemporalPlainTimeObject()
     {
         ASSERT(isTemporalPlainTimeObject());
-        return (TemporalPlainTime*)this;
+        return (TemporalPlainTimeObject*)this;
     }
 
-    TemporalZonedDateTime* asTemporalZonedDateTimeObject()
+    TemporalZonedDateTimeObject* asTemporalZonedDateTimeObject()
     {
         ASSERT(isTemporalZonedDateTimeObject());
-        return (TemporalZonedDateTime*)this;
+        return (TemporalZonedDateTimeObject*)this;
     }
 
-    TemporalPlainDateTime* asTemporalPlainDateTimeObject()
+    TemporalPlainDateTimeObject* asTemporalPlainDateTimeObject()
     {
         ASSERT(isTemporalPlainDateTimeObject());
-        return (TemporalPlainDateTime*)this;
+        return (TemporalPlainDateTimeObject*)this;
     }
 
-    TemporalInstant* asTemporalInstantObject()
+    TemporalInstantObject* asTemporalInstantObject()
     {
         ASSERT(isTemporalInstantObject());
-        return (TemporalInstant*)this;
+        return (TemporalInstantObject*)this;
     }
 
-    TemporalDuration* asTemporalDurationObject()
+    TemporalDurationObject* asTemporalDurationObject()
     {
         ASSERT(isTemporalDurationObject());
-        return (TemporalDuration*)this;
+        return (TemporalDurationObject*)this;
     }
 
-    TemporalPlainYearMonth* asTemporalPlainYearMonthObject()
+    TemporalPlainYearMonthObject* asTemporalPlainYearMonthObject()
     {
         ASSERT(isTemporalPlainYearMonthObject());
-        return (TemporalPlainYearMonth*)this;
+        return (TemporalPlainYearMonthObject*)this;
     }
 
-    TemporalPlainMonthDay* asTemporalPlainMonthDayObject()
+    TemporalPlainMonthDayObject* asTemporalPlainMonthDayObject()
     {
         ASSERT(isTemporalPlainMonthDayObject());
-        return (TemporalPlainMonthDay*)this;
+        return (TemporalPlainMonthDayObject*)this;
     }
+#endif
 
     TypedArrayObject* asTypedArrayObject()
     {
