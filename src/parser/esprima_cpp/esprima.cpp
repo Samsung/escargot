@@ -606,7 +606,7 @@ public:
                 if (token.type == Token::KeywordToken) {
                     if (this->scanner->isFutureReservedWord(token.relatedSource(this->scanner->source))) {
                         msg = Messages::UnexpectedReserved;
-                    } else if (this->context->strict && this->scanner->isStrictModeReservedWord(token.relatedSource(this->scanner->source))) {
+                    } else if (this->context->strict && token.isStrictModeReservedWord()) {
                         msg = Messages::StrictReservedWord;
                     }
                 }
@@ -1242,7 +1242,7 @@ public:
         }
 
         if (this->context->strict) {
-            if (this->scanner->isRestrictedWord(name)) {
+            if (param.isRestrictedWord()) {
                 options.stricted = param;
                 options.message = Messages::StrictParamName;
             }
@@ -1251,10 +1251,10 @@ public:
                 options.message = Messages::StrictParamDupe;
             }
         } else if (!options.firstRestricted) {
-            if (this->scanner->isRestrictedWord(name)) {
+            if (param.isRestrictedWord()) {
                 options.firstRestricted = param;
                 options.message = Messages::StrictParamName;
-            } else if (this->scanner->isStrictModeReservedWord(name)) {
+            } else if (param.isStrictModeReservedWord()) {
                 options.firstRestricted = param;
                 options.message = Messages::StrictReservedWord;
             } else if (std::find(options.paramSet.begin(), options.paramSet.end(), name) != options.paramSet.end()) {
@@ -2022,9 +2022,7 @@ public:
                 this->throwUnexpectedToken(*token);
             }
 
-            AtomicString name;
-            name = keyNode->asIdentifier()->name();
-            if (this->scanner->isRestrictedWord(name)) {
+            if (token->isRestrictedWord()) {
                 this->context->hasRestrictedWordInArrayOrObjectInitializer = true;
             }
         }
@@ -2704,7 +2702,7 @@ public:
             if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
                 this->throwError(Messages::InvalidLHSInAssignment);
             }
-            if (this->context->strict && exprNode->type() == Identifier && this->scanner->isRestrictedWord(exprNode->asIdentifier()->name())) {
+            if (this->context->strict && exprNode->type() == Identifier && Scanner::isRestrictedWord(escargotContext, exprNode->asIdentifier()->name())) {
                 this->throwError(Messages::StrictLHSPrefix);
             }
 
@@ -2736,7 +2734,7 @@ public:
                 if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
                     this->throwError(Messages::InvalidLHSInAssignment);
                 }
-                if (this->context->strict && exprNode->isIdentifier() && this->scanner->isRestrictedWord(exprNode->asIdentifier()->name())) {
+                if (this->context->strict && exprNode->isIdentifier() && Scanner::isRestrictedWord(escargotContext, exprNode->asIdentifier()->name())) {
                     this->throwError(Messages::StrictLHSPostfix);
                 }
                 if (!this->context->isAssignmentTarget && this->context->strict) {
@@ -3246,7 +3244,7 @@ public:
                 // FIXME reinterpretAsCoverFormalsList
                 if (type == Identifier) {
                     ASSERT(exprNode->isIdentifier());
-                    this->validateParam(list, this->lookahead, exprNode->asIdentifier()->name());
+                    this->validateParam(list, *token, exprNode->asIdentifier()->name());
                     list.params.push_back(builder.convertToParameterSyntaxNode(exprNode));
                     this->currentScopeContext->m_isAsync = isAsync;
                 } else {
@@ -3339,12 +3337,8 @@ public:
             } else {
                 // check if restricted words are used as target in array/object initializer
                 if (checkLeftHasRestrictedWord) {
-                    if (this->context->strict && type == Identifier) {
-                        AtomicString name;
-                        name = exprNode->asIdentifier()->name();
-                        if (this->scanner->isRestrictedWord(name)) {
-                            this->context->hasRestrictedWordInArrayOrObjectInitializer = true;
-                        }
+                    if (this->context->strict && type == Identifier && Scanner::isRestrictedWord(escargotContext, exprNode->asIdentifier()->name())) {
+                        this->context->hasRestrictedWordInArrayOrObjectInitializer = true;
                     }
                 }
                 if (this->matchAssign()) {
@@ -3368,10 +3362,9 @@ public:
                     if (this->context->strict) {
                         if (type == Identifier) {
                             AtomicString name = exprNode->asIdentifier()->name();
-                            if (this->scanner->isRestrictedWord(name)) {
+                            if (Scanner::isRestrictedWord(escargotContext, name)) {
                                 this->throwUnexpectedToken(*token, Messages::StrictLHSAssignment);
-                            }
-                            if (this->scanner->isStrictModeReservedWord(name)) {
+                            } else if (Scanner::isStrictModeReservedWord(escargotContext, name)) {
                                 this->throwUnexpectedToken(*token, Messages::StrictReservedWord);
                             }
                         } else if (type == ArrayExpression || type == ObjectExpression) {
@@ -3777,7 +3770,7 @@ public:
         }
 
         // ECMA-262 12.2.1
-        if (this->context->strict && isIdentifier && this->scanner->isRestrictedWord(name)) {
+        if (this->context->strict && isIdentifier && Scanner::isRestrictedWord(escargotContext, name)) {
             this->throwError(Messages::StrictVarName);
         }
 
@@ -3941,7 +3934,7 @@ public:
         }
 
         // ECMA-262 12.2.1
-        if (this->context->strict && isIdentifier && this->scanner->isRestrictedWord(name)) {
+        if (this->context->strict && isIdentifier && Scanner::isRestrictedWord(escargotContext, name)) {
             this->throwError(Messages::StrictVarName);
         }
 
@@ -4732,7 +4725,7 @@ public:
             ASTNode param = this->parsePattern(builder, params, KeywordKind::LetKeyword);
 
             if (this->context->strict && param->type() == Identifier) {
-                if (this->scanner->isRestrictedWord(param->asIdentifier()->name())) {
+                if (Scanner::isRestrictedWord(escargotContext, param->asIdentifier()->name())) {
                     this->throwError(Messages::StrictCatchVariable);
                 }
             }
@@ -5163,11 +5156,11 @@ public:
             id = this->parseVariableIdentifier(builder);
 
             if (this->context->strict) {
-                if (this->scanner->isRestrictedWord(token->relatedSource(this->scanner->source))) {
+                if (token->isRestrictedWord()) {
                     this->throwUnexpectedToken(*token, Messages::StrictFunctionName);
                 }
             } else {
-                if (this->scanner->isRestrictedWord(token->relatedSource(this->scanner->source))) {
+                if (token->isRestrictedWord()) {
                     firstRestricted = *token;
                     message = Messages::StrictFunctionName;
                 } else if (token->isStrictModeReservedWord()) {
@@ -5363,11 +5356,11 @@ public:
             id = ((!this->context->strict && !isGenerator && this->matchKeyword(YieldKeyword)) || (this->currentScopeContext->m_isFunctionBodyOnlyVirtualArrowFunctionExpression && this->sourceType != Module && token->type == Token::IdentifierToken && token->equalsToKeyword(AwaitKeyword))) ? this->parseIdentifierName(builder) : this->parseVariableIdentifier(builder);
 
             if (this->context->strict) {
-                if (this->scanner->isRestrictedWord(token->relatedSource(this->scanner->source))) {
+                if (token->isRestrictedWord()) {
                     this->throwUnexpectedToken(*token, Messages::StrictFunctionName);
                 }
             } else {
-                if (this->scanner->isRestrictedWord(token->relatedSource(this->scanner->source))) {
+                if (token->isRestrictedWord()) {
                     firstRestricted = *token;
                     message = Messages::StrictFunctionName;
                 } else if (token->isStrictModeReservedWord()) {

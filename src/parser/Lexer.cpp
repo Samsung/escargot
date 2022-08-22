@@ -427,6 +427,10 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
         return ctx->staticStrings().get;
     case SetKeyword:
         return ctx->staticStrings().set;
+    case EvalKeyword:
+        return ctx->staticStrings().eval;
+    case ArgumentsKeyword:
+        return ctx->staticStrings().arguments;
     case OfKeyword:
         return ctx->staticStrings().of;
     case AsyncKeyword:
@@ -1655,6 +1659,26 @@ bool Scanner::isFutureReservedWord(const ParserStringView& id)
     return false;
 }
 
+bool Scanner::isStrictModeReservedWord(::Escargot::Context* ctx, const AtomicString& identifier)
+{
+    switch (identifier.string()->length()) {
+    case 3: // let
+        return identifier == ctx->staticStrings().let;
+    case 5: // yield
+        return identifier == ctx->staticStrings().yield;
+    case 6: // static public
+        return identifier == ctx->staticStrings().stringStatic || identifier == ctx->staticStrings().stringPublic;
+    case 7: // private package
+        return identifier == ctx->staticStrings().stringPrivate || identifier == ctx->staticStrings().package;
+    case 9: // protected interface
+        return identifier == ctx->staticStrings().stringProtected || identifier == ctx->staticStrings().interface;
+    case 10: // implements
+        return identifier == ctx->staticStrings().implements;
+    }
+
+    return false;
+}
+
 void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
 {
     ASSERT(token != nullptr);
@@ -1992,6 +2016,12 @@ static ALWAYS_INLINE KeywordKind getKeyword(const StringBufferAccessData& data)
             } else if (second == 'w' && data.equalsSameLength("await", 2)) {
                 return AwaitKeyword;
             }
+            break;
+        case 9:
+            if (data.equalsSameLength("arguments", 1)) {
+                return ArgumentsKeyword;
+            }
+            break;
         }
         break;
     case 'b':
@@ -2042,17 +2072,27 @@ static ALWAYS_INLINE KeywordKind getKeyword(const StringBufferAccessData& data)
         }
         break;
     case 'e':
-        if (length == 4) {
+        switch (length) {
+        case 4:
             second = data.charAt(1);
             if (second == 'l' && data.equalsSameLength("else", 2)) {
                 return ElseKeyword;
             } else if (second == 'n' && data.equalsSameLength("enum", 2)) {
                 return EnumKeyword;
+            } else if (second == 'v' && data.equalsSameLength("eval", 2)) {
+                return EvalKeyword;
             }
-        } else if (length == 6 && data.equalsSameLength("export", 1)) {
-            return ExportKeyword;
-        } else if (length == 7 && data.equalsSameLength("extends", 1)) {
-            return ExtendsKeyword;
+            break;
+        case 6:
+            if (data.equalsSameLength("export", 1)) {
+                return ExportKeyword;
+            }
+            break;
+        case 7:
+            if (data.equalsSameLength("extends", 1)) {
+                return ExtendsKeyword;
+            }
+            break;
         }
         break;
     case 'f':

@@ -164,6 +164,8 @@ enum KeywordKind : uint8_t {
     FalseKeyword,
     GetKeyword,
     SetKeyword,
+    EvalKeyword,
+    ArgumentsKeyword,
     OfKeyword,
     AsyncKeyword,
     AwaitKeyword,
@@ -425,19 +427,25 @@ public:
             this->valueTemplate = value;
         }
 
-        bool isStrictModeReservedWord()
+        bool isStrictModeReservedWord() const
         {
-            ASSERT(this->type == KeywordToken || this->type == Token::IdentifierToken);
+            ASSERT(this->type == KeywordToken || this->type == IdentifierToken);
             return (this->secondaryKeywordKind > StrictModeReservedWord && this->secondaryKeywordKind < OtherKeyword);
         }
 
-        bool equalsToKeyword(KeywordKind keywordKind)
+        bool isRestrictedWord() const
+        {
+            ASSERT(this->type == KeywordToken || this->type == IdentifierToken);
+            return (this->secondaryKeywordKind == EvalKeyword || this->secondaryKeywordKind == ArgumentsKeyword);
+        }
+
+        bool equalsToKeyword(KeywordKind keywordKind) const
         {
             ASSERT(this->type == Token::IdentifierToken || this->type == BooleanLiteralToken || this->type == KeywordToken);
             return (this->secondaryKeywordKind == keywordKind);
         }
 
-        bool equalsToKeywordNoEscape(KeywordKind keywordKind)
+        bool equalsToKeywordNoEscape(KeywordKind keywordKind) const
         {
             ASSERT(this->type == Token::IdentifierToken || this->type == BooleanLiteralToken || this->type == KeywordToken);
             return (this->secondaryKeywordKind == keywordKind && !this->hasAllocatedString);
@@ -508,6 +516,18 @@ public:
         {
             ASSERT(this->type == Token::IdentifierToken || this->type == BooleanLiteralToken || this->type == KeywordToken);
             return (this->secondaryKeywordKind == keywordKind);
+        }
+
+        bool isStrictModeReservedWord() const
+        {
+            ASSERT(this->type == Token::KeywordToken || this->type == Token::IdentifierToken);
+            return (this->secondaryKeywordKind > StrictModeReservedWord && this->secondaryKeywordKind < OtherKeyword);
+        }
+
+        bool isRestrictedWord() const
+        {
+            ASSERT(this->type == KeywordToken || this->type == IdentifierToken);
+            return (this->secondaryKeywordKind == EvalKeyword || this->secondaryKeywordKind == ArgumentsKeyword);
         }
 
         ParserStringView relatedSource(const ParserStringView& source) const;
@@ -642,39 +662,11 @@ public:
         token->valueKeywordKind = static_cast<KeywordKind>(token->secondaryKeywordKind);
     }
 
-    template <typename T>
-    bool isStrictModeReservedWord(const T& id)
-    {
-        const StringBufferAccessData& data = id.bufferAccessData();
-        switch (data.length) {
-        case 3: // let
-            return data.equalsSameLength("let");
-        case 5: // yield
-            return data.equalsSameLength("yield");
-        case 6: // static public
-            return data.equalsSameLength("static") || data.equalsSameLength("public");
-        case 7: // private package
-            return data.equalsSameLength("private") || data.equalsSameLength("package");
-        case 9: // protected interface
-            return data.equalsSameLength("protected") || data.equalsSameLength("interface");
-        case 10: // implements
-            return data.equalsSameLength("implements");
-        }
+    static bool isStrictModeReservedWord(::Escargot::Context* ctx, const AtomicString& identifier);
 
-        return false;
-    }
-
-    template <typename T>
-    bool isRestrictedWord(const T& id)
+    static bool isRestrictedWord(::Escargot::Context* ctx, const AtomicString& identifier)
     {
-        const StringBufferAccessData& data = id.bufferAccessData();
-        if (data.length == 4) {
-            return data.equalsSameLength("eval");
-        } else if (data.length == 9) {
-            return data.equalsSameLength("arguments");
-        } else {
-            return false;
-        }
+        return identifier == ctx->staticStrings().arguments || identifier == ctx->staticStrings().eval;
     }
 
     char32_t codePointAt(size_t i)
