@@ -303,6 +303,9 @@
     <ClCompile Include="..\..\..\..\src\runtime\IteratorObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\src\runtime\JSON.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\src\runtime\Job.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -882,6 +885,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\src\runtime\IteratorObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\src\runtime\JSON.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\src\runtime\Job.h">
