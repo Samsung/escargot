@@ -291,8 +291,8 @@ public:
         : m_getter(getter)
         , m_setter(setter)
     {
-        ASSERT(getter.isEmpty() || getter.isFunction() || getter.isUndefined());
-        ASSERT(setter.isEmpty() || setter.isFunction() || setter.isUndefined());
+        ASSERT(getter.isEmpty() || getter.isCallable() || getter.isUndefined());
+        ASSERT(setter.isEmpty() || setter.isCallable() || setter.isUndefined());
     }
 
     virtual bool isJSGetterSetter() const
@@ -324,13 +324,13 @@ public:
 
     void setGetter(Value g)
     {
-        ASSERT(g.isEmpty() || g.isFunction() || g.isUndefined());
+        ASSERT(g.isEmpty() || g.isCallable() || g.isUndefined());
         m_getter = g;
     }
 
     void setSetter(Value g)
     {
-        ASSERT(g.isEmpty() || g.isFunction() || g.isUndefined());
+        ASSERT(g.isEmpty() || g.isCallable() || g.isUndefined());
         m_setter = g;
     }
 
