@@ -3844,12 +3844,6 @@
     <test id="language/statements/class/private-static-getter-non-static-setter-early-error"><reason>TODO</reason></test>
     <test id="language/statements/class/private-static-setter-non-static-getter-early-error"><reason>TODO</reason></test>
     <test id="language/statements/class/scope-name-lex-open-heritage"><reason>TODO</reason></test>
-    <test id="language/statements/class/static-init-arguments-functions"><reason>TODO</reason></test>
-    <test id="language/statements/class/static-init-arguments-methods"><reason>TODO</reason></test>
-    <test id="language/statements/class/static-init-expr-new-target"><reason>TODO</reason></test>
-    <test id="language/statements/class/static-init-scope-lex-derived"><reason>TODO</reason></test>
-    <test id="language/statements/class/static-init-scope-private"><reason>TODO</reason></test>
-    <test id="language/statements/class/static-init-super-property"><reason>TODO</reason></test>
     <test id="language/statements/class/subclass/default-constructor-spread-override"><reason>TODO</reason></test>
     <test id="language/statements/do-while/tco-body"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/async-func-decl-dstr-array-elem-target-simple-strict"><reason>TODO</reason></test>
