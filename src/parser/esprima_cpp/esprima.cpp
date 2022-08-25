@@ -1652,6 +1652,15 @@ public:
             BEGIN_FUNCTION_SCANNING(AtomicString());
             auto startNode = this->createNode();
 
+            if (className.string()->length()) {
+                // insert optional paramter name
+                this->currentScopeContext->m_functionLength = 1;
+                this->currentScopeContext->m_parameterCount = 1;
+                this->currentScopeContext->m_parameters.resizeWithUninitializedValues(1);
+                this->currentScopeContext->m_parameters[0] = className;
+                this->currentScopeContext->insertVarName(className, 0, true, true, true);
+            }
+
             this->currentScopeContext->m_functionStartLOC.index = startNode.index;
             this->currentScopeContext->m_functionStartLOC.column = startNode.column;
             this->currentScopeContext->m_functionStartLOC.line = startNode.line;
@@ -1660,26 +1669,33 @@ public:
             this->currentScopeContext->m_allowArguments = false;
             this->currentScopeContext->m_isArrowFunctionExpression = true;
             this->currentScopeContext->m_isFunctionBodyOnlyVirtualArrowFunctionExpression = true;
+            this->currentScopeContext->m_isClassStaticMethod = true;
             this->currentScopeContext->m_nodeType = ASTNodeType::ArrowFunctionExpression;
 #ifdef ESCARGOT_DEBUGGER
             this->currentScopeContext->m_needRareData = true;
             this->currentScopeContext->m_debuggerLineStart = debuggerLineStart;
 #endif /* ESCARGOT_DEBUGGER */
 
-            bool allowYield = this->context->allowYield;
-            bool await = this->context->await;
-            bool arguments = this->context->allowArguments;
+            bool previousAllowYield = this->context->allowYield;
+            bool previousAllowSuperProperty = this->context->allowSuperProperty;
+            bool previousAllowNewTarget = this->context->allowNewTarget;
+            bool previousAwait = this->context->await;
+            bool previousArguments = this->context->allowArguments;
 
             this->context->allowYield = false;
+            this->context->allowSuperProperty = true;
+            this->context->allowNewTarget = true;
             this->context->await = false;
             this->context->allowArguments = false;
 
             this->parseFunctionSourceElements(newBuilder);
             auto lastContext = this->lastPoppedScopeContext;
 
-            this->context->allowYield = allowYield;
-            this->context->await = await;
-            this->context->allowArguments = arguments;
+            this->context->allowYield = previousAllowYield;
+            this->context->allowSuperProperty = previousAllowSuperProperty;
+            this->context->allowNewTarget = previousAllowNewTarget;
+            this->context->await = previousAwait;
+            this->context->allowArguments = previousArguments;
 
             this->currentScopeContext->m_bodyEndLOC.index = this->lastMarker.index;
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
@@ -7074,6 +7090,9 @@ FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock
     parser.lexicalBlockCount = 0;
 
     if (codeBlock->isArrowFunctionExpression()) {
+        if (UNLIKELY(codeBlock->isFunctionBodyOnlyVirtualArrowFunctionExpression())) {
+            parser.currentScopeContext->m_isFunctionBodyOnlyVirtualArrowFunctionExpression = true;
+        }
         return parser.parseScriptArrowFunction(builder);
     }
     return parser.parseScriptFunction(builder);
