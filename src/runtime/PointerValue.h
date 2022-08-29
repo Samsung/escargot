@@ -81,6 +81,7 @@ class TemporalCalendarObject;
 class TemporalDurationObject;
 class TemporalPlainYearMonthObject;
 class TemporalPlainMonthDayObject;
+class TemporalTimeZoneObject;
 #endif
 class TypedArrayObject;
 class ModuleNamespaceObject;
@@ -386,6 +387,11 @@ public:
     }
 
     virtual bool isTemporalPlainMonthDayObject() const
+    {
+        return false;
+    }
+
+    virtual bool isTemporalTimeZoneObject() const
     {
         return false;
     }
@@ -700,6 +706,12 @@ public:
     {
         ASSERT(isTemporalPlainMonthDayObject());
         return (TemporalPlainMonthDayObject*)this;
+    }
+
+    TemporalTimeZoneObject* asTemporalTimeZoneObject()
+    {
+        ASSERT(isTemporalTimeZoneObject());
+        return (TemporalTimeZoneObject*)this;
     }
 #endif
 
