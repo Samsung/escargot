@@ -34,7 +34,7 @@ public:
     {
     }
 
-    Temporal(ExecutionState& state, Object* temporalCalendar, Object* temporalCalendarPrototype, Object* temporalDurationPrototype, Object* temporalPlainDatePrototype, Object* temporalPlainTimePrototype, Object* temporalPlainDateTimePrototype, Object* temporalPlainYearMonthPrototype, Object* temporalInstantPrototype, Object* temporalPlainMonthDayPrototype)
+    Temporal(ExecutionState& state, Object* temporalCalendar, Object* temporalCalendarPrototype, Object* temporalDurationPrototype, Object* temporalPlainDatePrototype, Object* temporalPlainTimePrototype, Object* temporalPlainDateTimePrototype, Object* temporalPlainYearMonthPrototype, Object* temporalInstantPrototype, Object* temporalPlainMonthDayPrototype, Object* temporalTimeZonePrototype)
         : DerivedObject(state)
         , m_temporalCalendar(temporalCalendar)
         , m_temporalCalendarPrototype(temporalCalendarPrototype)
@@ -45,6 +45,7 @@ public:
         , m_temporalPlainYearMonthPrototype(temporalPlainYearMonthPrototype)
         , m_temporalInstantPrototype(temporalInstantPrototype)
         , m_temporalPlainMonthDayPrototype(temporalPlainMonthDayPrototype)
+        , m_temporalTimeZonePrototype(temporalTimeZonePrototype)
     {
     }
 
@@ -90,6 +91,10 @@ public:
     Object* getTemporalInstantPrototype() const
     {
         return m_temporalInstantPrototype;
+    }
+    Object* getTemporalTimeZonePrototype() const
+    {
+        return m_temporalTimeZonePrototype;
     }
 
     bool isTemporalObject() const override
@@ -178,6 +183,7 @@ private:
     Object* m_temporalPlainYearMonthPrototype;
     Object* m_temporalInstantPrototype;
     Object* m_temporalPlainMonthDayPrototype;
+    Object* m_temporalTimeZonePrototype;
 };
 
 } // namespace Escargot

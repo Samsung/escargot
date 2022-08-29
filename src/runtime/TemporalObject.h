@@ -53,7 +53,18 @@ static const char* dateTimeUnitStrings[] = { "year", "month", "week", "day", "ho
 
 class TemporalObject : public Temporal {
 public:
-    struct DateTime {
+    class TimeZone : public gc {
+    public:
+        TimeZone(bool z, String* offsetString, String* name);
+        bool z;
+        String* offsetString;
+        String* name;
+    };
+
+    class DateTime : public gc {
+    public:
+        DateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, String* calendar, TimeZone* tz);
+
         int year;
         int month;
         int day;
@@ -63,11 +74,8 @@ public:
         int millisecond;
         int microsecond;
         int nanosecond;
-        std::string calendar;
-
-        std::string z;
-        std::string offsetString;
-        std::string name;
+        String* calendar;
+        TimeZone* tz;
     };
 
     enum DateTimeUnits {
@@ -95,10 +103,12 @@ public:
     static std::map<TemporalObject::DateTimeUnits, int> parseTemporalDurationString(ExecutionState& state, const std::string& isoString);
     static TemporalObject::DateTime parseTemporalYearMonthString(ExecutionState& state, const std::string& isoString);
     static TemporalObject::DateTime parseTemporalMonthDayString(ExecutionState& state, const std::string& isoString);
+    static TemporalObject::TimeZone parseTemporalTimeZoneString(ExecutionState& state, const std::string& isoString);
     static std::string getNNumberFromString(std::string& isoString, int n, unsigned int& index);
     static std::map<TemporalObject::DateTimeUnits, int> getSeconds(ExecutionState& state, std::string& isoString, unsigned int& index);
     static std::string offset(ExecutionState& state, std::string& isoString, unsigned int& index);
     static std::string tzComponent(ExecutionState& state, std::string& isoString, unsigned int& index);
+    static TemporalObject::TimeZone parseTimeZoneOffset(ExecutionState& state, std::string& isoString, unsigned int& index);
     static bool isNumber(const std::string& s)
     {
         return !s.empty() && std::find_if(s.begin(), s.end(), [](unsigned char c) { return !std::isdigit(c); }) == s.end();
@@ -440,6 +450,7 @@ private:
 
 class TemporalInstantObject : public Temporal {
 public:
+    static const int64_t dayToNanosecond = 86400000000000;
     static const int64_t HourToNanosecond = 3600000000000;
     static const int64_t MinuteToNanosecond = 60000000000;
     static const int64_t SecondToNanosecond = 1000000000;
@@ -455,7 +466,7 @@ public:
     static Value parseTemporalInstant(ExecutionState& state, const std::string& isoString);
     static int compareEpochNanoseconds(ExecutionState& state, const BigInt& firstNanoSeconds, const BigInt& secondNanoSeconds);
 
-    static int64_t offsetStringToNanoseconds(ExecutionState& state, const std::string& offsetString);
+    static int64_t offsetStringToNanoseconds(ExecutionState& state, String* offset);
 
     bool isTemporalInstantObject() const override
     {
@@ -549,11 +560,42 @@ private:
 class TemporalTimeZoneObject : public Temporal {
 public:
     explicit TemporalTimeZoneObject(ExecutionState& state);
-    explicit TemporalTimeZoneObject(ExecutionState& state, Object* proto);
+    explicit TemporalTimeZoneObject(ExecutionState& state, Object* proto, ASCIIString* identifier = new ASCIIString(""), const Value& offsetNanoseconds = Value());
 
     static std::map<TemporalObject::DateTimeUnits, int> getISOPartsFromEpoch(ExecutionState& state, const Value& epochNanoseconds);
-    static Value getOffsetNanosecondsFor(ExecutionState& state, const Value& timeZone, const Value& instant);
+    static Value createTemporalTimeZone(ExecutionState& state, const std::string& identifier, Optional<Object*> newTarget = nullptr);
+    static bool isValidTimeZoneName(const std::string& timeZone);
+    static std::string canonicalizeTimeZoneName(const std::string& timeZone);
+    static std::string formatTimeZoneOffsetString(long long offsetNanoseconds);
+    static std::string defaultTimeZone();
+    static Value toTemporalTimeZone(ExecutionState& state, const Value& temporalTimeZoneLike);
+    static std::map<TemporalObject::DateTimeUnits, int> getIANATimeZoneDateTimeParts(ExecutionState& state, const Value& epochNanoseconds);
+    static int64_t getOffsetNanosecondsFor(ExecutionState& state, const Value& timeZone, const Value& instant);
+    static Value builtinTimeZoneGetOffsetStringFor(ExecutionState& state, const Value& timeZone, const Value& instant);
     static Value builtinTimeZoneGetPlainDateTimeFor(ExecutionState& state, const Value& timeZone, const Value& instant, const Value& calendar);
+    static Value getIANATimeZoneOffsetNanoseconds(ExecutionState& state, const Value& epochNanoseconds, const std::string& timeZoneIdentifier);
+    static ValueVector getIANATimeZoneEpochValue(ExecutionState& state, const std::string& timeZoneIdentifier, int year, int month, int day, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond);
+    static Value getIANATimeZoneNextTransition(ExecutionState& state, const Value& epochNanoseconds, std::string timeZoneIdentifier);
+    static Value getIANATimeZonePreviousTransition(ExecutionState& state, const Value& epochNanoseconds, std::string timeZoneIdentifier);
+
+    bool isTemporalTimeZoneObject() const override
+    {
+        return true;
+    }
+
+    const ASCIIString* getIdentifier() const
+    {
+        return m_identifier;
+    }
+    const Value& getOffsetNanoseconds() const
+    {
+        return m_offsetNanoseconds;
+    }
+
+private:
+    static Value getIANATimeZoneTransition(ExecutionState& state, BigInt* rightNanos, BigInt* rightOffsetNs, BigInt* leftNanos, BigInt* leftOffsetNs, BigInt* cap, const std::string& timeZoneIdentifier);
+    ASCIIString* m_identifier;
+    Value m_offsetNanoseconds;
 };
 
 } // namespace Escargot

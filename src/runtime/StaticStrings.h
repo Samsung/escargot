@@ -811,6 +811,7 @@ namespace Escargot {
     F(PlainTime, "PlainTime")                             \
     F(PlainYearMonth, "PlainYearMonth")                   \
     F(Temporal, "Temporal")                               \
+    F(TemporalTimeZone, "TimeZone")                       \
     F(blank, "blank")                                     \
     F(dateFromFields, "dateFromFields")                   \
     F(days, "days")                                       \
@@ -830,7 +831,12 @@ namespace Escargot {
     F(fromEpochNanoseconds, "fromEpochNanoseconds")       \
     F(fromEpochSeconds, "fromEpochSeconds")               \
     F(getISOFields, "getISOFields")                       \
+    F(getNextTransition, "getNextTransition")             \
+    F(getPlainDateTimeFor, "getPlainDateTimeFor")         \
+    F(getPossibleInstantsFor, "getPossibleInstantsFor")   \
+    F(getPreviousTransition, "getPreviousTransition")     \
     F(getOffsetNanosecondsFor, "getOffsetNanosecondsFor") \
+    F(getOffsetStringFor, "getOffsetStringFor")           \
     F(hours, "hours")                                     \
     F(id, "id")                                           \
     F(inLeapYear, "inLeapYear")                           \

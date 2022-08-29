@@ -71,6 +71,11 @@ namespace Escargot {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type"); \
     }
 
+#define CHECK_TEMPORAL_TIME_ZONE(state, value)                                         \
+    if (!(value.isObject() && value.asObject()->isTemporalTimeZoneObject())) {         \
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type"); \
+    }
+
 static TemporalPlainDateObject* getTemporalPlainDate(ExecutionState& state, const Value& thisValue, unsigned long argc, Value* argv)
 {
     CHECK_TEMPORAL_CALENDAR(state, thisValue, argc);
@@ -868,6 +873,139 @@ static Value builtinTemporalPlainMonthDayPrototypeDay(ExecutionState& state, Val
     return TemporalCalendarObject::calendarDay(state, thisValue.asObject()->asTemporalPlainMonthDayObject()->getCalendar(), thisValue.asObject()->asTemporalPlainMonthDayObject());
 }
 
+static Value builtinTemporalTimeZoneConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
+    }
+
+    if (!argv[0].isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Expected string");
+    }
+
+    std::string identifier(argv[0].asString()->toNonGCUTF8StringData());
+    unsigned int index = 0;
+    identifier = TemporalObject::offset(state, identifier, index);
+
+    if (identifier.empty()) {
+        if (!TemporalTimeZoneObject::isValidTimeZoneName(argv[0].asString()->toNonGCUTF8StringData())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid TimeZone identifier");
+        }
+        identifier = TemporalTimeZoneObject::canonicalizeTimeZoneName(argv[0].asString()->toNonGCUTF8StringData());
+    }
+
+    return TemporalTimeZoneObject::createTemporalTimeZone(state, identifier, newTarget);
+}
+
+static Value builtinTemporalTimeZoneFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return TemporalTimeZoneObject::toTemporalTimeZone(state, argv[0]);
+}
+
+static Value builtinTemporalTimeZonePrototypeId(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_TIME_ZONE(state, thisValue);
+    return Value(thisValue.asObject()->asTemporalTimeZoneObject()->getIdentifier());
+}
+
+static Value builtinTemporalTimeZonePrototypeGetOffsetNanosecondsFor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_TIME_ZONE(state, thisValue);
+
+    auto instant = TemporalInstantObject::toTemporalInstant(state, argv[0]).asObject()->asTemporalInstantObject();
+
+    if (!thisValue.asObject()->asTemporalTimeZoneObject()->getOffsetNanoseconds().isUndefined()) {
+        return thisValue.asObject()->asTemporalTimeZoneObject()->getOffsetNanoseconds();
+    }
+
+    return TemporalTimeZoneObject::getIANATimeZoneOffsetNanoseconds(state, new BigInt((int64_t)0), thisValue.asObject()->asTemporalTimeZoneObject()->getIdentifier()->toNonGCUTF8StringData());
+}
+
+static Value builtinTemporalTimeZonePrototypeGetOffsetStringFor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_TIME_ZONE(state, thisValue);
+
+    auto instant = TemporalInstantObject::toTemporalInstant(state, argv[0]).asObject()->asTemporalInstantObject();
+
+    if (!thisValue.asObject()->asTemporalTimeZoneObject()->getOffsetNanoseconds().isUndefined()) {
+        return thisValue.asObject()->asTemporalTimeZoneObject()->getOffsetNanoseconds();
+    }
+
+    return TemporalTimeZoneObject::builtinTimeZoneGetOffsetStringFor(state, thisValue, instant);
+}
+
+static Value builtinTemporalTimeZonePrototypeGetPlainDateTimeFor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_TIME_ZONE(state, thisValue);
+    auto instant = TemporalInstantObject::toTemporalInstant(state, argv[0]);
+    auto calendar = TemporalCalendarObject::toTemporalCalendarWithISODefault(state, argc >= 2 ? argv[1] : Value());
+    return TemporalTimeZoneObject::builtinTimeZoneGetPlainDateTimeFor(state, thisValue, instant, calendar);
+}
+
+static Value builtinTemporalTimeZonePrototypeGetPossibleInstantsFor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_TIME_ZONE(state, thisValue);
+
+    auto dateTime = TemporalPlainDateTimeObject::toTemporalDateTime(state, argv[0]).asObject()->asTemporalPlainDateTimeObject();
+    ValueVector possibleEpochNanoseconds = {};
+
+    if (!thisValue.asObject()->asTemporalTimeZoneObject()->getOffsetNanoseconds().isUndefined()) {
+        int64_t epochNanoseconds = TemporalPlainDateTimeObject::getEpochFromISOParts(state, dateTime->getYear(), dateTime->getMonth(), dateTime->getDay(), dateTime->getHour(), dateTime->getMinute(), dateTime->getSecond(), dateTime->getMillisecond(), dateTime->getMicrosecond(), dateTime->getNanosecond());
+        possibleEpochNanoseconds.push_back(Value(epochNanoseconds - thisValue.asObject()->asTemporalTimeZoneObject()->getOffsetNanoseconds().asBigInt()->toInt64()));
+    } else {
+        possibleEpochNanoseconds = TemporalTimeZoneObject::getIANATimeZoneEpochValue(state, thisValue.asObject()->asTemporalTimeZoneObject()->getIdentifier()->toNonGCUTF8StringData(), dateTime->getYear(), dateTime->getMonth(), dateTime->getDay(), dateTime->getHour(), dateTime->getMinute(), dateTime->getSecond(), dateTime->getMillisecond(), dateTime->getMicrosecond(), dateTime->getNanosecond());
+    }
+
+    ValueVector possibleInstants = {};
+
+    for (auto& possibleEpochNanosecond : possibleEpochNanoseconds) {
+        if (!TemporalInstantObject::isValidEpochNanoseconds(possibleEpochNanosecond)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid epoch nanosecond");
+        }
+        possibleInstants.push_back(TemporalInstantObject::createTemporalInstant(state, possibleEpochNanosecond));
+    }
+
+    return Object::createArrayFromList(state, possibleInstants);
+}
+
+static Value builtinTemporalTimeZonePrototypeGetNextTransition(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_TIME_ZONE(state, thisValue);
+
+    auto startingPoint = TemporalInstantObject::toTemporalInstant(state, argv[0]).asObject()->asTemporalInstantObject();
+
+    if (!thisValue.asObject()->asTemporalTimeZoneObject()->getOffsetNanoseconds().isUndefined()) {
+        return Value(Value::Null);
+    }
+
+    auto result = TemporalTimeZoneObject::getIANATimeZoneNextTransition(state, startingPoint->getNanoseconds(), thisValue.asObject()->asTemporalTimeZoneObject()->getIdentifier()->toNonGCUTF8StringData());
+
+    if (result.isNull()) {
+        return result;
+    }
+
+    return TemporalInstantObject::createTemporalInstant(state, result);
+}
+
+static Value builtinTemporalTimeZonePrototypeGetPreviousTransition(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_TIME_ZONE(state, thisValue);
+
+    auto startingPoint = TemporalInstantObject::toTemporalInstant(state, argv[0]).asObject()->asTemporalInstantObject();
+
+    if (!thisValue.asObject()->asTemporalTimeZoneObject()->getOffsetNanoseconds().isUndefined()) {
+        return Value(Value::Null);
+    }
+
+    auto result = TemporalTimeZoneObject::getIANATimeZonePreviousTransition(state, startingPoint->getNanoseconds(), thisValue.asObject()->asTemporalTimeZoneObject()->getIdentifier()->toNonGCUTF8StringData());
+
+    if (result.isNull()) {
+        return result;
+    }
+
+    return TemporalInstantObject::createTemporalInstant(state, result);
+}
+
 static Value builtinTemporalCalendarConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
@@ -1650,6 +1788,43 @@ void GlobalObject::installTemporal(ExecutionState& state)
     temporalPlainMonthDay->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalPlainMonthDayFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
 
+    auto temporalTimeZone = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCalendar(), builtinTemporalTimeZoneConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    temporalTimeZone->setGlobalIntrinsicObject(state);
+
+    temporalTimeZone->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
+                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalTimeZoneFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    auto temporalTimeZonePrototype = new PrototypeObject(state);
+    temporalTimeZonePrototype->setGlobalIntrinsicObject(state, true);
+
+    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalTimeZone, (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    JSGetterSetter timeZoneIDGS(
+        new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyid(), builtinTemporalTimeZonePrototypeId, 0, NativeFunctionInfo::Strict)),
+        Value(Value::EmptyValue));
+    ObjectPropertyDescriptor timeZoneIDDesc(timeZoneIDGS, ObjectPropertyDescriptor::ConfigurablePresent);
+    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyid()), timeZoneIDDesc);
+
+    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazygetOffsetNanosecondsFor()),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazygetOffsetNanosecondsFor(), builtinTemporalTimeZonePrototypeGetOffsetNanosecondsFor, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazygetOffsetStringFor()),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazygetOffsetStringFor(), builtinTemporalTimeZonePrototypeGetOffsetStringFor, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazygetPlainDateTimeFor()),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazygetPlainDateTimeFor(), builtinTemporalTimeZonePrototypeGetPlainDateTimeFor, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazygetPossibleInstantsFor()),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazygetPossibleInstantsFor(), builtinTemporalTimeZonePrototypeGetPossibleInstantsFor, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazygetNextTransition()),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazygetNextTransition(), builtinTemporalTimeZonePrototypeGetNextTransition, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazygetPreviousTransition()),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazygetPreviousTransition(), builtinTemporalTimeZonePrototypeGetPreviousTransition, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalTimeZone->setFunctionPrototype(state, temporalTimeZonePrototype);
+
     auto temporalCalendar = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCalendar(), builtinTemporalCalendarConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     temporalCalendar->setGlobalIntrinsicObject(state);
 
@@ -1740,7 +1915,7 @@ void GlobalObject::installTemporal(ExecutionState& state)
     temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toJSON),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toJSON, builtinTemporalCalendarToJSON, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_temporal = new Temporal(state, temporalCalendar, temporalCalendarPrototype, temporalDurationPrototype, temporalPlainDatePrototype, temporalPlainTimePrototype, temporalPlainDateTimePrototype, temporalPlainYearMonthPrototype, temporalInstantPrototype, temporalPlainMonthDayPrototype);
+    m_temporal = new Temporal(state, temporalCalendar, temporalCalendarPrototype, temporalDurationPrototype, temporalPlainDatePrototype, temporalPlainTimePrototype, temporalPlainDateTimePrototype, temporalPlainYearMonthPrototype, temporalInstantPrototype, temporalPlainMonthDayPrototype, temporalTimeZonePrototype);
     m_temporal->setGlobalIntrinsicObject(state);
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
@@ -1769,6 +1944,9 @@ void GlobalObject::installTemporal(ExecutionState& state)
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyPlainMonthDay()),
                                         ObjectPropertyDescriptor(temporalPlainMonthDay, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyTemporalTimeZone()),
+                                        ObjectPropertyDescriptor(temporalTimeZone, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCalendar()),
                                         ObjectPropertyDescriptor(temporalCalendar, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

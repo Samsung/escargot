@@ -20,6 +20,8 @@
 
 #include "Escargot.h"
 #include "TemporalObject.h"
+
+#include <utility>
 #include "DateObject.h"
 #include "runtime/VMInstance.h"
 #include "runtime/ArrayObject.h"
@@ -82,18 +84,20 @@ std::string TemporalObject::getNNumberFromString(std::string& isoString, const i
 
 std::map<TemporalObject::DateTimeUnits, int> TemporalObject::getSeconds(ExecutionState& state, std::string& isoString, unsigned int& index)
 {
-    int counter = 1;
+    int counter = index + 1;
     while (std::isdigit(isoString[counter++]))
         ;
-    if (counter == 1 || counter > 9) {
+    counter -= (index + 2);
+
+    if (counter > 9) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
     }
 
-    std::string tmp = isoString.substr(1, counter - 1);
+    std::string tmp = isoString.substr(index + 1, counter);
 
     index += counter;
 
-    for (int i = counter; i <= 9; ++i) {
+    for (int i = counter; i < 9; ++i) {
         tmp += '0';
     }
 
@@ -106,41 +110,58 @@ std::string TemporalObject::offset(ExecutionState& state, std::string& isoString
 {
     std::string result;
 
-    if (isoString.rfind("−", index) || isoString[index] == '-') {
+    if (isoString.rfind("−", index) != std::string::npos) {
         result += "-";
+        index += 2;
+    } else if (isoString[index] == '-') {
+        result += '-';
     } else {
         result += "+";
     }
 
     ++index;
     if (!(((isoString[index] == '0' || isoString[index] == '1') && isoString[index + 1] >= '0' && isoString[index + 1] <= '9') || (isoString[index] == '2' && isoString[index + 1] >= 0 && isoString[index + 1] <= '3'))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+        return "";
     }
 
     result += isoString.substr(index, 2);
 
     index += 2;
     int counter = 0;
-    while (isoString[index] == ':') {
-        if (isoString[index + 1] >= '0' && isoString[index + 1] <= '5' && std::isdigit(isoString[index + 2])) {
-            result += isoString.substr(index, 3);
-            index += 3;
+    while (index < isoString.length() && isoString[index] != '.') {
+        if (isoString[index] == ':') {
+            index++;
+        }
+        result += ':';
+        if (isoString[index] >= '0' && isoString[index] <= '5' && std::isdigit(isoString[index + 1])) {
+            result += isoString.substr(index, 2);
+            index += 2;
             counter++;
             if (counter == 3) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+                return "";
             }
+        } else if (isoString[index] == '[') {
+            result = result.substr(0, result.length() - 1);
+            break;
         } else {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+            return "";
         }
     }
 
     if (isoString[index] == '.' || isoString[index] == ',') {
         if (counter != 2) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+            return "";
         }
         unsigned int start = index;
         TemporalObject::getSeconds(state, isoString, index);
-        result += isoString.substr(start, index - start);
+        result += isoString.substr(start, index - start + 1);
+        for (unsigned int i = 0; i < 9 - (index - start); i++) {
+            result += '0';
+        }
+    }
+
+    if (result.length() == 3) {
+        result += ":00";
     }
 
     return result;
@@ -179,7 +200,7 @@ std::string TemporalObject::tzComponent(ExecutionState& state, std::string& isoS
 
 TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState& state, std::string isoString, const bool parseTimeZone = false)
 {
-    DateTime dateTime = { 0, 1, 1, 0, 0, 0, 0, 0, 0, "", "", "", "" };
+    DateTime dateTime = { 0, 1, 1, 0, 0, 0, 0, 0, 0, new ASCIIString(), new TimeZone(false, String::emptyString, String::emptyString) };
 
     unsigned int index = 0;
     bool monthDay = false;
@@ -223,7 +244,7 @@ TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState&
                 }
                 end = true;
             }
-        } else if (!end) {
+        } else if (!end && !(isoString[index] == '+' || isoString[index] == '-' || isoString.rfind("−", index) == 0)) {
             ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
         }
     }
@@ -261,53 +282,22 @@ TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState&
             }
         }
 
-        // Offset
-        if (isoString[index] == 'z' || isoString[index] == 'Z') {
-            if (parseTimeZone) {
-                dateTime.z = 'Z';
-            }
-            ++index;
-        } else if (isoString[index] == '+' || isoString[index] == '-' || isoString.rfind("−", index) == 0) {
-            dateTime.offsetString = TemporalObject::offset(state, isoString, index);
-        }
+        auto timeZoneOffset = TemporalObject::parseTimeZoneOffset(state, isoString, index);
 
-        // TimeZone
-        if (isoString[index] == '[' && isoString.rfind("[u-ca=", index) != index) {
-            std::string tmp = TemporalObject::tzComponent(state, isoString, index);
-            while (tmp.length() != 0) {
-                dateTime.name += tmp;
-                if (isoString[index] == '/') {
-                    tmp = TemporalObject::tzComponent(state, isoString, index);
-                }
-                if (isoString[index] == ']') {
-                    dateTime.name += "/" + tmp;
-                    index++;
-                    break;
-                }
-            }
-        } else if (isoString.rfind("Etc/GMT", index) == 0) {
-            index += 7;
-            if (isoString[index] == '+' || isoString[index] == '-') {
-                if (!std::isdigit(isoString[index + 1])) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
-                }
-
-                if (isNumber(isoString.substr(index + 1, 2))) {
-                    index += 3;
-                }
-                index += 2;
-            }
-        } else if (isoString[index] == '+' || isoString[index] == '-' || isoString.rfind("−", index) == 0) {
-            TemporalObject::offset(state, isoString, index);
+        if (parseTimeZone && timeZoneOffset.offsetString && timeZoneOffset.name) {
+            dateTime.tz = new TimeZone{ timeZoneOffset.z, timeZoneOffset.offsetString, timeZoneOffset.name };
+        } else if (!(timeZoneOffset.offsetString && timeZoneOffset.name)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
         }
 
         // Calendar
         if (isoString.rfind("[u-ca=", index) != std::string::npos) {
             index += 6;
+            std::string calendar;
             for (int i = 0; isoString[index] != ']'; ++i) {
                 // Check if current char is a number or
                 if (std::isalpha(isoString[index]) || std::isdigit(isoString[index])) {
-                    dateTime.calendar += isoString[index];
+                    calendar += isoString[index];
                     ++index;
                 }
 
@@ -325,6 +315,7 @@ TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState&
                 }
             }
             if (isoString[index] == ']') {
+                dateTime.calendar = new ASCIIString(calendar.c_str());
                 index++;
             }
         }
@@ -342,8 +333,8 @@ TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState&
     }
 
     if (parseTimeZone) {
-        if (!dateTime.z.empty()) {
-            dateTime.offsetString = "";
+        if (dateTime.tz->z) {
+            dateTime.tz->offsetString = String::emptyString;
         }
     }
 
@@ -513,13 +504,90 @@ TemporalObject::DateTime TemporalObject::parseTemporalInstantString(ExecutionSta
 {
     auto result = parseValidIso8601String(state, isoString, true);
 
-    if (!result.z.empty()) {
-        result.offsetString = "+00:00";
+    if (result.tz->z) {
+        result.tz->offsetString = new ASCIIString("+00:00");
     }
 
-    ASSERT(!result.offsetString.empty());
+    if (!result.tz->offsetString || result.tz->offsetString->length() == 0) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "undefined offsetString");
+    }
 
     return result;
+}
+
+TemporalObject::TimeZone TemporalObject::parseTemporalTimeZoneString(ExecutionState& state, const std::string& isoString)
+{
+    auto result = TimeZone(false, String::emptyString, String::emptyString);
+
+    if (isoString == "UTC") {
+        result.z = true;
+        return result;
+    }
+
+    unsigned int index = 0;
+    result = TemporalObject::parseTimeZoneOffset(state, const_cast<std::string&>(isoString), index);
+
+    if (result.offsetString->length() == 0 && result.name->length() == 0 && !result.z) {
+        result = *TemporalObject::parseValidIso8601String(state, isoString, true).tz;
+    }
+
+    if (result.z) {
+        result.offsetString = String::emptyString;
+    }
+
+    if (!(result.offsetString && result.name) && result.z) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "bare date-time string is not a time zone");
+    }
+
+    return result;
+}
+
+TemporalObject::TimeZone TemporalObject::parseTimeZoneOffset(ExecutionState& state, std::string& isoString, unsigned int& index)
+{
+    // Offset
+    auto tz = TimeZone(false, String::emptyString, String::emptyString);
+
+    if (isoString[index] == 'z' || isoString[index] == 'Z') {
+        tz.z = true;
+        ++index;
+    } else if (isoString[index] == '+' || isoString[index] == '-' || isoString.rfind("−", index) == index) {
+        tz.offsetString = new ASCIIString(TemporalObject::offset(state, isoString, index).c_str());
+        if (tz.offsetString->length() == 0) {
+            return TemporalObject::TimeZone{ false, nullptr, nullptr };
+        }
+    }
+
+    // TimeZone
+    if (isoString[index] == '[' && isoString.rfind("[u-ca=", index) != index) {
+        std::string tmp = TemporalObject::tzComponent(state, isoString, index);
+        while (tmp.length() != 0) {
+            tz.name = new ASCIIString(std::string(tz.name->toNonGCUTF8StringData()).append(tmp).c_str());
+            if (isoString[index] == '/') {
+                tmp = TemporalObject::tzComponent(state, isoString, index);
+            }
+            if (isoString[index] == ']') {
+                tz.name = new ASCIIString(std::string(tz.name->toNonGCUTF8StringData()).append("/" + tmp).c_str());
+                index++;
+                break;
+            }
+        }
+    } else if (isoString.rfind("Etc/GMT", index) == 0) {
+        index += 7;
+        if (isoString[index] == '+' || isoString[index] == '-') {
+            if (!std::isdigit(isoString[index + 1])) {
+                return TemporalObject::TimeZone{ false, nullptr, nullptr };
+            }
+
+            if (isNumber(isoString.substr(index + 1, 2))) {
+                index += 3;
+            }
+            index += 2;
+        }
+    } else if (isoString[index] == '+' || isoString[index] == '-' || (index < isoString.length() && isoString.rfind("−", index) == 0)) {
+        TemporalObject::offset(state, isoString, index);
+    }
+
+    return tz;
 }
 
 TemporalObject::DateTime TemporalObject::parseTemporalMonthDayString(ExecutionState& state, const std::string& isoString)
@@ -637,7 +705,7 @@ Value TemporalPlainTimeObject::toTemporalTime(ExecutionState& state, const Value
     Temporal::toTemporalOverflow(state, options);
     auto tmp = TemporalObject::parseTemporalDateTimeString(state, item.asString()->toNonGCUTF8StringData());
     ASSERT(TemporalPlainTimeObject::isValidTime(state, tmp.hour, tmp.minute, tmp.second, tmp.millisecond, tmp.microsecond, tmp.nanosecond));
-    if (!tmp.calendar.empty() && tmp.calendar != "iso8601") {
+    if (tmp.calendar->length() != 0 && !tmp.calendar->equals("iso8601")) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Calendar is not ISO8601");
     }
 
@@ -783,7 +851,7 @@ Value TemporalCalendarObject::parseTemporalCalendarString(ExecutionState& state,
 {
     ASSERT(isoString.isString());
     TemporalObject::DateTime time = TemporalObject::parseValidIso8601String(state, isoString.asString()->toNonGCUTF8StringData());
-    return time.calendar.empty() ? Value(state.context()->staticStrings().lazyISO8601().string()) : Value(time.calendar.c_str());
+    return time.calendar->length() == 0 ? Value(state.context()->staticStrings().lazyISO8601().string()) : Value(time.calendar);
 }
 
 Value TemporalCalendarObject::ISODaysInMonth(ExecutionState& state, const int year, const int m)
@@ -1135,7 +1203,7 @@ Value TemporalPlainDateObject::toTemporalDate(ExecutionState& state, const Value
     ASSERT(TemporalPlainDateObject::isValidISODate(state, result.year, result.month, result.day));
 
     return TemporalPlainDateObject::createTemporalDate(state, result.year, result.month, result.day,
-                                                       TemporalCalendarObject::toTemporalCalendarWithISODefault(state, Value(result.calendar.c_str())),
+                                                       TemporalCalendarObject::toTemporalCalendarWithISODefault(state, Value(result.calendar)),
                                                        nullptr);
 }
 
@@ -1277,7 +1345,7 @@ Value TemporalPlainDateTimeObject::toTemporalDateTime(ExecutionState& state, con
     ASSERT(TemporalPlainDateObject::isValidISODate(state, tmp.year, tmp.month, tmp.day));
     ASSERT(TemporalPlainTimeObject::isValidTime(state, tmp.hour, tmp.minute, tmp.second, tmp.millisecond, tmp.microsecond, tmp.nanosecond));
 
-    return TemporalPlainDateTimeObject::createTemporalDateTime(state, tmp.year, tmp.month, tmp.day, tmp.hour, tmp.minute, tmp.second, tmp.millisecond, tmp.microsecond, tmp.nanosecond, TemporalCalendarObject::toTemporalCalendarWithISODefault(state, Value(tmp.calendar.c_str())), new Object(state));
+    return TemporalPlainDateTimeObject::createTemporalDateTime(state, tmp.year, tmp.month, tmp.day, tmp.hour, tmp.minute, tmp.second, tmp.millisecond, tmp.microsecond, tmp.nanosecond, TemporalCalendarObject::toTemporalCalendarWithISODefault(state, Value(tmp.calendar)), new Object(state));
 }
 
 TemporalZonedDateTimeObject::TemporalZonedDateTimeObject(ExecutionState& state)
@@ -1340,8 +1408,9 @@ Value TemporalInstantObject::toTemporalInstant(ExecutionState& state, const Valu
 Value TemporalInstantObject::parseTemporalInstant(ExecutionState& state, const std::string& isoString)
 {
     auto result = TemporalObject::parseTemporalInstantString(state, isoString);
+    int64_t offsetNanoseconds = offsetStringToNanoseconds(state, result.tz->offsetString);
     time64_t utc = TemporalPlainDateTimeObject::getEpochFromISOParts(state, result.year, result.month, result.day, result.hour, result.minute, result.second, result.millisecond, result.microsecond, result.nanosecond);
-    auto utcWithOffset = new BigInt(utc - offsetStringToNanoseconds(state, result.offsetString));
+    auto utcWithOffset = new BigInt(utc - offsetNanoseconds);
     if (!TemporalInstantObject::isValidEpochNanoseconds(utcWithOffset)) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "epochNanosecond is out of limits");
     }
@@ -1349,23 +1418,30 @@ Value TemporalInstantObject::parseTemporalInstant(ExecutionState& state, const s
     return utcWithOffset;
 }
 
-int64_t TemporalInstantObject::offsetStringToNanoseconds(ExecutionState& state, const std::string& offsetString)
+int64_t TemporalInstantObject::offsetStringToNanoseconds(ExecutionState& state, String* offset)
 {
-    int64_t result = std::stoi(offsetString.substr(0, 2)) * TemporalInstantObject::HourToNanosecond;
-    if (offsetString[2] == ':') {
-        result += std::stoi(offsetString.substr(3, 2)) * TemporalInstantObject::MinuteToNanosecond;
-        if (offsetString[5] == ':') {
-            result += std::stoi(offsetString.substr(6, 2)) * TemporalInstantObject::SecondToNanosecond;
-            if (offsetString[8] == '.') {
-                result += std::stoi(offsetString.substr(9, 3)) * TemporalInstantObject::MillisecondToNanosecond;
-                result += std::stoi(offsetString.substr(12, 3)) * TemporalInstantObject::MicrosecondToNanosecond;
-                result += std::stoi(offsetString.substr(15, 3));
+    UTF8StringData utf8StringData = offset->toUTF8StringData();
+    std::string offsetString(utf8StringData.data(), utf8StringData.length());
+    int64_t result = std::stoi(offsetString.substr(1, 2)) * TemporalInstantObject::HourToNanosecond;
+    if (offsetString[3] == ':') {
+        result += std::stoi(offsetString.substr(4, 2)) * TemporalInstantObject::MinuteToNanosecond;
+        if (offsetString[6] == ':') {
+            result += std::stoi(offsetString.substr(7, 2)) * TemporalInstantObject::SecondToNanosecond;
+            if (offsetString[9] == '.') {
+                result += std::stoi(offsetString.substr(10, 3)) * TemporalInstantObject::MillisecondToNanosecond;
+                result += std::stoi(offsetString.substr(13, 3)) * TemporalInstantObject::MicrosecondToNanosecond;
+                result += std::stoi(offsetString.substr(16, 3));
             }
         }
     }
 
+    if (offsetString[0] == '-') {
+        result *= -1;
+    }
+
     return result;
 }
+
 int TemporalInstantObject::compareEpochNanoseconds(ExecutionState& state, const BigInt& firstNanoSeconds, const BigInt& secondNanoSeconds)
 {
     if (firstNanoSeconds.greaterThan(&secondNanoSeconds)) {
@@ -1382,22 +1458,24 @@ TemporalTimeZoneObject::TemporalTimeZoneObject(ExecutionState& state)
 {
 }
 
-TemporalTimeZoneObject::TemporalTimeZoneObject(ExecutionState& state, Object* proto)
+TemporalTimeZoneObject::TemporalTimeZoneObject(ExecutionState& state, Object* proto, ASCIIString* identifier, const Value& offsetNanoseconds)
     : Temporal(state, proto)
+    , m_identifier(identifier)
+    , m_offsetNanoseconds(offsetNanoseconds)
 {
 }
 
 Value TemporalTimeZoneObject::builtinTimeZoneGetPlainDateTimeFor(ExecutionState& state, const Value& timeZone, const Value& instant, const Value& calendar)
 {
     ASSERT(instant.asObject()->isTemporalInstantObject());
-    Value offsetNanoseconds = TemporalTimeZoneObject::getOffsetNanosecondsFor(state, timeZone, instant);
+    int64_t offsetNanoseconds = TemporalTimeZoneObject::getOffsetNanosecondsFor(state, timeZone, instant);
     auto result = TemporalTimeZoneObject::getISOPartsFromEpoch(state, Value(instant.asObject()->asTemporalInstantObject()->getNanoseconds()));
     result = TemporalPlainDateTimeObject::balanceISODateTime(state, result[TemporalObject::YEAR_UNIT], result[TemporalObject::MONTH_UNIT], result[TemporalObject::DAY_UNIT], result[TemporalObject::HOUR_UNIT], result[TemporalObject::MINUTE_UNIT], result[TemporalObject::SECOND_UNIT], result[TemporalObject::MILLISECOND_UNIT], result[TemporalObject::MICROSECOND_UNIT], result[TemporalObject::NANOSECOND_UNIT]);
 
     return TemporalPlainDateTimeObject::createTemporalDateTime(state, result[TemporalObject::YEAR_UNIT], result[TemporalObject::MONTH_UNIT], result[TemporalObject::DAY_UNIT], result[TemporalObject::HOUR_UNIT], result[TemporalObject::MINUTE_UNIT], result[TemporalObject::SECOND_UNIT], result[TemporalObject::MILLISECOND_UNIT], result[TemporalObject::MICROSECOND_UNIT], result[TemporalObject::NANOSECOND_UNIT], calendar, new Object(state));
 }
 
-Value TemporalTimeZoneObject::getOffsetNanosecondsFor(ExecutionState& state, const Value& timeZone, const Value& instant)
+int64_t TemporalTimeZoneObject::getOffsetNanosecondsFor(ExecutionState& state, const Value& timeZone, const Value& instant)
 {
     Value getOffsetNanosecondsFor = Object::getMethod(state, timeZone, ObjectPropertyName(state.context()->staticStrings().lazygetOffsetNanosecondsFor()));
     Value offsetNanoseconds = Object::call(state, getOffsetNanosecondsFor, Value(), 1, const_cast<Value*>(&instant));
@@ -1409,12 +1487,13 @@ Value TemporalTimeZoneObject::getOffsetNanosecondsFor(ExecutionState& state, con
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "offsetNanoseconds is not an Integer");
     }
 
-    BigInt maxEpoch = BigInt(86400000000000);
-    if (offsetNanoseconds.asBigInt()->isNegative() ? offsetNanoseconds.asBigInt()->negativeValue(state)->greaterThan(&maxEpoch) : offsetNanoseconds.asBigInt()->greaterThan(&maxEpoch)) {
+    int64_t nanoseconds = offsetNanoseconds.asDouble();
+
+    if (std::abs(nanoseconds) > TemporalInstantObject::dayToNanosecond) {
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "offsetNanoseconds is out of range");
     }
 
-    return offsetNanoseconds;
+    return nanoseconds;
 }
 
 std::map<TemporalObject::DateTimeUnits, int> TemporalTimeZoneObject::getISOPartsFromEpoch(ExecutionState& state, const Value& epochNanoseconds)
@@ -1436,6 +1515,222 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalTimeZoneObject::getISOParts
     result[TemporalObject::NANOSECOND_UNIT] = remainderNs % 1000;
 
     return result;
+}
+
+bool TemporalTimeZoneObject::isValidTimeZoneName(const std::string& timeZone)
+{
+    return timeZone == "UTC";
+}
+
+std::string TemporalTimeZoneObject::canonicalizeTimeZoneName(const std::string& timeZone)
+{
+    return "UTC";
+}
+
+Value TemporalTimeZoneObject::createTemporalTimeZone(ExecutionState& state, const std::string& identifier, Optional<Object*> newTarget)
+{
+    if (TemporalTimeZoneObject::isValidTimeZoneName(identifier)) {
+        ASSERT(TemporalTimeZoneObject::canonicalizeTimeZoneName(identifier) == identifier);
+        return new TemporalTimeZoneObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalTimeZonePrototype(), new ASCIIString(identifier.c_str()), Value());
+    }
+
+    int64_t offsetNanoseconds = TemporalInstantObject::offsetStringToNanoseconds(state, new ASCIIString(identifier.c_str()));
+
+    return new TemporalTimeZoneObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalTimeZonePrototype(), new ASCIIString(TemporalTimeZoneObject::formatTimeZoneOffsetString(offsetNanoseconds).c_str()), Value(offsetNanoseconds));
+}
+
+std::string TemporalTimeZoneObject::formatTimeZoneOffsetString(long long offsetNanoseconds)
+{
+    std::string result = offsetNanoseconds >= 0 ? "+" : "-";
+    offsetNanoseconds = std::abs(offsetNanoseconds);
+    int nanoseconds = offsetNanoseconds % TemporalInstantObject::SecondToNanosecond;
+    int seconds = int(std::floor(offsetNanoseconds / TemporalInstantObject::SecondToNanosecond)) % 60;
+    int minutes = int(std::floor(offsetNanoseconds / TemporalInstantObject::MinuteToNanosecond)) % 60;
+    int hours = int(std::floor(offsetNanoseconds / TemporalInstantObject::HourToNanosecond));
+
+    result += (hours == 0 ? "00" : ((hours < 10 ? "0" : "") + std::to_string(hours))) + ":" + (minutes < 10 ? "0" : "") + std::to_string(minutes);
+
+    if (nanoseconds != 0) {
+        std::string second;
+        int num = nanoseconds;
+        unsigned int digits = 9;
+
+        while (num != 0 && digits != 0) {
+            num /= 10;
+            digits--;
+        }
+
+        for (unsigned int i = 0; i < digits; ++i) {
+            second += '0';
+        }
+
+        second += std::to_string(nanoseconds);
+        int index = second.size() - 1;
+
+        for (int i = second.size() - 1; i >= 0; i--) {
+            if (second[i] == '0') {
+                index--;
+            } else {
+                break;
+            }
+        }
+
+        result += ":";
+        result += (hours < 10 ? "0" : "") + std::to_string(seconds) + "." + second.substr(0, index + 1);
+    } else if (seconds != 0) {
+        result += ":";
+        result += (hours < 10 ? "0" : "") + std::to_string(seconds);
+    }
+
+    return result;
+}
+
+Value TemporalTimeZoneObject::toTemporalTimeZone(ExecutionState& state, const Value& temporalTimeZoneLike)
+{
+    auto timeZoneLike = Value();
+
+    if (temporalTimeZoneLike.isObject()) {
+        auto item = temporalTimeZoneLike.asObject();
+        if (item->isTemporalZonedDateTimeObject()) {
+            return item->asTemporalZonedDateTimeObject()->getTimeZone();
+        }
+
+        if (!item->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyTimeZone()))) {
+            return temporalTimeZoneLike;
+        }
+
+        timeZoneLike = item->get(state, ObjectPropertyName(state.context()->staticStrings().lazyTimeZone())).value(state, item);
+
+        if (timeZoneLike.isObject() && !timeZoneLike.asObject()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyTimeZone()))) {
+            return timeZoneLike;
+        }
+    }
+
+    TemporalObject::TimeZone parseResult = TemporalObject::parseTemporalTimeZoneString(state, timeZoneLike.isUndefined() ? temporalTimeZoneLike.asString()->toNonGCUTF8StringData() : timeZoneLike.asString()->toNonGCUTF8StringData());
+
+    if (parseResult.name->length() != 0) {
+        unsigned int index = 0;
+        std::string name = std::string(parseResult.name->toNonGCUTF8StringData());
+        if (TemporalObject::offset(state, name, index).empty()) {
+            if (!TemporalTimeZoneObject::isValidTimeZoneName(name)) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid TimeZone identifier");
+            }
+
+            parseResult.name = new ASCIIString(TemporalTimeZoneObject::canonicalizeTimeZoneName(name).c_str());
+        }
+        return TemporalTimeZoneObject::createTemporalTimeZone(state, name);
+    }
+
+    if (parseResult.z) {
+        return TemporalTimeZoneObject::createTemporalTimeZone(state, "UTC");
+    }
+
+    return TemporalTimeZoneObject::createTemporalTimeZone(state, parseResult.offsetString->toNonGCUTF8StringData());
+}
+
+Value TemporalTimeZoneObject::builtinTimeZoneGetOffsetStringFor(ExecutionState& state, const Value& timeZone, const Value& instant)
+{
+    return Value(new ASCIIString(TemporalTimeZoneObject::formatTimeZoneOffsetString(TemporalTimeZoneObject::getOffsetNanosecondsFor(state, timeZone, instant)).c_str()));
+}
+
+Value TemporalTimeZoneObject::getIANATimeZoneOffsetNanoseconds(ExecutionState& state, const Value& epochNanoseconds, const std::string& timeZoneIdentifier)
+{
+    auto u16 = utf8StringToUTF16String(timeZoneIdentifier.data(), timeZoneIdentifier.size());
+    return epochNanoseconds.asBigInt()->addition(state, new BigInt((int64_t)vzone_getRawOffset(vzone_openID(u16.data(), u16.size()))));
+}
+
+std::map<TemporalObject::DateTimeUnits, int> TemporalTimeZoneObject::getIANATimeZoneDateTimeParts(ExecutionState& state, const Value& epochNanoseconds)
+{
+    auto result = TemporalTimeZoneObject::getISOPartsFromEpoch(state, epochNanoseconds);
+    return TemporalPlainDateTimeObject::balanceISODateTime(state, result[TemporalObject::YEAR_UNIT], result[TemporalObject::MONTH_UNIT], result[TemporalObject::DAY_UNIT], result[TemporalObject::HOUR_UNIT], result[TemporalObject::MINUTE_UNIT], result[TemporalObject::SECOND_UNIT], result[TemporalObject::MILLISECOND_UNIT], result[TemporalObject::MICROSECOND_UNIT], result[TemporalObject::NANOSECOND_UNIT]);
+}
+
+ValueVector TemporalTimeZoneObject::getIANATimeZoneEpochValue(ExecutionState& state, const std::string& timeZoneIdentifier, int year, int month, int day, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond)
+{
+    auto ns = TemporalPlainDateTimeObject::getEpochFromISOParts(state, year, month, day, hour, minute, second, millisecond, microsecond, nanosecond);
+    auto nsEarlier = new BigInt(int64_t(ns - TemporalInstantObject::dayToNanosecond));
+
+    if (!TemporalInstantObject::isValidEpochNanoseconds(nsEarlier)) {
+        nsEarlier = new BigInt(ns);
+    }
+
+    auto nsLater = new BigInt(int64_t(ns + TemporalInstantObject::dayToNanosecond));
+
+    if (!TemporalInstantObject::isValidEpochNanoseconds(nsLater)) {
+        nsLater = new BigInt(ns);
+    }
+
+    auto earliest = TemporalTimeZoneObject::getIANATimeZoneOffsetNanoseconds(state, nsEarlier, timeZoneIdentifier).asBigInt();
+    auto latest = TemporalTimeZoneObject::getIANATimeZoneOffsetNanoseconds(state, nsLater, timeZoneIdentifier).asBigInt();
+    BigInt* found[] = { earliest, latest };
+    ValueVector retVal = {};
+
+    for (auto& i : found) {
+        auto epochNanoseconds = (new BigInt(ns))->subtraction(state, i);
+        auto parts = getIANATimeZoneDateTimeParts(state, epochNanoseconds);
+
+        if (year != parts[TemporalObject::YEAR_UNIT] || month != parts[TemporalObject::MONTH_UNIT] || day != parts[TemporalObject::DAY_UNIT] || hour != parts[TemporalObject::HOUR_UNIT] || minute != parts[TemporalObject::MINUTE_UNIT] || second != parts[TemporalObject::SECOND_UNIT] || millisecond != parts[TemporalObject::MILLISECOND_UNIT] || microsecond != parts[TemporalObject::MICROSECOND_UNIT] || nanosecond != parts[TemporalObject::NANOSECOND_UNIT]) {
+            retVal.push_back(Value());
+            continue;
+        }
+
+        retVal.push_back(epochNanoseconds);
+    }
+
+    return retVal;
+}
+
+Value TemporalTimeZoneObject::getIANATimeZoneNextTransition(ExecutionState& state, const Value& epochNanoseconds, std::string timeZoneIdentifier)
+{
+    auto upperCap = new BigInt(DateObject::currentTime() + (TemporalInstantObject::dayToNanosecond * 366));
+    auto leftNanos = epochNanoseconds.asBigInt();
+    auto leftOffsetNs = TemporalTimeZoneObject::getIANATimeZoneOffsetNanoseconds(state, leftNanos, timeZoneIdentifier).asBigInt();
+    auto rightNanos = leftNanos;
+    auto rightOffsetNs = leftOffsetNs;
+
+    return TemporalTimeZoneObject::getIANATimeZoneTransition(state, rightNanos, rightOffsetNs, leftNanos, leftOffsetNs, upperCap, timeZoneIdentifier);
+}
+
+Value TemporalTimeZoneObject::getIANATimeZonePreviousTransition(ExecutionState& state, const Value& epochNanoseconds, std::string timeZoneIdentifier)
+{
+    auto lowerCap = (new BigInt((int64_t)-388152))->multiply(state, new BigInt((int64_t)1e13)); // 1847-01-01T00:00:00Z
+
+    auto rightNanos = epochNanoseconds.asBigInt()->subtraction(state, new BigInt((int64_t)1));
+    auto rightOffsetNs = TemporalTimeZoneObject::getIANATimeZoneOffsetNanoseconds(state, rightNanos, timeZoneIdentifier).asBigInt();
+    auto leftNanos = rightNanos;
+    auto leftOffsetNs = rightOffsetNs;
+
+    return TemporalTimeZoneObject::getIANATimeZoneTransition(state, rightNanos, rightOffsetNs, leftNanos, leftOffsetNs, lowerCap, timeZoneIdentifier);
+}
+
+Value TemporalTimeZoneObject::getIANATimeZoneTransition(ExecutionState& state, BigInt* rightNanos, BigInt* rightOffsetNs, BigInt* leftNanos, BigInt* leftOffsetNs, BigInt* cap, const std::string& timeZoneIdentifier)
+{
+    while (leftOffsetNs == rightOffsetNs && leftNanos->greaterThan(cap)) {
+        leftNanos = leftNanos->subtraction(state, new BigInt(TemporalInstantObject::dayToNanosecond * 2 * 7));
+        leftOffsetNs = TemporalTimeZoneObject::getIANATimeZoneOffsetNanoseconds(state, leftNanos, timeZoneIdentifier).asBigInt();
+
+        if (leftOffsetNs->equals(rightOffsetNs)) {
+            leftNanos = rightNanos;
+        }
+    }
+
+    while (rightNanos->subtraction(state, leftNanos)->greaterThan(1)) {
+        auto middle = leftNanos->addition(state, rightNanos)->division(state, new BigInt((uint64_t)2));
+        auto mState = TemporalTimeZoneObject::getIANATimeZoneOffsetNanoseconds(state, middle, timeZoneIdentifier).asBigInt();
+
+        if (mState->equals(leftOffsetNs)) {
+            leftNanos = middle;
+            leftOffsetNs = mState;
+        } else if (mState->equals(rightOffsetNs)) {
+            rightNanos = middle;
+            rightOffsetNs = mState;
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "invalid state");
+            break;
+        }
+    }
+
+    return rightNanos;
 }
 
 TemporalPlainYearMonthObject::TemporalPlainYearMonthObject(ExecutionState& state)
@@ -1493,7 +1788,7 @@ Value TemporalPlainYearMonthObject::toTemporalYearMonth(ExecutionState& state, c
 
     Temporal::toTemporalOverflow(state, options);
     auto result = TemporalObject::parseTemporalYearMonthString(state, item.asString()->toNonGCUTF8StringData());
-    auto calendar = TemporalCalendarObject::toTemporalCalendarWithISODefault(state, Value(result.calendar.c_str()));
+    auto calendar = TemporalCalendarObject::toTemporalCalendarWithISODefault(state, Value(result.calendar));
     auto retVal = TemporalPlainYearMonthObject::createTemporalYearMonth(state, result.year, result.month, calendar, result.day);
 
     return TemporalCalendarObject::calendarYearMonthFromFields(state, calendar, retVal, Value());
@@ -1677,7 +1972,7 @@ Value TemporalPlainMonthDayObject::toTemporalMonthDay(ExecutionState& state, con
     if (!item.isObject()) {
         Temporal::toTemporalOverflow(state, options);
         auto result = TemporalObject::parseTemporalMonthDayString(state, item.asString()->toNonGCUTF8StringData());
-        auto calendar = TemporalCalendarObject::toTemporalCalendarWithISODefault(state, Value(result.calendar.c_str()));
+        auto calendar = TemporalCalendarObject::toTemporalCalendarWithISODefault(state, Value(result.calendar));
 
         if (result.year == 0) {
             return createTemporalMonthDay(state, result.month, result.day, calendar.asObject()->asTemporalCalendarObject(), referenceISOYear);
@@ -1713,6 +2008,28 @@ Value TemporalPlainMonthDayObject::toTemporalMonthDay(ExecutionState& state, con
     }
 
     return TemporalCalendarObject::calendarMonthDayFromFields(state, calendar, fields, options);
+}
+
+TemporalObject::DateTime::DateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, String* calendar, TemporalObject::TimeZone* tz)
+    : year(year)
+    , month(month)
+    , day(day)
+    , hour(hour)
+    , minute(minute)
+    , second(second)
+    , millisecond(millisecond)
+    , microsecond(microsecond)
+    , nanosecond(nanosecond)
+    , calendar(calendar)
+    , tz(tz)
+{
+}
+
+TemporalObject::TimeZone::TimeZone(bool z, String* offsetString, String* name)
+    : z(z)
+    , offsetString(offsetString)
+    , name(name)
+{
 }
 } // namespace Escargot
 
