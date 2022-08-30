@@ -1485,9 +1485,11 @@ public:
 
         bool oldInParameterParsing = this->context->inParameterParsing;
         bool oldInParameterNameParsing = this->context->inParameterNameParsing;
+        bool oldIsAssignmentTarget = this->context->isAssignmentTarget;
 
         this->context->inParameterParsing = true;
         this->context->inParameterNameParsing = true;
+        this->context->isAssignmentTarget = true;
 
         if (firstRestricted) {
             options.firstRestricted = *firstRestricted;
@@ -1513,6 +1515,7 @@ public:
 
         this->context->inParameterParsing = oldInParameterParsing;
         this->context->inParameterNameParsing = oldInParameterNameParsing;
+        this->context->isAssignmentTarget = oldIsAssignmentTarget;
     }
 
     bool matchAsyncFunction()
