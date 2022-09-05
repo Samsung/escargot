@@ -120,9 +120,9 @@ protected:
         self->dispose();
     }
 
-    static void backingStoreObserver(BackingStore* bufferOwner, void* newAddress, void* userData)
+    static void backingStoreObserver(BackingStore* bufferOwner, void* newAddress, size_t newByteLength, void* userData)
     {
-        reinterpret_cast<ArrayBuffer*>(userData)->bufferAddressUpdated(newAddress);
+        reinterpret_cast<ArrayBuffer*>(userData)->bufferUpdated(newAddress, newByteLength);
     }
 
     void updateBackingStore(Optional<BackingStore*> bs)
@@ -133,9 +133,9 @@ protected:
         m_backingStore = bs;
         if (m_backingStore) {
             m_backingStore->addObserver(this, backingStoreObserver, this);
-            bufferAddressUpdated(m_backingStore->data());
+            bufferUpdated(m_backingStore->data(), m_backingStore->byteLength());
         } else {
-            bufferAddressUpdated(nullptr);
+            bufferUpdated(nullptr, 0);
         }
     }
 
@@ -209,10 +209,23 @@ private:
         m_cachedRawBufferAddress = (m_buffer && m_buffer->data()) ? m_buffer->data() + m_byteOffset : nullptr;
     }
 
-    static void backingStoreObserver(ArrayBuffer* bufferOwner, void* newAddress, void* userData)
+    static void backingStoreObserver(ArrayBuffer* bufferOwner, void* newAddress, size_t newByteLength, void* userData)
     {
         ArrayBufferView* self = reinterpret_cast<ArrayBufferView*>(userData);
         self->updateCacheAddress();
+        if (self->m_byteLength + self->m_byteOffset != newByteLength) {
+            if (newByteLength > self->m_byteOffset) {
+                size_t ratio = self->m_arrayLength ? self->m_byteLength / self->m_arrayLength : SIZE_MAX;
+                self->m_byteLength = newByteLength - self->m_byteOffset;
+                if (ratio == SIZE_MAX) {
+                    self->m_arrayLength = 0;
+                } else {
+                    self->m_arrayLength = self->m_byteLength / ratio;
+                }
+            } else {
+                self->m_arrayLength = self->m_byteLength = 0;
+            }
+        }
     }
 
     ArrayBuffer* m_buffer;
