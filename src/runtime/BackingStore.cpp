@@ -42,7 +42,7 @@ BackingStore* BackingStore::createDefaultResizableNonSharedBackingStore(size_t b
 {
     // Resizable BackingStore is allocated by Platform only
     return new NonSharedBackingStore(
-        Global::platform()->onMallocArrayBufferObjectDataBuffer(byteLength),
+        Global::platform()->onMallocArrayBufferObjectDataBuffer(maxByteLength),
         byteLength, backingStorePlatformDeleter, maxByteLength, true);
 }
 
@@ -108,6 +108,7 @@ void NonSharedBackingStore::resize(size_t newByteLength)
     }
 
     m_byteLength = newByteLength;
+    bufferUpdated(m_data, m_byteLength);
 }
 
 void NonSharedBackingStore::reallocate(size_t newByteLength)
@@ -129,7 +130,7 @@ void NonSharedBackingStore::reallocate(size_t newByteLength)
         m_byteLength = newByteLength;
         m_isAllocatedByPlatform = true;
     }
-    bufferAddressUpdated(m_data);
+    bufferUpdated(m_data, newByteLength);
 }
 
 #if defined(ENABLE_THREADING)
@@ -195,6 +196,7 @@ void SharedBackingStore::resize(size_t newByteLength)
     ASSERT(isResizable() && newByteLength <= maxByteLength());
 
     m_sharedDataBlockInfo->grow(newByteLength);
+    bufferUpdated(m_sharedDataBlockInfo->data(), m_sharedDataBlockInfo->byteLength());
 }
 
 void* SharedBackingStore::operator new(size_t size)

@@ -38,7 +38,7 @@ public:
     {
     }
 
-    using BufferAddressObserverCallback = void (*)(BufferOwnerType* bufferOwner, void* newAddress, void* userData);
+    using BufferAddressObserverCallback = void (*)(BufferOwnerType* bufferOwner, void* newAddress, size_t newByteLength, void* userData);
     void addObserver(Object* from, BufferAddressObserverCallback cb, void* userData)
     {
         ASSERT(!m_isUpdating && !!from);
@@ -122,14 +122,14 @@ protected:
 #ifndef NDEBUG
     bool m_isUpdating;
 #endif
-    void bufferAddressUpdated(void* newAddress)
+    void bufferUpdated(void* newAddress, size_t newByteLength)
     {
 #ifndef NDEBUG
         m_isUpdating = true;
 #endif
         for (size_t i = 0; i < m_observerItems.size(); i++) {
             if (LIKELY(!!m_observerItems[i].callback)) {
-                m_observerItems[i].callback(m_owner, newAddress, m_observerItems[i].userData);
+                m_observerItems[i].callback(m_owner, newAddress, newByteLength, m_observerItems[i].userData);
             }
         }
 #ifndef NDEBUG

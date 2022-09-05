@@ -2955,9 +2955,7 @@
     <test id="built-ins/ThrowTypeError/unique-per-realm-function-proto"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/at/BigInt/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/at/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/byteLength/BigInt/resizable-array-buffer-auto"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/byteLength/BigInt/resizable-array-buffer-fixed"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/byteLength/resizable-array-buffer-auto"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/byteLength/resizable-array-buffer-fixed"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/byteOffset/BigInt/resizable-array-buffer-auto"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/byteOffset/BigInt/resizable-array-buffer-fixed"><reason>TODO</reason></test>
@@ -2993,9 +2991,7 @@
     <test id="built-ins/TypedArray/prototype/keys/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/lastIndexOf/BigInt/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/lastIndexOf/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/length/BigInt/resizable-array-buffer-auto"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/length/BigInt/resizable-array-buffer-fixed"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/length/resizable-array-buffer-auto"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/length/resizable-array-buffer-fixed"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/map/BigInt/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/map/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
@@ -3005,9 +3001,7 @@
     <test id="built-ins/TypedArray/prototype/reduceRight/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/reverse/BigInt/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/reverse/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/set/BigInt/typedarray-arg-set-values-same-buffer-same-type-resized"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/set/BigInt/typedarray-arg-target-out-of-bounds"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/set/typedarray-arg-set-values-same-buffer-same-type-resized"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/set/typedarray-arg-target-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/slice/BigInt/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/slice/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
@@ -3023,9 +3017,7 @@
     <test id="built-ins/TypedArrayConstructors/ctors/typedarray-arg/out-of-bounds-when-species-retrieved-same-type"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/tonumber-value-detached-buffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/HasProperty/resizable-array-buffer-auto"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/HasProperty/resizable-array-buffer-fixed"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArrayConstructors/internals/OwnPropertyKeys/integer-indexes-resizable-array-buffer-auto"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/OwnPropertyKeys/integer-indexes-resizable-array-buffer-fixed"><reason>TODO</reason></test>
     <test id="intl402/Collator/constructor-options-throwing-getters"><reason>TODO</reason></test>
     <test id="intl402/Collator/prototype/resolvedOptions/basic"><reason>TODO</reason></test>
