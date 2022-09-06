@@ -2389,9 +2389,22 @@ public:
             return this->finalize(node, builder.createMetaPropertyNode(MetaPropertyNode::ImportMeta));
         } else if (this->match(LeftParenthesis)) {
             this->nextToken();
-            ASTNode arg = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+            ASTNode specifier = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+            ASTNode option = nullptr;
+            if (this->match(PunctuatorKind::Comma)) {
+                this->nextToken();
+
+                // Comma before close bracket is allowed
+                if (!this->match(PunctuatorKind::RightParenthesis)) {
+                    option = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
+
+                    if (this->match(PunctuatorKind::Comma)) {
+                        this->nextToken();
+                    }
+                }
+            }
             this->expect(RightParenthesis);
-            return this->finalize(node, builder.createImportCallNode(arg));
+            return this->finalize(node, builder.createImportCallNode(specifier, option));
         } else {
             this->throwUnexpectedToken(this->lookahead);
             ASSERT_NOT_REACHED();

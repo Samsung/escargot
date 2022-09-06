@@ -3572,6 +3572,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         // Let argRef be the result of evaluating AssignmentExpression.
         // Let specifier be ? GetValue(argRef).
         const Value& specifier = registerFile[code->m_argumentsStartIndex];
+        Platform::ModuleType moduleType = Platform::ModuleES;
         // Let promiseCapability be ! NewPromiseCapability(%Promise%).
         auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
 
@@ -3580,6 +3581,10 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         // IfAbruptRejectPromise(specifierString, promiseCapability).
         try {
             specifierString = specifier.toString(state);
+
+            if (code->m_argumentCount == 2) {
+                moduleType = static_cast<Platform::ModuleType>(evaluateImportAssertionOperation(state, registerFile[code->m_argumentsStartIndex + 1]));
+            }
         } catch (const Value& v) {
             Value thrownValue = v;
             // If value is an abrupt completion,
@@ -3608,7 +3613,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         innerPromiseCapability.m_promise->asPromiseObject()->then(state, onFulfilled, onRejected);
 
         Global::platform()->hostImportModuleDynamically(byteCodeBlock->m_codeBlock->context(),
-                                                        referencingScriptOrModule, specifierString, Platform::ModuleES, innerPromiseCapability.m_promise->asPromiseObject());
+                                                        referencingScriptOrModule, specifierString, moduleType, innerPromiseCapability.m_promise->asPromiseObject());
 
         // Return promiseCapability.[[Promise]].
         registerFile[code->m_resultIndex] = promiseCapability.m_promise;
@@ -4357,5 +4362,60 @@ NEVER_INLINE void ByteCodeInterpreter::ensureArgumentsObjectOperation(ExecutionS
     auto functionObject = functionRecord->functionObject()->asScriptFunctionObject();
     bool isMapped = functionObject->interpretedCodeBlock()->shouldHaveMappedArguments();
     functionObject->generateArgumentsObject(state, state.argc(), state.argv(), functionRecord, registerFile + byteCodeBlock->m_requiredOperandRegisterNumber, isMapped);
+}
+
+NEVER_INLINE int ByteCodeInterpreter::evaluateImportAssertionOperation(ExecutionState& state, const Value& options)
+{
+    if (options.isUndefined()) {
+        return Platform::ModuleES;
+    }
+
+    if (!options.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+    }
+
+    ObjectGetResult result = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().assert));
+
+    if (!result.hasValue()) {
+        return Platform::ModuleES;
+    }
+
+    Value assertions = result.value(state, options);
+
+    if (assertions.isUndefined()) {
+        return Platform::ModuleES;
+    }
+
+    if (!assertions.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+    }
+
+    Object* assertObject = assertions.asObject();
+
+    ValueVectorWithInlineStorage nameList = Object::enumerableOwnProperties(state, assertObject, EnumerableOwnPropertiesType::Key);
+    size_t nameListLength = nameList.size();
+
+    for (size_t i = 0; i < nameListLength; i++) {
+        Value key = nameList[i];
+
+        // The key / value pair must be evaluated before their content is checked
+        ObjectGetResult result = assertObject->get(state, ObjectPropertyName(state, key));
+        Value resultValue = result.hasValue() ? result.value(state, options) : Value();
+
+        // Currently only "type" is supported
+        if (!key.isString() || !key.asString()->equals("type")) {
+            String* asString = key.toStringWithoutException(state);
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, asString, false, String::emptyString, "unsupported import assertion key: %s");
+        }
+
+        if (!resultValue.isString() || !resultValue.asString()->equals("json")) {
+            String* asString = resultValue.toStringWithoutException(state);
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, asString, false, String::emptyString, "unsupported import assertion type: %s");
+        }
+
+        return Platform::ModuleJSON;
+    }
+
+    return Platform::ModuleES;
 }
 } // namespace Escargot

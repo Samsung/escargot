@@ -26,38 +26,61 @@ namespace Escargot {
 
 class ImportCallNode : public ExpressionNode {
 public:
-    ImportCallNode(Node* expr)
+    ImportCallNode(Node* specifier, Node* options)
         : ExpressionNode()
-        , m_expr(expr)
+        , m_specifier(specifier)
+        , m_options(options)
     {
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::ImportCall; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        ByteCodeRegisterIndex reg = context->getRegister();
-        m_expr->generateExpressionByteCode(codeBlock, context, reg);
+        ByteCodeRegisterIndex specifierReg = context->getRegister();
+        ByteCodeRegisterIndex optionsReg = 0;
+
+        if (m_options) {
+            optionsReg = context->getRegister();
+        }
+
+        m_specifier->generateExpressionByteCode(codeBlock, context, specifierReg);
+
+        if (m_options) {
+            m_options->generateExpressionByteCode(codeBlock, context, optionsReg);
+        }
 
         codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::Import, false, false, false,
-                                                    SIZE_MAX, SIZE_MAX, reg, dstRegister, 1),
+                                                    SIZE_MAX, SIZE_MAX, specifierReg, dstRegister, m_options ? 2 : 1),
                             context, this);
+
+
+        if (m_options) {
+            context->giveUpRegister();
+        }
 
         context->giveUpRegister();
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
-        m_expr->iterateChildrenIdentifier(fn);
+        m_specifier->iterateChildrenIdentifier(fn);
+        if (m_options) {
+            m_options->iterateChildrenIdentifier(fn);
+        }
     }
 
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
     {
         fn(this);
-        m_expr->iterateChildren(fn);
+        m_specifier->iterateChildren(fn);
+        if (m_options) {
+            m_options->iterateChildren(fn);
+        }
     }
 
 private:
-    Node* m_expr;
+    Node* m_specifier;
+    Node* m_options;
 };
 } // namespace Escargot
 
