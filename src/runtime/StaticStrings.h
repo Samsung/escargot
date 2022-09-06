@@ -142,6 +142,7 @@ namespace Escargot {
     F(asUintN)                    \
     F(asin)                       \
     F(asinh)                      \
+    F(assert)                     \
     F(assign)                     \
     F(async)                      \
     F(asyncIterator)              \

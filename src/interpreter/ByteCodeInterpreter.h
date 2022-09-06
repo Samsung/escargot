@@ -174,6 +174,8 @@ private:
     static void taggedTemplateOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer, ByteCodeBlock* byteCodeBlock);
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+
+    static int evaluateImportAssertionOperation(ExecutionState& state, const Value& options);
 };
 } // namespace Escargot
 
