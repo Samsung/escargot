@@ -87,6 +87,7 @@ enum ASTNodeType : uint16_t {
     BinaryExpressionDivision,
     BinaryExpressionExponentiation,
     BinaryExpressionIn,
+    BinaryExpressionPrivateIn,
     BinaryExpressionInstanceOf,
     BinaryExpressionLeftShift,
     BinaryExpressionLogicalAnd,

@@ -2836,6 +2836,32 @@ public:
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
                 return exprNode;
+            } else if (punctuatorsKind == Hash) {
+                ALLOC_TOKEN(hashToken);
+                this->nextToken(hashToken);
+                ALLOC_TOKEN(idToken);
+                *idToken = this->lookahead;
+                ASTNode property = this->parseClassPrivateIdentifierName(builder);
+                if (!this->isParsingSingleFunction) {
+                    if (!this->currentClassInfo) {
+                        this->throwError(Messages::PrivateFieldMustBeDeclared, property->asIdentifier()->name().string());
+                    }
+                    this->currentClassInfo->insertClassPrivateUsingName(property->asIdentifier()->name(),
+                                                                        idToken->start,
+                                                                        idToken->lineNumber,
+                                                                        idToken->lineStart);
+                }
+                if (this->matchKeyword(KeywordKind::InKeyword) && this->context->allowIn) {
+                    ALLOC_TOKEN(token);
+                    this->nextToken(token);
+
+                    this->context->allowIn = false;
+                    auto right = this->isolateCoverGrammar(builder, &Parser::parseBinaryExpression<ASTBuilder>);
+                    this->context->allowIn = true;
+
+                    return builder.createBinaryExpressionPrivateInNode(property, right);
+                }
+                this->throwUnexpectedToken(*hashToken);
             }
         } else if (this->lookahead.type == Token::KeywordToken) {
             ASTNode exprNode = nullptr;

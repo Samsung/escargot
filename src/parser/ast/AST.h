@@ -62,6 +62,7 @@
 #include "BinaryExpressionNotEqualNode.h"
 #include "BinaryExpressionNotStrictEqualNode.h"
 #include "BinaryExpressionPlusNode.h"
+#include "BinaryExpressionPrivateInNode.h"
 #include "BinaryExpressionSignedRightShiftNode.h"
 #include "BinaryExpressionStrictEqualNode.h"
 #include "BinaryExpressionUnsignedRightShiftNode.h"
