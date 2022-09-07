@@ -1943,6 +1943,18 @@ Value Object::getPrivateMember(ExecutionState& state, Object* contextObject, Ato
     return Value();
 }
 
+bool Object::hasPrivateMember(ExecutionState& state, Object* contextObject, AtomicString propertyName, bool shouldReferOuterClass)
+{
+    auto e = ensureExtendedExtraData();
+    auto piece = findPieceOnPrivateMemberChain(state, e, contextObject);
+    if (piece) {
+        return piece->m_privateMemberStructure->findProperty(propertyName);
+    } else if (shouldReferOuterClass && contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor()) {
+        return hasPrivateMember(state, contextObject->asScriptClassConstructorFunctionObject()->outerClassConstructor().value(), propertyName);
+    }
+    return false;
+}
+
 void Object::setPrivateMember(ExecutionState& state, Object* contextObject, AtomicString propertyName, const Value& value, bool shouldReferOuterClass)
 {
     auto e = ensureExtendedExtraData();

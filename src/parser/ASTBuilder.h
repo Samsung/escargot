@@ -67,6 +67,7 @@ namespace Escargot {
     F(BinaryExpressionNotEqual)               \
     F(BinaryExpressionNotStrictEqual)         \
     F(BinaryExpressionPlus)                   \
+    F(BinaryExpressionPrivateIn)              \
     F(BinaryExpressionSignedRightShift)       \
     F(BinaryExpressionStrictEqual)            \
     F(BinaryExpressionUnsignedRightShift)     \

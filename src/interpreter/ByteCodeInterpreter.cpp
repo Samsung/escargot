@@ -1209,10 +1209,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             BinaryInOperation* code = (BinaryInOperation*)programCounter;
-            const Value& left = registerFile[code->m_srcIndex0];
-            const Value& right = registerFile[code->m_srcIndex1];
-            bool result = binaryInOperation(*state, left, right);
-            registerFile[code->m_dstIndex] = Value(result);
+            binaryInOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(BinaryInOperation);
             NEXT_INSTRUCTION();
         }
@@ -3326,16 +3323,19 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, B
     }
 }
 
-NEVER_INLINE bool ByteCodeInterpreter::binaryInOperation(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE void ByteCodeInterpreter::binaryInOperation(ExecutionState& state, BinaryInOperation* code, Value* registerFile)
 {
+    const Value& left = registerFile[code->m_srcIndex0];
+    const Value& right = registerFile[code->m_srcIndex1];
     if (!right.isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "type of rvalue is not Object");
-        return false;
     }
 
-    // https://www.ecma-international.org/ecma-262/5.1/#sec-11.8.7
-    // Return the result of calling the [[HasProperty]] internal method of rval with argument ToString(lval).
-    return right.toObject(state)->hasProperty(state, ObjectPropertyName(state, left));
+    if (UNLIKELY(code->m_extraData)) {
+        registerFile[code->m_dstIndex] = Value(right.toObject(state)->hasPrivateMember(state, state.findPrivateMemberContextObject(), AtomicString(state, left.asString()), false));
+    } else {
+        registerFile[code->m_dstIndex] = Value(right.toObject(state)->hasProperty(state, ObjectPropertyName(state, left)));
+    }
 }
 
 NEVER_INLINE Value ByteCodeInterpreter::constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv)

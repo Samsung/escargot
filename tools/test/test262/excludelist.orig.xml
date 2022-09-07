@@ -3608,17 +3608,6 @@
     <test id="language/expressions/generators/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/generators/generator-created-after-decl-inst"><reason>TODO</reason></test>
     <test id="language/expressions/generators/yield-as-generator-expression-binding-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/in/private-field-presence-accessor"><reason>TODO</reason></test>
-    <test id="language/expressions/in/private-field-presence-accessor-shadowed"><reason>TODO</reason></test>
-    <test id="language/expressions/in/private-field-presence-field"><reason>TODO</reason></test>
-    <test id="language/expressions/in/private-field-presence-field-shadowed"><reason>TODO</reason></test>
-    <test id="language/expressions/in/private-field-presence-method"><reason>TODO</reason></test>
-    <test id="language/expressions/in/private-field-presence-method-shadowed"><reason>TODO</reason></test>
-    <test id="language/expressions/in/private-field-rhs-await-absent"><reason>TODO</reason></test>
-    <test id="language/expressions/in/private-field-rhs-await-present"><reason>TODO</reason></test>
-    <test id="language/expressions/in/private-field-rhs-non-object"><reason>TODO</reason></test>
-    <test id="language/expressions/in/private-field-rhs-unresolvable"><reason>TODO</reason></test>
-    <test id="language/expressions/in/private-field-rhs-yield-present"><reason>TODO</reason></test>
     <test id="language/expressions/logical-and/tco-right"><reason>TODO</reason></test>
     <test id="language/expressions/logical-assignment/lgcl-and-assignment-operator-namedevaluation-arrow-function"><reason>TODO</reason></test>
     <test id="language/expressions/logical-assignment/lgcl-and-assignment-operator-namedevaluation-class-expression"><reason>TODO</reason></test>
