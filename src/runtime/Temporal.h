@@ -129,7 +129,7 @@ public:
     {
         ASSERT(fields.isObject());
         auto* result = new Object(state);
-        for (auto property : fieldNames) {
+        for (auto& property : fieldNames) {
             Value value = fields.asObject()->get(state, ObjectPropertyName(state, fields), property).value(state, Value());
             String* prop = property.asString();
             if (value.isUndefined()) {

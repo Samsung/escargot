@@ -267,7 +267,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
                                             &keys);
                     }
 
-                    for (auto key : keys) {
+                    for (auto& key : keys) {
                         Value newElement = Walk(val, key);
                         if (newElement.isUndefined()) {
                             object->deleteOwnProperty(state, key);

@@ -133,7 +133,7 @@ void ThreadLocal::initialize()
     Heap::initialize();
 
     // g_randEngine
-    g_randEngine = new std::mt19937((unsigned int)time(NULL));
+    g_randEngine = new std::mt19937(static_cast<unsigned int>(time(NULL)));
 
     // g_bfContext
     bf_context_init(&g_bfContext, [](void* opaque, void* ptr, size_t size) -> void* {
