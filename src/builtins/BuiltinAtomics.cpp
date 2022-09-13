@@ -323,32 +323,32 @@ static Value builtinAtomicsXor(ExecutionState& state, Value thisValue, size_t ar
     return atomicReadModifyWrite(state, argv[0], argv[1], argv[2], AtomicBinaryOps::XOR);
 }
 
-static Value builtinAtomicsWait(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArrayValue, const Value& index, const Value& value, const Value& timeout)
 {
-    // https://tc39.es/ecma262/#sec-atomics.wait
-    // 25.4.12 Atomics.wait ( typedArray, index, value, timeout )
-    // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray, true).
-    ArrayBuffer* buffer = validateIntegerTypedArray(state, argv[0], true);
-    TypedArrayObject* typedArray = argv[0].asObject()->asTypedArrayObject();
-    // 2. If IsSharedArrayBuffer(buffer) is false, throw a TypeError exception.
+    // https://tc39.es/proposal-atomics-wait-async/#sec-dowait
+    // Let buffer be ? ValidateSharedIntegerTypedArray(typedArray, true).
+    ArrayBuffer* buffer = validateIntegerTypedArray(state, typedArrayValue, true);
+    TypedArrayObject* typedArray = typedArrayValue.asObject()->asTypedArrayObject();
     if (!buffer->isSharedArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Atomics.wait expects SharedArrayBuffer");
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "This function expects SharedArrayBuffer");
     }
-    // 3. Let indexedPosition be ? ValidateAtomicAccess(typedArray, index).
-    size_t indexedPosition = validateAtomicAccess(state, typedArray, argv[1]);
-    // 4. Let arrayTypeName be typedArray.[[TypedArrayName]].
+
+    // Let i be ? ValidateAtomicAccess(typedArray, index).
+    size_t i = validateAtomicAccess(state, typedArray, index);
+    // Let arrayTypeName be typedArray.[[TypedArrayName]].
     auto arrayTypeName = typedArray->typedArrayType();
-    // 5. If arrayTypeName is "BigInt64Array", let v be ? ToBigInt64(value).
+    // If arrayTypeName is "BigInt64Array", let v be ? ToBigInt64(value).
     Value v;
     if (arrayTypeName == TypedArrayType::BigInt64) {
-        v = argv[2].toBigInt(state);
+        v = value.toBigInt(state);
     } else {
-        // 6. Otherwise, let v be ? ToInt32(value).
-        v = Value(argv[2].toInt32(state));
+        // Otherwise, let v be ? ToInt32(value).
+        v = Value(value.toInt32(state));
     }
-    // 7. Let q be ? ToNumber(timeout).
-    double q = argv[3].toNumber(state);
-    // 8. If q is NaN or +∞𝔽, let t be +∞; else if q is -∞𝔽, let t be 0; else let t be max(ℝ(q), 0).
+
+    //  Let q be ? ToNumber(timeout).
+    double q = timeout.toNumber(state);
+    // If q is NaN, let t be +∞, else let t be max(q, 0).
     double t;
     if (std::isnan(q) || q == std::numeric_limits<double>::infinity()) {
         t = std::numeric_limits<double>::infinity();
@@ -357,57 +357,150 @@ static Value builtinAtomicsWait(ExecutionState& state, Value thisValue, size_t a
     } else {
         t = std::max(q, 0.0);
     }
-    // 9. Let B be AgentCanSuspend().
-    // 10. If B is false, throw a TypeError exception.
-    if (!Global::platform()->canBlockExecution(state.context())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot suspend this thread");
+    // If mode is sync, then
+    if (!isAsync) {
+        // Let B be AgentCanSuspend().
+        // If B is false, throw a TypeError exception.
+        if (!Global::platform()->canBlockExecution(state.context())) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot suspend this thread");
+        }
     }
-    // 11. Let block be buffer.[[ArrayBufferData]].
-    void* blockAddress = reinterpret_cast<int32_t*>(buffer->data()) + indexedPosition;
-    // 12. Let WL be GetWaiterList(block, indexedPosition).
-    Global::Waiter* WL = Global::waiter(blockAddress);
-    // 13. Perform EnterCriticalSection(WL).
+    // Let block be buffer.[[ArrayBufferData]].
+    // Let offset be typedArray.[[ByteOffset]].
+    // Let indexedPosition be (i × 4) + offset.
+    void* indexedPosition = reinterpret_cast<int32_t*>(buffer->data()) + i;
+    // Let WL be GetWaiterList(block, indexedPosition).
+    Global::Waiter* WL = Global::waiter(indexedPosition);
+
+    // Let promiseCapability be undefined.
+    PromiseReaction::Capability promiseCapability;
+    // Let resultObject be undefined.
+    Optional<Object*> resultObject;
+    // If mode is async, then
+    if (isAsync) {
+        // Set promiseCapability to ! NewPromiseCapability(%Promise%).
+        promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+        // Set resultObject to ! OrdinaryObjectCreate(%Object.prototype%).
+        resultObject = new Object(state);
+    }
+
+    // Perform EnterCriticalSection(WL).
     WL->m_mutex.lock();
-    // 14. Let elementType be the Element Type value in Table 63 for arrayTypeName.
-    // 15. Let w be ! GetValueFromBuffer(buffer, indexedPosition, elementType, true, SeqCst).
-    ASSERT(arrayTypeName == TypedArrayType::Int32 || arrayTypeName == TypedArrayType::BigInt64);
+    // Let w be ! AtomicLoad(typedArray, i).
     Value w(Value::ForceUninitialized);
-    w = buffer->getValueFromBuffer(state, indexedPosition, arrayTypeName);
-    // 16. If v ≠ w, then
+    ASSERT(arrayTypeName == TypedArrayType::Int32 || arrayTypeName == TypedArrayType::BigInt64);
+    w = buffer->getValueFromBuffer(state, i, arrayTypeName);
+    // If v is not equal to w, then
     if (!v.equalsTo(state, w)) {
-        // a. Perform LeaveCriticalSection(WL).
+        // Perform LeaveCriticalSection(WL).
         WL->m_mutex.unlock();
-        // b. Return the String "not-equal".
-        return Value(state.context()->staticStrings().lazyNotEqual().string());
+        // If mode is sync, then
+        if (!isAsync) {
+            //  Return the String "not-equal".
+            return Value(state.context()->staticStrings().lazyNotEqual().string());
+        }
+        // Perform ! CreateDataPropertyOrThrow(resultObject, "async", false).
+        resultObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().async), ObjectPropertyDescriptor(Value(false), ObjectPropertyDescriptor::PresentAttribute::AllPresent));
+        // Perform ! CreateDataPropertyOrThrow(resultObject, "value", "not-equal").
+        resultObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().value), ObjectPropertyDescriptor(state.context()->staticStrings().lazyNotEqual().string(), ObjectPropertyDescriptor::PresentAttribute::AllPresent));
+        // Return resultObject.
+        return Value(resultObject.value());
     }
-    // 17. Let W be AgentSignifier().
-    // 18. Perform AddWaiter(WL, W).
-    // 19. Let notified be SuspendAgent(WL, W, t).
-    bool notified = true;
-    std::unique_lock<std::mutex> ul(WL->m_conditionVariableMutex);
-    WL->m_waiterCount++;
-    WL->m_mutex.unlock();
-    if (t == std::numeric_limits<double>::infinity()) {
-        WL->m_waiter.wait(ul);
+    // If t is 0 and mode is async, then
+    if (t == 0 && isAsync) {
+        // NOTE: There is no special handling of synchronous immediate timeouts. Asynchronous immediate timeouts have special handling in order to fail fast and avoid Promise machinery.
+        // Perform LeaveCriticalSection(WL).
+        WL->m_mutex.unlock();
+        // Perform ! CreateDataPropertyOrThrow(resultObject, "async", false).
+        resultObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().async), ObjectPropertyDescriptor(Value(false), ObjectPropertyDescriptor::PresentAttribute::AllPresent));
+        // Perform ! CreateDataPropertyOrThrow(resultObject, "value", "timed-out").
+        resultObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().value), ObjectPropertyDescriptor(state.context()->staticStrings().lazyTimedOut().string(), ObjectPropertyDescriptor::PresentAttribute::AllPresent));
+        // Return resultObject.
+        return Value(resultObject.value());
+    }
+
+    // Let W be AgentSignifier().
+    // Let waiterRecord be a new Waiter Record { [[AgentSignifier]]: W, [[PromiseCapability]]: promiseCapability, [[Timeout]]: t, [[Result]]: "ok" }.
+    // Perform AddWaiter(WL, waiterRecord).
+    // If mode is sync, then
+    //     Perform Suspend(WL, W).
+    // Perform LeaveCriticalSection(WL).
+    // If mode is sync, then
+    //     Return waiterRecord.[[Result]].
+    // Perform ! CreateDataPropertyOrThrow(resultObject, "async", true).
+    // Perform ! CreateDataPropertyOrThrow(resultObject, "value", promiseCapability.[[Promise]]).
+    // Return resultObject.
+    if (isAsync) {
+        std::unique_lock<std::mutex> ul(WL->m_conditionVariableMutex);
+        auto waiterItem = std::shared_ptr<Global::WaiterItem>(new Global::WaiterItem(state.context(), WL, promiseCapability.m_promise));
+        WL->m_waiterList.push_back(waiterItem);
+        {
+            auto worker = [](double t, Global::Waiter* WL, std::shared_ptr<Global::WaiterItem> waiterItem, Context* context) {
+                bool notified = true;
+                std::unique_lock<std::mutex> ul(WL->m_conditionVariableMutex);
+                if (t == std::numeric_limits<double>::infinity()) {
+                    WL->m_waiter.wait(ul);
+                } else {
+                    notified = WL->m_waiter.wait_for(ul, std::chrono::milliseconds((int64_t)t)) == std::cv_status::no_timeout;
+                }
+
+                {
+                    std::unique_lock<std::mutex> ul(context->vmInstance()->asyncWaiterDataMutex());
+                    auto& v = context->vmInstance()->asyncWaiterData();
+                    for (auto& item : v) {
+                        if (std::get<2>(item) == waiterItem.get()) {
+                            std::get<2>(item) = nullptr;
+                            std::get<3>(item) = notified;
+                            context->vmInstance()->pendingAsyncWaiterCount()++;
+                            break;
+                        }
+                    }
+                }
+                {
+                    std::unique_lock<std::mutex> ul(WL->m_mutex);
+                    WL->m_waiterList.erase(std::remove(WL->m_waiterList.begin(), WL->m_waiterList.end(), waiterItem), WL->m_waiterList.end());
+                }
+            };
+            std::unique_lock<std::mutex> ul(state.context()->vmInstance()->asyncWaiterDataMutex());
+            state.context()->vmInstance()->asyncWaiterData().pushBack(std::make_tuple(state.context(), promiseCapability.m_promise, waiterItem.get(), false,
+                                                                                      std::shared_ptr<std::thread>(new std::thread(worker, t, WL, waiterItem, state.context()))));
+        }
+        WL->m_mutex.unlock();
+
+        resultObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().async), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::PresentAttribute::AllPresent));
+        resultObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().value), ObjectPropertyDescriptor(promiseCapability.m_promise, ObjectPropertyDescriptor::PresentAttribute::AllPresent));
+        return Value(resultObject.value());
     } else {
-        notified = WL->m_waiter.wait_for(ul, std::chrono::milliseconds((int64_t)t)) == std::cv_status::no_timeout;
+        bool notified = true;
+        std::unique_lock<std::mutex> ul(WL->m_conditionVariableMutex);
+        auto waiterItem = std::shared_ptr<Global::WaiterItem>(new Global::WaiterItem(state.context(), WL));
+        WL->m_waiterList.push_back(waiterItem);
+        WL->m_mutex.unlock();
+        if (t == std::numeric_limits<double>::infinity()) {
+            WL->m_waiter.wait(ul);
+        } else {
+            notified = WL->m_waiter.wait_for(ul, std::chrono::milliseconds((int64_t)t)) == std::cv_status::no_timeout;
+        }
+        WL->m_mutex.lock();
+        WL->m_waiterList.erase(std::remove(WL->m_waiterList.begin(), WL->m_waiterList.end(), waiterItem), WL->m_waiterList.end());
+        WL->m_mutex.unlock();
+        if (notified) {
+            return Value(state.context()->staticStrings().lazyOk().string());
+        }
+        return Value(state.context()->staticStrings().lazyTimedOut().string());
     }
-    WL->m_mutex.lock();
-    // 20. If notified is true, then
-    //     a. Assert: W is not on the list of waiters in WL.
-    // 21. Else,
-    //     a. Perform RemoveWaiter(WL, W).
-    if (!notified) {
-        WL->m_waiterCount--;
-    }
-    // 22. Perform LeaveCriticalSection(WL).
-    WL->m_mutex.unlock();
-    // 23. If notified is true, return the String "ok".
-    if (notified) {
-        return Value(state.context()->staticStrings().lazyOk().string());
-    }
-    // 24. Return the String "timed-out".
-    return Value(state.context()->staticStrings().lazyTimedOut().string());
+    return Value();
+}
+
+
+static Value builtinAtomicsWait(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return doWait(state, false, argv[0], argv[1], argv[2], argv[3]);
+}
+
+static Value builtinAtomicsWaitAsync(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return doWait(state, true, argv[0], argv[1], argv[2], argv[3]);
 }
 
 static Value builtinAtomicsNotify(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -443,8 +536,7 @@ static Value builtinAtomicsNotify(ExecutionState& state, Value thisValue, size_t
     double n = 0;
     // 10. Perform EnterCriticalSection(WL).
     WL->m_mutex.lock();
-    double count = std::min((double)WL->m_waiterCount, c);
-    WL->m_waiterCount -= count;
+    double count = std::min((double)WL->m_waiterList.size(), c);
     // 11. Let S be RemoveWaiters(WL, c).
     // 12. Repeat, while S is not an empty List,
     //     a. Let W be the first agent in S.
@@ -452,9 +544,9 @@ static Value builtinAtomicsNotify(ExecutionState& state, Value thisValue, size_t
     //     c. Perform NotifyWaiter(WL, W).
     //     d. Set n to n + 1.
     for (n = 0; n < count; n++) {
-        WL->m_mutex.unlock();
-        WL->m_waiter.notify_one();
-        WL->m_mutex.lock();
+        const auto& f = WL->m_waiterList.front();
+        f->m_waiter->m_waiter.notify_one();
+        WL->m_waiterList.erase(WL->m_waiterList.begin());
     }
     // 13. Perform LeaveCriticalSection(WL).
     WL->m_mutex.unlock();
@@ -529,6 +621,9 @@ void GlobalObject::installAtomics(ExecutionState& state)
 
     m_atomics->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().wait),
                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().wait, builtinAtomicsWait, 4, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_atomics->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().waitAsync),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().waitAsync, builtinAtomicsWaitAsync, 4, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_atomics->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().notify),
                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().notify, builtinAtomicsNotify, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

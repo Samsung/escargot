@@ -526,7 +526,8 @@ namespace Escargot {
     F(isLockFree)                           \
     F(notify)                               \
     F(store)                                \
-    F(wait)
+    F(wait)                                 \
+    F(waitAsync)
 #else
 #define FOR_EACH_STATIC_THREADING_STRING(F)
 #endif

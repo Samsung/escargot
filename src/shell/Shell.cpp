@@ -415,6 +415,15 @@ static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisVa
                 }
             }
 
+            while (instance->hasPendingJob()) {
+                auto jobResult = instance->executePendingJob();
+                if (jobResult.error) {
+                    if (jobResult.error) {
+                        fprintf(stderr, "Uncaught %s: in agent\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                    }
+                }
+            }
+
             usleep(10 * 1000);
         }
 
