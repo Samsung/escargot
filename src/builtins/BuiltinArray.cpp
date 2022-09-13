@@ -1834,14 +1834,14 @@ static Value builtinArrayAt(ExecutionState& state, Value thisValue, size_t argc,
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(obj, Array, at);
     size_t len = obj->length(state);
-    double relativeStart = argv[0].toInteger(state);
-    if (relativeStart < 0) {
-        relativeStart = len + relativeStart;
-    }
-    if (relativeStart < 0 || relativeStart >= len) {
+    double relativeIndex = argv[0].toInteger(state);
+    double k = (relativeIndex < 0) ? len + relativeIndex : relativeIndex;
+
+    if (UNLIKELY(k < 0 || k >= len)) {
         return Value();
     }
-    return obj->getIndexedProperty(state, Value(relativeStart)).value(state, thisValue);
+
+    return obj->getIndexedProperty(state, Value(k)).value(state, thisValue);
 }
 
 static Value builtinArrayFindLast(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
