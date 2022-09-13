@@ -33,8 +33,9 @@
 #endif
 
 namespace Escargot {
-
+class Context;
 class Platform;
+class Object;
 
 // Global is a global interface used by all threads
 class Global {
@@ -56,12 +57,26 @@ public:
 #endif
 
 #if defined(ENABLE_THREADING)
+    struct Waiter;
+    struct WaiterItem {
+        WaiterItem(Context* context, Waiter* waiter, Optional<Object*> promise = nullptr)
+            : m_context(context)
+            , m_waiter(waiter)
+            , m_promise(promise)
+        {
+        }
+
+        Context* m_context;
+        Waiter* m_waiter;
+        Optional<Object*> m_promise;
+    };
+
     struct Waiter {
         void* m_blockAddress;
         std::mutex m_mutex;
         std::condition_variable m_waiter;
         std::mutex m_conditionVariableMutex;
-        std::atomic_uint m_waiterCount;
+        std::vector<std::shared_ptr<WaiterItem>> m_waiterList;
     };
 
     static std::mutex g_waiterMutex;

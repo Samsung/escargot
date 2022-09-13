@@ -196,6 +196,9 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_intlPluralRulesAvailableLocales));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_caseMappingAvailableLocales));
 #endif
+#if defined(ENABLE_THREADING)
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_asyncWaiterData));
+#endif
 
         descr = GC_make_descriptor(desc, GC_WORD_LEN(VMInstance));
         typeInited = true;
@@ -648,12 +651,51 @@ void VMInstance::enqueueJob(Job* job)
 
 bool VMInstance::hasPendingJob()
 {
+#if defined(ENABLE_THREADING)
+    return m_jobQueue->hasNextJob() || m_asyncWaiterData.size();
+#else
     return m_jobQueue->hasNextJob();
+#endif
 }
 
 SandBox::SandBoxResult VMInstance::executePendingJob()
 {
+#if defined(ENABLE_THREADING)
+    if (m_pendingAsyncWaiterCount) {
+        std::unique_lock<std::mutex> ul(m_asyncWaiterDataMutex);
+        for (size_t i = 0; i < m_asyncWaiterData.size(); i++) {
+            if (std::get<2>(m_asyncWaiterData[i]) == nullptr) {
+                Context* context = std::get<0>(m_asyncWaiterData[i]);
+                SandBox sb(context);
+                sb.run([](ExecutionState& state, void* d) -> Value {
+                    AsyncWaiterDataItem* data = reinterpret_cast<AsyncWaiterDataItem*>(d);
+                    PromiseObject* promise = std::get<1>(*data)->asPromiseObject();
+                    if (std::get<3>(*data)) {
+                        promise->fulfill(state, state.context()->staticStrings().lazyOk().string());
+                    } else {
+                        promise->fulfill(state, state.context()->staticStrings().lazyTimedOut().string());
+                    }
+                    return promise;
+                },
+                       &m_asyncWaiterData[i]);
+                std::get<4>(m_asyncWaiterData[i])->join();
+                m_asyncWaiterData.erase(i);
+                i--;
+            }
+        }
+        m_pendingAsyncWaiterCount = 0;
+    } else {
+        // TODO remove busy-waiting
+    }
+    if (m_jobQueue->hasNextJob()) {
+        return m_jobQueue->nextJob()->run();
+    }
+    SandBox::SandBoxResult v;
+    v.result = Value();
+    return v;
+#else
     return m_jobQueue->nextJob()->run();
+#endif
 }
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)

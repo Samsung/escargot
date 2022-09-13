@@ -359,6 +359,24 @@ public:
     }
 #endif
 
+#if defined(ENABLE_THREADING)
+    typedef std::tuple<Context*, Object* /* Promise */, void* /* Global::WaiterListItem */, bool /* notified */, std::shared_ptr<std::thread>> AsyncWaiterDataItem;
+    Vector<AsyncWaiterDataItem, GCUtil::gc_malloc_allocator<AsyncWaiterDataItem>>& asyncWaiterData()
+    {
+        return m_asyncWaiterData;
+    }
+
+    std::mutex& asyncWaiterDataMutex()
+    {
+        return m_asyncWaiterDataMutex;
+    }
+
+    std::atomic_size_t& pendingAsyncWaiterCount()
+    {
+        return m_pendingAsyncWaiterCount;
+    }
+#endif
+
 private:
     StaticStrings m_staticStrings;
     AtomicStringMap m_atomicStringMap;
@@ -450,6 +468,12 @@ private:
 
 #if defined(ENABLE_CODE_CACHE)
     CodeCache* m_codeCache;
+#endif
+
+#if defined(ENABLE_THREADING)
+    Vector<AsyncWaiterDataItem, GCUtil::gc_malloc_allocator<AsyncWaiterDataItem>> m_asyncWaiterData;
+    std::mutex m_asyncWaiterDataMutex;
+    std::atomic_size_t m_pendingAsyncWaiterCount;
 #endif
 };
 } // namespace Escargot

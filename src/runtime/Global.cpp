@@ -72,9 +72,9 @@ void Global::finalize()
     static bool called_once = true;
     RELEASE_ASSERT(called_once && inited);
 
-
 #if defined(ENABLE_THREADING)
     for (size_t i = 0; i < g_waiter.size(); i++) {
+        g_waiter[i]->m_waiter.notify_all();
         delete g_waiter[i];
     }
     std::vector<Waiter*>().swap(g_waiter);
