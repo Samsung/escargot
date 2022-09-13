@@ -206,7 +206,7 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
     }
 
     // For each pair from descriptors in list order, do
-    for (auto it : descriptors) {
+    for (auto& it : descriptors) {
         // Let P be the first element of pair.
         // Let desc be the second element of pair.
         // Perform ? DefinePropertyOrThrow(O, P, desc).

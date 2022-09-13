@@ -930,7 +930,7 @@ Value TemporalCalendarObject::defaultMergeFields(ExecutionState& state, const Va
 
     auto originalKeys = Object::enumerableOwnProperties(state, fields.asObject(), EnumerableOwnPropertiesType::Key);
 
-    for (auto nextKey : originalKeys) {
+    for (auto& nextKey : originalKeys) {
         if (!nextKey.asString()->equals(strings.lazyMonth().string()) || !nextKey.asString()->equals(strings.lazymonthCode().string())) {
             Value propValue;
             fields.asObject()->get(state, AtomicString(state, nextKey.asString()), propValue);

@@ -141,6 +141,7 @@ public:
             : term(reinterpret_cast<ByteTerm*>(-1))
             , matchBegin(-1)
             , matchEnd(-1)
+            , frame{}
 #endif
         {
             // member variables will be inited in interpreter
