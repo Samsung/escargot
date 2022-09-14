@@ -610,6 +610,11 @@ static Value builtinRegExpDotAllGetter(ExecutionState& state, Value thisValue, s
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::DotAll);
 }
 
+static Value builtinRegExpHasIndicesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::HasIndices);
+}
+
 static Value builtinRegExpIgnoreCaseGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::IgnoreCase);
@@ -852,6 +857,13 @@ void GlobalObject::installRegExp(ExecutionState& state)
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->dotAll), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getHasIndices, builtinRegExpHasIndicesGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->hasIndices), desc);
     }
 
     {

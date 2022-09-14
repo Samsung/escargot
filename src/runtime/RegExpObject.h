@@ -56,6 +56,8 @@ public:
         Sticky = 1 << 3,
         Unicode = 1 << 4,
         DotAll = 1 << 5,
+        // HasIndices is not a Yarr property
+        HasIndices = 1 << 6,
     };
 
     struct RegExpCacheKey {

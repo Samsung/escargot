@@ -181,6 +181,7 @@ bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectProperty
                 || name->equals(state.context()->staticStrings().unicode.string())
                 || name->equals(state.context()->staticStrings().sticky.string())
                 || name->equals(state.context()->staticStrings().dotAll.string())
+                || name->equals(state.context()->staticStrings().hasIndices.string())
                 || name->equals(state.context()->staticStrings().source.string())
                 || name->equals(state.context()->staticStrings().flags.string())) {
                 m_hasOwnPropertyWhichHasDefinedFromRegExpPrototype = true;
@@ -203,6 +204,11 @@ RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, String* op
     auto bufferAccessData = optionString->bufferAccessData();
     for (size_t i = 0; i < bufferAccessData.length; i++) {
         switch (bufferAccessData.charAt(i)) {
+        case 'd':
+            if (tempOption & Option::HasIndices)
+                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'd' flags");
+            tempOption = (Option)(tempOption | Option::HasIndices);
+            break;
         case 'g':
             if (tempOption & Option::Global)
                 ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'g' flags");
@@ -263,7 +269,7 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
         JSC::Yarr::YarrPattern* yarrPattern = nullptr;
         try {
             JSC::Yarr::ErrorCode errorCode = JSC::Yarr::ErrorCode::NoError;
-            yarrPattern = JSC::Yarr::YarrPattern::createYarrPattern(source, (JSC::Yarr::RegExpFlags)option, errorCode);
+            yarrPattern = JSC::Yarr::YarrPattern::createYarrPattern(source, static_cast<JSC::Yarr::RegExpFlags>(static_cast<int>(option) & ~Option::HasIndices), errorCode);
             yarrError = JSC::Yarr::errorMessage(errorCode);
         } catch (const std::bad_alloc& e) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "got too complicated RegExp pattern to process");
@@ -478,6 +484,41 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
         arr->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
     }
 
+    if (option() & HasIndices) {
+        ArrayObject* indices = new ArrayObject(state, len);
+        arr->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().indices), ObjectPropertyDescriptor(Value(indices), ObjectPropertyDescriptor::AllPresent));
+
+        size_t idx = 0;
+        for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
+            for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
+                if (result.m_matchResults[i][j].m_start == std::numeric_limits<unsigned>::max()) {
+                    indices->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value());
+                } else {
+                    ArrayObject* pair = new ArrayObject(state, 2);
+                    pair->defineOwnIndexedPropertyWithoutExpanding(state, 0, Value(result.m_matchResults[i][j].m_start));
+                    pair->defineOwnIndexedPropertyWithoutExpanding(state, 1, Value(result.m_matchResults[i][j].m_end));
+
+                    indices->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value(pair));
+                }
+            }
+        }
+
+        if (m_yarrPattern->m_namedGroupToParenIndex.empty()) {
+            indices->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
+        } else {
+            Object* groups = new Object(state);
+            groups->setPrototype(state, Value(Value::Null));
+            for (auto it = m_yarrPattern->m_captureGroupNames.begin(); it != m_yarrPattern->m_captureGroupNames.end(); ++it) {
+                auto foundMapElement = m_yarrPattern->m_namedGroupToParenIndex.find(*it);
+                if (foundMapElement != m_yarrPattern->m_namedGroupToParenIndex.end()) {
+                    groups->directDefineOwnProperty(state, ObjectPropertyName(state, it->impl()),
+                                                    ObjectPropertyDescriptor(indices->getOwnProperty(state, ObjectPropertyName(state, foundMapElement->second)).value(state, this), ObjectPropertyDescriptor::AllPresent));
+                }
+            }
+            indices->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
+        }
+    }
+
     // FIXME RegExp should have own Realm internal slot when allocated
     if (state.context() == this->getFunctionRealm(state)) {
         if (!this->legacyFeaturesEnabled()) {
@@ -534,70 +575,80 @@ Value RegExpObject::regexpFlagsValue(ExecutionState& state, Object* obj)
 
 String* RegExpObject::computeRegExpOptionString(ExecutionState& state, Object* obj)
 {
-    char flags[7] = { 0 };
+    char flags[8] = { 0 };
     size_t flagsIdx = 0;
     size_t cacheIndex = 0;
 
     if (!hasOwnRegExpProperty(state, obj)) {
         auto opt = obj->asRegExpObject()->option();
+        if (opt & RegExpObject::Option::HasIndices) {
+            flags[flagsIdx++] = 'd';
+            cacheIndex |= 1 << 0;
+        }
+
         if (opt & RegExpObject::Option::Global) {
             flags[flagsIdx++] = 'g';
-            cacheIndex |= 1 << 0;
+            cacheIndex |= 1 << 1;
         }
 
         if (opt & RegExpObject::Option::IgnoreCase) {
             flags[flagsIdx++] = 'i';
-            cacheIndex |= 1 << 1;
+            cacheIndex |= 1 << 2;
         }
 
         if (opt & RegExpObject::Option::MultiLine) {
             flags[flagsIdx++] = 'm';
-            cacheIndex |= 1 << 2;
+            cacheIndex |= 1 << 3;
         }
 
         if (opt & RegExpObject::Option::DotAll) {
             flags[flagsIdx++] = 's';
-            cacheIndex |= 1 << 3;
+            cacheIndex |= 1 << 4;
         }
 
         if (opt & RegExpObject::Option::Unicode) {
             flags[flagsIdx++] = 'u';
-            cacheIndex |= 1 << 4;
+            cacheIndex |= 1 << 5;
         }
 
         if (opt & RegExpObject::Option::Sticky) {
             flags[flagsIdx++] = 'y';
-            cacheIndex |= 1 << 5;
+            cacheIndex |= 1 << 6;
         }
     } else {
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().hasIndices)).value(state, obj).toBoolean(state)) {
+            flags[flagsIdx++] = 'd';
+            cacheIndex |= 1 << 0;
+        }
+
         if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, obj).toBoolean(state)) {
             flags[flagsIdx++] = 'g';
-            cacheIndex |= 1 << 0;
+            cacheIndex |= 1 << 1;
         }
 
         if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().ignoreCase)).value(state, obj).toBoolean(state)) {
             flags[flagsIdx++] = 'i';
-            cacheIndex |= 1 << 1;
+            cacheIndex |= 1 << 2;
         }
 
         if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().multiline)).value(state, obj).toBoolean(state)) {
             flags[flagsIdx++] = 'm';
-            cacheIndex |= 1 << 2;
+            cacheIndex |= 1 << 3;
         }
 
         if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().dotAll)).value(state, obj).toBoolean(state)) {
             flags[flagsIdx++] = 's';
-            cacheIndex |= 1 << 3;
+            cacheIndex |= 1 << 4;
         }
 
         if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, obj).toBoolean(state)) {
             flags[flagsIdx++] = 'u';
-            cacheIndex |= 1 << 4;
+            cacheIndex |= 1 << 5;
         }
 
         if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().sticky)).value(state, obj).toBoolean(state)) {
             flags[flagsIdx++] = 'y';
-            cacheIndex |= 1 << 5;
+            cacheIndex |= 1 << 6;
         }
     }
 
