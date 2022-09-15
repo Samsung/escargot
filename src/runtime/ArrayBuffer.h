@@ -47,7 +47,7 @@ public:
 
     explicit ArrayBuffer(ExecutionState& state, Object* proto)
         : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
-        , BufferAddressObserverManager<ArrayBuffer>(this)
+        , BufferAddressObserverManager<ArrayBuffer>()
     {
         addFinalizer(arrayBufferFinalizer, nullptr);
     }
@@ -120,19 +120,19 @@ protected:
         self->dispose();
     }
 
-    static void backingStoreObserver(BackingStore* bufferOwner, void* newAddress, size_t newByteLength, void* userData)
+    static void backingStoreObserver(Object* from, void* newAddress, size_t newByteLength)
     {
-        reinterpret_cast<ArrayBuffer*>(userData)->bufferUpdated(newAddress, newByteLength);
+        reinterpret_cast<ArrayBuffer*>(from)->bufferUpdated(newAddress, newByteLength);
     }
 
     void updateBackingStore(Optional<BackingStore*> bs)
     {
         if (m_backingStore) {
-            m_backingStore->removeObserver(this, backingStoreObserver, this);
+            m_backingStore->removeObserver(this, backingStoreObserver);
         }
         m_backingStore = bs;
         if (m_backingStore) {
-            m_backingStore->addObserver(this, backingStoreObserver, this);
+            m_backingStore->addObserver(this, backingStoreObserver);
             bufferUpdated(m_backingStore->data(), m_backingStore->byteLength());
         } else {
             bufferUpdated(nullptr, 0);
@@ -166,15 +166,15 @@ public:
     ALWAYS_INLINE void setBuffer(ArrayBuffer* bo, size_t byteOffset, size_t byteLength, size_t arrayLength)
     {
         if (m_buffer) {
-            m_buffer->removeObserver(this, backingStoreObserver, this);
+            m_buffer->removeObserver(this, arrayBufferObserver);
         }
         m_buffer = bo;
         m_byteOffset = byteOffset;
         m_byteLength = byteLength;
         m_arrayLength = arrayLength;
-        updateCacheAddress();
+        updateCacheAddress((m_buffer && m_buffer->data()) ? m_buffer->data() + m_byteOffset : nullptr);
         if (m_buffer) {
-            m_buffer->addObserver(this, backingStoreObserver, this);
+            m_buffer->addObserver(this, arrayBufferObserver);
         }
     }
 
@@ -204,15 +204,15 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    void updateCacheAddress()
+    void updateCacheAddress(void* newAddress)
     {
-        m_cachedRawBufferAddress = (m_buffer && m_buffer->data()) ? m_buffer->data() + m_byteOffset : nullptr;
+        m_cachedRawBufferAddress = static_cast<uint8_t*>(newAddress);
     }
 
-    static void backingStoreObserver(ArrayBuffer* bufferOwner, void* newAddress, size_t newByteLength, void* userData)
+    static void arrayBufferObserver(Object* from, void* newAddress, size_t newByteLength)
     {
-        ArrayBufferView* self = reinterpret_cast<ArrayBufferView*>(userData);
-        self->updateCacheAddress();
+        ArrayBufferView* self = reinterpret_cast<ArrayBufferView*>(from);
+        self->updateCacheAddress(newAddress);
         if (self->m_byteLength + self->m_byteOffset != newByteLength) {
             if (newByteLength > self->m_byteOffset) {
                 size_t ratio = self->m_arrayLength ? self->m_byteLength / self->m_arrayLength : SIZE_MAX;
