@@ -29,17 +29,16 @@ class SharedDataBlockInfo;
 template <typename BufferOwnerType>
 class BufferAddressObserverManager {
 public:
-    BufferAddressObserverManager(BufferOwnerType* owner)
-        : m_owner(owner)
-        , m_removedObserverCount(0)
+    BufferAddressObserverManager()
+        : m_removedObserverCount(0)
 #ifndef NDEBUG
         , m_isUpdating(false)
 #endif
     {
     }
 
-    using BufferAddressObserverCallback = void (*)(BufferOwnerType* bufferOwner, void* newAddress, size_t newByteLength, void* userData);
-    void addObserver(Object* from, BufferAddressObserverCallback cb, void* userData)
+    using BufferAddressObserverCallback = void (*)(Object* from, void* newAddress, size_t newByteLength);
+    void addObserver(Object* from, BufferAddressObserverCallback cb)
     {
         ASSERT(!m_isUpdating && !!from);
         from->addFinalizer(objectFinalizer, this);
@@ -49,10 +48,8 @@ public:
             for (size_t i = 0; i < m_observerItems.size(); i++) {
                 if (m_observerItems[i].from == nullptr) {
                     ASSERT(m_observerItems[i].callback == nullptr);
-                    ASSERT(m_observerItems[i].userData == nullptr);
                     m_observerItems[i].from = from;
                     m_observerItems[i].callback = cb;
-                    m_observerItems[i].userData = userData;
                     m_removedObserverCount--;
                     return;
                 }
@@ -60,18 +57,17 @@ public:
             ASSERT_NOT_REACHED();
         }
 
-        m_observerItems.pushBack(ObserverVectorItem(from, cb, userData));
+        m_observerItems.pushBack(ObserverVectorItem(from, cb));
     }
 
-    void removeObserver(Object* from, BufferAddressObserverCallback callback, void* userData)
+    void removeObserver(Object* from, BufferAddressObserverCallback callback)
     {
         ASSERT(!m_isUpdating);
         from->removeFinalizer(objectFinalizer, this);
         for (size_t i = 0; i < m_observerItems.size(); i++) {
-            if (m_observerItems[i].from == from && m_observerItems[i].callback == callback && m_observerItems[i].userData == userData) {
+            if (m_observerItems[i].from == from && m_observerItems[i].callback == callback) {
                 m_observerItems[i].from = nullptr;
                 m_observerItems[i].callback = nullptr;
-                m_observerItems[i].userData = nullptr;
                 m_removedObserverCount++;
                 break;
             }
@@ -96,7 +92,6 @@ protected:
             if (self->m_observerItems[i].from == obj) {
                 self->m_observerItems[i].from = nullptr;
                 self->m_observerItems[i].callback = nullptr;
-                self->m_observerItems[i].userData = nullptr;
                 self->m_removedObserverCount++;
             }
         }
@@ -105,17 +100,14 @@ protected:
     struct ObserverVectorItem {
         Object* from;
         BufferAddressObserverCallback callback;
-        void* userData;
 
-        ObserverVectorItem(Object* from, BufferAddressObserverCallback callback, void* userData)
+        ObserverVectorItem(Object* from, BufferAddressObserverCallback callback)
             : from(from)
             , callback(callback)
-            , userData(userData)
         {
         }
     };
 
-    BufferOwnerType* m_owner;
     size_t m_removedObserverCount;
     TightVector<ObserverVectorItem, GCUtil::gc_malloc_atomic_allocator<ObserverVectorItem>> m_observerItems;
 
@@ -129,7 +121,7 @@ protected:
 #endif
         for (size_t i = 0; i < m_observerItems.size(); i++) {
             if (LIKELY(!!m_observerItems[i].callback)) {
-                m_observerItems[i].callback(m_owner, newAddress, newByteLength, m_observerItems[i].userData);
+                m_observerItems[i].callback(m_observerItems[i].from, newAddress, newByteLength);
             }
         }
 #ifndef NDEBUG
@@ -182,7 +174,7 @@ public:
 
 protected:
     BackingStore()
-        : BufferAddressObserverManager<BackingStore>(this)
+        : BufferAddressObserverManager<BackingStore>()
     {
     }
 };
