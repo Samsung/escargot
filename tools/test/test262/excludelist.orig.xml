@@ -825,6 +825,7 @@
     <test id="built-ins/Temporal/Calendar/prototype/day/argument-propertybag-calendar-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/day/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/day/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/Calendar/prototype/day/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/day/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/day/argument-zoneddatetime-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/day/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
@@ -850,6 +851,7 @@
     <test id="built-ins/Temporal/Calendar/prototype/dayOfWeek/argument-propertybag-calendar-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dayOfWeek/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dayOfWeek/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/Calendar/prototype/dayOfWeek/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dayOfWeek/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dayOfWeek/argument-zoneddatetime-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dayOfWeek/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
@@ -873,6 +875,7 @@
     <test id="built-ins/Temporal/Calendar/prototype/dayOfYear/argument-propertybag-calendar-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dayOfYear/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dayOfYear/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/Calendar/prototype/dayOfYear/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dayOfYear/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dayOfYear/argument-zoneddatetime-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/dayOfYear/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
@@ -896,6 +899,7 @@
     <test id="built-ins/Temporal/Calendar/prototype/daysInMonth/argument-propertybag-calendar-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/daysInMonth/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/daysInMonth/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/Calendar/prototype/daysInMonth/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/daysInMonth/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/daysInMonth/argument-zoneddatetime-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/daysInMonth/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
@@ -940,6 +944,7 @@
     <test id="built-ins/Temporal/Calendar/prototype/daysInYear/argument-propertybag-calendar-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/daysInYear/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/daysInYear/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/Calendar/prototype/daysInYear/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/daysInYear/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/daysInYear/argument-zoneddatetime-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/daysInYear/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
@@ -967,6 +972,7 @@
     <test id="built-ins/Temporal/Calendar/prototype/inLeapYear/argument-string"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/inLeapYear/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/inLeapYear/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/Calendar/prototype/inLeapYear/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/inLeapYear/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/inLeapYear/argument-zoneddatetime-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/inLeapYear/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
@@ -996,6 +1002,7 @@
     <test id="built-ins/Temporal/Calendar/prototype/month/argument-propertybag-calendar-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/month/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/month/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/Calendar/prototype/month/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/month/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/month/argument-zoneddatetime-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/month/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
@@ -1021,6 +1028,7 @@
     <test id="built-ins/Temporal/Calendar/prototype/monthCode/argument-propertybag-calendar-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/monthCode/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/monthCode/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/Calendar/prototype/monthCode/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/monthCode/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/monthCode/argument-zoneddatetime-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/monthCode/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
@@ -1066,6 +1074,7 @@
     <test id="built-ins/Temporal/Calendar/prototype/monthsInYear/argument-string"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/monthsInYear/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/monthsInYear/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/Calendar/prototype/monthsInYear/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/monthsInYear/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/monthsInYear/argument-zoneddatetime-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/monthsInYear/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
@@ -1093,6 +1102,7 @@
     <test id="built-ins/Temporal/Calendar/prototype/weekOfYear/argument-string"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/weekOfYear/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/weekOfYear/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/Calendar/prototype/weekOfYear/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/weekOfYear/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/weekOfYear/argument-zoneddatetime-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/weekOfYear/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
@@ -1114,6 +1124,7 @@
     <test id="built-ins/Temporal/Calendar/prototype/year/argument-propertybag-calendar-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/year/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/year/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/Calendar/prototype/year/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/year/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/year/argument-zoneddatetime-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/prototype/year/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>
@@ -2042,6 +2053,7 @@
     <test id="built-ins/Temporal/PlainDate/from/argument-string"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/from/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/from/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/PlainDate/from/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/from/argument-zoneddatetime"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/from/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/from/argument-zoneddatetime-slots"><reason>TODO</reason></test>
@@ -3307,6 +3319,7 @@
     <test id="built-ins/Temporal/PlainTime/name"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/nanosecond-undefined"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/negative-infinity-throws-rangeerror"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/PlainTime/negative-zero"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/add/argument-duration"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/add/argument-higher-units"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/add/argument-mixed-sign"><reason>TODO</reason></test>
@@ -3478,6 +3491,7 @@
     <test id="built-ins/Temporal/PlainTime/prototype/toPlainDateTime/argument-propertybag-calendar-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/toPlainDateTime/argument-string-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/toPlainDateTime/argument-string-time-separators"><reason>TODO</reason></test>
+    <test id="built-ins/Temporal/PlainTime/prototype/toPlainDateTime/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/toPlainDateTime/argument-zoneddatetime-convert"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/toPlainDateTime/argument-zoneddatetime-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/toPlainDateTime/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer"><reason>TODO</reason></test>

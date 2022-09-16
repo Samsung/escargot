@@ -1034,8 +1034,6 @@ static Value builtinTemporalCalendarPrototypeId(ExecutionState& state, Value thi
 
 static Value builtinTemporalCalendarPrototypeDateFromFields(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value calendar = thisValue;
-    ASSERT(calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));
     if (argc > 1 && !argv[0].isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "fields is not an object");
     }
@@ -1049,13 +1047,11 @@ static Value builtinTemporalCalendarPrototypeDateFromFields(ExecutionState& stat
     }
 
     // TODO ISODateFromFields https://tc39.es/proposal-temporal/#sec-temporal.calendar.prototype.datefromfields
-    return TemporalPlainDateObject::createTemporalDate(state, 0, 0, 0, calendar, newTarget);
+    return TemporalPlainDateObject::createTemporalDate(state, 0, 0, 0, thisValue, newTarget);
 }
 
 static Value builtinTemporalCalendarPrototypeYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value calendar = thisValue;
-    ASSERT(calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));
     Value temporalDateLike = argv[0];
     if (CHECK_TEMPORAL_OBJECT_HAS_YEAR_AND_MONTH(temporalDateLike)) {
         temporalDateLike = TemporalPlainDateObject::toTemporalDate(state, temporalDateLike);
@@ -1066,8 +1062,6 @@ static Value builtinTemporalCalendarPrototypeYear(ExecutionState& state, Value t
 
 static Value builtinTemporalCalendarPrototypeMonth(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value calendar = thisValue;
-    ASSERT(calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));
     Value temporalDateLike = argv[0];
     if (CHECK_TEMPORAL_OBJECT_HAS_YEAR_AND_MONTH(temporalDateLike)) {
         temporalDateLike = TemporalPlainDateObject::toTemporalDate(state, temporalDateLike);
@@ -1078,8 +1072,6 @@ static Value builtinTemporalCalendarPrototypeMonth(ExecutionState& state, Value 
 
 static Value builtinTemporalCalendarPrototypeMonthCode(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value calendar = thisValue;
-    ASSERT(calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));
     Value temporalDateLike = argv[0];
     if (CHECK_TEMPORAL_OBJECT_HAS_YEAR_AND_MONTH(temporalDateLike)) {
         temporalDateLike = TemporalPlainDateObject::toTemporalDate(state, temporalDateLike);
@@ -1090,8 +1082,6 @@ static Value builtinTemporalCalendarPrototypeMonthCode(ExecutionState& state, Va
 
 static Value builtinTemporalCalendarPrototypeDay(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value calendar = thisValue;
-    ASSERT(calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));
     Value temporalDateLike = argv[0];
     if (!(temporalDateLike.isObject() && (temporalDateLike.asObject()->isTemporalPlainDateObject() || temporalDateLike.asObject()->isTemporalPlainDateTimeObject()))) {
         temporalDateLike = TemporalPlainDateObject::toTemporalDate(state, temporalDateLike);
@@ -1173,8 +1163,6 @@ static Value builtinTemporalCalendarPrototypeMonthsInYear(ExecutionState& state,
 
 static Value builtinTemporalCalendarInLeapYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value calendar = thisValue;
-    ASSERT(calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));
     Value temporalDateLike = argv[0];
     if (!temporalDateLike.isObject() || !(temporalDateLike.asObject()->isTemporalPlainDateObject() || temporalDateLike.asObject()->isTemporalPlainDateTimeObject() || temporalDateLike.asObject()->isTemporalPlainYearMonthObject())) {
         temporalDateLike = TemporalPlainDateObject::toTemporalDate(state, temporalDateLike);
@@ -1185,8 +1173,6 @@ static Value builtinTemporalCalendarInLeapYear(ExecutionState& state, Value this
 
 static Value builtinTemporalCalendarFields(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value calendar = thisValue;
-    ASSERT(calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));
     IteratorRecord* iteratorRecord = IteratorObject::getIterator(state, argv[0]);
     ValueVector fieldNames;
     Optional<Object*> next;
@@ -1226,7 +1212,6 @@ static Value builtinTemporalCalendarFields(ExecutionState& state, Value thisValu
 
 static Value builtinTemporalCalendarPrototypeMergeFields(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    ASSERT(thisValue.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));
     if (argc < 2) {
         ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Too few arguments");
     }
