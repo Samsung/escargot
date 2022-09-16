@@ -322,7 +322,7 @@ static void initializeTypedArrayFromArrayBuffer(ExecutionState& state, TypedArra
         }
     }
 
-    obj->setBuffer(buffer, offset, newByteLength, newByteLength / elementSize);
+    obj->setBuffer(buffer, offset, newByteLength, newByteLength / elementSize, length.isUndefined());
 }
 
 static void initializeTypedArrayFromList(ExecutionState& state, TypedArrayObject* obj, const ValueVectorWithInlineStorage& values)
