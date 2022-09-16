@@ -151,6 +151,7 @@ public:
         , m_byteLength(0)
         , m_byteOffset(0)
         , m_arrayLength(0)
+        , m_auto(false)
     {
     }
 
@@ -163,16 +164,20 @@ public:
         return m_cachedRawBufferAddress;
     }
 
-    ALWAYS_INLINE void setBuffer(ArrayBuffer* bo, size_t byteOffset, size_t byteLength, size_t arrayLength)
+    ALWAYS_INLINE void setBuffer(ArrayBuffer* bo, size_t byteOffset, size_t byteLength, size_t arrayLength, bool isAuto = false)
     {
         if (m_buffer) {
             m_buffer->removeObserver(this, arrayBufferObserver);
         }
+
         m_buffer = bo;
         m_byteOffset = byteOffset;
         m_byteLength = byteLength;
         m_arrayLength = arrayLength;
-        updateCacheAddress((m_buffer && m_buffer->data()) ? m_buffer->data() + m_byteOffset : nullptr);
+        m_auto = isAuto;
+
+        updateCachedAddress((m_buffer && m_buffer->data()) ? m_buffer->data() : nullptr);
+
         if (m_buffer) {
             m_buffer->addObserver(this, arrayBufferObserver);
         }
@@ -204,28 +209,28 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    void updateCacheAddress(void* newAddress)
+    void updateCachedAddress(void* bufferStartAddress)
     {
-        m_cachedRawBufferAddress = static_cast<uint8_t*>(newAddress);
+        m_cachedRawBufferAddress = bufferStartAddress ? static_cast<uint8_t*>(bufferStartAddress) + m_byteOffset : nullptr;
     }
 
     static void arrayBufferObserver(Object* from, void* newAddress, size_t newByteLength)
     {
         ArrayBufferView* self = reinterpret_cast<ArrayBufferView*>(from);
-        self->updateCacheAddress(newAddress);
-        if (self->m_byteLength + self->m_byteOffset != newByteLength) {
-            if (newByteLength > self->m_byteOffset) {
-                size_t ratio = self->m_arrayLength ? self->m_byteLength / self->m_arrayLength : SIZE_MAX;
-                self->m_byteLength = newByteLength - self->m_byteOffset;
-                if (ratio == SIZE_MAX) {
-                    self->m_arrayLength = 0;
-                } else {
-                    self->m_arrayLength = self->m_byteLength / ratio;
-                }
-            } else {
-                self->m_arrayLength = self->m_byteLength = 0;
-            }
+
+        bool reset = self->m_auto ? newByteLength < self->m_byteOffset : self->m_byteOffset + self->m_byteLength > newByteLength;
+
+        if (reset) {
+            // reset to 0
+            self->m_arrayLength = self->m_byteLength = self->m_byteOffset = 0;
+        } else if (self->m_auto) {
+            // auto mode within boundary
+            size_t elementSize = self->m_arrayLength ? self->m_byteLength / self->m_arrayLength : SIZE_MAX;
+            self->m_byteLength = newByteLength - self->m_byteOffset;
+            self->m_arrayLength = elementSize == SIZE_MAX ? 0 : self->m_byteLength / elementSize;
         }
+
+        self->updateCachedAddress(newAddress);
     }
 
     ArrayBuffer* m_buffer;
@@ -233,6 +238,7 @@ private:
     size_t m_byteLength;
     size_t m_byteOffset;
     size_t m_arrayLength;
+    bool m_auto;
 };
 
 } // namespace Escargot
