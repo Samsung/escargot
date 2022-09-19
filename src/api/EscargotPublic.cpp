@@ -142,6 +142,11 @@ public:
         m_platform->markJSJobEnqueued(toRef(relatedContext));
     }
 
+    virtual void markJSJobFromAnotherThreadExists(Context* relatedContext) override
+    {
+        m_platform->markJSJobFromAnotherThreadExists(toRef(relatedContext));
+    }
+
     virtual LoadModuleResult onLoadModule(Context* relatedContext, Script* whereRequestFrom, String* moduleSrc, ModuleType type) override
     {
         LoadModuleResult result;
@@ -1179,6 +1184,21 @@ Evaluator::EvaluatorResult VMInstanceRef::executePendingJob()
 {
     auto result = toImpl(this)->executePendingJob();
     return toEvaluatorResultRef(result);
+}
+
+bool VMInstanceRef::hasPendingJobFromAnotherThread()
+{
+    return toImpl(this)->hasPendingJobFromAnotherThread();
+}
+
+bool VMInstanceRef::waitEventFromAnotherThread(unsigned timeoutInMillisecond)
+{
+    return toImpl(this)->waitEventFromAnotherThread(timeoutInMillisecond);
+}
+
+void VMInstanceRef::executePendingJobFromAnotherThread()
+{
+    toImpl(this)->executePendingJobFromAnotherThread();
 }
 
 #ifdef ESCARGOT_DEBUGGER

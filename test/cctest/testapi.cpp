@@ -230,6 +230,10 @@ public:
         // ignore. we always check pending job after eval script
     }
 
+    virtual void markJSJobFromAnotherThreadExists(ContextRef* relatedContext) override
+    {
+    }
+
     static std::string dirnameOf(const std::string& fname)
     {
         size_t pos = fname.find_last_of("/");

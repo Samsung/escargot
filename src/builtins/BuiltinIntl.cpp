@@ -756,13 +756,15 @@ static void icuLocleToBCP47Locale(char* buf, size_t len)
         }
     }
 
-    for (size_t i = 0; i < len - 1; i++) {
-        if (buf[i] == '-' && buf[i + 1] == '-') {
-            for (size_t j = i; j < len - 1; j++) {
-                buf[j] = buf[j + 1];
+    if (len) {
+        for (size_t i = 0; i < len - 1; i++) {
+            if (buf[i] == '-' && buf[i + 1] == '-') {
+                for (size_t j = i; j < len - 1; j++) {
+                    buf[j] = buf[j + 1];
+                }
+                len--;
+                buf[len] = 0;
             }
-            len--;
-            buf[len] = 0;
         }
     }
 }

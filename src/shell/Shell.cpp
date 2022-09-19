@@ -415,11 +415,16 @@ static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisVa
                 }
             }
 
-            while (instance->hasPendingJob()) {
-                auto jobResult = instance->executePendingJob();
-                if (jobResult.error) {
+            while (context->vmInstance()->hasPendingJob() || context->vmInstance()->hasPendingJobFromAnotherThread()) {
+                if (context->vmInstance()->waitEventFromAnotherThread(10)) {
+                    context->vmInstance()->executePendingJobFromAnotherThread();
+                }
+                if (context->vmInstance()->hasPendingJob()) {
+                    auto jobResult = context->vmInstance()->executePendingJob();
                     if (jobResult.error) {
-                        fprintf(stderr, "Uncaught %s: in agent\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                        if (jobResult.error) {
+                            fprintf(stderr, "Uncaught %s: in agent\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                        }
                     }
                 }
             }
@@ -567,6 +572,11 @@ public:
     }
 
     virtual void markJSJobEnqueued(ContextRef* relatedContext) override
+    {
+        // ignore. we always check pending job after eval script
+    }
+
+    virtual void markJSJobFromAnotherThreadExists(ContextRef* relatedContext) override
     {
         // ignore. we always check pending job after eval script
     }
@@ -741,14 +751,19 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
     }
 
     bool result = true;
-    while (context->vmInstance()->hasPendingJob()) {
-        auto jobResult = context->vmInstance()->executePendingJob();
-        if (shouldPrintScriptResult || jobResult.error) {
-            if (jobResult.error) {
-                fprintf(stderr, "Uncaught %s:\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
-                result = false;
-            } else {
-                fprintf(stderr, "%s\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+    while (context->vmInstance()->hasPendingJob() || context->vmInstance()->hasPendingJobFromAnotherThread()) {
+        if (context->vmInstance()->waitEventFromAnotherThread(10)) {
+            context->vmInstance()->executePendingJobFromAnotherThread();
+        }
+        if (context->vmInstance()->hasPendingJob()) {
+            auto jobResult = context->vmInstance()->executePendingJob();
+            if (shouldPrintScriptResult || jobResult.error) {
+                if (jobResult.error) {
+                    fprintf(stderr, "Uncaught %s:\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                    result = false;
+                } else {
+                    fprintf(stderr, "%s\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                }
             }
         }
     }

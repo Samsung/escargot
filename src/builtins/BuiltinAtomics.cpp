@@ -431,17 +431,21 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
     // Perform ! CreateDataPropertyOrThrow(resultObject, "value", promiseCapability.[[Promise]]).
     // Return resultObject.
     if (isAsync) {
-        std::unique_lock<std::mutex> ul(WL->m_conditionVariableMutex);
         auto waiterItem = std::shared_ptr<Global::WaiterItem>(new Global::WaiterItem(state.context(), WL, promiseCapability.m_promise));
         WL->m_waiterList.push_back(waiterItem);
         {
             auto worker = [](double t, Global::Waiter* WL, std::shared_ptr<Global::WaiterItem> waiterItem, Context* context) {
                 bool notified = true;
-                std::unique_lock<std::mutex> ul(WL->m_conditionVariableMutex);
-                if (t == std::numeric_limits<double>::infinity()) {
-                    WL->m_waiter.wait(ul);
-                } else {
-                    notified = WL->m_waiter.wait_for(ul, std::chrono::milliseconds((int64_t)t)) == std::cv_status::no_timeout;
+                {
+                    std::unique_lock<std::mutex> ul(WL->m_mutex);
+                    bool isExistOnWaiterList = std::find(WL->m_waiterList.begin(), WL->m_waiterList.end(), waiterItem) != WL->m_waiterList.end();
+                    if (isExistOnWaiterList) {
+                        if (t == std::numeric_limits<double>::infinity()) {
+                            WL->m_waiter.wait(ul);
+                        } else {
+                            notified = WL->m_waiter.wait_for(ul, std::chrono::milliseconds((int64_t)t)) == std::cv_status::no_timeout;
+                        }
+                    }
                 }
 
                 {
@@ -452,6 +456,7 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
                             std::get<2>(item) = nullptr;
                             std::get<3>(item) = notified;
                             context->vmInstance()->pendingAsyncWaiterCount()++;
+                            context->vmInstance()->waitEventFromAnotherThreadConditionVariable().notify_all();
                             break;
                         }
                     }
@@ -460,6 +465,7 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
                     std::unique_lock<std::mutex> ul(WL->m_mutex);
                     WL->m_waiterList.erase(std::remove(WL->m_waiterList.begin(), WL->m_waiterList.end(), waiterItem), WL->m_waiterList.end());
                 }
+                Global::platform()->markJSJobFromAnotherThreadExists(context);
             };
             std::unique_lock<std::mutex> ul(state.context()->vmInstance()->asyncWaiterDataMutex());
             state.context()->vmInstance()->asyncWaiterData().pushBack(std::make_tuple(state.context(), promiseCapability.m_promise, waiterItem.get(), false,
@@ -472,18 +478,16 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
         return Value(resultObject.value());
     } else {
         bool notified = true;
-        std::unique_lock<std::mutex> ul(WL->m_conditionVariableMutex);
+        WL->m_mutex.unlock();
+        std::unique_lock<std::mutex> ul(WL->m_mutex);
         auto waiterItem = std::shared_ptr<Global::WaiterItem>(new Global::WaiterItem(state.context(), WL));
         WL->m_waiterList.push_back(waiterItem);
-        WL->m_mutex.unlock();
         if (t == std::numeric_limits<double>::infinity()) {
             WL->m_waiter.wait(ul);
         } else {
             notified = WL->m_waiter.wait_for(ul, std::chrono::milliseconds((int64_t)t)) == std::cv_status::no_timeout;
         }
-        WL->m_mutex.lock();
         WL->m_waiterList.erase(std::remove(WL->m_waiterList.begin(), WL->m_waiterList.end(), waiterItem), WL->m_waiterList.end());
-        WL->m_mutex.unlock();
         if (notified) {
             return Value(state.context()->staticStrings().lazyOk().string());
         }

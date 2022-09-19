@@ -75,7 +75,6 @@ public:
         void* m_blockAddress;
         std::mutex m_mutex;
         std::condition_variable m_waiter;
-        std::mutex m_conditionVariableMutex;
         std::vector<std::shared_ptr<WaiterItem>> m_waiterList;
     };
 
