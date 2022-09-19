@@ -38,6 +38,9 @@ public:
     // Promise
     virtual void markJSJobEnqueued(Context* relatedContext) = 0;
 
+    // may called from another thread. ex) notify or timed out of Atomics.waitAsync
+    virtual void markJSJobFromAnotherThreadExists(Context* relatedContext) = 0;
+
     // Module
     enum ModuleType {
         ModuleES,

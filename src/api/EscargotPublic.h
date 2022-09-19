@@ -691,6 +691,10 @@ public:
 
     bool hasPendingJob();
     Evaluator::EvaluatorResult executePendingJob();
+
+    bool hasPendingJobFromAnotherThread();
+    bool waitEventFromAnotherThread(unsigned timeoutInMillisecond = 0); // zero means infinity
+    void executePendingJobFromAnotherThread();
 };
 
 class ESCARGOT_EXPORT DebuggerOperationsRef {
@@ -2105,6 +2109,9 @@ public:
 
     // If you want to add a Job event, you should call VMInstanceRef::executePendingJob after event. see Shell.cpp
     virtual void markJSJobEnqueued(ContextRef* relatedContext) = 0;
+
+    // may called from another thread. ex) notify or timed out of Atomics.waitAsync
+    virtual void markJSJobFromAnotherThreadExists(ContextRef* relatedContext) = 0;
 
     // Module
     enum ModuleType {

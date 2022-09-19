@@ -186,6 +186,10 @@ public:
     bool hasPendingJob();
     SandBox::SandBoxResult executePendingJob();
 
+    bool hasPendingJobFromAnotherThread();
+    bool waitEventFromAnotherThread(unsigned timeoutInMillisecond = 0); // zero means infinity
+    void executePendingJobFromAnotherThread();
+
     std::vector<ByteCodeBlock*>& compiledByteCodeBlocks()
     {
         return m_compiledByteCodeBlocks;
@@ -375,6 +379,11 @@ public:
     {
         return m_pendingAsyncWaiterCount;
     }
+
+    std::condition_variable& waitEventFromAnotherThreadConditionVariable()
+    {
+        return m_waitEventFromAnotherThreadConditionVariable;
+    }
 #endif
 
 private:
@@ -474,6 +483,8 @@ private:
     Vector<AsyncWaiterDataItem, GCUtil::gc_malloc_allocator<AsyncWaiterDataItem>> m_asyncWaiterData;
     std::mutex m_asyncWaiterDataMutex;
     std::atomic_size_t m_pendingAsyncWaiterCount;
+
+    std::condition_variable m_waitEventFromAnotherThreadConditionVariable;
 #endif
 };
 } // namespace Escargot
