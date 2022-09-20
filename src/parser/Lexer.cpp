@@ -908,29 +908,17 @@ Scanner::ScanIDResult Scanner::getComplexIdentifier()
     }
 
     while (!this->eof()) {
-        cp = this->codePointAt(this->index);
-        if (!isIdentifierPart(cp)) {
+        ch = this->codePointAt(this->index);
+        if (!isIdentifierPart(ch)) {
             break;
         }
 
-        // ch = Character.fromCodePoint(cp);
-        ch = cp;
-
-        if (ch >= 128 && this->peekChar() >= 0xD800 && this->peekChar() < 0xDFFF) {
-            ch = peekChar();
-            ++this->index;
-            char32_t ch2 = this->peekChar();
-            if (U16_IS_TRAIL(ch2)) {
-                ch = U16_GET_SUPPLEMENTARY(ch, ch2);
-            }
-            --this->index;
-        }
         piece = ParserCharPiece(ch);
         id += UTF16StringDataNonGCStd(piece.data, piece.length);
         this->index += piece.length;
 
         // '\u' (U+005C, U+0075) denotes an escaped character.
-        if (cp == 0x5C) {
+        if (ch == 0x5C) {
             // id = id.substr(0, id.length - 1);
             id.erase(id.length() - 1);
 
@@ -948,6 +936,11 @@ Scanner::ScanIDResult Scanner::getComplexIdentifier()
                     this->throwUnexpectedToken();
                 }
             }
+
+            if (!isIdentifierPart(ch)) {
+                break;
+            }
+
             piece = ParserCharPiece(ch);
             id += UTF16StringDataNonGCStd(piece.data, piece.length);
         }
