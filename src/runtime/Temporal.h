@@ -34,7 +34,7 @@ public:
     {
     }
 
-    Temporal(ExecutionState& state, Object* temporalCalendar, Object* temporalCalendarPrototype, Object* temporalDurationPrototype, Object* temporalPlainDatePrototype, Object* temporalPlainTimePrototype, Object* temporalPlainDateTimePrototype, Object* temporalPlainYearMonthPrototype, Object* temporalInstantPrototype, Object* temporalPlainMonthDayPrototype, Object* temporalTimeZonePrototype)
+    Temporal(ExecutionState& state, Object* temporalCalendar, Object* temporalCalendarPrototype, Object* temporalDurationPrototype, Object* temporalPlainDatePrototype, Object* temporalPlainTimePrototype, Object* temporalPlainDateTimePrototype, Object* temporalPlainYearMonthPrototype, Object* temporalInstantPrototype, Object* temporalPlainMonthDayPrototype, Object* temporalTimeZonePrototype, Object* temporalZonedDateTimePrototype)
         : DerivedObject(state)
         , m_temporalCalendar(temporalCalendar)
         , m_temporalCalendarPrototype(temporalCalendarPrototype)
@@ -46,6 +46,7 @@ public:
         , m_temporalInstantPrototype(temporalInstantPrototype)
         , m_temporalPlainMonthDayPrototype(temporalPlainMonthDayPrototype)
         , m_temporalTimeZonePrototype(temporalTimeZonePrototype)
+        , m_temporalZonedDateTimePrototype(temporalZonedDateTimePrototype)
     {
     }
 
@@ -97,6 +98,11 @@ public:
         return m_temporalTimeZonePrototype;
     }
 
+    Object* getTemporalZonedDateTimePrototype() const
+    {
+        return m_temporalZonedDateTimePrototype;
+    }
+
     bool isTemporalObject() const override
     {
         return true;
@@ -122,7 +128,27 @@ public:
         }
         auto options = normalizedOptions.toObject(state);
         Value matcherValues[2] = { state.context()->staticStrings().lazyConstrain().string(), state.context()->staticStrings().reject.string() };
-        return Intl::getOption(state, options, state.context()->staticStrings().lazyoverflow().string(), Intl::StringValue, matcherValues, 2, matcherValues[0]);
+        return Intl::getOption(state, options, state.context()->staticStrings().lazyoverflow().string(), Intl::StringValue, matcherValues, 2, matcherValues[1]);
+    }
+
+    static Value toTemporalDisambiguation(ExecutionState& state, const Value& options)
+    {
+        if (options.isUndefined()) {
+            return state.context()->staticStrings().lazyConstrain().string();
+        }
+
+        Value matcherValues[4] = { state.context()->staticStrings().lazyConstrain().string(), state.context()->staticStrings().lazyearlier().string(), state.context()->staticStrings().lazylater().string(), state.context()->staticStrings().reject.string() };
+        return Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazydisambiguation().string(), Intl::StringValue, matcherValues, 4, matcherValues[0]);
+    }
+
+    static Value toTemporalOffset(ExecutionState& state, const Value& options, const Value& fallback)
+    {
+        if (options.isUndefined()) {
+            return fallback;
+        }
+
+        Value matcherValues[4] = { state.context()->staticStrings().lazyprefer().string(), state.context()->staticStrings().lazyuse().string(), state.context()->staticStrings().lazyignore().string(), state.context()->staticStrings().reject.string() };
+        return Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyoffset().string(), Intl::StringValue, matcherValues, 4, fallback);
     }
 
     static Value prepareTemporalFields(ExecutionState& state, const Value& fields, const ValueVector& fieldNames, const ValueVector& requiredFields)
@@ -130,7 +156,7 @@ public:
         ASSERT(fields.isObject());
         auto* result = new Object(state);
         for (auto& property : fieldNames) {
-            Value value = fields.asObject()->get(state, ObjectPropertyName(state, fields), property).value(state, Value());
+            Value value = fields.asObject()->get(state, ObjectPropertyName(state, property.asString())).value(state, value);
             String* prop = property.asString();
             if (value.isUndefined()) {
                 if (std::find(requiredFields.begin(), requiredFields.end(), property) != requiredFields.end()) {
@@ -174,6 +200,15 @@ public:
     }
 
 private:
+    enum PropertyName {
+        DISAMBIGUATION
+    };
+
+    enum OptionType {
+        STRING,
+        BOOL,
+        NUMBER
+    };
     Object* m_temporalCalendar;
     Object* m_temporalCalendarPrototype;
     Object* m_temporalDurationPrototype;
@@ -184,6 +219,7 @@ private:
     Object* m_temporalInstantPrototype;
     Object* m_temporalPlainMonthDayPrototype;
     Object* m_temporalTimeZonePrototype;
+    Object* m_temporalZonedDateTimePrototype;
 };
 
 } // namespace Escargot

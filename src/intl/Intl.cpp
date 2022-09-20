@@ -1901,6 +1901,15 @@ Value Intl::getOption(ExecutionState& state, Object* options, Value property, In
         if (type == Intl::OptionValueType::StringValue) {
             value = Value(value.toString(state));
         }
+        // https://tc39.es/proposal-temporal/#sec-getoption
+#if defined(ESCARGOT_ENABLE_TEMPORAL)
+        if (type == Intl::OptionValueType::NumberValue) {
+            value = Value(value.toNumber(state));
+            if (std::isnan(value.asNumber())) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "got invalid value");
+            }
+        }
+#endif
         // If values is not undefined, then
         if (valuesLength) {
             // If values does not contain an element equal to value, then throw a RangeError exception.

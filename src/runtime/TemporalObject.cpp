@@ -590,6 +590,11 @@ TemporalObject::TimeZone TemporalObject::parseTimeZoneOffset(ExecutionState& sta
     return tz;
 }
 
+TemporalObject::DateTime TemporalObject::parseTemporalZonedDateTimeString(ExecutionState& state, const std::string& isoString)
+{
+    return TemporalObject::parseValidIso8601String(state, isoString, true);
+}
+
 TemporalObject::DateTime TemporalObject::parseTemporalMonthDayString(ExecutionState& state, const std::string& isoString)
 {
     return parseTemporalDateTimeString(state, isoString);
@@ -787,6 +792,12 @@ std::map<TemporalObject::DateTimeUnits, Value> TemporalPlainTimeObject::toPartia
     return result;
 }
 
+std::map<TemporalObject::DateTimeUnits, int> TemporalPlainTimeObject::addTime(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int>& first, std::map<TemporalObject::DateTimeUnits, int>& second)
+{
+    ASSERT(TemporalPlainTimeObject::isValidTime(state, first[TemporalObject::HOUR_UNIT], first[TemporalObject::MINUTE_UNIT], first[TemporalObject::SECOND_UNIT], first[TemporalObject::MILLISECOND_UNIT], first[TemporalObject::MICROSECOND_UNIT], first[TemporalObject::NANOSECOND_UNIT]));
+    return TemporalPlainTimeObject::balanceTime(state, first[TemporalObject::HOUR_UNIT] + second[TemporalObject::HOUR_UNIT], first[TemporalObject::MINUTE_UNIT] + second[TemporalObject::MINUTE_UNIT], first[TemporalObject::SECOND_UNIT] + second[TemporalObject::SECOND_UNIT], first[TemporalObject::MILLISECOND_UNIT] + second[TemporalObject::MILLISECOND_UNIT], first[TemporalObject::MICROSECOND_UNIT] + second[TemporalObject::MICROSECOND_UNIT], first[TemporalObject::NANOSECOND_UNIT] + second[TemporalObject::NANOSECOND_UNIT]);
+}
+
 bool TemporalCalendarObject::isBuiltinCalendar(String* id)
 {
     return id->equals("iso8601");
@@ -829,9 +840,10 @@ Value TemporalCalendarObject::toTemporalCalendar(ExecutionState& state, const Va
     if (calendar.isObject()) {
         auto* calendarObject = calendar.asObject()->asTemporalCalendarObject();
 
-        if (calendarObject->internalSlot()->isTemporalObject()) {
-            return Value(calendarObject->getIdentifier());
+        if (calendarObject->isTemporalObject()) {
+            return Value(TemporalCalendarObject::createTemporalCalendar(state, calendarObject->getIdentifier()));
         }
+
         if (!calendarObject->hasProperty(state, state.context()->staticStrings().calendar)) {
             return calendar;
         }
@@ -970,8 +982,7 @@ Value TemporalCalendarObject::defaultMergeFields(ExecutionState& state, const Va
 
 Value TemporalCalendarObject::getTemporalCalendarWithISODefault(ExecutionState& state, const Value& item)
 {
-    Value calendarLike;
-    item.asObject()->asTemporalObject()->Object::get(state, ObjectPropertyName(state.context()->staticStrings().calendar), calendarLike);
+    Value calendarLike = item.asObject()->Object::get(state, ObjectPropertyName(state.context()->staticStrings().calendar)).value(state, item);
     return TemporalCalendarObject::toTemporalCalendarWithISODefault(state, calendarLike);
 }
 
@@ -1069,8 +1080,7 @@ Value TemporalCalendarObject::dateFromFields(ExecutionState& state, const Value&
 {
     ASSERT(calendar.isObject());
     ASSERT(fields.isObject());
-    Value dateFromFields;
-    calendar.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazydateFromFields()), dateFromFields);
+    Value dateFromFields = calendar.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazydateFromFields())).value(state, calendar);
     Value argv[2] = { fields, options };
     return Object::call(state, dateFromFields, calendar, 2, argv);
 }
@@ -1092,6 +1102,87 @@ int TemporalCalendarObject::toISOWeekOfYear(ExecutionState& state, const int yea
     }
 
     return weekNum;
+}
+
+Value TemporalCalendarObject::calendarDateAdd(ExecutionState& state, const Value& calendar, const Value& date, const Value& duration, const Value& options, Value dateAdd)
+{
+    ASSERT(calendar.isObject());
+    ASSERT(options.isObject() || options.isUndefined());
+
+    if (dateAdd.isUndefined()) {
+        dateAdd = Object::getMethod(state, calendar, state.context()->staticStrings().lazydateAdd());
+    }
+
+    Value argv[3] = { date, duration, options };
+    return Object::call(state, dateAdd, calendar, 3, argv);
+}
+
+std::map<TemporalObject::DateTimeUnits, int> TemporalCalendarObject::ISODateFromFields(ExecutionState& state, Value fields, const Value& options)
+{
+    ASSERT(fields.isObject());
+
+    auto overflow = Temporal::toTemporalOverflow(state, options);
+    ValueVector fieldNames = { Value(state.context()->staticStrings().lazyDay().string()), Value(state.context()->staticStrings().lazyMonth().string()), Value(state.context()->staticStrings().lazymonthCode().string()), Value(state.context()->staticStrings().lazyYear().string()) };
+    ValueVector requiredFields = { Value(state.context()->staticStrings().lazyDay().string()), Value(state.context()->staticStrings().lazyYear().string()) };
+    fields = Temporal::prepareTemporalFields(state, fields, fieldNames, requiredFields);
+    auto year = fields.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazyYear().string())).value(state, fields);
+    ASSERT(year.isNumber());
+    int month = TemporalCalendarObject::resolveISOMonth(state, fields);
+    auto day = fields.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazyDay().string())).value(state, fields);
+
+    if (!day.isInt32()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "month and montCode is undefined");
+    }
+
+    int dayNumber = day.asInt32();
+
+    if (dayNumber < 1 || dayNumber > 31) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "day is out of range");
+    }
+
+    return TemporalPlainDateObject::regulateISODate(state, year.asInt32(), month, dayNumber, overflow);
+}
+
+int TemporalCalendarObject::resolveISOMonth(ExecutionState& state, const Value& fields)
+{
+    auto month = fields.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazyMonth().string())).value(state, fields);
+    auto monthCode = fields.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazymonthCode().string())).value(state, fields);
+
+    if (monthCode.isUndefined()) {
+        if (!month.isInt32()) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "month and montCode is undefined");
+        }
+
+        int monthNumber = month.asInt32();
+
+        if (monthNumber < 1 || monthNumber > 12) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "month is out of range");
+        }
+
+        return month.asInt32();
+    }
+
+    ASSERT(monthCode.isString());
+
+    if (monthCode.asString()->length() != 3) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "monthCode length is invalid");
+    }
+
+    if (monthCode.asString()->toNonGCUTF8StringData()[0] == 'm' || !std::isdigit(monthCode.asString()->toNonGCUTF8StringData()[1]) || !std::isdigit(monthCode.asString()->toNonGCUTF8StringData()[2])) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "monthCode is invalid");
+    }
+
+    int numberPart = stoi(monthCode.asString()->toNonGCUTF8StringData().substr(1));
+
+    if (numberPart < 1 || numberPart > 12) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "monthCode number is out of range");
+    }
+
+    if (!month.isUndefined() && numberPart != month.asInt32()) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "monthCode number doesn't match with month");
+    }
+
+    return numberPart;
 }
 
 Value TemporalCalendarObject::calendarYearMonthFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options)
@@ -1213,10 +1304,11 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalPlainDateObject::balanceISO
 
     ASSERT(std::isfinite(epochDays.asNumber()));
 
-    time64_t ms = DateObject::makeDate(state, epochDays, Value(0)).asUInt32();
+    time64_t ms = DateObject::makeDate(state, epochDays, Value(0)).toLength(state);
 
-    return TemporalPlainDateObject::createISODateRecord(state, DateObject::yearFromTime(ms), DateObject::monthFromTime(ms) + 1, DateObject::dateFromTime(ms));
+    return TemporalPlainDateObject::createISODateRecord(state, DateObject::yearFromTime(ms), DateObject::monthFromTime(ms), DateObject::dateFromTime(ms));
 }
+
 std::map<TemporalObject::DateTimeUnits, int> TemporalPlainDateObject::createISODateRecord(ExecutionState& state, const int year, const int month, const int day)
 {
     ASSERT(TemporalPlainDateObject::isValidISODate(state, year, month, day));
@@ -1243,6 +1335,37 @@ int TemporalPlainDateObject::compareISODate(int firstYear, int firstMonth, int f
         return -1;
     }
     return 0;
+}
+
+std::map<TemporalObject::DateTimeUnits, int> TemporalPlainDateObject::regulateISODate(ExecutionState& state, int year, int month, int day, const Value& overflow)
+{
+    if (overflow.asString()->equals(state.context()->staticStrings().lazyConstrain().string())) {
+        if (month > 12) {
+            month = 12;
+        } else if (month < 1) {
+            month = 1;
+        }
+
+        if (day < 1) {
+            day = 1;
+        }
+
+        if (day > 28) {
+            int daysInMonth = TemporalCalendarObject::ISODaysInMonth(state, year, month).asInt32();
+
+            if (day > daysInMonth) {
+                day = daysInMonth;
+            }
+        }
+    } else {
+        ASSERT(overflow.asString()->equals(state.context()->staticStrings().reject.string()));
+
+        if (!TemporalPlainDateObject::isValidISODate(state, year, month, day)) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Not valid ISODate");
+        }
+    }
+
+    return { { TemporalObject::YEAR_UNIT, year }, { TemporalObject::MONTH_UNIT, month }, { TemporalObject::DAY_UNIT, day } };
 }
 
 TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state)
@@ -1302,9 +1425,16 @@ Value TemporalPlainDateTimeObject::createTemporalDateTime(ExecutionState& state,
     return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalPlainDateTimePrototype(), isoYear, isoMonth, isoDay, hour, minute, second, millisecond, microsecond, millisecond);
 }
 
-std::map<TemporalObject::DateTimeUnits, std::string> TemporalPlainDateTimeObject::interpretTemporalDateTimeFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options)
+std::map<TemporalObject::DateTimeUnits, int> TemporalPlainDateTimeObject::interpretTemporalDateTimeFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options)
 {
-    return {};
+    auto timeResult = TemporalPlainTimeObject::toTemporalTimeRecord(state, fields);
+    auto overFlow = Temporal::toTemporalOverflow(state, options);
+    auto temporalDate = TemporalCalendarObject::dateFromFields(state, calendar, fields, options).asObject()->asTemporalPlainDateObject();
+    timeResult = TemporalPlainTimeObject::regulateTime(state, timeResult[TemporalObject::HOUR_UNIT], timeResult[TemporalObject::MINUTE_UNIT], timeResult[TemporalObject::SECOND_UNIT], timeResult[TemporalObject::MILLISECOND_UNIT], timeResult[TemporalObject::MICROSECOND_UNIT], timeResult[TemporalObject::NANOSECOND_UNIT], overFlow);
+    timeResult[TemporalObject::YEAR_UNIT] = temporalDate->year();
+    timeResult[TemporalObject::MONTH_UNIT] = static_cast<unsigned char>(temporalDate->month());
+    timeResult[TemporalObject::DAY_UNIT] = static_cast<unsigned char>(temporalDate->day());
+    return timeResult;
 }
 
 Value TemporalPlainDateTimeObject::toTemporalDateTime(ExecutionState& state, const Value& item, const Value& options)
@@ -1312,7 +1442,7 @@ Value TemporalPlainDateTimeObject::toTemporalDateTime(ExecutionState& state, con
     ASSERT(options.isObject() || options.isUndefined());
 
     Value calendar;
-    std::map<TemporalObject::DateTimeUnits, std::string> result = {};
+    std::map<TemporalObject::DateTimeUnits, int> result = {};
 
     if (item.isObject()) {
         if (item.asObject()->isTemporalPlainDateTimeObject()) {
@@ -1338,7 +1468,7 @@ Value TemporalPlainDateTimeObject::toTemporalDateTime(ExecutionState& state, con
         ValueVector fieldNames = TemporalCalendarObject::calendarFields(state, calendar, values);
         Value fields = Temporal::prepareTemporalFields(state, item, fieldNames, ValueVector());
         result = TemporalPlainDateTimeObject::interpretTemporalDateTimeFields(state, calendar, fields, options);
-        return TemporalPlainDateTimeObject::createTemporalDateTime(state, Value(result[TemporalObject::YEAR_UNIT].c_str()).asInt32(), Value(result[TemporalObject::MONTH_UNIT].c_str()).asInt32(), Value(result[TemporalObject::DAY_UNIT].c_str()).asInt32(), Value(result[TemporalObject::HOUR_UNIT].c_str()).asInt32(), Value(result[TemporalObject::MINUTE_UNIT].c_str()).asInt32(), Value(result[TemporalObject::SECOND_UNIT].c_str()).asInt32(), Value(result[TemporalObject::MILLISECOND_UNIT].c_str()).asInt32(), Value(result[TemporalObject::MICROSECOND_UNIT].c_str()).asInt32(), Value(result[TemporalObject::NANOSECOND_UNIT].c_str()).asInt32(), calendar, new Object(state));
+        return TemporalPlainDateTimeObject::createTemporalDateTime(state, result[TemporalObject::YEAR_UNIT], result[TemporalObject::MONTH_UNIT], result[TemporalObject::DAY_UNIT], result[TemporalObject::HOUR_UNIT], result[TemporalObject::MINUTE_UNIT], result[TemporalObject::SECOND_UNIT], result[TemporalObject::MILLISECOND_UNIT], result[TemporalObject::MICROSECOND_UNIT], result[TemporalObject::NANOSECOND_UNIT], calendar, new Object(state));
     }
     Temporal::toTemporalOverflow(state, options);
     auto tmp = TemporalObject::parseTemporalDateTimeString(state, item.toString(state)->toNonGCUTF8StringData());
@@ -1348,14 +1478,173 @@ Value TemporalPlainDateTimeObject::toTemporalDateTime(ExecutionState& state, con
     return TemporalPlainDateTimeObject::createTemporalDateTime(state, tmp.year, tmp.month, tmp.day, tmp.hour, tmp.minute, tmp.second, tmp.millisecond, tmp.microsecond, tmp.nanosecond, TemporalCalendarObject::toTemporalCalendarWithISODefault(state, Value(tmp.calendar)), new Object(state));
 }
 
-TemporalZonedDateTimeObject::TemporalZonedDateTimeObject(ExecutionState& state)
-    : TemporalZonedDateTimeObject(state, state.context()->globalObject()->objectPrototype())
+std::map<TemporalObject::DateTimeUnits, int> TemporalPlainDateTimeObject::addDateTime(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int>& first, const Value& calendar, std::map<TemporalObject::DateTimeUnits, int>& second, Object* options)
+{
+    ASSERT(TemporalPlainDateTimeObject::ISODateTimeWithinLimits(state, first[TemporalObject::YEAR_UNIT], first[TemporalObject::MONTH_UNIT], first[TemporalObject::DAY_UNIT], first[TemporalObject::HOUR_UNIT], first[TemporalObject::MINUTE_UNIT], first[TemporalObject::SECOND_UNIT], first[TemporalObject::MILLISECOND_UNIT], first[TemporalObject::MICROSECOND_UNIT], first[TemporalObject::NANOSECOND_UNIT]));
+    auto timeResult = TemporalPlainTimeObject::addTime(state, first, second);
+    auto datePart = TemporalPlainDateObject::createTemporalDate(state, first[TemporalObject::YEAR_UNIT], first[TemporalObject::MONTH_UNIT], first[TemporalObject::DAY_UNIT], calendar).asObject()->asTemporalPlainDateObject();
+    auto dateDuration = TemporalDurationObject::createTemporalDuration(state, second[TemporalObject::YEAR_UNIT], second[TemporalObject::MONTH_UNIT], second[TemporalObject::WEEK_UNIT], second[TemporalObject::DAY_UNIT] + timeResult[TemporalObject::DAY_UNIT], 0, 0, 0, 0, 0, 0);
+    auto addedDate = TemporalCalendarObject::calendarDateAdd(state, datePart, dateDuration, options).asObject()->asTemporalPlainDateObject();
+    std::map<TemporalObject::DateTimeUnits, int> result = { { TemporalObject::YEAR_UNIT, addedDate->year() }, { TemporalObject::MONTH_UNIT, addedDate->month() }, { TemporalObject::DAY_UNIT, addedDate->day() } };
+    result.insert(timeResult.begin(), timeResult.end());
+    return result;
+}
+
+TemporalZonedDateTimeObject::TemporalZonedDateTimeObject(ExecutionState& state, const BigInt* nanoseconds, const TemporalTimeZoneObject* timeZone, const TemporalCalendarObject* calendar)
+    : TemporalZonedDateTimeObject(state, state.context()->globalObject()->objectPrototype(), nanoseconds, timeZone, calendar)
 {
 }
 
-TemporalZonedDateTimeObject::TemporalZonedDateTimeObject(ExecutionState& state, Object* proto)
+TemporalZonedDateTimeObject::TemporalZonedDateTimeObject(ExecutionState& state, Object* proto, const BigInt* nanoseconds, const TemporalTimeZoneObject* timeZone, const TemporalCalendarObject* calendar)
     : Temporal(state, proto)
+    , m_nanoseconds(nanoseconds)
+    , m_timeZone(timeZone)
+    , m_calendar(calendar)
 {
+}
+
+Value TemporalZonedDateTimeObject::createTemporalZonedDateTime(ExecutionState& state, const BigInt& epochNanoseconds, const TemporalTimeZoneObject* timeZone, const TemporalCalendarObject* calendar, Optional<Object*> newTarget)
+{
+    ASSERT(TemporalInstantObject::isValidEpochNanoseconds(&epochNanoseconds));
+
+    Object* proto;
+
+    if (!newTarget.hasValue()) {
+        proto = state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalZonedDateTimePrototype();
+    } else {
+        proto = newTarget.value();
+    }
+
+    return new TemporalZonedDateTimeObject(state, proto, &epochNanoseconds, timeZone, calendar);
+}
+
+Value TemporalZonedDateTimeObject::toTemporalZonedDateTime(ExecutionState& state, const Value& item, const Value& options)
+{
+    ASSERT(options.isUndefined() || options.isObject());
+
+    std::map<TemporalObject::DateTimeUnits, int> result;
+    MatchBehaviour matchBehaviour = TemporalZonedDateTimeObject::EXACTLY;
+    OffsetBehaviour offsetBehaviour = TemporalZonedDateTimeObject::OPTION;
+    String* offsetString;
+    TemporalTimeZoneObject* timeZone;
+    TemporalCalendarObject* calendar;
+
+    if (item.isObject()) {
+        if (item.asObject()->isTemporalZonedDateTimeObject()) {
+            return item;
+        }
+
+        calendar = TemporalCalendarObject::getTemporalCalendarWithISODefault(state, item).asObject()->asTemporalCalendarObject();
+        ValueVector values = { Value(state.context()->staticStrings().lazyDay().string()),
+                               Value(state.context()->staticStrings().lazyHour().string()),
+                               Value(state.context()->staticStrings().lazymicrosecond().string()),
+                               Value(state.context()->staticStrings().lazymillisecond().string()),
+                               Value(state.context()->staticStrings().lazyMinute().string()),
+                               Value(state.context()->staticStrings().lazyMonth().string()),
+                               Value(state.context()->staticStrings().lazymonthCode().string()),
+                               Value(state.context()->staticStrings().lazynanosecond().string()),
+                               Value(state.context()->staticStrings().lazySecond().string()),
+                               Value(state.context()->staticStrings().lazyYear().string()) };
+        auto fieldNames = TemporalCalendarObject::calendarFields(state, calendar, values);
+        fieldNames.push_back(Value(state.context()->staticStrings().lazytimeZone().string()));
+        fieldNames.push_back(Value(state.context()->staticStrings().lazyoffset().string()));
+        auto fields = Temporal::prepareTemporalFields(state, item, fieldNames, { Value(state.context()->staticStrings().lazytimeZone().string()) });
+        timeZone = TemporalTimeZoneObject::toTemporalTimeZone(state, fields.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazytimeZone())).value(state, fields)).asObject()->asTemporalTimeZoneObject();
+        auto offsetStringValue = fields.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyoffset())).value(state, fields);
+
+        if (offsetStringValue.isUndefined()) {
+            offsetBehaviour = TemporalZonedDateTimeObject::WALL;
+        } else {
+            offsetString = offsetStringValue.asString();
+        }
+
+        result = TemporalPlainDateTimeObject::interpretTemporalDateTimeFields(state, calendar, fields, options);
+    } else {
+        Temporal::toTemporalOverflow(state, options);
+        auto parseResult = TemporalObject::parseTemporalZonedDateTimeString(state, item.asString()->toNonGCUTF8StringData());
+        ASSERT(parseResult.tz->name->length() != 0);
+        unsigned int index = 0;
+        std::string timeZoneName = parseResult.tz->name->toNonGCUTF8StringData();
+
+        if (TemporalObject::offset(state, timeZoneName, index).empty()) {
+            if (!TemporalTimeZoneObject::isValidTimeZoneName(timeZoneName)) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid TimeZone identifier");
+            }
+
+            parseResult.tz->name = new ASCIIString(TemporalTimeZoneObject::canonicalizeTimeZoneName(timeZoneName).c_str());
+        }
+
+        offsetString = parseResult.tz->offsetString;
+
+        if (parseResult.tz->z) {
+            offsetBehaviour = TemporalZonedDateTimeObject::EXACT;
+        } else if (offsetString->length() == 0) {
+            offsetBehaviour = TemporalZonedDateTimeObject::WALL;
+        }
+
+        timeZone = TemporalTimeZoneObject::createTemporalTimeZone(state, timeZoneName).asObject()->asTemporalTimeZoneObject();
+        calendar = TemporalCalendarObject::toTemporalCalendarWithISODefault(state, parseResult.calendar).asObject()->asTemporalCalendarObject();
+        matchBehaviour = TemporalZonedDateTimeObject::MINUTES;
+    }
+
+    int64_t offsetNanoseconds = 0;
+
+    if (offsetBehaviour == TemporalZonedDateTimeObject::OPTION) {
+        offsetNanoseconds = TemporalInstantObject::offsetStringToNanoseconds(state, offsetString);
+    }
+
+    auto disambiguation = Temporal::toTemporalDisambiguation(state, options);
+    auto offsetOption = Temporal::toTemporalOffset(state, options, state.context()->staticStrings().reject.string());
+    auto epochNanoseconds = TemporalZonedDateTimeObject::interpretISODateTimeOffset(state, result, offsetBehaviour, offsetNanoseconds, timeZone, disambiguation, offsetOption, matchBehaviour).toBigInt(state);
+    return TemporalZonedDateTimeObject::createTemporalZonedDateTime(state, *epochNanoseconds, timeZone, calendar);
+}
+
+Value TemporalZonedDateTimeObject::interpretISODateTimeOffset(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int>& dateTime, TemporalZonedDateTimeObject::OffsetBehaviour offsetBehaviour, time64_t offsetNanoseconds, const Value& timeZone, const Value& disambiguation, const Value& offsetOption, TemporalZonedDateTimeObject::MatchBehaviour matchBehaviour)
+{
+    auto calendar = TemporalCalendarObject::getISO8601Calendar(state).asObject()->asTemporalCalendarObject();
+    auto dateTimeObject = TemporalPlainDateTimeObject::createTemporalDateTime(state, dateTime[TemporalObject::YEAR_UNIT], dateTime[TemporalObject::MONTH_UNIT], dateTime[TemporalObject::DAY_UNIT], dateTime[TemporalObject::HOUR_UNIT], dateTime[TemporalObject::MINUTE_UNIT], dateTime[TemporalObject::SECOND_UNIT], dateTime[TemporalObject::MILLISECOND_UNIT], dateTime[TemporalObject::MICROSECOND_UNIT], dateTime[TemporalObject::NANOSECOND_UNIT], calendar, nullptr);
+
+    if (offsetBehaviour == TemporalZonedDateTimeObject::WALL || offsetOption.toString(state)->equals(state.context()->staticStrings().lazyignore().string())) {
+        return TemporalTimeZoneObject::builtinTimeZoneGetInstantFor(state, timeZone, dateTimeObject, disambiguation).asObject()->asTemporalInstantObject()->getNanoseconds();
+    }
+
+    if (offsetBehaviour == TemporalZonedDateTimeObject::EXACT || offsetOption.toString(state)->equals(state.context()->staticStrings().lazyuse().string())) {
+        time64_t epochNanoseconds = TemporalPlainDateTimeObject::getEpochFromISOParts(state, dateTime[TemporalObject::YEAR_UNIT], dateTime[TemporalObject::MONTH_UNIT], dateTime[TemporalObject::DAY_UNIT], dateTime[TemporalObject::HOUR_UNIT], dateTime[TemporalObject::MINUTE_UNIT], dateTime[TemporalObject::SECOND_UNIT], dateTime[TemporalObject::MILLISECOND_UNIT], dateTime[TemporalObject::MICROSECOND_UNIT], dateTime[TemporalObject::NANOSECOND_UNIT]) - offsetNanoseconds;
+
+        if (!TemporalInstantObject::isValidEpochNanoseconds(Value(epochNanoseconds))) {
+            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid epoch nanoseconds");
+        }
+
+        return Value(epochNanoseconds);
+    }
+
+    ASSERT(offsetBehaviour == TemporalZonedDateTimeObject::OPTION);
+    ASSERT(offsetOption.toString(state)->equals(state.context()->staticStrings().lazyprefer().string()) || offsetOption.toString(state)->equals(state.context()->staticStrings().reject.string()));
+
+    auto possibleInstants = TemporalTimeZoneObject::getPossibleInstantsFor(state, timeZone, dateTimeObject);
+    for (auto candidate : possibleInstants) {
+        time64_t candidateNanoseconds = TemporalTimeZoneObject::getOffsetNanosecondsFor(state, timeZone, candidate);
+
+        if (candidateNanoseconds == offsetNanoseconds) {
+            return candidate.asObject()->asTemporalInstantObject()->getNanoseconds();
+        }
+
+        if (matchBehaviour == TemporalZonedDateTimeObject::MINUTES) {
+            return candidate.asObject()->asTemporalInstantObject()->getNanoseconds();
+        }
+    }
+
+    if (offsetOption.toString(state)->equals(state.context()->staticStrings().reject.string())) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "option is reject");
+    }
+
+    return TemporalTimeZoneObject::disambiguatePossibleInstants(state, possibleInstants, timeZone, dateTimeObject.asObject()->asTemporalPlainDateTimeObject(), disambiguation).asObject()->asTemporalInstantObject()->getNanoseconds();
+}
+
+TemporalPlainDateTimeObject* TemporalZonedDateTimeObject::toTemporalPlainDateTime(ExecutionState& state)
+{
+    auto instant = TemporalInstantObject::createTemporalInstant(state, this->getNanoseconds());
+    return TemporalTimeZoneObject::builtinTimeZoneGetPlainDateTimeFor(state, this->getTimeZone(), instant, this->getCalendar()).asObject()->asTemporalPlainDateTimeObject();
 }
 
 TemporalInstantObject::TemporalInstantObject(ExecutionState& state)
@@ -1596,6 +1885,10 @@ Value TemporalTimeZoneObject::toTemporalTimeZone(ExecutionState& state, const Va
         }
 
         if (!item->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyTimeZone()))) {
+            if (!item->asTemporalTimeZoneObject()->getOffsetNanoseconds().isNumber()) {
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid TimeZone offset");
+            }
+
             return temporalTimeZoneLike;
         }
 
@@ -1731,6 +2024,113 @@ Value TemporalTimeZoneObject::getIANATimeZoneTransition(ExecutionState& state, B
     }
 
     return rightNanos;
+}
+
+Value TemporalTimeZoneObject::builtinTimeZoneGetInstantFor(ExecutionState& state, const Value& timeZone, const Value& dateTime, const Value& disambiguation)
+{
+    ASSERT(dateTime.asObject()->isTemporalPlainDateTimeObject());
+    auto possibleInstant = TemporalTimeZoneObject::getPossibleInstantsFor(state, timeZone, dateTime);
+    return TemporalTimeZoneObject::disambiguatePossibleInstants(state, possibleInstant, timeZone, dateTime.asObject()->asTemporalPlainDateTimeObject(), disambiguation);
+}
+
+ValueVector TemporalTimeZoneObject::getPossibleInstantsFor(ExecutionState& state, const Value& timeZone, const Value& dateTime)
+{
+    ASSERT(dateTime.asObject()->isTemporalPlainDateTimeObject());
+    Value argument[1] = { dateTime };
+    auto possibleInstants = Object::call(state, timeZone.asObject()->get(state, state.context()->staticStrings().lazygetPossibleInstantsFor()).value(state, timeZone), timeZone, 1, argument);
+    auto iteratorRecord = IteratorObject::getIterator(state, possibleInstants, true);
+    ValueVector list = {};
+    Optional<Object*> next;
+
+    do {
+        next = IteratorObject::iteratorStep(state, iteratorRecord);
+
+        if (next.hasValue()) {
+            if (!next.value()->isObject() || !next.value()->asObject()->isTemporalInstantObject()) {
+                IteratorObject::iteratorClose(state, iteratorRecord, ErrorObject::createBuiltinError(state, ErrorObject::TypeError, "iterator value is not TemporalInstantObject"), true);
+            }
+
+            list.push_back(next.value());
+        }
+    } while (!next.hasValue());
+
+    return list;
+}
+
+Value TemporalTimeZoneObject::disambiguatePossibleInstants(ExecutionState& state, ValueVector& possibleInstants, const Value& timeZone, TemporalPlainDateTimeObject* dateTime, const Value& disambiguation)
+{
+    ASSERT(dateTime->asObject()->isTemporalPlainDateTimeObject());
+
+    if (possibleInstants.size() == 1) {
+        return possibleInstants[0];
+    }
+
+    if (!possibleInstants.empty()) {
+        if (disambiguation.asString()->equals(state.context()->staticStrings().lazyearlier().string()) || disambiguation.asString()->equals(state.context()->staticStrings().lazycompatible().string())) {
+            return possibleInstants[0];
+        }
+
+        if (disambiguation.asString()->equals(state.context()->staticStrings().lazylater().string())) {
+            return possibleInstants[possibleInstants.size() - 1];
+        }
+
+        ASSERT(disambiguation.asString()->equals(state.context()->staticStrings().reject.string()));
+        ErrorObject::createBuiltinError(state, ErrorObject::RangeError, "Invalid disambiguation");
+    }
+
+
+    ASSERT(possibleInstants.empty());
+
+    if (disambiguation.asString()->equals(state.context()->staticStrings().reject.string())) {
+        ErrorObject::createBuiltinError(state, ErrorObject::RangeError, "disambiguation is reject");
+    }
+
+    uint64_t epochNanoseconds = TemporalPlainDateTimeObject::getEpochFromISOParts(state, dateTime->getYear(), dateTime->getMonth(), dateTime->getDay(), dateTime->getHour(), dateTime->getMinute(), dateTime->getSecond(), dateTime->getMillisecond(), dateTime->getMicrosecond(), dateTime->getNanosecond());
+    Value daysBeforeNs = Value(epochNanoseconds - (const_Date_msPerDay * 1000000));
+
+    if (!TemporalInstantObject::isValidEpochNanoseconds(daysBeforeNs)) {
+        ErrorObject::createBuiltinError(state, ErrorObject::RangeError, "invalid epoch nanoseconds");
+    }
+
+    auto dayBefore = TemporalInstantObject::createTemporalInstant(state, daysBeforeNs);
+    Value daysAfterNs = Value(epochNanoseconds + (const_Date_msPerDay * 1000000));
+
+    if (!TemporalInstantObject::isValidEpochNanoseconds(daysAfterNs)) {
+        ErrorObject::createBuiltinError(state, ErrorObject::RangeError, "invalid epoch nanoseconds");
+    }
+
+    auto dayAfter = TemporalInstantObject::createTemporalInstant(state, daysAfterNs);
+    int64_t offsetBefore = TemporalTimeZoneObject::getOffsetNanosecondsFor(state, timeZone, dayBefore);
+    int64_t offsetAfter = TemporalTimeZoneObject::getOffsetNanosecondsFor(state, timeZone, dayAfter);
+    int64_t nanoseconds = offsetAfter - offsetBefore;
+
+    if (disambiguation.asString()->equals(state.context()->staticStrings().lazyearlier().string())) {
+        std::map<TemporalObject::DateTimeUnits, int> dateTimeMap = { { TemporalObject::YEAR_UNIT, dateTime->getYear() }, { TemporalObject::MONTH_UNIT, dateTime->getMonth() }, { TemporalObject::DAY_UNIT, dateTime->getDay() }, { TemporalObject::HOUR_UNIT, dateTime->getHour() }, { TemporalObject::MINUTE_UNIT, dateTime->getMinute() }, { TemporalObject::SECOND_UNIT, dateTime->getSecond() }, { TemporalObject::MILLISECOND_UNIT, dateTime->getMillisecond() }, { TemporalObject::MICROSECOND_UNIT, dateTime->getMicrosecond() }, { TemporalObject::NANOSECOND_UNIT, dateTime->getNanosecond() } };
+        std::map<TemporalObject::DateTimeUnits, int> durationMap = { { TemporalObject::YEAR_UNIT, 0 }, { TemporalObject::MONTH_UNIT, 0 }, { TemporalObject::DAY_UNIT, 0 }, { TemporalObject::HOUR_UNIT, 0 }, { TemporalObject::MINUTE_UNIT, 0 }, { TemporalObject::SECOND_UNIT, 0 }, { TemporalObject::MILLISECOND_UNIT, 0 }, { TemporalObject::MICROSECOND_UNIT, 0 }, { TemporalObject::NANOSECOND_UNIT, -nanoseconds } };
+        auto earlier = TemporalPlainDateTimeObject::addDateTime(state, dateTimeMap, dateTime->getCalendar(), durationMap, nullptr);
+        auto earlierDateTime = TemporalPlainDateTimeObject::createTemporalDateTime(state, earlier[TemporalObject::YEAR_UNIT], earlier[TemporalObject::MONTH_UNIT], earlier[TemporalObject::DAY_UNIT], earlier[TemporalObject::HOUR_UNIT], earlier[TemporalObject::MINUTE_UNIT], earlier[TemporalObject::SECOND_UNIT], earlier[TemporalObject::MILLISECOND_UNIT], earlier[TemporalObject::MICROSECOND_UNIT], earlier[TemporalObject::NANOSECOND_UNIT], dateTime->getCalendar());
+        possibleInstants = TemporalTimeZoneObject::getPossibleInstantsFor(state, timeZone, earlierDateTime);
+
+        if (possibleInstants.empty()) {
+            ErrorObject::createBuiltinError(state, ErrorObject::RangeError, "no possible instants");
+        }
+
+        return possibleInstants[0];
+    }
+
+    ASSERT(disambiguation.asString()->equals(state.context()->staticStrings().lazylater().string()) || disambiguation.asString()->equals(state.context()->staticStrings().lazycompatible().string()));
+
+    std::map<TemporalObject::DateTimeUnits, int> dateTimeMap = { { TemporalObject::YEAR_UNIT, dateTime->getYear() }, { TemporalObject::MONTH_UNIT, dateTime->getMonth() }, { TemporalObject::DAY_UNIT, dateTime->getDay() }, { TemporalObject::HOUR_UNIT, dateTime->getHour() }, { TemporalObject::MINUTE_UNIT, dateTime->getMinute() }, { TemporalObject::SECOND_UNIT, dateTime->getSecond() }, { TemporalObject::MILLISECOND_UNIT, dateTime->getMillisecond() }, { TemporalObject::MICROSECOND_UNIT, dateTime->getMicrosecond() }, { TemporalObject::NANOSECOND_UNIT, dateTime->getNanosecond() } };
+    std::map<TemporalObject::DateTimeUnits, int> durationMap = { { TemporalObject::YEAR_UNIT, 0 }, { TemporalObject::MONTH_UNIT, 0 }, { TemporalObject::DAY_UNIT, 0 }, { TemporalObject::HOUR_UNIT, 0 }, { TemporalObject::MINUTE_UNIT, 0 }, { TemporalObject::SECOND_UNIT, 0 }, { TemporalObject::MILLISECOND_UNIT, 0 }, { TemporalObject::MICROSECOND_UNIT, 0 }, { TemporalObject::NANOSECOND_UNIT, nanoseconds } };
+    auto earlier = TemporalPlainDateTimeObject::addDateTime(state, dateTimeMap, dateTime->getCalendar(), durationMap, nullptr);
+    auto earlierDateTime = TemporalPlainDateTimeObject::createTemporalDateTime(state, earlier[TemporalObject::YEAR_UNIT], earlier[TemporalObject::MONTH_UNIT], earlier[TemporalObject::DAY_UNIT], earlier[TemporalObject::HOUR_UNIT], earlier[TemporalObject::MINUTE_UNIT], earlier[TemporalObject::SECOND_UNIT], earlier[TemporalObject::MILLISECOND_UNIT], earlier[TemporalObject::MICROSECOND_UNIT], earlier[TemporalObject::NANOSECOND_UNIT], dateTime->getCalendar());
+    possibleInstants = TemporalTimeZoneObject::getPossibleInstantsFor(state, timeZone, earlierDateTime);
+
+    if (possibleInstants.empty()) {
+        ErrorObject::createBuiltinError(state, ErrorObject::RangeError, "no possible instants");
+    }
+
+    return possibleInstants[possibleInstants.size() - 1];
 }
 
 TemporalPlainYearMonthObject::TemporalPlainYearMonthObject(ExecutionState& state)

@@ -812,7 +812,10 @@ namespace Escargot {
     F(PlainYearMonth, "PlainYearMonth")                   \
     F(Temporal, "Temporal")                               \
     F(TemporalTimeZone, "TimeZone")                       \
+    F(ZonedDateTime, "ZonedDateTime")                     \
     F(blank, "blank")                                     \
+    F(compatible, "compatible")                           \
+    F(dateAdd, "dateAdd")                                 \
     F(dateFromFields, "dateFromFields")                   \
     F(days, "days")                                       \
     F(daysInMonth, "daysInMonth")                         \
@@ -820,6 +823,8 @@ namespace Escargot {
     F(daysInWeek, "daysInWeek")                           \
     F(dayOfWeek, "dayOfWeek")                             \
     F(dayOfYear, "dayOfYear")                             \
+    F(disambiguation, "disambiguation")                   \
+    F(earlier, "earlier")                                 \
     F(epochMicroseconds, "epochMicroseconds")             \
     F(epochMilliseconds, "epochMilliseconds")             \
     F(epochNanoseconds, "epochNanoseconds")               \
@@ -838,7 +843,9 @@ namespace Escargot {
     F(getOffsetNanosecondsFor, "getOffsetNanosecondsFor") \
     F(getOffsetStringFor, "getOffsetStringFor")           \
     F(hours, "hours")                                     \
+    F(hoursInDay, "hoursInDay")                           \
     F(id, "id")                                           \
+    F(ignore, "ignore")                                   \
     F(inLeapYear, "inLeapYear")                           \
     F(isoHour, "isoHour")                                 \
     F(isoMicrosecond, "isoMicrosecond")                   \
@@ -846,6 +853,7 @@ namespace Escargot {
     F(isoMinute, "isoMinute")                             \
     F(isoNanosecond, "isoNanosecond")                     \
     F(isoSecond, "isoSecond")                             \
+    F(later, "later")                                     \
     F(mergeFields, "mergeFields")                         \
     F(microsecond, "microsecond")                         \
     F(microseconds, "microseconds")                       \
@@ -860,14 +868,17 @@ namespace Escargot {
     F(nanoseconds, "nanoseconds")                         \
     F(negated, "negated")                                 \
     F(offset, "offset")                                   \
+    F(offsetNanoseconds, "offsetNanoseconds")             \
     F(overflow, "overflow")                               \
     F(plainDateISO, "plainDateISO")                       \
     F(plainDateTimeISO, "plainDateTimeISO")               \
     F(plainTimeISO, "plainTimeISO")                       \
+    F(prefer, "prefer")                                   \
     F(relativeTo, "relativeTo")                           \
     F(seconds, "seconds")                                 \
     F(timeZone, "timeZone")                               \
     F(toPlainDateTime, "toPlainDateTime")                 \
+    F(use, "use")                                         \
     F(weekOfYear, "weekOfYear")                           \
     F(year, "year")                                       \
     F(yearMonthFromFields, "yearMonthFromFields")         \
