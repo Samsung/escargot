@@ -152,7 +152,7 @@ static const char days[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
 static const char months[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 static const char* invalidDate = "Invalid Date";
-static const int monthNumberHelper[] = { 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+static const int monthNumberHelper[] = { 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 };
 
 DateObject::DateObject(ExecutionState& state)
     : DateObject(state, state.context()->globalObject()->datePrototype())
