@@ -2096,8 +2096,8 @@ NEVER_INLINE void ByteCodeInterpreter::getObjectPrecomputedCaseOperation(Executi
 #if defined(ESCARGOT_SMALL_CONFIG)
     registerFile[code->m_storeRegisterIndex] = obj->get(state, ObjectPropertyName(state, code->m_propertyName)).value(state, receiver);
     return;
-#endif
-
+    // clang-format off
+#else
     const size_t maxCacheMissCount = 32;
     const size_t minCacheFillCount = 4;
     const size_t maxCacheCount = 24;
@@ -2276,6 +2276,8 @@ GiveUp:
     code->m_propertyName = propertyName;
     code->m_cacheMissCount = maxCacheMissCount + 1;
     registerFile[code->m_storeRegisterIndex] = orgObj->get(state, ObjectPropertyName(state, propertyName)).value(state, receiver);
+#endif
+    // clang-format on
 }
 
 ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
