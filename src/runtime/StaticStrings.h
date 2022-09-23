@@ -885,7 +885,6 @@ namespace Escargot {
     F(toPlainDateTime, "toPlainDateTime")                 \
     F(use, "use")                                         \
     F(weekOfYear, "weekOfYear")                           \
-    F(year, "year")                                       \
     F(yearMonthFromFields, "yearMonthFromFields")         \
     F(years, "years")                                     \
     F(weeks, "weeks")                                     \

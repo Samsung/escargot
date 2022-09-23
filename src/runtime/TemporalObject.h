@@ -80,8 +80,6 @@ public:
     short m_nanosecond;
 };
 
-static const char* dateTimeUnitStrings[] = { "year", "month", "week", "day", "hour", "minute", "second", "millisecond", "microsecond", "nanosecond" };
-
 enum RoundingMode {
     CEIL,
     FLOOR,
@@ -151,6 +149,9 @@ public:
     static Value toISODateTime(ExecutionState& state, DateObject& d);
     static Value toISODate(ExecutionState& state, DateObject& d);
     static Value toISOTime(ExecutionState& state, DateObject& d);
+
+    static String* dateTimeUnitString(ExecutionState& state, DateTimeUnits unit);
+
     static TemporalObject::DateTime parseValidIso8601String(ExecutionState& state, std::string isoString, bool parseTimeZone);
     static TemporalObject::DateTime parseTemporalInstantString(ExecutionState& state, const std::string& isoString);
     static TemporalObject::DateTime parseTemporalZonedDateTimeString(ExecutionState& state, const std::string& isoString);
