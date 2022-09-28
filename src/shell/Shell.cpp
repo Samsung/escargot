@@ -948,7 +948,7 @@ static void printGCMemory(void* data)
     if (currentTick - g_lastTick >= g_dumpInterval) {
         g_lastTick = currentTick;
         VMInstanceRef* vm = static_cast<VMInstanceRef*>(data);
-        printf("Tick %" PRIu64 ": %f MB %lu \n", fastTickCount(), Memory::heapSize() / 1024.f / 1024.f, vm->validSourceSize());
+        printf("Tick %" PRIu64 ": %f MB %lu \n", currentTick, Memory::heapSize() / 1024.f / 1024.f, vm->validSourceSize());
     }
 }
 

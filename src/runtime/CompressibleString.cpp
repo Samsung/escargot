@@ -216,6 +216,9 @@ bool CompressibleString::compressWorker()
     size_t totalDecompLength = 0;
     int lastBoundLength = 0;
     char* tempBuffer = nullptr;
+
+    ESCARGOT_LOG_INFO("COMPRESS TICK: %" PRIu64 " Size: %zu\n", currentTick, originByteLength);
+
     for (size_t srcIndex = 0; srcIndex < originByteLength; srcIndex += g_compressChunkSize) {
         int srcSize = (int)std::min(g_compressChunkSize, originByteLength - srcIndex);
         int boundLength = LZ4::LZ4_compressBound(srcSize);
@@ -304,6 +307,8 @@ void CompressibleString::decompressWorker()
     m_vmInstance->compressibleStringsUncomressedBufferSize() += decomressedBufferSize();
     ASSERT(originByteLength > totalDecompLength);
     m_vmInstance->increaseSourceSize(originByteLength - totalDecompLength);
+
+    ESCARGOT_LOG_INFO("DECOMPRESS TICK: %" PRIu64 " Size: %zu\n", fastTickCount(), originByteLength);
 }
 } // namespace Escargot
 
