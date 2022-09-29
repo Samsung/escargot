@@ -427,73 +427,73 @@ static Value builtinTemporalPlainDateTimeCalendar(ExecutionState& state, Value t
 static Value builtinTemporalPlainDateTimeYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
-    return TemporalCalendarObject::calendarYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar().asObject(), thisValue);
+    return TemporalCalendarObject::calendarYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
 }
 
 static Value builtinTemporalPlainDateTimeMonth(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
-    return TemporalCalendarObject::calendarMonth(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar().asObject(), thisValue);
+    return TemporalCalendarObject::calendarMonth(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
 }
 
 static Value builtinTemporalPlainDateTimeMonthCode(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
-    return TemporalCalendarObject::calendarMonthCode(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar().asObject(), thisValue);
+    return TemporalCalendarObject::calendarMonthCode(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
 }
 
 static Value builtinTemporalPlainDateTimeDay(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
-    return TemporalCalendarObject::calendarDay(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar().asObject(), thisValue);
+    return TemporalCalendarObject::calendarDay(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
 }
 
 static Value builtinTemporalPlainDateTimeDayOfWeek(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
-    return TemporalCalendarObject::calendarDayOfWeek(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar().asObject(), thisValue);
+    return TemporalCalendarObject::calendarDayOfWeek(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
 }
 
 static Value builtinTemporalPlainDateTimeDayOfYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
-    return TemporalCalendarObject::calendarDayOfYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar().asObject(), thisValue);
+    return TemporalCalendarObject::calendarDayOfYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
 }
 
 static Value builtinTemporalPlainDateTimeWeekOfYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
-    return TemporalCalendarObject::calendarWeekOfYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar().asObject(), thisValue);
+    return TemporalCalendarObject::calendarWeekOfYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
 }
 
 static Value builtinTemporalPlainDateTimeDaysInWeek(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
-    return TemporalCalendarObject::calendarDaysInWeek(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar().asObject(), thisValue);
+    return TemporalCalendarObject::calendarDaysInWeek(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
 }
 
 static Value builtinTemporalPlainDateTimeDaysInMonth(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
-    return TemporalCalendarObject::calendarDaysInMonth(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar().asObject(), thisValue);
+    return TemporalCalendarObject::calendarDaysInMonth(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
 }
 
 static Value builtinTemporalPlainDateTimeDaysInYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
-    return TemporalCalendarObject::calendarDaysInYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar().asObject(), thisValue);
+    return TemporalCalendarObject::calendarDaysInYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
 }
 
 static Value builtinTemporalPlainDateTimeMonthsInYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
-    return TemporalCalendarObject::calendarMonthsInYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar().asObject(), thisValue);
+    return TemporalCalendarObject::calendarMonthsInYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
 }
 
 static Value builtinTemporalPlainDateTimeInLeapYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
-    return TemporalCalendarObject::calendarInLeapYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar().asObject(), thisValue);
+    return TemporalCalendarObject::calendarInLeapYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
 }
 
 static Value builtinTemporalZonedDateTimeConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

@@ -31,7 +31,20 @@ namespace Escargot {
 
 class TemporalDate {
 public:
-    TemporalDate(short mYear, char mMonth, char mDay);
+    TemporalDate(short year, char month, char day)
+        : m_year(year)
+        , m_month(month)
+        , m_day(day)
+    {
+    }
+
+    TemporalDate()
+        : m_year(0)
+        , m_month(0)
+        , m_day(0)
+    {
+    }
+
     short m_year;
     char m_month;
     char m_day;
@@ -39,8 +52,26 @@ public:
 
 class TemporalTime {
 public:
-    TemporalTime(char mHour, char mMinute, char mSecond, short mMillisecond, short mMicrosecond, short mNanosecond);
-    TemporalTime();
+    TemporalTime(char hour, char minute, char second, short millisecond, short microsecond, short nanosecond)
+        : m_hour(hour)
+        , m_minute(minute)
+        , m_second(second)
+        , m_millisecond(millisecond)
+        , m_microsecond(microsecond)
+        , m_nanosecond(nanosecond)
+    {
+    }
+
+    TemporalTime()
+        : m_hour(0)
+        , m_minute(0)
+        , m_second(0)
+        , m_millisecond(0)
+        , m_microsecond(0)
+        , m_nanosecond(0)
+    {
+    }
+
     char m_hour;
     char m_minute;
     char m_second;
@@ -180,11 +211,10 @@ private:
     String* m_identifier;
 };
 
-class TemporalPlainDateObject : public Temporal, private TemporalDate {
-public:
-    explicit TemporalPlainDateObject(ExecutionState& state, int isoYear, int isoMonth, int isoDay, Optional<Value> calendarLike);
-    explicit TemporalPlainDateObject(ExecutionState& state, Object* proto, short isoYear, char isoMonth, char isoDay, Optional<Value> calendarLike);
+class TemporalPlainDateTimeObject;
 
+class TemporalPlainDateObject : public Temporal {
+public:
     bool isTemporalPlainDateObject() const override
     {
         return true;
@@ -192,6 +222,7 @@ public:
 
     static std::map<TemporalObject::DateTimeUnits, int> createISODateRecord(ExecutionState& state, int year, int month, int day);
     static Value createTemporalDate(ExecutionState& state, int isoYear, int isoMonth, int isoDay, const Value& calendar, Optional<Object*> newTarget = nullptr);
+    static Value createFromPlainDateTimeObject(ExecutionState& state, TemporalPlainDateTimeObject* plainDateTime);
     static std::map<TemporalObject::DateTimeUnits, int> regulateISODate(ExecutionState& state, int year, int month, int day, const Value& overflow);
     static bool isValidISODate(ExecutionState& state, int year, int month, int day);
     static Value toTemporalDate(ExecutionState& state, const Value& item, Optional<Object*> options = nullptr);
@@ -200,27 +231,34 @@ public:
 
     short year() const
     {
-        return m_year;
+        return m_date.m_year;
     }
     char month() const
     {
-        return m_month;
+        return m_date.m_month;
     }
     char day() const
     {
-        return m_day;
+        return m_date.m_day;
     }
-    TemporalCalendarObject* calendar() const { return m_calendar; }
+    TemporalCalendarObject* calendar() const
+    {
+        return m_calendar;
+    }
+    const TemporalDate& date()
+    {
+        return m_date;
+    }
 
 private:
+    explicit TemporalPlainDateObject(ExecutionState& state, Object* proto, const TemporalDate& date, TemporalCalendarObject* calendar);
+
+    TemporalDate m_date;
     TemporalCalendarObject* m_calendar;
 };
 
-class TemporalPlainTimeObject : public Temporal, private TemporalTime {
+class TemporalPlainTimeObject : public Temporal {
 public:
-    explicit TemporalPlainTimeObject(ExecutionState& state);
-    explicit TemporalPlainTimeObject(ExecutionState& state, Object* proto);
-
     bool isTemporalPlainTimeObject() const override
     {
         return true;
@@ -230,6 +268,7 @@ public:
     static std::map<TemporalObject::DateTimeUnits, Value> toPartialTime(ExecutionState& state, const Value& temporalTimeLike);
     static std::map<TemporalObject::DateTimeUnits, int> regulateTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, const Value& overflow);
     static Value createTemporalTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, Optional<Object*> newTarget);
+    static Value createFromPlainDateTimeObject(ExecutionState& state, TemporalPlainDateTimeObject* plainDateTime);
     static bool isValidTime(ExecutionState& state, int h, int m, int s, int ms, int us, int ns);
     static std::map<TemporalObject::DateTimeUnits, int> balanceTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond);
     static std::map<TemporalObject::DateTimeUnits, int> constrainTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond);
@@ -237,47 +276,48 @@ public:
     static int compareTemporalTime(ExecutionState& state, const int time1[6], const int time2[6]);
     static std::map<TemporalObject::DateTimeUnits, int> addTime(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int>& first, std::map<TemporalObject::DateTimeUnits, int>& second);
 
-    void setTime(char h, char m, char s, short ms, short qs, short ns);
-    void setCalendar(ExecutionState& state, String* calendar);
-
     char getHour() const
     {
-        return m_hour;
+        return m_time.m_hour;
     }
     char getMinute() const
     {
-        return m_minute;
+        return m_time.m_minute;
     }
     char getSecond() const
     {
-        return m_second;
+        return m_time.m_second;
     }
     short getMillisecond() const
     {
-        return m_millisecond;
+        return m_time.m_millisecond;
     }
     short getMicrosecond() const
     {
-        return m_microsecond;
+        return m_time.m_microsecond;
     }
     short getNanosecond() const
     {
-        return m_nanosecond;
+        return m_time.m_nanosecond;
     }
     TemporalCalendarObject* getCalendar() const
     {
         return m_calendar;
     }
+    const TemporalTime& time()
+    {
+        return m_time;
+    }
 
 private:
+    explicit TemporalPlainTimeObject(ExecutionState& state, Object* proto, const TemporalTime& time, TemporalCalendarObject* calendar);
+
+    TemporalTime m_time;
     TemporalCalendarObject* m_calendar;
 };
 
-class TemporalPlainDateTimeObject : public Temporal, private TemporalDate, private TemporalTime {
+class TemporalPlainDateTimeObject : public Temporal {
 public:
-    explicit TemporalPlainDateTimeObject(ExecutionState& state);
-    explicit TemporalPlainDateTimeObject(ExecutionState& state, Object* proto, int year, int month, int day, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond);
-
     bool isTemporalPlainDateTimeObject() const override
     {
         return true;
@@ -289,55 +329,63 @@ public:
     static Value toTemporalDateTime(ExecutionState& state, const Value& item, const Value& options = Value());
     static std::map<TemporalObject::DateTimeUnits, int> balanceISODateTime(ExecutionState& state, int year, int month, int day, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond);
     static Value createTemporalDateTime(ExecutionState& state, int isoYear, int isoMonth, int isoDay, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, const Value& calendar, Optional<Object*> newTarget = nullptr);
+    static Value createFromPlainDateObject(ExecutionState& state, TemporalPlainDateObject* plainDate);
     static std::map<TemporalObject::DateTimeUnits, int> addDateTime(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int>& first, const Value& calendar, std::map<TemporalObject::DateTimeUnits, int>& second, Object* options);
 
     short getYear() const
     {
-        return m_year;
+        return m_date.m_year;
     }
     char getMonth() const
     {
-        return m_month;
+        return m_date.m_month;
     }
     char getDay() const
     {
-        return m_day;
+        return m_date.m_day;
     }
     char getHour() const
     {
-        return m_hour;
+        return m_time.m_hour;
     }
     char getMinute() const
     {
-        return m_minute;
+        return m_time.m_minute;
     }
     char getSecond() const
     {
-        return m_second;
+        return m_time.m_second;
     }
     short getMillisecond() const
     {
-        return m_millisecond;
+        return m_time.m_millisecond;
     }
     short getMicrosecond() const
     {
-        return m_microsecond;
+        return m_time.m_microsecond;
     }
     short getNanosecond() const
     {
-        return m_nanosecond;
+        return m_time.m_nanosecond;
     }
-
-    Value getCalendar() const
+    TemporalCalendarObject* getCalendar() const
     {
-        return Value(m_calendar);
+        return m_calendar;
     }
-    void setCalendar(const Value mCalendar)
+    const TemporalDate& date()
     {
-        m_calendar = mCalendar.asObject()->asTemporalCalendarObject();
+        return m_date;
+    }
+    const TemporalTime& time()
+    {
+        return m_time;
     }
 
 private:
+    explicit TemporalPlainDateTimeObject(ExecutionState& state, Object* proto, const TemporalDate& date, const TemporalTime& time, TemporalCalendarObject* calendar);
+
+    TemporalDate m_date;
+    TemporalTime m_time;
     TemporalCalendarObject* m_calendar;
 };
 

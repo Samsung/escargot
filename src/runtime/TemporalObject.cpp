@@ -600,40 +600,24 @@ TemporalObject::DateTime TemporalObject::parseTemporalMonthDayString(ExecutionSt
     return parseTemporalDateTimeString(state, isoString);
 }
 
+TemporalPlainTimeObject::TemporalPlainTimeObject(ExecutionState& state, Object* proto, const TemporalTime& time, TemporalCalendarObject* calendar)
+    : Temporal(state, proto)
+    , m_time(time)
+    , m_calendar(calendar)
+{
+}
+
 Value TemporalPlainTimeObject::createTemporalTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, Optional<Object*> newTarget)
 {
-    auto temporalPlainTime = new TemporalPlainTimeObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalPlainTimePrototype());
+    TemporalTime time(hour, minute, second, millisecond, microsecond, nanosecond);
+    TemporalCalendarObject* calendar = new TemporalCalendarObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalCalendarPrototype(), state.context()->staticStrings().lazyISO8601().string());
 
-    temporalPlainTime->setTime(hour, minute, second, millisecond, microsecond, nanosecond);
-    temporalPlainTime->setCalendar(state, state.context()->staticStrings().lazyISO8601().string());
-    return temporalPlainTime;
+    return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalPlainTimePrototype(), time, calendar);
 }
 
-TemporalPlainTimeObject::TemporalPlainTimeObject(ExecutionState& state)
-    : TemporalPlainTimeObject(state, state.context()->globalObject()->objectPrototype())
+Value TemporalPlainTimeObject::createFromPlainDateTimeObject(ExecutionState& state, TemporalPlainDateTimeObject* plainDateTime)
 {
-}
-
-TemporalPlainTimeObject::TemporalPlainTimeObject(ExecutionState& state, Object* proto)
-    : Temporal(state, proto)
-{
-}
-
-void TemporalPlainTimeObject::setTime(char h, char m, char s, short ms, short qs, short ns)
-{
-    this->m_hour = h;
-    this->m_minute = m;
-    this->m_second = s;
-    this->m_millisecond = ms;
-    this->m_microsecond = qs;
-    this->m_nanosecond = ns;
-}
-
-void TemporalPlainTimeObject::setCalendar(ExecutionState& state, String* id)
-{
-    ASSERT(TemporalCalendarObject::isBuiltinCalendar(id));
-
-    this->m_calendar = new TemporalCalendarObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalCalendarPrototype(), id);
+    return new TemporalPlainTimeObject(state, plainDateTime->getPrototypeObject(state), plainDateTime->time(), plainDateTime->getCalendar());
 }
 
 bool TemporalPlainTimeObject::isValidTime(ExecutionState& state, const int h, const int m, const int s, const int ms, const int us, const int ns)
@@ -690,11 +674,7 @@ Value TemporalPlainTimeObject::toTemporalTime(ExecutionState& state, const Value
         }
 
         if (item.asObject()->isTemporalPlainDateTimeObject()) {
-            TemporalPlainDateTimeObject* plainDateTime = item.asObject()->asTemporalPlainDateTimeObject();
-            return TemporalPlainTimeObject::createTemporalTime(state, plainDateTime->getHour(), plainDateTime->getMinute(),
-                                                               plainDateTime->getSecond(), plainDateTime->getMillisecond(),
-                                                               plainDateTime->getMicrosecond(),
-                                                               plainDateTime->getNanosecond(), nullptr);
+            return TemporalPlainTimeObject::createFromPlainDateTimeObject(state, item.asObject()->asTemporalPlainDateTimeObject());
         }
 
         Value calendar = TemporalCalendarObject::getTemporalCalendarWithISODefault(state, item);
@@ -1225,6 +1205,13 @@ bool TemporalPlainDateObject::isValidISODate(ExecutionState& state, const int ye
     return true;
 }
 
+TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* proto, const TemporalDate& date, TemporalCalendarObject* calendar)
+    : Temporal(state, proto)
+    , m_date(date)
+    , m_calendar(calendar)
+{
+}
+
 Value TemporalPlainDateObject::createTemporalDate(ExecutionState& state, const int isoYear, const int isoMonth, const int isoDay, const Value& calendar, Optional<Object*> newTarget)
 {
     ASSERT(calendar.isObject());
@@ -1236,19 +1223,13 @@ Value TemporalPlainDateObject::createTemporalDate(ExecutionState& state, const i
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Not valid ISOdate");
     }
 
-    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalPlainDatePrototype(), isoYear, isoMonth, isoDay, calendar);
+    TemporalDate date(isoYear, isoMonth, isoDay);
+    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalPlainDatePrototype(), date, calendar.asObject()->asTemporalCalendarObject());
 }
 
-TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, int isoYear, int isoMonth, int isoDay, Optional<Value> calendarLike)
-    : TemporalPlainDateObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalPlainDatePrototype(), isoYear, isoMonth, isoDay, calendarLike)
+Value TemporalPlainDateObject::createFromPlainDateTimeObject(ExecutionState& state, TemporalPlainDateTimeObject* plainDateTime)
 {
-}
-
-TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* proto, short isoYear, char isoMonth, char isoDay, Optional<Value> calendarLike)
-    : Temporal(state, proto)
-    , TemporalDate(isoYear, isoMonth, isoDay)
-    , m_calendar(calendarLike.value().asObject()->asTemporalCalendarObject())
-{
+    return new TemporalPlainDateObject(state, plainDateTime->getPrototypeObject(state), plainDateTime->date(), plainDateTime->getCalendar());
 }
 
 Value TemporalPlainDateObject::toTemporalDate(ExecutionState& state, const Value& item, Optional<Object*> options)
@@ -1272,9 +1253,7 @@ Value TemporalPlainDateObject::toTemporalDate(ExecutionState& state, const Value
         }
 
         if (tItem->isTemporalPlainDateTimeObject()) {
-            TemporalPlainDateTimeObject* tmp = tItem->asTemporalPlainDateTimeObject();
-            return TemporalPlainDateObject::createTemporalDate(state, tmp->getYear(), tmp->getMonth(), tmp->getDay(), Value(state.context()->staticStrings().lazyISO8601().string()),
-                                                               nullptr);
+            return TemporalPlainDateObject::createFromPlainDateTimeObject(state, tItem->asTemporalPlainDateTimeObject());
         }
 
         Value calendar = TemporalCalendarObject::getTemporalCalendarWithISODefault(state, item);
@@ -1368,15 +1347,11 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalPlainDateObject::regulateIS
     return { { TemporalObject::YEAR_UNIT, year }, { TemporalObject::MONTH_UNIT, month }, { TemporalObject::DAY_UNIT, day } };
 }
 
-TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state)
-    : TemporalPlainDateTimeObject(state, state.context()->globalObject()->objectPrototype(), 0, 0, 0, 0, 0, 0, 0, 0, 0)
-{
-}
-
-TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, Object* proto, const int year, const int month, const int day, const int hour, const int minute, const int second, const int millisecond, const int microsecond, const int nanosecond)
+TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, Object* proto, const TemporalDate& date, const TemporalTime& time, TemporalCalendarObject* calendar)
     : Temporal(state, proto)
-    , TemporalDate(year, month, day)
-    , TemporalTime(hour, minute, second, microsecond, millisecond, nanosecond)
+    , m_date(date)
+    , m_time(time)
+    , m_calendar(calendar)
 {
 }
 
@@ -1422,7 +1397,16 @@ Value TemporalPlainDateTimeObject::createTemporalDateTime(ExecutionState& state,
         ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "ISODateTime is out of limits");
     }
 
-    return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalPlainDateTimePrototype(), isoYear, isoMonth, isoDay, hour, minute, second, millisecond, microsecond, millisecond);
+    TemporalDate date(isoYear, isoMonth, isoDay);
+    TemporalTime time(hour, minute, second, millisecond, microsecond, nanosecond);
+
+    return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalPlainDateTimePrototype(), date, time, calendar.asObject()->asTemporalCalendarObject());
+}
+
+Value TemporalPlainDateTimeObject::createFromPlainDateObject(ExecutionState& state, TemporalPlainDateObject* plainDate)
+{
+    TemporalTime time;
+    return new TemporalPlainDateTimeObject(state, plainDate->getPrototypeObject(state), plainDate->date(), time, plainDate->calendar());
 }
 
 std::map<TemporalObject::DateTimeUnits, int> TemporalPlainDateTimeObject::interpretTemporalDateTimeFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options)
@@ -1451,7 +1435,7 @@ Value TemporalPlainDateTimeObject::toTemporalDateTime(ExecutionState& state, con
             Value instant = TemporalInstantObject::createTemporalInstant(state, item.asObject()->asTemporalZonedDateTimeObject()->getNanoseconds());
             return TemporalTimeZoneObject::builtinTimeZoneGetPlainDateTimeFor(state, item.asObject()->asTemporalZonedDateTimeObject()->getTimeZone(), instant, item.asObject()->asTemporalZonedDateTimeObject()->getCalendar());
         } else if (item.asObject()->isTemporalPlainDateObject()) {
-            return TemporalPlainDateTimeObject::createTemporalDateTime(state, item.asObject()->asTemporalPlainDateObject()->year(), item.asObject()->asTemporalPlainDateObject()->month(), item.asObject()->asTemporalPlainDateObject()->day(), 0, 0, 0, 0, 0, 0, item.asObject()->asTemporalPlainDateObject()->calendar(), new Object(state));
+            return TemporalPlainDateTimeObject::createFromPlainDateObject(state, item.asObject()->asTemporalPlainDateObject());
         }
 
         calendar = TemporalCalendarObject::getTemporalCalendarWithISODefault(state, item);
@@ -2313,32 +2297,6 @@ Value TemporalDurationObject::createNegatedTemporalDuration(ExecutionState& stat
 {
     auto durationObject = duration.asObject()->asTemporalDurationObject();
     return TemporalDurationObject::createTemporalDuration(state, -durationObject->m_year, -durationObject->m_month, -durationObject->m_week, -durationObject->m_day, -durationObject->m_hour, -durationObject->m_minute, -durationObject->m_second, -durationObject->m_millisecond, -durationObject->m_microsecond, -durationObject->m_nanosecond, nullptr);
-}
-
-TemporalDate::TemporalDate(short mYear, char mMonth, char mDay)
-    : m_year(mYear)
-    , m_month(mMonth)
-    , m_day(mDay)
-{
-}
-
-TemporalTime::TemporalTime(char mHour, char mMinute, char mSecond, short mMillisecond, short mMicrosecond, short mNanosecond)
-    : m_hour(mHour)
-    , m_minute(mMinute)
-    , m_second(mSecond)
-    , m_millisecond(mMillisecond)
-    , m_microsecond(mMicrosecond)
-    , m_nanosecond(mNanosecond)
-{
-}
-TemporalTime::TemporalTime()
-    : m_hour(0)
-    , m_minute(0)
-    , m_second(0)
-    , m_millisecond(0)
-    , m_microsecond(0)
-    , m_nanosecond(0)
-{
 }
 
 TemporalPlainMonthDayObject::TemporalPlainMonthDayObject(ExecutionState& state)
