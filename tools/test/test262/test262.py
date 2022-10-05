@@ -71,8 +71,8 @@ def BuildOptions():
                     help="Print packaged test code that would be run")
   result.add_option("--summary", default=False, action="store_true",
                     help="Print summary after running tests")
-  result.add_option("--full-summary", default=False, action="store_true",
-                    help="Print summary and test output after running tests")
+  result.add_option("--full", default=False, action="store_true",
+                    help="Print all test output after running tests")
   result.add_option("--strict_only", default=False, action="store_true",
                     help="Test only strict mode")
   result.add_option("--non_strict_only", default=False, action="store_true",
@@ -455,16 +455,19 @@ class ProgressIndicator(object):
   def __init__(self, count):
     self.count = count
     self.succeeded = 0
+    self.succeeded_tests = []
     self.failed = 0
     self.failed_tests = []
 
-  def HasRun(self, result):
+  def HasRun(self, result, record_pass):
 #result.ReportOutcome(True)
     if result.HasUnexpectedOutcome():
       self.failed += 1
       self.failed_tests.append(result)
     else:
       self.succeeded += 1
+      if record_pass:
+        self.succeeded_tests.append(result)
 
 
 def MakePlural(n):
@@ -609,6 +612,53 @@ class TestSuite(object):
           write("  %s in %s" % (result.case.GetName(), result.case.GetMode()))
         write("Expected to fail End")
 
+  def PrintFull(self, progress, logfile):
+
+    def write(s):
+      if logfile:
+        self.logf.write(s + "\n")
+      print s
+
+    print
+    write("=== Test262 Summary ===");
+    count = progress.count
+    succeeded = progress.succeeded
+    failed = progress.failed
+    write(" - Ran %i test%s (total %i tests)" % (MakePlural(count) + (self.total_test_number,)))
+    write(" - All tests done")
+    write(" - Passed " + PercentFormat(succeeded, count))
+    write(" - Failed " + PercentFormat(failed, count))
+
+    positive = [c for c in progress.succeeded_tests if not c.case.IsNegative()]
+    negative = [c for c in progress.succeeded_tests if c.case.IsNegative()]
+    if len(positive) > 0:
+      print
+      write("Test262 Succeeded Tests")
+      for result in positive:
+        write("  %s in %s (pass)" % (result.case.GetName(), result.case.GetMode()))
+      write("Succeeded Tests End")
+    if len(negative) > 0:
+      print
+      write("Test262 Expected to fail")
+      for result in negative:
+        write("  %s in %s (pass)" % (result.case.GetName(), result.case.GetMode()))
+      write("Expected to fail End")
+
+    positive = [c for c in progress.failed_tests if not c.case.IsNegative()]
+    negative = [c for c in progress.failed_tests if c.case.IsNegative()]
+    if len(positive) > 0:
+      print
+      write("Test262 Failed Tests")
+      for result in positive:
+        write("  %s in %s (fail)" % (result.case.GetName(), result.case.GetMode()))
+      write("Failed Tests End")
+    if len(negative) > 0:
+      print
+      write("Test262 Expected to fail but passed")
+      for result in negative:
+        write("  %s in %s (fail)" % (result.case.GetName(), result.case.GetMode()))
+      write("Expected to fail End")
+
   def PrintFailureOutput(self, progress, logfile):
     for result in progress.failed_tests:
       if logfile:
@@ -616,7 +666,7 @@ class TestSuite(object):
       print
       result.ReportOutcome(False)
 
-  def Run(self, command_template, tests, print_summary, full_summary, logname, junitfile):
+  def Run(self, command_template, tests, print_summary, print_full, logname, junitfile):
     if not "{{path}}" in command_template:
       command_template += " {{driver_path}} {{can_block_is_false}}{{is_module}}--filename-as={{test_case_path}} {{path}}"
     cases = self.EnumerateTests(tests)
@@ -669,13 +719,15 @@ class TestSuite(object):
              xmlj.ElementTree(TestSuitesElement).write(junitfile, "UTF-8")
       if logname:
         self.WriteLog(result)
-      progress.HasRun(result)
+      progress.HasRun(result, print_full)
 
     pool.close()
     pool.join()
 
     if print_summary:
       self.PrintSummary(progress, logname)
+    elif print_full:
+      self.PrintFull(progress, logname)
     '''
       if full_summary:
         self.PrintFailureOutput(progress, logname)
@@ -745,8 +797,8 @@ def Main():
     test_suite.ListIncludes(args)
   else:
     code = test_suite.Run(options.command, args,
-                          options.summary or options.full_summary,
-                          options.full_summary,
+                          options.summary,
+                          options.full,
                           options.logname,
                           options.junitname)
   return code
