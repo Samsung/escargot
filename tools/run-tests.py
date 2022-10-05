@@ -184,7 +184,7 @@ def run_test262(engine, arch):
 
     stdout = run(['pypy', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
-         '--full-summary'],
+         '--summary'],
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
         stdout=PIPE)
