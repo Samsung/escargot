@@ -237,6 +237,24 @@ static Value builtinTemporalPlainDateInLeapYear(ExecutionState& state, Value thi
     return TemporalCalendarObject::calendarInLeapYear(state, thisValue.asObject()->asTemporalPlainDateObject()->calendar(), thisValue);
 }
 
+static Value builtinTemporalPlainDatePrototypeAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_DATE(state, thisValue);
+
+    auto duration = TemporalDurationObject::toTemporalDuration(state, argv[0]);
+    auto options = Temporal::getOptionsObject(state, argc > 2 ? argv[1] : Value());
+    return TemporalCalendarObject::calendarDateAdd(state, thisValue.asObject()->asTemporalPlainDateObject()->calendar(), thisValue, duration, options);
+}
+
+static Value builtinTemporalPlainDatePrototypeSubtract(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_DATE(state, thisValue);
+
+    auto duration = TemporalDurationObject::createNegatedTemporalDuration(state, TemporalDurationObject::toTemporalDuration(state, argv[0]));
+    auto options = Temporal::getOptionsObject(state, argc > 2 ? argv[1] : Value());
+    return TemporalCalendarObject::calendarDateAdd(state, thisValue.asObject()->asTemporalPlainDateObject()->calendar(), thisValue, duration, options);
+}
+
 static Value builtinTemporalPlainTimeConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
@@ -319,6 +337,20 @@ static Value builtinTemporalPlainTimeNanoSecond(ExecutionState& state, Value thi
 {
     CHECK_TEMPORAL_PLAIN_TIME(state, thisValue);
     return Value(thisValue.asObject()->asTemporalPlainTimeObject()->getNanosecond());
+}
+
+static Value builtinTemporalPlainTimePrototypeAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_TIME(state, thisValue);
+
+    return TemporalPlainTimeObject::addDurationToOrSubtractDurationFromPlainTime(state, TemporalPlainTimeObject::ADD, thisValue.asObject()->asTemporalPlainTimeObject(), argv[0]);
+}
+
+static Value builtinTemporalPlainTimePrototypeSubtract(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_TIME(state, thisValue);
+
+    return TemporalPlainTimeObject::addDurationToOrSubtractDurationFromPlainTime(state, TemporalPlainTimeObject::SUBTRACT, thisValue.asObject()->asTemporalPlainTimeObject(), argv[0]);
 }
 
 static Value builtinTemporalPlainTimeWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -494,6 +526,20 @@ static Value builtinTemporalPlainDateTimeInLeapYear(ExecutionState& state, Value
 {
     CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
     return TemporalCalendarObject::calendarInLeapYear(state, thisValue.asObject()->asTemporalPlainDateTimeObject()->getCalendar(), thisValue);
+}
+
+static Value builtinTemporalPlainDateTimePrototypeAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
+
+    return TemporalPlainDateTimeObject::addDurationToOrSubtractDurationFromPlainDateTime(state, TemporalPlainTimeObject::ADD, thisValue.asObject()->asTemporalPlainDateTimeObject(), argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalPlainDateTimePrototypeSubtract(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_DATE_TIME(state, thisValue);
+
+    return TemporalPlainDateTimeObject::addDurationToOrSubtractDurationFromPlainDateTime(state, TemporalPlainTimeObject::SUBTRACT, thisValue.asObject()->asTemporalPlainDateTimeObject(), argv[0], argc > 1 ? argv[1] : Value());
 }
 
 static Value builtinTemporalZonedDateTimeConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -729,6 +775,20 @@ static Value builtinTemporalZonedDateTimeOffset(ExecutionState& state, Value thi
     return Value(TemporalTimeZoneObject::builtinTimeZoneGetOffsetStringFor(state, thisValue.asObject()->asTemporalZonedDateTimeObject()->getTimeZone(), TemporalInstantObject::createTemporalInstant(state, thisValue.asObject()->asTemporalZonedDateTimeObject()->getNanoseconds())));
 }
 
+static Value builtinTemporalZonedDateTimePrototypeAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_ZONED_DATE_TIME(state, thisValue);
+
+    return TemporalZonedDateTimeObject::addDurationToOrSubtractDurationFromZonedDateTime(state, TemporalPlainTimeObject::ADD, thisValue.asObject()->asTemporalZonedDateTimeObject(), argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalZonedDateTimePrototypeSubtract(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_ZONED_DATE_TIME(state, thisValue);
+
+    return TemporalZonedDateTimeObject::addDurationToOrSubtractDurationFromZonedDateTime(state, TemporalPlainTimeObject::SUBTRACT, thisValue.asObject()->asTemporalZonedDateTimeObject(), argv[0], argc > 1 ? argv[1] : Value());
+}
+
 static Value builtinTemporalDurationConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
@@ -848,6 +908,20 @@ static Value builtinTemporalDurationPrototypeAbs(ExecutionState& state, Value th
     CHECK_TEMPORAL_DURATION(state, thisValue);
     auto duration = thisValue.asObject()->asTemporalDurationObject();
     return TemporalDurationObject::createTemporalDuration(state, std::abs(duration->getYear()), std::abs(duration->getMonth()), std::abs(duration->getWeek()), std::abs(duration->getDay()), std::abs(duration->getHour()), std::abs(duration->getMinute()), std::abs(duration->getSecond()), std::abs(duration->getMillisecond()), std::abs(duration->getMicrosecond()), std::abs(duration->getNanosecond()), nullptr);
+}
+
+static Value builtinTemporalDurationPrototypeAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_DURATION(state, thisValue);
+
+    return TemporalDurationObject::addDurationToOrSubtractDurationFromDuration(state, TemporalPlainTimeObject::ADD, thisValue.asObject()->asTemporalDurationObject(), argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalDurationPrototypeSubtract(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_DURATION(state, thisValue);
+
+    return TemporalDurationObject::addDurationToOrSubtractDurationFromDuration(state, TemporalPlainTimeObject::SUBTRACT, thisValue.asObject()->asTemporalDurationObject(), argv[0], argc > 1 ? argv[1] : Value());
 }
 
 static Value builtinTemporalPlainYearMonthConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -972,6 +1046,20 @@ static Value builtinTemporalPlainYearMonthPrototypeEquals(ExecutionState& state,
     return Value(!(yearMonth->getIsoYear() != other->getIsoYear() || yearMonth->getIsoMonth() != other->getIsoMonth() || yearMonth->getReferenceIsoDay() != other->getReferenceIsoDay()) || yearMonth->getCalendar()->asTemporalCalendarObject() == other->getCalendar()->asTemporalCalendarObject());
 }
 
+static Value builtinTemporalPlainYearMonthPrototypeAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, thisValue);
+
+    return TemporalPlainYearMonthObject::addDurationToOrSubtractDurationFromPlainYearMonth(state, TemporalPlainTimeObject::ADD, thisValue.asObject()->asTemporalPlainYearMonthObject(), argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalPlainYearMonthPrototypeSubtract(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_INSTANT(state, thisValue);
+
+    return TemporalPlainYearMonthObject::addDurationToOrSubtractDurationFromPlainYearMonth(state, TemporalPlainTimeObject::SUBTRACT, thisValue.asObject()->asTemporalPlainYearMonthObject(), argv[0], argc > 1 ? argv[1] : Value());
+}
+
 static Value builtinTemporalInstantConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
@@ -1064,6 +1152,20 @@ static Value builtinTemporalInstantPrototypeEpochNanoseconds(ExecutionState& sta
 static Value builtinTemporalInstantPrototypeEquals(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     return Value(TemporalInstantObject::toTemporalInstant(state, argv[0]).asObject()->asTemporalInstantObject()->getNanoseconds() == thisValue.asObject()->asTemporalInstantObject()->getNanoseconds());
+}
+
+static Value builtinTemporalInstantPrototypeAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_INSTANT(state, thisValue);
+
+    return TemporalInstantObject::addDurationToOrSubtractDurationFromInstant(state, TemporalPlainTimeObject::ADD, thisValue.asObject()->asTemporalInstantObject(), argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalInstantPrototypeSubtract(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    CHECK_TEMPORAL_INSTANT(state, thisValue);
+
+    return TemporalInstantObject::addDurationToOrSubtractDurationFromInstant(state, TemporalPlainTimeObject::SUBTRACT, thisValue.asObject()->asTemporalInstantObject(), argv[0], argc > 1 ? argv[1] : Value());
 }
 
 static Value builtinTemporalPlainMonthDayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -1575,6 +1677,12 @@ void GlobalObject::installTemporal(ExecutionState& state)
     ObjectPropertyDescriptor dateInLeapYearDesc(dateInLeapYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
     temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyinLeapYear()), dateInLeapYearDesc);
 
+    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainDatePrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazysubtract()),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazysubtract(), builtinTemporalPlainDatePrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
     temporalPlainDate->setFunctionPrototype(state, temporalPlainDatePrototype);
 
     temporalPlainDate->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
@@ -1635,6 +1743,12 @@ void GlobalObject::installTemporal(ExecutionState& state)
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor timeNanoSecondDesc(timeNanoSecondGS, ObjectPropertyDescriptor::ConfigurablePresent);
     temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazynanosecond()), timeNanoSecondDesc);
+
+    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainTimePrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazysubtract()),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazysubtract(), builtinTemporalPlainTimePrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
 
     temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->with),
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->with, builtinTemporalPlainTimeWith, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
@@ -1736,6 +1850,12 @@ void GlobalObject::installTemporal(ExecutionState& state)
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeInLeapYearDesc(dateTimeInLeapYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
     temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyinLeapYear()), dateTimeInLeapYearDesc);
+
+    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainDateTimePrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazysubtract()),
+                                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazysubtract(), builtinTemporalPlainDateTimePrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
 
     temporalPlainDateTime->setFunctionPrototype(state, temporalPlainDateTimePrototype);
 
@@ -1912,6 +2032,12 @@ void GlobalObject::installTemporal(ExecutionState& state)
     ObjectPropertyDescriptor zonedDateTimeOffsetDesc(zonedDateTimeOffsetGS, ObjectPropertyDescriptor::ConfigurablePresent);
     temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyoffset()), zonedDateTimeOffsetDesc);
 
+    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalZonedDateTimePrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazysubtract()),
+                                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazysubtract(), builtinTemporalZonedDateTimePrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
     temporalZonedDateTime->setFunctionPrototype(state, temporalZonedDateTimePrototype);
     temporalZonedDateTime->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalZonedDateTimeFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
@@ -1996,6 +2122,12 @@ void GlobalObject::installTemporal(ExecutionState& state)
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationBlankDesc(durationBlankGS, ObjectPropertyDescriptor::ConfigurablePresent);
     temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyblank()), durationBlankDesc);
+
+    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalDurationPrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazysubtract()),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazysubtract(), builtinTemporalDurationPrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
 
     temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->abs),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->abs, builtinTemporalDurationPrototypeAbs, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
@@ -2100,6 +2232,12 @@ void GlobalObject::installTemporal(ExecutionState& state)
 
     temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalPlainYearMonth, (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
 
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainYearMonthPrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazysubtract()),
+                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazysubtract(), builtinTemporalPlainYearMonthPrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
     temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyequals()),
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyequals(), builtinTemporalPlainYearMonthPrototypeEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
 
@@ -2157,6 +2295,12 @@ void GlobalObject::installTemporal(ExecutionState& state)
 
     temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyequals()),
                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyequals(), builtinTemporalInstantPrototypeEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalInstantPrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazysubtract()),
+                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazysubtract(), builtinTemporalInstantPrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
 
     temporalInstant->setFunctionPrototype(state, temporalInstantPrototype);
 

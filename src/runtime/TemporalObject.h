@@ -82,6 +82,29 @@ public:
 
 static const char* dateTimeUnitStrings[] = { "year", "month", "week", "day", "hour", "minute", "second", "millisecond", "microsecond", "nanosecond" };
 
+enum RoundingMode {
+    CEIL,
+    FLOOR,
+    EXPAND,
+    TRUNC,
+    HALF_CEIL,
+    HALF_FLOOR,
+    HALF_EXPAND,
+    HALF_TRUNC,
+    HALF_EVEN
+};
+
+enum UnsignedRoundingMode {
+    INF,
+    ZERO,
+    HALF_INF,
+    HALF_ZERO,
+    UNSIGNED_HALF_EVEN
+};
+
+static UnsignedRoundingMode positiveUnsignedRoundingMode[] = { INF, ZERO, INF, ZERO, HALF_INF, HALF_ZERO, HALF_INF, HALF_ZERO };
+static UnsignedRoundingMode negativeUnsignedRoundingMode[] = { ZERO, INF, INF, ZERO, HALF_ZERO, HALF_INF, HALF_INF, HALF_ZERO };
+
 class TemporalObject : public Temporal {
 public:
     class TimeZone : public gc {
@@ -119,7 +142,8 @@ public:
         SECOND_UNIT,
         MILLISECOND_UNIT,
         MICROSECOND_UNIT,
-        NANOSECOND_UNIT
+        NANOSECOND_UNIT,
+        DAY_LENGTH
     };
 
     explicit TemporalObject(ExecutionState& state);
@@ -145,6 +169,12 @@ public:
     {
         return !s.empty() && std::find_if(s.begin(), s.end(), [](unsigned char c) { return !std::isdigit(c); }) == s.end();
     }
+
+    static Value toRelativeTemporalObject(ExecutionState& state, Object* options);
+    static Object* mergeLargestUnitOption(ExecutionState& state, const Value& option, TemporalObject::DateTimeUnits largestUnit);
+    static UnsignedRoundingMode getUnsignedRoundingMode(ExecutionState& state, RoundingMode roundingMode, bool isNegative);
+    static BigInt* roundNumberToIncrementAsIfPositive(ExecutionState& state, BigInt* x, int64_t increment, RoundingMode roundingMode);
+    static BigInt* applyUnsignedRoundingMode(ExecutionState& state, BigInt* x, BigInt* r1, BigInt* r2, UnsignedRoundingMode unsignedRoundingMode);
 };
 
 class TemporalCalendarObject : public Temporal {
@@ -165,6 +195,7 @@ public:
     static Value getISO8601Calendar(ExecutionState& state);
     static ValueVector calendarFields(ExecutionState& state, const Value& calendar, const ValueVector& fieldNames);
     static Value calendarDateAdd(ExecutionState& state, const Value& calendar, const Value& date, const Value& duration, const Value& options = Value(), Value dateAdd = Value());
+    static Value calendarDateUntil(ExecutionState& state, const Value& calendar, const Value& first, const Value& second, const Value& options, Value dateUntil = Value());
     static Value calendarYear(ExecutionState& state, Object* calendar, const Value& dateLike);
     static Value calendarMonth(ExecutionState& state, Object* calendar, const Value& dateLike);
     static Value calendarMonthCode(ExecutionState& state, Object* calendar, const Value& dateLike);
@@ -180,7 +211,7 @@ public:
     static Value toTemporalCalendar(ExecutionState& state, const Value& calendar);
     static Value toTemporalCalendarWithISODefault(ExecutionState& state, const Value& calendar);
     static Value getTemporalCalendarWithISODefault(ExecutionState& state, const Value& item);
-    static Value dateFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options);
+    static Value dateFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options = Value());
     static Value calendarYearMonthFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options);
     static Value calendarMonthDayFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options);
     static int toISOWeekOfYear(ExecutionState& state, int year, int month, int day);
@@ -259,22 +290,29 @@ private:
 
 class TemporalPlainTimeObject : public Temporal {
 public:
+    enum Operation {
+        ADD = 1,
+        SUBTRACT = -1,
+    };
+
     bool isTemporalPlainTimeObject() const override
     {
         return true;
     }
 
+    static std::map<TemporalObject::DateTimeUnits, int> differenceTime(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int> first, std::map<TemporalObject::DateTimeUnits, int> second);
     static Value toTemporalTime(ExecutionState& state, const Value& item, Value options);
     static std::map<TemporalObject::DateTimeUnits, Value> toPartialTime(ExecutionState& state, const Value& temporalTimeLike);
     static std::map<TemporalObject::DateTimeUnits, int> regulateTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, const Value& overflow);
-    static Value createTemporalTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, Optional<Object*> newTarget);
     static Value createFromPlainDateTimeObject(ExecutionState& state, TemporalPlainDateTimeObject* plainDateTime);
+    static Value createTemporalTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, Optional<Object*> newTarget = nullptr);
     static bool isValidTime(ExecutionState& state, int h, int m, int s, int ms, int us, int ns);
     static std::map<TemporalObject::DateTimeUnits, int> balanceTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond);
     static std::map<TemporalObject::DateTimeUnits, int> constrainTime(ExecutionState& state, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond);
     static std::map<TemporalObject::DateTimeUnits, int> toTemporalTimeRecord(ExecutionState& state, const Value& temporalTimeLike);
     static int compareTemporalTime(ExecutionState& state, const int time1[6], const int time2[6]);
     static std::map<TemporalObject::DateTimeUnits, int> addTime(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int>& first, std::map<TemporalObject::DateTimeUnits, int>& second);
+    static Value addDurationToOrSubtractDurationFromPlainTime(ExecutionState& state, Operation operation, TemporalPlainTimeObject* temporalTime, const Value& temporalDurationLike);
 
     char getHour() const
     {
@@ -331,6 +369,8 @@ public:
     static Value createTemporalDateTime(ExecutionState& state, int isoYear, int isoMonth, int isoDay, int hour, int minute, int second, int millisecond, int microsecond, int nanosecond, const Value& calendar, Optional<Object*> newTarget = nullptr);
     static Value createFromPlainDateObject(ExecutionState& state, TemporalPlainDateObject* plainDate);
     static std::map<TemporalObject::DateTimeUnits, int> addDateTime(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int>& first, const Value& calendar, std::map<TemporalObject::DateTimeUnits, int>& second, Object* options);
+    static std::map<TemporalObject::DateTimeUnits, int> differenceISODateTime(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int> first, std::map<TemporalObject::DateTimeUnits, int> second, const Value& calendar, TemporalObject::DateTimeUnits largestUnit, const Value& options);
+    static Value addDurationToOrSubtractDurationFromPlainDateTime(ExecutionState& state, TemporalPlainTimeObject::Operation operation, TemporalPlainDateTimeObject* temporalDateTime, const Value& temporalDurationLike, const Value& options);
 
     short getYear() const
     {
@@ -410,6 +450,10 @@ public:
     static Value createTemporalZonedDateTime(ExecutionState& state, const BigInt& epochNanoseconds, const TemporalTimeZoneObject* timeZone, const TemporalCalendarObject* calendar, Optional<Object*> newTarget = nullptr);
     static Value toTemporalZonedDateTime(ExecutionState& state, const Value& item, const Value& options = Value());
     static Value interpretISODateTimeOffset(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int>& dateTime, TemporalZonedDateTimeObject::OffsetBehaviour offsetBehaviour, time64_t offsetNanoseconds, const Value& timeZone, const Value& disambiguation, const Value& offsetOption, TemporalZonedDateTimeObject::MatchBehaviour matchBehaviour);
+    static BigInt* addZonedDateTime(ExecutionState& state, const BigInt* epochNanoseconds, const TemporalTimeZoneObject* timeZone, const TemporalCalendarObject* calendar, std::map<TemporalObject::DateTimeUnits, int> duration, const Value& options = Value());
+    static std::map<TemporalObject::DateTimeUnits, int> differenceZonedDateTime(ExecutionState& state, BigInt* ns1, BigInt* ns2, const Value& timeZone, const Value& calendar, TemporalObject::DateTimeUnits largestUnit, const Value& options);
+    static std::map<TemporalObject::DateTimeUnits, int> nanosecondsToDays(ExecutionState& state, int64_t nanoseconds, const Value relativeTo);
+    static Value addDurationToOrSubtractDurationFromZonedDateTime(ExecutionState& state, TemporalPlainTimeObject::Operation operation, TemporalZonedDateTimeObject* zonedDateTimeObject, const Value& temporalDurationLike, const Value& options);
 
     bool isTemporalZonedDateTimeObject() const override
     {
@@ -442,14 +486,21 @@ public:
     explicit TemporalDurationObject(ExecutionState& state, int years, int months, int weeks, int days, int hours, int minutes, int seconds, int milliseconds, int microseconds, int nanoseconds);
     explicit TemporalDurationObject(ExecutionState& state, Object* proto, int years, int months, int weeks, int days, int hours, int minutes, int seconds, int milliseconds, int microseconds, int nanosecond);
     static bool isValidDuration(const int fields[]);
+    static TemporalObject::DateTimeUnits defaultTemporalLargestUnit(std::map<TemporalObject::DateTimeUnits, int> temporalObject);
+    static BigInt* totalDurationNanoseconds(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int> duration, int offsetShift);
     static int durationSign(const int fields[]);
     static std::map<TemporalObject::DateTimeUnits, int> createDurationRecord(ExecutionState& state, int years, int months, int weeks, int days, int hours, int minutes, int seconds, int milliseconds, int microseconds, int nanoseconds);
+    static std::map<TemporalObject::DateTimeUnits, int> createTimeDurationRecord(ExecutionState& state, int days, int hours, int minutes, int seconds, int milliseconds, int microseconds, int nanoseconds);
     static Value createTemporalDuration(ExecutionState& state, int years, int months, int weeks, int days, int hours, int minutes, int seconds, int milliseconds, int microseconds, int nanoseconds, Optional<Object*> newTarget = nullptr);
 
     static Value toTemporalDuration(ExecutionState& state, const Value& item);
     static std::map<TemporalObject::DateTimeUnits, int> toTemporalDurationRecord(ExecutionState& state, const Value& temporalDurationLike);
     static std::map<TemporalObject::DateTimeUnits, Value> toTemporalPartialDurationRecord(ExecutionState& state, const Value& temporalDurationLike);
     static Value createNegatedTemporalDuration(ExecutionState& state, const Value& duration);
+    static std::map<TemporalObject::DateTimeUnits, int> balanceDuration(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int> duration, TemporalObject::DateTimeUnits largestUnit, const Value& relativeTo = Value());
+    static std::map<TemporalObject::DateTimeUnits, int> balancePossiblyInfiniteDuration(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int> duration, TemporalObject::DateTimeUnits largestUnit, const Value& relativeTo = Value());
+    static std::map<TemporalObject::DateTimeUnits, int> addDuration(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int> first, std::map<TemporalObject::DateTimeUnits, int> second, const Value& relativeTo);
+    static Value addDurationToOrSubtractDurationFromDuration(ExecutionState& state, TemporalPlainTimeObject::Operation operation, TemporalDurationObject* duration, const Value& other, const Value& options);
 
     bool isTemporalDurationObject() const override
     {
@@ -524,6 +575,10 @@ public:
     static int compareEpochNanoseconds(ExecutionState& state, const BigInt& firstNanoSeconds, const BigInt& secondNanoSeconds);
 
     static int64_t offsetStringToNanoseconds(ExecutionState& state, String* offset);
+    static BigInt* addInstant(ExecutionState& state, const BigInt* epochNanoseconds, std::map<TemporalObject::DateTimeUnits, int>& duration);
+    static BigInt* differenceInstant(ExecutionState& state, const BigInt* ns1, BigInt* ns2, int roundingIncrement, TemporalObject::DateTimeUnits smallestUnit, RoundingMode roundingMode);
+    static BigInt* roundTemporalInstant(ExecutionState& state, BigInt* ns, int increment, TemporalObject::DateTimeUnits unit, RoundingMode roundingMode);
+    static Value addDurationToOrSubtractDurationFromInstant(ExecutionState& state, TemporalPlainTimeObject::Operation operation, TemporalInstantObject* instant, const Value& other, const Value& options);
 
     bool isTemporalInstantObject() const override
     {
@@ -552,6 +607,7 @@ public:
     static Value createTemporalYearMonth(ExecutionState& state, int isoYear, int isoMonth, const Value& calendar, int referenceISODay, Optional<Object*> newTarget = nullptr);
     static bool isoYearMonthWithinLimits(int isoYear, int isoMonth);
     static Value toTemporalYearMonth(ExecutionState& state, const Value& item, const Value& options);
+    static Value addDurationToOrSubtractDurationFromPlainYearMonth(ExecutionState& state, TemporalPlainTimeObject::Operation operation, TemporalPlainYearMonthObject* yearMonth, const Value& temporalDurationLike, const Value& options);
 
     int getIsoYear() const
     {
