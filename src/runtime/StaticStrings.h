@@ -819,6 +819,7 @@ namespace Escargot {
     F(compatible, "compatible")                           \
     F(dateAdd, "dateAdd")                                 \
     F(dateFromFields, "dateFromFields")                   \
+    F(dateUntil, "dateUntil")                             \
     F(days, "days")                                       \
     F(daysInMonth, "daysInMonth")                         \
     F(daysInYear, "daysInYear")                           \
@@ -855,6 +856,7 @@ namespace Escargot {
     F(isoMinute, "isoMinute")                             \
     F(isoNanosecond, "isoNanosecond")                     \
     F(isoSecond, "isoSecond")                             \
+    F(largestUnit, "largestUnit")                         \
     F(later, "later")                                     \
     F(mergeFields, "mergeFields")                         \
     F(microsecond, "microsecond")                         \
@@ -878,6 +880,7 @@ namespace Escargot {
     F(prefer, "prefer")                                   \
     F(relativeTo, "relativeTo")                           \
     F(seconds, "seconds")                                 \
+    F(subtract, "subtract")                               \
     F(timeZone, "timeZone")                               \
     F(toPlainDateTime, "toPlainDateTime")                 \
     F(use, "use")                                         \
