@@ -128,7 +128,7 @@ public:
         }
         auto options = normalizedOptions.toObject(state);
         Value matcherValues[2] = { state.context()->staticStrings().lazyConstrain().string(), state.context()->staticStrings().reject.string() };
-        return Intl::getOption(state, options, state.context()->staticStrings().lazyoverflow().string(), Intl::StringValue, matcherValues, 2, matcherValues[1]);
+        return Intl::getOption(state, options, state.context()->staticStrings().lazyoverflow().string(), Intl::StringValue, matcherValues, 2, matcherValues[0]);
     }
 
     static Value toTemporalDisambiguation(ExecutionState& state, const Value& options)
@@ -158,10 +158,12 @@ public:
         for (auto& property : fieldNames) {
             Value value = fields.asObject()->get(state, ObjectPropertyName(state, property.asString())).value(state, value);
             String* prop = property.asString();
+
             if (value.isUndefined()) {
                 if (std::find(requiredFields.begin(), requiredFields.end(), property) != requiredFields.end()) {
                     ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("requiredFields contains property"));
                 }
+
                 if (prop->equals("year") || prop->equals("month") || prop->equals("monthCode") || prop->equals("day") || prop->equals("offset") || prop->equals("era") || prop->equals("eraYear") || prop->equals("timeZone")) {
                     value = Value();
                 } else {
@@ -186,6 +188,7 @@ public:
     static void rejectObjectWithCalendarOrTimeZone(ExecutionState& state, const Value& object)
     {
         ASSERT(object.isObject());
+
         if (object.asObject()->isTemporalPlainDateObject() || object.asObject()->isTemporalPlainDateTimeObject() || object.asObject()->isTemporalPlainTimeObject() || object.asObject()->isTemporalZonedDateTimeObject() || object.asObject()->isTemporalPlainYearMonthObject() || object.asObject()->isTemporalMonthDayObject()) {
             ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("Invalid type of Object"));
         }
