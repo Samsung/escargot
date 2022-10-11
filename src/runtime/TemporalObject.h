@@ -146,6 +146,18 @@ public:
 
     explicit TemporalObject(ExecutionState& state);
     explicit TemporalObject(ExecutionState& state, Object* proto);
+    virtual bool hasCalendar() const
+    {
+        return false;
+    }
+    bool isTemporalObject() const
+    {
+        return true;
+    }
+    virtual TemporalCalendarObject* getCalendar() const
+    {
+        return nullptr;
+    }
     static Value toISODateTime(ExecutionState& state, DateObject& d);
     static Value toISODate(ExecutionState& state, DateObject& d);
     static Value toISOTime(ExecutionState& state, DateObject& d);
@@ -161,7 +173,7 @@ public:
     static TemporalObject::DateTime parseTemporalYearMonthString(ExecutionState& state, const std::string& isoString);
     static TemporalObject::DateTime parseTemporalMonthDayString(ExecutionState& state, const std::string& isoString);
     static TemporalObject::TimeZone parseTemporalTimeZoneString(ExecutionState& state, const std::string& isoString);
-    static std::string getNNumberFromString(std::string& isoString, int n, unsigned int& index);
+    static std::string getNNumberFromString(ExecutionState& state, std::string& isoString, int n, unsigned int& index);
     static std::map<TemporalObject::DateTimeUnits, int> getSeconds(ExecutionState& state, std::string& isoString, unsigned int& index);
     static std::string offset(ExecutionState& state, std::string& isoString, unsigned int& index);
     static std::string tzComponent(ExecutionState& state, std::string& isoString, unsigned int& index);
@@ -176,9 +188,11 @@ public:
     static UnsignedRoundingMode getUnsignedRoundingMode(ExecutionState& state, RoundingMode roundingMode, bool isNegative);
     static BigInt* roundNumberToIncrementAsIfPositive(ExecutionState& state, BigInt* x, int64_t increment, RoundingMode roundingMode);
     static BigInt* applyUnsignedRoundingMode(ExecutionState& state, BigInt* x, BigInt* r1, BigInt* r2, UnsignedRoundingMode unsignedRoundingMode);
+    static int64_t floor(double num);
+    static int64_t modulo(int64_t num1, int64_t num2);
 };
 
-class TemporalCalendarObject : public Temporal {
+class TemporalCalendarObject : public TemporalObject {
 public:
     explicit TemporalCalendarObject(ExecutionState& state);
     explicit TemporalCalendarObject(ExecutionState& state, Object* proto, String* identifier = nullptr);
@@ -209,7 +223,7 @@ public:
     static Value calendarDaysInYear(ExecutionState& state, Object* calendar, const Value& dateLike);
     static Value calendarMonthsInYear(ExecutionState& state, Object* calendar, const Value& dateLike);
     static Value calendarInLeapYear(ExecutionState& state, Object* calendar, const Value& dateLike);
-    static Value toTemporalCalendar(ExecutionState& state, const Value& calendar);
+    static Value toTemporalCalendar(ExecutionState& state, Value calendar);
     static Value toTemporalCalendarWithISODefault(ExecutionState& state, const Value& calendar);
     static Value getTemporalCalendarWithISODefault(ExecutionState& state, const Value& item);
     static Value dateFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options = Value());
@@ -243,9 +257,10 @@ private:
     String* m_identifier;
 };
 
+
 class TemporalPlainDateTimeObject;
 
-class TemporalPlainDateObject : public Temporal {
+class TemporalPlainDateObject : public TemporalObject {
 public:
     bool isTemporalPlainDateObject() const override
     {
@@ -281,6 +296,14 @@ public:
     {
         return m_date;
     }
+    TemporalCalendarObject* getCalendar() const override
+    {
+        return m_calendar;
+    }
+    bool hasCalendar() const override
+    {
+        return true;
+    }
 
 private:
     explicit TemporalPlainDateObject(ExecutionState& state, Object* proto, const TemporalDate& date, TemporalCalendarObject* calendar);
@@ -289,7 +312,7 @@ private:
     TemporalCalendarObject* m_calendar;
 };
 
-class TemporalPlainTimeObject : public Temporal {
+class TemporalPlainTimeObject : public TemporalObject {
 public:
     enum Operation {
         ADD = 1,
@@ -339,13 +362,17 @@ public:
     {
         return m_time.m_nanosecond;
     }
-    TemporalCalendarObject* getCalendar() const
+    TemporalCalendarObject* getCalendar() const override
     {
         return m_calendar;
     }
     const TemporalTime& time()
     {
         return m_time;
+    }
+    bool hasCalendar() const override
+    {
+        return true;
     }
 
 private:
@@ -355,7 +382,7 @@ private:
     TemporalCalendarObject* m_calendar;
 };
 
-class TemporalPlainDateTimeObject : public Temporal {
+class TemporalPlainDateTimeObject : public TemporalObject {
 public:
     bool isTemporalPlainDateTimeObject() const override
     {
@@ -409,10 +436,6 @@ public:
     {
         return m_time.m_nanosecond;
     }
-    TemporalCalendarObject* getCalendar() const
-    {
-        return m_calendar;
-    }
     const TemporalDate& date()
     {
         return m_date;
@@ -420,6 +443,15 @@ public:
     const TemporalTime& time()
     {
         return m_time;
+    }
+    TemporalCalendarObject* getCalendar() const override
+    {
+        return m_calendar;
+    }
+
+    bool hasCalendar() const override
+    {
+        return true;
     }
 
 private:
@@ -430,7 +462,7 @@ private:
     TemporalCalendarObject* m_calendar;
 };
 
-class TemporalZonedDateTimeObject : public Temporal {
+class TemporalZonedDateTimeObject : public TemporalObject {
 public:
     enum OffsetBehaviour {
         OPTION,
@@ -443,8 +475,8 @@ public:
         MINUTES
     };
 
-    explicit TemporalZonedDateTimeObject(ExecutionState& state, const BigInt* nanoseconds, const TemporalTimeZoneObject* timeZone, const TemporalCalendarObject* calendar);
-    explicit TemporalZonedDateTimeObject(ExecutionState& state, Object* proto, const BigInt* nanoseconds, const TemporalTimeZoneObject* timeZone, const TemporalCalendarObject* calendar);
+    explicit TemporalZonedDateTimeObject(ExecutionState& state, const BigInt* nanoseconds, const TemporalTimeZoneObject* timeZone, TemporalCalendarObject* calendar);
+    explicit TemporalZonedDateTimeObject(ExecutionState& state, Object* proto, const BigInt* nanoseconds, const TemporalTimeZoneObject* timeZone, TemporalCalendarObject* calendar);
 
     TemporalPlainDateTimeObject* toTemporalPlainDateTime(ExecutionState& state);
 
@@ -471,18 +503,22 @@ public:
         return m_timeZone;
     }
 
-    const TemporalCalendarObject* getCalendar() const
+    TemporalCalendarObject* getCalendar() const override
     {
         return m_calendar;
+    }
+    bool hasCalendar() const override
+    {
+        return true;
     }
 
 private:
     const BigInt* m_nanoseconds;
     const TemporalTimeZoneObject* m_timeZone;
-    const TemporalCalendarObject* m_calendar;
+    TemporalCalendarObject* m_calendar;
 };
 
-class TemporalDurationObject : public Temporal, private TemporalDate, private TemporalTime {
+class TemporalDurationObject : public TemporalObject, private TemporalDate, private TemporalTime {
 public:
     explicit TemporalDurationObject(ExecutionState& state, int years, int months, int weeks, int days, int hours, int minutes, int seconds, int milliseconds, int microseconds, int nanoseconds);
     explicit TemporalDurationObject(ExecutionState& state, Object* proto, int years, int months, int weeks, int days, int hours, int minutes, int seconds, int milliseconds, int microseconds, int nanosecond);
@@ -547,7 +583,7 @@ public:
     {
         return m_nanosecond;
     }
-    TemporalCalendarObject* getCalendar() const
+    TemporalCalendarObject* getCalendar() const override
     {
         return m_calendar;
     }
@@ -557,7 +593,7 @@ private:
     TemporalCalendarObject* m_calendar;
 };
 
-class TemporalInstantObject : public Temporal {
+class TemporalInstantObject : public TemporalObject {
 public:
     static const int64_t dayToNanosecond = 86400000000000;
     static const int64_t HourToNanosecond = 3600000000000;
@@ -600,10 +636,10 @@ private:
     BigInt* m_nanoseconds;
 };
 
-class TemporalPlainYearMonthObject : public Temporal {
+class TemporalPlainYearMonthObject : public TemporalObject {
 public:
     explicit TemporalPlainYearMonthObject(ExecutionState& state);
-    explicit TemporalPlainYearMonthObject(ExecutionState& state, Object* proto, int isoYear = 0, int isoMonth = 0, Object* calendar = nullptr, int referenceISODay = 0);
+    explicit TemporalPlainYearMonthObject(ExecutionState& state, Object* proto, int isoYear = 0, int isoMonth = 0, TemporalCalendarObject* calendar = nullptr, int referenceISODay = 0);
 
     static Value createTemporalYearMonth(ExecutionState& state, int isoYear, int isoMonth, const Value& calendar, int referenceISODay, Optional<Object*> newTarget = nullptr);
     static bool isoYearMonthWithinLimits(int isoYear, int isoMonth);
@@ -618,7 +654,7 @@ public:
     {
         return m_isoMonth;
     }
-    Object* getCalendar() const
+    TemporalCalendarObject* getCalendar() const override
     {
         return m_calendar;
     }
@@ -626,15 +662,19 @@ public:
     {
         return m_referenceISODay;
     }
+    bool hasCalendar() const override
+    {
+        return true;
+    }
 
 private:
     int m_isoYear;
     int m_isoMonth;
-    Object* m_calendar;
+    TemporalCalendarObject* m_calendar;
     int m_referenceISODay;
 };
 
-class TemporalPlainMonthDayObject : public Temporal {
+class TemporalPlainMonthDayObject : public TemporalObject {
 public:
     explicit TemporalPlainMonthDayObject(ExecutionState& state);
     explicit TemporalPlainMonthDayObject(ExecutionState& state, Object* proto, int isoMonth = 0, int isoDay = 0, TemporalCalendarObject* calendar = nullptr, int referenceISOYear = 0);
@@ -655,13 +695,17 @@ public:
     {
         return m_isoDay;
     }
-    TemporalCalendarObject* getCalendar() const
+    TemporalCalendarObject* getCalendar() const override
     {
         return m_calendar;
     }
     int getReferenceIsoYear() const
     {
         return m_referenceISOYear;
+    }
+    bool hasCalendar() const override
+    {
+        return true;
     }
 
 private:
@@ -671,7 +715,7 @@ private:
     int m_referenceISOYear;
 };
 
-class TemporalTimeZoneObject : public Temporal {
+class TemporalTimeZoneObject : public TemporalObject {
 public:
     explicit TemporalTimeZoneObject(ExecutionState& state);
     explicit TemporalTimeZoneObject(ExecutionState& state, Object* proto, ASCIIString* identifier = new ASCIIString(""), const Value& offsetNanoseconds = Value());

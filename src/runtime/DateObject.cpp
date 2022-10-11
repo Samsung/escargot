@@ -1053,8 +1053,9 @@ int DateObject::yearFromTime(time64_t t)
 
 int DateObject::monthFromTime(time64_t t)
 {
-    int day = DateObject::daysInYear(yearFromTime(t));
-    bool leap = DateObject::inLeapYear(yearFromTime(t));
+    int year = yearFromTime(t);
+    int day = daysFromTime(t) - daysFromYear(year);
+    bool leap = DateObject::inLeapYear(year);
     int l = 0, r = 10;
 
     if (day < 31) {
@@ -1087,30 +1088,50 @@ int DateObject::dateFromTime(time64_t t)
     }
 
     if (monthNumber == 1) {
-        return dayWithinYear - monthNumberHelper[monthNumber + 1] - 1;
+        return dayWithinYear - (monthNumberHelper[0] - 1);
     }
 
-    return dayWithinYear - monthNumberHelper[monthNumber + 1] - 1 - leap;
+    return dayWithinYear - (monthNumberHelper[monthNumber - 1] - 1) - leap;
 }
 
 int DateObject::hourFromTime(time64_t t)
 {
-    return (int)std::floor(t / const_Date_msPerHour) % const_Date_hoursPerDay;
+    if (t >= 0) {
+        return (int)((t / const_Date_msPerHour) % const_Date_hoursPerDay);
+    }
+
+    int hours = (int)(((t - (const_Date_msPerHour - 1)) / const_Date_msPerHour) % const_Date_hoursPerDay);
+
+    return hours == 0 ? 0 : const_Date_hoursPerDay + hours;
 }
 
 int DateObject::minFromTime(time64_t t)
 {
-    return (int)std::floor(t / const_Date_msPerMinute) % const_Date_minutesPerHour;
+    if (t >= 0) {
+        return (int)((t / const_Date_msPerMinute) % const_Date_minutesPerHour);
+    }
+
+    int minutes = (int)(((t - (const_Date_msPerMinute - 1)) / const_Date_msPerMinute) % const_Date_minutesPerHour);
+
+    return minutes == 0 ? 0 : const_Date_minutesPerHour + minutes;
 }
 
 int DateObject::secFromTime(time64_t t)
 {
-    return (int)std::floor(t / const_Date_msPerSecond) % const_Date_secondsPerMinute;
+    if (t >= 0) {
+        return (int)(((t / const_Date_msPerSecond) % const_Date_secondsPerMinute));
+    }
+
+    int seconds = (int)((t - (const_Date_msPerSecond - 1)) / const_Date_msPerSecond) % const_Date_secondsPerMinute;
+
+    return seconds == 0 ? 0 : const_Date_secondsPerMinute + seconds;
 }
 
 int DateObject::msFromTime(time64_t t)
 {
-    return t % const_Date_msPerSecond;
+    int milliseconds = (int)(t % const_Date_msPerSecond);
+
+    return milliseconds >= 0 ? milliseconds : const_Date_msPerSecond + milliseconds;
 }
 
 inline bool DateObject::inLeapYear(int year)
@@ -1525,5 +1546,17 @@ Value DateObject::makeDate(ExecutionState& state, const Value& day, const Value&
     }
 
     return Value(day.toLength(state) * const_Date_msPerDay + time.toLength(state));
+}
+
+int DateObject::dayFromTime(time64_t t)
+{
+    int monthNumber = DateObject::monthFromTime(t) - 2;
+    int retVal = DateObject::dateFromTime(t);
+
+    for (int i = 0; i < monthNumber; ++i) {
+        retVal -= daysInMonth[i];
+    }
+
+    return retVal + 1;
 }
 } // namespace Escargot
