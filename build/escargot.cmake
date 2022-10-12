@@ -149,6 +149,16 @@ IF (ESCARGOT_WASM)
     ADD_SUBDIRECTORY (third_party/wasm)
 
     SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} wasm)
+
+    SET (WABT_CXX_FLAGS
+        ${ESCARGOT_THIRDPARTY_CFLAGS} # we can share flags with wabt
+        -g3)
+    SET (WABT_ARCH ${ESCARGOT_ARCH})
+
+    IF (ESCARGOT_WASM_INTERPRETER)
+        ADD_SUBDIRECTORY (third_party/wabt)
+        SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} wabt_wat_parser)
+    ENDIF()
 ENDIF()
 
 # BUILD

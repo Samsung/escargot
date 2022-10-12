@@ -84,10 +84,10 @@ include(CheckTypeSize)
 check_type_size(ssize_t SSIZE_T)
 check_type_size(size_t SIZEOF_SIZE_T)
 
-configure_file(
-  ${WABT_SOURCE_DIR}/src/config.h.in
-  ${WABT_BINARY_DIR}/config.h
-)
+#configure_file(
+#   ${WABT_SOURCE_DIR}/src/config.h.in
+#   ${WABT_BINARY_DIR}/config.h
+#)
 
 include_directories(${WABT_SOURCE_DIR} ${WABT_BINARY_DIR})
 
@@ -183,8 +183,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${WABT_SOURCE_DIR}/cmake)
 add_custom_target(everything)
 
 set(WABT_LIBRARY_SRC
-  ${WABT_BINARY_DIR}/config.h
-
   src/binary.h
   src/binary.cc
   src/binary-reader.h
@@ -217,6 +215,8 @@ set(WABT_LIBRARY_SRC
   src/utf8.cc
   src/validator.h
   src/validator.cc
+
+  src/escargot/binary-reader-escargot.cc
 )
 
 if (WABT_ARCH STREQUAL "x86")
@@ -232,4 +232,4 @@ separate_arguments(WABT_CFLAGS_FROM_ENV)
 add_compile_options(${WABT_CFLAGS_FROM_ENV})
 
 add_library(wabt_wat_parser STATIC ${WABT_LIBRARY_SRC})
-target_include_directories(wabt_wat_parser PUBLIC ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(wabt_wat_parser PUBLIC ${PROJECT_SOURCE_DIR})

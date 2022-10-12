@@ -103,6 +103,26 @@ ValueRef* builtinPrint(ExecutionStateRef* state, ValueRef* thisValue, size_t arg
     return ValueRef::createUndefined();
 }
 
+ValueRef* builtinReadFileAsArrayBuffer(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+{
+    if (argc >= 1) {
+        StringRef* path = argv[0]->toString(state);
+        FILE* fp = fopen(path->toStdUTF8String().data(), "r");
+        if (fp) {
+            fseek(fp, 0, SEEK_END);
+            auto sz = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+            auto bs = BackingStoreRef::createDefaultNonSharedBackingStore(sz);
+            fread(bs->data(), sz, 1, fp);
+            auto abo = ArrayBufferObjectRef::create(state);
+            abo->attachBuffer(bs);
+            fclose(fp);
+            return abo;
+        }
+    }
+    return ValueRef::createUndefined();
+}
+
 static const char32_t offsetsFromUTF8[6] = { 0x00000000UL, 0x00003080UL, 0x000E2080UL, 0x03C82080UL, static_cast<char32_t>(0xFA082080UL), static_cast<char32_t>(0x82082080UL) };
 
 char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
@@ -815,6 +835,12 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
         }
 
 #if defined(ESCARGOT_ENABLE_TEST)
+        {
+            FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "readFileAsArrayBuffer"), builtinReadFileAsArrayBuffer, 1, true, false);
+            FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
+            context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("readFileAsArrayBuffer"), buildFunctionObjectRef, true, true, true);
+        }
+
         // There is no specific standard for the [@@toStringTag] property of global object.
         // But "global" string is added here to pass legacy TCs
         context->globalObject()->defineDataProperty(state, context->vmInstance()->toStringTagSymbol(), ObjectRef::DataPropertyDescriptor(AtomicStringRef::create(context, "global")->string(), (ObjectRef::PresentAttribute)(ObjectRef::NonWritablePresent | ObjectRef::NonEnumerablePresent | ObjectRef::ConfigurablePresent)));

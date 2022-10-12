@@ -37,6 +37,10 @@
 #include "wasm/WASMValueConverter.h"
 #include "wasm/WASMOperations.h"
 
+#if defined(ESCARGOT_ENABLE_TEST) && defined(ENABLE_WASM_INTERPRETER)
+#include "wasm/parser/WASMParser.h"
+#endif
+
 // represent ownership of each object
 // object marked with 'own' should be deleted in the current context
 #define own
@@ -941,6 +945,24 @@ DEFINE_ERROR_CTOR(WASMCompile, wasmCompile)
 DEFINE_ERROR_CTOR(WASMLink, wasmLink)
 DEFINE_ERROR_CTOR(WASMRuntime, wasmRuntime)
 
+#if defined(ESCARGOT_ENABLE_TEST) && defined(ENABLE_WASM_INTERPRETER)
+static Value builtinWASMTest(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value source = argv[0];
+    Value importedObject = argv[1];
+    if (!source.isPointerValue() || (!source.asPointerValue()->isTypedArrayObject() && !source.asPointerValue()->isArrayBufferObject())) {
+        return Value();
+    }
+
+    ArrayBufferObject* srcBuffer = WASMOperations::copyStableBufferBytes(state, source).asPointerValue()->asArrayBufferObject();
+    ASSERT(!srcBuffer->isDetachedBuffer());
+
+    auto wasmModule = WASMParser::parseBinary(srcBuffer->data(), srcBuffer->byteLength());
+    wasmModule->instantiate(state, importedObject);
+    return Value();
+}
+#endif
+
 void GlobalObject::initializeWebAssembly(ExecutionState& state)
 {
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
@@ -983,6 +1005,11 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
     wasm->defineOwnProperty(state, ObjectPropertyName(strings->instantiate),
                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->instantiate, builtinWASMInstantiate, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
+#if defined(ESCARGOT_ENABLE_TEST)
+    // interpreter test function until wasm api implemented
+    wasm->defineOwnProperty(state, ObjectPropertyName(strings->test),
+                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->test, builtinWASMTest, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+#endif
 
     // WebAssembly.Module
     FunctionObject* wasmModule = new NativeFunctionObject(state, NativeFunctionInfo(strings->Module, builtinWASMModuleConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
