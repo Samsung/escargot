@@ -4350,6 +4350,8 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectOpcodeSlowCase(ExecutionState& s
     Object* obj = willBeObject.toObject(state);
     if (willBeObject.isPrimitive()) {
         obj->preventExtensions(state);
+    } else {
+        obj->markThisObjectDontNeedStructureTransitionTable();
     }
     bool result = obj->setIndexedProperty(state, property, registerFile[code->m_loadRegisterIndex]);
 

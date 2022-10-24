@@ -256,7 +256,7 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructur
     size_t nextSize = m_properties.size() + 1;
     if (nextSize > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
         newObjectStructure = new ObjectStructureWithMap(nameIsIndexString, hasSymbol, hasEnumerableProperty, m_properties, newItem);
-    } else if (nextSize > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE) {
+    } else if (nextSize > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE || nameIsIndexString) {
         ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties, newItem);
         newObjectStructure = new ObjectStructureWithoutTransition(newProperties, nameIsIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
     } else {
@@ -398,6 +398,7 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
     size_t newIdx = 0;
     bool hasIndexString = false;
     bool hasSymbol = false;
+    bool hasNonAtomicName = false;
     bool hasEnumerableProperty = false;
     for (size_t i = 0; i < ps; i++) {
         if (i == pIndex)
@@ -405,6 +406,7 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
         hasIndexString = hasIndexString | (*m_properties)[i].m_propertyName.isIndexString();
         hasSymbol = hasSymbol | (*m_properties)[i].m_propertyName.isSymbol();
         hasEnumerableProperty = hasEnumerableProperty | (*m_properties)[i].m_descriptor.isEnumerable();
+        hasNonAtomicName = hasNonAtomicName | !(*m_properties)[i].m_propertyName.hasAtomicString();
         (*newProperties)[newIdx].m_propertyName = (*m_properties)[i].m_propertyName;
         (*newProperties)[newIdx].m_descriptor = (*m_properties)[i].m_descriptor;
         newIdx++;
@@ -413,7 +415,11 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
     ObjectStructure* newStructure = new ObjectStructureWithMap(newProperties, ObjectStructureWithMap::createPropertyNameMap(newProperties), hasIndexString, hasSymbol, hasEnumerableProperty);
     m_properties = nullptr;
     m_propertyNameMap = nullptr;
-    return newStructure;
+    if (newProperties->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
+        return new ObjectStructureWithMap(newProperties, ObjectStructureWithMap::createPropertyNameMap(newProperties), hasIndexString, hasSymbol, hasEnumerableProperty);
+    } else {
+        return new ObjectStructureWithoutTransition(newProperties, hasIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
+    }
 }
 
 ObjectStructure* ObjectStructureWithMap::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
