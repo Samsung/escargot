@@ -104,7 +104,6 @@ public:
 
     static int yearFromTime(time64_t t);
     static int monthFromTime(time64_t t);
-    static int dayFromTime(time64_t t);
     static int dateFromTime(time64_t t);
     static int hourFromTime(time64_t t);
     static int minFromTime(time64_t t);

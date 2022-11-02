@@ -39,7 +39,6 @@ static int itoa(int64_t value, char* sp, int radix)
 {
     char tmp[256]; // be careful with the length of the buffer
     char* tp = tmp;
-    int i;
     uint64_t v;
 
     int sign = (radix == 10 && value < 0);
@@ -50,7 +49,7 @@ static int itoa(int64_t value, char* sp, int radix)
     }
 
     while (v || tp == tmp) {
-        i = v % radix;
+        int i = v % radix;
         v /= radix; // v/=radix uses less CPU clocks than v=v/radix does
         if (i < 10) {
             *tp++ = i + '0';

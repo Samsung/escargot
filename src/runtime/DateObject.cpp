@@ -1548,15 +1548,4 @@ Value DateObject::makeDate(ExecutionState& state, const Value& day, const Value&
     return Value(day.toLength(state) * const_Date_msPerDay + time.toLength(state));
 }
 
-int DateObject::dayFromTime(time64_t t)
-{
-    int monthNumber = DateObject::monthFromTime(t) - 2;
-    int retVal = DateObject::dateFromTime(t);
-
-    for (int i = 0; i < monthNumber; ++i) {
-        retVal -= daysInMonth[i];
-    }
-
-    return retVal + 1;
-}
 } // namespace Escargot

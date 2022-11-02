@@ -242,10 +242,10 @@ TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState&
     DateTime dateTime = { 0, 1, 1, 0, 0, 0, 0, 0, 0, String::emptyString, new TimeZone(false, String::emptyString, String::emptyString) };
 
     unsigned int index = 0;
-    bool monthDay = false;
-    bool end = false;
 
     try {
+        bool end = false;
+        bool monthDay = false;
         if (isoString.at(index) != 'T' && isoString.find('-') != std::string::npos) {
             // Date
             if (isoString.rfind("−", index) == 0 && TemporalObject::isNumber(isoString.substr(3 + index, 4))) {
@@ -768,9 +768,9 @@ Value TemporalObject::toRelativeTemporalObject(ExecutionState& state, Object* op
         };
     }
 
-    int64_t offsetNanoseconds = 0;
 
     if (!timeZone.isUndefined()) {
+        int64_t offsetNanoseconds = 0;
         if (offsetBehaviour == TemporalZonedDateTimeObject::OPTION) {
             offsetNanoseconds = TemporalInstantObject::offsetStringToNanoseconds(state, offsetString.asString());
         }
@@ -1418,11 +1418,6 @@ Value TemporalCalendarObject::dateFromFields(ExecutionState& state, const Value&
     Value dateFromFields = calendar.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazydateFromFields())).value(state, calendar);
     Value argv[2] = { fields, options };
     return Object::call(state, dateFromFields, calendar, 2, argv);
-}
-
-Value TemporalCalendarObject::ISODaysInYear(ExecutionState& state, const int year)
-{
-    return Value(TemporalCalendarObject::isIsoLeapYear(state, year) ? 366 : 355);
 }
 
 int TemporalCalendarObject::toISOWeekOfYear(ExecutionState& state, const int year, const int month, const int day)
@@ -2146,7 +2141,6 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalZonedDateTimeObject::differ
     std::map<TemporalObject::DateTimeUnits, int> tmp = { { TemporalObject::DAY_UNIT, 0 }, { TemporalObject::HOUR_UNIT, 0 }, { TemporalObject::SECOND_UNIT, 0 }, { TemporalObject::MILLISECOND_UNIT, 0 }, { TemporalObject::MICROSECOND_UNIT, 0 }, { TemporalObject::NANOSECOND_UNIT, 0 } };
     tmp.insert(dateDifference.begin(), dateDifference.end());
     BigInt* intermediateNs = TemporalZonedDateTimeObject::addZonedDateTime(state, ns1, timeZone.asObject()->asTemporalTimeZoneObject(), calendar.asObject()->asTemporalCalendarObject(), tmp);
-    BigInt* timeRemainderNs = ns2->subtraction(state, intermediateNs);
     Value intermediate = TemporalZonedDateTimeObject::createTemporalZonedDateTime(state, *intermediateNs, timeZone.asObject()->asTemporalTimeZoneObject(), calendar.asObject()->asTemporalCalendarObject());
     std::map<TemporalObject::DateTimeUnits, int> result = TemporalZonedDateTimeObject::nanosecondsToDays(state, intermediateNs->toInt64(), intermediate);
     tmp = { { TemporalObject::YEAR_UNIT, 0 }, { TemporalObject::MONTH_UNIT, 0 }, { TemporalObject::DAY_UNIT, 0 }, { TemporalObject::HOUR_UNIT, 0 }, { TemporalObject::SECOND_UNIT, 0 }, { TemporalObject::MILLISECOND_UNIT, 0 }, { TemporalObject::MICROSECOND_UNIT, 0 } };
@@ -2162,6 +2156,7 @@ TemporalInstantObject::TemporalInstantObject(ExecutionState& state)
 
 TemporalInstantObject::TemporalInstantObject(ExecutionState& state, Object* proto)
     : TemporalObject(state, proto)
+    , m_nanoseconds(nullptr)
 {
 }
 
@@ -3100,7 +3095,6 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalDurationObject::balancePoss
 
     if (largestUnit <= TemporalObject::MICROSECOND_UNIT) {
         result[TemporalObject::MICROSECOND_UNIT] = std::floor(nanoseconds / TemporalInstantObject::MicrosecondToNanosecond);
-        nanoseconds = nanoseconds % TemporalInstantObject::MicrosecondToNanosecond;
     }
 
     if (largestUnit <= TemporalObject::MILLISECOND_UNIT) {

@@ -2329,7 +2329,7 @@ void Scanner::lex(Scanner::ScannerResult* token)
 
     char16_t cp = this->peekCharWithoutEOF();
 
-    if (UNLIKELY(cp >= 128 && cp >= 0xD800 && cp < 0xDFFF)) {
+    if (UNLIKELY(cp >= 0xD800 && cp < 0xDFFF)) {
         ++this->index;
         char32_t ch2 = this->peekChar();
         if (U16_IS_TRAIL(ch2)) {

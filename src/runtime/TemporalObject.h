@@ -232,7 +232,6 @@ public:
     static int toISOWeekOfYear(ExecutionState& state, int year, int month, int day);
     static Value parseTemporalCalendarString(ExecutionState& state, const Value& isoString);
     static bool calendarEquals(const TemporalCalendarObject& firstCalendar, const TemporalCalendarObject& secondCalendar);
-    static Value ISODaysInYear(ExecutionState& state, int year);
     static Value ISODaysInMonth(ExecutionState& state, int year, int month);
     static bool isIsoLeapYear(ExecutionState& state, int year);
     static std::string buildISOMonthCode(ExecutionState& state, int month);
