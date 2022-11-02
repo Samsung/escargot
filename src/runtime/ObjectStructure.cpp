@@ -412,7 +412,6 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
         newIdx++;
     }
 
-    ObjectStructure* newStructure = new ObjectStructureWithMap(newProperties, ObjectStructureWithMap::createPropertyNameMap(newProperties), hasIndexString, hasSymbol, hasEnumerableProperty);
     m_properties = nullptr;
     m_propertyNameMap = nullptr;
     if (newProperties->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {

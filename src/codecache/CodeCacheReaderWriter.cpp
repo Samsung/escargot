@@ -893,10 +893,9 @@ CacheStringTable* CodeCacheReader::loadStringTable(Context* context)
     size_t tableSize = m_buffer.get<size_t>();
 
     if (LIKELY(!has16BitString)) {
-        size_t length;
         LChar* buffer = new LChar[maxLength + 1];
         for (size_t i = 0; i < tableSize; i++) {
-            length = m_buffer.get<size_t>();
+            size_t length = m_buffer.get<size_t>();
             m_buffer.getData(buffer, length);
             buffer[length] = '\0';
 
