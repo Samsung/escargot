@@ -89,7 +89,7 @@ def run(args, cwd=None, env=None, stdout=None, checkresult=True, report=False):
     out, _ = proc.communicate()
 
     if out:
-        print(out)
+        print(out.decode("utf-8"))
 
     if checkresult and proc.returncode:
         raise Exception('command `%s` exited with %s' % (' '.join(args), proc.returncode))
@@ -137,7 +137,7 @@ def run_octane(engine, arch):
             if arch == str('x86') and mem > 150000:
                 raise Exception('Exceed memory consumption')
 
-            if 'Score' not in stdout:
+            if 'Score' not in stdout.decode("utf-8"):
                 raise Exception('no "Score" in stdout')
             return
         except Exception as e:
@@ -189,7 +189,7 @@ def run_test262(engine, arch):
         env={'TZ': 'US/Pacific'},
         stdout=PIPE)
 
-    summary = stdout.split('=== Test262 Summary ===')[1]
+    summary = stdout.decode("utf-8").split('=== Test262 Summary ===')[1]
     if summary.find('- All tests succeeded') < 0:
         raise Exception('test262 failed')
     print('test262: All tests passed')
@@ -308,7 +308,7 @@ def _run_regression_tests(engine, assert_js, files, is_fail):
             print('%sOK: %s%s' % (COLOR_GREEN, file, COLOR_RESET))
         else:
             print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, file, COLOR_RESET))
-            print(out)
+            print(out.decode("utf-8"))
 
             fails += 1
 
@@ -415,7 +415,8 @@ def run_chakracore(engine, arch):
     stdout = run(['bash', join(CHAKRACORE_DIR, 'run.sh'), relpath(engine)],
                  stdout=PIPE)
     with open(join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'chakracore.%s.gen.txt' % arch), 'w') as gen_txt:
-        gen_txt.write(stdout)
+        result = stdout.decode("utf-8")
+        gen_txt.write(result)
     run(['diff',
          join(CHAKRACORE_OVERRIDE_DIR, 'chakracore.%s.orig.txt' % arch),
          join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'chakracore.%s.gen.txt' % arch)])
@@ -462,7 +463,7 @@ def run_v8(engine, arch):
     # observed exit code is that of the last element of the pipe, which is
     # tee in that case (which is always 0).
 
-    if '=== All tests succeeded' not in stdout:
+    if '=== All tests succeeded' not in stdout.decode("utf-8"):
         raise Exception('Not all tests succeeded')
 
 @runner('new-es', default=True)
@@ -482,7 +483,7 @@ def run_new_es(engine, arch):
             print('%sOK: %s%s' % (COLOR_GREEN, file, COLOR_RESET))
         else:
             print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, file, COLOR_RESET))
-            print(out)
+            print(out.decode("utf-8"))
             fail_total += 1
 
     tests_total = len(files)
@@ -510,7 +511,7 @@ def run_intl(engine, arch):
             print('%sOK: %s%s' % (COLOR_GREEN, file, COLOR_RESET))
         else:
             print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, file, COLOR_RESET))
-            print(out)
+            print(out.decode("utf-8"))
             fails += 1
 
     if fails > 0:
@@ -568,7 +569,7 @@ def run_wasm_js(engine, arch):
             print('%sOK: %s%s' % (COLOR_GREEN, file, COLOR_RESET))
         else:
             print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, file, COLOR_RESET))
-            print(out)
+            print(out.decode("utf-8"))
             fail_total += 1
 
     tests_total = len(files)
@@ -581,12 +582,12 @@ def run_wasm_js(engine, arch):
 
 @runner('cctest', default=False)
 def run_cctest(engine, arch):
-    if engine == "escargot":
-        engine = "cctest"
     proc = Popen([engine], stdout=PIPE)
-    stdout, _ = proc.communicate()
-    print(stdout)
-    result = stdout.lower()
+    out, _ = proc.communicate()
+
+    outStr = out.decode("utf-8")
+    print(outStr)
+    result = outStr.lower()
     if 'fail' in result:
         raise Exception('Not all tests succeeded')
 

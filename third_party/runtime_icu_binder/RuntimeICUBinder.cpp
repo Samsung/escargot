@@ -227,11 +227,10 @@ std::string ICU::findSystemTimezoneName()
 #if defined(OS_POSIX)
     char filename[PATH_MAX + 1];
     struct stat fstat;
-    int status;
 
     std::string nowPath = "/etc/localtime";
     while (true) {
-        status = lstat(nowPath.data(), &fstat);
+        lstat(nowPath.data(), &fstat);
 
         if (nowPath.length() > 20) {
             if (nowPath.substr(0, 20) == "/usr/share/zoneinfo/") {
