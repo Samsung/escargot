@@ -1,29 +1,23 @@
 #!/usr/bin/env python
 
 import sys
-from multiprocessing import Pool
-import multiprocessing
-import subprocess
+from subprocess import PIPE, Popen
 
 def CaseRunner(Case):
   Case["CommandLine"] = Case["CommandLine"] + Case["TestCaseCommandline"].split()
-  Process = subprocess.Popen(Case["CommandLine"], shell = False, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  ResultCode = Process.wait()
+  proc = Popen(Case["CommandLine"], shell = False, stdout=PIPE, stderr=PIPE)
+  out, err = proc.communicate()
 
   Out = ""
-  for line in iter(Process.stdout.readline,''):
-    Out = Out + line
-
   Err = ""
-  for line in iter(Process.stderr.readline,''):
-    Err = Err + line
+  ResultCode = False
 
-
-  if ResultCode == 0:
+  if not proc.returncode:
     ResultCode = True
+    Out = out.decode("utf-8")
     print(Case["TestCaseCommandline"] + " - success")
   else:
-    ResultCode = False
+    Err = err.decode("utf-8")
     print(Case["TestCaseCommandline"] + " fail")
 
   return { "Index": Case["Index"], "Result": ResultCode, "Case": Case["TestCaseCommandline"], "Out": Out, "Err": Err, "CommandLine": ' '.join(Case["CommandLine"]) }
@@ -32,6 +26,9 @@ def Main(JSShellFile, TestDataFile):
   TestCases = []
   with open(TestDataFile) as f:
     TestCases = f.read().splitlines()
+
+  from multiprocessing import Pool
+  import multiprocessing
   TestPool = Pool(processes=multiprocessing.cpu_count())
 
   CasesV = []

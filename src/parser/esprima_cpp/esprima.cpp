@@ -4273,9 +4273,7 @@ public:
 
                     bool previousAllowIn = this->context->allowIn;
                     this->context->allowIn = false;
-                    ASTNodeType initNodeType;
                     init = this->inheritCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
-                    initNodeType = init->type();
                     this->context->allowIn = previousAllowIn;
 
                     if (this->match(Comma)) {
