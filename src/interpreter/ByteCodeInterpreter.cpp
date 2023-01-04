@@ -50,7 +50,10 @@
 #include "parser/ScriptParser.h"
 #include "CheckedArithmetic.h"
 
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
 extern char FillOpcodeTableAsmLbl[];
+const void* FillOpcodeTableAddress[] = { &FillOpcodeTableAsmLbl[0] };
+#endif
 
 namespace Escargot {
 
@@ -83,10 +86,10 @@ private:
 
 OpcodeTable::OpcodeTable()
 {
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
     // Dummy bytecode execution to initialize the OpcodeTable.
     ExecutionState state(nullptr);
-    size_t dummyCode = reinterpret_cast<size_t>(FillOpcodeTableAsmLbl);
+    size_t dummyCode = reinterpret_cast<size_t>(FillOpcodeTableAddress[0]);
     ByteCodeInterpreter::interpret(&state, nullptr, reinterpret_cast<size_t>(&dummyCode), nullptr);
 #endif
 }
@@ -95,7 +98,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
 {
     state->m_programCounter = &programCounter;
     {
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
 #define DEFINE_OPCODE(codeName) codeName##OpcodeLbl
 #define DEFINE_DEFAULT
 #define NEXT_INSTRUCTION() goto NextInstruction;
@@ -1407,7 +1410,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
 #if defined(COMPILER_GCC) && __GNUC__ >= 9
             __attribute__((cold));
 #endif
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
             asm volatile("FillOpcodeTableAsmLbl:");
 #if defined(ENABLE_CODE_CACHE)
 #define REGISTER_TABLE(opcode, pushCount, popCount)                     \

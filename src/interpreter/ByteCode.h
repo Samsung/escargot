@@ -184,7 +184,7 @@ struct ByteCodeLOC {
 class ByteCode {
 public:
     ByteCode(Opcode code, const ByteCodeLOC& loc)
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
         : m_opcodeInAddress((void*)code)
 #else
         : m_opcode(code)
@@ -198,7 +198,7 @@ public:
 
     void assignOpcodeInAddress()
     {
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
         m_opcodeInAddress = g_opcodeTable.m_addressTable[(Opcode)(size_t)m_opcodeInAddress];
 #endif
     }
@@ -206,7 +206,7 @@ public:
 #if defined(ENABLE_CODE_CACHE)
     void assignAddressInOpcode()
     {
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
         ASSERT(g_opcodeTable.m_opcodeMap.find(m_opcodeInAddress) != g_opcodeTable.m_opcodeMap.end());
         m_opcodeInAddress = (void*)g_opcodeTable.m_opcodeMap.find(m_opcodeInAddress)->second;
 #endif
@@ -215,14 +215,14 @@ public:
 
     void changeOpcode(Opcode code)
     {
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
         m_opcodeInAddress = g_opcodeTable.m_addressTable[code];
 #else
         m_opcode = code;
 #endif
     }
 
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
     void* m_opcodeInAddress;
 #else
     Opcode m_opcode;

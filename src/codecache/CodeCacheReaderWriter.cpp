@@ -402,7 +402,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
 
         while (code < end) {
             ByteCode* currentCode = reinterpret_cast<ByteCode*>(code);
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
             Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
 #else
             Opcode opcode = currentCode->m_opcode;
@@ -982,7 +982,7 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
             ByteCodeRelocInfo& info = relocInfoVector[i];
             ByteCode* currentCode = reinterpret_cast<ByteCode*>(code + info.codeOffset);
 
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
             Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
 #else
             Opcode opcode = currentCode->m_opcode;
