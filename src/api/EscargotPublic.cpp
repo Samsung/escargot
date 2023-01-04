@@ -1546,7 +1546,7 @@ bool DebuggerOperationsRef::updateBreakpoint(WeakCodeRef* weakCodeRef, uint32_t 
 
     ByteCode* breakpoint = (ByteCode*)(byteCode->m_code.data() + offset);
 
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
     if (enable) {
         if (breakpoint->m_opcodeInAddress != g_opcodeTable.m_addressTable[BreakpointDisabledOpcode]) {
             return false;

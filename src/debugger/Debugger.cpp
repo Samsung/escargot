@@ -858,7 +858,7 @@ bool DebuggerRemote::processEvents(ExecutionState* state, Optional<ByteCodeBlock
 
             ByteCode* breakpoint = (ByteCode*)(ptr + offset);
 
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
             if (buffer[1] != 0) {
                 if (breakpoint->m_opcodeInAddress != g_opcodeTable.m_addressTable[BreakpointDisabledOpcode]) {
                     break;

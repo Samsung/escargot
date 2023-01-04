@@ -467,6 +467,9 @@ void customEscargotErrorLogger(const char* format, ...);
 #define MAY_THREAD_LOCAL
 #endif
 
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#define ESCARGOT_COMPUTED_GOTO_INTERPRETER
+#endif
 
 #define MAKE_STACK_ALLOCATED()                    \
     static void* operator new(size_t) = delete;   \

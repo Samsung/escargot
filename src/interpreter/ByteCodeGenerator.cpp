@@ -315,7 +315,7 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
 
     while (code < end) {
         ByteCode* currentCode = (ByteCode*)code;
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
         Opcode opcode = (Opcode)(size_t)currentCode->m_opcodeInAddress;
 #else
         Opcode opcode = currentCode->m_opcode;
