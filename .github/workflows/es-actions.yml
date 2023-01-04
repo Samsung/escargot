@@ -11,8 +11,7 @@ env:
 
 jobs:
   check_tidy:
-    # FIXME setup-python does not support ubuntu-latest(ubuntu-22.04)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
       with:
@@ -22,8 +21,9 @@ jobs:
         python-version: '2.7'
     - name: Install Packages
       run: |
-        sudo apt update
-        sudo apt install -y clang-format-6.0
+        sudo add-apt-repository "deb http://mirrors.kernel.org/ubuntu/ focal main universe"
+        sudo apt-get update
+        sudo apt-get install -y clang-format-6.0
     - name: Test
       run: tools/check_tidy.py
 
@@ -69,8 +69,7 @@ jobs:
         ninja -Cout/clang/x64
 
   release_x86_test:
-    # FIXME setup-python does not support ubuntu-latest(ubuntu-22.04)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         tc: ['octane', 'v8 chakracore spidermonkey', 'jetstream-only-simple-parallel-1', 'jetstream-only-simple-parallel-2 jsc-stress', 'jetstream-only-simple-parallel-3 jetstream-only-cdjs']
@@ -104,8 +103,7 @@ jobs:
       run: $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/release/x86/escargot" ${{ matrix.tc }}
 
   release_x64_test:
-    # FIXME setup-python does not support ubuntu-latest(ubuntu-22.04)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         tc: ['octane', 'v8 chakracore spidermonkey']
@@ -211,8 +209,7 @@ jobs:
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debugger/escargot" debugger-client-source
 
   api_test:
-    # googletest build fails in ubuntu-latest(ubuntu-22.04)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
       with:
