@@ -64,7 +64,7 @@ IF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
         SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-attributes -Wno-class-memaccess -Wno-deprecated-copy -Wno-cast-function-type -Wno-stringop-truncation -Wno-pessimizing-move -Wno-ignored-qualifiers -Wno-mismatched-new-delete)
     endif()
 ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-    SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -fno-fast-math -fno-unsafe-math-optimizations -fdenormal-fp-math=ieee -Wno-parentheses-equality -Wno-dynamic-class-memaccess -Wno-deprecated-register -Wno-expansion-to-defined -Wno-return-type -Wno-overloaded-virtual -Wno-unused-private-field -Wno-deprecated-copy)
+    SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -fno-fast-math -fno-unsafe-math-optimizations -fdenormal-fp-math=ieee -Wno-unsupported-floating-point-opt -Wno-parentheses-equality -Wno-dynamic-class-memaccess -Wno-deprecated-register -Wno-expansion-to-defined -Wno-return-type -Wno-overloaded-virtual -Wno-unused-private-field -Wno-deprecated-copy -Wno-atomic-alignment)
 ELSE()
     MESSAGE (FATAL_ERROR ${CMAKE_CXX_COMPILER_ID} " is Unsupported Compiler")
 ENDIF()
@@ -102,10 +102,6 @@ ENDIF()
 
 IF (NOT DEFINED ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
     SET (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN ON)
-ENDIF()
-
-IF (${ESCARGOT_HOST} STREQUAL "android")
-    SET (ESCARGOT_LIBICU_SUPPORT OFF)
 ENDIF()
 
 #######################################################
