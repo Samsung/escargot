@@ -89,7 +89,11 @@ OpcodeTable::OpcodeTable()
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
     // Dummy bytecode execution to initialize the OpcodeTable.
     ExecutionState state(nullptr);
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
+    size_t dummyCode = 0;
+#else
     size_t dummyCode = reinterpret_cast<size_t>(FillOpcodeTableAddress[0]);
+#endif
     ByteCodeInterpreter::interpret(&state, nullptr, reinterpret_cast<size_t>(&dummyCode), nullptr);
 #endif
 }
@@ -99,6 +103,12 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
     state->m_programCounter = &programCounter;
     {
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
+        if (UNLIKELY((((ByteCode*)programCounter)->m_opcodeInAddress) == NULL)) {
+            goto FillOpcodeTableOpcodeLbl;
+        }
+#endif
+
 #define DEFINE_OPCODE(codeName) codeName##OpcodeLbl
 #define DEFINE_DEFAULT
 #define NEXT_INSTRUCTION() goto NextInstruction;
