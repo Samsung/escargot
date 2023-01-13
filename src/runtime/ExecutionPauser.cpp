@@ -138,7 +138,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
     // AsyncGeneratorFunction
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asyncgeneratorstart
 
-    const size_t programStart = reinterpret_cast<const size_t>(self->m_byteCodeBlock->m_code.data());
+    const size_t programStart = reinterpret_cast<size_t>(self->m_byteCodeBlock->m_code.data());
     Value result;
     try {
         ExecutionState* es;
@@ -149,7 +149,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             es = self->m_executionState;
         } else {
             // resume
-            startPos = reinterpret_cast<const size_t>(self->m_pausedCode.data());
+            startPos = reinterpret_cast<size_t>(self->m_pausedCode.data());
 
             LexicalEnvironment* env;
             if (originalState->resolveCallee() && originalState->resolveCallee()->isScriptFunctionObject()) {
