@@ -179,6 +179,7 @@ ByteCodeBreakpointContext::ByteCodeBreakpointContext(Debugger* debugger, Interpr
                 } else {                                                                                                  \
                     registerIndex = stackBaseWillBe + (registerIndex - stackBase);                                        \
                 }                                                                                                         \
+                ASSERT(registerIndex < block->m_requiredTotalRegisterNumber);                                             \
             }                                                                                                             \
         }                                                                                                                 \
     }
@@ -228,11 +229,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
         block->m_code.shrinkToFit();
     }
 
-    if (ast->type() == ASTNodeType::Program) {
-        block->m_requiredTotalRegisterNumber = block->m_requiredOperandRegisterNumber + 1 + codeBlock->lexicalBlockStackAllocatedIdentifierMaximumDepth() + block->m_numeralLiteralData.size();
-    } else {
-        block->m_requiredTotalRegisterNumber = block->m_requiredOperandRegisterNumber + codeBlock->totalStackAllocatedVariableSize() + block->m_numeralLiteralData.size();
-    }
+    block->m_requiredTotalRegisterNumber = block->m_requiredOperandRegisterNumber + codeBlock->totalStackAllocatedVariableSize() + block->m_numeralLiteralData.size();
 
 #if defined(ENABLE_CODE_CACHE)
     // cache bytecode right before relocation
