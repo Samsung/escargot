@@ -202,7 +202,7 @@ if (f.type == Type::B) { puts("failed in msvc."); }
 #define CPU_X86
 
 #elif defined(__arm__) || defined(__thumb__) || defined(_ARM) || defined(_M_ARM) || defined(_M_ARMT) || defined(__arm) || defined(__arm)
-#define CPU_ARM
+#define CPU_ARM32
 
 #elif defined(__aarch64__)
 #define CPU_ARM64
