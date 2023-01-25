@@ -45,11 +45,23 @@ cmake -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARG
 ninja
 ```
 
+## Build android version of Escargot
+
+```sh
+git clone https://github.com/Samsung/escargot.git
+cd escargot
+git submodule update --init third_party
+export ANDROID_SDK_ROOT=.... # set your android SDK root first
+cd build/android/
+./gradlew bundleReleaseAar # build escargot AAR
+./gradlew assembleDebug # build debug test shell
+```
+
 #### Build options
 
 The following build options are supported when generating ninja rules using cmake.
 
-* -DESCARGOT_HOST=[ linux | tizen_obs | darwin ]<br>
+* -DESCARGOT_HOST=[ linux | tizen_obs | darwin | android ]<br>
   Compile Escargot for Linux, Tizen, or macOS platform
 * -DESCARGOT_ARCH=[ x64 | x86 | arm | i686 | aarch64 ]<br>
   Compile Escargot for each architecture
