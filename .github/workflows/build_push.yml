@@ -1,0 +1,152 @@
+name: Escargot CI
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  check-tidy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '2.7'
+    - name: Install Packages
+      run: |
+        sudo add-apt-repository "deb http://mirrors.kernel.org/ubuntu/ focal main universe"
+        sudo apt-get update
+        sudo apt-get install -y clang-format-6.0
+    - name: Test
+      run: tools/check_tidy.py
+
+  build-on-windows:
+    runs-on: windows-2019
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.1
+    - name: Build Win32 Release
+      run: |
+        cd build/windows/escargot
+        msbuild escargot.sln /p:configuration=release /p:platform=win32
+
+  build-on-android:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: "zulu"
+        java-version: 11
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
+    - name: Build Aar
+      run: |
+        cd build/android/
+        ./gradlew bundleReleaseAar
+
+  build-on-armv7:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Build in arm32 container
+      uses: uraimo/run-on-arch-action@v2.5.0
+      with:
+        arch: armv7
+        distro: ubuntu_latest
+
+        # Install deps into the container. With the token, the container will be cached
+        # The image is cached publically like a package
+        githubToken: ${{ github.token }}
+
+        install: |
+          apt-get update
+          apt-get install -y cmake build-essential ninja-build pkg-config python3 libicu-dev clang-12
+          #FIXME fix clang version as to 12
+          ln -s /usr/bin/clang-12 /usr/bin/clang
+          ln -s /usr/bin/clang++-12 /usr/bin/clang++
+        run: |
+          CC=clang CXX=clang++ cmake -H. -Bout/release -DESCARGOT_ARCH=arm -DESCARGOT_HOST=linux -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
+          ninja -Cout/release
+          python3 ./tools/run-tests.py --engine="./out/release/escargot" new-es
+
+  build-on-aarch64:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Build in arm64 container
+      uses: uraimo/run-on-arch-action@v2.5.0
+      with:
+        arch: aarch64
+        distro: ubuntu_latest
+
+        # Install deps into the container. With the token, the container will be cached
+        # The image is cached publically like a package
+        githubToken: ${{ github.token }}
+
+        install: |
+          apt-get update
+          apt-get install -y cmake build-essential ninja-build pkg-config python3 libicu-dev clang-12
+          #FIXME fix clang version as to 12
+          ln -s /usr/bin/clang-12 /usr/bin/clang
+          ln -s /usr/bin/clang++-12 /usr/bin/clang++
+        run: |
+          CC=clang CXX=clang++ cmake -H. -Bout/release -DESCARGOT_ARCH=aarch64 -DESCARGOT_HOST=linux -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
+          ninja -Cout/release
+          python3 ./tools/run-tests.py --engine="./out/release/escargot" new-es
+
+  coverity-scan:
+    if: ${{ github.repository == 'Samsung/escargot' }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Install Packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build
+    - name: Patch WABT
+      working-directory: ./third_party/wasm/wabt
+      run: |
+        cp ../../../tools/test/wasm-js/wabt_patch .
+        patch -p0 < wabt_patch
+    - name: Download Coverity Tool
+      env:
+        TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+      run: |
+        wget -q https://scan.coverity.com/download/cxx/linux64 --post-data "token=$TOKEN&project=Samsung%2Fescargot" -O cov-analysis-linux64.tar.gz
+        mkdir cov-analysis-linux64
+        tar xzf cov-analysis-linux64.tar.gz --strip 1 -C cov-analysis-linux64
+    - name: Build
+      env:
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_CODE_CACHE=ON -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+      run: |
+        export PATH=$GITHUB_WORKSPACE/cov-analysis-linux64/bin:$PATH
+        cmake -H. -Bout/coverity_scan $BUILD_OPTIONS
+        cov-build --dir cov-int ninja -Cout/coverity_scan
+    - name: Submit
+      env:
+        TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+        NOTI_MAIL: ${{ secrets.COVERITY_SCAN_MAIL }}
+      run: |
+        tar czvf escargot.tgz cov-int
+        curl \
+          --form token=$TOKEN \
+          --form email=$NOTI_MAIL \
+          --form file=@escargot.tgz \
+          --form version="3.0.0" \
+          --form description="escargot coverity scan" \
+          https://scan.coverity.com/builds?project=Samsung%2Fescargot
