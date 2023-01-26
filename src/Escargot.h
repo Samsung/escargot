@@ -20,6 +20,31 @@
 #ifndef __Escargot__
 #define __Escargot__
 
+#include <algorithm>
+#include <cassert>
+#include <climits>
+#include <clocale>
+#include <cmath>
+#include <csetjmp>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cwchar>
+#include <functional>
+#include <limits>
+#include <list>
+#include <locale>
+#include <map>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+#include <random>
+#include <queue>
+
 /* COMPILER() - the compiler being used to build the project */
 // Outdated syntax: use defined()
 // #define COMPILER(FEATURE) (defined COMPILER_##FEATURE && COMPILER_##FEATURE)
@@ -210,31 +235,6 @@ if (f.type == Type::B) { puts("failed in msvc."); }
 #else
 #error "Could't find cpu arch."
 #endif
-
-#include <algorithm>
-#include <cassert>
-#include <climits>
-#include <clocale>
-#include <cmath>
-#include <csetjmp>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <cwchar>
-#include <functional>
-#include <limits>
-#include <list>
-#include <locale>
-#include <map>
-#include <memory>
-#include <set>
-#include <sstream>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
-#include <random>
-#include <queue>
 
 #if defined(COMPILER_MSVC)
 #include <stddef.h>

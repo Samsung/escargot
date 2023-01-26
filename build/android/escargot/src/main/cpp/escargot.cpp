@@ -321,7 +321,7 @@ private:
     }
 };
 
-static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcName, bool shouldPrintScriptResult, bool isModule)
+static Evaluator::EvaluatorResult evalScript(ContextRef* context, StringRef* source, StringRef* srcName, bool shouldPrintScriptResult, bool isModule)
 {
     if (stringEndsWith(srcName->toStdUTF8String(), "mjs")) {
         isModule = isModule || true;
@@ -353,7 +353,9 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
                 break;
         }
         LOGI(": %s\n", scriptInitializeResult.parseErrorMessage->toStdUTF8String().data());
-        return false;
+        Evaluator::EvaluatorResult evalResult;
+        evalResult.error = StringRef::createFromASCII("script parsing error");
+        return evalResult;
     }
 
     auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
@@ -366,7 +368,7 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
         for (size_t i = 0; i < evalResult.stackTrace.size(); i++) {
             LOGI("%s (%d:%d)\n", evalResult.stackTrace[i].srcName->toStdUTF8String().data(), (int)evalResult.stackTrace[i].loc.line, (int)evalResult.stackTrace[i].loc.column);
         }
-        return false;
+        return evalResult;
     }
 
     if (shouldPrintScriptResult) {
@@ -382,15 +384,15 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
             auto jobResult = context->vmInstance()->executePendingJob();
             if (shouldPrintScriptResult || jobResult.error) {
                 if (jobResult.error) {
-                    LOGI("Uncaught %s:\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                    LOGI("Uncaught %s:(in promise job)\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
                     result = false;
                 } else {
-                    LOGI("%s\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                    LOGI("%s(in promise job)\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
                 }
             }
         }
     }
-    return result;
+    return evalResult;
 }
 
 
@@ -582,12 +584,22 @@ StringRef* createJSStringFromJava(JNIEnv *env, jstring str)
 }
 
 extern "C"
-JNIEXPORT jboolean JNICALL
+JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv *env, jclass clazz, jobject context,
                                                    jstring source, jstring sourceFileName,
                                                    jboolean shouldPrintScriptResult) {
     auto ptr = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    return evalScript(ptr->get(), createJSStringFromJava(env, source), createJSStringFromJava(env, sourceFileName), shouldPrintScriptResult, false);
+    auto result = evalScript(ptr->get(), createJSStringFromJava(env, source), createJSStringFromJava(env, sourceFileName), shouldPrintScriptResult, false);
+
+    jclass optionalClazz = env->FindClass("java/util/Optional");
+    if (result.isSuccessful()) {
+        auto buf = result.resultOrErrorToString(ptr->get());
+        jstring javaString = env->NewStringUTF(buf->toStdUTF8String().data());
+        return env->CallStaticObjectMethod(optionalClazz,
+                                                  env->GetStaticMethodID(optionalClazz, "of", "(Ljava/lang/Object;)Ljava/util/Optional;"),
+                                                  javaString);
+    }
+    return env->CallStaticObjectMethod(optionalClazz, env->GetStaticMethodID(optionalClazz, "empty", "()Ljava/util/Optional;"));
 }
 
 JavaVM* g_jvm;
