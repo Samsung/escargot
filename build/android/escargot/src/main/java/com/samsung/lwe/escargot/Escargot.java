@@ -1,10 +1,12 @@
-package com.samsung.lwe;
+package com.samsung.lwe.escargot;
 
 public class Escargot {
     static {
         System.loadLibrary("escargot");
         System.loadLibrary("escargot-android");
     }
-    native static public void init();
-    native static public void eval(String code);
+
+    static public void init()
+    {
+    }
 }
