@@ -172,35 +172,6 @@ static ValueRef* builtinLoad(ExecutionStateRef* state, ValueRef* thisValue, size
     }
 }
 
-static ValueRef* builtinRead(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    if (argc >= 1) {
-        auto f = argv[0]->toString(state)->toStdUTF8String();
-        const char* fileName = f.data();
-        StringRef* src = builtinHelperFileRead(state, fileName, "read").value();
-        return src;
-    } else {
-        return StringRef::emptyString();
-    }
-}
-
-static ValueRef* builtinRun(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    if (argc >= 1) {
-        double startTime = DateObjectRef::currentTime();
-
-        auto f = argv[0]->toString(state)->toStdUTF8String();
-        const char* fileName = f.data();
-        StringRef* src = builtinHelperFileRead(state, fileName, "run").value();
-        bool isModule = stringEndsWith(f, "mjs");
-        auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state), isModule).fetchScriptThrowsExceptionIfParseError(state);
-        script->execute(state);
-        return ValueRef::create(DateObjectRef::currentTime() - startTime);
-    } else {
-        return ValueRef::create(0);
-    }
-}
-
 static ValueRef* builtinGc(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     Memory::gc();
@@ -208,290 +179,6 @@ static ValueRef* builtinGc(ExecutionStateRef* state, ValueRef* thisValue, size_t
 }
 
 PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, bool isMainThread = true);
-
-#if defined(ESCARGOT_ENABLE_TEST)
-
-static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcName, bool shouldPrintScriptResult, bool isModule);
-
-static ValueRef* builtinUneval(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    if (argc) {
-        if (argv[0]->isSymbol()) {
-            return argv[0]->asSymbol()->symbolDescriptiveString();
-        }
-        return argv[0]->toString(state);
-    }
-    return StringRef::emptyString();
-}
-
-static ValueRef* builtinDrainJobQueue(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    ContextRef* context = state->context();
-    while (context->vmInstance()->hasPendingJob()) {
-        auto jobResult = context->vmInstance()->executePendingJob();
-        if (jobResult.error) {
-            return ValueRef::create(false);
-        }
-    }
-    return ValueRef::create(true);
-}
-
-static ValueRef* builtinAddPromiseReactions(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    if (argc >= 3) {
-        PromiseObjectRef* promise = argv[0]->toObject(state)->asPromiseObject();
-        promise->then(state, argv[1], argv[2]);
-    } else {
-        state->throwException(TypeErrorObjectRef::create(state, StringRef::emptyString()));
-    }
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtinCreateNewGlobalObject(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    return ContextRef::create(state->context()->vmInstance())->globalObject();
-}
-
-static ValueRef* builtin262CreateRealm(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    auto newContext = createEscargotContext(state->context()->vmInstance(), false);
-    return newContext->globalObject()->get(state, StringRef::createFromASCII("$262"));
-}
-
-static ValueRef* builtin262DetachArrayBuffer(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    if (argv[0]->isArrayBufferObject()) {
-        argv[0]->asArrayBufferObject()->detachArrayBuffer();
-    }
-
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtin262EvalScript(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    StringRef* src = argv[0]->toString(state);
-    auto script = state->context()->scriptParser()->initializeScript(src, StringRef::createFromASCII("$262.evalScript input"), false).fetchScriptThrowsExceptionIfParseError(state);
-    return script->execute(state);
-}
-
-static ValueRef* builtin262IsHTMLDDA(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    return ValueRef::createNull();
-}
-
-struct WorkerThreadData {
-    std::string message;
-    bool running;
-    volatile bool ended;
-
-    WorkerThreadData()
-        : running(true)
-        , ended(false)
-    {
-    }
-};
-std::mutex workerMutex;
-std::vector<std::pair<std::thread, WorkerThreadData>> workerThreads;
-std::vector<std::string> messagesFromWorkers;
-
-static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    std::string script = argv[0]->toString(state)->toStdUTF8String();
-
-    std::thread worker([](std::string script) {
-        Globals::initializeThread();
-
-        Memory::setGCFrequency(24);
-
-        PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
-        PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get(), false);
-
-        evalScript(context.get(), StringRef::createFromUTF8(script.data(), script.size()),
-                   StringRef::createFromASCII("from main thread"), false, false);
-
-        while (true) {
-            {
-                bool running = false;
-                std::lock_guard<std::mutex> guard(workerMutex);
-                for (size_t i = 0; i < workerThreads.size(); i++) {
-                    if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
-                        running = workerThreads[i].second.running;
-                        break;
-                    }
-                }
-                if (!running) {
-                    break;
-                }
-            }
-
-            // readmessage if exists
-            std::string message;
-            {
-                std::lock_guard<std::mutex> guard(workerMutex);
-                for (size_t i = 0; i < workerThreads.size(); i++) {
-                    if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
-                        message = std::move(workerThreads[i].second.message);
-                        break;
-                    }
-                }
-            }
-
-            if (message.length()) {
-                std::istringstream istream(message);
-                ValueRef* val1 = SerializerRef::deserializeFrom(context.get(), istream);
-                ValueRef* val2 = SerializerRef::deserializeFrom(context.get(), istream);
-
-                ValueRef* callback = (ValueRef*)context.get()->globalObject()->extraData();
-                if (callback) {
-                    Evaluator::execute(context.get(), [](ExecutionStateRef* state, ValueRef* callback, ValueRef* v1, ValueRef* v2) -> ValueRef* {
-                        ValueRef* argv[2] = { v1, v2 };
-                        return callback->call(state, ValueRef::createUndefined(), 2, argv);
-                    },
-                                       callback, val1, val2);
-                }
-            }
-
-            while (context->vmInstance()->hasPendingJob() || context->vmInstance()->hasPendingJobFromAnotherThread()) {
-                if (context->vmInstance()->waitEventFromAnotherThread(10)) {
-                    context->vmInstance()->executePendingJobFromAnotherThread();
-                }
-                if (context->vmInstance()->hasPendingJob()) {
-                    auto jobResult = context->vmInstance()->executePendingJob();
-                    if (jobResult.error) {
-                        if (jobResult.error) {
-                            LOGI("Uncaught %s: in agent\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
-                        }
-                    }
-                }
-            }
-
-            usleep(10 * 1000);
-        }
-
-        context.release();
-        instance.release();
-
-        Globals::finalizeThread();
-
-        std::lock_guard<std::mutex> guard(workerMutex);
-        for (size_t i = 0; i < workerThreads.size(); i++) {
-            if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
-                workerThreads[i].second.ended = true;
-            }
-        }
-    },
-                       script);
-
-    {
-        std::lock_guard<std::mutex> guard(workerMutex);
-        workerThreads.push_back(std::make_pair(std::move(worker), WorkerThreadData()));
-    }
-
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtin262AgentBroadcast(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    std::ostringstream ostream;
-    if (argc > 0) {
-        SerializerRef::serializeInto(argv[0], ostream);
-    } else {
-        SerializerRef::serializeInto(ValueRef::createUndefined(), ostream);
-    }
-    if (argc > 1) {
-        SerializerRef::serializeInto(argv[1], ostream);
-    } else {
-        SerializerRef::serializeInto(ValueRef::createUndefined(), ostream);
-    }
-
-
-    std::string message(ostream.str());
-    {
-        std::lock_guard<std::mutex> guard(workerMutex);
-        for (size_t i = 0; i < workerThreads.size(); i++) {
-            workerThreads[i].second.message = message;
-        }
-    }
-
-    while (true) {
-        bool thereIsNoMessage = true;
-        {
-            std::lock_guard<std::mutex> guard(workerMutex);
-            for (size_t i = 0; i < workerThreads.size(); i++) {
-                if (workerThreads[i].second.message.size()) {
-                    thereIsNoMessage = false;
-                    break;
-                }
-            }
-        }
-
-        if (thereIsNoMessage) {
-            break;
-        }
-
-        usleep(10 * 1000); // sleep 10ms
-    }
-
-
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtin262AgentReport(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    std::string message;
-    if (argc > 0) {
-        message = argv[0]->toString(state)->toStdUTF8String();
-    }
-    std::lock_guard<std::mutex> guard(workerMutex);
-    messagesFromWorkers.push_back(message);
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtin262AgentLeaving(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    std::lock_guard<std::mutex> guard(workerMutex);
-    for (size_t i = 0; i < workerThreads.size(); i++) {
-        if (workerThreads[i].first.get_id() == std::this_thread::get_id()) {
-            workerThreads[i].second.running = false;
-            break;
-        }
-    }
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtin262AgentReceiveBroadcast(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    state->context()->globalObject()->setExtraData(argv[0]);
-    return ValueRef::createUndefined();
-}
-
-static ValueRef* builtin262AgentGetReport(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    std::lock_guard<std::mutex> guard(workerMutex);
-    if (messagesFromWorkers.size()) {
-        std::string message = messagesFromWorkers.front();
-        messagesFromWorkers.erase(messagesFromWorkers.begin());
-        return StringRef::createFromUTF8(message.data(), message.size());
-    } else {
-        return ValueRef::createNull();
-    }
-}
-
-static ValueRef* builtin262AgentMonotonicNow(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return ValueRef::create((uint64_t)tv.tv_sec * 1000UL + tv.tv_usec / 1000UL);
-}
-
-static ValueRef* builtin262AgentSleep(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    double m = argv[0]->toNumber(state);
-    usleep(m * 1000.0);
-    return ValueRef::createUndefined();
-}
-
-#endif
 
 class ShellPlatform : public PlatformRef {
 public:
@@ -732,18 +419,6 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
                            }
 
                            {
-                               FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "read"), builtinRead, 1, true, false);
-                               FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-                               context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("read"), buildFunctionObjectRef, true, true, true);
-                           }
-
-                           {
-                               FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "run"), builtinRun, 1, true, false);
-                               FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-                               context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("run"), buildFunctionObjectRef, true, true, true);
-                           }
-
-                           {
                                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "gc"), builtinGc, 0, true, false);
                                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
                                context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("gc"), buildFunctionObjectRef, true, true, true);
@@ -756,25 +431,154 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
     return context;
 }
 
-PersistentRefHolder<VMInstanceRef> g_instance;
-PersistentRefHolder<ContextRef> g_context;
-
-extern "C" JNIEXPORT void Java_com_samsung_lwe_Escargot_init(JNIEnv * env, jclass clz)
-{
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_Globals_initializeGlobals(JNIEnv *env, jclass clazz) {
     ShellPlatform* platform = new ShellPlatform();
     Globals::initialize(platform);
-
-    Memory::setGCFrequency(24);
-
-    g_instance = VMInstanceRef::create();
-    g_context = createEscargotContext(g_instance.get());
 }
 
-extern "C" JNIEXPORT void Java_com_samsung_lwe_Escargot_eval(JNIEnv * env, jclass clz, jstring code)
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_Globals_finalizeGlobals(JNIEnv *env, jclass clazz) {
+    Globals::finalize();
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_samsung_lwe_escargot_Globals_version(JNIEnv *env, jclass clazz) {
+    std::string version = Globals::version();
+    std::basic_string<uint16_t> u16Version;
+
+    for (auto c : version) {
+        u16Version.push_back(c);
+    }
+
+    return env->NewString(u16Version.data(), u16Version.length());
+}
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_samsung_lwe_escargot_Globals_buildDate(JNIEnv *env, jclass clazz) {
+    std::string version = Globals::buildDate();
+    std::basic_string<uint16_t> u16Version;
+
+    for (auto c : version) {
+        u16Version.push_back(c);
+    }
+
+    return env->NewString(u16Version.data(), u16Version.length());
+}
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_Memory_gc(JNIEnv *env, jclass clazz) {
+    Memory::gc();
+}
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_samsung_lwe_escargot_Memory_heapSize(JNIEnv *env, jclass clazz) {
+    return Memory::heapSize();
+}
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_samsung_lwe_escargot_Memory_totalSize(JNIEnv *env, jclass clazz) {
+    return Memory::totalSize();
+}
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_Memory_setGCFrequency(JNIEnv *env, jclass clazz, jint value) {
+    Memory::setGCFrequency(value);
+}
+
+static const char* fetchCStringFromJavaOptionalString(JNIEnv *env, jobject optional)
 {
+    auto classOptionalString = env->GetObjectClass(optional);
+    auto methodIsPresent = env->GetMethodID(classOptionalString, "isPresent", "()Z");
+    if (env->CallBooleanMethod(optional, methodIsPresent)) {
+        auto methodGet = env->GetMethodID(classOptionalString, "get", "()Ljava/lang/Object;");
+        jboolean isSucceed;
+        return env->GetStringUTFChars(
+                static_cast<jstring>(env->CallObjectMethod(optional, methodGet)), &isSucceed);
+    }
+    return nullptr;
+}
+
+template<typename NativeType>
+static PersistentRefHolder<NativeType>* getPersistentPointerFromJava(JNIEnv *env, jclass clazz, jobject object)
+{
+    auto ptr = env->GetLongField(object, env->GetFieldID(clazz, "m_nativePointer", "J"));
+    PersistentRefHolder<NativeType>* pVMRef = reinterpret_cast<PersistentRefHolder<NativeType>*>(ptr);
+    return pVMRef;
+}
+
+template<typename NativeType>
+static NativeType* getNativePointerFromJava(JNIEnv *env, jclass clazz, jobject object)
+{
+    return getPersistentPointerFromJava<NativeType>(env, clazz, object)->get();
+}
+
+template<typename NativeType>
+static void setNativePointerToJava(JNIEnv *env, jclass clazz, jobject object, NativeType* ptr)
+{
+    env->SetLongField(object, env->GetFieldID(clazz, "m_nativePointer", "J"), reinterpret_cast<jlong>(ptr));
+}
+
+template<typename NativeType>
+static void setPersistentPointerToJava(JNIEnv *env, jclass clazz, jobject object, PersistentRefHolder<NativeType>&& ptr)
+{
+    PersistentRefHolder<NativeType>* pRef = new PersistentRefHolder<NativeType>(std::move(ptr));
+    setNativePointerToJava(env, clazz, object, pRef);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_VMInstance_create(JNIEnv *env, jclass clazz, jobject locale,
+                                                jobject timezone) {
+    const char *localeString = fetchCStringFromJavaOptionalString(env, locale);
+    const char *timezoneString = fetchCStringFromJavaOptionalString(env, timezone);
+
+    auto vmRef = VMInstanceRef::create(localeString, timezoneString);
+    auto vmObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "()V"));
+    setPersistentPointerToJava<VMInstanceRef>(env, clazz, vmObject, std::move(vmRef));
+    return vmObject;
+}
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_VMInstance_destroy(JNIEnv *env, jobject thiz) {
+    auto ptr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(thiz), thiz);
+    delete ptr;
+    setNativePointerToJava<VMInstanceRef>(env, env->GetObjectClass(thiz), thiz, nullptr);
+}
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_Context_create(JNIEnv *env, jclass clazz, jobject vmInstance) {
+    auto vmPtr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(vmInstance), vmInstance);
+    auto contextRef = createEscargotContext(vmPtr->get());
+
+    auto contextObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "()V"));
+    setPersistentPointerToJava<ContextRef>(env, clazz, contextObject, std::move(contextRef));
+    return contextObject;
+}
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_Context_destroy(JNIEnv *env, jobject thiz) {
+    auto ptr = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(thiz), thiz);
+    delete ptr;
+    setNativePointerToJava<ContextRef>(env, env->GetObjectClass(thiz), thiz, nullptr);
+}
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv *env, jclass clazz, jobject context,
+                                                   jstring source, jstring sourceFileName,
+                                                   jboolean shouldPrintScriptResult) {
+    auto ptr = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     jboolean isSucceed;
-    const char *string = env->GetStringUTFChars(code, &isSucceed);
-    StringRef* src = StringRef::createFromUTF8(string, strlen(string));
-    evalScript(g_context.get(), src, StringRef::createFromASCII("java input"), true, false);
-    env->ReleaseStringUTFChars(code, string);
+    const char* codeCString = env->GetStringUTFChars(source, &isSucceed);
+    StringRef* code = StringRef::createFromUTF8(codeCString, env->GetStringUTFLength(source));
+    const char* srcNameCString = env->GetStringUTFChars(sourceFileName, &isSucceed);
+    StringRef* srcName = StringRef::createFromUTF8(srcNameCString, env->GetStringUTFLength(sourceFileName));
+
+    bool result = evalScript(ptr->get(), code, srcName, shouldPrintScriptResult, false);
+    env->ReleaseStringUTFChars(source, codeCString);
+    env->ReleaseStringUTFChars(sourceFileName, srcNameCString);
+    return result;
 }

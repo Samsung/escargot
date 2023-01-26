@@ -6,13 +6,18 @@ import android.content.res.AssetManager;
 import android.os.Bundle;
 import android.util.Log;
 
-import com.samsung.lwe.Escargot;
+import com.samsung.lwe.escargot.Context;
+import com.samsung.lwe.escargot.Evaluator;
+import com.samsung.lwe.escargot.Globals;
+import com.samsung.lwe.escargot.Memory;
+import com.samsung.lwe.escargot.VMInstance;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Optional;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -61,12 +66,28 @@ public class MainActivity extends AppCompatActivity {
         // copy assets to internal storage
         copyAssets();
 
-        Escargot.init();
-        // simple test
-        Escargot.eval("1 + 1");
-        // icu test
-        Escargot.eval("const koDtf = new Intl.DateTimeFormat(\"ko\", { dateStyle: \"long\" }); koDtf.format(new Date())");
-        // run file
-        Escargot.eval("load('/data/user/0/com.samsung.lwe.escargot.shell/files/test.js')");
+        // TODO
+        // make TC & add CI
+        Globals.initializeGlobals();
+
+        Log.i("Escargot", Globals.buildDate());
+        Log.i("Escargot", Globals.version());
+
+        Memory.setGCFrequency(24);
+
+        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.empty());
+        Context context = Context.create(vmInstance);
+
+        Evaluator.evalScript(context, "a = 1", "from_java.js", true);
+        Evaluator.evalScript(context, "a", "from_java2.js", true);
+        Evaluator.evalScript(context, "a = new Date()", "from_java3.js", true);
+        Evaluator.evalScript(context, "const koDtf = new Intl.DateTimeFormat(\"ko\", { dateStyle: \"long\" }); print(koDtf.format(a))", "from_java4.js", true);
+
+        context.destroy();
+        context.hasValidNativePointer(); // -> false
+        vmInstance.destroy();
+        vmInstance.hasValidNativePointer(); // -> false
+
+        Globals.finalizeGlobals();
     }
 }
