@@ -551,7 +551,7 @@ Java_com_samsung_lwe_escargot_VMInstance_create(JNIEnv *env, jclass clazz, jobje
 }
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_samsung_lwe_escargot_VMInstance_destroy(JNIEnv *env, jobject thiz) {
+Java_com_samsung_lwe_escargot_VMInstance_releaseNativePointer(JNIEnv *env, jobject thiz) {
     auto ptr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(thiz), thiz);
     delete ptr;
     setNativePointerToJava<VMInstanceRef>(env, env->GetObjectClass(thiz), thiz, nullptr);
@@ -568,7 +568,7 @@ Java_com_samsung_lwe_escargot_Context_create(JNIEnv *env, jclass clazz, jobject 
 }
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_samsung_lwe_escargot_Context_destroy(JNIEnv *env, jobject thiz) {
+Java_com_samsung_lwe_escargot_Context_releaseNativePointer(JNIEnv *env, jobject thiz) {
     auto ptr = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(thiz), thiz);
     delete ptr;
     setNativePointerToJava<ContextRef>(env, env->GetObjectClass(thiz), thiz, nullptr);

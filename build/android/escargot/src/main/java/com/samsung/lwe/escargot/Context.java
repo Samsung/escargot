@@ -1,12 +1,11 @@
 package com.samsung.lwe.escargot;
 
-public class Context {
+public class Context extends NativePointerHolder {
     public native static Context create(VMInstance vmInstance);
-    public native void destroy();
-    public boolean hasValidNativePointer()
-    {
-        return m_nativePointer != 0;
-    }
+    native protected void releaseNativePointer();
 
-    private long m_nativePointer;
+    @Override
+    public void destroy() {
+        releaseNativePointer();
+    }
 }

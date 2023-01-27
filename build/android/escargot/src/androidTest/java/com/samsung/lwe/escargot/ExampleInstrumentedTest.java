@@ -81,6 +81,8 @@ public class ExampleInstrumentedTest {
         assertTrue(Evaluator.evalScript(context, "Native.returnNothing() === undefined", "from_java7.js", true).get().equals("true"));
 
         context.destroy();
+        // can call twice
+        context.destroy();
         assertFalse(context.hasValidNativePointer());
         vmInstance.destroy();
         assertFalse(vmInstance.hasValidNativePointer());
