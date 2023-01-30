@@ -33,7 +33,6 @@
 #endif
 
 #include "api/EscargotPublic.h"
-#include "malloc.h"
 
 #if defined(ESCARGOT_ENABLE_TEST)
 // these header & function below are used for Escargot internal development

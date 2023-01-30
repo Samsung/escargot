@@ -53,7 +53,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/stat.h>
-#include <linux/limits.h>
+#include <limits.h>
 #endif
 
 namespace RuntimeICUBinder {

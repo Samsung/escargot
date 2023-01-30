@@ -27,6 +27,25 @@ jobs:
     - name: Test
       run: tools/check_tidy.py
 
+  build-on-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Install Packages
+      run: |
+        brew update
+        brew install cmake ninja pkg-config icu4c
+    - name: Build x64
+      env:
+        BUILD_OPTIONS: -DESCARGOT_ARCH=x64 -DESCARGOT_HOST=darwin -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=shell_test -GNinja
+      run: |
+        export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
+        cmake -H. -Bout/mac/x64 $BUILD_OPTIONS
+        ninja -Cout/mac/x64
+        ./tools/run-tests.py --engine="./out/mac/x64/escargot" new-es
+
   build-on-windows:
     runs-on: windows-2019
     steps:

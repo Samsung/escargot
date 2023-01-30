@@ -111,7 +111,7 @@ public:
         setNameValue(state, v);
     }
 
-    ObjectPropertyName(ExecutionState& state, const int64_t& v)
+    explicit ObjectPropertyName(ExecutionState& state, const int64_t& v)
     {
         if (v >= 0 && v <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME) {
             setUIntValue((uint32_t)v);
@@ -120,7 +120,9 @@ public:
         }
     }
 
-    ObjectPropertyName(ExecutionState& state, const size_t& v)
+#if defined(OS_DARWIN)
+    // DARWIN clang defines size_t type as unsigned long instead of uint type
+    explicit ObjectPropertyName(ExecutionState& state, const size_t& v)
     {
         if (v <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME) {
             setUIntValue((uint32_t)v);
@@ -128,8 +130,9 @@ public:
             setNameValue(state, Value(v));
         }
     }
-#ifdef ESCARGOT_32
-    ObjectPropertyName(ExecutionState& state, const uint64_t& v)
+#endif
+
+    explicit ObjectPropertyName(ExecutionState& state, const uint64_t& v)
     {
         if (v <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME) {
             setUIntValue((uint32_t)v);
@@ -137,8 +140,8 @@ public:
             setNameValue(state, Value(v));
         }
     }
-#else
-    ObjectPropertyName(ExecutionState& state, const uint32_t& v)
+
+    explicit ObjectPropertyName(ExecutionState& state, const uint32_t& v)
     {
         if (v <= MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME) {
             setUIntValue(v);
@@ -146,7 +149,6 @@ public:
             setNameValue(state, Value(v));
         }
     }
-#endif
 
     ObjectPropertyName(Symbol* symbol)
     {
