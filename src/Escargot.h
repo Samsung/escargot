@@ -177,6 +177,7 @@
 #elif _WIN64
 #define OS_WINDOWS 1
 #elif __APPLE__
+#define OS_DARWIN 1
 #include "TargetConditionals.h"
 #if TARGET_IPHONE_SIMULATOR
 #define OS_POSIX 1
@@ -470,7 +471,7 @@ void customEscargotErrorLogger(const char* format, ...);
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define ESCARGOT_COMPUTED_GOTO_INTERPRETER
 // some devices cannot support getting label address from outside well
-#if defined(CPU_ARM64) || (defined(CPU_ARM32) && defined(COMPILER_CLANG))
+#if (defined(CPU_ARM64) || (defined(CPU_ARM32) && defined(COMPILER_CLANG))) || defined(OS_DARWIN)
 #define ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL
 #endif
 #endif

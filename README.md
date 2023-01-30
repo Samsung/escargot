@@ -33,6 +33,8 @@ E.g.:
 
 ```sh
 export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
+# ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN should be `OFF` to link icu lib in static
+cmake -DESCARGOT_HOST=darwin -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=shell -GNinja
 ```
 
 ## Build Escargot
