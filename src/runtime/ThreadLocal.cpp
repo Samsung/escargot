@@ -126,8 +126,7 @@ static void genericGCEventListener(GC_EventType evtType)
 void ThreadLocal::initialize()
 {
     // initialize should be invoked only once in each thread
-    static MAY_THREAD_LOCAL bool called_once = true;
-    RELEASE_ASSERT(called_once && !inited);
+    RELEASE_ASSERT(!inited);
 
     // Heap is initialized for each thread
     Heap::initialize();
@@ -162,15 +161,12 @@ void ThreadLocal::initialize()
     // g_customData
     g_customData = Global::platform()->allocateThreadLocalCustomData();
 
-    called_once = false;
     inited = true;
 }
 
 void ThreadLocal::finalize()
 {
-    // finalize should be invoked only once in each thread
-    static MAY_THREAD_LOCAL bool called_once = true;
-    RELEASE_ASSERT(called_once && inited);
+    RELEASE_ASSERT(inited);
 
     // g_customData
     Global::platform()->deallocateThreadLocalCustomData();
@@ -208,7 +204,6 @@ void ThreadLocal::finalize()
     delete g_bumpPointerAllocator;
     g_bumpPointerAllocator = nullptr;
 
-    called_once = false;
     inited = false;
 }
 

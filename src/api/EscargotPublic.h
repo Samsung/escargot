@@ -136,6 +136,8 @@ public:
     static void initializeThread();
     static void finalizeThread();
 
+    static bool isInitialized();
+
     static bool supportsThreading();
 
     static const char* version();

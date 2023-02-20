@@ -28,7 +28,7 @@ jobs:
       run: tools/check_tidy.py
 
   build-on-macos:
-    runs-on: macos-latest
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v3
       with:
@@ -60,7 +60,7 @@ jobs:
         msbuild escargot.sln /p:configuration=release /p:platform=win32
 
   build-test-on-android:
-    runs-on: macos-latest
+    runs-on: macos-12
     strategy:
       matrix:
         arch: [x86, x86_64]
