@@ -277,6 +277,11 @@ void Globals::finalize()
     g_globalsInited = false;
 }
 
+bool Globals::isInitialized()
+{
+    return g_globalsInited;
+}
+
 void Globals::initializeThread()
 {
     // initialize thread-local variables

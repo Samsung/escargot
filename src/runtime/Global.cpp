@@ -40,9 +40,7 @@ std::vector<Global::Waiter*> Global::g_waiter;
 
 void Global::initialize(Platform* platform)
 {
-    // initialize should be invoked only once in the program
-    static bool called_once = true;
-    RELEASE_ASSERT(called_once && !inited);
+    RELEASE_ASSERT(!inited);
 
     ASSERT(!g_platform);
     g_platform = platform;
@@ -62,15 +60,12 @@ void Global::initialize(Platform* platform)
     DECLARE_SCRIPTSIMPLEFUNCTION_LIST(INIT_SCRIPTSIMPLEFUNCTION_TAGS);
 #undef INIT_SCRIPTSIMPLEFUNCTION_TAGS
 
-    called_once = false;
     inited = true;
 }
 
 void Global::finalize()
 {
-    // finalize should be invoked only once in the program
-    static bool called_once = true;
-    RELEASE_ASSERT(called_once && inited);
+    RELEASE_ASSERT(inited);
 
 #if defined(ENABLE_THREADING)
     for (size_t i = 0; i < g_waiter.size(); i++) {
@@ -83,7 +78,6 @@ void Global::finalize()
     delete g_platform;
     g_platform = nullptr;
 
-    called_once = false;
     inited = false;
 }
 

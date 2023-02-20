@@ -436,14 +436,19 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_samsung_lwe_escargot_Globals_initializeGlobals(JNIEnv *env, jclass clazz) {
-    ShellPlatform* platform = new ShellPlatform();
-    Globals::initialize(platform);
+    Globals::initialize(new ShellPlatform());
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_samsung_lwe_escargot_Globals_finalizeGlobals(JNIEnv *env, jclass clazz) {
     Globals::finalize();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_Globals_isInitialized(JNIEnv *env, jclass clazz) {
+    return Globals::isInitialized();
 }
 
 extern "C"
