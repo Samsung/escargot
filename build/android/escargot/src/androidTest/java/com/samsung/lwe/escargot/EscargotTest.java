@@ -16,7 +16,6 @@ import java.util.Optional;
  */
 @RunWith(AndroidJUnit4.class)
 public class EscargotTest {
-
     @Test
     public void initTest() {
         Globals.initializeGlobals();
@@ -143,6 +142,55 @@ public class EscargotTest {
 
         context.destroy();
         vmInstance.destroy();
+        Globals.finalizeGlobals();
+    }
+
+    @Test
+    public void nonHeapValueTest() {
+        Globals.initializeGlobals();
+
+        Value v = Value.createUndefined();
+        assertTrue(v.isUndefined());
+        assertFalse(v.isNull());
+        assertFalse(v.isNumber());
+
+        v = Value.createNull();
+        assertTrue(v.isNull());
+        assertFalse(v.isUndefined());
+        assertFalse(v.isNumber());
+
+        v = Value.create(123);
+        assertTrue(v.isInt32());
+        assertEquals(v.asInt32(), 123);
+        assertTrue(v.isNumber());
+        assertEquals(v.asNumber(), 123.0, 0);
+
+        v = Value.create(true);
+        assertTrue(v.isTrue());
+        assertTrue(v.isBoolean());
+        assertTrue(v.asBoolean());
+        assertFalse(v.isInt32());
+        assertFalse(v.isUndefined());
+
+        v = Value.create(false);
+        assertTrue(v.isFalse());
+        assertTrue(v.isBoolean());
+        assertFalse(v.asBoolean());
+        assertFalse(v.isInt32());
+        assertFalse(v.isUndefined());
+
+        Globals.finalizeGlobals();
+    }
+
+    @Test
+    public void heapValueTest() {
+        Globals.initializeGlobals();
+
+        Value v = Value.create(3.14);
+        assertTrue(v.isNumber());
+        assertEquals(v.asNumber(), 3.14, 0);
+        assertFalse(v.isInt32());
+
         Globals.finalizeGlobals();
     }
 }
