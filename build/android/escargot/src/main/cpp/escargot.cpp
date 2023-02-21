@@ -15,6 +15,18 @@ using namespace Escargot;
 #define  LOGF(...)  __android_log_print(ANDROID_FATAL_ERROR,LOG_TAG,__VA_ARGS__)
 #define  LOGS(...)  __android_log_print(ANDROID_SILENT_ERROR,LOG_TAG,__VA_ARGS__)
 
+JavaVM* g_jvm;
+size_t g_nonPointerValueLast = reinterpret_cast<size_t>(ValueRef::createUndefined());
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_Escargot_init(JNIEnv* env, jclass clazz)
+{
+    if (!g_jvm) {
+        env->GetJavaVM(&g_jvm);
+    }
+}
+
 static bool stringEndsWith(const std::string& str, const std::string& suffix)
 {
     return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
@@ -435,29 +447,33 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_samsung_lwe_escargot_Globals_initializeGlobals(JNIEnv *env, jclass clazz) {
+Java_com_samsung_lwe_escargot_Globals_initializeGlobals(JNIEnv* env, jclass clazz)
+{
     Globals::initialize(new ShellPlatform());
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_samsung_lwe_escargot_Globals_finalizeGlobals(JNIEnv *env, jclass clazz) {
+Java_com_samsung_lwe_escargot_Globals_finalizeGlobals(JNIEnv* env, jclass clazz)
+{
     Globals::finalize();
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_samsung_lwe_escargot_Globals_isInitialized(JNIEnv *env, jclass clazz) {
+Java_com_samsung_lwe_escargot_Globals_isInitialized(JNIEnv* env, jclass clazz)
+{
     return Globals::isInitialized();
 }
 
 extern "C"
 JNIEXPORT jstring JNICALL
-Java_com_samsung_lwe_escargot_Globals_version(JNIEnv *env, jclass clazz) {
+Java_com_samsung_lwe_escargot_Globals_version(JNIEnv* env, jclass clazz)
+{
     std::string version = Globals::version();
     std::basic_string<uint16_t> u16Version;
 
-    for (auto c : version) {
+    for (auto c: version) {
         u16Version.push_back(c);
     }
 
@@ -465,11 +481,12 @@ Java_com_samsung_lwe_escargot_Globals_version(JNIEnv *env, jclass clazz) {
 }
 extern "C"
 JNIEXPORT jstring JNICALL
-Java_com_samsung_lwe_escargot_Globals_buildDate(JNIEnv *env, jclass clazz) {
+Java_com_samsung_lwe_escargot_Globals_buildDate(JNIEnv* env, jclass clazz)
+{
     std::string version = Globals::buildDate();
     std::basic_string<uint16_t> u16Version;
 
-    for (auto c : version) {
+    for (auto c: version) {
         u16Version.push_back(c);
     }
 
@@ -477,22 +494,26 @@ Java_com_samsung_lwe_escargot_Globals_buildDate(JNIEnv *env, jclass clazz) {
 }
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_samsung_lwe_escargot_Memory_gc(JNIEnv *env, jclass clazz) {
+Java_com_samsung_lwe_escargot_Memory_gc(JNIEnv* env, jclass clazz)
+{
     Memory::gc();
 }
 extern "C"
 JNIEXPORT jlong JNICALL
-Java_com_samsung_lwe_escargot_Memory_heapSize(JNIEnv *env, jclass clazz) {
+Java_com_samsung_lwe_escargot_Memory_heapSize(JNIEnv* env, jclass clazz)
+{
     return Memory::heapSize();
 }
 extern "C"
 JNIEXPORT jlong JNICALL
-Java_com_samsung_lwe_escargot_Memory_totalSize(JNIEnv *env, jclass clazz) {
+Java_com_samsung_lwe_escargot_Memory_totalSize(JNIEnv* env, jclass clazz)
+{
     return Memory::totalSize();
 }
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_samsung_lwe_escargot_Memory_setGCFrequency(JNIEnv *env, jclass clazz, jint value) {
+Java_com_samsung_lwe_escargot_Memory_setGCFrequency(JNIEnv* env, jclass clazz, jint value)
+{
     Memory::setGCFrequency(value);
 }
 
@@ -544,7 +565,8 @@ static void setPersistentPointerToJava(JNIEnv *env, jclass clazz, jobject object
 extern "C"
 JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_VMInstance_create(JNIEnv *env, jclass clazz, jobject locale,
-                                                jobject timezone) {
+                                                jobject timezone)
+{
     std::string localeString = fetchStringFromJavaOptionalString(env, locale);
     std::string timezoneString = fetchStringFromJavaOptionalString(env, timezone);
 
@@ -554,17 +576,22 @@ Java_com_samsung_lwe_escargot_VMInstance_create(JNIEnv *env, jclass clazz, jobje
     setPersistentPointerToJava<VMInstanceRef>(env, clazz, vmObject, std::move(vmRef));
     return vmObject;
 }
+
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_samsung_lwe_escargot_VMInstance_releaseNativePointer(JNIEnv *env, jobject thiz) {
+Java_com_samsung_lwe_escargot_VMInstance_releaseNativePointer(JNIEnv* env, jobject thiz)
+{
     auto ptr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(thiz), thiz);
     delete ptr;
     setNativePointerToJava<VMInstanceRef>(env, env->GetObjectClass(thiz), thiz, nullptr);
 }
+
 extern "C"
 JNIEXPORT jobject JNICALL
-Java_com_samsung_lwe_escargot_Context_create(JNIEnv *env, jclass clazz, jobject vmInstance) {
-    auto vmPtr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(vmInstance), vmInstance);
+Java_com_samsung_lwe_escargot_Context_create(JNIEnv* env, jclass clazz, jobject vmInstance)
+{
+    auto vmPtr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(vmInstance),
+                                                             vmInstance);
     auto contextRef = createEscargotContext(vmPtr->get());
 
     auto contextObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "()V"));
@@ -573,13 +600,14 @@ Java_com_samsung_lwe_escargot_Context_create(JNIEnv *env, jclass clazz, jobject 
 }
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_samsung_lwe_escargot_Context_releaseNativePointer(JNIEnv *env, jobject thiz) {
+Java_com_samsung_lwe_escargot_Context_releaseNativePointer(JNIEnv* env, jobject thiz)
+{
     auto ptr = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(thiz), thiz);
     delete ptr;
     setNativePointerToJava<ContextRef>(env, env->GetObjectClass(thiz), thiz, nullptr);
 }
 
-StringRef* createJSStringFromJava(JNIEnv *env, jstring str)
+StringRef* createJSStringFromJava(JNIEnv* env, jstring str)
 {
     jboolean isSucceed;
     const char* cString = env->GetStringUTFChars(str, &isSucceed);
@@ -590,24 +618,27 @@ StringRef* createJSStringFromJava(JNIEnv *env, jstring str)
 
 extern "C"
 JNIEXPORT jobject JNICALL
-Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv *env, jclass clazz, jobject context,
+Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv* env, jclass clazz, jobject context,
                                                    jstring source, jstring sourceFileName,
-                                                   jboolean shouldPrintScriptResult) {
+                                                   jboolean shouldPrintScriptResult)
+{
     auto ptr = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto result = evalScript(ptr->get(), createJSStringFromJava(env, source), createJSStringFromJava(env, sourceFileName), shouldPrintScriptResult, false);
+    auto result = evalScript(ptr->get(), createJSStringFromJava(env, source),
+                             createJSStringFromJava(env, sourceFileName), shouldPrintScriptResult,
+                             false);
 
     jclass optionalClazz = env->FindClass("java/util/Optional");
     if (result.isSuccessful()) {
         auto buf = result.resultOrErrorToString(ptr->get());
         jstring javaString = env->NewStringUTF(buf->toStdUTF8String().data());
         return env->CallStaticObjectMethod(optionalClazz,
-                                                  env->GetStaticMethodID(optionalClazz, "of", "(Ljava/lang/Object;)Ljava/util/Optional;"),
-                                                  javaString);
+                                           env->GetStaticMethodID(optionalClazz, "of",
+                                                                  "(Ljava/lang/Object;)Ljava/util/Optional;"),
+                                           javaString);
     }
-    return env->CallStaticObjectMethod(optionalClazz, env->GetStaticMethodID(optionalClazz, "empty", "()Ljava/util/Optional;"));
+    return env->CallStaticObjectMethod(optionalClazz, env->GetStaticMethodID(optionalClazz, "empty",
+                                                                             "()Ljava/util/Optional;"));
 }
-
-JavaVM* g_jvm;
 
 OptionalRef<JNIEnv> fetchJNIEnvFromCallback()
 {
@@ -623,82 +654,115 @@ OptionalRef<JNIEnv> fetchJNIEnvFromCallback()
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv *env, jclass clazz, jobject context,
+Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject context,
                                               jstring objectName, jstring propertyName,
-                                              jobject adapter) {
-    auto contextPtr = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+                                              jobject adapter)
+{
+    auto contextPtr = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context),
+                                                               context);
     auto jsObjectName = createJSStringFromJava(env, objectName);
     auto jsPropertyName = createJSStringFromJava(env, propertyName);
 
     adapter = env->NewGlobalRef(adapter);
 
-    if (!g_jvm) {
-        env->GetJavaVM(&g_jvm);
-    }
+    auto evalResult = Evaluator::execute(contextPtr->get(),
+                                         [](ExecutionStateRef* state, JNIEnv* env, jobject adapter,
+                                            StringRef* jsObjectName,
+                                            StringRef* jsPropertyName) -> ValueRef* {
+                                             auto globalObject = state->context()->globalObject();
+                                             ObjectRef* targetObject;
 
-    auto evalResult = Evaluator::execute(contextPtr->get(), [](ExecutionStateRef* state, JNIEnv *env, jobject adapter, StringRef* jsObjectName, StringRef* jsPropertyName) -> ValueRef* {
-        auto globalObject = state->context()->globalObject();
-        ObjectRef* targetObject;
+                                             ValueRef* willBeTargetObject = globalObject->getOwnProperty(
+                                                     state, jsObjectName);
+                                             if (willBeTargetObject->isObject()) {
+                                                 targetObject = willBeTargetObject->asObject();
+                                             } else {
+                                                 targetObject = ObjectRef::create(state);
+                                                 globalObject->defineDataProperty(state,
+                                                                                  jsObjectName,
+                                                                                  targetObject,
+                                                                                  true, true, true);
+                                             }
 
-        ValueRef* willBeTargetObject = globalObject->getOwnProperty(state, jsObjectName);
-        if (willBeTargetObject->isObject()) {
-            targetObject = willBeTargetObject->asObject();
-        } else {
-            targetObject = ObjectRef::create(state);
-            globalObject->defineDataProperty(state, jsObjectName, targetObject, true, true, true);
-        }
+                                             // AtomicStringRef* name, NativeFunctionPointer fn, size_t argc, bool isStrict = true, bool isConstructor = true
+                                             FunctionObjectRef::NativeFunctionInfo info(
+                                                     AtomicStringRef::emptyAtomicString(),
+                                                     [](ExecutionStateRef* state,
+                                                        ValueRef* thisValue, size_t argc,
+                                                        ValueRef** argv,
+                                                        bool isConstructorCall) -> ValueRef* {
+                                                         FunctionObjectRef* callee = state->resolveCallee().get();
+                                                         jobject jo = static_cast<jobject>(reinterpret_cast<FunctionObjectRef*>(callee)->extraData());
+                                                         auto env = fetchJNIEnvFromCallback();
+                                                         if (!env) {
+                                                             // give up
+                                                             LOGE("could not fetch env from callback");
+                                                         }
 
-        // AtomicStringRef* name, NativeFunctionPointer fn, size_t argc, bool isStrict = true, bool isConstructor = true
-        FunctionObjectRef::NativeFunctionInfo info(AtomicStringRef::emptyAtomicString(), [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructorCall) -> ValueRef* {
-            FunctionObjectRef* callee = state->resolveCallee().get();
-            jobject jo = static_cast<jobject>(reinterpret_cast<FunctionObjectRef *>(callee)->extraData());
-            auto env = fetchJNIEnvFromCallback();
-            if (!env) {
-                // give up
-                LOGE("could not fetch env from callback");
-            }
+                                                         jobject callbackArg;
+                                                         jclass optionalClazz = env->FindClass(
+                                                                 "java/util/Optional");
+                                                         if (argc) {
+                                                             auto buf = argv[0]->toString(
+                                                                     state)->toStdUTF8String();
+                                                             jstring javaString = env->NewStringUTF(
+                                                                     buf.data());
+                                                             callbackArg = env->CallStaticObjectMethod(
+                                                                     optionalClazz,
+                                                                     env->GetStaticMethodID(
+                                                                             optionalClazz, "of",
+                                                                             "(Ljava/lang/Object;)Ljava/util/Optional;"),
+                                                                     javaString);
+                                                         } else {
+                                                             callbackArg = env->CallStaticObjectMethod(
+                                                                     optionalClazz,
+                                                                     env->GetStaticMethodID(
+                                                                             optionalClazz, "empty",
+                                                                             "()Ljava/util/Optional;"));
+                                                         }
+                                                         auto javaReturnValue = env->CallObjectMethod(
+                                                                 jo,
+                                                                 env->GetMethodID(
+                                                                         env->GetObjectClass(jo),
+                                                                         "callback",
+                                                                         "(Ljava/util/Optional;)Ljava/util/Optional;"),
+                                                                 callbackArg);
 
-            jobject callbackArg;
-            jclass optionalClazz = env->FindClass("java/util/Optional");
-            if (argc) {
-                auto buf = argv[0]->toString(state)->toStdUTF8String();
-                jstring javaString = env->NewStringUTF(buf.data());
-                callbackArg = env->CallStaticObjectMethod(optionalClazz,
-                                                          env->GetStaticMethodID(optionalClazz, "of", "(Ljava/lang/Object;)Ljava/util/Optional;"),
-                                                          javaString);
-            } else {
-                callbackArg = env->CallStaticObjectMethod(optionalClazz,
-                                                    env->GetStaticMethodID(optionalClazz, "empty", "()Ljava/util/Optional;"));
-            }
-            auto javaReturnValue = env->CallObjectMethod(jo,
-                                             env->GetMethodID(env->GetObjectClass(jo), "callback", "(Ljava/util/Optional;)Ljava/util/Optional;"),
-                                             callbackArg);
+                                                         auto methodIsPresent = env->GetMethodID(
+                                                                 optionalClazz, "isPresent", "()Z");
+                                                         if (env->CallBooleanMethod(javaReturnValue,
+                                                                                    methodIsPresent)) {
+                                                             auto methodGet = env->GetMethodID(
+                                                                     optionalClazz, "get",
+                                                                     "()Ljava/lang/Object;");
+                                                             jstring value = static_cast<jstring>(env->CallObjectMethod(
+                                                                     javaReturnValue, methodGet));
 
-            auto methodIsPresent = env->GetMethodID(optionalClazz, "isPresent", "()Z");
-            if (env->CallBooleanMethod(javaReturnValue, methodIsPresent)) {
-                auto methodGet = env->GetMethodID(optionalClazz, "get", "()Ljava/lang/Object;");
-                jstring value = static_cast<jstring>(env->CallObjectMethod(javaReturnValue, methodGet));
-
-                jboolean isSucceed;
-                const char* str = env->GetStringUTFChars(
-                        value, &isSucceed);
-                auto length = env->GetStringUTFLength(value);
-                auto ret = StringRef::createFromUTF8(str, length);
-                env->ReleaseStringUTFChars(value, str);
-                return ret;
-            }
-            return ValueRef::createUndefined();
-        }, 1, true, false);
-        FunctionObjectRef* callback = FunctionObjectRef::create(state, info);
-        targetObject->defineDataProperty(state, jsPropertyName, callback, true, true, true);
-        return callback;
-    }, env, adapter, jsObjectName, jsPropertyName);
+                                                             jboolean isSucceed;
+                                                             const char* str = env->GetStringUTFChars(
+                                                                     value, &isSucceed);
+                                                             auto length = env->GetStringUTFLength(
+                                                                     value);
+                                                             auto ret = StringRef::createFromUTF8(
+                                                                     str, length);
+                                                             env->ReleaseStringUTFChars(value, str);
+                                                             return ret;
+                                                         }
+                                                         return ValueRef::createUndefined();
+                                                     }, 1, true, false);
+                                             FunctionObjectRef* callback = FunctionObjectRef::create(
+                                                     state, info);
+                                             targetObject->defineDataProperty(state, jsPropertyName,
+                                                                              callback, true, true,
+                                                                              true);
+                                             return callback;
+                                         }, env, adapter, jsObjectName, jsPropertyName);
 
     if (evalResult.isSuccessful()) {
         FunctionObjectRef* callback = evalResult.result->asFunctionObject();
         callback->setExtraData(adapter);
         Memory::gcRegisterFinalizer(callback, [](void* self) {
-            jobject jo = static_cast<jobject>(reinterpret_cast<FunctionObjectRef *>(self)->extraData());
+            jobject jo = static_cast<jobject>(reinterpret_cast<FunctionObjectRef*>(self)->extraData());
             auto env = fetchJNIEnvFromCallback();
             if (env) {
                 env->DeleteGlobalRef(jo);
@@ -709,4 +773,149 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv *env, jclass clazz, jobject
     }
 
     return evalResult.isSuccessful();
+}
+
+static jobject createJavaValueObject(JNIEnv* env, jclass clazz, ValueRef* value)
+{
+    auto valueObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "()V"));
+    if (!value->isStoredInHeap()) {
+        setNativePointerToJava<ValueRef>(env, clazz, valueObject, value);
+    } else {
+        setPersistentPointerToJava<ValueRef>(env, clazz, valueObject,
+                                             std::move(PersistentRefHolder<ValueRef>(value)));
+    }
+
+    return valueObject;
+}
+
+static ValueRef* unwrapValueRefFromValue(JNIEnv* env, jclass clazz, jobject object)
+{
+    auto ptr = env->GetLongField(object, env->GetFieldID(clazz, "m_nativePointer", "J"));
+    if (static_cast<size_t>(ptr) <= g_nonPointerValueLast || (static_cast<size_t>(ptr) & 1)) {
+        return reinterpret_cast<ValueRef*>(ptr);
+    } else {
+        PersistentRefHolder<ValueRef>* ref = reinterpret_cast<PersistentRefHolder<ValueRef>*>(ptr);
+        return ref->get();
+    }
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_Value_releaseNativePointer(JNIEnv* env, jobject thiz)
+{
+    ValueRef* ref = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+
+    auto ptr = env->GetLongField(thiz, env->GetFieldID(env->GetObjectClass(thiz), "m_nativePointer",
+                                                       "J"));
+    if (static_cast<size_t>(ptr) > g_nonPointerValueLast) {
+        PersistentRefHolder<ValueRef>* ref = reinterpret_cast<PersistentRefHolder<ValueRef>*>(ptr);
+        delete ref;
+    }
+
+    setNativePointerToJava<VMInstanceRef>(env, env->GetObjectClass(thiz), thiz, nullptr);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_Value_createUndefined(JNIEnv* env, jclass clazz)
+{
+    return createJavaValueObject(env, clazz, ValueRef::createUndefined());
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_Value_createNull(JNIEnv* env, jclass clazz)
+{
+    return createJavaValueObject(env, clazz, ValueRef::createNull());
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_Value_create__I(JNIEnv* env, jclass clazz, jint value)
+{
+    return createJavaValueObject(env, clazz, ValueRef::create(value));
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_Value_create__D(JNIEnv* env, jclass clazz, jdouble value)
+{
+    return createJavaValueObject(env, clazz, ValueRef::create(value));
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_Value_create__Z(JNIEnv* env, jclass clazz, jboolean value)
+{
+    return createJavaValueObject(env, clazz, ValueRef::create(static_cast<bool>(value)));
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_Value_isUndefined(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isUndefined();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_Value_isNull(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isNull();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_Value_isNumber(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isNumber();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_Value_isInt32(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isInt32();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_Value_isBoolean(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isBoolean();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_Value_isTrue(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isTrue();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_Value_isFalse(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isFalse();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_Value_asBoolean(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asBoolean();
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_samsung_lwe_escargot_Value_asInt32(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asInt32();
+}
+
+extern "C"
+JNIEXPORT jdouble JNICALL
+Java_com_samsung_lwe_escargot_Value_asNumber(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asNumber();
 }

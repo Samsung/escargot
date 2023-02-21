@@ -6,7 +6,5 @@ public class Escargot {
         System.loadLibrary("escargot-android");
     }
 
-    static public void init()
-    {
-    }
+    static native public void init();
 }

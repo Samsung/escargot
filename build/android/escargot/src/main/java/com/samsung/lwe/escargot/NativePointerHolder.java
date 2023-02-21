@@ -1,6 +1,7 @@
 package com.samsung.lwe.escargot;
 
 public abstract class NativePointerHolder {
+    static { Escargot.init(); }
     abstract public void destroy();
     public boolean hasValidNativePointer()
     {
