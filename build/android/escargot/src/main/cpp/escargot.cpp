@@ -1,9 +1,10 @@
 #include <jni.h>
-#include <android/log.h>
 
 #include <EscargotPublic.h>
 using namespace Escargot;
 
+#if defined(ANDROID)
+#include <android/log.h>
 #define  LOG_TAG    "Escargot"
 #define  LOGUNK(...)  __android_log_print(ANDROID_LOG_UNKNOWN,LOG_TAG,__VA_ARGS__)
 #define  LOGDEF(...)  __android_log_print(ANDROID_LOG_DEFAULT,LOG_TAG,__VA_ARGS__)
@@ -14,9 +15,20 @@ using namespace Escargot;
 #define  LOGE(...)  __android_log_print(ANDROID_LOG_ERROR,LOG_TAG,__VA_ARGS__)
 #define  LOGF(...)  __android_log_print(ANDROID_FATAL_ERROR,LOG_TAG,__VA_ARGS__)
 #define  LOGS(...)  __android_log_print(ANDROID_SILENT_ERROR,LOG_TAG,__VA_ARGS__)
+#else
+#define  LOGUNK(...)  fprintf(stdout,__VA_ARGS__)
+#define  LOGDEF(...)  fprintf(stdout,__VA_ARGS__)
+#define  LOGV(...)  fprintf(stdout,__VA_ARGS__)
+#define  LOGD(...)  fprintf(stdout,__VA_ARGS__)
+#define  LOGI(...)  fprintf(stdout,__VA_ARGS__)
+#define  LOGW(...)  fprintf(stdout,__VA_ARGS__)
+#define  LOGE(...)  fprintf(stderr,__VA_ARGS__)
+#define  LOGF(...)  fprintf(stderr,__VA_ARGS__)
+#define  LOGS(...)  fprintf(stderr,__VA_ARGS__)
+#endif
 
-JavaVM* g_jvm;
-size_t g_nonPointerValueLast = reinterpret_cast<size_t>(ValueRef::createUndefined());
+static JavaVM* g_jvm;
+static size_t g_nonPointerValueLast = reinterpret_cast<size_t>(ValueRef::createUndefined());
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -32,7 +44,7 @@ static bool stringEndsWith(const std::string& str, const std::string& suffix)
     return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
 }
 
-ValueRef* builtinPrint(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
+static ValueRef* builtinPrint(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     if (argc >= 1) {
         StringRef* printMsg;
@@ -53,7 +65,7 @@ ValueRef* builtinPrint(ExecutionStateRef* state, ValueRef* thisValue, size_t arg
 
 static const char32_t offsetsFromUTF8[6] = { 0x00000000UL, 0x00003080UL, 0x000E2080UL, 0x03C82080UL, static_cast<char32_t>(0xFA082080UL), static_cast<char32_t>(0x82082080UL) };
 
-char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
+static char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
 {
     unsigned length;
     const char sch = *sequence;
@@ -190,7 +202,7 @@ static ValueRef* builtinGc(ExecutionStateRef* state, ValueRef* thisValue, size_t
     return ValueRef::createUndefined();
 }
 
-PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, bool isMainThread = true);
+static PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, bool isMainThread = true);
 
 class ShellPlatform : public PlatformRef {
 public:
@@ -607,7 +619,7 @@ Java_com_samsung_lwe_escargot_Context_releaseNativePointer(JNIEnv* env, jobject 
     setNativePointerToJava<ContextRef>(env, env->GetObjectClass(thiz), thiz, nullptr);
 }
 
-StringRef* createJSStringFromJava(JNIEnv* env, jstring str)
+static StringRef* createJSStringFromJava(JNIEnv* env, jstring str)
 {
     jboolean isSucceed;
     const char* cString = env->GetStringUTFChars(str, &isSucceed);
@@ -640,11 +652,15 @@ Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv* env, jclass clazz, jo
                                                                              "()Ljava/util/Optional;"));
 }
 
-OptionalRef<JNIEnv> fetchJNIEnvFromCallback()
+static OptionalRef<JNIEnv> fetchJNIEnvFromCallback()
 {
     JNIEnv* env = nullptr;
     if (g_jvm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) == JNI_EDETACHED) {
-        if (g_jvm->AttachCurrentThread(&env, NULL) != 0) {
+#if defined(_JAVASOFT_JNI_H_) // old jdk or openjdk
+        if (g_jvm->AttachCurrentThread(reinterpret_cast<void **>(&env), NULL) != 0) {
+#else
+        if (g_jvm->AttachCurrentThread(reinterpret_cast<JNIEnv **>(&env), NULL) != 0) {
+#endif
             // give up
             return nullptr;
         }
