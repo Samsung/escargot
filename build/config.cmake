@@ -29,6 +29,8 @@ SET (GCUTIL_ROOT ${ESCARGOT_THIRD_PARTY_ROOT}/GCutil)
 #######################################################
 # FLAGS FOR TARGET
 #######################################################
+SET (ESCARGOT_LIBRARIES)
+SET (ESCARGOT_INCDIRS)
 INCLUDE (${ESCARGOT_ROOT}/build/target.cmake)
 
 #######################################################
@@ -99,8 +101,6 @@ ENDIF()
 #######################################################
 # FLAGS FOR ADDITIONAL FUNCTION
 #######################################################
-SET (ESCARGOT_LIBRARIES)
-SET (ESCARGOT_INCDIRS)
 FIND_PACKAGE (PkgConfig REQUIRED)
 IF (ESCARGOT_LIBICU_SUPPORT)
     IF (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
@@ -149,7 +149,6 @@ ENDIF()
 
 IF (ESCARGOT_THREADING)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_THREADING -DGC_THREAD_ISOLATE)
-    SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} atomic) # needs for atomic operations
 ENDIF()
 
 #######################################################

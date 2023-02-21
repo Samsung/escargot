@@ -14,7 +14,7 @@ android {
         consumerProguardFiles "consumer-rules.pro"
         externalNativeBuild {
             cmake {
-                arguments "-DCMAKE_VERBOSE_MAKEFILE=ON"
+                arguments "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DESCARGOT_HOST=android", "-DESCARGOT_OUTPUT=shared_lib"
             }
         }
 
@@ -40,6 +40,9 @@ android {
 
     sourceSets {
         main.java.srcDirs('src/main/java')
+        test {
+            java.srcDir('src/androidTest/java')
+        }
     }
 
     externalNativeBuild {
@@ -57,11 +60,63 @@ android {
     }
 }
 
+def dirForNativeNoNDK = project.layout.buildDirectory.get().dir("native_nondk")
+def srcForNativeNoNDK = project.layout.projectDirectory.dir("src/main/cpp").asFile
+
+task createNativeNoNDK() {
+    def dstdir = dirForNativeNoNDK.asFile
+    if (!dstdir.exists()) dstdir.mkdirs()
+}
+task buildCMakeNativeNoNDK(type: Exec) {
+    dependsOn createNativeNoNDK
+    workingDir dirForNativeNoNDK
+    if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
+        commandLine "/usr/bin/env", "cmake", "-DESCARGOT_HOST=linux", "-DESCARGOT_ARCH=x64", "-DESCARGOT_OUTPUT=static_lib", "-DUNDER_NDK=OFF", srcForNativeNoNDK.absolutePath
+    } else if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
+        var javaHome = new ByteArrayOutputStream().withStream { os ->
+            exec {
+                executable "/usr/libexec/java_home"
+                args "-v", "1.8"
+                standardOutput = os
+            }
+            os.toString().trim()
+        }
+        environment("PKG_CONFIG_PATH", "/usr/local/opt/icu4c/lib/pkgconfig")
+        commandLine "/usr/bin/env", "cmake", "-DESCARGOT_HOST=darwin", "-DESCARGOT_ARCH=x64", "-DESCARGOT_OUTPUT=static_lib", "-DUNDER_NDK=OFF", "-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF",
+                "-DJAVA_HOME=" + javaHome, "-DJAVA_INCLUDE_PATH=" + javaHome + "/include",
+                "-DJAVA_INCLUDE_PATH2=" + javaHome + "/include/darwin", "-DJAVA_AWT_INCLUDE_PATH=" + javaHome + "/include",
+                srcForNativeNoNDK.absolutePath
+    } else {
+        // TODO
+    }
+}
+task buildGMakeNativeNoNDK(type: Exec) {
+    dependsOn buildCMakeNativeNoNDK
+    workingDir dirForNativeNoNDK
+    commandLine "/usr/bin/env", "make", "-j8"
+}
+
+project.afterEvaluate {
+    if (org.gradle.internal.os.OperatingSystem.current().isLinux() || org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
+        testDebugUnitTest {
+            dependsOn buildGMakeNativeNoNDK
+            systemProperty "java.library.path", dirForNativeNoNDK.asFile.absolutePath + ":" + System.getProperty("java.library.path")
+        }
+        testReleaseUnitTest {
+            dependsOn buildGMakeNativeNoNDK
+            systemProperty "java.library.path", dirForNativeNoNDK.asFile.absolutePath + ":" + System.getProperty("java.library.path")
+        }
+    }
+}
+
 dependencies {
 
     implementation 'androidx.appcompat:appcompat:1.6.0'
     implementation 'com.google.android.material:material:1.7.0'
     testImplementation 'junit:junit:4.13.2'
+    testImplementation project(path: ':escargot')
+    testImplementation project(path: ':escargot')
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    androidTestImplementation project(path: ':escargot')
 }

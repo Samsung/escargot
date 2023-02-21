@@ -57,6 +57,8 @@ export ANDROID_SDK_ROOT=.... # set your android SDK root first
 cd build/android/
 ./gradlew bundleReleaseAar # build escargot AAR
 ./gradlew assembleDebug # build debug test shell
+./gradlew :escargot:connectedDebugAndroidTest # run escargot-jni tests on android device
+./gradlew :escargot:testDebugUnitTest # run escargot-jni tests on host
 ```
 
 #### Build options

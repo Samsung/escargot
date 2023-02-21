@@ -1,14 +1,27 @@
 cmake_minimum_required(VERSION 3.18.1)
 
-project(escargot-android)
+project(escargot-jni)
 
-SET (ESCARGOT_HOST "android")
+option(UNDER_NDK "Build under the Android NDK" ON)
+
+# SET (ESCARGOT_HOST "android")
 SET (ESCARGOT_ARCH ${ANDROID_SYSROOT_ABI})
 # STRING(TOLOWER ${CMAKE_BUILD_TYPE} ESCARGOT_MODE)
 SET (ESCARGOT_MODE "release")
-SET (ESCARGOT_OUTPUT "shared_lib")
 SET (ESCARGOT_THREADING ON)
 ADD_SUBDIRECTORY (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../ escargot)
 
-ADD_LIBRARY (escargot-android SHARED escargot.cpp)
-TARGET_LINK_LIBRARIES (escargot-android PRIVATE escargot)
+ADD_LIBRARY (escargot-jni SHARED escargot.cpp)
+ADD_DEFINITIONS(-DNDEBUG)
+
+SET(CMAKE_CXX_FLAGS "-std=c++11")
+SET(LOG_LIBRARY "")
+
+if (UNDER_NDK)
+    FIND_LIBRARY(LOG_LIBRARY log)
+else (UNDER_NDK)
+    FIND_PACKAGE(JNI REQUIRED)
+    INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS})
+endif (UNDER_NDK)
+
+TARGET_LINK_LIBRARIES (escargot-jni PRIVATE escargot ${LOG_LIBRARY})
