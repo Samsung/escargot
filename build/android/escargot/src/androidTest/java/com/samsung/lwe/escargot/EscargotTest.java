@@ -146,30 +146,30 @@ public class EscargotTest {
     public void nonHeapValueTest() {
         Globals.initializeGlobals();
 
-        Value v = Value.createUndefined();
+        JavaScriptValue v = JavaScriptValue.createUndefined();
         assertTrue(v.isUndefined());
         assertFalse(v.isNull());
         assertFalse(v.isNumber());
 
-        v = Value.createNull();
+        v = JavaScriptValue.createNull();
         assertTrue(v.isNull());
         assertFalse(v.isUndefined());
         assertFalse(v.isNumber());
 
-        v = Value.create(123);
+        v = JavaScriptValue.create(123);
         assertTrue(v.isInt32());
         assertEquals(v.asInt32(), 123);
         assertTrue(v.isNumber());
         assertEquals(v.asNumber(), 123.0, 0);
 
-        v = Value.create(true);
+        v = JavaScriptValue.create(true);
         assertTrue(v.isTrue());
         assertTrue(v.isBoolean());
         assertTrue(v.asBoolean());
         assertFalse(v.isInt32());
         assertFalse(v.isUndefined());
 
-        v = Value.create(false);
+        v = JavaScriptValue.create(false);
         assertTrue(v.isFalse());
         assertTrue(v.isBoolean());
         assertFalse(v.asBoolean());
@@ -183,10 +183,16 @@ public class EscargotTest {
     public void heapValueTest() {
         Globals.initializeGlobals();
 
-        Value v = Value.create(3.14);
+        JavaScriptValue v = JavaScriptValue.create(3.14);
         assertTrue(v.isNumber());
         assertEquals(v.asNumber(), 3.14, 0);
         assertFalse(v.isInt32());
+
+        v = JavaScriptValue.create("hello");
+        assertTrue(v.isString());
+        assertTrue(v.asScriptString().toJavaString().equals("hello"));
+        assertFalse(v.isNumber());
+        assertFalse(v.isUndefinedOrNull());
 
         Globals.finalizeGlobals();
     }
