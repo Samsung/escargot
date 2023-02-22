@@ -628,6 +628,19 @@ static StringRef* createJSStringFromJava(JNIEnv* env, jstring str)
     return code;
 }
 
+static jstring createJavaStringFromJS(JNIEnv* env, StringRef* string)
+{
+    std::basic_string<uint16_t> buf;
+    auto bad = string->stringBufferAccessData();
+    buf.reserve(bad.length);
+
+    for (size_t i = 0; i < bad.length ; i ++) {
+        buf.push_back(bad.charAt(i));
+    }
+
+    return env->NewString(buf.data(), buf.length());
+}
+
 extern "C"
 JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv* env, jclass clazz, jobject context,
@@ -641,12 +654,12 @@ Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv* env, jclass clazz, jo
 
     jclass optionalClazz = env->FindClass("java/util/Optional");
     if (result.isSuccessful()) {
-        auto buf = result.resultOrErrorToString(ptr->get());
-        jstring javaString = env->NewStringUTF(buf->toStdUTF8String().data());
+        auto resultString = result.resultOrErrorToString(ptr->get());
+        jstring javaResultString = createJavaStringFromJS(env, resultString);
         return env->CallStaticObjectMethod(optionalClazz,
                                            env->GetStaticMethodID(optionalClazz, "of",
                                                                   "(Ljava/lang/Object;)Ljava/util/Optional;"),
-                                           javaString);
+                                           javaResultString);
     }
     return env->CallStaticObjectMethod(optionalClazz, env->GetStaticMethodID(optionalClazz, "empty",
                                                                              "()Ljava/util/Optional;"));
@@ -656,7 +669,7 @@ static OptionalRef<JNIEnv> fetchJNIEnvFromCallback()
 {
     JNIEnv* env = nullptr;
     if (g_jvm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) == JNI_EDETACHED) {
-#if defined(_JAVASOFT_JNI_H_) // old jdk or openjdk
+#if defined(_JAVASOFT_JNI_H_) // oraclejdk or openjdk
         if (g_jvm->AttachCurrentThread(reinterpret_cast<void **>(&env), NULL) != 0) {
 #else
         if (g_jvm->AttachCurrentThread(reinterpret_cast<JNIEnv **>(&env), NULL) != 0) {
@@ -713,6 +726,7 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
                                                          if (!env) {
                                                              // give up
                                                              LOGE("could not fetch env from callback");
+                                                             return ValueRef::createUndefined();
                                                          }
 
                                                          jobject callbackArg;
@@ -800,8 +814,12 @@ static jobject createJavaValueObject(JNIEnv* env, jclass clazz, ValueRef* value)
         setPersistentPointerToJava<ValueRef>(env, clazz, valueObject,
                                              std::move(PersistentRefHolder<ValueRef>(value)));
     }
-
     return valueObject;
+}
+
+static jobject createJavaValueObject(JNIEnv* env, const char* className, ValueRef* value)
+{
+    return createJavaValueObject(env, env->FindClass(className), value);
 }
 
 static ValueRef* unwrapValueRefFromValue(JNIEnv* env, jclass clazz, jobject object)
@@ -817,7 +835,7 @@ static ValueRef* unwrapValueRefFromValue(JNIEnv* env, jclass clazz, jobject obje
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_samsung_lwe_escargot_Value_releaseNativePointer(JNIEnv* env, jobject thiz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_releaseNativePointer(JNIEnv* env, jobject thiz)
 {
     ValueRef* ref = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
@@ -833,105 +851,142 @@ Java_com_samsung_lwe_escargot_Value_releaseNativePointer(JNIEnv* env, jobject th
 
 extern "C"
 JNIEXPORT jobject JNICALL
-Java_com_samsung_lwe_escargot_Value_createUndefined(JNIEnv* env, jclass clazz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_createUndefined(JNIEnv* env, jclass clazz)
 {
     return createJavaValueObject(env, clazz, ValueRef::createUndefined());
 }
 
 extern "C"
 JNIEXPORT jobject JNICALL
-Java_com_samsung_lwe_escargot_Value_createNull(JNIEnv* env, jclass clazz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_createNull(JNIEnv* env, jclass clazz)
 {
     return createJavaValueObject(env, clazz, ValueRef::createNull());
 }
 
 extern "C"
 JNIEXPORT jobject JNICALL
-Java_com_samsung_lwe_escargot_Value_create__I(JNIEnv* env, jclass clazz, jint value)
+Java_com_samsung_lwe_escargot_JavaScriptValue_create__I(JNIEnv* env, jclass clazz, jint value)
 {
     return createJavaValueObject(env, clazz, ValueRef::create(value));
 }
 
 extern "C"
 JNIEXPORT jobject JNICALL
-Java_com_samsung_lwe_escargot_Value_create__D(JNIEnv* env, jclass clazz, jdouble value)
+Java_com_samsung_lwe_escargot_JavaScriptValue_create__D(JNIEnv* env, jclass clazz, jdouble value)
 {
     return createJavaValueObject(env, clazz, ValueRef::create(value));
 }
 
 extern "C"
 JNIEXPORT jobject JNICALL
-Java_com_samsung_lwe_escargot_Value_create__Z(JNIEnv* env, jclass clazz, jboolean value)
+Java_com_samsung_lwe_escargot_JavaScriptValue_create__Z(JNIEnv* env, jclass clazz, jboolean value)
 {
     return createJavaValueObject(env, clazz, ValueRef::create(static_cast<bool>(value)));
 }
 
 extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_create__Ljava_lang_String_2(JNIEnv* env, jclass clazz,
+                                                                          jstring value)
+{
+    return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptString", createJSStringFromJava(env, value));
+}
+
+extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_samsung_lwe_escargot_Value_isUndefined(JNIEnv* env, jobject thiz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_isUndefined(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isUndefined();
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_samsung_lwe_escargot_Value_isNull(JNIEnv* env, jobject thiz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_isNull(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isNull();
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_samsung_lwe_escargot_Value_isNumber(JNIEnv* env, jobject thiz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_isUndefinedOrNull(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isUndefinedOrNull();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_isNumber(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isNumber();
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_samsung_lwe_escargot_Value_isInt32(JNIEnv* env, jobject thiz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_isInt32(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isInt32();
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_samsung_lwe_escargot_Value_isBoolean(JNIEnv* env, jobject thiz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_isBoolean(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isBoolean();
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_samsung_lwe_escargot_Value_isTrue(JNIEnv* env, jobject thiz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_isTrue(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isTrue();
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_samsung_lwe_escargot_Value_isFalse(JNIEnv* env, jobject thiz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_isFalse(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isFalse();
 }
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_samsung_lwe_escargot_Value_asBoolean(JNIEnv* env, jobject thiz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_isString(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isString();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_asBoolean(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asBoolean();
 }
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_com_samsung_lwe_escargot_Value_asInt32(JNIEnv* env, jobject thiz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_asInt32(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asInt32();
 }
 
 extern "C"
 JNIEXPORT jdouble JNICALL
-Java_com_samsung_lwe_escargot_Value_asNumber(JNIEnv* env, jobject thiz)
+Java_com_samsung_lwe_escargot_JavaScriptValue_asNumber(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asNumber();
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptString(JNIEnv* env, jobject thiz)
+{
+    return thiz;
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptString_toJavaString(JNIEnv* env, jobject thiz)
+{
+    StringRef* string = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asString();
+    return createJavaStringFromJS(env, string);
 }
