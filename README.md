@@ -59,6 +59,7 @@ cd build/android/
 ./gradlew assembleDebug # build debug test shell
 ./gradlew :escargot:connectedDebugAndroidTest # run escargot-jni tests on android device
 ./gradlew :escargot:testDebugUnitTest # run escargot-jni tests on host
+./gradlew bundleHostJar # bundle jar for host
 ```
 
 #### Build options
