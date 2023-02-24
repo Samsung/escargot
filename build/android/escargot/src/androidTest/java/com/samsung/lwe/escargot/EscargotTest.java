@@ -10,6 +10,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 @RunWith(AndroidJUnit4.class)
 public class EscargotTest {
@@ -194,6 +195,61 @@ public class EscargotTest {
         assertFalse(v.isNumber());
         assertFalse(v.isUndefinedOrNull());
 
+        Globals.finalizeGlobals();
+    }
+
+    @Test
+    public void valueToStringTest() {
+        Globals.initializeGlobals();
+
+        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+        Context context = Context.create(vmInstance);
+
+        Optional<JavaScriptString> result = JavaScriptValue.create(123).toString(context);
+        assertTrue(result.isPresent());
+        assertEquals(result.get().toJavaString(), "123");
+
+        assertTrue(JavaScriptValue.create(Integer.MAX_VALUE).isInt32());
+        assertTrue(JavaScriptValue.create(Integer.MAX_VALUE).isNumber());
+        result = JavaScriptValue.create(Integer.MAX_VALUE).toString(context);
+        assertTrue(result.isPresent());
+        assertEquals(result.get().toJavaString(), Integer.MAX_VALUE+"");
+
+        context.destroy();
+        vmInstance.destroy();
+        Globals.finalizeGlobals();
+    }
+
+    @Test
+    public void symbolValueTest() {
+        Globals.initializeGlobals();
+
+        VMInstance vmInstance = VMInstance.create(Optional.empty(), Optional.empty());
+        Context context = Context.create(vmInstance);
+
+        JavaScriptSymbol symbol = JavaScriptValue.create(Optional.empty());
+        assertFalse(symbol.description().isPresent());
+        assertTrue(symbol.symbolDescriptiveString().toJavaString().equals("Symbol()"));
+
+        symbol = JavaScriptValue.create(Optional.of(JavaScriptString.create("foobar")));
+        assertTrue(symbol.description().isPresent());
+        assertTrue(symbol.description().get().toJavaString().equals("foobar"));
+        assertFalse(symbol.equalsTo(context, JavaScriptValue.create(Optional.of(JavaScriptString.create("foobar")))).get().booleanValue());
+
+        Optional<JavaScriptValue> exception = context.lastThrownException();
+        assertFalse(exception.isPresent());
+        Optional<JavaScriptString> shouldBeEmpty = symbol.toString(context);
+        assertFalse(shouldBeEmpty.isPresent());
+        exception = context.lastThrownException();
+        assertTrue(exception.isPresent());
+        assertEquals(exception.get().toString(context).get().toJavaString(), "TypeError: Cannot convert a Symbol value to a string");
+
+        JavaScriptSymbol symbol1 = JavaScriptSymbol.fromGlobalSymbolRegistry(vmInstance, JavaScriptString.create("foo"));
+        JavaScriptSymbol symbol2 = JavaScriptSymbol.fromGlobalSymbolRegistry(vmInstance, JavaScriptString.create("foo"));
+        assertTrue(symbol1.equalsTo(context, symbol2).get().booleanValue());
+
+        context.destroy();
+        vmInstance.destroy();
         Globals.finalizeGlobals();
     }
 }
