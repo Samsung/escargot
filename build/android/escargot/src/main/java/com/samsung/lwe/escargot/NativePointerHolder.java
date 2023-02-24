@@ -11,6 +11,5 @@ public abstract class NativePointerHolder {
     {
         destroy();
     }
-
     protected long m_nativePointer;
 }
