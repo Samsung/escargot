@@ -104,30 +104,31 @@ public class EscargotTest {
         Globals.initializeGlobals();
 
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
-        Context context = Context.create(vmInstance);
+        final Context context = Context.create(vmInstance);
 
         class TestBridge extends Bridge.Adapter {
             public boolean called = false;
             @Override
-            public Optional<String> callback(Optional<String> data) {
+            public Optional<JavaScriptValue> callback(Optional<JavaScriptValue> data) {
                 assertFalse(called);
-                assertTrue(data.get().equals("dddd"));
+                assertTrue(data.get().isString());
+                assertTrue(data.get().asScriptString().toJavaString().equals("dddd"));
                 called = true;
-                return Optional.of(data.get() + "ASdfasdfasdf");
+                return Optional.of(JavaScriptValue.create(data.get().asScriptString().toJavaString() + "ASdfasdfasdf"));
             }
         };
         TestBridge testBridge = new TestBridge();
         Bridge.register(context, "Native", "addString", testBridge);
         Bridge.register(context, "Native", "returnString", new Bridge.Adapter() {
             @Override
-            public Optional<String> callback(Optional<String> data) {
+            public Optional<JavaScriptValue> callback(Optional<JavaScriptValue> data) {
                 assertFalse(data.isPresent());
-                return Optional.of("string from java");
+                return Optional.of(JavaScriptValue.create("string from java"));
             }
         });
         Bridge.register(context, "Native", "returnNothing", new Bridge.Adapter() {
             @Override
-            public Optional<String> callback(Optional<String> data) {
+            public Optional<JavaScriptValue> callback(Optional<JavaScriptValue> data) {
                 return Optional.empty();
             }
         });
