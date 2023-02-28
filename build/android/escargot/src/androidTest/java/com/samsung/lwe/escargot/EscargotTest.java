@@ -79,8 +79,8 @@ public class EscargotTest {
         // test runtime error
         assertFalse(Evaluator.evalScript(context, "throw new Error()", "invalid", true).isPresent());
 
-        assertTrue(Evaluator.evalScript(context, "a = 1", "from_java.js", true).get().equals("1"));
-        assertTrue(Evaluator.evalScript(context, "a", "from_java2.js", true).get().equals("1"));
+        assertTrue(Evaluator.evalScript(context, "a = 1", "from_java.js", true).get().toString(context).get().toJavaString().equals("1"));
+        assertTrue(Evaluator.evalScript(context, "a", "from_java2.js", true).get().toString(context).get().toJavaString().equals("1"));
 
         Globals.finalizeGlobals();
     }
@@ -92,9 +92,9 @@ public class EscargotTest {
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
         Context context = Context.create(vmInstance);
 
-        assertTrue(Evaluator.evalScript(context, "a = new Date('2000/1/1')", "from_java3.js", true).get().contains("2000"));
+        assertTrue(Evaluator.evalScript(context, "a = new Date('2000/1/1')", "from_java3.js", true).get().toString(context).get().toJavaString().contains("2000"));
         assertTrue(Evaluator.evalScript(context,
-                "const koDtf = new Intl.DateTimeFormat(\"ko\", { dateStyle: \"long\" }); koDtf.format(a)", "from_java4.js", true).get().contains("2000"));
+                "const koDtf = new Intl.DateTimeFormat(\"ko\", { dateStyle: \"long\" }); koDtf.format(a)", "from_java4.js", true).get().toString(context).get().toJavaString().contains("2000"));
 
         Globals.finalizeGlobals();
     }
@@ -133,11 +133,11 @@ public class EscargotTest {
             }
         });
 
-        assertTrue(Evaluator.evalScript(context, "Native.addString('dddd')", "from_java5.js", true).get().equals("ddddASdfasdfasdf"));
+        assertTrue(Evaluator.evalScript(context, "Native.addString('dddd')", "from_java5.js", true).get().asScriptString().toJavaString().equals("ddddASdfasdfasdf"));
         assertTrue(testBridge.called);
 
-        assertTrue(Evaluator.evalScript(context, "Native.returnString()", "from_java6.js", true).get().equals("string from java"));
-        assertTrue(Evaluator.evalScript(context, "Native.returnNothing() === undefined", "from_java7.js", true).get().equals("true"));
+        assertTrue(Evaluator.evalScript(context, "Native.returnString()", "from_java6.js", true).get().asScriptString().toJavaString().equals("string from java"));
+        assertTrue(Evaluator.evalScript(context, "Native.returnNothing() === undefined", "from_java7.js", true).get().toString(context).get().toJavaString().equals("true"));
 
         context.destroy();
         vmInstance.destroy();

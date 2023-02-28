@@ -10,6 +10,7 @@ import com.samsung.lwe.escargot.Bridge;
 import com.samsung.lwe.escargot.Context;
 import com.samsung.lwe.escargot.Evaluator;
 import com.samsung.lwe.escargot.Globals;
+import com.samsung.lwe.escargot.JavaScriptValue;
 import com.samsung.lwe.escargot.Memory;
 import com.samsung.lwe.escargot.VMInstance;
 
@@ -68,7 +69,6 @@ public class MainActivity extends AppCompatActivity {
         // copy assets to internal storage (for copying js files which are used by test)
         copyAssets();
 
-        // TODO make TC & add CI
         Globals.initializeGlobals();
 
         Log.i("Escargot", Globals.buildDate());
@@ -78,50 +78,6 @@ public class MainActivity extends AppCompatActivity {
 
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.empty());
         Context context = Context.create(vmInstance);
-
-        Evaluator.evalScript(context, "a = 1", "from_java.js", true);
-        Evaluator.evalScript(context, "a", "from_java2.js", true);
-        Evaluator.evalScript(context, "a = new Date()", "from_java3.js", true);
-        Evaluator.evalScript(context, "const koDtf = new Intl.DateTimeFormat(\"ko\", { dateStyle: \"long\" }); print(koDtf.format(a))", "from_java4.js", true);
-
-        Bridge.register(context, "Native", "addString", new Bridge.Adapter() {
-
-            @Override
-            public Optional<String> callback(Optional<String> data) {
-                return Optional.of(data.get() + "ASdfasdfasdf");
-            }
-        });
-
-        Bridge.register(context, "Native", "returnString", new Bridge.Adapter() {
-
-            @Override
-            public Optional<String> callback(Optional<String> data) {
-                Log.i("Escargot", "empty parameter test->");
-                if (data.isPresent()) {
-                    Log.i("Escargot", "bad");
-                } else {
-                    Log.i("Escargot", "good");
-                }
-                return Optional.of("string from java");
-            }
-        });
-
-        Bridge.register(context, "Native", "returnNothing", new Bridge.Adapter() {
-
-            @Override
-            public Optional<String> callback(Optional<String> data) {
-                return Optional.empty();
-            }
-        });
-
-        Evaluator.evalScript(context, "Native.addString('dddd')", "from_java5.js", true);
-        Evaluator.evalScript(context, "Native.returnString()", "from_java6.js", true);
-        Evaluator.evalScript(context, "print('ret? expect undefined'); print(Native.returnNothing())", "from_java7.js", true);
-
-        context.destroy();
-        context.hasValidNativePointer(); // -> false
-        vmInstance.destroy();
-        vmInstance.hasValidNativePointer(); // -> false
 
         Globals.finalizeGlobals();
     }

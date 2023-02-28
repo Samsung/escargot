@@ -671,12 +671,10 @@ Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv* env, jclass clazz, jo
 
     jclass optionalClazz = env->FindClass("java/util/Optional");
     if (result.isSuccessful()) {
-        auto resultString = result.resultOrErrorToString(ptr->get());
-        jstring javaResultString = createJavaStringFromJS(env, resultString);
         return env->CallStaticObjectMethod(optionalClazz,
                                            env->GetStaticMethodID(optionalClazz, "of",
                                                                   "(Ljava/lang/Object;)Ljava/util/Optional;"),
-                                           javaResultString);
+                                           createJavaObjectFromValue(env, result.result));
     }
     return env->CallStaticObjectMethod(optionalClazz, env->GetStaticMethodID(optionalClazz, "empty",
                                                                              "()Ljava/util/Optional;"));
@@ -919,9 +917,7 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_create__Ljava_lang_String_2(JNIEnv
 
 static jobject createJavaObjectFromValue(JNIEnv* env, ValueRef* value)
 {
-    if (!value->isStoredInHeap()) {
-        return createJavaValueObject(env, env->FindClass("com/samsung/lwe/escargot/JavaScriptValue"), ValueRef::create(static_cast<bool>(value)));
-    } else if (value->isNumber()) {
+    if (!value->isStoredInHeap() || value->isNumber()) {
         return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptValue", value);
     } else if (value->isString()) {
         return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptString", value);
