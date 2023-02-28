@@ -1,6 +1,8 @@
 #include <jni.h>
 
 #include <EscargotPublic.h>
+#include <cassert>
+
 using namespace Escargot;
 
 #if defined(ANDROID)
@@ -1294,4 +1296,93 @@ Java_com_samsung_lwe_escargot_JavaScriptSymbol_fromGlobalSymbolRegistry(JNIEnv* 
 
     auto symbol = SymbolRef::fromGlobalSymbolRegistry(ptr->get(), key->asString());
     return createJavaObjectFromValue(env, symbol);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptObject_get(JNIEnv* env, jobject thiz, jobject context,
+                                                   jobject propertyName)
+{
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
+    ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
+        return thisValueRef->get(state, propertyNameValueRef);
+    }, thisValueRef, propertyNameValueRef);
+
+    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                         evaluatorResult);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptObject_set(JNIEnv* env, jobject thiz, jobject context,
+                                                   jobject propertyName, jobject value)
+{
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
+    ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+    ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
+
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef) -> ValueRef* {
+        return ValueRef::create(thisValueRef->set(state, propertyNameValueRef, valueRef));
+    }, thisValueRef, propertyNameValueRef, valueRef);
+
+    return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
+                                                                 evaluatorResult);
+}
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptObject_defineDataProperty(JNIEnv* env, jobject thiz,
+                                                                  jobject context,
+                                                                  jobject propertyName,
+                                                                  jobject value,
+                                                                  jboolean isWritable,
+                                                                  jboolean isEnumerable,
+                                                                  jboolean isConfigurable)
+{
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
+    ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+    ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
+
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef,
+                                                                    jboolean isWritable,
+                                                                    jboolean isEnumerable,
+                                                                    jboolean isConfigurable) -> ValueRef* {
+        return ValueRef::create(thisValueRef->defineDataProperty(state, propertyNameValueRef, valueRef, isWritable, isEnumerable, isConfigurable));
+    }, thisValueRef, propertyNameValueRef, valueRef, isWritable, isEnumerable, isConfigurable);
+
+    return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
+                                                         evaluatorResult);
+}
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptObject_getOwnProperty(JNIEnv* env, jobject thiz,
+                                                              jobject context,
+                                                              jobject propertyName)
+{
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
+    ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
+        return thisValueRef->getOwnProperty(state, propertyNameValueRef);
+    }, thisValueRef, propertyNameValueRef);
+
+    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                 evaluatorResult);
+}
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptObject_create(JNIEnv* env, jclass clazz, jobject context)
+{
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state) -> ValueRef* {
+        return ObjectRef::create(state);
+    });
+
+    assert(evaluatorResult.isSuccessful());
+    return createJavaObjectFromValue(env, evaluatorResult.result->asObject());
 }
