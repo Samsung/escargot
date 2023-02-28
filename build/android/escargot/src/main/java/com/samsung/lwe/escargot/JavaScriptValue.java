@@ -21,6 +21,7 @@ public class JavaScriptValue extends NativePointerHolder {
     native public boolean isInt32();
     native public boolean isString();
     native public boolean isSymbol();
+    native public boolean isObject();
 
     // as{ .. } methods don't check type is correct
     // if you want to use these as{ .. } methods
@@ -32,6 +33,11 @@ public class JavaScriptValue extends NativePointerHolder {
     native public JavaScriptSymbol asScriptSymbol();
 
     native public Optional<JavaScriptString> toString(Context context);
+    native public Optional<Boolean> toBoolean(Context context);
+    native public Optional<Double> toNumber(Context context);
+    native public Optional<Double> toInteger(Context context);
+    native public Optional<Integer> toInt32(Context context);
+    native public Optional<JavaScriptObject> toObject(Context context);
 
     native public Optional<Boolean> abstractEqualsTo(Context context, JavaScriptValue other); // ==
     native public Optional<Boolean> equalsTo(Context context, JavaScriptValue other); // ===

@@ -222,6 +222,29 @@ public class EscargotTest {
     }
 
     @Test
+    public void valueOperationTest() {
+        Globals.initializeGlobals();
+
+        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+        Context context = Context.create(vmInstance);
+
+        assertEquals(JavaScriptValue.create(123).toString(context).get().toJavaString(), "123");
+        assertEquals(JavaScriptValue.create(123).toBoolean(context).get(), true);
+        assertEquals(JavaScriptValue.create(0).toBoolean(context).get(), false);
+        assertEquals(JavaScriptValue.create(123.123).toInteger(context).get(), Double.valueOf(123.0));
+        assertEquals(JavaScriptValue.create(123.456).toInt32(context).get(), Integer.valueOf(123));
+        assertEquals(JavaScriptValue.create("123").toNumber(context).get(), Double.valueOf(123));
+        assertTrue(JavaScriptValue.create("123").toObject(context).get().isObject());
+        assertFalse(context.lastThrownException().isPresent());
+        assertFalse(JavaScriptValue.createUndefined().toObject(context).isPresent());
+        assertTrue(context.lastThrownException().isPresent());
+
+        context.destroy();
+        vmInstance.destroy();
+        Globals.finalizeGlobals();
+    }
+
+    @Test
     public void symbolValueTest() {
         Globals.initializeGlobals();
 
