@@ -276,4 +276,25 @@ public class EscargotTest {
         vmInstance.destroy();
         Globals.finalizeGlobals();
     }
+
+    @Test
+    public void objectCreateReadWriteTest() {
+        Globals.initializeGlobals();
+
+        VMInstance vmInstance = VMInstance.create(Optional.empty(), Optional.empty());
+        Context context = Context.create(vmInstance);
+
+        JavaScriptObject obj = JavaScriptObject.create(context);
+        assertTrue(obj.set(context, JavaScriptValue.create("asdf"), JavaScriptValue.create(123)).get().booleanValue());
+        assertTrue(obj.get(context, JavaScriptValue.create("asdf")).get().toNumber(context).get().doubleValue() == 123);
+
+        assertTrue(obj.defineDataProperty(context, JavaScriptValue.create("qwer"), JavaScriptValue.create(123), false, false, false).get().booleanValue());
+        assertFalse(obj.defineDataProperty(context, JavaScriptValue.create("qwer"), JavaScriptValue.create(456), false, true, true).get().booleanValue());
+
+        assertTrue(obj.getOwnProperty(context, JavaScriptValue.create("qwer")).get().toNumber(context).get().doubleValue() == 123);
+
+        context.destroy();
+        vmInstance.destroy();
+        Globals.finalizeGlobals();
+    }
 }

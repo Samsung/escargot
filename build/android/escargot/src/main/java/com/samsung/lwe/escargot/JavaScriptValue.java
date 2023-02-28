@@ -39,8 +39,27 @@ public class JavaScriptValue extends NativePointerHolder {
     native public Optional<Integer> toInt32(Context context);
     native public Optional<JavaScriptObject> toObject(Context context);
 
-    native public Optional<Boolean> abstractEqualsTo(Context context, JavaScriptValue other); // ==
-    native public Optional<Boolean> equalsTo(Context context, JavaScriptValue other); // ===
+    /**
+     * this == other
+     * @param context
+     * @param other
+     * @return
+     */
+    native public Optional<Boolean> abstractEqualsTo(Context context, JavaScriptValue other);
+    /**
+     * this === other
+     * @param context
+     * @param other
+     * @return
+     */
+    native public Optional<Boolean> equalsTo(Context context, JavaScriptValue other);
+
+    /**
+     *
+     * @param context
+     * @param other
+     * @return
+     */
     native public Optional<Boolean> instanceOf(Context context, JavaScriptValue other);
 
     native protected void releaseNativePointer();
