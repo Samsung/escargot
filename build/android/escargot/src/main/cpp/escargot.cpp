@@ -29,6 +29,8 @@ using namespace Escargot;
 
 static JavaVM* g_jvm;
 static size_t g_nonPointerValueLast = reinterpret_cast<size_t>(ValueRef::createUndefined());
+static jobject createJavaObjectFromValue(JNIEnv* env, ValueRef* value);
+static ValueRef* unwrapValueRefFromValue(JNIEnv* env, jclass clazz, jobject object);
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -728,7 +730,6 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
                                                                                   true, true, true);
                                              }
 
-                                             // AtomicStringRef* name, NativeFunctionPointer fn, size_t argc, bool isStrict = true, bool isConstructor = true
                                              FunctionObjectRef::NativeFunctionInfo info(
                                                      AtomicStringRef::emptyAtomicString(),
                                                      [](ExecutionStateRef* state,
@@ -748,16 +749,12 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
                                                          jclass optionalClazz = env->FindClass(
                                                                  "java/util/Optional");
                                                          if (argc) {
-                                                             auto buf = argv[0]->toString(
-                                                                     state)->toStdUTF8String();
-                                                             jstring javaString = env->NewStringUTF(
-                                                                     buf.data());
                                                              callbackArg = env->CallStaticObjectMethod(
                                                                      optionalClazz,
                                                                      env->GetStaticMethodID(
                                                                              optionalClazz, "of",
                                                                              "(Ljava/lang/Object;)Ljava/util/Optional;"),
-                                                                     javaString);
+                                                                     createJavaObjectFromValue(env.get(), argv[0]));
                                                          } else {
                                                              callbackArg = env->CallStaticObjectMethod(
                                                                      optionalClazz,
@@ -780,18 +777,12 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
                                                              auto methodGet = env->GetMethodID(
                                                                      optionalClazz, "get",
                                                                      "()Ljava/lang/Object;");
-                                                             jstring value = static_cast<jstring>(env->CallObjectMethod(
-                                                                     javaReturnValue, methodGet));
-
-                                                             jboolean isSucceed;
-                                                             const char* str = env->GetStringUTFChars(
-                                                                     value, &isSucceed);
-                                                             auto length = env->GetStringUTFLength(
+                                                             jobject value = env->CallObjectMethod(
+                                                                     javaReturnValue, methodGet);
+                                                             return unwrapValueRefFromValue(
+                                                                     env.get(),
+                                                                     env->GetObjectClass(value),
                                                                      value);
-                                                             auto ret = StringRef::createFromUTF8(
-                                                                     str, length);
-                                                             env->ReleaseStringUTFChars(value, str);
-                                                             return ret;
                                                          }
                                                          return ValueRef::createUndefined();
                                                      }, 1, true, false);
