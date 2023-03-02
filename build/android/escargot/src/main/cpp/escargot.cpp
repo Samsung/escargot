@@ -926,7 +926,11 @@ static jobject createJavaObjectFromValue(JNIEnv* env, ValueRef* value)
     } else if (value->isSymbol()) {
         return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptSymbol", value);
     } else if (value->isObject()) {
-        return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptObject", value);
+        if (value->isArrayObject()) {
+            return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptArrayObject", value);
+        } else {
+            return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptObject", value);
+        }
     } else {
         abort();
     }
@@ -1011,6 +1015,13 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_isObject(JNIEnv* env, jobject thiz
 
 extern "C"
 JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_isArrayObject(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isArrayObject();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_asBoolean(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asBoolean();
@@ -1040,6 +1051,21 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptString(JNIEnv* env, jobjec
 extern "C"
 JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptSymbol(JNIEnv* env, jobject thiz)
+{
+    return thiz;
+}
+
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptObject(JNIEnv* env, jobject thiz)
+{
+    return thiz;
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptArrayObject(JNIEnv* env, jobject thiz)
 {
     return thiz;
 }
@@ -1305,7 +1331,7 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_get(JNIEnv* env, jobject thiz, jo
 {
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
-    ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+    ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
 
     auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
         return thisValueRef->get(state, propertyNameValueRef);
@@ -1322,7 +1348,7 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_set(JNIEnv* env, jobject thiz, jo
 {
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
-    ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+    ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
     ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
 
     auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef) -> ValueRef* {
@@ -1344,7 +1370,7 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_defineDataProperty(JNIEnv* env, j
 {
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
-    ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+    ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
     ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
 
     auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef,
@@ -1365,7 +1391,7 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_getOwnProperty(JNIEnv* env, jobje
 {
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
-    ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+    ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
 
     auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
         return thisValueRef->getOwnProperty(state, propertyNameValueRef);
@@ -1385,4 +1411,33 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_create(JNIEnv* env, jclass clazz,
 
     assert(evaluatorResult.isSuccessful());
     return createJavaObjectFromValue(env, evaluatorResult.result->asObject());
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptArrayObject_create(JNIEnv* env, jclass clazz,
+                                                           jobject context)
+{
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state) -> ValueRef* {
+        return ArrayObjectRef::create(state);
+    });
+
+    assert(evaluatorResult.isSuccessful());
+    return createJavaObjectFromValue(env, evaluatorResult.result->asArrayObject());
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptArrayObject_length(JNIEnv* env, jobject thiz, jobject context)
+{
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    ArrayObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asArrayObject();
+    int64_t length = 0;
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ArrayObjectRef* thisValueRef, int64_t* pLength) -> ValueRef* {
+        *pLength = static_cast<int64_t>(thisValueRef->length(state));
+        return ValueRef::createUndefined();
+    }, thisValueRef, &length);
+
+    return length;
 }
