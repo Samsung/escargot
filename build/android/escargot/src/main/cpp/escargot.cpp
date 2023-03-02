@@ -928,6 +928,8 @@ static jobject createJavaObjectFromValue(JNIEnv* env, ValueRef* value)
     } else if (value->isObject()) {
         if (value->isArrayObject()) {
             return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptArrayObject", value);
+        } else if (value->isGlobalObject()) {
+            return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptGlobalObject", value);
         } else {
             return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptObject", value);
         }
@@ -1440,4 +1442,46 @@ Java_com_samsung_lwe_escargot_JavaScriptArrayObject_length(JNIEnv* env, jobject 
     }, thisValueRef, &length);
 
     return length;
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_Context_getGlobalObject(JNIEnv* env, jobject thiz)
+{
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(thiz), thiz);
+    return createJavaObjectFromValue(env, contextRef->get()->globalObject());
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_jsonStringify(JNIEnv* env, jobject thiz,
+                                                                   jobject context, jobject input)
+{
+    auto globalObjectRef = getPersistentPointerFromJava<GlobalObjectRef>(env, env->GetObjectClass(context), thiz);
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    ValueRef* inputValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(input), input);
+
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* inputValueRef) -> ValueRef* {
+        return globalObject->jsonStringify()->call(state, globalObject->json(), 1, &inputValueRef);
+    }, globalObjectRef->get(), inputValueRef);
+
+    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                 evaluatorResult);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_jsonParse(JNIEnv* env, jobject thiz,
+                                                               jobject context, jobject input)
+{
+    auto globalObjectRef = getPersistentPointerFromJava<GlobalObjectRef>(env, env->GetObjectClass(context), thiz);
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    ValueRef* inputValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(input), input);
+
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* inputValueRef) -> ValueRef* {
+        return globalObject->jsonParse()->call(state, globalObject->json(), 1, &inputValueRef);
+    }, globalObjectRef->get(), inputValueRef);
+
+    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                 evaluatorResult);
 }

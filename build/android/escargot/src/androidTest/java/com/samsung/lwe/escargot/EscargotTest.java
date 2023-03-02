@@ -315,4 +315,31 @@ public class EscargotTest {
         vmInstance.destroy();
         Globals.finalizeGlobals();
     }
+
+    @Test
+    public void jsonParseStringifyTest() {
+        Globals.initializeGlobals();
+
+        VMInstance vmInstance = VMInstance.create(Optional.empty(), Optional.empty());
+        Context context = Context.create(vmInstance);
+
+        String testString = "[1, 2, 3]";
+        JavaScriptValue result = context.getGlobalObject().jsonParse(context, JavaScriptValue.create(testString)).get();
+        assertTrue(result.isArrayObject());
+        assertEquals(result.asScriptArrayObject().get(context, JavaScriptValue.create(0)).get().toNumber(context).get().intValue(), 1);
+        assertEquals(result.asScriptArrayObject().get(context, JavaScriptValue.create(1)).get().toNumber(context).get().intValue(), 2);
+        assertEquals(result.asScriptArrayObject().get(context, JavaScriptValue.create(2)).get().toNumber(context).get().intValue(), 3);
+        assertEquals(result.asScriptArrayObject().length(context), 3);
+
+        testString = "{\"a\": \"asdf\"}";
+        result = context.getGlobalObject().jsonParse(context, JavaScriptValue.create(testString)).get();
+        assertTrue(result.isObject());
+        assertEquals(result.asScriptObject().get(context, JavaScriptValue.create("a")).get().asScriptString().toJavaString(), "asdf");
+        result.asScriptObject().set(context, JavaScriptValue.create(123), JavaScriptValue.create(456));
+        assertEquals(context.getGlobalObject().jsonStringify(context, result).get().toJavaString(), "{\"123\":456,\"a\":\"asdf\"}");
+
+        context.destroy();
+        vmInstance.destroy();
+        Globals.finalizeGlobals();
+    }
 }

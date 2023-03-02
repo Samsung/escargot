@@ -14,6 +14,7 @@ public class Context extends NativePointerHolder {
         m_lastThrownException = Optional.empty();
         return lastThrownException;
     }
+    public native JavaScriptGlobalObject getGlobalObject();
 
     native protected void releaseNativePointer();
     @Override
