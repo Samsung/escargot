@@ -123,6 +123,34 @@ task bundleHostJar(type: Jar) {
     rename("libescargot-jni.dylib", "libescargot-jni.so")
 }
 
+task sourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    archiveClassifier.set('sources')
+    archivesBaseName = "escargot"
+}
+
+task javadoc(type: Javadoc) {
+    source = android.sourceSets.main.java.sourceFiles
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    android.libraryVariants.all { variant ->
+        if (variant.name == 'release') {
+            owner.classpath += variant.javaCompileProvider.get().classpath
+        }
+    }
+    options.memberLevel = JavadocMemberLevel.PRIVATE
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    archiveClassifier.set('javadoc')
+    archivesBaseName = "escargot"
+    from javadoc.destinationDir
+}
+
+artifacts {
+    sourcesJar
+    javadocJar
+}
+
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.0'
     implementation 'com.google.android.material:material:1.7.0'
