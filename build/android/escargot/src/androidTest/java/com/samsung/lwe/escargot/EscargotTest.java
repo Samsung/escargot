@@ -297,4 +297,22 @@ public class EscargotTest {
         vmInstance.destroy();
         Globals.finalizeGlobals();
     }
+
+    @Test
+    public void arrayCreateReadWriteTest() {
+        Globals.initializeGlobals();
+
+        VMInstance vmInstance = VMInstance.create(Optional.empty(), Optional.empty());
+        Context context = Context.create(vmInstance);
+
+        JavaScriptArrayObject arr = JavaScriptArrayObject.create(context);
+        assertTrue(arr.set(context, JavaScriptValue.create(3), JavaScriptValue.create(123)).get().booleanValue());
+        assertTrue(arr.get(context, JavaScriptValue.create(3)).get().toNumber(context).get().doubleValue() == 123);
+        assertTrue(arr.get(context, JavaScriptValue.create("length")).get().toInt32(context).get().intValue() == 4);
+        assertTrue(arr.length(context) == 4);
+
+        context.destroy();
+        vmInstance.destroy();
+        Globals.finalizeGlobals();
+    }
 }
