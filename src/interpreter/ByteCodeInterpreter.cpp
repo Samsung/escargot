@@ -4412,22 +4412,24 @@ NEVER_INLINE int ByteCodeInterpreter::evaluateImportAssertionOperation(Execution
     ValueVectorWithInlineStorage nameList = Object::enumerableOwnProperties(state, assertObject, EnumerableOwnPropertiesType::Key);
     size_t nameListLength = nameList.size();
 
-    for (size_t i = 0; i < nameListLength; i++) {
-        Value key = nameList[i];
+    if (nameListLength) {
+        for (size_t i = 0; i < nameListLength; i++) {
+            Value key = nameList[i];
 
-        // The key / value pair must be evaluated before their content is checked
-        ObjectGetResult result = assertObject->get(state, ObjectPropertyName(state, key));
-        Value resultValue = result.hasValue() ? result.value(state, options) : Value();
+            // The key / value pair must be evaluated before their content is checked
+            ObjectGetResult result = assertObject->get(state, ObjectPropertyName(state, key));
+            Value resultValue = result.hasValue() ? result.value(state, options) : Value();
 
-        // Currently only "type" is supported
-        if (!key.isString() || !key.asString()->equals("type")) {
-            String* asString = key.toStringWithoutException(state);
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, asString, false, String::emptyString, "unsupported import assertion key: %s");
-        }
+            // Currently only "type" is supported
+            if (!key.isString() || !key.asString()->equals("type")) {
+                String* asString = key.toStringWithoutException(state);
+                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, asString, false, String::emptyString, "unsupported import assertion key: %s");
+            }
 
-        if (!resultValue.isString() || !resultValue.asString()->equals("json")) {
-            String* asString = resultValue.toStringWithoutException(state);
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, asString, false, String::emptyString, "unsupported import assertion type: %s");
+            if (!resultValue.isString() || !resultValue.asString()->equals("json")) {
+                String* asString = resultValue.toStringWithoutException(state);
+                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, asString, false, String::emptyString, "unsupported import assertion type: %s");
+            }
         }
 
         return Platform::ModuleJSON;

@@ -208,10 +208,10 @@ void* VMInstance::operator new(size_t size)
 
 void vmMarkStartCallback(void* data)
 {
-    VMInstance* self = (VMInstance*)data;
-
 #if !defined(ESCARGOT_DEBUGGER)
     // in debugger mode, do not remove ByteCodeBlock
+    VMInstance* self = (VMInstance*)data;
+
     if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX || UNLIKELY(self->inIdleMode())) {
         self->m_regexpCache->clear();
     }
