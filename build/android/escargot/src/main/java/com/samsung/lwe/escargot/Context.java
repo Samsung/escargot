@@ -3,6 +3,10 @@ package com.samsung.lwe.escargot;
 import java.util.Optional;
 
 public class Context extends NativePointerHolder {
+    protected Context(long nativePointer)
+    {
+        super(nativePointer);
+    }
     public native static Context create(VMInstance vmInstance);
     public boolean exceptionWasThrown()
     {
@@ -15,12 +19,6 @@ public class Context extends NativePointerHolder {
         return lastThrownException;
     }
     public native JavaScriptGlobalObject getGlobalObject();
-
-    native protected void releaseNativePointer();
-    @Override
-    public void destroy() {
-        releaseNativePointer();
-    }
 
     protected Optional<JavaScriptValue> m_lastThrownException = Optional.empty();
 }

@@ -10,7 +10,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 @RunWith(AndroidJUnit4.class)
 public class EscargotTest {
@@ -18,14 +17,15 @@ public class EscargotTest {
     public void initTest() {
         Globals.initializeGlobals();
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
-        assertTrue(vmInstance.hasValidNativePointer());
         Context context = Context.create(vmInstance);
-        assertTrue(context.hasValidNativePointer());
 
-        context.destroy();
-        assertFalse(context.hasValidNativePointer());
-        vmInstance.destroy();
-        assertFalse(vmInstance.hasValidNativePointer());
+        for (int i = 0; i < 300000; i ++) {
+            // alloc many trach objects for testing memory management
+            JavaScriptValue.create("asdf");
+        }
+
+        context = null;
+        vmInstance = null;
         Globals.finalizeGlobals();
     }
 
@@ -70,9 +70,7 @@ public class EscargotTest {
         Globals.initializeGlobals();
 
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
-        assertTrue(vmInstance.hasValidNativePointer());
         Context context = Context.create(vmInstance);
-        assertTrue(context.hasValidNativePointer());
 
         // test script parsing error
         assertFalse(Evaluator.evalScript(context, "@@", "invalid", true).isPresent());
@@ -82,6 +80,8 @@ public class EscargotTest {
         assertTrue(Evaluator.evalScript(context, "a = 1", "from_java.js", true).get().toString(context).get().toJavaString().equals("1"));
         assertTrue(Evaluator.evalScript(context, "a", "from_java2.js", true).get().toString(context).get().toJavaString().equals("1"));
 
+        context = null;
+        vmInstance = null;
         Globals.finalizeGlobals();
     }
 
@@ -96,6 +96,8 @@ public class EscargotTest {
         assertTrue(Evaluator.evalScript(context,
                 "const koDtf = new Intl.DateTimeFormat(\"ko\", { dateStyle: \"long\" }); koDtf.format(a)", "from_java4.js", true).get().toString(context).get().toJavaString().contains("2000"));
 
+        context = null;
+        vmInstance = null;
         Globals.finalizeGlobals();
     }
 
@@ -104,7 +106,7 @@ public class EscargotTest {
         Globals.initializeGlobals();
 
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
-        final Context context = Context.create(vmInstance);
+        Context context = Context.create(vmInstance);
 
         class TestBridge extends Bridge.Adapter {
             public boolean called = false;
@@ -139,8 +141,8 @@ public class EscargotTest {
         assertTrue(Evaluator.evalScript(context, "Native.returnString()", "from_java6.js", true).get().asScriptString().toJavaString().equals("string from java"));
         assertTrue(Evaluator.evalScript(context, "Native.returnNothing() === undefined", "from_java7.js", true).get().toString(context).get().toJavaString().equals("true"));
 
-        context.destroy();
-        vmInstance.destroy();
+        context = null;
+        vmInstance = null;
         Globals.finalizeGlobals();
     }
 
@@ -216,8 +218,8 @@ public class EscargotTest {
         assertTrue(result.isPresent());
         assertEquals(result.get().toJavaString(), Integer.MAX_VALUE+"");
 
-        context.destroy();
-        vmInstance.destroy();
+        context = null;
+        vmInstance = null;
         Globals.finalizeGlobals();
     }
 
@@ -239,8 +241,8 @@ public class EscargotTest {
         assertFalse(JavaScriptValue.createUndefined().toObject(context).isPresent());
         assertTrue(context.lastThrownException().isPresent());
 
-        context.destroy();
-        vmInstance.destroy();
+        context = null;
+        vmInstance = null;
         Globals.finalizeGlobals();
     }
 
@@ -272,8 +274,8 @@ public class EscargotTest {
         JavaScriptSymbol symbol2 = JavaScriptSymbol.fromGlobalSymbolRegistry(vmInstance, JavaScriptString.create("foo"));
         assertTrue(symbol1.equalsTo(context, symbol2).get().booleanValue());
 
-        context.destroy();
-        vmInstance.destroy();
+        context = null;
+        vmInstance = null;
         Globals.finalizeGlobals();
     }
 
@@ -293,8 +295,8 @@ public class EscargotTest {
 
         assertTrue(obj.getOwnProperty(context, JavaScriptValue.create("qwer")).get().toNumber(context).get().doubleValue() == 123);
 
-        context.destroy();
-        vmInstance.destroy();
+        context = null;
+        vmInstance = null;
         Globals.finalizeGlobals();
     }
 
@@ -311,8 +313,8 @@ public class EscargotTest {
         assertTrue(arr.get(context, JavaScriptValue.create("length")).get().toInt32(context).get().intValue() == 4);
         assertTrue(arr.length(context) == 4);
 
-        context.destroy();
-        vmInstance.destroy();
+        context = null;
+        vmInstance = null;
         Globals.finalizeGlobals();
     }
 
@@ -338,8 +340,9 @@ public class EscargotTest {
         result.asScriptObject().set(context, JavaScriptValue.create(123), JavaScriptValue.create(456));
         assertEquals(context.getGlobalObject().jsonStringify(context, result).get().toJavaString(), "{\"123\":456,\"a\":\"asdf\"}");
 
-        context.destroy();
-        vmInstance.destroy();
+        context = null;
+        vmInstance = null;
         Globals.finalizeGlobals();
     }
+
 }
