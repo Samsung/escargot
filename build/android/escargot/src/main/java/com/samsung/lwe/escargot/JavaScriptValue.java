@@ -3,6 +3,11 @@ package com.samsung.lwe.escargot;
 import java.util.Optional;
 
 public class JavaScriptValue extends NativePointerHolder {
+    protected JavaScriptValue(long nativePointer)
+    {
+        super(nativePointer);
+    }
+
     native static public JavaScriptValue createUndefined();
     native static public JavaScriptValue createNull();
     native static public JavaScriptValue create(boolean value);
@@ -64,10 +69,4 @@ public class JavaScriptValue extends NativePointerHolder {
      * @return
      */
     native public Optional<Boolean> instanceOf(Context context, JavaScriptValue other);
-
-    native protected void releaseNativePointer();
-    @Override
-    public void destroy() {
-        releaseNativePointer();
-    }
 }

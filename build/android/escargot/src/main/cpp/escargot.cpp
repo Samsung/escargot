@@ -33,13 +33,32 @@ static JavaVM* g_jvm;
 static size_t g_nonPointerValueLast = reinterpret_cast<size_t>(ValueRef::createUndefined());
 static jobject createJavaObjectFromValue(JNIEnv* env, ValueRef* value);
 static ValueRef* unwrapValueRefFromValue(JNIEnv* env, jclass clazz, jobject object);
+static OptionalRef<JNIEnv> fetchJNIEnvFromCallback()
+{
+    JNIEnv* env = nullptr;
+    if (g_jvm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) == JNI_EDETACHED) {
+#if defined(_JAVASOFT_JNI_H_) // oraclejdk or openjdk
+        if (g_jvm->AttachCurrentThread(reinterpret_cast<void **>(&env), NULL) != 0) {
+#else
+        if (g_jvm->AttachCurrentThread(reinterpret_cast<JNIEnv **>(&env), NULL) != 0) {
+#endif
+            // give up
+            return nullptr;
+        }
+    }
+    return env;
+}
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_samsung_lwe_escargot_Escargot_init(JNIEnv* env, jclass clazz)
 {
-    if (!g_jvm) {
-        env->GetJavaVM(&g_jvm);
+    thread_local static bool inited = false;
+    if (!inited) {
+        if (!g_jvm) {
+            env->GetJavaVM(&g_jvm);
+        }
+        inited = true;
     }
 }
 
@@ -463,15 +482,44 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
 
 extern "C"
 JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_NativePointerHolder_releaseNativePointerMemory(JNIEnv* env,
+                                                                             jclass clazz,
+                                                                             jlong pointer)
+{
+    if (pointer > g_nonPointerValueLast && !(pointer & 1)) {
+        auto ptr = reinterpret_cast<PersistentRefHolder<void*>*>(pointer);
+        delete ptr;
+    }
+}
+
+static void gcCallback(void* data)
+{
+    auto env = fetchJNIEnvFromCallback();
+    if (!env) {
+        LOGE("failed to fetch env from gc event callback");
+        return;
+    }
+    jclass clazz = env->FindClass("com/samsung/lwe/escargot/NativePointerHolder");
+    jmethodID mId = env->GetStaticMethodID(clazz, "cleanUp", "()V");
+    env->CallStaticVoidMethod(clazz, mId);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
 Java_com_samsung_lwe_escargot_Globals_initializeGlobals(JNIEnv* env, jclass clazz)
 {
     Globals::initialize(new ShellPlatform());
+    Memory::addGCEventListener(Memory::MARK_START, gcCallback, nullptr);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_samsung_lwe_escargot_Globals_finalizeGlobals(JNIEnv* env, jclass clazz)
 {
+    // java object cleanup
+    gcCallback(nullptr);
+
+    Memory::removeGCEventListener(Memory::MARK_START, gcCallback, nullptr);
     Globals::finalize();
 }
 
@@ -586,13 +634,6 @@ static void setNativePointerToJava(JNIEnv *env, jclass clazz, jobject object, Na
     env->SetLongField(object, env->GetFieldID(clazz, "m_nativePointer", "J"), reinterpret_cast<jlong>(ptr));
 }
 
-template<typename NativeType>
-static void setPersistentPointerToJava(JNIEnv *env, jclass clazz, jobject object, PersistentRefHolder<NativeType>&& ptr)
-{
-    PersistentRefHolder<NativeType>* pRef = new PersistentRefHolder<NativeType>(std::move(ptr));
-    setNativePointerToJava(env, clazz, object, pRef);
-}
-
 extern "C"
 JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_VMInstance_create(JNIEnv *env, jclass clazz, jobject locale,
@@ -603,18 +644,8 @@ Java_com_samsung_lwe_escargot_VMInstance_create(JNIEnv *env, jclass clazz, jobje
 
     auto vmRef = VMInstanceRef::create(localeString.length() ? localeString.data() : nullptr,
                                        timezoneString.length() ? timezoneString.data() : nullptr);
-    auto vmObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "()V"));
-    setPersistentPointerToJava<VMInstanceRef>(env, clazz, vmObject, std::move(vmRef));
-    return vmObject;
-}
-
-extern "C"
-JNIEXPORT void JNICALL
-Java_com_samsung_lwe_escargot_VMInstance_releaseNativePointer(JNIEnv* env, jobject thiz)
-{
-    auto ptr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(thiz), thiz);
-    delete ptr;
-    setNativePointerToJava<VMInstanceRef>(env, env->GetObjectClass(thiz), thiz, nullptr);
+    PersistentRefHolder<VMInstanceRef>* pRef = new PersistentRefHolder<VMInstanceRef>(std::move(vmRef));
+    return env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(J)V"), reinterpret_cast<jlong>(pRef));
 }
 
 extern "C"
@@ -624,18 +655,8 @@ Java_com_samsung_lwe_escargot_Context_create(JNIEnv* env, jclass clazz, jobject 
     auto vmPtr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(vmInstance),
                                                              vmInstance);
     auto contextRef = createEscargotContext(vmPtr->get());
-
-    auto contextObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "()V"));
-    setPersistentPointerToJava<ContextRef>(env, clazz, contextObject, std::move(contextRef));
-    return contextObject;
-}
-extern "C"
-JNIEXPORT void JNICALL
-Java_com_samsung_lwe_escargot_Context_releaseNativePointer(JNIEnv* env, jobject thiz)
-{
-    auto ptr = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(thiz), thiz);
-    delete ptr;
-    setNativePointerToJava<ContextRef>(env, env->GetObjectClass(thiz), thiz, nullptr);
+    PersistentRefHolder<ContextRef>* pRef = new PersistentRefHolder<ContextRef>(std::move(contextRef));
+    return env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(J)V"), reinterpret_cast<jlong>(pRef));
 }
 
 static StringRef* createJSStringFromJava(JNIEnv* env, jstring str)
@@ -680,22 +701,6 @@ Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv* env, jclass clazz, jo
     }
     return env->CallStaticObjectMethod(optionalClazz, env->GetStaticMethodID(optionalClazz, "empty",
                                                                              "()Ljava/util/Optional;"));
-}
-
-static OptionalRef<JNIEnv> fetchJNIEnvFromCallback()
-{
-    JNIEnv* env = nullptr;
-    if (g_jvm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) == JNI_EDETACHED) {
-#if defined(_JAVASOFT_JNI_H_) // oraclejdk or openjdk
-        if (g_jvm->AttachCurrentThread(reinterpret_cast<void **>(&env), NULL) != 0) {
-#else
-        if (g_jvm->AttachCurrentThread(reinterpret_cast<JNIEnv **>(&env), NULL) != 0) {
-#endif
-            // give up
-            return nullptr;
-        }
-    }
-    return env;
 }
 
 extern "C"
@@ -813,12 +818,12 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
 
 static jobject createJavaValueObject(JNIEnv* env, jclass clazz, ValueRef* value)
 {
-    auto valueObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "()V"));
+    jobject valueObject;
     if (!value->isStoredInHeap()) {
-        setNativePointerToJava<ValueRef>(env, clazz, valueObject, value);
+        valueObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(J)V"), value);
     } else {
-        setPersistentPointerToJava<ValueRef>(env, clazz, valueObject,
-                                             std::move(PersistentRefHolder<ValueRef>(value)));
+        PersistentRefHolder<ValueRef>* pRef = new PersistentRefHolder<ValueRef>(value);
+        valueObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(J)V"), pRef);
     }
     return valueObject;
 }
@@ -837,22 +842,6 @@ static ValueRef* unwrapValueRefFromValue(JNIEnv* env, jclass clazz, jobject obje
         PersistentRefHolder<ValueRef>* ref = reinterpret_cast<PersistentRefHolder<ValueRef>*>(ptr);
         return ref->get();
     }
-}
-
-extern "C"
-JNIEXPORT void JNICALL
-Java_com_samsung_lwe_escargot_JavaScriptValue_releaseNativePointer(JNIEnv* env, jobject thiz)
-{
-    ValueRef* ref = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
-
-    auto ptr = env->GetLongField(thiz, env->GetFieldID(env->GetObjectClass(thiz), "m_nativePointer",
-                                                       "J"));
-    if (static_cast<size_t>(ptr) > g_nonPointerValueLast && ref->isStoredInHeap()) {
-        PersistentRefHolder<ValueRef>* ref = reinterpret_cast<PersistentRefHolder<ValueRef>*>(ptr);
-        delete ref;
-    }
-
-    setNativePointerToJava<VMInstanceRef>(env, env->GetObjectClass(thiz), thiz, nullptr);
 }
 
 extern "C"
@@ -1485,3 +1474,4 @@ Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_jsonParse(JNIEnv* env, jobj
     return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
                                                                  evaluatorResult);
 }
+

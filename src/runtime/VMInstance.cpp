@@ -313,14 +313,20 @@ VMInstance::~VMInstance()
         Optional<GCEventListenerSet::EventListenerVector*> msListeners = list.markStartListeners();
         ASSERT(msListeners.hasValue());
         auto iter = std::find(msListeners->begin(), msListeners->end(), std::make_pair(vmMarkStartCallback, static_cast<void*>(this)));
-        ASSERT(iter != msListeners->end());
-        msListeners->erase(iter);
+        // the pointer could pointer end
+        // because ThreadLocal can be differ regard to multiple init-deinit
+        if (iter != msListeners->end()) {
+            msListeners->erase(iter);
+        }
 
         Optional<GCEventListenerSet::EventListenerVector*> reListeners = list.reclaimEndListeners();
         ASSERT(reListeners.hasValue());
         iter = std::find(reListeners->begin(), reListeners->end(), std::make_pair(vmReclaimEndCallback, static_cast<void*>(this)));
-        ASSERT(iter != reListeners->end());
-        reListeners->erase(iter);
+        // the pointer could pointer end
+        // because ThreadLocal can be differ regard to multiple init-deinit
+        if (iter != reListeners->end()) {
+            reListeners->erase(iter);
+        }
     }
 
     if (m_onVMInstanceDestroy) {

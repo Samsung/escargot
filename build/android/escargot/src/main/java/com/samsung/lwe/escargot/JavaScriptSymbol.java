@@ -3,6 +3,10 @@ package com.samsung.lwe.escargot;
 import java.util.Optional;
 
 public class JavaScriptSymbol extends JavaScriptValue {
+    protected JavaScriptSymbol(long nativePointer)
+    {
+        super(nativePointer);
+    }
     native public Optional<JavaScriptString> description();
     native public JavaScriptString symbolDescriptiveString();
 
