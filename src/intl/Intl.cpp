@@ -1130,8 +1130,9 @@ Intl::CanonicalizedLangunageTag Intl::canonicalizeLanguageTag(const std::string&
 
         ++currentIndex;
 
-        bool unicodeExtensionIgnored = false;
         if (singletonValue.key == 'u') {
+            bool unicodeExtensionIgnored = false;
+
             // "u" needs ordered key, value
             // "u" doesn't allow single "true" as value
 

@@ -245,9 +245,9 @@ TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState&
 
     try {
         bool end = false;
-        bool monthDay = false;
         if (isoString.at(index) != 'T' && isoString.find('-') != std::string::npos) {
             // Date
+            bool monthDay = false;
             if (isoString.rfind("−", index) == 0 && TemporalObject::isNumber(isoString.substr(3 + index, 4))) {
                 dateTime.year = std::stoi("-" + isoString.substr(3 + index, 4));
                 index += 7;
