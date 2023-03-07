@@ -26,6 +26,7 @@ public class JavaScriptValue extends NativePointerHolder {
     native public boolean isInt32();
     native public boolean isString();
     native public boolean isSymbol();
+    native public boolean isCallable();
     native public boolean isObject();
     native public boolean isArrayObject();
 
@@ -69,4 +70,13 @@ public class JavaScriptValue extends NativePointerHolder {
      * @return
      */
     native public Optional<Boolean> instanceOf(Context context, JavaScriptValue other);
+
+    /**
+     *
+     * @param context
+     * @param receiver
+     * @param argv
+     * @return
+     */
+    native public Optional<JavaScriptValue> call(Context context, JavaScriptValue receiver, JavaScriptValue[] argv);
 }

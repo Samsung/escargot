@@ -251,12 +251,26 @@ public class EscargotTest {
         Globals.finalizeGlobals();
     }
 
+    private Context initEngineAndCreateContext()
+    {
+        Globals.initializeGlobals();
+        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+        return Context.create(vmInstance);
+    }
+
+    private void finalizeEngine()
+    {
+        System.gc();
+        System.gc();
+        System.gc();
+        Memory.gc();
+        Memory.gc();
+        Globals.finalizeGlobals();
+    }
+
     @Test
     public void bridgeTest() {
-        Globals.initializeGlobals();
-
-        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
-        Context context = Context.create(vmInstance);
+        Context context = initEngineAndCreateContext();
 
         class TestBridge extends Bridge.Adapter {
             public boolean called = false;
@@ -292,13 +306,12 @@ public class EscargotTest {
         assertTrue(Evaluator.evalScript(context, "Native.returnNothing() === undefined", "from_java7.js", true).get().toString(context).get().toJavaString().equals("true"));
 
         context = null;
-        vmInstance = null;
-        Globals.finalizeGlobals();
+        finalizeEngine();
     }
 
     @Test
     public void nonHeapValueTest() {
-        Globals.initializeGlobals();
+        Context context = initEngineAndCreateContext();
 
         JavaScriptValue v = JavaScriptValue.createUndefined();
         assertTrue(v.isUndefined());
@@ -330,12 +343,13 @@ public class EscargotTest {
         assertFalse(v.isInt32());
         assertFalse(v.isUndefined());
 
-        Globals.finalizeGlobals();
+        context = null;
+        finalizeEngine();
     }
 
     @Test
     public void heapValueTest() {
-        Globals.initializeGlobals();
+        Context context = initEngineAndCreateContext();
 
         JavaScriptValue v = JavaScriptValue.create(3.14);
         assertTrue(v.isNumber());
@@ -348,15 +362,13 @@ public class EscargotTest {
         assertFalse(v.isNumber());
         assertFalse(v.isUndefinedOrNull());
 
-        Globals.finalizeGlobals();
+        context = null;
+        finalizeEngine();
     }
 
     @Test
     public void valueToStringTest() {
-        Globals.initializeGlobals();
-
-        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
-        Context context = Context.create(vmInstance);
+        Context context = initEngineAndCreateContext();
 
         Optional<JavaScriptString> result = JavaScriptValue.create(123).toString(context);
         assertTrue(result.isPresent());
@@ -369,16 +381,12 @@ public class EscargotTest {
         assertEquals(result.get().toJavaString(), Integer.MAX_VALUE+"");
 
         context = null;
-        vmInstance = null;
-        Globals.finalizeGlobals();
+        finalizeEngine();
     }
 
     @Test
     public void valueOperationTest() {
-        Globals.initializeGlobals();
-
-        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
-        Context context = Context.create(vmInstance);
+        Context context = initEngineAndCreateContext();
 
         assertEquals(JavaScriptValue.create(123).toString(context).get().toJavaString(), "123");
         assertEquals(JavaScriptValue.create(123).toBoolean(context).get(), true);
@@ -392,15 +400,13 @@ public class EscargotTest {
         assertTrue(context.lastThrownException().isPresent());
 
         context = null;
-        vmInstance = null;
-        Globals.finalizeGlobals();
+        finalizeEngine();
     }
 
     @Test
     public void symbolValueTest() {
         Globals.initializeGlobals();
-
-        VMInstance vmInstance = VMInstance.create(Optional.empty(), Optional.empty());
+        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
         Context context = Context.create(vmInstance);
 
         JavaScriptSymbol symbol = JavaScriptValue.create(Optional.empty());
@@ -425,16 +431,12 @@ public class EscargotTest {
         assertTrue(symbol1.equalsTo(context, symbol2).get().booleanValue());
 
         context = null;
-        vmInstance = null;
-        Globals.finalizeGlobals();
+        finalizeEngine();
     }
 
     @Test
     public void objectCreateReadWriteTest() {
-        Globals.initializeGlobals();
-
-        VMInstance vmInstance = VMInstance.create(Optional.empty(), Optional.empty());
-        Context context = Context.create(vmInstance);
+        Context context = initEngineAndCreateContext();
 
         JavaScriptObject obj = JavaScriptObject.create(context);
         assertTrue(obj.set(context, JavaScriptValue.create("asdf"), JavaScriptValue.create(123)).get().booleanValue());
@@ -446,16 +448,12 @@ public class EscargotTest {
         assertTrue(obj.getOwnProperty(context, JavaScriptValue.create("qwer")).get().toNumber(context).get().doubleValue() == 123);
 
         context = null;
-        vmInstance = null;
-        Globals.finalizeGlobals();
+        finalizeEngine();
     }
 
     @Test
     public void arrayCreateReadWriteTest() {
-        Globals.initializeGlobals();
-
-        VMInstance vmInstance = VMInstance.create(Optional.empty(), Optional.empty());
-        Context context = Context.create(vmInstance);
+        Context context = initEngineAndCreateContext();
 
         JavaScriptArrayObject arr = JavaScriptArrayObject.create(context);
         assertTrue(arr.set(context, JavaScriptValue.create(3), JavaScriptValue.create(123)).get().booleanValue());
@@ -464,16 +462,12 @@ public class EscargotTest {
         assertTrue(arr.length(context) == 4);
 
         context = null;
-        vmInstance = null;
-        Globals.finalizeGlobals();
+        finalizeEngine();
     }
 
     @Test
     public void jsonParseStringifyTest() {
-        Globals.initializeGlobals();
-
-        VMInstance vmInstance = VMInstance.create(Optional.empty(), Optional.empty());
-        Context context = Context.create(vmInstance);
+        Context context = initEngineAndCreateContext();
 
         String testString = "[1, 2, 3]";
         JavaScriptValue result = context.getGlobalObject().jsonParse(context, JavaScriptValue.create(testString)).get();
@@ -491,8 +485,42 @@ public class EscargotTest {
         assertEquals(context.getGlobalObject().jsonStringify(context, result).get().toJavaString(), "{\"123\":456,\"a\":\"asdf\"}");
 
         context = null;
-        vmInstance = null;
-        Globals.finalizeGlobals();
+        finalizeEngine();
     }
 
+    @Test
+    public void testCallableAndCall() {
+        Context context = initEngineAndCreateContext();
+
+        JavaScriptValue value = JavaScriptString.create(1123);
+        assertFalse(value.isCallable());
+        value = JavaScriptString.create("1123");
+        assertFalse(value.isCallable());
+        value = JavaScriptString.create(Optional.of(JavaScriptString.create("asdf")));
+        assertFalse(value.isCallable());
+        value = JavaScriptObject.create(context);
+        assertFalse(value.isCallable());
+        value = JavaScriptArrayObject.create(context);
+        assertFalse(value.isCallable());
+
+        assertFalse(context.lastThrownException().isPresent());
+        value.call(context, JavaScriptValue.createUndefined(), new JavaScriptValue[]{});
+        assertTrue(context.lastThrownException().isPresent());
+
+        value = context.getGlobalObject().asScriptObject().get(context, JavaScriptValue.create("Array")).get();
+        assertTrue(value.isCallable());
+
+        value = value.call(context, JavaScriptString.createUndefined(), new JavaScriptValue[]{
+           JavaScriptValue.create(1), JavaScriptValue.create(2), JavaScriptValue.create(3)
+        }).get();
+
+        assertTrue(value.isArrayObject());
+        assertEquals(value.asScriptArrayObject().length(context), 3);
+        assertEquals(value.asScriptArrayObject().get(context, JavaScriptValue.create(0)).get().asInt32(), 1);
+        assertEquals(value.asScriptArrayObject().get(context, JavaScriptValue.create(1)).get().asInt32(), 2);
+        assertEquals(value.asScriptArrayObject().get(context, JavaScriptValue.create(2)).get().asInt32(), 3);
+
+        context = null;
+        finalizeEngine();
+    }
 }
