@@ -28,6 +28,8 @@ namespace Escargot {
 
 void Heap::initialize()
 {
+    // disable data area searching in bdwgc
+    GC_set_no_dls(1);
     GC_init();
     RELEASE_ASSERT(GC_get_all_interior_pointers() == 0);
 

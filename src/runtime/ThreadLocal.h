@@ -104,6 +104,10 @@ class ThreadLocal {
 public:
     static void initialize();
     static void finalize();
+    static bool isInited()
+    {
+        return inited;
+    }
 
     // Global data getter
     static std::mt19937& randEngine()

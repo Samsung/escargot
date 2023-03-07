@@ -10,4 +10,13 @@ public class VMInstance extends NativePointerHolder {
     // you can to provide timezone as TZ database name like "US/Pacific".
     // if you don't provide, we try to detect system timezone.
     public native static VMInstance create(Optional<String> locale, Optional<String> timezone);
+
+    public native boolean hasPendingJob();
+    public native void executePendingJob();
+    public void executeEveryPendingJobIfExists()
+    {
+        while (hasPendingJob()) {
+            executePendingJob();
+        }
+    }
 }
