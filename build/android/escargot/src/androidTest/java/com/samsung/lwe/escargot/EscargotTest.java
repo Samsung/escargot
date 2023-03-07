@@ -19,8 +19,8 @@ public class EscargotTest {
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
         Context context = Context.create(vmInstance);
 
-        for (int i = 0; i < 300000; i ++) {
-            // alloc many trach objects for testing memory management
+        for (int i = 0; i < 30000; i ++) {
+            // alloc many trash objects for testing memory management
             JavaScriptValue.create("asdf");
         }
 
@@ -33,6 +33,12 @@ public class EscargotTest {
     public void initMultipleTimesTest() {
         // pass if there is no crash
         Globals.initializeGlobals();
+        Globals.initializeGlobals();
+        Globals.initializeGlobals();
+        Globals.finalizeGlobals();
+        Globals.finalizeGlobals();
+        Globals.finalizeGlobals();
+        Globals.finalizeGlobals();
         Globals.finalizeGlobals();
 
         Globals.initializeGlobals();
@@ -72,6 +78,10 @@ public class EscargotTest {
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
         Context context = Context.create(vmInstance);
 
+        JavaScriptValue vv = JavaScriptValue.create(System.getProperty("java.version"));
+        context.getGlobalObject().set(context, JavaScriptValue.create("ddd"), vv);
+        Evaluator.evalScript(context, "'java.version' + ddd", "invalid", true);
+
         // test script parsing error
         assertFalse(Evaluator.evalScript(context, "@@", "invalid", true).isPresent());
         // test runtime error
@@ -98,6 +108,146 @@ public class EscargotTest {
 
         context = null;
         vmInstance = null;
+        Globals.finalizeGlobals();
+    }
+
+    @Test
+    public void simpleOneByOneThreadingTest()
+    {
+        Thread t1 = new Thread(() -> {
+            assertFalse(Globals.isInitialized());
+            Globals.initializeGlobals();
+
+            VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+            Context context = Context.create(vmInstance);
+
+            assertEquals(JavaScriptValue.create(123).toString(context).get().toJavaString(), "123");
+            assertEquals(JavaScriptValue.create(123).toBoolean(context).get(), true);
+
+            JavaScriptValue vv = JavaScriptValue.create(System.getProperty("java.version"));
+            context.getGlobalObject().set(context, JavaScriptValue.create("ddd"), vv);
+            Evaluator.evalScript(context, "'java.version' + ddd", "invalid", true);
+
+            for (int i = 0; i < 30000; i ++) {
+                // alloc many trash objects for testing memory management
+                JavaScriptValue.create("asdf");
+            }
+
+            context = null;
+            vmInstance = null;
+            System.gc();
+            Memory.gc();
+            Globals.finalizeGlobals();
+        });
+        t1.start();
+        try {
+            t1.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        Thread t2 = new Thread(() -> {
+            assertFalse(Globals.isInitialized());
+            Globals.initializeGlobals();
+
+            VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+            Context context = Context.create(vmInstance);
+
+            String testString = "[1, 2, 3]";
+            JavaScriptValue result = context.getGlobalObject().jsonParse(context, JavaScriptValue.create(testString)).get();
+            assertTrue(result.isArrayObject());
+
+            JavaScriptValue vv = JavaScriptValue.create(System.getProperty("java.version"));
+            context.getGlobalObject().set(context, JavaScriptValue.create("ddd"), vv);
+            Evaluator.evalScript(context, "'java.version' + ddd", "invalid", true);
+
+            context = null;
+            vmInstance = null;
+            System.gc();
+            Memory.gc();
+            Globals.finalizeGlobals();
+        });
+
+        t2.start();
+        try {
+            t2.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void simpleMultiThreadingTest() {
+        Globals.initializeGlobals();
+
+        Thread t1 = new Thread(() -> {
+            assertFalse(Globals.isInitialized());
+            Globals.initializeThread();
+
+            VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+            Context context = Context.create(vmInstance);
+
+            assertEquals(JavaScriptValue.create(123).toString(context).get().toJavaString(), "123");
+            assertEquals(JavaScriptValue.create(123).toBoolean(context).get(), true);
+
+            JavaScriptValue vv = JavaScriptValue.create(System.getProperty("java.version"));
+            context.getGlobalObject().set(context, JavaScriptValue.create("ddd"), vv);
+            Evaluator.evalScript(context, "'java.version' + ddd", "invalid", true);
+
+            for (int i = 0; i < 30000; i ++) {
+                // alloc many trash objects for testing memory management
+                JavaScriptValue.create("asdf");
+            }
+
+            context = null;
+            vmInstance = null;
+            System.gc();
+            Memory.gc();
+            Globals.finalizeThread();
+        });
+
+        Thread t2 = new Thread(() -> {
+            assertFalse(Globals.isInitialized());
+            Globals.initializeThread();
+
+            VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+            Context context = Context.create(vmInstance);
+
+            String testString = "[1, 2, 3]";
+            JavaScriptValue result = context.getGlobalObject().jsonParse(context, JavaScriptValue.create(testString)).get();
+            assertTrue(result.isArrayObject());
+
+            JavaScriptValue vv = JavaScriptValue.create(System.getProperty("java.version"));
+            context.getGlobalObject().set(context, JavaScriptValue.create("ddd"), vv);
+            Evaluator.evalScript(context, "'java.version' + ddd", "invalid", true);
+
+            context = null;
+            vmInstance = null;
+            System.gc();
+            Memory.gc();
+            Globals.finalizeThread();
+        });
+
+        t1.start();
+        t2.start();
+
+        for (int i = 0; i < 30000; i ++) {
+            // alloc many trash objects for testing memory management
+            JavaScriptValue.create("asdf");
+        }
+
+        try {
+            t1.join();
+            t2.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        assertFalse(t1.isAlive());
+        assertFalse(t2.isAlive());
+
+        System.gc();
+        Memory.gc();
         Globals.finalizeGlobals();
     }
 

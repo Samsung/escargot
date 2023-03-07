@@ -308,24 +308,26 @@ VMInstance::~VMInstance()
     m_isFinalized = true;
 
     // remove gc event callback
-    {
+    if (ThreadLocal::isInited()) {
         GCEventListenerSet& list = ThreadLocal::gcEventListenerSet();
         Optional<GCEventListenerSet::EventListenerVector*> msListeners = list.markStartListeners();
-        ASSERT(msListeners.hasValue());
-        auto iter = std::find(msListeners->begin(), msListeners->end(), std::make_pair(vmMarkStartCallback, static_cast<void*>(this)));
-        // the pointer could pointer end
-        // because ThreadLocal can be differ regard to multiple init-deinit
-        if (iter != msListeners->end()) {
-            msListeners->erase(iter);
+        if (msListeners) {
+            auto iter = std::find(msListeners->begin(), msListeners->end(), std::make_pair(vmMarkStartCallback, static_cast<void*>(this)));
+            // the pointer could pointer end
+            // because ThreadLocal can be differ regard to multiple init-deinit
+            if (iter != msListeners->end()) {
+                msListeners->erase(iter);
+            }
         }
 
         Optional<GCEventListenerSet::EventListenerVector*> reListeners = list.reclaimEndListeners();
-        ASSERT(reListeners.hasValue());
-        iter = std::find(reListeners->begin(), reListeners->end(), std::make_pair(vmReclaimEndCallback, static_cast<void*>(this)));
-        // the pointer could pointer end
-        // because ThreadLocal can be differ regard to multiple init-deinit
-        if (iter != reListeners->end()) {
-            reListeners->erase(iter);
+        if (reListeners) {
+            auto iter = std::find(reListeners->begin(), reListeners->end(), std::make_pair(vmReclaimEndCallback, static_cast<void*>(this)));
+            // the pointer could pointer end
+            // because ThreadLocal can be differ regard to multiple init-deinit
+            if (iter != reListeners->end()) {
+                reListeners->erase(iter);
+            }
         }
     }
 
@@ -589,7 +591,9 @@ void VMInstance::clearCachesRelatedWithContext()
     // this lock should be released immediately (destructor may be called later)
     m_codeCache->clear();
 #endif
-    bf_clear_cache(ThreadLocal::bfContext());
+    if (ThreadLocal::isInited()) {
+        bf_clear_cache(ThreadLocal::bfContext());
+    }
 }
 
 void VMInstance::enterIdleMode()

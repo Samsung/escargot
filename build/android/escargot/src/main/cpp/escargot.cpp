@@ -508,19 +508,40 @@ extern "C"
 JNIEXPORT void JNICALL
 Java_com_samsung_lwe_escargot_Globals_initializeGlobals(JNIEnv* env, jclass clazz)
 {
-    Globals::initialize(new ShellPlatform());
-    Memory::addGCEventListener(Memory::MARK_START, gcCallback, nullptr);
+    if (!Globals::isInitialized()) {
+        Globals::initialize(new ShellPlatform());
+        Memory::addGCEventListener(Memory::MARK_START, gcCallback, nullptr);
+    }
 }
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_samsung_lwe_escargot_Globals_finalizeGlobals(JNIEnv* env, jclass clazz)
 {
-    // java object cleanup
-    gcCallback(nullptr);
+    if (Globals::isInitialized()) {
+        // java object cleanup
+        gcCallback(nullptr);
 
-    Memory::removeGCEventListener(Memory::MARK_START, gcCallback, nullptr);
-    Globals::finalize();
+        Memory::removeGCEventListener(Memory::MARK_START, gcCallback, nullptr);
+        Globals::finalize();
+    }
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_Globals_initializeThread(JNIEnv* env, jclass clazz)
+{
+    if (!Globals::isInitialized()) {
+       Globals::initializeThread();
+    }
+}
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_Globals_finalizeThread(JNIEnv* env, jclass clazz)
+{
+    if (Globals::isInitialized()) {
+        Globals::finalizeThread();
+    }
 }
 
 extern "C"
@@ -646,6 +667,26 @@ Java_com_samsung_lwe_escargot_VMInstance_create(JNIEnv *env, jclass clazz, jobje
                                        timezoneString.length() ? timezoneString.data() : nullptr);
     PersistentRefHolder<VMInstanceRef>* pRef = new PersistentRefHolder<VMInstanceRef>(std::move(vmRef));
     return env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(J)V"), reinterpret_cast<jlong>(pRef));
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_VMInstance_hasPendingJob(JNIEnv* env, jobject thiz)
+{
+    auto vmPtr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(thiz),
+                                                             thiz);
+    return vmPtr->get()->hasPendingJob();
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_VMInstance_executePendingJob(JNIEnv* env, jobject thiz)
+{
+    auto vmPtr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(thiz),
+                                                             thiz);
+    if (vmPtr->get()->hasPendingJob()) {
+        vmPtr->get()->executePendingJob();
+    }
 }
 
 extern "C"
