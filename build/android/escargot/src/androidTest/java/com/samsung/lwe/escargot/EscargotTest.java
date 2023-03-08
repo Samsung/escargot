@@ -520,6 +520,19 @@ public class EscargotTest {
         assertEquals(value.asScriptArrayObject().get(context, JavaScriptValue.create(1)).get().asInt32(), 2);
         assertEquals(value.asScriptArrayObject().get(context, JavaScriptValue.create(2)).get().asInt32(), 3);
 
+        // receiver test
+        JavaScriptGlobalObject global = context.getGlobalObject();
+        JavaScriptValue globalFunction = global.get(context, JavaScriptString.create("Function")).get();
+        JavaScriptValue newFunction = globalFunction.call(context, JavaScriptValue.createUndefined(),
+                new JavaScriptValue[]{ JavaScriptString.create("return this") }).get();
+        assertTrue(newFunction.isFunctionObject());
+        JavaScriptValue ret = newFunction.call(context, JavaScriptValue.createUndefined(), new JavaScriptValue[]{}).get();
+        assertTrue(ret.equalsTo(context, global).get().booleanValue());
+
+        ret = newFunction.call(context, JavaScriptValue.create("asdf"), new JavaScriptValue[]{}).get();
+        assertTrue(ret.isObject());
+        assertEquals(ret.toString(context).get().toJavaString(), "asdf");
+
         context = null;
         finalizeEngine();
     }
@@ -552,6 +565,29 @@ public class EscargotTest {
 
         bigInt = JavaScriptBigInt.create(Long.MIN_VALUE);
         assertEquals(bigInt.toInt64(), Long.MIN_VALUE);
+
+        context = null;
+        finalizeEngine();
+    }
+
+    @Test
+    public void testConstruct() {
+        Context context = initEngineAndCreateContext();
+
+        JavaScriptGlobalObject global = context.getGlobalObject();
+        JavaScriptValue globalFunction = global.get(context, JavaScriptString.create("Function")).get();
+        JavaScriptValue newFunction = globalFunction.construct(context, new JavaScriptValue[]{
+           JavaScriptString.create("a"),
+           JavaScriptString.create("return a")
+        }).get();
+
+        assertTrue(newFunction.isFunctionObject());
+
+        JavaScriptValue returnValue = newFunction.call(context, JavaScriptValue.createUndefined(), new JavaScriptValue[]{
+            JavaScriptValue.create("test")
+        }).get();
+
+        assertEquals(returnValue.asScriptString().toJavaString(), "test");
 
         context = null;
         finalizeEngine();

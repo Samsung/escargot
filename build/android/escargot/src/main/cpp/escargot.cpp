@@ -450,11 +450,6 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
     Evaluator::execute(context, [](ExecutionStateRef* state, bool isMainThread) -> ValueRef* {
                            ContextRef* context = state->context();
 
-                           GlobalObjectProxyObjectRef* proxy = GlobalObjectProxyObjectRef::create(state, state->context()->globalObject(), [](ExecutionStateRef* state, GlobalObjectProxyObjectRef* proxy, GlobalObjectRef* targetGlobalObject, GlobalObjectProxyObjectRef::AccessOperationType operationType, OptionalRef<AtomicStringRef> nonIndexedStringPropertyNameIfExists) {
-                               // TODO check security
-                           });
-                           context->setGlobalObjectProxy(proxy);
-
                            {
                                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "print"), builtinPrint, 1, true, false);
                                FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
@@ -1070,6 +1065,13 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_isArrayObject(JNIEnv* env, jobject
 
 extern "C"
 JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_isFunctionObject(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isFunctionObject();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_asBoolean(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asBoolean();
@@ -1120,6 +1122,13 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptObject(JNIEnv* env, jobjec
 extern "C"
 JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptArrayObject(JNIEnv* env, jobject thiz)
+{
+    return thiz;
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptFunctionObject(JNIEnv* env, jobject thiz)
 {
     return thiz;
 }
@@ -1362,6 +1371,34 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_call(JNIEnv* env, jobject thiz, jo
                                                          evaluatorResult);
 }
 
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_construct(JNIEnv* env, jobject thiz, jobject context,
+                                                        jobjectArray argv)
+{
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+
+    auto argvLength = env->GetArrayLength(argv);
+    ValueRef** argVector = reinterpret_cast<ValueRef**>(Memory::gcMalloc(argvLength * sizeof(ValueRef*)));
+
+    for (jsize i = 0; i < argvLength; i++) {
+        jobject e = env->GetObjectArrayElement(argv, i);
+        argVector[i] = unwrapValueRefFromValue(env, env->GetObjectClass(e), e);
+    }
+
+    auto evaluatorResult = Evaluator::execute(contextRef->get(),
+                                              [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef** argVector, int argvLength) -> ValueRef* {
+                                                  return thisValueRef->construct(state, argvLength, argVector);
+                                              }, thisValueRef, argVector, argvLength);
+
+    Memory::gcFree(argVector);
+
+    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                 evaluatorResult);
+}
+
 extern "C"
 JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_toBoolean(JNIEnv* env, jobject thiz, jobject context)
@@ -1404,7 +1441,7 @@ extern "C"
 JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptBigInt_create__J(JNIEnv* env, jclass clazz, jlong num)
 {
-    return createJavaValueObject(env, clazz, BigIntRef::create(num));
+    return createJavaValueObject(env, clazz, BigIntRef::create(static_cast<int64_t>(num)));
 }
 
 
