@@ -40,7 +40,7 @@
 
 namespace Escargot {
 
-static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[], wasm_val_t results[])
+static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* args, wasm_val_vec_t* results)
 {
     WASMHostFunctionEnvironment* funcEnv = (WASMHostFunctionEnvironment*)env;
 
@@ -63,11 +63,37 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[],
     // For each arg of arguments,
     for (size_t i = 0; i < argSize; i++) {
         // Append ! ToJSValue(arg) to jsArguments.
-        jsArguments[i] = WASMValueConverter::wasmToJSValue(state, args[i]);
+        jsArguments[i] = WASMValueConverter::wasmToJSValue(state, args->data[i]);
     }
 
     // Let ret be ? Call(func, undefined, jsArguments).
-    Value ret = Object::call(state, func, Value(), argSize, jsArguments);
+    SandBox sb(funcEnv->realm);
+
+    struct CallBackData {
+        Object* func;
+        size_t argSize;
+        Value* arguments;
+    } callBackData;
+    callBackData.func = func;
+    callBackData.argSize = argSize;
+    callBackData.arguments = jsArguments;
+
+    auto result = sb.run([](ExecutionState& state, void* data) -> Value {
+        CallBackData* callBackData = (CallBackData*)data;
+        return Object::call(state, callBackData->func, Value(), callBackData->argSize, callBackData->arguments);
+    },
+                         &callBackData);
+
+    // Assert: result.[[Type]] is throw or normal.
+    // If result.[[Type]] is throw, then trigger a WebAssembly trap, and propagate result.[[Value]] to the enclosing JavaScript.
+    // Otherwise, return result.[[Value]].
+    if (UNLIKELY(!result.error.isEmpty())) {
+        std::string errMessage = result.error.toStringWithoutException(state)->toNonGCUTF8StringData();
+        // throw a WASM exception
+        wasm_trap_trigger(errMessage.data(), errMessage.length());
+        ASSERT_NOT_REACHED();
+        return nullptr;
+    }
 
     // Let resultsSize be results?s size.
     size_t resultsSize = res->size;
@@ -76,9 +102,10 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[],
         return nullptr;
     }
 
+    Value ret = result.result;
     if (resultsSize == 1) {
         // Otherwise, if resultsSize is 1, return << ToWebAssemblyValue(ret, results[0]) >>
-        results[0] = WASMValueConverter::wasmToWebAssemblyValue(state, ret, wasm_valtype_kind(res->data[0]));
+        results->data[0] = WASMValueConverter::wasmToWebAssemblyValue(state, ret, wasm_valtype_kind(res->data[0]));
     } else {
         // Otherwise,
         // Let method be ? GetMethod(ret, @@iterator).
@@ -98,14 +125,9 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[],
         // For each value and resultType in values and results, paired linearly,
         // Append ToWebAssemblyValue(value, resultType) to wasmValues.
         for (size_t i = 0; i < resultsSize; i++) {
-            results[i] = WASMValueConverter::wasmToWebAssemblyValue(state, values[i], wasm_valtype_kind(res->data[i]));
+            results->data[i] = WASMValueConverter::wasmToWebAssemblyValue(state, values[i], wasm_valtype_kind(res->data[i]));
         }
     }
-
-    // TODO
-    // Assert: result.[[Type]] is throw or normal.
-    // If result.[[Type]] is throw, then trigger a WebAssembly trap, and propagate result.[[Value]] to the enclosing JavaScript.
-    // Otherwise, return result.[[Value]].
 
     return nullptr;
 }
@@ -146,7 +168,7 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
 
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
-    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, imports.data, &trap);
+    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, &imports, &trap);
     wasm_extern_vec_delete(&imports);
 
     if (!instance) {
@@ -526,7 +548,7 @@ Value WASMOperations::instantiateCoreModule(ExecutionState& state, Value thisVal
 
     // Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
     own wasm_trap_t* trap = nullptr;
-    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, imports.data, &trap);
+    own wasm_instance_t* instance = wasm_instance_new(ThreadLocal::wasmStore(), module, &imports, &trap);
     wasm_extern_vec_delete(&imports);
 
     if (!instance) {
@@ -556,12 +578,6 @@ Object* WASMOperations::instantiatePromiseOfModuleWithImportObject(ExecutionStat
     moduleInstantiator->setInternalSlot(0, importObj);
 
     return promiseOfModule->then(state, moduleInstantiator);
-}
-
-void WASMOperations::collectHeap()
-{
-    // collect (GC) WASM Objects allocated inside WASM heap
-    wasm_store_gc(ThreadLocal::wasmStore());
 }
 
 } // namespace Escargot

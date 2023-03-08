@@ -102,11 +102,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build gcc-multilib g++-multilib libicu-dev
-    - name: Patch WABT
-      working-directory: ./third_party/wasm/wabt
-      run: |
-        cp ../../../tools/test/wasm-js/wabt_patch .
-        patch -p0 < wabt_patch
     - name: Build x86
       env:
         BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
@@ -486,11 +481,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build gcc-multilib g++-multilib
-    - name: Patch WABT
-      working-directory: ./third_party/wasm/wabt
-      run: |
-        cp ../../../tools/test/wasm-js/wabt_patch .
-        patch -p0 < wabt_patch
     - name: Build x86
       env:
         BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja

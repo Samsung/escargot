@@ -2216,7 +2216,6 @@ public:
     static ValueRef* copyStableBufferBytes(ExecutionStateRef* state, ValueRef* source);
     static ObjectRef* asyncCompileModule(ExecutionStateRef* state, ValueRef* source);
     static ObjectRef* instantiatePromiseOfModuleWithImportObject(ExecutionStateRef* state, PromiseObjectRef* promiseOfModule, ValueRef* importObj);
-    static void collectHeap();
 };
 
 } // namespace Escargot

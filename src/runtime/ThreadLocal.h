@@ -123,18 +123,10 @@ public:
     }
 
 #if defined(ENABLE_WASM)
-    static void wasmGC(uint64_t lastCheckTime);
-
     static wasm_store_t* wasmStore()
     {
         ASSERT(inited && !!g_wasmContext.store);
         return g_wasmContext.store;
-    }
-
-    static uint64_t wasmLastGCCheckTime()
-    {
-        ASSERT(inited && !!g_wasmContext.store);
-        return g_wasmContext.lastGCCheckTime;
     }
 #endif
 

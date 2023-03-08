@@ -94,7 +94,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     wasm_functype_delete(functype);
 
     // Let (store, ret) be the result of func_invoke(store, funcaddr, args).
-    own wasm_trap_t* trap = wasm_func_call(funcaddr, args.data, ret.data);
+    own wasm_trap_t* trap = wasm_func_call(funcaddr, &args, &ret);
 
     // If ret is error, throw an exception. This exception should be a WebAssembly RuntimeError exception, unless otherwise indicated by the WebAssembly error mapping.
     if (trap) {
