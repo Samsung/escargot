@@ -70,23 +70,48 @@ static void die(const char *message)
     abort();
 }
 
-void ICU::loadSo(ICU::Soname name)
+static constexpr int s_icuMinVersion = 49; // icu 4.9 was released on 2012-06-06
+static constexpr int s_icuMaxVersion = 2048;
+
+static void* findSo(ICU::Soname name)
 {
-    assert(m_soHandles[name] == nullptr);
-    void *handle = nullptr;
+    std::string soPath;
     switch (name) {
-    case Soname::uc:
-        handle = dlopen("libicuuc.so", RTLD_LAZY);
+    case ICU::Soname::uc:
+        soPath = "libicuuc.so";
         break;
-    case Soname::i18n:
-        handle = dlopen("libicui18n.so", RTLD_LAZY);
+    case ICU::Soname::i18n:
+        soPath = "libicui18n.so";
         break;
-    case Soname::io:
-        handle = dlopen("libicuio.so", RTLD_LAZY);
+    case ICU::Soname::io:
+        soPath = "libicuio.so";
         break;
     default:
         die("invalid soname");
     }
+
+    void* handle = dlopen(soPath.data(), RTLD_LAZY);
+    if (handle) {
+        return handle;
+    }
+
+    // try to find with version name
+    for (int i = s_icuMinVersion; i < s_icuMaxVersion; i ++) {
+        void* handle = dlopen((soPath + "." + std::to_string(i)).data(), RTLD_LAZY);
+        if (handle) {
+            return handle;
+        }
+    }
+
+    // will fail. reopen with original name to set dlerror
+    dlopen(soPath.data(), RTLD_LAZY);
+    return nullptr;
+}
+
+void ICU::loadSo(ICU::Soname name)
+{
+    assert(m_soHandles[name] == nullptr);
+    void *handle = findSo(name);
 
     if (!handle) {
         char *error = dlerror();
@@ -302,11 +327,9 @@ ICU::ICU()
         m_icuVersion = -1;
     } else {
         // find version
-        const int start = 49; // icu 4.9 was released on 2012-06-06
-        const int max = 512;
-        int ver = start;
+        int ver = s_icuMinVersion;
         bool found = false;
-        while (ver < max) {
+        while (ver < s_icuMaxVersion) {
             std::string fn = "u_tolower_";
             fn += std::to_string(ver);
             void *ptr = dlsym(so(Soname::uc), fn.data());
