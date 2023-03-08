@@ -790,9 +790,9 @@ StringRef* SymbolRef::symbolDescriptiveString()
     return toRef(toImpl(this)->symbolDescriptiveString());
 }
 
-BigIntRef* BigIntRef::create(StringRef* desc)
+BigIntRef* BigIntRef::create(StringRef* desc, int radix)
 {
-    return toRef(new BigInt(BigIntData(toImpl(desc))));
+    return toRef(new BigInt(BigIntData(toImpl(desc), radix)));
 }
 
 BigIntRef* BigIntRef::create(int64_t num)
@@ -807,7 +807,7 @@ BigIntRef* BigIntRef::create(uint64_t num)
 
 StringRef* BigIntRef::toString(int radix)
 {
-    return toRef(toImpl(this)->toString(10));
+    return toRef(toImpl(this)->toString(radix));
 }
 
 double BigIntRef::toNumber()

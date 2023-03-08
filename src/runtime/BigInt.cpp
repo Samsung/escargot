@@ -42,7 +42,7 @@ BigIntData::BigIntData(const double& d)
     bf_set_float64(&m_data, d);
 }
 
-BigIntData::BigIntData(String* src)
+BigIntData::BigIntData(String* src, int radix)
 {
     const auto& bd = src->bufferAccessData();
     char* buffer;
@@ -62,7 +62,7 @@ BigIntData::BigIntData(String* src)
         }
     }
 
-    init(buffer, bd.length, 10);
+    init(buffer, bd.length, radix);
 }
 
 BigIntData::BigIntData(const char* buf, size_t length, int radix)
@@ -261,7 +261,6 @@ String* BigInt::toString(int radix)
     auto str = bf_ftoa(&resultLen, &m_bf, radix, 0, BF_RNDZ | BF_FTOA_FORMAT_FRAC | BF_FTOA_JS_QUIRKS);
     m_bf.sign = savedSign;
 
-    ASSERT(str);
     if (UNLIKELY(!str)) {
         return String::emptyString;
     } else {

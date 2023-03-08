@@ -31,7 +31,7 @@ class BigIntData {
 
 public:
     BigIntData(const double& d);
-    BigIntData(String* src);
+    BigIntData(String* src, int radix = 10);
     BigIntData(const char* buf, size_t length, int radix = 10);
     BigIntData(BigIntData&& src);
     BigIntData(const BigIntData& src) = delete;
