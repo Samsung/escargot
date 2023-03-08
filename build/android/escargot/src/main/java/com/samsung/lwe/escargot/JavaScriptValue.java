@@ -26,6 +26,7 @@ public class JavaScriptValue extends NativePointerHolder {
     native public boolean isInt32();
     native public boolean isString();
     native public boolean isSymbol();
+    native public boolean isBigInt();
     native public boolean isCallable();
     native public boolean isObject();
     native public boolean isArrayObject();
@@ -38,6 +39,7 @@ public class JavaScriptValue extends NativePointerHolder {
     native public double asNumber();
     native public JavaScriptString asScriptString();
     native public JavaScriptSymbol asScriptSymbol();
+    native public JavaScriptBigInt asScriptBigInt();
     native public JavaScriptObject asScriptObject();
     native public JavaScriptArrayObject asScriptArrayObject();
 

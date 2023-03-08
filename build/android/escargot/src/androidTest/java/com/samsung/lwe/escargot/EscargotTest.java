@@ -523,4 +523,37 @@ public class EscargotTest {
         context = null;
         finalizeEngine();
     }
+
+    @Test
+    public void testBigInt() {
+        Context context = initEngineAndCreateContext();
+
+        JavaScriptBigInt bigInt = JavaScriptBigInt.create(123123);
+        assertEquals(bigInt.toString(10).toJavaString(), "123123");
+        assertEquals(bigInt.toString(3).toJavaString(), "20020220010");
+        assertEquals(bigInt.toInt64(), 123123);
+        assertTrue(bigInt.isBigInt());
+        assertFalse(JavaScriptValue.createNull().isBigInt());
+
+        bigInt = JavaScriptBigInt.create("123123", 10);
+        assertEquals(bigInt.toInt64(), 123123);
+
+        bigInt = JavaScriptBigInt.create(JavaScriptString.create("123123"), 10);
+        assertEquals(bigInt.toInt64(), 123123);
+
+        assertTrue(bigInt.equalsTo(context, JavaScriptBigInt.create("20020220010", 3)).get().booleanValue());
+
+        bigInt = JavaScriptBigInt.create(Long.MAX_VALUE + "0", 10);
+        assertEquals(bigInt.toString(10).toJavaString(), Long.MAX_VALUE + "0");
+        assertEquals(bigInt.toInt64(), -10);
+
+        bigInt = JavaScriptBigInt.create(Long.MAX_VALUE);
+        assertEquals(bigInt.toInt64(), Long.MAX_VALUE);
+
+        bigInt = JavaScriptBigInt.create(Long.MIN_VALUE);
+        assertEquals(bigInt.toInt64(), Long.MIN_VALUE);
+
+        context = null;
+        finalizeEngine();
+    }
 }

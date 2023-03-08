@@ -1132,7 +1132,7 @@ public:
 
 class ESCARGOT_EXPORT BigIntRef : public PointerValueRef {
 public:
-    static BigIntRef* create(StringRef* desc);
+    static BigIntRef* create(StringRef* desc, int radix = 10);
     static BigIntRef* create(int64_t num);
     static BigIntRef* create(uint64_t num);
 

@@ -955,6 +955,8 @@ static jobject createJavaObjectFromValue(JNIEnv* env, ValueRef* value)
         return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptString", value);
     } else if (value->isSymbol()) {
         return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptSymbol", value);
+    } else if (value->isBigInt()) {
+        return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptBigInt", value);
     } else if (value->isObject()) {
         if (value->isArrayObject()) {
             return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptArrayObject", value);
@@ -1040,6 +1042,13 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_isSymbol(JNIEnv* env, jobject thiz
 
 extern "C"
 JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_isBigInt(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isBigInt();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_isCallable(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isCallable();
@@ -1094,6 +1103,12 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptSymbol(JNIEnv* env, jobjec
     return thiz;
 }
 
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptBigInt(JNIEnv* env, jobject thiz)
+{
+    return thiz;
+}
 
 extern "C"
 JNIEXPORT jobject JNICALL
@@ -1376,6 +1391,63 @@ Java_com_samsung_lwe_escargot_JavaScriptSymbol_symbolDescriptiveString(JNIEnv* e
 {
     auto desc = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asSymbol()->symbolDescriptiveString();
     return createJavaObjectFromValue(env, desc);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptBigInt_create__I(JNIEnv* env, jclass clazz, jint num)
+{
+    return createJavaValueObject(env, clazz, BigIntRef::create(static_cast<int64_t>(num)));
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptBigInt_create__J(JNIEnv* env, jclass clazz, jlong num)
+{
+    return createJavaValueObject(env, clazz, BigIntRef::create(num));
+}
+
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptBigInt_create__Ljava_lang_String_2I(JNIEnv* env,
+                                                                            jclass clazz,
+                                                                            jstring numString,
+                                                                            jint radix)
+{
+    return createJavaValueObject(env, clazz,
+                                 BigIntRef::create(createJSStringFromJava(env, numString), radix));
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptBigInt_create__Lcom_samsung_lwe_escargot_JavaScriptString_2I(
+        JNIEnv* env, jclass clazz, jobject numString, jint radix)
+{
+    return createJavaValueObject(env, clazz,
+                                 BigIntRef::create(unwrapValueRefFromValue(env, env->GetObjectClass(
+                                         numString), numString)->asString(), radix));
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptBigInt_toString(JNIEnv* env, jobject thiz, jint radix)
+{
+    return createJavaObjectFromValue(env, unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asBigInt()->toString(radix));
+}
+
+extern "C"
+JNIEXPORT jdouble JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptBigInt_toNumber(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asBigInt()->toNumber();
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptBigInt_toInt64(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asBigInt()->toInt64();
 }
 
 extern "C"
