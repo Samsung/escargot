@@ -56,12 +56,6 @@ NT_TIB* getTIB()
 
 namespace Escargot {
 
-#if defined(ENABLE_WASM)
-#ifndef ESCARGOT_WASM_GC_CHECK_INTERVAL
-#define ESCARGOT_WASM_GC_CHECK_INTERVAL 10000
-#endif
-#endif
-
 Value VMInstance::functionPrototypeNativeGetter(ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea)
 {
     ASSERT(self->isFunctionObject());
@@ -243,11 +237,6 @@ void vmReclaimEndCallback(void* data)
     if (currentTick - self->m_lastCompressibleStringsTestTime > ESCARGOT_COMPRESSIBLE_COMPRESS_GC_CHECK_INTERVAL) {
         self->compressStringsIfNeeds(currentTick);
         self->m_lastCompressibleStringsTestTime = currentTick;
-    }
-#endif
-#if defined(ENABLE_WASM)
-    if (currentTick - ThreadLocal::wasmLastGCCheckTime() > ESCARGOT_WASM_GC_CHECK_INTERVAL) {
-        ThreadLocal::wasmGC(currentTick);
     }
 #endif
 #endif

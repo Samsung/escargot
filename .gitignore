@@ -38,5 +38,4 @@ cmake_install.cmake
 #etc
 .vscode
 EscargotInfo.h
-third_party/wasm/config.h
 escargot.pc

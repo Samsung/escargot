@@ -28,6 +28,13 @@
 
 namespace Escargot {
 
+// redefine macros due to compile error in msvc
+#undef WASM_I32_VAL
+#undef WASM_I64_VAL
+#undef WASM_F32_VAL
+#undef WASM_F64_VAL
+#undef WASM_REF_VAL
+#undef WASM_INIT_VAL
 #define WASM_I32_VAL(result, i) \
     result.kind = WASM_I32;     \
     result.of.i32 = i;

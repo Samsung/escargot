@@ -207,13 +207,4 @@ void ThreadLocal::finalize()
     inited = false;
 }
 
-#if defined(ENABLE_WASM)
-void ThreadLocal::wasmGC(uint64_t lastCheckTime)
-{
-    ASSERT(inited && !!g_wasmContext.store);
-    wasm_store_gc(g_wasmContext.store);
-    g_wasmContext.lastGCCheckTime = lastCheckTime;
-}
-#endif
-
 } // namespace Escargot
