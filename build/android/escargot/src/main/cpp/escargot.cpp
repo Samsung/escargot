@@ -1659,3 +1659,73 @@ Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_jsonParse(JNIEnv* env, jobj
     return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
                                                                  evaluatorResult);
 }
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv* env, jclass clazz,
+                                                                          jobject context,
+                                                                          jstring functionName,
+                                                                          jint argumentCount,
+                                                                          jboolean isConstructor,
+                                                                          jobject callback)
+{
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context),
+                                                               context);
+
+    FunctionObjectRef::NativeFunctionInfo info(
+        AtomicStringRef::create(contextRef->get(), createJSStringFromJava(env, functionName)),
+        [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructorCall) -> ValueRef* {
+            auto env = fetchJNIEnvFromCallback();
+            if (!env) {
+                LOGE("failed to fetch env from function callback");
+                return ValueRef::createUndefined();
+            }
+
+            jobject callback = reinterpret_cast<jobject>(state->resolveCallee()->extraData());
+            auto callbackMethodId = env->GetMethodID(env->GetObjectClass(callback), "callback",
+                                                     "(Lcom/samsung/lwe/escargot/JavaScriptValue;[Lcom/samsung/lwe/escargot/JavaScriptValue;)Ljava/util/Optional;");
+
+            jobjectArray javaArgv = env->NewObjectArray(argc, env->FindClass("com/samsung/lwe/escargot/JavaScriptValue"), nullptr);
+
+            for (size_t i = 0; i < argc; i ++) {
+                env->SetObjectArrayElement(javaArgv, i, createJavaObjectFromValue(env.get(), argv[i]));
+            }
+            jobject returnValue = env->CallObjectMethod(
+                    callback,
+                    callbackMethodId,
+                    createJavaObjectFromValue(env.get(), thisValue),
+                    javaArgv
+                    );
+
+            auto classOptional = env->GetObjectClass(returnValue);
+            auto methodIsPresent = env->GetMethodID(classOptional, "isPresent", "()Z");
+            if (env->CallBooleanMethod(returnValue, methodIsPresent)) {
+                auto methodGet = env->GetMethodID(classOptional, "get", "()Ljava/lang/Object;");
+                jobject callbackReturnValue = env->CallObjectMethod(returnValue, methodGet);
+                return unwrapValueRefFromValue(env.get(), env->GetObjectClass(callbackReturnValue), callbackReturnValue);
+            }
+            return ValueRef::createUndefined();
+        },
+        argumentCount,
+        isConstructor);
+
+    auto evaluatorResult = Evaluator::execute(contextRef->get(),
+                                                    [](ExecutionStateRef* state, FunctionObjectRef::NativeFunctionInfo info) -> ValueRef* {
+        return FunctionObjectRef::create(state, info);
+    }, info);
+
+    assert(evaluatorResult.isSuccessful());
+
+    callback = env->NewGlobalRef(callback);
+    FunctionObjectRef* fn = evaluatorResult.result->asFunctionObject();
+    fn->setExtraData(callback);
+    Memory::gcRegisterFinalizer(fn, [](void* self) {
+        jobject jo = static_cast<jobject>(reinterpret_cast<FunctionObjectRef*>(self)->extraData());
+        auto env = fetchJNIEnvFromCallback();
+        if (env) {
+            env->DeleteGlobalRef(jo);
+        }
+    });
+
+    return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptJavaCallbackFunctionObject", fn);
+}
