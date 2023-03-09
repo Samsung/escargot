@@ -592,4 +592,66 @@ public class EscargotTest {
         context = null;
         finalizeEngine();
     }
+
+    @Test
+    public void testJavaCallbackFunction() {
+        Context context = initEngineAndCreateContext();
+
+        JavaScriptJavaCallbackFunctionObject callbackFunctionObject =
+                JavaScriptJavaCallbackFunctionObject.create(context,
+                        "fnname",
+                        3,
+                        false,
+                        new JavaScriptJavaCallbackFunctionObject.Callback() {
+                            @Override
+                            public Optional<JavaScriptValue> callback(JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                                return Optional.of(JavaScriptValue.create(arguments.length));
+                            }
+                        });
+
+        context.getGlobalObject().set(context, JavaScriptString.create("asdf"), callbackFunctionObject);
+
+        Optional<JavaScriptValue> ret = Evaluator.evalScript(context, "asdf.name", "test.js", false);
+        assertEquals(ret.get().asScriptString().toJavaString(), "fnname");
+
+        ret = Evaluator.evalScript(context, "asdf.length", "test.js", false);
+        assertEquals(ret.get().asInt32(), 3);
+
+        assertFalse(context.exceptionWasThrown());
+        Evaluator.evalScript(context, "new asdf()", "test.js", false);
+        assertFalse(context.lastThrownException().isPresent());
+
+        ret = Evaluator.evalScript(context, "asdf(1, 2, 3, 4)", "test.js", false);
+        assertEquals(ret.get().asInt32(), 4);
+
+        ret = Evaluator.evalScript(context, "asdf(1, 2)", "test.js", false);
+        assertEquals(ret.get().asInt32(), 2);
+
+
+        callbackFunctionObject =
+                JavaScriptJavaCallbackFunctionObject.create(context,
+                        "fnname",
+                        3,
+                        false,
+                        new JavaScriptJavaCallbackFunctionObject.Callback() {
+                            @Override
+                            public Optional<JavaScriptValue> callback(JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                                int sum = 0;
+                                for (int i = 0; i < arguments.length; i ++) {
+                                    sum += arguments[i].asInt32();
+                                }
+                                return Optional.of(JavaScriptValue.create(sum));
+                            }
+                        });
+        context.getGlobalObject().set(context, JavaScriptString.create("asdf"), callbackFunctionObject);
+
+        ret = Evaluator.evalScript(context, "asdf(1, 2, 3, 4)", "test.js", false);
+        assertEquals(ret.get().asInt32(), 10);
+
+        ret = Evaluator.evalScript(context, "asdf(1, 2)", "test.js", false);
+        assertEquals(ret.get().asInt32(), 3);
+
+        context = null;
+        finalizeEngine();
+    }
 }
