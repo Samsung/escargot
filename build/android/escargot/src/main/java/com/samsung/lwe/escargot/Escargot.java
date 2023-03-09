@@ -12,36 +12,33 @@ public class Escargot {
         try {
             System.loadLibrary("escargot-jni");
         } catch(UnsatisfiedLinkError e) {
-            // try to load from jar
-            InputStream soStream = Escargot.class.getResourceAsStream("/libescargot-jni.so");
-            if (soStream != null) {
-                try {
-                    if (Files.size(Paths.get("/tmp/libescargot-jni.so")) == soStream.available()) {
-                        System.load("/tmp/libescargot-jni.so");
-                    } else {
-                        throw new Exception();
-                    }
-                } catch(Exception e2) {
-                    try {
-                        File f = new File("/tmp/libescargot-jni.so");
-                        f.setExecutable(true);
-                        FileOutputStream fos = new FileOutputStream(f);
-                        int read;
-                        byte [] bytes = new byte[1024];
-                        while ((read = soStream.read(bytes)) != -1) {
-                            fos.write(bytes, 0, read);
-                        }
-                        fos.flush();
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
-                    }
-                    System.load("/tmp/libescargot-jni.so");
-                }
-            } else {
-                throw e;
-            }
+            tryToLoadLibraryFromJarResource(e);
         }
     }
-
     static native public void init();
+    static private synchronized void tryToLoadLibraryFromJarResource(UnsatisfiedLinkError e)
+    {
+        InputStream soStream = Escargot.class.getResourceAsStream("/libescargot-jni.so");
+        if (soStream != null) {
+            try {
+                File f = File.createTempFile("libescargot-jni-", ".so");
+                f.deleteOnExit();
+                f.setExecutable(true);
+                FileOutputStream fos = new FileOutputStream(f);
+                int read;
+                byte[] bytes = new byte[1024];
+                while ((read = soStream.read(bytes)) != -1) {
+                    fos.write(bytes, 0, read);
+                }
+                fos.flush();
+                soStream.close();
+                fos.close();
+                System.load(f.getAbsolutePath());
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
+        } else {
+            throw e;
+        }
+    }
 }
