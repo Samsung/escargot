@@ -5,7 +5,12 @@ import java.util.Optional;
 public class JavaScriptValue extends NativePointerHolder {
     protected JavaScriptValue(long nativePointer)
     {
-        super(nativePointer);
+        super(nativePointer, true);
+    }
+
+    protected JavaScriptValue(long nativePointer, boolean isHeapValue)
+    {
+        super(nativePointer, isHeapValue);
     }
 
     native static public JavaScriptValue createUndefined();

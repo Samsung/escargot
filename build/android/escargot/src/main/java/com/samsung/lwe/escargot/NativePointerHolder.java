@@ -3,12 +3,12 @@ package com.samsung.lwe.escargot;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 public abstract class NativePointerHolder {
     static ThreadLocal<ReferenceQueue<Object>> s_referenceQueue = ThreadLocal.withInitial(() -> new ReferenceQueue<>());
-    static ThreadLocal<List<NativePointerHolderPhantomReference>> s_referenceList = ThreadLocal.withInitial(() -> new ArrayList<>());
+    static ThreadLocal<Set<NativePointerHolderPhantomReference>> s_referenceSet = ThreadLocal.withInitial(() -> new HashSet<>());
     static { Escargot.init(); }
 
     public static class NativePointerHolderPhantomReference extends PhantomReference<Object> {
@@ -24,26 +24,29 @@ public abstract class NativePointerHolder {
         long m_nativePointer;
     }
 
-    NativePointerHolder(long nativePointer)
+    NativePointerHolder(long nativePointer, boolean isHeapValue)
     {
         m_nativePointer = nativePointer;
-        s_referenceList.get().add(new NativePointerHolderPhantomReference(this, s_referenceQueue.get()));
+        if (isHeapValue) {
+            s_referenceSet.get().add(new NativePointerHolderPhantomReference(this, s_referenceQueue.get()));
+        }
     }
 
     public static void cleanUp()
     {
         try {
-            for (PhantomReference<Object> reference : s_referenceList.get()) {
+            for (NativePointerHolderPhantomReference reference : s_referenceSet.get()) {
                 reference.refersTo(null);
             }
         } catch (NoSuchMethodError e) {
-            for (PhantomReference<Object> reference : s_referenceList.get()) {
+            for (NativePointerHolderPhantomReference reference : s_referenceSet.get()) {
                 reference.isEnqueued();
             }
         }
 
         Reference<?> ref;
         while ((ref = s_referenceQueue.get().poll()) != null) {
+            s_referenceSet.get().remove(((NativePointerHolderPhantomReference)ref));
             ((NativePointerHolderPhantomReference)ref).release();
             ref.clear();
         }

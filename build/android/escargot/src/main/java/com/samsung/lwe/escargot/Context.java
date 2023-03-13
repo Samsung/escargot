@@ -5,7 +5,7 @@ import java.util.Optional;
 public class Context extends NativePointerHolder {
     protected Context(long nativePointer)
     {
-        super(nativePointer);
+        super(nativePointer, true);
     }
     public native static Context create(VMInstance vmInstance);
     public boolean exceptionWasThrown()
