@@ -5,7 +5,7 @@ import java.util.Optional;
 public class JavaScriptBigInt extends JavaScriptValue {
     protected JavaScriptBigInt(long nativePointer)
     {
-        super(nativePointer);
+        super(nativePointer, true);
     }
 
     static public native JavaScriptBigInt create(int num);

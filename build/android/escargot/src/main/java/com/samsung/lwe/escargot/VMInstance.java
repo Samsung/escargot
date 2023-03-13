@@ -5,7 +5,7 @@ import java.util.Optional;
 public class VMInstance extends NativePointerHolder {
     protected VMInstance(long nativePointer)
     {
-        super(nativePointer);
+        super(nativePointer, true);
     }
     // you can to provide timezone as TZ database name like "US/Pacific".
     // if you don't provide, we try to detect system timezone.

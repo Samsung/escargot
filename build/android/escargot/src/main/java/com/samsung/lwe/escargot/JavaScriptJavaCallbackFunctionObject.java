@@ -2,7 +2,7 @@ package com.samsung.lwe.escargot;
 
 import java.util.Optional;
 
-public class JavaScriptJavaCallbackFunctionObject extends JavaScriptObject {
+public class JavaScriptJavaCallbackFunctionObject extends JavaScriptFunctionObject {
     protected JavaScriptJavaCallbackFunctionObject(long nativePointer)
     {
         super(nativePointer);

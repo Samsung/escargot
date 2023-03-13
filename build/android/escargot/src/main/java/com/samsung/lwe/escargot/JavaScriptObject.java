@@ -5,7 +5,7 @@ import java.util.Optional;
 public class JavaScriptObject extends JavaScriptValue {
     protected JavaScriptObject(long nativePointer)
     {
-        super(nativePointer);
+        super(nativePointer, true);
     }
     static public native JavaScriptObject create(Context context);
     /**

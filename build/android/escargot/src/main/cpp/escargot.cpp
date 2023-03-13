@@ -481,9 +481,10 @@ Java_com_samsung_lwe_escargot_NativePointerHolder_releaseNativePointerMemory(JNI
                                                                              jclass clazz,
                                                                              jlong pointer)
 {
-    if (pointer > g_nonPointerValueLast && !(pointer & 1)) {
-        auto ptr = reinterpret_cast<PersistentRefHolder<void*>*>(pointer);
-        delete ptr;
+    uint64_t ptrInNumber = (uint64_t)(pointer);
+    if (ptrInNumber > g_nonPointerValueLast && !(pointer & 1)) {
+        PersistentRefHolder<void>* pRef = reinterpret_cast<PersistentRefHolder<void>*>(pointer);
+        delete pRef;
     }
 }
 
@@ -494,9 +495,11 @@ static void gcCallback(void* data)
         LOGE("failed to fetch env from gc event callback");
         return;
     }
+    env->PushLocalFrame(32);
     jclass clazz = env->FindClass("com/samsung/lwe/escargot/NativePointerHolder");
     jmethodID mId = env->GetStaticMethodID(clazz, "cleanUp", "()V");
     env->CallStaticVoidMethod(clazz, mId);
+    env->PopLocalFrame(NULL);
 }
 
 extern "C"
@@ -637,19 +640,6 @@ static PersistentRefHolder<NativeType>* getPersistentPointerFromJava(JNIEnv *env
     return pVMRef;
 }
 
-template<typename NativeType>
-static NativeType* getNativePointerFromJava(JNIEnv *env, jclass clazz, jobject object)
-{
-    auto ptr = env->GetLongField(object, env->GetFieldID(clazz, "m_nativePointer", "J"));
-    return reinterpret_cast<NativeType*>(ptr);
-}
-
-template<typename NativeType>
-static void setNativePointerToJava(JNIEnv *env, jclass clazz, jobject object, NativeType* ptr)
-{
-    env->SetLongField(object, env->GetFieldID(clazz, "m_nativePointer", "J"), reinterpret_cast<jlong>(ptr));
-}
-
 extern "C"
 JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_VMInstance_create(JNIEnv *env, jclass clazz, jobject locale,
@@ -786,6 +776,8 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
                                                              return ValueRef::createUndefined();
                                                          }
 
+                                                         env->PushLocalFrame(32);
+
                                                          jobject callbackArg;
                                                          jclass optionalClazz = env->FindClass(
                                                                  "java/util/Optional");
@@ -813,6 +805,7 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
 
                                                          auto methodIsPresent = env->GetMethodID(
                                                                  optionalClazz, "isPresent", "()Z");
+                                                         ValueRef* nativeReturnValue = ValueRef::createUndefined();
                                                          if (env->CallBooleanMethod(javaReturnValue,
                                                                                     methodIsPresent)) {
                                                              auto methodGet = env->GetMethodID(
@@ -820,12 +813,14 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
                                                                      "()Ljava/lang/Object;");
                                                              jobject value = env->CallObjectMethod(
                                                                      javaReturnValue, methodGet);
-                                                             return unwrapValueRefFromValue(
+                                                             nativeReturnValue = unwrapValueRefFromValue(
                                                                      env.get(),
                                                                      env->GetObjectClass(value),
                                                                      value);
                                                          }
-                                                         return ValueRef::createUndefined();
+
+                                                         env->PopLocalFrame(NULL);
+                                                         return nativeReturnValue;
                                                      }, 1, true, false);
                                              FunctionObjectRef* callback = FunctionObjectRef::create(
                                                      state, info);
@@ -856,10 +851,11 @@ static jobject createJavaValueObject(JNIEnv* env, jclass clazz, ValueRef* value)
 {
     jobject valueObject;
     if (!value->isStoredInHeap()) {
-        valueObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(J)V"), value);
+        valueObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(JZ)V"), reinterpret_cast<jlong>(value), jboolean(false));
     } else {
         PersistentRefHolder<ValueRef>* pRef = new PersistentRefHolder<ValueRef>(value);
-        valueObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(J)V"), pRef);
+        jlong ptr = reinterpret_cast<size_t>(pRef);
+        valueObject = env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(J)V"), ptr);
     }
     return valueObject;
 }
@@ -957,6 +953,11 @@ static jobject createJavaObjectFromValue(JNIEnv* env, ValueRef* value)
             return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptArrayObject", value);
         } else if (value->isGlobalObject()) {
             return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptGlobalObject", value);
+        } else if (value->isFunctionObject()) {
+            if (value->asFunctionObject()->extraData()) {
+                return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptJavaCallbackFunctionObject", value);
+            }
+            return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptFunctionObject", value);
         } else {
             return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptObject", value);
         }
@@ -1358,6 +1359,7 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_call(JNIEnv* env, jobject thiz, jo
     for (jsize i = 0; i < argvLength; i++) {
         jobject e = env->GetObjectArrayElement(argv, i);
         argVector[i] = unwrapValueRefFromValue(env, env->GetObjectClass(e), e);
+        env->DeleteLocalRef(e);
     }
 
     auto evaluatorResult = Evaluator::execute(contextRef->get(),
@@ -1386,6 +1388,7 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_construct(JNIEnv* env, jobject thi
     for (jsize i = 0; i < argvLength; i++) {
         jobject e = env->GetObjectArrayElement(argv, i);
         argVector[i] = unwrapValueRefFromValue(env, env->GetObjectClass(e), e);
+        env->DeleteLocalRef(e);
     }
 
     auto evaluatorResult = Evaluator::execute(contextRef->get(),
@@ -1681,6 +1684,7 @@ Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv
                 return ValueRef::createUndefined();
             }
 
+            env->PushLocalFrame(32);
             jobject callback = reinterpret_cast<jobject>(state->resolveCallee()->extraData());
             auto callbackMethodId = env->GetMethodID(env->GetObjectClass(callback), "callback",
                                                      "(Lcom/samsung/lwe/escargot/JavaScriptValue;[Lcom/samsung/lwe/escargot/JavaScriptValue;)Ljava/util/Optional;");
@@ -1688,7 +1692,9 @@ Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv
             jobjectArray javaArgv = env->NewObjectArray(argc, env->FindClass("com/samsung/lwe/escargot/JavaScriptValue"), nullptr);
 
             for (size_t i = 0; i < argc; i ++) {
-                env->SetObjectArrayElement(javaArgv, i, createJavaObjectFromValue(env.get(), argv[i]));
+                auto ref = createJavaObjectFromValue(env.get(), argv[i]);
+                env->SetObjectArrayElement(javaArgv, i, ref);
+                env->DeleteLocalRef(ref);
             }
             jobject returnValue = env->CallObjectMethod(
                     callback,
@@ -1699,12 +1705,14 @@ Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv
 
             auto classOptional = env->GetObjectClass(returnValue);
             auto methodIsPresent = env->GetMethodID(classOptional, "isPresent", "()Z");
+            ValueRef* nativeReturnValue = ValueRef::createUndefined();
             if (env->CallBooleanMethod(returnValue, methodIsPresent)) {
                 auto methodGet = env->GetMethodID(classOptional, "get", "()Ljava/lang/Object;");
                 jobject callbackReturnValue = env->CallObjectMethod(returnValue, methodGet);
-                return unwrapValueRefFromValue(env.get(), env->GetObjectClass(callbackReturnValue), callbackReturnValue);
+                nativeReturnValue = unwrapValueRefFromValue(env.get(), env->GetObjectClass(callbackReturnValue), callbackReturnValue);
             }
-            return ValueRef::createUndefined();
+            env->PopLocalFrame(NULL);
+            return nativeReturnValue;
         },
         argumentCount,
         isConstructor);
