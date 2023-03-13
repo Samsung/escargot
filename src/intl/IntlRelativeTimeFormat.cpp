@@ -56,6 +56,12 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
 
 IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value optionsInput)
     : DerivedObject(state, proto)
+    , m_locale(nullptr)
+    , m_dataLocale(nullptr)
+    , m_numberingSystem(nullptr)
+    , m_style(nullptr)
+    , m_numeric(nullptr)
+    , m_icuRelativeDateTimeFormatter(nullptr)
 {
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
     UVersionInfo versionArray;

@@ -319,6 +319,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     , m_calendar(String::emptyString)
     , m_numberingSystem(String::emptyString)
     , m_timeZone(String::emptyString)
+    , m_icuDateFormat(nullptr)
 {
     // Let requestedLocales be ? CanonicalizeLocaleList(locales).
     ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);

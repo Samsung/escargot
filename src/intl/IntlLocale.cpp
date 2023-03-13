@@ -202,6 +202,11 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, String* tag, Optional<
 
 IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String* tag, Optional<Object*> options)
     : DerivedObject(state, proto)
+    , m_language(nullptr)
+    , m_script(nullptr)
+    , m_region(nullptr)
+    , m_baseName(nullptr)
+    , m_locale(nullptr)
 {
     // Set tag to ? ApplyOptionsToTag(tag, options).
     Intl::CanonicalizedLangunageTag buildResult = applyOptionsToTag(state, tag, options);

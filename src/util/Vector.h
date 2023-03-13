@@ -374,16 +374,17 @@ public:
 
     void shrinkToFit()
     {
+        ASSERT(m_size <= m_capacity);
         if (m_size != m_capacity) {
             if (m_size) {
+                ASSERT(!!m_buffer);
                 T* newBuffer = Allocator().allocate(m_size);
                 VectorCopier<T>::copy(newBuffer, m_buffer, m_size);
 
-                size_t oldC = m_capacity;
-                m_capacity = m_size;
-                if (m_buffer)
-                    Allocator().deallocate(m_buffer, oldC);
+                Allocator().deallocate(m_buffer, m_capacity);
+
                 m_buffer = newBuffer;
+                m_capacity = m_size;
             } else {
                 clear();
             }

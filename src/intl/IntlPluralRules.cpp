@@ -72,6 +72,11 @@ void* IntlPluralRulesObject::operator new(size_t size)
 
 IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* proto, Value locales, Value options)
     : DerivedObject(state, proto)
+    , m_locale(nullptr)
+    , m_type(nullptr)
+    , m_minimumIntegerDigits(0)
+    , m_minimumFractionDigits(0)
+    , m_maximumFractionDigits(0)
     , m_icuPluralRules(nullptr)
     , m_icuNumberFormat(nullptr)
 {
