@@ -32,6 +32,12 @@ namespace Escargot {
 
 IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* proto, Value locales, Value options)
     : DerivedObject(state, proto)
+    , m_style(nullptr)
+    , m_type(nullptr)
+    , m_fallback(nullptr)
+    , m_locale(nullptr)
+    , m_languageDisplay(nullptr)
+    , m_icuLocaleDisplayNames(nullptr)
 {
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
     UVersionInfo versionArray;

@@ -35,6 +35,10 @@ namespace Escargot {
 
 IntlListFormatObject::IntlListFormatObject(ExecutionState& state, Object* proto, Value locales, Value options)
     : DerivedObject(state, proto)
+    , m_locale(nullptr)
+    , m_type(nullptr)
+    , m_style(nullptr)
+    , m_icuListFormatter(nullptr)
 {
     // https://tc39.es/ecma402/#sec-Intl.ListFormat
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
