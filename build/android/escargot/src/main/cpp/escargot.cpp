@@ -29,6 +29,8 @@ using namespace Escargot;
 #define  LOGS(...)  fprintf(stderr,__VA_ARGS__)
 #endif
 
+#define THROW_NPE_RETURN_NULL(param, paramType) if (!param) { env->ThrowNew(env->FindClass("java/lang/NullPointerException"), paramType" cannot be null"); return NULL; }
+
 static JavaVM* g_jvm;
 static size_t g_nonPointerValueLast = reinterpret_cast<size_t>(ValueRef::createUndefined());
 static jobject createJavaObjectFromValue(JNIEnv* env, ValueRef* value);
@@ -571,6 +573,9 @@ JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_VMInstance_create(JNIEnv *env, jclass clazz, jobject locale,
                                                 jobject timezone)
 {
+    THROW_NPE_RETURN_NULL(locale, "Optional<String>");
+    THROW_NPE_RETURN_NULL(timezone, "Optional<String>");
+
     std::string localeString = fetchStringFromJavaOptionalString(env, locale);
     std::string timezoneString = fetchStringFromJavaOptionalString(env, timezone);
 
@@ -604,6 +609,8 @@ extern "C"
 JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_Context_create(JNIEnv* env, jclass clazz, jobject vmInstance)
 {
+    THROW_NPE_RETURN_NULL(vmInstance, "VMInstance");
+
     auto vmPtr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(vmInstance),
                                                              vmInstance);
     auto contextRef = ContextRef::create(vmPtr->get());
@@ -613,6 +620,9 @@ Java_com_samsung_lwe_escargot_Context_create(JNIEnv* env, jclass clazz, jobject 
 
 static StringRef* createJSStringFromJava(JNIEnv* env, jstring str)
 {
+    if (!str) {
+        return StringRef::emptyString();
+    }
     jboolean isSucceed;
     const char* cString = env->GetStringUTFChars(str, &isSucceed);
     StringRef* code = StringRef::createFromUTF8(cString, env->GetStringUTFLength(str));
@@ -639,6 +649,8 @@ Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv* env, jclass clazz, jo
                                                    jstring source, jstring sourceFileName,
                                                    jboolean shouldPrintScriptResult)
 {
+    THROW_NPE_RETURN_NULL(context, "Context");
+
     auto ptr = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     auto result = evalScript(ptr->get(), createJSStringFromJava(env, source),
                              createJSStringFromJava(env, sourceFileName), shouldPrintScriptResult,

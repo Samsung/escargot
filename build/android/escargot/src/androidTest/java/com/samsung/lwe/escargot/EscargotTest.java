@@ -2,11 +2,13 @@ package com.samsung.lwe.escargot;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import org.junit.Test;
+import org.junit.function.ThrowingRunnable;
 import org.junit.runner.RunWith;
 
 import java.util.Optional;
@@ -16,6 +18,17 @@ public class EscargotTest {
     @Test
     public void initTest() {
         Globals.initializeGlobals();
+        // null test
+        assertThrows(NullPointerException.class, () -> {
+            VMInstance.create(Optional.empty(), null);
+        });
+        assertThrows(NullPointerException.class, () -> {
+            VMInstance.create(null, Optional.empty());
+        });
+        assertThrows(NullPointerException.class, () -> {
+            Context.create(null);
+        });
+
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
         Context context = Context.create(vmInstance);
 
@@ -78,9 +91,16 @@ public class EscargotTest {
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
         Context context = Context.create(vmInstance);
 
+        assertThrows(NullPointerException.class, () -> {
+            Evaluator.evalScript(null, "", null, true);
+        });
+
+        // pass if not assert doesn't throws
+        Evaluator.evalScript(context, null, null, true);
+
         JavaScriptValue vv = JavaScriptValue.create(System.getProperty("java.version"));
         context.getGlobalObject().set(context, JavaScriptValue.create("ddd"), vv);
-        Evaluator.evalScript(context, "'java.version' + ddd", "invalid", true);
+        Evaluator.evalScript(context, "'java.version' + ddd", null, true);
 
         // test script parsing error
         assertFalse(Evaluator.evalScript(context, "@@", "invalid", true).isPresent());
