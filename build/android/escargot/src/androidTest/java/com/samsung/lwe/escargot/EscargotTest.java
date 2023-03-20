@@ -292,6 +292,22 @@ public class EscargotTest {
     public void bridgeTest() {
         Context context = initEngineAndCreateContext();
 
+        class EmptyBridge extends Bridge.Adapter {
+            @Override
+            public Optional<JavaScriptValue> callback(Optional<JavaScriptValue> data) {
+                return Optional.empty();
+            }
+        }
+
+        assertThrows(NullPointerException.class, () -> {
+               Bridge.register(null, "a", "b", new EmptyBridge());
+        });
+        assertFalse(Bridge.register(context, null, "b", new EmptyBridge()));
+        assertFalse(Bridge.register(context, "", "b", new EmptyBridge()));
+        assertFalse(Bridge.register(context, "a", null, new EmptyBridge()));
+        assertFalse(Bridge.register(context, "a", "", new EmptyBridge()));
+
+
         class TestBridge extends Bridge.Adapter {
             public boolean called = false;
             @Override
@@ -324,6 +340,15 @@ public class EscargotTest {
 
         assertTrue(Evaluator.evalScript(context, "Native.returnString()", "from_java6.js", true).get().asScriptString().toJavaString().equals("string from java"));
         assertTrue(Evaluator.evalScript(context, "Native.returnNothing() === undefined", "from_java7.js", true).get().toString(context).get().toJavaString().equals("true"));
+
+        Bridge.register(context, "Native", "returnNull", new Bridge.Adapter() {
+            @Override
+            public Optional<JavaScriptValue> callback(Optional<JavaScriptValue> data) {
+                return null;
+            }
+        });
+
+        assertTrue(Evaluator.evalScript(context, "Native.returnNull() === undefined", "from_java8.js", true).get().toString(context).get().toJavaString().equals("true"));
 
         context = null;
         finalizeEngine();
@@ -376,6 +401,10 @@ public class EscargotTest {
         assertEquals(v.asNumber(), 3.14, 0);
         assertFalse(v.isInt32());
 
+        v = JavaScriptValue.create((String) null);
+        assertTrue(v.isString());
+        assertTrue(v.asScriptString().toJavaString().equals(""));
+
         v = JavaScriptValue.create("hello");
         assertTrue(v.isString());
         assertTrue(v.asScriptString().toJavaString().equals("hello"));
@@ -408,6 +437,25 @@ public class EscargotTest {
     public void valueOperationTest() {
         Context context = initEngineAndCreateContext();
 
+        assertThrows(NullPointerException.class, () -> {
+            JavaScriptValue.create(123).toString(null);
+        });
+        assertThrows(NullPointerException.class, () -> {
+            JavaScriptValue.create(123).toBoolean(null);
+        });
+        assertThrows(NullPointerException.class, () -> {
+            JavaScriptValue.create(123).toInteger(null);
+        });
+        assertThrows(NullPointerException.class, () -> {
+            JavaScriptValue.create(123).toInt32(null);
+        });
+        assertThrows(NullPointerException.class, () -> {
+            JavaScriptValue.create(123).toNumber(null);
+        });
+        assertThrows(NullPointerException.class, () -> {
+            JavaScriptValue.create(123).toObject(null);
+        });
+
         assertEquals(JavaScriptValue.create(123).toString(context).get().toJavaString(), "123");
         assertEquals(JavaScriptValue.create(123).toBoolean(context).get(), true);
         assertEquals(JavaScriptValue.create(0).toBoolean(context).get(), false);
@@ -433,6 +481,10 @@ public class EscargotTest {
         assertFalse(symbol.description().isPresent());
         assertTrue(symbol.symbolDescriptiveString().toJavaString().equals("Symbol()"));
 
+        symbol = JavaScriptValue.create(Optional.ofNullable(null));
+        assertFalse(symbol.description().isPresent());
+        assertTrue(symbol.symbolDescriptiveString().toJavaString().equals("Symbol()"));
+
         symbol = JavaScriptValue.create(Optional.of(JavaScriptString.create("foobar")));
         assertTrue(symbol.description().isPresent());
         assertTrue(symbol.description().get().toJavaString().equals("foobar"));
@@ -446,6 +498,13 @@ public class EscargotTest {
         assertTrue(exception.isPresent());
         assertEquals(exception.get().toString(context).get().toJavaString(), "TypeError: Cannot convert a Symbol value to a string");
 
+        assertThrows(NullPointerException.class, () -> {
+            JavaScriptSymbol.fromGlobalSymbolRegistry(null, JavaScriptString.create("foo"));
+        });
+        assertThrows(NullPointerException.class, () -> {
+            JavaScriptSymbol.fromGlobalSymbolRegistry(vmInstance, null);
+        });
+
         JavaScriptSymbol symbol1 = JavaScriptSymbol.fromGlobalSymbolRegistry(vmInstance, JavaScriptString.create("foo"));
         JavaScriptSymbol symbol2 = JavaScriptSymbol.fromGlobalSymbolRegistry(vmInstance, JavaScriptString.create("foo"));
         assertTrue(symbol1.equalsTo(context, symbol2).get().booleanValue());
@@ -458,12 +517,59 @@ public class EscargotTest {
     public void objectCreateReadWriteTest() {
         Context context = initEngineAndCreateContext();
 
+        assertThrows(NullPointerException.class, () -> {
+            JavaScriptObject.create((Context) null);
+        });
+
         JavaScriptObject obj = JavaScriptObject.create(context);
+
+        {
+            final Context finalContext = context;
+            assertThrows(NullPointerException.class, () -> {
+                obj.get(null, JavaScriptValue.create("asdf"));
+            });
+            assertThrows(NullPointerException.class, () -> {
+                obj.get(finalContext, null);
+            });
+            assertThrows(NullPointerException.class, () -> {
+                obj.set(null, JavaScriptValue.create("asdf"), JavaScriptValue.create("asdf"));
+            });
+            assertThrows(NullPointerException.class, () -> {
+                obj.set(finalContext, null, JavaScriptValue.create("asdf"));
+            });
+            assertThrows(NullPointerException.class, () -> {
+                obj.set(finalContext, JavaScriptValue.create("asdf"), null);
+            });
+        }
+
         assertTrue(obj.set(context, JavaScriptValue.create("asdf"), JavaScriptValue.create(123)).get().booleanValue());
         assertTrue(obj.get(context, JavaScriptValue.create("asdf")).get().toNumber(context).get().doubleValue() == 123);
 
+        {
+            final Context finalContext = context;
+            assertThrows(NullPointerException.class, () -> {
+                obj.defineDataProperty(null, JavaScriptValue.create("qwer"), JavaScriptValue.create(123), false, false, false);
+            });
+            assertThrows(NullPointerException.class, () -> {
+                obj.defineDataProperty(finalContext, null, JavaScriptValue.create(123), false, false, false);
+            });
+            assertThrows(NullPointerException.class, () -> {
+                obj.defineDataProperty(finalContext, null, null, false, false, false);
+            });
+        }
+
         assertTrue(obj.defineDataProperty(context, JavaScriptValue.create("qwer"), JavaScriptValue.create(123), false, false, false).get().booleanValue());
         assertFalse(obj.defineDataProperty(context, JavaScriptValue.create("qwer"), JavaScriptValue.create(456), false, true, true).get().booleanValue());
+
+        {
+            final Context finalContext = context;
+            assertThrows(NullPointerException.class, () -> {
+                obj.getOwnProperty(null, JavaScriptValue.create("qwer"));
+            });
+            assertThrows(NullPointerException.class, () -> {
+                obj.getOwnProperty(finalContext, null);
+            });
+        }
 
         assertTrue(obj.getOwnProperty(context, JavaScriptValue.create("qwer")).get().toNumber(context).get().doubleValue() == 123);
 
@@ -475,11 +581,19 @@ public class EscargotTest {
     public void arrayCreateReadWriteTest() {
         Context context = initEngineAndCreateContext();
 
+        assertThrows(NullPointerException.class, () -> {
+            JavaScriptArrayObject.create((Context) null);
+        });
+
         JavaScriptArrayObject arr = JavaScriptArrayObject.create(context);
         assertTrue(arr.set(context, JavaScriptValue.create(3), JavaScriptValue.create(123)).get().booleanValue());
         assertTrue(arr.get(context, JavaScriptValue.create(3)).get().toNumber(context).get().doubleValue() == 123);
         assertTrue(arr.get(context, JavaScriptValue.create("length")).get().toInt32(context).get().intValue() == 4);
         assertTrue(arr.length(context) == 4);
+
+        assertThrows(NullPointerException.class, () -> {
+            arr.length(null);
+        });
 
         context = null;
         finalizeEngine();
