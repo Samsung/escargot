@@ -67,25 +67,6 @@ static bool stringEndsWith(const std::string& str, const std::string& suffix)
     return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
 }
 
-static ValueRef* builtinPrint(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    if (argc >= 1) {
-        StringRef* printMsg;
-        if (argv[0]->isSymbol()) {
-            printMsg = argv[0]->asSymbol()->symbolDescriptiveString();
-            LOGI("%s", printMsg->toStdUTF8String().data());
-            state->context()->printDebugger(printMsg);
-        } else {
-            printMsg = argv[0]->toString(state);
-            LOGI("%s", printMsg->toStdUTF8String().data());
-            state->context()->printDebugger(printMsg->toString(state));
-        }
-    } else {
-        LOGI("%s", "undefined");
-    }
-    return ValueRef::createUndefined();
-}
-
 static const char32_t offsetsFromUTF8[6] = { 0x00000000UL, 0x00003080UL, 0x000E2080UL, 0x03C82080UL, static_cast<char32_t>(0xFA082080UL), static_cast<char32_t>(0x82082080UL) };
 
 static char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
@@ -203,29 +184,6 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
         return nullptr;
     }
 }
-
-static ValueRef* builtinLoad(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    if (argc >= 1) {
-        auto f = argv[0]->toString(state)->toStdUTF8String();
-        const char* fileName = f.data();
-        StringRef* src = builtinHelperFileRead(state, fileName, "load").value();
-        bool isModule = stringEndsWith(f, "mjs");
-
-        auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state), isModule).fetchScriptThrowsExceptionIfParseError(state);
-        return script->execute(state);
-    } else {
-        return ValueRef::createUndefined();
-    }
-}
-
-static ValueRef* builtinGc(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
-{
-    Memory::gc();
-    return ValueRef::createUndefined();
-}
-
-static PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, bool isMainThread = true);
 
 class ShellPlatform : public PlatformRef {
 public:
@@ -443,38 +401,6 @@ static Evaluator::EvaluatorResult evalScript(ContextRef* context, StringRef* sou
 }
 
 
-PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, bool isMainThread)
-{
-    PersistentRefHolder<ContextRef> context = ContextRef::create(instance);
-
-    Evaluator::execute(context, [](ExecutionStateRef* state, bool isMainThread) -> ValueRef* {
-                           ContextRef* context = state->context();
-
-                           {
-                               FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "print"), builtinPrint, 1, true, false);
-                               FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-                               context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("print"), buildFunctionObjectRef, true, true, true);
-                           }
-
-                           {
-                               FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "load"), builtinLoad, 1, true, false);
-                               FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-                               context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("load"), buildFunctionObjectRef, true, true, true);
-                           }
-
-                           {
-                               FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "gc"), builtinGc, 0, true, false);
-                               FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
-                               context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("gc"), buildFunctionObjectRef, true, true, true);
-                           }
-
-                           return ValueRef::createUndefined();
-                       },
-                       isMainThread);
-
-    return context;
-}
-
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_samsung_lwe_escargot_NativePointerHolder_releaseNativePointerMemory(JNIEnv* env,
@@ -680,7 +606,7 @@ Java_com_samsung_lwe_escargot_Context_create(JNIEnv* env, jclass clazz, jobject 
 {
     auto vmPtr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(vmInstance),
                                                              vmInstance);
-    auto contextRef = createEscargotContext(vmPtr->get());
+    auto contextRef = ContextRef::create(vmPtr->get());
     PersistentRefHolder<ContextRef>* pRef = new PersistentRefHolder<ContextRef>(std::move(contextRef));
     return env->NewObject(clazz, env->GetMethodID(clazz, "<init>", "(J)V"), reinterpret_cast<jlong>(pRef));
 }
