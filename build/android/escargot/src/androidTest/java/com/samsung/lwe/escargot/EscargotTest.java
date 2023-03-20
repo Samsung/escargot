@@ -481,7 +481,7 @@ public class EscargotTest {
         assertFalse(symbol.description().isPresent());
         assertTrue(symbol.symbolDescriptiveString().toJavaString().equals("Symbol()"));
 
-        symbol = JavaScriptValue.create(Optional.ofNullable(null));
+        symbol = JavaScriptValue.create((Optional<JavaScriptString>) null);
         assertFalse(symbol.description().isPresent());
         assertTrue(symbol.symbolDescriptiveString().toJavaString().equals("Symbol()"));
 
@@ -604,6 +604,18 @@ public class EscargotTest {
         Context context = initEngineAndCreateContext();
 
         String testString = "[1, 2, 3]";
+
+        {
+            final Context finalContext = context;
+            String finalTestString = testString;
+            assertThrows(NullPointerException.class, () -> {
+                finalContext.getGlobalObject().jsonParse(null, JavaScriptValue.create(finalTestString));
+            });
+            assertThrows(NullPointerException.class, () -> {
+                finalContext.getGlobalObject().jsonParse(finalContext, null);
+            });
+        }
+
         JavaScriptValue result = context.getGlobalObject().jsonParse(context, JavaScriptValue.create(testString)).get();
         assertTrue(result.isArrayObject());
         assertEquals(result.asScriptArrayObject().get(context, JavaScriptValue.create(0)).get().toNumber(context).get().intValue(), 1);
@@ -616,6 +628,17 @@ public class EscargotTest {
         assertTrue(result.isObject());
         assertEquals(result.asScriptObject().get(context, JavaScriptValue.create("a")).get().asScriptString().toJavaString(), "asdf");
         result.asScriptObject().set(context, JavaScriptValue.create(123), JavaScriptValue.create(456));
+
+        {
+            final Context finalContext = context;
+            assertThrows(NullPointerException.class, () -> {
+                finalContext.getGlobalObject().jsonStringify(null, JavaScriptValue.create(100));
+            });
+            assertThrows(NullPointerException.class, () -> {
+                finalContext.getGlobalObject().jsonStringify(finalContext, null);
+            });
+        }
+
         assertEquals(context.getGlobalObject().jsonStringify(context, result).get().toJavaString(), "{\"123\":456,\"a\":\"asdf\"}");
 
         context = null;
@@ -636,6 +659,19 @@ public class EscargotTest {
         assertFalse(value.isCallable());
         value = JavaScriptArrayObject.create(context);
         assertFalse(value.isCallable());
+
+        {
+            final Context finalContext = context;
+            assertThrows(NullPointerException.class, () -> {
+                JavaScriptValue.create("asdf").call(null, JavaScriptValue.createUndefined(), new JavaScriptValue[]{});
+            });
+            assertThrows(NullPointerException.class, () -> {
+                JavaScriptValue.create("asdf").call(finalContext, null, new JavaScriptValue[]{});
+            });
+            assertThrows(NullPointerException.class, () -> {
+                JavaScriptValue.create("asdf").call(finalContext, JavaScriptValue.createUndefined(), null);
+            });
+        }
 
         assertFalse(context.lastThrownException().isPresent());
         value.call(context, JavaScriptValue.createUndefined(), new JavaScriptValue[]{});
@@ -700,6 +736,9 @@ public class EscargotTest {
         bigInt = JavaScriptBigInt.create(Long.MIN_VALUE);
         assertEquals(bigInt.toInt64(), Long.MIN_VALUE);
 
+        assertEquals(JavaScriptBigInt.create((String) null, 10).toInt64(), 0);
+        assertEquals(JavaScriptBigInt.create((JavaScriptString) null, 10).toInt64(), 0);
+
         context = null;
         finalizeEngine();
     }
@@ -707,6 +746,16 @@ public class EscargotTest {
     @Test
     public void testConstruct() {
         Context context = initEngineAndCreateContext();
+
+        {
+            final Context finalContext = context;
+            assertThrows(NullPointerException.class, () -> {
+                JavaScriptValue.create("asdf").construct(null, new JavaScriptValue[]{});
+            });
+            assertThrows(NullPointerException.class, () -> {
+                JavaScriptValue.create("asdf").construct(finalContext, null);
+            });
+        }
 
         JavaScriptGlobalObject global = context.getGlobalObject();
         JavaScriptValue globalFunction = global.get(context, JavaScriptString.create("Function")).get();
@@ -730,6 +779,29 @@ public class EscargotTest {
     @Test
     public void testJavaCallbackFunction() {
         Context context = initEngineAndCreateContext();
+
+        {
+            final Context finalContext = context;
+            assertThrows(NullPointerException.class, () -> {
+                JavaScriptJavaCallbackFunctionObject.create(null,
+                        null,
+                        3,
+                        false,
+                        new JavaScriptJavaCallbackFunctionObject.Callback() {
+                            @Override
+                            public Optional<JavaScriptValue> callback(JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                                return Optional.empty();
+                            }
+                        });
+            });
+            assertThrows(NullPointerException.class, () -> {
+                JavaScriptJavaCallbackFunctionObject.create(finalContext,
+                        null,
+                        3,
+                        false,
+                        null);
+            });
+        }
 
         JavaScriptJavaCallbackFunctionObject callbackFunctionObject =
                 JavaScriptJavaCallbackFunctionObject.create(context,
@@ -784,6 +856,22 @@ public class EscargotTest {
 
         ret = Evaluator.evalScript(context, "asdf(1, 2)", "test.js", false);
         assertEquals(ret.get().asInt32(), 3);
+
+        callbackFunctionObject =
+                JavaScriptJavaCallbackFunctionObject.create(context,
+                        "fnname",
+                        0,
+                        false,
+                        new JavaScriptJavaCallbackFunctionObject.Callback() {
+                            @Override
+                            public Optional<JavaScriptValue> callback(JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                                return null;
+                            }
+                        });
+        context.getGlobalObject().set(context, JavaScriptString.create("asdf"), callbackFunctionObject);
+
+        ret = Evaluator.evalScript(context, "asdf()", "test.js", false);
+        assertTrue(ret.get().isUndefined());
 
         context = null;
         finalizeEngine();

@@ -862,14 +862,16 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_create__Ljava_util_Optional_2(JNIE
                                                                             jclass clazz,
                                                                             jobject value)
 {
-    auto classOptionalJavaScriptString = env->GetObjectClass(value);
-    auto methodIsPresent = env->GetMethodID(classOptionalJavaScriptString, "isPresent", "()Z");
     OptionalRef<StringRef> descString;
-    if (value && env->CallBooleanMethod(value, methodIsPresent)) {
-        auto methodGet = env->GetMethodID(classOptionalJavaScriptString, "get", "()Ljava/lang/Object;");
-        jboolean isSucceed;
-        jobject javaObjectValue = env->CallObjectMethod(value, methodGet);
-        descString = unwrapValueRefFromValue(env, env->GetObjectClass(javaObjectValue), javaObjectValue)->asString();
+    if (value) {
+        auto classOptionalJavaScriptString = env->GetObjectClass(value);
+        auto methodIsPresent = env->GetMethodID(classOptionalJavaScriptString, "isPresent", "()Z");
+        if (env->CallBooleanMethod(value, methodIsPresent)) {
+            auto methodGet = env->GetMethodID(classOptionalJavaScriptString, "get", "()Ljava/lang/Object;");
+            jboolean isSucceed;
+            jobject javaObjectValue = env->CallObjectMethod(value, methodGet);
+            descString = unwrapValueRefFromValue(env, env->GetObjectClass(javaObjectValue), javaObjectValue)->asString();
+        }
     }
 
     return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptSymbol", SymbolRef::create(descString));
@@ -1233,6 +1235,23 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toInt32(JNIEnv* env, jobject thiz,
 
 extern "C"
 JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_toBoolean(JNIEnv* env, jobject thiz, jobject context)
+{
+    THROW_NPE_RETURN_NULL(context, "Context");
+
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+        return ValueRef::create(thisValueRef->toBoolean(state));
+    }, thisValueRef);
+
+    return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
+                                                         evaluatorResult);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_toObject(JNIEnv* env, jobject thiz, jobject context)
 {
     THROW_NPE_RETURN_NULL(context, "Context");
@@ -1253,6 +1272,9 @@ JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_abstractEqualsTo(JNIEnv* env, jobject thiz,
                                                                jobject context, jobject other)
 {
+    THROW_NPE_RETURN_NULL(context, "Context");
+    THROW_NPE_RETURN_NULL(other, "JavaScriptValue");
+
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
     ValueRef* otherValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(other), other);
@@ -1270,6 +1292,9 @@ JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_equalsTo(JNIEnv* env, jobject thiz, jobject context,
                                                        jobject other)
 {
+    THROW_NPE_RETURN_NULL(context, "Context");
+    THROW_NPE_RETURN_NULL(other, "JavaScriptValue");
+
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
     ValueRef* otherValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(other), other);
@@ -1287,6 +1312,9 @@ JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_instanceOf(JNIEnv* env, jobject thiz, jobject context,
                                                          jobject other)
 {
+    THROW_NPE_RETURN_NULL(context, "Context");
+    THROW_NPE_RETURN_NULL(other, "JavaScriptValue");
+
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
     ValueRef* otherValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(other), other);
@@ -1304,6 +1332,10 @@ JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_call(JNIEnv* env, jobject thiz, jobject context,
                                                    jobject receiver, jobjectArray argv)
 {
+    THROW_NPE_RETURN_NULL(context, "Context");
+    THROW_NPE_RETURN_NULL(receiver, "JavaScriptValue");
+    THROW_NPE_RETURN_NULL(argv, "JavaScriptValue[]");
+
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
     ValueRef* receiverValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(receiver), receiver);
@@ -1334,6 +1366,9 @@ JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_construct(JNIEnv* env, jobject thiz, jobject context,
                                                         jobjectArray argv)
 {
+    THROW_NPE_RETURN_NULL(context, "Context");
+    THROW_NPE_RETURN_NULL(argv, "JavaScriptValue[]");
+
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
@@ -1355,23 +1390,6 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_construct(JNIEnv* env, jobject thi
 
     return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
                                                                  evaluatorResult);
-}
-
-extern "C"
-JNIEXPORT jobject JNICALL
-Java_com_samsung_lwe_escargot_JavaScriptValue_toBoolean(JNIEnv* env, jobject thiz, jobject context)
-{
-    THROW_NPE_RETURN_NULL(context, "Context");
-
-    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
-
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
-        return ValueRef::create(thisValueRef->toBoolean(state));
-    }, thisValueRef);
-
-    return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
-                                                         evaluatorResult);
 }
 
 extern "C"
@@ -1421,9 +1439,13 @@ JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptBigInt_create__Lcom_samsung_lwe_escargot_JavaScriptString_2I(
         JNIEnv* env, jclass clazz, jobject numString, jint radix)
 {
-    return createJavaValueObject(env, clazz,
-                                 BigIntRef::create(unwrapValueRefFromValue(env, env->GetObjectClass(
-                                         numString), numString)->asString(), radix));
+    if (numString) {
+        return createJavaValueObject(env, clazz,
+                                     BigIntRef::create(unwrapValueRefFromValue(env, env->GetObjectClass(
+                                             numString), numString)->asString(), radix));
+    } else {
+        return createJavaValueObject(env, clazz, BigIntRef::create(static_cast<int64_t>(0)));
+    }
 }
 
 extern "C"
@@ -1614,6 +1636,9 @@ JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_jsonStringify(JNIEnv* env, jobject thiz,
                                                                    jobject context, jobject input)
 {
+    THROW_NPE_RETURN_NULL(context, "Context");
+    THROW_NPE_RETURN_NULL(input, "JavaScriptValue");
+
     auto globalObjectRef = getPersistentPointerFromJava<GlobalObjectRef>(env, env->GetObjectClass(context), thiz);
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* inputValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(input), input);
@@ -1631,6 +1656,9 @@ JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_jsonParse(JNIEnv* env, jobject thiz,
                                                                jobject context, jobject input)
 {
+    THROW_NPE_RETURN_NULL(context, "Context");
+    THROW_NPE_RETURN_NULL(input, "JavaScriptValue");
+
     auto globalObjectRef = getPersistentPointerFromJava<GlobalObjectRef>(env, env->GetObjectClass(context), thiz);
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* inputValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(input), input);
@@ -1652,6 +1680,9 @@ Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv
                                                                           jboolean isConstructor,
                                                                           jobject callback)
 {
+    THROW_NPE_RETURN_NULL(context, "Context");
+    THROW_NPE_RETURN_NULL(callback, "Callback");
+
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context),
                                                                context);
 
@@ -1683,13 +1714,15 @@ Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv
                     javaArgv
                     );
 
-            auto classOptional = env->GetObjectClass(returnValue);
-            auto methodIsPresent = env->GetMethodID(classOptional, "isPresent", "()Z");
             ValueRef* nativeReturnValue = ValueRef::createUndefined();
-            if (env->CallBooleanMethod(returnValue, methodIsPresent)) {
-                auto methodGet = env->GetMethodID(classOptional, "get", "()Ljava/lang/Object;");
-                jobject callbackReturnValue = env->CallObjectMethod(returnValue, methodGet);
-                nativeReturnValue = unwrapValueRefFromValue(env.get(), env->GetObjectClass(callbackReturnValue), callbackReturnValue);
+            if (returnValue) {
+                auto classOptional = env->GetObjectClass(returnValue);
+                auto methodIsPresent = env->GetMethodID(classOptional, "isPresent", "()Z");
+                if (env->CallBooleanMethod(returnValue, methodIsPresent)) {
+                    auto methodGet = env->GetMethodID(classOptional, "get", "()Ljava/lang/Object;");
+                    jobject callbackReturnValue = env->CallObjectMethod(returnValue, methodGet);
+                    nativeReturnValue = unwrapValueRefFromValue(env.get(), env->GetObjectClass(callbackReturnValue), callbackReturnValue);
+                }
             }
             env->PopLocalFrame(NULL);
             return nativeReturnValue;
