@@ -136,6 +136,8 @@ public:
     }
 
 protected:
+    void setDateFromPattern(ExecutionState& state, UTF16StringDataNonGCStd& patternBuffer, bool hasHourOption);
+
     String* m_locale;
     String* m_calendar;
     String* m_numberingSystem;

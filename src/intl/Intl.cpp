@@ -114,211 +114,352 @@ static std::string grandfatheredLangTag(const std::string& locale)
     return std::string();
 }
 
+static std::string intlPreferredLanguageTagStartWithA(const std::string& tag)
+{
+    if (tag == "aam")
+        return "aas";
+    else if (tag == "adp")
+        return "dz";
+    else if (tag == "asd")
+        return "snz";
+    else if (tag == "aue")
+        return "ktz";
+    else if (tag == "ayx")
+        return "nun";
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithB(const std::string& tag)
+{
+    if (tag == "bgm")
+        return "bcg";
+    else if (tag == "bic")
+        return "bir";
+    else if (tag == "bjd")
+        return "drl";
+    else if (tag == "blg")
+        return "iba";
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithC(const std::string& tag)
+{
+    if (tag == "ccq")
+        return "rki";
+    else if (tag == "cjr")
+        return "mom";
+    else if (tag == "cka")
+        return "cmr";
+    else if (tag == "cmk")
+        return "xch";
+    else if (tag == "coy")
+        return "pij";
+    else if (tag == "cqu")
+        return "quh";
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithD(const std::string& tag)
+{
+    if (tag == "dit")
+        return "dif";
+    else if (tag == "drh")
+        return "khk";
+    else if (tag == "drr")
+        return "kzk";
+    else if (tag == "drw")
+        return "prs";
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithG(const std::string& tag)
+{
+    if (tag == "gav")
+        return "dev";
+    else if (tag == "gfx")
+        return "vaj";
+    else if (tag == "ggn")
+        return "gvr";
+    else if (tag == "gli")
+        return "kzk";
+    else if (tag == "gti")
+        return "nyc";
+    else if (tag == "guv")
+        return "duz";
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithI(const std::string& tag)
+{
+    if (tag == "ibi")
+        return "opa";
+    else if (tag == "ilw")
+        return "gal";
+    else if (tag == "in")
+        return "id";
+    else if (tag == "iw")
+        return "he";
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithJ(const std::string& tag)
+{
+    if (tag == "jeg")
+        return "oyb";
+    else if (tag == "ji")
+        return "yi";
+    else if (tag == "jw")
+        return "jv";
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithK(const std::string& tag)
+{
+    if (tag == "kgc")
+        return "tdf";
+    else if (tag == "kgh")
+        return "kml";
+    else if (tag == "koj")
+        return "kwv";
+    else if (tag == "krm")
+        return "bmf";
+    else if (tag == "ktr")
+        return "dtp";
+    else if (tag == "kvs")
+        return "gdj";
+    else if (tag == "kwq")
+        return "yam";
+    else if (tag == "kxe")
+        return "tvd";
+    else if (tag == "kxl")
+        return "kru";
+    else if (tag == "kzj")
+        return "dtp";
+    else if (tag == "kzt")
+        return "dtp";
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithL(const std::string& tag)
+{
+    if (tag == "lii")
+        return "raq";
+    else if (tag == "llo")
+        return "ngt";
+    else if (tag == "lmm")
+        return "rmx";
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithM(const std::string& tag)
+{
+    if (tag == "meg")
+        return "cir";
+    else if (tag == "mo")
+        return "ro";
+    else if (tag == "mst")
+        return "mry";
+    else if (tag == "mwj")
+        return "vaj";
+    else if (tag == "myd")
+        return "aog";
+    else if (tag == "myt")
+        return "mry";
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithN(const std::string& tag)
+{
+    if (tag == "nad")
+        return "xny";
+    else if (tag == "ncp")
+        return "kdz";
+    else if (tag == "nns")
+        return "nbr";
+    else if (tag == "nnx")
+        return "ngv";
+    else if (tag == "nts")
+        return "pij";
+    else if (tag == "nxu")
+        return "bpp";
+
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithP(const std::string& tag)
+{
+    if (tag == "pat")
+        return "kxr";
+    else if (tag == "pcr")
+        return "adx";
+    else if (tag == "pmc")
+        return "huw";
+    else if (tag == "pmu")
+        return "phr";
+    else if (tag == "ppa")
+        return "bfy";
+    else if (tag == "ppr")
+        return "lcq";
+    else if (tag == "pry")
+        return "prt";
+    else if (tag == "puz")
+        return "pub";
+
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithT(const std::string& tag)
+{
+    if (tag == "tdu")
+        return "dtp";
+    else if (tag == "thc")
+        return "tpo";
+    else if (tag == "thw")
+        return "ola";
+    else if (tag == "thx")
+        return "oyb";
+    else if (tag == "tie")
+        return "ras";
+    else if (tag == "tkk")
+        return "twm";
+    else if (tag == "tlw")
+        return "weo";
+    else if (tag == "tmp")
+        return "tyj";
+    else if (tag == "tne")
+        return "kak";
+    else if (tag == "tnf")
+        return "prs";
+    else if (tag == "tsf")
+        return "taj";
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithX(const std::string& tag)
+{
+    if (tag == "xba")
+        return "cax";
+    else if (tag == "xia")
+        return "acn";
+    else if (tag == "xkh")
+        return "waw";
+    else if (tag == "xrq")
+        return "dmw";
+    else
+        return "";
+}
+
+static std::string intlPreferredLanguageTagStartWithY(const std::string& tag)
+{
+    if (tag == "ybd")
+        return "rki";
+    else if (tag == "yma")
+        return "lrr";
+    else if (tag == "ymt")
+        return "mtm";
+    else if (tag == "yos")
+        return "zom";
+    else if (tag == "yuu")
+        return "yug";
+    else
+        return "";
+}
+
 static std::string intlPreferredLanguageTag(const std::string& tag)
 {
     // languageAlias element in
     // https://www.unicode.org/repos/cldr/trunk/common/supplemental/supplementalMetadata.xml
     if (tag == "cmn")
         return "zh";
-    if (tag == "ces")
+    else if (tag == "ces")
         return "cs";
-    if (tag == "heb")
+    else if (tag == "heb")
         return "he";
-    if (tag == "xsj")
+    else if (tag == "xsj")
         return "suj";
-    if (tag == "aar")
+    else if (tag == "aar")
         return "aa";
-
     // legacy
-    if (tag == "tl")
+    else if (tag == "tl")
         return "fil";
 
-    // 92 possible replacements
-    if (tag == "aam")
-        return "aas";
-    if (tag == "adp")
-        return "dz";
-    if (tag == "asd")
-        return "snz";
-    if (tag == "aue")
-        return "ktz";
-    if (tag == "ayx")
-        return "nun";
-    if (tag == "bgm")
-        return "bcg";
-    if (tag == "bic")
-        return "bir";
-    if (tag == "bjd")
-        return "drl";
-    if (tag == "blg")
-        return "iba";
-    if (tag == "ccq")
-        return "rki";
-    if (tag == "cjr")
-        return "mom";
-    if (tag == "cka")
-        return "cmr";
-    if (tag == "cmk")
-        return "xch";
-    if (tag == "coy")
-        return "pij";
-    if (tag == "cqu")
-        return "quh";
-    if (tag == "dit")
-        return "dif";
-    if (tag == "drh")
-        return "khk";
-    if (tag == "drr")
-        return "kzk";
-    if (tag == "drw")
-        return "prs";
-    if (tag == "gav")
-        return "dev";
-    if (tag == "gfx")
-        return "vaj";
-    if (tag == "ggn")
-        return "gvr";
-    if (tag == "gli")
-        return "kzk";
-    if (tag == "gti")
-        return "nyc";
-    if (tag == "guv")
-        return "duz";
-    if (tag == "hrr")
-        return "jal";
-    if (tag == "ibi")
-        return "opa";
-    if (tag == "ilw")
-        return "gal";
-    if (tag == "in")
-        return "id";
-    if (tag == "iw")
-        return "he";
-    if (tag == "jeg")
-        return "oyb";
-    if (tag == "ji")
-        return "yi";
-    if (tag == "jw")
-        return "jv";
-    if (tag == "kgc")
-        return "tdf";
-    if (tag == "kgh")
-        return "kml";
-    if (tag == "koj")
-        return "kwv";
-    if (tag == "krm")
-        return "bmf";
-    if (tag == "ktr")
-        return "dtp";
-    if (tag == "kvs")
-        return "gdj";
-    if (tag == "kwq")
-        return "yam";
-    if (tag == "kxe")
-        return "tvd";
-    if (tag == "kxl")
-        return "kru";
-    if (tag == "kzj")
-        return "dtp";
-    if (tag == "kzt")
-        return "dtp";
-    if (tag == "lii")
-        return "raq";
-    if (tag == "llo")
-        return "ngt";
-    if (tag == "lmm")
-        return "rmx";
-    if (tag == "meg")
-        return "cir";
-    if (tag == "mo")
-        return "ro";
-    if (tag == "mst")
-        return "mry";
-    if (tag == "mwj")
-        return "vaj";
-    if (tag == "myd")
-        return "aog";
-    if (tag == "myt")
-        return "mry";
-    if (tag == "nad")
-        return "xny";
-    if (tag == "ncp")
-        return "kdz";
-    if (tag == "nns")
-        return "nbr";
-    if (tag == "nnx")
-        return "ngv";
-    if (tag == "nts")
-        return "pij";
-    if (tag == "nxu")
-        return "bpp";
-    if (tag == "oun")
-        return "vaj";
-    if (tag == "pat")
-        return "kxr";
-    if (tag == "pcr")
-        return "adx";
-    if (tag == "pmc")
-        return "huw";
-    if (tag == "pmu")
-        return "phr";
-    if (tag == "ppa")
-        return "bfy";
-    if (tag == "ppr")
-        return "lcq";
-    if (tag == "pry")
-        return "prt";
-    if (tag == "puz")
-        return "pub";
-    if (tag == "sca")
-        return "hle";
-    if (tag == "skk")
-        return "oyb";
-    if (tag == "tdu")
-        return "dtp";
-    if (tag == "thc")
-        return "tpo";
-    if (tag == "thw")
-        return "ola";
-    if (tag == "thx")
-        return "oyb";
-    if (tag == "tie")
-        return "ras";
-    if (tag == "tkk")
-        return "twm";
-    if (tag == "tlw")
-        return "weo";
-    if (tag == "tmp")
-        return "tyj";
-    if (tag == "tne")
-        return "kak";
-    if (tag == "tnf")
-        return "prs";
-    if (tag == "tsf")
-        return "taj";
-    if (tag == "uok")
-        return "ema";
-    if (tag == "xba")
-        return "cax";
-    if (tag == "xia")
-        return "acn";
-    if (tag == "xkh")
-        return "waw";
-    if (tag == "xrq")
-        return "dmw";
-    if (tag == "ybd")
-        return "rki";
-    if (tag == "yma")
-        return "lrr";
-    if (tag == "ymt")
-        return "mtm";
-    if (tag == "yos")
-        return "zom";
-    if (tag == "yuu")
-        return "yug";
-    if (tag == "zir")
-        return "scv";
-    return "";
+    switch (tag[0]) {
+        // 92 possible replacements
+    case 'a':
+        return intlPreferredLanguageTagStartWithA(tag);
+    case 'b':
+        return intlPreferredLanguageTagStartWithB(tag);
+    case 'c':
+        return intlPreferredLanguageTagStartWithC(tag);
+    case 'd':
+        return intlPreferredLanguageTagStartWithD(tag);
+    case 'g':
+        return intlPreferredLanguageTagStartWithG(tag);
+    case 'h': {
+        if (tag == "hrr")
+            return "jal";
+        return "";
+    }
+    case 'i':
+        return intlPreferredLanguageTagStartWithI(tag);
+    case 'j':
+        return intlPreferredLanguageTagStartWithJ(tag);
+    case 'k':
+        return intlPreferredLanguageTagStartWithK(tag);
+    case 'l':
+        return intlPreferredLanguageTagStartWithL(tag);
+    case 'm':
+        return intlPreferredLanguageTagStartWithM(tag);
+    case 'n':
+        return intlPreferredLanguageTagStartWithN(tag);
+    case 'o': {
+        if (tag == "oun")
+            return "vaj";
+        return "";
+    }
+    case 'p':
+        return intlPreferredLanguageTagStartWithP(tag);
+    case 's': {
+        if (tag == "sca")
+            return "hle";
+        else if (tag == "skk")
+            return "oyb";
+        else
+            return "";
+    }
+    case 't':
+        return intlPreferredLanguageTagStartWithT(tag);
+    case 'u': {
+        if (tag == "uok")
+            return "ema";
+        else
+            return "";
+    }
+    case 'x':
+        return intlPreferredLanguageTagStartWithX(tag);
+    case 'y':
+        return intlPreferredLanguageTagStartWithY(tag);
+    case 'z': {
+        if (tag == "zir")
+            return "scv";
+        return "";
+    }
+    default:
+        return "";
+    }
 }
 
 static std::string intlRedundantLanguageTag(const std::string& tag)
@@ -386,500 +527,706 @@ std::string Intl::preferredLanguage(const std::string& language)
     return language;
 }
 
-static std::string intlPreferredExtlangTag(const std::string& tag)
+static std::string intlPreferredExtlangTagStartWithA(const std::string& tag)
 {
-    // 245 possible replacements
     if (tag == "aao")
         return "ar";
-    if (tag == "abh")
+    else if (tag == "abh")
         return "ar";
-    if (tag == "abv")
+    else if (tag == "abv")
         return "ar";
-    if (tag == "acm")
+    else if (tag == "acm")
         return "ar";
-    if (tag == "acq")
+    else if (tag == "acq")
         return "ar";
-    if (tag == "acw")
+    else if (tag == "acw")
         return "ar";
-    if (tag == "acx")
+    else if (tag == "acx")
         return "ar";
-    if (tag == "acy")
+    else if (tag == "acy")
         return "ar";
-    if (tag == "adf")
+    else if (tag == "adf")
         return "ar";
-    if (tag == "ads")
+    else if (tag == "ads")
         return "sgn";
-    if (tag == "aeb")
+    else if (tag == "aeb")
         return "ar";
-    if (tag == "aec")
+    else if (tag == "aec")
         return "ar";
-    if (tag == "aed")
+    else if (tag == "aed")
         return "sgn";
-    if (tag == "aen")
+    else if (tag == "aen")
         return "sgn";
-    if (tag == "afb")
+    else if (tag == "afb")
         return "ar";
-    if (tag == "afg")
+    else if (tag == "afg")
         return "sgn";
-    if (tag == "ajp")
+    else if (tag == "ajp")
         return "ar";
-    if (tag == "apc")
+    else if (tag == "apc")
         return "ar";
-    if (tag == "apd")
+    else if (tag == "apd")
         return "ar";
-    if (tag == "arb")
+    else if (tag == "arb")
         return "ar";
-    if (tag == "arq")
+    else if (tag == "arq")
         return "ar";
-    if (tag == "ars")
+    else if (tag == "ars")
         return "ar";
-    if (tag == "ary")
+    else if (tag == "ary")
         return "ar";
-    if (tag == "arz")
+    else if (tag == "arz")
         return "ar";
-    if (tag == "ase")
+    else if (tag == "ase")
         return "sgn";
-    if (tag == "asf")
+    else if (tag == "asf")
         return "sgn";
-    if (tag == "asp")
+    else if (tag == "asp")
         return "sgn";
-    if (tag == "asq")
+    else if (tag == "asq")
         return "sgn";
-    if (tag == "asw")
+    else if (tag == "asw")
         return "sgn";
-    if (tag == "auz")
+    else if (tag == "auz")
         return "ar";
-    if (tag == "avl")
+    else if (tag == "avl")
         return "ar";
-    if (tag == "ayh")
+    else if (tag == "ayh")
         return "ar";
-    if (tag == "ayl")
+    else if (tag == "ayl")
         return "ar";
-    if (tag == "ayn")
+    else if (tag == "ayn")
         return "ar";
-    if (tag == "ayp")
+    else if (tag == "ayp")
         return "ar";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithB(const std::string& tag)
+{
     if (tag == "bbz")
         return "ar";
-    if (tag == "bfi")
+    else if (tag == "bfi")
         return "sgn";
-    if (tag == "bfk")
+    else if (tag == "bfk")
         return "sgn";
-    if (tag == "bjn")
+    else if (tag == "bjn")
         return "ms";
-    if (tag == "bog")
+    else if (tag == "bog")
         return "sgn";
-    if (tag == "bqn")
+    else if (tag == "bqn")
         return "sgn";
-    if (tag == "bqy")
+    else if (tag == "bqy")
         return "sgn";
-    if (tag == "btj")
+    else if (tag == "btj")
         return "ms";
-    if (tag == "bve")
+    else if (tag == "bve")
         return "ms";
-    if (tag == "bvl")
+    else if (tag == "bvl")
         return "sgn";
-    if (tag == "bvu")
+    else if (tag == "bvu")
         return "ms";
-    if (tag == "bzs")
+    else if (tag == "bzs")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithC(const std::string& tag)
+{
     if (tag == "cdo")
         return "zh";
-    if (tag == "cds")
+    else if (tag == "cds")
         return "sgn";
-    if (tag == "cjy")
+    else if (tag == "cjy")
         return "zh";
-    if (tag == "cmn")
+    else if (tag == "cmn")
         return "zh";
-    if (tag == "cnp")
+    else if (tag == "cnp")
         return "zh";
-    if (tag == "coa")
+    else if (tag == "coa")
         return "ms";
-    if (tag == "cpx")
+    else if (tag == "cpx")
         return "zh";
-    if (tag == "csc")
+    else if (tag == "csc")
         return "sgn";
-    if (tag == "csd")
+    else if (tag == "csd")
         return "sgn";
-    if (tag == "cse")
+    else if (tag == "cse")
         return "sgn";
-    if (tag == "csf")
+    else if (tag == "csf")
         return "sgn";
-    if (tag == "csg")
+    else if (tag == "csg")
         return "sgn";
-    if (tag == "csl")
+    else if (tag == "csl")
         return "sgn";
-    if (tag == "csn")
+    else if (tag == "csn")
         return "sgn";
-    if (tag == "csp")
+    else if (tag == "csp")
         return "zh";
-    if (tag == "csq")
+    else if (tag == "csq")
         return "sgn";
-    if (tag == "csr")
+    else if (tag == "csr")
         return "sgn";
-    if (tag == "csx")
+    else if (tag == "csx")
         return "sgn";
-    if (tag == "czh")
+    else if (tag == "czh")
         return "zh";
-    if (tag == "czo")
+    else if (tag == "czo")
         return "zh";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithD(const std::string& tag)
+{
     if (tag == "doq")
         return "sgn";
-    if (tag == "dse")
+    else if (tag == "dse")
         return "sgn";
-    if (tag == "dsl")
+    else if (tag == "dsl")
         return "sgn";
-    if (tag == "dup")
+    else if (tag == "dup")
         return "ms";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithE(const std::string& tag)
+{
     if (tag == "ecs")
         return "sgn";
-    if (tag == "ehs")
+    else if (tag == "ehs")
         return "sgn";
-    if (tag == "esl")
+    else if (tag == "esl")
         return "sgn";
-    if (tag == "esn")
+    else if (tag == "esn")
         return "sgn";
-    if (tag == "eso")
+    else if (tag == "eso")
         return "sgn";
-    if (tag == "eth")
+    else if (tag == "eth")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithF(const std::string& tag)
+{
     if (tag == "fcs")
         return "sgn";
-    if (tag == "fse")
+    else if (tag == "fse")
         return "sgn";
-    if (tag == "fsl")
+    else if (tag == "fsl")
         return "sgn";
-    if (tag == "fss")
+    else if (tag == "fss")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithG(const std::string& tag)
+{
     if (tag == "gan")
         return "zh";
-    if (tag == "gds")
+    else if (tag == "gds")
         return "sgn";
-    if (tag == "gom")
+    else if (tag == "gom")
         return "kok";
-    if (tag == "gse")
+    else if (tag == "gse")
         return "sgn";
-    if (tag == "gsg")
+    else if (tag == "gsg")
         return "sgn";
-    if (tag == "gsm")
+    else if (tag == "gsm")
         return "sgn";
-    if (tag == "gss")
+    else if (tag == "gss")
         return "sgn";
-    if (tag == "gus")
+    else if (tag == "gus")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithH(const std::string& tag)
+{
     if (tag == "hab")
         return "sgn";
-    if (tag == "haf")
+    else if (tag == "haf")
         return "sgn";
-    if (tag == "hak")
+    else if (tag == "hak")
         return "zh";
-    if (tag == "hds")
+    else if (tag == "hds")
         return "sgn";
-    if (tag == "hji")
+    else if (tag == "hji")
         return "ms";
-    if (tag == "hks")
+    else if (tag == "hks")
         return "sgn";
-    if (tag == "hos")
+    else if (tag == "hos")
         return "sgn";
-    if (tag == "hps")
+    else if (tag == "hps")
         return "sgn";
-    if (tag == "hsh")
+    else if (tag == "hsh")
         return "sgn";
-    if (tag == "hsl")
+    else if (tag == "hsl")
         return "sgn";
-    if (tag == "hsn")
+    else if (tag == "hsn")
         return "zh";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithI(const std::string& tag)
+{
     if (tag == "icl")
         return "sgn";
-    if (tag == "iks")
+    else if (tag == "iks")
         return "sgn";
-    if (tag == "ils")
+    else if (tag == "ils")
         return "sgn";
-    if (tag == "inl")
+    else if (tag == "inl")
         return "sgn";
-    if (tag == "ins")
+    else if (tag == "ins")
         return "sgn";
-    if (tag == "ise")
+    else if (tag == "ise")
         return "sgn";
-    if (tag == "isg")
+    else if (tag == "isg")
         return "sgn";
-    if (tag == "isr")
+    else if (tag == "isr")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithJ(const std::string& tag)
+{
     if (tag == "jak")
         return "ms";
-    if (tag == "jax")
+    else if (tag == "jax")
         return "ms";
-    if (tag == "jcs")
+    else if (tag == "jcs")
         return "sgn";
-    if (tag == "jhs")
+    else if (tag == "jhs")
         return "sgn";
-    if (tag == "jks")
+    else if (tag == "jks")
         return "sgn";
-    if (tag == "jls")
+    else if (tag == "jls")
         return "sgn";
-    if (tag == "jos")
+    else if (tag == "jos")
         return "sgn";
-    if (tag == "jsl")
+    else if (tag == "jsl")
         return "sgn";
-    if (tag == "jus")
+    else if (tag == "jus")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithK(const std::string& tag)
+{
     if (tag == "kgi")
         return "sgn";
-    if (tag == "knn")
+    else if (tag == "knn")
         return "kok";
-    if (tag == "kvb")
+    else if (tag == "kvb")
         return "ms";
-    if (tag == "kvk")
+    else if (tag == "kvk")
         return "sgn";
-    if (tag == "kvr")
+    else if (tag == "kvr")
         return "ms";
-    if (tag == "kxd")
+    else if (tag == "kxd")
         return "ms";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithL(const std::string& tag)
+{
     if (tag == "lbs")
         return "sgn";
-    if (tag == "lce")
+    else if (tag == "lce")
         return "ms";
-    if (tag == "lcf")
+    else if (tag == "lcf")
         return "ms";
-    if (tag == "liw")
+    else if (tag == "liw")
         return "ms";
-    if (tag == "lls")
+    else if (tag == "lls")
         return "sgn";
-    if (tag == "lsb")
+    else if (tag == "lsb")
         return "sgn";
-    if (tag == "lsg")
+    else if (tag == "lsg")
         return "sgn";
-    if (tag == "lsl")
+    else if (tag == "lsl")
         return "sgn";
-    if (tag == "lsn")
+    else if (tag == "lsn")
         return "sgn";
-    if (tag == "lso")
+    else if (tag == "lso")
         return "sgn";
-    if (tag == "lsp")
+    else if (tag == "lsp")
         return "sgn";
-    if (tag == "lst")
+    else if (tag == "lst")
         return "sgn";
-    if (tag == "lsv")
+    else if (tag == "lsv")
         return "sgn";
-    if (tag == "lsy")
+    else if (tag == "lsy")
         return "sgn";
-    if (tag == "ltg")
+    else if (tag == "ltg")
         return "lv";
-    if (tag == "lvs")
+    else if (tag == "lvs")
         return "lv";
-    if (tag == "lws")
+    else if (tag == "lws")
         return "sgn";
-    if (tag == "lzh")
+    else if (tag == "lzh")
         return "zh";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithM(const std::string& tag)
+{
     if (tag == "max")
         return "ms";
-    if (tag == "mdl")
+    else if (tag == "mdl")
         return "sgn";
-    if (tag == "meo")
+    else if (tag == "meo")
         return "ms";
-    if (tag == "mfa")
+    else if (tag == "mfa")
         return "ms";
-    if (tag == "mfb")
+    else if (tag == "mfb")
         return "ms";
-    if (tag == "mfs")
+    else if (tag == "mfs")
         return "sgn";
-    if (tag == "min")
+    else if (tag == "min")
         return "ms";
-    if (tag == "mnp")
+    else if (tag == "mnp")
         return "zh";
-    if (tag == "mqg")
+    else if (tag == "mqg")
         return "ms";
-    if (tag == "mre")
+    else if (tag == "mre")
         return "sgn";
-    if (tag == "msd")
+    else if (tag == "msd")
         return "sgn";
-    if (tag == "msi")
+    else if (tag == "msi")
         return "ms";
-    if (tag == "msr")
+    else if (tag == "msr")
         return "sgn";
-    if (tag == "mui")
+    else if (tag == "mui")
         return "ms";
-    if (tag == "mzc")
+    else if (tag == "mzc")
         return "sgn";
-    if (tag == "mzg")
+    else if (tag == "mzg")
         return "sgn";
-    if (tag == "mzy")
+    else if (tag == "mzy")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithN(const std::string& tag)
+{
     if (tag == "nan")
         return "zh";
-    if (tag == "nbs")
+    else if (tag == "nbs")
         return "sgn";
-    if (tag == "ncs")
+    else if (tag == "ncs")
         return "sgn";
-    if (tag == "nsi")
+    else if (tag == "nsi")
         return "sgn";
-    if (tag == "nsl")
+    else if (tag == "nsl")
         return "sgn";
-    if (tag == "nsp")
+    else if (tag == "nsp")
         return "sgn";
-    if (tag == "nsr")
+    else if (tag == "nsr")
         return "sgn";
-    if (tag == "nzs")
+    else if (tag == "nzs")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithO(const std::string& tag)
+{
     if (tag == "okl")
         return "sgn";
-    if (tag == "orn")
+    else if (tag == "orn")
         return "ms";
-    if (tag == "ors")
+    else if (tag == "ors")
         return "ms";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithP(const std::string& tag)
+{
     if (tag == "pel")
         return "ms";
-    if (tag == "pga")
+    else if (tag == "pga")
         return "ar";
-    if (tag == "pgz")
+    else if (tag == "pgz")
         return "sgn";
-    if (tag == "pks")
+    else if (tag == "pks")
         return "sgn";
-    if (tag == "prl")
+    else if (tag == "prl")
         return "sgn";
-    if (tag == "prz")
+    else if (tag == "prz")
         return "sgn";
-    if (tag == "psc")
+    else if (tag == "psc")
         return "sgn";
-    if (tag == "psd")
+    else if (tag == "psd")
         return "sgn";
-    if (tag == "pse")
+    else if (tag == "pse")
         return "ms";
-    if (tag == "psg")
+    else if (tag == "psg")
         return "sgn";
-    if (tag == "psl")
+    else if (tag == "psl")
         return "sgn";
-    if (tag == "pso")
+    else if (tag == "pso")
         return "sgn";
-    if (tag == "psp")
+    else if (tag == "psp")
         return "sgn";
-    if (tag == "psr")
+    else if (tag == "psr")
         return "sgn";
-    if (tag == "pys")
+    else if (tag == "pys")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithR(const std::string& tag)
+{
     if (tag == "rms")
         return "sgn";
-    if (tag == "rsi")
+    else if (tag == "rsi")
         return "sgn";
-    if (tag == "rsl")
+    else if (tag == "rsl")
         return "sgn";
-    if (tag == "rsm")
+    else if (tag == "rsm")
         return "sgn";
+    else
+        return "";
+}
+
+
+static std::string intlPreferredExtlangTagStartWithS(const std::string& tag)
+{
     if (tag == "sdl")
         return "sgn";
-    if (tag == "sfb")
+    else if (tag == "sfb")
         return "sgn";
-    if (tag == "sfs")
+    else if (tag == "sfs")
         return "sgn";
-    if (tag == "sgg")
+    else if (tag == "sgg")
         return "sgn";
-    if (tag == "sgx")
+    else if (tag == "sgx")
         return "sgn";
-    if (tag == "shu")
+    else if (tag == "shu")
         return "ar";
-    if (tag == "slf")
+    else if (tag == "slf")
         return "sgn";
-    if (tag == "sls")
+    else if (tag == "sls")
         return "sgn";
-    if (tag == "sqk")
+    else if (tag == "sqk")
         return "sgn";
-    if (tag == "sqs")
+    else if (tag == "sqs")
         return "sgn";
-    if (tag == "sqx")
+    else if (tag == "sqx")
         return "sgn";
-    if (tag == "ssh")
+    else if (tag == "ssh")
         return "ar";
-    if (tag == "ssp")
+    else if (tag == "ssp")
         return "sgn";
-    if (tag == "ssr")
+    else if (tag == "ssr")
         return "sgn";
-    if (tag == "svk")
+    else if (tag == "svk")
         return "sgn";
-    if (tag == "swc")
+    else if (tag == "swc")
         return "sw";
-    if (tag == "swh")
+    else if (tag == "swh")
         return "sw";
-    if (tag == "swl")
+    else if (tag == "swl")
         return "sgn";
-    if (tag == "syy")
+    else if (tag == "syy")
         return "sgn";
-    if (tag == "szs")
+    else if (tag == "szs")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithT(const std::string& tag)
+{
     if (tag == "tmw")
         return "ms";
-    if (tag == "tse")
+    else if (tag == "tse")
         return "sgn";
-    if (tag == "tsm")
+    else if (tag == "tsm")
         return "sgn";
-    if (tag == "tsq")
+    else if (tag == "tsq")
         return "sgn";
-    if (tag == "tss")
+    else if (tag == "tss")
         return "sgn";
-    if (tag == "tsy")
+    else if (tag == "tsy")
         return "sgn";
-    if (tag == "tza")
+    else if (tag == "tza")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithU(const std::string& tag)
+{
     if (tag == "ugn")
         return "sgn";
-    if (tag == "ugy")
+    else if (tag == "ugy")
         return "sgn";
-    if (tag == "ukl")
+    else if (tag == "ukl")
         return "sgn";
-    if (tag == "uks")
+    else if (tag == "uks")
         return "sgn";
-    if (tag == "urk")
+    else if (tag == "urk")
         return "ms";
-    if (tag == "uzn")
+    else if (tag == "uzn")
         return "uz";
-    if (tag == "uzs")
+    else if (tag == "uzs")
         return "uz";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithV(const std::string& tag)
+{
     if (tag == "vgt")
         return "sgn";
-    if (tag == "vkk")
+    else if (tag == "vkk")
         return "ms";
-    if (tag == "vkt")
+    else if (tag == "vkt")
         return "ms";
-    if (tag == "vsi")
+    else if (tag == "vsi")
         return "sgn";
-    if (tag == "vsl")
+    else if (tag == "vsl")
         return "sgn";
-    if (tag == "vsv")
+    else if (tag == "vsv")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithW(const std::string& tag)
+{
     if (tag == "wbs")
         return "sgn";
-    if (tag == "wuu")
+    else if (tag == "wuu")
         return "zh";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithX(const std::string& tag)
+{
     if (tag == "xki")
         return "sgn";
-    if (tag == "xml")
+    else if (tag == "xml")
         return "sgn";
-    if (tag == "xmm")
+    else if (tag == "xmm")
         return "ms";
-    if (tag == "xms")
+    else if (tag == "xms")
         return "sgn";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithY(const std::string& tag)
+{
     if (tag == "yds")
         return "sgn";
-    if (tag == "ygs")
+    else if (tag == "ygs")
         return "sgn";
-    if (tag == "yhs")
+    else if (tag == "yhs")
         return "sgn";
-    if (tag == "ysl")
+    else if (tag == "ysl")
         return "sgn";
-    if (tag == "ysm")
+    else if (tag == "ysm")
         return "sgn";
-    if (tag == "yue")
+    else if (tag == "yue")
         return "zh";
+    else
+        return "";
+}
+
+static std::string intlPreferredExtlangTagStartWithZ(const std::string& tag)
+{
     if (tag == "zib")
         return "sgn";
-    if (tag == "zlm")
+    else if (tag == "zlm")
         return "ms";
-    if (tag == "zmi")
+    else if (tag == "zmi")
         return "ms";
-    if (tag == "zsl")
+    else if (tag == "zsl")
         return "sgn";
-    if (tag == "zsm")
+    else if (tag == "zsm")
         return "ms";
-    return "";
+    else
+        return "";
+}
+
+
+static std::string intlPreferredExtlangTag(const std::string& tag)
+{
+    ASSERT(tag.length() == 3);
+
+    switch (tag[0]) {
+    case 'a':
+        return intlPreferredExtlangTagStartWithA(tag);
+    case 'b':
+        return intlPreferredExtlangTagStartWithB(tag);
+    case 'c':
+        return intlPreferredExtlangTagStartWithC(tag);
+    case 'd':
+        return intlPreferredExtlangTagStartWithD(tag);
+    case 'e':
+        return intlPreferredExtlangTagStartWithE(tag);
+    case 'f':
+        return intlPreferredExtlangTagStartWithF(tag);
+    case 'g':
+        return intlPreferredExtlangTagStartWithG(tag);
+    case 'h':
+        return intlPreferredExtlangTagStartWithH(tag);
+    case 'i':
+        return intlPreferredExtlangTagStartWithI(tag);
+    case 'j':
+        return intlPreferredExtlangTagStartWithJ(tag);
+    case 'k':
+        return intlPreferredExtlangTagStartWithK(tag);
+    case 'l':
+        return intlPreferredExtlangTagStartWithL(tag);
+    case 'm':
+        return intlPreferredExtlangTagStartWithM(tag);
+    case 'n':
+        return intlPreferredExtlangTagStartWithN(tag);
+    case 'o':
+        return intlPreferredExtlangTagStartWithO(tag);
+    case 'p':
+        return intlPreferredExtlangTagStartWithP(tag);
+    case 'r':
+        return intlPreferredExtlangTagStartWithR(tag);
+    case 's':
+        return intlPreferredExtlangTagStartWithS(tag);
+    case 't':
+        return intlPreferredExtlangTagStartWithT(tag);
+    case 'u':
+        return intlPreferredExtlangTagStartWithU(tag);
+    case 'v':
+        return intlPreferredExtlangTagStartWithV(tag);
+    case 'w':
+        return intlPreferredExtlangTagStartWithW(tag);
+    case 'x':
+        return intlPreferredExtlangTagStartWithX(tag);
+    case 'y':
+        return intlPreferredExtlangTagStartWithY(tag);
+    case 'z':
+        return intlPreferredExtlangTagStartWithZ(tag);
+    default:
+        return "";
+    }
 }
 
 static std::string intlPreferredRegionTag(const std::string& tag)
