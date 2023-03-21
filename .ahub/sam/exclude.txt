@@ -1,0 +1,4 @@
+/escargot/build/
+/escargot/test/
+/escargot/third_party/
+/escargot/tools/
