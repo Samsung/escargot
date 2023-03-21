@@ -805,6 +805,32 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     // If bestFormat has a field [[<prop>]], then
     // Let p be bestFormat.[[<prop>]].
     // Set dateTimeFormat's internal slot whose name is the Internal Slot column of the row to p.
+    setDateFromPattern(state, patternBuffer, hasHourOption);
+
+    status = U_ZERO_ERROR;
+    UTF16StringData timeZoneView = m_timeZone->toUTF16StringData();
+    m_icuDateFormat = udat_open(UDAT_PATTERN, UDAT_PATTERN, dataLocaleWithExtensions.data(), (UChar*)timeZoneView.data(), timeZoneView.length(), (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
+        return;
+    }
+
+    addFinalizer([](Object* obj, void* data) {
+        IntlDateTimeFormatObject* self = (IntlDateTimeFormatObject*)obj;
+        udat_close(self->m_icuDateFormat);
+    },
+                 nullptr);
+
+    status = U_ZERO_ERROR;
+    UCalendar* cal = const_cast<UCalendar*>(udat_getCalendar(m_icuDateFormat));
+    std::string type(ucal_getType(cal, &status));
+    if (status == U_ZERO_ERROR && std::string("gregorian") == type) {
+        ucal_setGregorianChange(cal, minECMAScriptTime, &status);
+    }
+}
+
+void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16StringDataNonGCStd& patternBuffer, bool hasHourOption)
+{
     bool inQuote = false;
     unsigned length = patternBuffer.length();
     for (unsigned i = 0; i < length; ++i) {
@@ -928,27 +954,6 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
             m_fractionalSecondDigits = Value(count);
             break;
         }
-    }
-
-    status = U_ZERO_ERROR;
-    UTF16StringData timeZoneView = m_timeZone->toUTF16StringData();
-    m_icuDateFormat = udat_open(UDAT_PATTERN, UDAT_PATTERN, dataLocaleWithExtensions.data(), (UChar*)timeZoneView.data(), timeZoneView.length(), (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
-        return;
-    }
-
-    addFinalizer([](Object* obj, void* data) {
-        IntlDateTimeFormatObject* self = (IntlDateTimeFormatObject*)obj;
-        udat_close(self->m_icuDateFormat);
-    },
-                 nullptr);
-
-    status = U_ZERO_ERROR;
-    UCalendar* cal = const_cast<UCalendar*>(udat_getCalendar(m_icuDateFormat));
-    std::string type(ucal_getType(cal, &status));
-    if (status == U_ZERO_ERROR && std::string("gregorian") == type) {
-        ucal_setGregorianChange(cal, minECMAScriptTime, &status);
     }
 }
 

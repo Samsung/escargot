@@ -1,4 +1,4 @@
-/escargot/build/
-/escargot/test/
-/escargot/third_party/
-/escargot/tools/
+/escargot/third_party/GCutil/
+/escargot/third_party/lz4/
+/escargot/third_party/libbf/
+/escargot/third_party/yarr/
