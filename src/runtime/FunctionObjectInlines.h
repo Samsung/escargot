@@ -96,7 +96,7 @@ public:
 #else
         if (UNLIKELY(state.stackLimit() < (size_t)currentStackPointer())) {
 #endif
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
         }
 
         ASSERT(self->codeBlock()->isInterpretedCodeBlock());
@@ -269,7 +269,7 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
 #else
     if (UNLIKELY(state.stackLimit() < currentStackBase)) {
 #endif
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
     }
 
     NativeCodeBlock* codeBlock = nativeCodeBlock();
@@ -308,7 +308,7 @@ Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, con
     if (isConstruct) {
         result = nativeFunc(newState, receiver, argc, argv, newTarget);
         if (shouldReturnsObjectOnConstructCall && UNLIKELY(!result.isObject())) {
-            ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "Native Constructor must returns constructed new object");
+            ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, "Native Constructor must returns constructed new object");
         }
     } else {
         ASSERT(!newTarget);

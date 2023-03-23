@@ -25,6 +25,7 @@
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/VMInstance.h"
 #include "parser/Script.h"
+#include "parser/ast/Node.h"
 #include "interpreter/ByteCode.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
@@ -314,7 +315,7 @@ void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exce
 static Value builtinErrorObjectStackInfo(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!(LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isErrorObject()))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get Error.prototype.stack called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get Error.prototype.stack called on incompatible receiver");
     }
 
     ErrorObject* obj = thisValue.asObject()->asErrorObject();

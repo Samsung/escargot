@@ -114,7 +114,7 @@ static Value builtinWASMValidate(ExecutionState& state, Value thisValue, size_t 
 {
     Value source = argv[0];
     if (!source.isPointerValue() || (!source.asPointerValue()->isTypedArrayObject() && !source.asPointerValue()->isArrayBufferObject())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().validate.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().validate.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     ArrayBufferObject* srcBuffer = WASMOperations::copyStableBufferBytes(state, source).asPointerValue()->asArrayBufferObject();
@@ -165,7 +165,7 @@ static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size
     auto readImportsResult = sb.run([&]() -> Value {
         Value moduleValue = firstArg;
         if (!moduleValue.isObject() || !moduleValue.asObject()->isWASMModuleObject()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_InstantiateModuleError);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_InstantiateModuleError);
         }
 
         // Let module be moduleObject.[[Module]].
@@ -201,7 +201,7 @@ static Value builtinWASMModuleConstructor(ExecutionState& state, Value thisValue
 {
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::Not_Invoked_With_New);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Module.string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
     Value source = WASMOperations::copyStableBufferBytes(state, argv[0]);
@@ -214,12 +214,12 @@ static Value builtinWASMModuleCustomSections(ExecutionState& state, Value thisVa
     const StaticStrings* strings = &state.context()->staticStrings();
 
     if (argc < 2) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotModule.string(), false, strings->customSections.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotModule.string(), false, strings->customSections.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     Value moduleValue = argv[0];
     if (!moduleValue.isObject() || !moduleValue.asObject()->isWASMModuleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotModule.string(), false, strings->customSections.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotModule.string(), false, strings->customSections.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // TODO wasm-c-api do not support custom sections
@@ -243,7 +243,7 @@ static Value builtinWASMModuleExports(ExecutionState& state, Value thisValue, si
 
     Value moduleValue = argv[0];
     if (!moduleValue.isObject() || !moduleValue.asObject()->isWASMModuleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotModule.string(), false, strings->exports.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotModule.string(), false, strings->exports.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // Let module be moduleObject.[[Module]].
@@ -285,7 +285,7 @@ static Value builtinWASMModuleImports(ExecutionState& state, Value thisValue, si
 
     Value moduleValue = argv[0];
     if (!moduleValue.isObject() || !moduleValue.asObject()->isWASMModuleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotModule.string(), false, strings->imports.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotModule.string(), false, strings->imports.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // Let module be moduleObject.[[Module]].
@@ -329,11 +329,11 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
 {
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Instance.string(), ErrorObject::Messages::Not_Invoked_With_New);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().Instance.string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
     if (!argv[0].isObject() || !argv[0].asObject()->isWASMModuleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotModule.string(), false, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotModule.string(), false, state.context()->staticStrings().constructor.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // Let module be module.[[Module]].
@@ -356,7 +356,7 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
         ESCARGOT_LOG_ERROR("[WASM Message] %s\n", message.data);
         wasm_name_delete(&message);
         wasm_trap_delete(trap);
-        ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
     }
 
     // Initialize this from module and instance.
@@ -380,7 +380,7 @@ static Value builtinWASMInstanceConstructor(ExecutionState& state, Value thisVal
 static Value builtinWASMInstanceExportsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMInstanceObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotInstance.string(), false, state.context()->staticStrings().exports.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotInstance.string(), false, state.context()->staticStrings().exports.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     return thisValue.asObject()->asWASMInstanceObject()->exports();
@@ -393,7 +393,7 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
 
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::Not_Invoked_With_New);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
     Value desc = argv[0];
@@ -401,7 +401,7 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     // check and get 'initial' property from the first argument
     Value initValue = wasmGetValueFromObjectProperty(state, desc, strings->initial, strings->valueOf).second;
     if (UNLIKELY(!initValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
     uint32_t initial = initValue.asUInt32();
 
@@ -414,14 +414,14 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
         if (maxResult.first) {
             Value maxValue = maxResult.second;
             if (!maxValue.isUInt32()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
             }
             maximum = maxValue.asUInt32();
         }
     }
 
     if (maximum < initial) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // Let memtype be { min initial, max maximum }
@@ -476,12 +476,12 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
     const StaticStrings* strings = &state.context()->staticStrings();
 
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMMemoryObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotMemory.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotMemory.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     Value deltaValue = wasmGetValueFromMaybeObject(state, argv[0], strings->valueOf);
     if (UNLIKELY(!deltaValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotMemory.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotMemory.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     wasm_memory_pages_t delta = deltaValue.asUInt32();
@@ -498,7 +498,7 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
     bool success = wasm_memory_grow(memaddr, delta);
     if (!success) {
         // If store is error, throw a RangeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->WebAssemblyDotMemory.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotMemory.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // Let map be the surrounding agent's associated Memory object cache.
@@ -543,7 +543,7 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
 static Value builtinWASMMemoryBufferGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMMemoryObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotMemory.string(), false, state.context()->staticStrings().buffer.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotMemory.string(), false, state.context()->staticStrings().buffer.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     WASMMemoryObject* memoryObj = thisValue.asObject()->asWASMMemoryObject();
@@ -575,7 +575,7 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
 
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::Not_Invoked_With_New);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
     Value desc = argv[0];
@@ -585,7 +585,7 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
         Value elemValue = wasmGetValueFromObjectProperty(state, desc, strings->element, strings->toString).second;
         // element property should be 'anyfunc'
         if (UNLIKELY(!elemValue.isString() || !elemValue.asString()->equals(strings->anyfunc.string()))) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
         }
     }
 
@@ -593,7 +593,7 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
     ASSERT(desc.isObject());
     Value initValue = wasmGetValueFromObjectProperty(state, desc, strings->initial, strings->valueOf).second;
     if (UNLIKELY(!initValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
     uint32_t initial = initValue.asUInt32();
 
@@ -606,14 +606,14 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
         if (maxResult.first) {
             Value maxValue = maxResult.second;
             if (!maxValue.isUInt32()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
             }
             maximum = maxValue.asUInt32();
         }
     }
 
     if (maximum < initial) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // Let type be the table type {min n, max maximum} anyfunc.
@@ -658,12 +658,12 @@ static Value builtinWASMTableGrow(ExecutionState& state, Value thisValue, size_t
     const StaticStrings* strings = &state.context()->staticStrings();
 
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     Value deltaValue = wasmGetValueFromMaybeObject(state, argv[0], strings->valueOf);
     if (UNLIKELY(!deltaValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     wasm_table_size_t delta = deltaValue.asUInt32();
@@ -677,7 +677,7 @@ static Value builtinWASMTableGrow(ExecutionState& state, Value thisValue, size_t
     bool result = wasm_table_grow(tableaddr, delta, nullptr);
     // If result is error, throw a RangeError exception.
     if (!result) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->WebAssemblyDotTable.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // Return initialSize,
@@ -689,12 +689,12 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
     const StaticStrings* strings = &state.context()->staticStrings();
 
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     Value indexValue = wasmGetValueFromMaybeObject(state, argv[0], strings->valueOf);
     if (UNLIKELY(!indexValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
     wasm_table_size_t index = indexValue.asUInt32();
 
@@ -704,7 +704,7 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
     // If result is error, throw a RangeError exception.
     // FIXME check the error by comparing the size in advance
     if (index >= wasm_table_size(tableaddr)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // Let result be table_read(store, tableaddr, index).
@@ -737,12 +737,12 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
     const StaticStrings* strings = &state.context()->staticStrings();
 
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     Value indexValue = wasmGetValueFromMaybeObject(state, argv[0], strings->valueOf);
     if (UNLIKELY(!indexValue.isUInt32())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     wasm_table_size_t index = indexValue.asUInt32();
@@ -756,7 +756,7 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
     if (!value.isNull()) {
         // If value does not have a [[FunctionAddress]] internal slot, throw a TypeError exception.
         if (!value.isObject() || !value.asObject()->isExportedFunctionObject()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
         }
         // Let funcaddr be value.[[FunctionAddress]].
         funcaddr = wasm_func_as_ref(value.asObject()->asExportedFunctionObject()->function());
@@ -766,7 +766,7 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
     bool result = wasm_table_set(tableaddr, index, funcaddr);
     // If store is error, throw a RangeError exception.
     if (!result) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     // Return undefined.
@@ -776,7 +776,7 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
 static Value builtinWASMTableLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMTableObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotTable.string(), false, state.context()->staticStrings().length.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotTable.string(), false, state.context()->staticStrings().length.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     // Let tableaddr be this.[[Table]].
@@ -793,7 +793,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
 
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::Not_Invoked_With_New);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
     Value desc = argv[0];
@@ -812,7 +812,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
         // Let valuetype be ToValueType(descriptor["value"]).
         Value valTypeValue = wasmGetValueFromObjectProperty(state, desc, strings->value, strings->toString).second;
         if (!valTypeValue.isString()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
         }
         if (valTypeValue.asString()->equals(strings->i32.string())) {
             valuetype = WASM_I32;
@@ -823,7 +823,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
         } else if (valTypeValue.asString()->equals(strings->f64.string())) {
             valuetype = WASM_F64;
         } else {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
         }
     }
 
@@ -876,7 +876,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
 static Value builtinWASMGlobalValueGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMGlobalObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     Value value = thisValue.asObject()->asWASMGlobalObject()->getGlobalValue(state);
@@ -886,11 +886,11 @@ static Value builtinWASMGlobalValueGetter(ExecutionState& state, Value thisValue
 static Value builtinWASMGlobalValueSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isWASMGlobalObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     if (argc == 0) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // Let globaladdr be this.[[Global]].
@@ -904,7 +904,7 @@ static Value builtinWASMGlobalValueSetter(ExecutionState& state, Value thisValue
 
     // If mut is const, throw a TypeError.
     if (mut == WASM_CONST) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::WASM_SetToGlobalConstValue);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssemblyDotGlobal.string(), false, state.context()->staticStrings().value.string(), ErrorObject::Messages::WASM_SetToGlobalConstValue);
     }
 
     // Let value be ToWebAssemblyValue(the given value, valuetype).

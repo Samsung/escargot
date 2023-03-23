@@ -145,7 +145,7 @@ Object* ExecutionState::findPrivateMemberContextObject()
 {
     auto o = mostNearestHomeObject();
     if (!o) {
-        ErrorObject::throwBuiltinError(*this, ErrorObject::TypeError, "Cannot read/write private member here");
+        ErrorObject::throwBuiltinError(*this, ErrorCode::TypeError, "Cannot read/write private member here");
     }
     return convertHomeObjectIntoPrivateMemberContextObject(o.value());
 }
@@ -212,7 +212,7 @@ Value ExecutionState::makeSuperPropertyReference()
 
     // If env.HasSuperBinding() is false, throw a ReferenceError exception.
     if (!env->hasSuperBinding()) {
-        ErrorObject::throwBuiltinError(*this, ErrorObject::Code::ReferenceError, ErrorObject::Messages::No_Super_Binding);
+        ErrorObject::throwBuiltinError(*this, ErrorCode::ReferenceError, ErrorObject::Messages::No_Super_Binding);
     }
 
     // Let actualThis be env.GetThisBinding().
@@ -245,7 +245,7 @@ Value ExecutionState::getSuperConstructor()
 
     // If IsConstructor(superConstructor) is false, throw a TypeError exception.
     if (!superConstructor.isConstructor()) {
-        ErrorObject::throwBuiltinError(*this, ErrorObject::Code::TypeError, ErrorObject::Messages::No_Super_Binding);
+        ErrorObject::throwBuiltinError(*this, ErrorCode::TypeError, ErrorObject::Messages::No_Super_Binding);
     }
 
     // Return superConstructor.

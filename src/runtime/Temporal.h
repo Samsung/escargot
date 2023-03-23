@@ -115,7 +115,7 @@ public:
         }
 
         if (!options.isUndefined()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "options must be object");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "options must be object");
         }
 
         return {};
@@ -161,7 +161,7 @@ public:
 
             if (value.isUndefined()) {
                 if (std::find(requiredFields.begin(), requiredFields.end(), property) != requiredFields.end()) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("requiredFields contains property"));
+                    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, new ASCIIString("requiredFields contains property"));
                 }
 
                 if (prop->equals("year") || prop->equals("month") || prop->equals("monthCode") || prop->equals("day") || prop->equals("offset") || prop->equals("era") || prop->equals("eraYear") || prop->equals("timeZone")) {
@@ -190,15 +190,15 @@ public:
         ASSERT(object.isObject());
 
         if (object.asObject()->isTemporalPlainDateObject() || object.asObject()->isTemporalPlainDateTimeObject() || object.asObject()->isTemporalPlainTimeObject() || object.asObject()->isTemporalZonedDateTimeObject() || object.asObject()->isTemporalPlainYearMonthObject() || object.asObject()->isTemporalMonthDayObject()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("Invalid type of Object"));
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, new ASCIIString("Invalid type of Object"));
         }
 
         if (!object.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().calendar.string())).value(state, object).isUndefined()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("Object has calendar property"));
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, new ASCIIString("Object has calendar property"));
         }
 
         if (!object.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazytimeZone().string())).value(state, object).isUndefined()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, new ASCIIString("Object has timezone property"));
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, new ASCIIString("Object has timezone property"));
         }
     }
 

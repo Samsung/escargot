@@ -33,7 +33,7 @@ String* StringBuilderBase::finalizeBase(StringBuilderPiece* piecesInlineStorage,
 
 
     if (state && UNLIKELY(m_contentLength > STRING_MAXIMUM_LENGTH)) {
-        ErrorObject::throwBuiltinError(*state, ErrorObject::RangeError, ErrorObject::Messages::String_InvalidStringLength);
+        ErrorObject::throwBuiltinError(*state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
     }
 
     if (m_has8BitContent) {

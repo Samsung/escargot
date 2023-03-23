@@ -20,19 +20,21 @@
 #ifndef __EscargotEsprima__
 #define __EscargotEsprima__
 
-#include "parser/ast/Node.h"
-#include "parser/ScriptParser.h"
-#include "runtime/Context.h"
-#include "runtime/String.h"
-#include "runtime/ErrorObject.h"
-
 namespace Escargot {
 
+class Context;
 class CodeBlock;
+class String;
+class StringView;
+class InterpretedCodeBlock;
+class Node;
 class FunctionNode;
 class ProgramNode;
 
+struct NodeLOC;
 struct ASTClassInfo;
+
+enum class ErrorCode : uint8_t;
 
 // Based on the latest esprima version 4.0.1
 
@@ -47,18 +49,9 @@ struct Error : public gc {
     size_t lineNumber;
     size_t column;
     String* description;
-    ErrorObject::Code errorCode;
+    ErrorCode errorCode;
 
-    explicit Error(String* message)
-        : name(String::emptyString)
-        , message(message)
-        , index(0)
-        , lineNumber(0)
-        , column(0)
-        , description(String::emptyString)
-        , errorCode(ErrorObject::Code::SyntaxError)
-    {
-    }
+    explicit Error(String* message);
 };
 
 #define ESPRIMA_RECURSIVE_LIMIT 1024

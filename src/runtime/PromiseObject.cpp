@@ -101,7 +101,7 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
 
     // If IsConstructor(C) is false, throw a TypeError exception.
     if (!constructor->isConstructor()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
     }
 
     // Let promiseCapability be a new PromiseCapability { [[Promise]]: undefined, [[Resolve]]: undefined, [[Reject]]: undefined }.
@@ -129,7 +129,7 @@ PromiseReaction::Capability PromiseObject::newPromiseCapability(ExecutionState& 
     Value rejectFunction = capability->get(state, strings->reject).value(state, capability);
 
     if (!resolveFunction.isCallable() || !rejectFunction.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Promise resolve or reject function is not callable");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Promise resolve or reject function is not callable");
     }
 
     return PromiseReaction::Capability(promise, resolveFunction.asObject(), rejectFunction.asObject());
@@ -268,7 +268,7 @@ Value PromiseObject::getCapabilitiesExecutorFunction(ExecutionState& state, Valu
     // If promiseCapability.[[Reject]] is not undefined, throw a TypeError exception.
     if (!capability->getOwnProperty(state, strings->resolve).value(state, capability).isUndefined()
         || !capability->getOwnProperty(state, strings->reject).value(state, capability).isUndefined()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Executor function has already called");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Executor function has already called");
     }
 
     // Set promiseCapability.[[Resolve]] to resolve.
@@ -309,7 +309,7 @@ static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, siz
 
     Value resolutionValue = argv[0];
     if (resolutionValue == Value(promise)) {
-        promise->reject(state, ErrorObject::createError(state, ErrorObject::TypeError, new ASCIIString("Self resolution error")));
+        promise->reject(state, ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("Self resolution error")));
         return Value();
     }
 
@@ -603,7 +603,7 @@ Value PromiseObject::promiseAnyRejectElementFunction(ExecutionState& state, Valu
     // If remainingElementsCount.[[Value]] is 0, then
     if (*remainingElementsCount == 0) {
         // Let error be a newly created AggregateError object.
-        ErrorObject* error = ErrorObject::createBuiltinError(state, ErrorObject::AggregateError, "Got AggregateError on processing Promise.any");
+        ErrorObject* error = ErrorObject::createBuiltinError(state, ErrorCode::AggregateError, "Got AggregateError on processing Promise.any");
         // Perform ! DefinePropertyOrThrow(error, "errors", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: ! CreateArrayFromList(errors) }).
         error->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("errors")),
                                                 ObjectPropertyDescriptor(Object::createArrayFromList(state, *errors),

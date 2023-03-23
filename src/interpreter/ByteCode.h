@@ -2282,14 +2282,14 @@ public:
 
 class ThrowStaticErrorOperation : public ByteCode {
 public:
-    ThrowStaticErrorOperation(const ByteCodeLOC& loc, char errorKind, const char* errorMessage, AtomicString templateDataString = AtomicString())
+    ThrowStaticErrorOperation(const ByteCodeLOC& loc, uint8_t errorKind, const char* errorMessage, AtomicString templateDataString = AtomicString())
         : ByteCode(Opcode::ThrowStaticErrorOperationOpcode, loc)
         , m_errorKind(errorKind)
         , m_errorMessage(errorMessage)
         , m_templateDataString(templateDataString)
     {
     }
-    char m_errorKind;
+    uint8_t m_errorKind;
     const char* m_errorMessage;
     AtomicString m_templateDataString;
 

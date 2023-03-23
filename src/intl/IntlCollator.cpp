@@ -153,7 +153,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     // If collator has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
     AtomicString initializedIntlObject = state.context()->staticStrings().lazyInitializedIntlObject();
     if (collator->hasInternalSlot() && collator->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(initializedIntlObject)))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot initialize Intl Object twice");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot initialize Intl Object twice");
     }
 
     // Set the [[initializedIntlObject]] internal property of collator to true.
@@ -435,7 +435,7 @@ int IntlCollator::compare(ExecutionState& state, Object* collator, String* a, St
     case UCOL_GREATER:
         return 1;
     default:
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to compare string a and b");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to compare string a and b");
     }
 
     ASSERT_NOT_REACHED();

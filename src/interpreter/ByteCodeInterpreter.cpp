@@ -47,6 +47,7 @@
 #include "runtime/ScriptGeneratorFunctionObject.h"
 #include "runtime/ScriptAsyncFunctionObject.h"
 #include "runtime/ScriptAsyncGeneratorFunctionObject.h"
+#include "parser/Script.h"
 #include "parser/ScriptParser.h"
 #include "CheckedArithmetic.h"
 
@@ -179,7 +180,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                     const EncodedValueVectorElement& val = ctx->globalDeclarativeStorage()->at(idx);
                     isCacheWork = true;
                     if (UNLIKELY(val.isEmpty())) {
-                        ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                        ErrorObject::throwBuiltinError(*state, ErrorCode::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
                     }
                     registerFile[code->m_registerIndex] = val;
                 }
@@ -213,10 +214,10 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                     const auto& record = ctx->globalDeclarativeRecord()->at(idx);
                     auto& storage = ctx->globalDeclarativeStorage()->at(idx);
                     if (UNLIKELY(storage.isEmpty())) {
-                        ErrorObject::throwBuiltinError(*state, ErrorObject::ReferenceError, record.m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                        ErrorObject::throwBuiltinError(*state, ErrorCode::ReferenceError, record.m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
                     }
                     if (UNLIKELY(!record.m_isMutable)) {
-                        ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, record.m_name.string(), false, String::emptyString, ErrorObject::Messages::AssignmentToConstantVariable);
+                        ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, record.m_name.string(), false, String::emptyString, ErrorObject::Messages::AssignmentToConstantVariable);
                     }
                     storage = registerFile[code->m_registerIndex];
                 }
@@ -635,7 +636,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
             // If IsCallable(F) is false, throw a TypeError exception.
             if (UNLIKELY(!callee.isPointerValue())) {
-                ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+                ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
             }
             // Return F.[[Call]](V, argumentsList).
             registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
@@ -655,7 +656,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
             // If IsCallable(F) is false, throw a TypeError exception.
             if (UNLIKELY(!callee.isPointerValue())) {
-                ErrorObject::throwBuiltinError(*state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+                ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
             }
             // Return F.[[Call]](V, argumentsList).
             registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
@@ -1277,7 +1278,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ThrowStaticErrorOperation* code = (ThrowStaticErrorOperation*)programCounter;
-            ErrorObject::throwBuiltinError(*state, (ErrorObject::Code)code->m_errorKind, code->m_errorMessage, code->m_templateDataString);
+            ErrorObject::throwBuiltinError(*state, (ErrorCode)code->m_errorKind, code->m_errorMessage, code->m_templateDataString);
         }
 
         DEFINE_OPCODE(NewOperationWithSpreadElement)
@@ -1457,7 +1458,7 @@ NEVER_INLINE EnvironmentRecord* ByteCodeInterpreter::getBindedEnvironmentRecordB
     }
 
     if (throwException)
-        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
 
     return NULL;
 }
@@ -1479,7 +1480,7 @@ NEVER_INLINE Value ByteCodeInterpreter::loadByName(ExecutionState& state, Lexica
     }
 
     if (throwException)
-        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
 
     return Value();
 }
@@ -1495,7 +1496,7 @@ NEVER_INLINE void ByteCodeInterpreter::storeByName(ExecutionState& state, Lexica
         env = env->outerEnvironment();
     }
     if (state.inStrictMode()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
     }
     GlobalObject* o = state.context()->globalObject();
     o->setThrowsExceptionWhenStrictMode(state, name, value, o);
@@ -1516,7 +1517,7 @@ NEVER_INLINE void ByteCodeInterpreter::initializeByName(ExecutionState& state, L
             }
             env = env->outerEnvironment();
         }
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
     }
 }
 
@@ -1553,7 +1554,7 @@ NEVER_INLINE void ByteCodeInterpreter::storeByNameWithAddress(ExecutionState& st
         }
     }
     if (state.inStrictMode()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, code->m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, code->m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
     }
     GlobalObject* o = state.context()->globalObject();
     o->setThrowsExceptionWhenStrictMode(state, code->m_name, value, o);
@@ -1588,7 +1589,7 @@ NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, cons
         auto rnum = rval.toNumeric(state);
         // If Type(lnum) is different from Type(rnum), throw a TypeError exception.
         if (UNLIKELY(lnum.second != rnum.second)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
         }
         // Let T be Type(lnum).
         // Return T::add(lnum, rnum).
@@ -1615,7 +1616,7 @@ NEVER_INLINE Value ByteCodeInterpreter::minusSlowCase(ExecutionState& state, con
     auto rnum = right.toNumeric(state);
     // If Type(lnum) is different from Type(rnum), throw a TypeError exception.
     if (UNLIKELY(lnum.second != rnum.second)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
     }
     // Let T be Type(lnum).
     // Return T::subtract(lnum, rnum).
@@ -1631,7 +1632,7 @@ NEVER_INLINE Value ByteCodeInterpreter::multiplySlowCase(ExecutionState& state, 
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
     if (UNLIKELY(lnum.second != rnum.second)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
     }
     if (UNLIKELY(lnum.second)) {
         return Value(lnum.first.asBigInt()->multiply(state, rnum.first.asBigInt()));
@@ -1645,11 +1646,11 @@ NEVER_INLINE Value ByteCodeInterpreter::divisionSlowCase(ExecutionState& state, 
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
     if (UNLIKELY(lnum.second != rnum.second)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
     }
     if (UNLIKELY(lnum.second)) {
         if (UNLIKELY(rnum.first.asBigInt()->isZero())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::DivisionByZero);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::DivisionByZero);
         }
         return Value(lnum.first.asBigInt()->division(state, rnum.first.asBigInt()));
     } else {
@@ -1679,11 +1680,11 @@ NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, cons
         auto lnum = left.toNumeric(state);
         auto rnum = right.toNumeric(state);
         if (UNLIKELY(lnum.second != rnum.second)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
         }
         if (UNLIKELY(lnum.second)) {
             if (UNLIKELY(rnum.first.asBigInt()->isZero())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::DivisionByZero);
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::DivisionByZero);
             }
             return Value(lnum.first.asBigInt()->remainder(state, rnum.first.asBigInt()));
         }
@@ -1723,11 +1724,11 @@ NEVER_INLINE Value ByteCodeInterpreter::exponentialOperation(ExecutionState& sta
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
     if (UNLIKELY(lnum.second != rnum.second)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
     }
     if (UNLIKELY(lnum.second)) {
         if (UNLIKELY(rnum.first.asBigInt()->isNegative())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::ExponentByNegative);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::ExponentByNegative);
         }
         return Value(lnum.first.asBigInt()->pow(state, rnum.first.asBigInt()));
     }
@@ -1764,7 +1765,7 @@ NEVER_INLINE Value ByteCodeInterpreter::bitwiseOperationSlowCase(ExecutionState&
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
     if (UNLIKELY(lnum.second != rnum.second)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
     }
     if (UNLIKELY(lnum.second)) {
         switch (kind) {
@@ -1809,7 +1810,7 @@ NEVER_INLINE Value ByteCodeInterpreter::shiftOperationSlowCase(ExecutionState& s
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
     if (UNLIKELY(lnum.second != rnum.second)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::CanNotMixBigIntWithOtherTypes);
     }
     if (UNLIKELY(lnum.second)) {
         switch (kind) {
@@ -1818,7 +1819,7 @@ NEVER_INLINE Value ByteCodeInterpreter::shiftOperationSlowCase(ExecutionState& s
         case ShiftOperationKind::SignedRight:
             return lnum.first.asBigInt()->rightShift(state, rnum.first.asBigInt());
         case ShiftOperationKind::UnsignedRight:
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "BigInts have no unsigned right shift, use >> instead");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "BigInts have no unsigned right shift, use >> instead");
             break;
         default:
             ASSERT_NOT_REACHED();
@@ -1879,7 +1880,7 @@ NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, Le
         const Value& o = state.makeSuperPropertyReference();
         Object* obj = o.toObject(state);
 
-        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.toObjectStructurePropertyName(state).toExceptionString(), false, String::emptyString, "ReferenceError: Unsupported reference to 'super'");
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.toObjectStructurePropertyName(state).toExceptionString(), false, String::emptyString, "ReferenceError: Unsupported reference to 'super'");
     } else {
         const Value& o = registerFile[code->m_srcIndex0];
         const Value& p = registerFile[code->m_srcIndex1];
@@ -2378,7 +2379,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMis
     if (code->m_isLength && originalObject->isArrayObject()) {
         if (LIKELY(originalObject->asArrayObject()->isFastModeArray())) {
             if (!originalObject->asArrayObject()->setArrayLength(state, value) && state.inStrictMode()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, code->m_propertyName.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, code->m_propertyName.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
             }
         } else {
             originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject);
@@ -2570,7 +2571,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
             slot->m_cachedStructure = nullptr;
             auto v = (*state.context()->globalDeclarativeStorage())[i];
             if (UNLIKELY(v.isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
             }
             return v;
         }
@@ -2587,7 +2588,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
                 if (!virtialIdResult.isEmpty())
                     return virtialIdResult;
             }
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
             ASSERT_NOT_REACHED();
             return Value(Value::EmptyValue);
         }
@@ -2620,10 +2621,10 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
             slot->m_cachedStructure = nullptr;
             auto& place = (*ctx->globalDeclarativeStorage())[i];
             if (UNLIKELY(place.isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
             }
             if (UNLIKELY(!records[i].m_isMutable)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
             }
             place = value;
             return;
@@ -2634,7 +2635,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
     auto findResult = go->structure()->findProperty(slot->m_propertyName);
     if (UNLIKELY(findResult.first == SIZE_MAX)) {
         if (UNLIKELY(state.inStrictMode())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, slot->m_propertyName.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, slot->m_propertyName.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
         }
         VirtualIdDisabler d(state.context());
         go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, slot->m_propertyName), value, go);
@@ -2940,16 +2941,16 @@ NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& 
                 protoParent = Value(Value::Null);
                 constructorParent = state.context()->globalObject()->functionPrototype();
             } else if (!superClass.isConstructor()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Class_Extends_Value_Is_Not_Object_Nor_Null);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Class_Extends_Value_Is_Not_Object_Nor_Null);
             } else {
                 if (superClass.isObject() && superClass.asObject()->isGeneratorObject()) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Object_Nor_Null);
+                    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Object_Nor_Null);
                 }
 
                 protoParent = superClass.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().prototype)).value(state, Value());
 
                 if (!protoParent.isObject() && !protoParent.isNull()) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Object_Nor_Null);
+                    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Object_Nor_Null);
                 }
 
                 constructorParent = superClass;
@@ -3070,7 +3071,7 @@ NEVER_INLINE void ByteCodeInterpreter::superOperation(ExecutionState& state, Sup
         Object* newTarget = state.getNewTarget();
         // If newTarget is undefined, throw a ReferenceError exception.
         if (!newTarget) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
         }
         registerFile[code->m_dstIndex] = state.getSuperConstructor();
     } else {
@@ -3104,7 +3105,7 @@ NEVER_INLINE void ByteCodeInterpreter::complexSetObjectOperation(ExecutionState&
             // testing is strict mode || IsStrictReference(V)
             // IsStrictReference returns true if code is class method
             if (state.inStrictMode() || !state.resolveCallee()->codeBlock()->asInterpretedCodeBlock()->isObjectMethod()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]).toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]).toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
             }
         }
     } else {
@@ -3343,7 +3344,7 @@ NEVER_INLINE void ByteCodeInterpreter::binaryInOperation(ExecutionState& state, 
     const Value& left = registerFile[code->m_srcIndex0];
     const Value& right = registerFile[code->m_srcIndex1];
     if (!right.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "type of rvalue is not Object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "type of rvalue is not Object");
     }
 
     if (UNLIKELY(code->m_extraData)) {
@@ -3357,9 +3358,9 @@ NEVER_INLINE Value ByteCodeInterpreter::constructOperation(ExecutionState& state
 {
     if (!constructor.isConstructor()) {
         if (constructor.isFunction()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor_Function, constructor.asFunction()->codeBlock()->functionName());
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor_Function, constructor.asFunction()->codeBlock()->functionName());
         }
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
     }
 
     return constructor.asPointerValue()->construct(state, argc, argv, constructor.asObject());
@@ -3440,7 +3441,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         const Value& callee = registerFile[code->m_calleeIndex];
         const Value& receiver = registerFile[code->m_receiverOrThisIndex];
         if (UNLIKELY(!callee.isPointerValue() || !receiver.isPointerValue())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
         }
 
         auto functionRecord = state.mostNearestFunctionLexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
@@ -3529,7 +3530,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
         // https://www.ecma-international.org/ecma-262/6.0/#sec-call
         // If IsCallable(F) is false, throw a TypeError exception.
         if (UNLIKELY(!callee.isPointerValue())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
         }
 
         {
@@ -4201,7 +4202,7 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorOperation(ExecutionState& state, 
             }
 
             if (!innerResult.isObject()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Iterator close result is not an object");
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Iterator close result is not an object");
             }
         }
         ADD_PROGRAM_COUNTER(IteratorOperation);
@@ -4255,7 +4256,7 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorOperation(ExecutionState& state, 
         ADD_PROGRAM_COUNTER(IteratorOperation);
     } else if (code->m_operation == IteratorOperation::Operation::IteratorTestResultIsObject) {
         if (!registerFile[code->m_iteratorTestResultIsObjectData.m_valueRegisterIndex].isObject()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "IteratorResult is not an object");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "IteratorResult is not an object");
         }
         ADD_PROGRAM_COUNTER(IteratorOperation);
     } else if (code->m_operation == IteratorOperation::Operation::IteratorValue) {
@@ -4388,7 +4389,7 @@ NEVER_INLINE int ByteCodeInterpreter::evaluateImportAssertionOperation(Execution
     }
 
     if (!options.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
     ObjectGetResult result = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().assert));
@@ -4404,7 +4405,7 @@ NEVER_INLINE int ByteCodeInterpreter::evaluateImportAssertionOperation(Execution
     }
 
     if (!assertions.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
     Object* assertObject = assertions.asObject();
@@ -4423,12 +4424,12 @@ NEVER_INLINE int ByteCodeInterpreter::evaluateImportAssertionOperation(Execution
             // Currently only "type" is supported
             if (!key.isString() || !key.asString()->equals("type")) {
                 String* asString = key.toStringWithoutException(state);
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, asString, false, String::emptyString, "unsupported import assertion key: %s");
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, asString, false, String::emptyString, "unsupported import assertion key: %s");
             }
 
             if (!resultValue.isString() || !resultValue.asString()->equals("json")) {
                 String* asString = resultValue.toStringWithoutException(state);
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, asString, false, String::emptyString, "unsupported import assertion type: %s");
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, asString, false, String::emptyString, "unsupported import assertion type: %s");
             }
         }
 

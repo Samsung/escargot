@@ -23,6 +23,7 @@
 #include "runtime/Context.h"
 #include "runtime/ReloadableString.h"
 #include "interpreter/ByteCode.h"
+#include "parser/Script.h"
 #include "parser/ast/ProgramNode.h"
 #include "parser/esprima_cpp/esprima.h"
 #include "runtime/Environment.h"
@@ -214,7 +215,7 @@ static String* createFunctionSource(ExecutionState& state, AtomicString function
                 GC_enable();
                 delete syntaxError;
 
-                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, errorMessage);
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, errorMessage);
             }
         }
 #endif

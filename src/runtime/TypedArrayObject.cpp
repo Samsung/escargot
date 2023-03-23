@@ -149,12 +149,12 @@ void TypedArrayObject::sort(ExecutionState& state, int64_t length, const std::fu
 ArrayBuffer* TypedArrayObject::validateTypedArray(ExecutionState& state, const Value& O)
 {
     if (!O.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
     Object* thisObject = O.asObject();
     if (!thisObject->isTypedArrayObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
     }
 
     auto wrapper = thisObject->asTypedArrayObject();

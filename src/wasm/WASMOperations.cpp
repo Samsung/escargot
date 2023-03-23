@@ -86,14 +86,14 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[],
         Value method = Object::getMethod(state, ret, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
         // If method is undefined, throw a TypeError.
         if (method.isUndefined()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
         }
 
         // Let values be ? IterableToList(ret, method).
         ValueVectorWithInlineStorage values = IteratorObject::iterableToList(state, ret, method);
         // If values's size is not resultsSize, throw a TypeError exception.
         if (values.size() != resultsSize) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_FuncCallError);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_FuncCallError);
         }
 
         // For each value and resultType in values and results, paired linearly,
@@ -156,7 +156,7 @@ static Value wasmInstantiateModule(ExecutionState& state, Value thisValue, size_
         ESCARGOT_LOG_ERROR("[WASM Message] %s\n", message.data);
         wasm_name_delete(&message);
         wasm_trap_delete(trap);
-        ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
     }
 
     // Initialize instanceObject from module and instance.
@@ -202,7 +202,7 @@ Value WASMOperations::compileModule(ExecutionState& state, Value thisValue, size
     Value source = argv[0];
     // source should be ArrayBufferObject
     if (!source.isPointerValue() || !source.asPointerValue()->isArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().compile.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().WebAssembly.string(), false, state.context()->staticStrings().compile.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     ArrayBufferObject* srcBuffer = source.asPointerValue()->asArrayBufferObject();
@@ -218,7 +218,7 @@ Value WASMOperations::compileModule(ExecutionState& state, Value thisValue, size
 
     if (!module) {
         // throw WebAssembly.CompileError
-        ErrorObject::throwBuiltinError(state, ErrorObject::WASMCompileError, ErrorObject::Messages::WASM_CompileError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::WASMCompileError, ErrorObject::Messages::WASM_CompileError);
         return Value();
     }
 
@@ -338,7 +338,7 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
 {
     // If importObject is not undefined and not Object, throw a TypeError exception.
     if (!importObj.isUndefined() && !importObj.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_ReadImportsError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_ReadImportsError);
     }
 
     own wasm_importtype_vec_t import_types;
@@ -350,7 +350,7 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
         bool throwError = import_types.size > 0 ? true : false;
         wasm_importtype_vec_delete(&import_types);
         if (throwError) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_ReadImportsError);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_ReadImportsError);
         }
         return;
     }
@@ -377,7 +377,7 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
             wasm_importtype_vec_delete(&import_types);
             wasm_extern_vec_delete_with_size(imports, importsSize);
 
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::WASM_ReadImportsError);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_ReadImportsError);
         }
 
         // Let v be ? Get(o, componentName).
@@ -501,7 +501,7 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
             wasm_importtype_vec_delete(&import_types);
             wasm_extern_vec_delete_with_size(imports, importsSize);
 
-            ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, ErrorObject::Messages::WASM_ReadImportsError);
+            ErrorObject::throwBuiltinError(state, ErrorCode::WASMLinkError, ErrorObject::Messages::WASM_ReadImportsError);
         }
 
         importsSize++;
@@ -536,7 +536,7 @@ Value WASMOperations::instantiateCoreModule(ExecutionState& state, Value thisVal
         ESCARGOT_LOG_ERROR("[WASM Message] %s\n", message.data);
         wasm_name_delete(&message);
         wasm_trap_delete(trap);
-        ErrorObject::throwBuiltinError(state, ErrorObject::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::WASMLinkError, ErrorObject::Messages::WASM_InstantiateModuleError);
     }
 
     // Create an exports object from module and instance and let exportsObject be the result.

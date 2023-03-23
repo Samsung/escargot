@@ -29,10 +29,10 @@ namespace Escargot {
 static Value builtinWeakRefConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
     if (argc == 0 || !argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "target is not object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "target is not object");
     }
 
     // Let weakRef be ? OrdinaryCreateFromConstructor(NewTarget, "%WeakRefPrototype%", « [[WeakRefTarget]] »).
@@ -48,7 +48,7 @@ static Value builtinWeakRefConstructor(ExecutionState& state, Value thisValue, s
 static Value builtinWeakRefDeRef(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isWeakRefObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
     // Let weakRef be the this value.
     WeakRefObject* weakRef = thisValue.asObject()->asWeakRefObject();

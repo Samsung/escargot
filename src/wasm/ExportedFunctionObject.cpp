@@ -103,7 +103,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
         ESCARGOT_LOG_ERROR("[WASM Message] %s\n", message.data);
         wasm_name_delete(&message);
         wasm_trap_delete(trap);
-        ErrorObject::throwBuiltinError(state, ErrorObject::WASMRuntimeError, ErrorObject::Messages::WASM_FuncCallError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::WASMRuntimeError, ErrorObject::Messages::WASM_FuncCallError);
         return Value();
     }
 

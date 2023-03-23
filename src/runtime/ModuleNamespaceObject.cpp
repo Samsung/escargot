@@ -44,7 +44,7 @@ ModuleNamespaceObject::ModuleNamespaceObject(ExecutionState& state, Script* scri
         // If resolution is null, throw a SyntaxError exception.
         if (resolution.m_type == Script::ResolveExportResult::Null) {
             // TODO give better error message
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "Exported name '%s' is null", exportedNames[i]);
+            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Exported name '%s' is null", exportedNames[i]);
         }
         // If resolution is not "ambiguous", append name to unambiguousNames.
         if (resolution.m_type != Script::ResolveExportResult::Ambiguous) {
@@ -181,7 +181,7 @@ ObjectGetResult ModuleNamespaceObject::get(ExecutionState& state, const ObjectPr
             // Let targetEnv be targetModule.[[Environment]].
             if (!targetModule->moduleData()->m_moduleRecord) {
                 // If targetEnv is undefined, throw a ReferenceError exception.
-                ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, "module '%s' is not correctly loaded", targetModule->srcName());
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, "module '%s' is not correctly loaded", targetModule->srcName());
                 return ObjectGetResult();
             }
             // Let targetEnvRec be targetEnv’s EnvironmentRecord.
@@ -228,7 +228,7 @@ void ModuleNamespaceObject::enumeration(ExecutionState& state, bool (*callback)(
         }
         Script* targetModule = std::get<0>(binding.m_record.value());
         if (!targetModule->moduleData()->m_moduleRecord) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::ReferenceError, "module '%s' is not correctly loaded", targetModule->srcName());
+            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, "module '%s' is not correctly loaded", targetModule->srcName());
             return;
         }
         targetModule->moduleData()->m_moduleRecord->getBindingValue(state, std::get<1>(binding.m_record.value()));

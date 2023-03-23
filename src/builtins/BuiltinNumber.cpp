@@ -104,13 +104,13 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
     } else if (thisValue.isPointerValue() && thisValue.asPointerValue()->isNumberObject()) {
         number = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
     } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toFixed.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toFixed.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
     }
 
     Value fractionDigits = argv[0];
     int digit = fractionDigits.toInteger(state);
     if (digit < 0 || digit > 100) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toFixed.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toFixed.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     if (std::isnan(number)) {
@@ -145,7 +145,7 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
     } else if (thisValue.isPointerValue() && thisValue.asPointerValue()->isNumberObject()) {
         number = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
     } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toExponential.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toExponential.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
     }
 
     Value fractionDigits = argv[0];
@@ -164,7 +164,7 @@ static Value builtinNumberToExponential(ExecutionState& state, Value thisValue, 
     }
 
     if (digit < 0 || digit > 100) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toExponential.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toExponential.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
@@ -187,7 +187,7 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
     } else if (thisValue.isPointerValue() && thisValue.asPointerValue()->isNumberObject()) {
         number = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
     } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toPrecision.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toPrecision.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
     }
 
     Value precision = argv[0];
@@ -210,7 +210,7 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
     }
 
     if (p < 1 || p > 100) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toPrecision.string(), ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toPrecision.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
@@ -229,14 +229,14 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
     } else if (thisValue.isPointerValue() && thisValue.asPointerValue()->isNumberObject()) {
         number = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
     } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotNumber);
     }
 
     double radix = 10;
     if (argc > 0 && !argv[0].isUndefined()) {
         radix = argv[0].toInteger(state);
         if (radix < 2 || radix > 36) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_RadixInvalidRange);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_RadixInvalidRange);
         }
     }
     if (std::isnan(number) || std::isinf(number)) {
@@ -270,7 +270,7 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Number, toLocaleString);
     if (!thisObject->isNumberObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotNumber);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotNumber);
     }
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL_NUMBERFORMAT)
@@ -283,7 +283,7 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
     } else if (thisValue.isObject() && thisValue.asObject()->isNumberObject()) {
         x = thisValue.asPointerValue()->asNumberObject()->primitiveValue();
     } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotNumber);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotNumber);
     }
     auto result = IntlNumberFormat::format(state, numberFormat, x);
 
@@ -298,7 +298,7 @@ static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue,
             return Object::call(state, toStrFunc, thisObject, 0, argv);
         }
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
     RELEASE_ASSERT_NOT_REACHED();
     return Value();
 #endif
@@ -311,7 +311,7 @@ static Value builtinNumberValueOf(ExecutionState& state, Value thisValue, size_t
     } else if (thisValue.isObject() && thisValue.asObject()->isNumberObject()) {
         return Value(thisValue.asPointerValue()->asNumberObject()->primitiveValue());
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotNumber);
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotNumber);
     RELEASE_ASSERT_NOT_REACHED();
     return Value();
 }

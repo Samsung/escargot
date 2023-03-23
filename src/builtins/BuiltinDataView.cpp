@@ -41,10 +41,10 @@ namespace Escargot {
 static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
     if (!(argv[0].isObject() && argv[0].asPointerValue()->isArrayBuffer())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotArrayBufferObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotArrayBufferObject);
     }
 
     ArrayBuffer* buffer = argv[0].asObject()->asArrayBuffer();
@@ -53,16 +53,16 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
         Value& val = argv[1];
         byteOffset = val.toIndex(state);
         if (byteOffset == Value::InvalidIndexValue) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
     }
     if (buffer->isDetachedBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, "%s: ArrayBuffer is detached buffer");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, "%s: ArrayBuffer is detached buffer");
     }
     double bufferByteLength = buffer->byteLength();
 
     if (byteOffset > bufferByteLength) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
     }
     double byteLength = bufferByteLength - byteOffset;
 
@@ -71,7 +71,7 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
         if (!val.isUndefined()) {
             byteLength = val.toIndex(state);
             if (byteOffset + byteLength > bufferByteLength || byteLength == Value::InvalidIndexValue) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
             }
         }
     }
@@ -83,7 +83,7 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
     obj->setBuffer(buffer, byteOffset, byteLength);
 
     if (obj->buffer()->isDetachedBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
     }
 
     return obj;
@@ -94,7 +94,7 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
     {                                                                                                                                    \
         RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, DataView, get##Name);                                                                 \
         if (!(thisObject->isDataViewObject())) {                                                                                         \
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(),            \
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(),              \
                                            true, state.context()->staticStrings().get##Name.string(),                                    \
                                            ErrorObject::Messages::GlobalObject_ThisNotDataViewObject);                                   \
         }                                                                                                                                \
@@ -110,7 +110,7 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
     {                                                                                                                                    \
         RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, DataView, get##Name);                                                                 \
         if (!(thisObject->isDataViewObject())) {                                                                                         \
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().DataView.string(),            \
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(),              \
                                            true, state.context()->staticStrings().set##Name.string(),                                    \
                                            ErrorObject::Messages::GlobalObject_ThisNotDataViewObject);                                   \
         }                                                                                                                                \
@@ -132,7 +132,7 @@ static Value builtinDataViewBufferGetter(ExecutionState& state, Value thisValue,
             return Value(buffer);
         }
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get DataView.prototype.buffer called on incompatible receiver");
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get DataView.prototype.buffer called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -141,7 +141,7 @@ static Value builtinDataViewByteLengthGetter(ExecutionState& state, Value thisVa
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject() && thisValue.asObject()->asDataViewObject()->buffer() && !thisValue.asObject()->asDataViewObject()->buffer()->isDetachedBuffer())) {
         return Value(thisValue.asObject()->asArrayBufferView()->byteLength());
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get DataView.prototype.byteLength called on incompatible receiver");
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get DataView.prototype.byteLength called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -150,7 +150,7 @@ static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisVa
     if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject() && thisValue.asObject()->asDataViewObject()->buffer() && !thisValue.asObject()->asDataViewObject()->buffer()->isDetachedBuffer())) {
         return Value(thisValue.asObject()->asArrayBufferView()->byteOffset());
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "get DataView.prototype.byteOffset called on incompatible receiver");
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get DataView.prototype.byteOffset called on incompatible receiver");
     RELEASE_ASSERT_NOT_REACHED();
 }
 

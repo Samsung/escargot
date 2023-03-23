@@ -21,6 +21,7 @@
 #include <cstdlib> // size_t
 #include "EscargotPublic.h"
 #include "parser/ast/Node.h"
+#include "parser/Script.h"
 #include "parser/ScriptParser.h"
 #include "parser/CodeBlock.h"
 #include "runtime/Global.h"
@@ -3228,7 +3229,7 @@ ValueRef* ValueRef::call(ExecutionStateRef* state, ValueRef* receiver, const siz
 {
     auto impl = toImpl(this);
     if (UNLIKELY(!impl.isPointerValue())) {
-        ErrorObject::throwBuiltinError(*toImpl(state), ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+        ErrorObject::throwBuiltinError(*toImpl(state), ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
     PointerValue* o = impl.asPointerValue();
     Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
@@ -3242,7 +3243,7 @@ ValueRef* ValueRef::construct(ExecutionStateRef* state, const size_t argc, Value
 {
     auto impl = toImpl(this);
     if (UNLIKELY(!impl.isPointerValue())) {
-        ErrorObject::throwBuiltinError(*toImpl(state), ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+        ErrorObject::throwBuiltinError(*toImpl(state), ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
     PointerValue* o = impl.asPointerValue();
     Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
@@ -3467,52 +3468,52 @@ IteratorObjectRef* ArrayObjectRef::entries(ExecutionStateRef* state)
     return toRef(toImpl(this)->entries(*toImpl(state)));
 }
 
-COMPILE_ASSERT((int)ErrorObject::Code::None == (int)ErrorObjectRef::Code::None, "");
-COMPILE_ASSERT((int)ErrorObject::Code::ReferenceError == (int)ErrorObjectRef::Code::ReferenceError, "");
-COMPILE_ASSERT((int)ErrorObject::Code::TypeError == (int)ErrorObjectRef::Code::TypeError, "");
-COMPILE_ASSERT((int)ErrorObject::Code::SyntaxError == (int)ErrorObjectRef::Code::SyntaxError, "");
-COMPILE_ASSERT((int)ErrorObject::Code::RangeError == (int)ErrorObjectRef::Code::RangeError, "");
-COMPILE_ASSERT((int)ErrorObject::Code::URIError == (int)ErrorObjectRef::Code::URIError, "");
-COMPILE_ASSERT((int)ErrorObject::Code::EvalError == (int)ErrorObjectRef::Code::EvalError, "");
+COMPILE_ASSERT((int)ErrorCode::None == (int)ErrorObjectRef::Code::None, "");
+COMPILE_ASSERT((int)ErrorCode::ReferenceError == (int)ErrorObjectRef::Code::ReferenceError, "");
+COMPILE_ASSERT((int)ErrorCode::TypeError == (int)ErrorObjectRef::Code::TypeError, "");
+COMPILE_ASSERT((int)ErrorCode::SyntaxError == (int)ErrorObjectRef::Code::SyntaxError, "");
+COMPILE_ASSERT((int)ErrorCode::RangeError == (int)ErrorObjectRef::Code::RangeError, "");
+COMPILE_ASSERT((int)ErrorCode::URIError == (int)ErrorObjectRef::Code::URIError, "");
+COMPILE_ASSERT((int)ErrorCode::EvalError == (int)ErrorObjectRef::Code::EvalError, "");
 
 ErrorObjectRef* ErrorObjectRef::create(ExecutionStateRef* state, ErrorObjectRef::Code code, StringRef* errorMessage)
 {
-    return toRef(ErrorObject::createError(*toImpl(state), (ErrorObject::Code)code, toImpl(errorMessage)));
+    return toRef(ErrorObject::createError(*toImpl(state), (ErrorCode)code, toImpl(errorMessage)));
 }
 
 ReferenceErrorObjectRef* ReferenceErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef((ReferenceErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::ReferenceError, toImpl(errorMessage)));
+    return toRef((ReferenceErrorObject*)ErrorObject::createError(*toImpl(state), ErrorCode::ReferenceError, toImpl(errorMessage)));
 }
 
 TypeErrorObjectRef* TypeErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef((TypeErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::TypeError, toImpl(errorMessage)));
+    return toRef((TypeErrorObject*)ErrorObject::createError(*toImpl(state), ErrorCode::TypeError, toImpl(errorMessage)));
 }
 
 SyntaxErrorObjectRef* SyntaxErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef((SyntaxErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::SyntaxError, toImpl(errorMessage)));
+    return toRef((SyntaxErrorObject*)ErrorObject::createError(*toImpl(state), ErrorCode::SyntaxError, toImpl(errorMessage)));
 }
 
 RangeErrorObjectRef* RangeErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef((RangeErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::RangeError, toImpl(errorMessage)));
+    return toRef((RangeErrorObject*)ErrorObject::createError(*toImpl(state), ErrorCode::RangeError, toImpl(errorMessage)));
 }
 
 URIErrorObjectRef* URIErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef((URIErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::URIError, toImpl(errorMessage)));
+    return toRef((URIErrorObject*)ErrorObject::createError(*toImpl(state), ErrorCode::URIError, toImpl(errorMessage)));
 }
 
 EvalErrorObjectRef* EvalErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef((EvalErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::EvalError, toImpl(errorMessage)));
+    return toRef((EvalErrorObject*)ErrorObject::createError(*toImpl(state), ErrorCode::EvalError, toImpl(errorMessage)));
 }
 
 AggregateErrorObjectRef* AggregateErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)
 {
-    return toRef((AggregateErrorObject*)ErrorObject::createError(*toImpl(state), ErrorObject::AggregateError, toImpl(errorMessage)));
+    return toRef((AggregateErrorObject*)ErrorObject::createError(*toImpl(state), ErrorCode::AggregateError, toImpl(errorMessage)));
 }
 
 DateObjectRef* DateObjectRef::create(ExecutionStateRef* state)
@@ -4319,7 +4320,7 @@ ScriptParserRef::InitializeScriptResult::InitializeScriptResult()
 ScriptRef* ScriptParserRef::InitializeScriptResult::fetchScriptThrowsExceptionIfParseError(ExecutionStateRef* state)
 {
     if (!script.hasValue()) {
-        ErrorObject::throwBuiltinError(*toImpl(state), (ErrorObject::Code)parseErrorCode, toImpl(parseErrorMessage)->toNonGCUTF8StringData().data());
+        ErrorObject::throwBuiltinError(*toImpl(state), (ErrorCode)parseErrorCode, toImpl(parseErrorMessage)->toNonGCUTF8StringData().data());
     }
 
     return script.value();

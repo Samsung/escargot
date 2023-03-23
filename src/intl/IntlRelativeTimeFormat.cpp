@@ -67,7 +67,7 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
     UVersionInfo versionArray;
     u_getVersion(versionArray);
     if (versionArray[0] < 62) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Intl.NumberFormat needs 62+ version of ICU");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.NumberFormat needs 62+ version of ICU");
     }
 #endif
     // Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -103,7 +103,7 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
     if (!numberingSystem.isUndefined()) {
         // If numberingSystem does not match the type sequence (from UTS 35 Unicode Locale Identifier, section 3.2), throw a RangeError exception.
         if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(numberingSystem.asString())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The numberingSystem value you gave is not valid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "The numberingSystem value you gave is not valid");
         }
     }
 
@@ -157,7 +157,7 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
     m_icuRelativeDateTimeFormatter = ureldatefmt_open(m_locale->toNonGCUTF8StringData().data(), nullptr, icuStyle, UDISPCTX_CAPITALIZATION_FOR_STANDALONE, &status);
 
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize RelativeTimeFormat");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize RelativeTimeFormat");
     }
 
     addFinalizer([](Object* obj, void* data) {
@@ -194,14 +194,14 @@ String* IntlRelativeTimeFormatObject::format(ExecutionState& state, double value
 {
     // https://tc39.es/ecma402/#sec-PartitionRelativeTimePattern
     if (std::isinf(value) || std::isnan(value) || !IS_IN_TIME_RANGE(value)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "value is valid in RelativeTimeFormat format()");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "value is valid in RelativeTimeFormat format()");
     }
 
     // https://tc39.es/ecma402/#sec-singularrelativetimeunit
     URelativeDateTimeUnit icuUnit = icuRelativeTimeUnitFromString(unit);
 
     if (icuUnit == UDAT_REL_UNIT_COUNT) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "unit is invalid in RelativeTimeFormat format()");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "unit is invalid in RelativeTimeFormat format()");
     }
 
     UErrorCode status = U_ZERO_ERROR;
@@ -213,7 +213,7 @@ String* IntlRelativeTimeFormatObject::format(ExecutionState& state, double value
     }
 
     if (status != U_BUFFER_OVERFLOW_ERROR) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format time");
     }
 
     status = U_ZERO_ERROR;
@@ -225,7 +225,7 @@ String* IntlRelativeTimeFormatObject::format(ExecutionState& state, double value
     }
 
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format time");
     }
     return new UTF16String(buf, bufSize);
 }
@@ -234,20 +234,20 @@ ArrayObject* IntlRelativeTimeFormatObject::formatToParts(ExecutionState& state, 
 {
     // https://tc39.es/ecma402/#sec-PartitionRelativeTimePattern
     if (std::isinf(value) || std::isnan(value) || !IS_IN_TIME_RANGE(value)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "value is valid in RelativeTimeFormat formatToParts()");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "value is valid in RelativeTimeFormat formatToParts()");
     }
 
     // https://tc39.es/ecma402/#sec-singularrelativetimeunit
     URelativeDateTimeUnit icuUnit = icuRelativeTimeUnitFromString(unit);
 
     if (icuUnit == UDAT_REL_UNIT_COUNT) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "unit is invalid in RelativeTimeFormat formatToParts()");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "unit is invalid in RelativeTimeFormat formatToParts()");
     }
 
     UErrorCode status = U_ZERO_ERROR;
     LocalResourcePointer<UFormattedRelativeDateTime> formattedRelativeDateTime(ureldatefmt_openResult(&status), [](UFormattedRelativeDateTime* f) { ureldatefmt_closeResult(f); });
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format time");
     }
 
     if (m_numeric->equals("always")) {
@@ -257,30 +257,30 @@ ArrayObject* IntlRelativeTimeFormatObject::formatToParts(ExecutionState& state, 
     }
 
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format time");
     }
 
     const UFormattedValue* formattedValue = ureldatefmt_resultAsValue(formattedRelativeDateTime.get(), &status);
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format time");
     }
 
     int32_t strLength;
     const char16_t* str = ufmtval_getString(formattedValue, &strLength, &status);
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format time");
     }
 
     UTF16StringDataNonGCStd resultString(str, strLength);
 
     LocalResourcePointer<UConstrainedFieldPosition> fpos(ucfpos_open(&status), [](UConstrainedFieldPosition* f) { ucfpos_close(f); });
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format time");
     }
 
     ucfpos_constrainCategory(fpos.get(), UFIELD_CATEGORY_NUMBER, &status);
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format time");
     }
 
     std::vector<Intl::NumberFieldItem> fields;
@@ -288,7 +288,7 @@ ArrayObject* IntlRelativeTimeFormatObject::formatToParts(ExecutionState& state, 
     while (true) {
         bool hasNext = ufmtval_nextPosition(formattedValue, fpos.get(), &status);
         if (U_FAILURE(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format time");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format time");
         }
         if (!hasNext) {
             break;
@@ -296,13 +296,13 @@ ArrayObject* IntlRelativeTimeFormatObject::formatToParts(ExecutionState& state, 
 
         int32_t type = ucfpos_getField(fpos.get(), &status);
         if (U_FAILURE(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format time");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format time");
         }
 
         int32_t start, end;
         ucfpos_getIndexes(fpos.get(), &start, &end, &status);
         if (U_FAILURE(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format time");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format time");
         }
 
         Intl::NumberFieldItem item;

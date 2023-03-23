@@ -32,60 +32,60 @@ namespace Escargot {
 #define CHECK_TEMPORAL_OBJECT_HAS_YEAR_AND_MONTH(temporalDateLike) \
     !(temporalDateLike.isObject() && (temporalDateLike.asObject()->isTemporalPlainDateObject() || temporalDateLike.asObject()->isTemporalPlainDateTimeObject() || temporalDateLike.asObject()->isTemporalPlainYearMonthObject()))
 
-#define CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, value)                                  \
-    if (!(value.isObject() && value.asObject()->isTemporalPlainYearMonthObject())) {   \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type"); \
+#define CHECK_TEMPORAL_PLAIN_YEAR_MONTH(state, value)                                \
+    if (!(value.isObject() && value.asObject()->isTemporalPlainYearMonthObject())) { \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type"); \
     }
 
-#define CHECK_TEMPORAL_INSTANT(state, value)                                         \
-    if (!(value.isObject() && value.asObject()->isTemporalInstantObject())) {        \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "wrong type"); \
+#define CHECK_TEMPORAL_INSTANT(state, value)                                       \
+    if (!(value.isObject() && value.asObject()->isTemporalInstantObject())) {      \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "wrong type"); \
     }
 
-#define CHECK_TEMPORAL_CALENDAR(state, thisValue, argc)                                                                   \
-    if (!(thisValue.isObject() && thisValue.asObject()->isTemporalCalendarObject())) {                                    \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject); \
-    }                                                                                                                     \
-                                                                                                                          \
-    ASSERT(thisValue.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));                         \
-                                                                                                                          \
-    if (argc == 0) {                                                                                                      \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type");                                    \
+#define CHECK_TEMPORAL_CALENDAR(state, thisValue, argc)                                                                 \
+    if (!(thisValue.isObject() && thisValue.asObject()->isTemporalCalendarObject())) {                                  \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject); \
+    }                                                                                                                   \
+                                                                                                                        \
+    ASSERT(thisValue.asObject()->asTemporalCalendarObject()->getIdentifier()->equals("iso8601"));                       \
+                                                                                                                        \
+    if (argc == 0) {                                                                                                    \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");                                    \
     }
 
-#define CHECK_TEMPORAL_ZONED_DATE_TIME(state, value)                                 \
-    if (!(value.isObject() && value.asObject()->isTemporalZonedDateTimeObject())) {  \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "wrong type"); \
+#define CHECK_TEMPORAL_ZONED_DATE_TIME(state, value)                                \
+    if (!(value.isObject() && value.asObject()->isTemporalZonedDateTimeObject())) { \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "wrong type");  \
     }
 
-#define CHECK_TEMPORAL_PLAIN_DATE(state, value)                                        \
-    if (!(value.isObject() && value.asObject()->isTemporalPlainDateObject())) {        \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type"); \
+#define CHECK_TEMPORAL_PLAIN_DATE(state, value)                                      \
+    if (!(value.isObject() && value.asObject()->isTemporalPlainDateObject())) {      \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type"); \
     }
 
-#define CHECK_TEMPORAL_PLAIN_TIME(state, value)                                        \
-    if (!(value.isObject() && value.asObject()->isTemporalPlainTimeObject())) {        \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type"); \
+#define CHECK_TEMPORAL_PLAIN_TIME(state, value)                                      \
+    if (!(value.isObject() && value.asObject()->isTemporalPlainTimeObject())) {      \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type"); \
     }
 
-#define CHECK_TEMPORAL_PLAIN_DATE_TIME(state, value)                                   \
-    if (!(value.isObject() && value.asObject()->isTemporalPlainDateTimeObject())) {    \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type"); \
+#define CHECK_TEMPORAL_PLAIN_DATE_TIME(state, value)                                 \
+    if (!(value.isObject() && value.asObject()->isTemporalPlainDateTimeObject())) {  \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type"); \
     }
 
-#define CHECK_TEMPORAL_DURATION(state, value)                                          \
-    if (!(value.isObject() && value.asObject()->isTemporalDurationObject())) {         \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type"); \
+#define CHECK_TEMPORAL_DURATION(state, value)                                        \
+    if (!(value.isObject() && value.asObject()->isTemporalDurationObject())) {       \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type"); \
     }
 
-#define CHECK_TEMPORAL_TIME_ZONE(state, value)                                         \
-    if (!(value.isObject() && value.asObject()->isTemporalTimeZoneObject())) {         \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type"); \
+#define CHECK_TEMPORAL_TIME_ZONE(state, value)                                       \
+    if (!(value.isObject() && value.asObject()->isTemporalTimeZoneObject())) {       \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type"); \
     }
 
 #define CHECK_TEMPORAL_TIME_ZONE_OFFSET_VALUE(state, value)                                                                                                                \
     if (value.asObject()->asTemporalTimeZoneObject()->getIdentifier()->equals("UTC") && !value.asObject()->asTemporalTimeZoneObject()->getOffsetNanoseconds().isInt32()) { \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid offset value");                                                                             \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid offset value");                                                                               \
     }
 
 static TemporalPlainDateObject* getTemporalPlainDate(ExecutionState& state, const Value& thisValue, unsigned long argc, Value* argv)
@@ -97,13 +97,13 @@ static TemporalPlainDateObject* getTemporalPlainDate(ExecutionState& state, cons
 static Value temporalInstantFromEpoch(ExecutionState& state, size_t argc, Value* argv, BigInt* epoch)
 {
     if (argc == 0) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     auto epochNanoSeconds = argv[0].toBigInt(state)->multiply(state, epoch);
 
     if (!TemporalInstantObject::isValidEpochNanoseconds(epochNanoSeconds)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "nanoSeconds is out of range");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "nanoSeconds is out of range");
     }
 
     return TemporalInstantObject::createTemporalInstant(state, epochNanoSeconds);
@@ -139,13 +139,13 @@ static Value builtinTemporalNowPlainDateTimeISO(ExecutionState& state, Value thi
 static Value builtinTemporalPlainDateConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
     }
 
     ASSERT(argc > 2);
 
     if (!(argv[0].isInteger(state) || argv[1].isInteger(state) || argv[2].isInteger(state))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
     }
 
     Value calendar = TemporalCalendarObject::toTemporalCalendarWithISODefault(state, argc > 4 ? argv[3] : Value());
@@ -155,7 +155,7 @@ static Value builtinTemporalPlainDateConstructor(ExecutionState& state, Value th
 static Value builtinTemporalPlainDateFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argc > 1 && !argv[1].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "options must be object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "options must be object");
     }
 
     if (argv[0].isObject() && argv[0].asObject()->isTemporalPlainDateObject()) {
@@ -265,7 +265,7 @@ static Value builtinTemporalPlainDatePrototypeSubtract(ExecutionState& state, Va
 static Value builtinTemporalPlainTimeConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
     }
 
     int values[6];
@@ -273,7 +273,7 @@ static Value builtinTemporalPlainTimeConstructor(ExecutionState& state, Value th
 
     for (unsigned int i = 0; i < argc && i < 6; ++i) {
         if (!argv[i].isInteger(state)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
         }
         values[i] = argv[i].asInt32();
     }
@@ -366,7 +366,7 @@ static Value builtinTemporalPlainTimeWith(ExecutionState& state, Value thisValue
     TemporalPlainTimeObject* temporalTime = thisValue.asObject()->asTemporalPlainTimeObject();
 
     if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "temporalTimeLike is not an Object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "temporalTimeLike is not an Object");
     }
 
     Temporal::rejectObjectWithCalendarOrTimeZone(state, argv[0]);
@@ -424,13 +424,13 @@ static Value builtinTemporalPlainTimeEquals(ExecutionState& state, Value thisVal
 static Value builtinTemporalPlainDateTimeConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
     }
 
     ASSERT(argc > 2);
 
     if (!(argv[0].isInteger(state) || argv[1].isInteger(state) || argv[2].isInteger(state)) || !(argc > 3 && argv[3].isInteger(state)) || !(argc > 4 && argv[4].isInteger(state)) || !(argc > 5 && argv[5].isInteger(state)) || !(argc > 6 && argv[6].isInteger(state)) || !(argc > 7 && argv[7].isInteger(state)) || !(argc > 8 && argv[8].isInteger(state))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
     }
 
     Value calendar = TemporalCalendarObject::toTemporalCalendarWithISODefault(state, argc > 8 ? argv[9] : Value());
@@ -440,7 +440,7 @@ static Value builtinTemporalPlainDateTimeConstructor(ExecutionState& state, Valu
 static Value builtinTemporalPlainDateTimeFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argc > 1 && !argv[1].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "options must be object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "options must be object");
     }
 
     if (argv[0].isObject() && argv[0].asObject()->isTemporalPlainDateTimeObject()) {
@@ -552,11 +552,11 @@ static Value builtinTemporalPlainDateTimePrototypeSubtract(ExecutionState& state
 static Value builtinTemporalZonedDateTimeConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isBigInt()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
     }
 
     if (!TemporalInstantObject::isValidEpochNanoseconds(argv[0])) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "epoch Nanoseconds is out of range");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "epoch Nanoseconds is out of range");
     }
 
     auto timeZone = TemporalTimeZoneObject::toTemporalTimeZone(state, argv[1]).asObject()->asTemporalTimeZoneObject();
@@ -797,7 +797,7 @@ static Value builtinTemporalZonedDateTimePrototypeSubtract(ExecutionState& state
 static Value builtinTemporalDurationConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
     }
 
     int values[10];
@@ -805,7 +805,7 @@ static Value builtinTemporalDurationConstructor(ExecutionState& state, Value thi
 
     for (unsigned int i = 0; i < argc && i < 10; ++i) {
         if (!argv[i].isInteger(state)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
         }
         values[i] = argv[i].asInt32();
     }
@@ -816,7 +816,7 @@ static Value builtinTemporalDurationConstructor(ExecutionState& state, Value thi
 static Value builtinTemporalDurationFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argc == 0) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid first argument");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid first argument");
     }
 
     if (argv[0].isObject() && argv[0].asObject()->isTemporalDurationObject()) {
@@ -932,14 +932,14 @@ static Value builtinTemporalDurationPrototypeSubtract(ExecutionState& state, Val
 static Value builtinTemporalPlainYearMonthConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
     }
 
     int referenceISODay = 1;
 
     if (argc >= 4) {
         if (argv[3].isInt32()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
         }
         referenceISODay = argv[3].asInt32();
     }
@@ -1070,19 +1070,19 @@ static Value builtinTemporalPlainYearMonthPrototypeSubtract(ExecutionState& stat
 static Value builtinTemporalInstantConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
     }
 
     if (argc == 0) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     if (!(argv[0].isBigInt() || argv[0].isString())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
     }
 
     if (!TemporalInstantObject::isValidEpochNanoseconds(argv[0].toBigInt(state))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid epoch nanoseconds");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid epoch nanoseconds");
     }
 
     return TemporalInstantObject::createTemporalInstant(state, argv[0].toBigInt(state), newTarget);
@@ -1091,7 +1091,7 @@ static Value builtinTemporalInstantConstructor(ExecutionState& state, Value this
 static Value builtinTemporalInstantFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argc == 0) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     if (argv[0].isObject() && argv[0].asObject()->isTemporalInstantObject()) {
@@ -1178,14 +1178,14 @@ static Value builtinTemporalInstantPrototypeSubtract(ExecutionState& state, Valu
 static Value builtinTemporalPlainMonthDayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
     }
 
     int referenceISOYear = 1972;
 
     if (argc >= 4) {
         if (!argv[3].isInt32()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
         }
         referenceISOYear = argv[3].asInt32();
     }
@@ -1223,11 +1223,11 @@ static Value builtinTemporalPlainMonthDayPrototypeDay(ExecutionState& state, Val
 static Value builtinTemporalTimeZoneConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
     }
 
     if (!argv[0].isString()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Expected string");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Expected string");
     }
 
     std::string identifier(argv[0].asString()->toNonGCUTF8StringData());
@@ -1236,7 +1236,7 @@ static Value builtinTemporalTimeZoneConstructor(ExecutionState& state, Value thi
 
     if (identifier.empty()) {
         if (!TemporalTimeZoneObject::isValidTimeZoneName(argv[0].asString()->toNonGCUTF8StringData())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid TimeZone identifier");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid TimeZone identifier");
         }
         identifier = TemporalTimeZoneObject::canonicalizeTimeZoneName(argv[0].asString()->toNonGCUTF8StringData());
     }
@@ -1307,7 +1307,7 @@ static Value builtinTemporalTimeZonePrototypeGetPossibleInstantsFor(ExecutionSta
 
     for (auto& possibleEpochNanosecond : possibleEpochNanoseconds) {
         if (!TemporalInstantObject::isValidEpochNanoseconds(possibleEpochNanosecond)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid epoch nanosecond");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid epoch nanosecond");
         }
         possibleInstants.push_back(TemporalInstantObject::createTemporalInstant(state, possibleEpochNanosecond));
     }
@@ -1358,17 +1358,17 @@ static Value builtinTemporalTimeZonePrototypeGetPreviousTransition(ExecutionStat
 static Value builtinTemporalCalendarConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
     }
 
     if (!argv[0].isString()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "First argument is not string");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "First argument is not string");
     }
 
     String* id = argv[0].asString();
 
     if (!TemporalCalendarObject::isBuiltinCalendar(id)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     return TemporalCalendarObject::createTemporalCalendar(state, id, newTarget);
@@ -1382,7 +1382,7 @@ static Value builtinTemporalCalendarFrom(ExecutionState& state, Value thisValue,
 static Value builtinTemporalCalendarPrototypeId(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isTemporalCalendarObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
     return thisValue.asObject()->asTemporalCalendarObject()->getIdentifier();
@@ -1391,7 +1391,7 @@ static Value builtinTemporalCalendarPrototypeId(ExecutionState& state, Value thi
 static Value builtinTemporalCalendarPrototypeDateFromFields(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argc > 1 && !argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "fields is not an object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "fields is not an object");
     }
 
     Object* options;
@@ -1548,13 +1548,13 @@ static Value builtinTemporalCalendarFields(ExecutionState& state, Value thisValu
         Value nextValue = IteratorObject::iteratorValue(state, next->asObject());
 
         if (!nextValue.isString()) {
-            Value throwCompletion = ErrorObject::createError(state, ErrorObject::TypeError, new ASCIIString("Value is not a string"));
+            Value throwCompletion = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("Value is not a string"));
             return IteratorObject::iteratorClose(state, iteratorRecord, throwCompletion, true);
         }
 
         for (unsigned int i = 0; i < fieldNames.size(); ++i) {
             if (fieldNames[i].equalsTo(state, nextValue)) {
-                Value throwCompletion = ErrorObject::createError(state, ErrorObject::RangeError, new ASCIIString("Duplicated keys"));
+                Value throwCompletion = ErrorObject::createError(state, ErrorCode::RangeError, new ASCIIString("Duplicated keys"));
                 return IteratorObject::iteratorClose(state, iteratorRecord, throwCompletion, true);
             }
         }
@@ -1569,7 +1569,7 @@ static Value builtinTemporalCalendarFields(ExecutionState& state, Value thisValu
               || nextValue.asString()->equals("millisecond")
               || nextValue.asString()->equals("microsecond")
               || nextValue.asString()->equals("nanosecond"))) {
-            Value throwCompletion = ErrorObject::createError(state, ErrorObject::RangeError, new ASCIIString("Invalid key"));
+            Value throwCompletion = ErrorObject::createError(state, ErrorCode::RangeError, new ASCIIString("Invalid key"));
             return IteratorObject::iteratorClose(state, iteratorRecord, throwCompletion, true);
         }
         fieldNames.pushBack(nextValue);
@@ -1580,7 +1580,7 @@ static Value builtinTemporalCalendarFields(ExecutionState& state, Value thisValu
 static Value builtinTemporalCalendarPrototypeMergeFields(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argc < 2) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Too few arguments");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Too few arguments");
     }
 
     Value fields = argv[0];

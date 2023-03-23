@@ -51,10 +51,10 @@ static ArrayBuffer* validateIntegerTypedArray(ExecutionState& state, Value typed
 
     if (waitable) {
         if ((TA->typedArrayType() != TypedArrayType::Int32) && (TA->typedArrayType() != TypedArrayType::BigInt64)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
         }
     } else if ((TA->typedArrayType() == TypedArrayType::Uint8Clamped) || (TA->typedArrayType() == TypedArrayType::Float32) || (TA->typedArrayType() == TypedArrayType::Float64)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     return buffer;
@@ -65,7 +65,7 @@ static size_t validateAtomicAccess(ExecutionState& state, TypedArrayObject* type
     uint64_t accessIndex = index.toIndex(state);
     size_t length = typedArray->arrayLength();
     if (UNLIKELY(accessIndex == Value::InvalidIndexValue || accessIndex >= (uint64_t)length)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::GlobalObject_RangeError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     ASSERT(accessIndex < std::numeric_limits<size_t>::max());
@@ -330,7 +330,7 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
     ArrayBuffer* buffer = validateIntegerTypedArray(state, typedArrayValue, true);
     TypedArrayObject* typedArray = typedArrayValue.asObject()->asTypedArrayObject();
     if (!buffer->isSharedArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "This function expects SharedArrayBuffer");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "This function expects SharedArrayBuffer");
     }
 
     // Let i be ? ValidateAtomicAccess(typedArray, index).
@@ -362,7 +362,7 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
         // Let B be AgentCanSuspend().
         // If B is false, throw a TypeError exception.
         if (!Global::platform()->canBlockExecution(state.context())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot suspend this thread");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot suspend this thread");
         }
     }
     // Let block be buffer.[[ArrayBufferData]].

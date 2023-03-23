@@ -23,7 +23,6 @@
 #include "Node.h"
 #include "ClassElementNode.h"
 #include "FunctionExpressionNode.h"
-#include "runtime/ErrorObject.h"
 #include "runtime/ScriptClassConstructorFunctionObject.h"
 
 namespace Escargot {
@@ -241,7 +240,7 @@ public:
                     size_t jmpPos = codeBlock->currentCodeSize();
                     codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this);
 
-                    codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Static_Generator), context, this);
+                    codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Static_Generator), context, this);
 
                     codeBlock->peekCode<JumpIfFalse>(jmpPos)->m_jumpPosition = codeBlock->currentCodeSize();
 

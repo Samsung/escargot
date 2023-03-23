@@ -20,6 +20,8 @@
 #ifndef __EscargotParserStringView__
 #define __EscargotParserStringView__
 
+#include "runtime/String.h"
+
 namespace Escargot {
 
 class ParserStringView : public String {

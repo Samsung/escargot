@@ -22,7 +22,6 @@
 
 #include "ExpressionNode.h"
 #include "ArrayPatternNode.h"
-#include "runtime/Context.h"
 
 namespace Escargot {
 

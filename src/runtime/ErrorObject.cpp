@@ -23,29 +23,29 @@
 
 namespace Escargot {
 
-ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage)
+ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorCode code, String* errorMessage)
 {
     switch (code) {
-    case ReferenceError:
+    case ErrorCode::ReferenceError:
         return new ReferenceErrorObject(state, state.context()->globalObject()->referenceErrorPrototype(), errorMessage);
-    case TypeError:
+    case ErrorCode::TypeError:
         return new TypeErrorObject(state, state.context()->globalObject()->typeErrorPrototype(), errorMessage);
-    case SyntaxError:
+    case ErrorCode::SyntaxError:
         return new SyntaxErrorObject(state, state.context()->globalObject()->syntaxErrorPrototype(), errorMessage);
-    case RangeError:
+    case ErrorCode::RangeError:
         return new RangeErrorObject(state, state.context()->globalObject()->rangeErrorPrototype(), errorMessage);
-    case URIError:
+    case ErrorCode::URIError:
         return new URIErrorObject(state, state.context()->globalObject()->uriErrorPrototype(), errorMessage);
-    case EvalError:
+    case ErrorCode::EvalError:
         return new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage);
-    case AggregateError:
+    case ErrorCode::AggregateError:
         return new AggregateErrorObject(state, state.context()->globalObject()->aggregateErrorPrototype(), errorMessage);
 #if defined(ENABLE_WASM)
-    case WASMCompileError:
+    case ErrorCode::WASMCompileError:
         return new WASMCompileErrorObject(state, state.context()->globalObject()->wasmCompileErrorPrototype(), errorMessage);
-    case WASMLinkError:
+    case ErrorCode::WASMLinkError:
         return new WASMLinkErrorObject(state, state.context()->globalObject()->wasmLinkErrorPrototype(), errorMessage);
-    case WASMRuntimeError:
+    case ErrorCode::WASMRuntimeError:
         return new WASMRuntimeErrorObject(state, state.context()->globalObject()->wasmRuntimeErrorPrototype(), errorMessage);
 #endif
     default:
@@ -53,7 +53,7 @@ ErrorObject* ErrorObject::createError(ExecutionState& state, ErrorObject::Code c
     }
 }
 
-ErrorObject* ErrorObject::createBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString)
+ErrorObject* ErrorObject::createBuiltinError(ExecutionState& state, ErrorCode code, String* objectName, bool prototype, String* functionName, const char* templateString)
 {
     StringBuilder replacerBuilder;
     if (objectName->length()) {
@@ -84,33 +84,33 @@ ErrorObject* ErrorObject::createBuiltinError(ExecutionState& state, Code code, S
     }
     errorMessage = new UTF16String(str.data(), str.length());
     switch (code) {
-    case ReferenceError:
+    case ErrorCode::ReferenceError:
         return new ReferenceErrorObject(state, state.context()->globalObject()->referenceErrorPrototype(), errorMessage);
         break;
-    case TypeError:
+    case ErrorCode::TypeError:
         return new TypeErrorObject(state, state.context()->globalObject()->typeErrorPrototype(), errorMessage);
         break;
-    case SyntaxError:
+    case ErrorCode::SyntaxError:
         return new SyntaxErrorObject(state, state.context()->globalObject()->syntaxErrorPrototype(), errorMessage);
         break;
-    case RangeError:
+    case ErrorCode::RangeError:
         return new RangeErrorObject(state, state.context()->globalObject()->rangeErrorPrototype(), errorMessage);
         break;
-    case URIError:
+    case ErrorCode::URIError:
         return new URIErrorObject(state, state.context()->globalObject()->uriErrorPrototype(), errorMessage);
         break;
-    case EvalError:
+    case ErrorCode::EvalError:
         return new EvalErrorObject(state, state.context()->globalObject()->evalErrorPrototype(), errorMessage);
         break;
-    case AggregateError:
+    case ErrorCode::AggregateError:
         return new AggregateErrorObject(state, state.context()->globalObject()->aggregateErrorPrototype(), errorMessage);
         break;
 #if defined(ENABLE_WASM)
-    case WASMCompileError:
+    case ErrorCode::WASMCompileError:
         return new WASMCompileErrorObject(state, state.context()->globalObject()->wasmCompileErrorPrototype(), errorMessage);
-    case WASMLinkError:
+    case ErrorCode::WASMLinkError:
         return new WASMLinkErrorObject(state, state.context()->globalObject()->wasmLinkErrorPrototype(), errorMessage);
-    case WASMRuntimeError:
+    case ErrorCode::WASMRuntimeError:
         return new WASMRuntimeErrorObject(state, state.context()->globalObject()->wasmRuntimeErrorPrototype(), errorMessage);
 #endif
     default:
@@ -119,12 +119,12 @@ ErrorObject* ErrorObject::createBuiltinError(ExecutionState& state, Code code, S
     }
 }
 
-void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString)
+void ErrorObject::throwBuiltinError(ExecutionState& state, ErrorCode code, String* objectName, bool prototype, String* functionName, const char* templateString)
 {
     state.throwException(Value(ErrorObject::createBuiltinError(state, code, objectName, prototype, functionName, templateString)));
 }
 
-void ErrorObject::throwBuiltinError(ExecutionState& state, Code code, String* errorMessage)
+void ErrorObject::throwBuiltinError(ExecutionState& state, ErrorCode code, String* errorMessage)
 {
     state.throwException(Value(ErrorObject::createError(state, code, errorMessage)));
 }

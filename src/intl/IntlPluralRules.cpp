@@ -45,7 +45,7 @@ static double getNumberOption(ExecutionState& state, Optional<Object*> options, 
         double doubleValue = value.toNumber(state);
         // If value is NaN or less than minimum or greater than maximum, throw a RangeError exception.
         if (std::isnan(doubleValue) || doubleValue < minimum || maximum < doubleValue) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Got invalid number option value");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Got invalid number option value");
         }
         // Return floor(value).
         return floor(doubleValue);
@@ -162,7 +162,7 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     UErrorCode status = U_ZERO_ERROR;
     m_icuNumberFormat = unum_open(UNUM_DEFAULT, nullptr, 0, foundLocale->toNonGCUTF8StringData().data(), nullptr, &status);
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to init PluralRule");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to init PluralRule");
     }
 
     if (!m_minimumSignificantDigits.hasValue()) {
@@ -176,7 +176,7 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     }
     unum_setAttribute(m_icuNumberFormat, UNUM_ROUNDING_MODE, UNUM_ROUND_HALFUP);
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to init NumberFormat");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to init NumberFormat");
     }
 
     ASSERT(U_SUCCESS(status));

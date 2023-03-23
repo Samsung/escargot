@@ -43,7 +43,7 @@ void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicS
 {
     for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
         if (m_globalDeclarativeRecord->at(i).m_name == name) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
         }
     }
 
@@ -94,7 +94,7 @@ EnvironmentRecord::GetBindingValueResult GlobalEnvironmentRecord::getBindingValu
     for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
         if (m_globalDeclarativeRecord->at(i).m_name == name) {
             if (UNLIKELY(m_globalDeclarativeStorage->at(i).isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
             }
             return EnvironmentRecord::GetBindingValueResult(true, m_globalDeclarativeStorage->at(i));
         }
@@ -112,7 +112,7 @@ void GlobalEnvironmentRecord::setMutableBinding(ExecutionState& state, const Ato
     for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
         if (m_globalDeclarativeRecord->at(i).m_name == name) {
             if (UNLIKELY(m_globalDeclarativeStorage->at(i).isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
             }
             m_globalDeclarativeStorage->at(i) = V;
             return;
@@ -128,12 +128,12 @@ void GlobalEnvironmentRecord::setMutableBindingByBindingSlot(ExecutionState& sta
     if (slot.m_index != SIZE_MAX - 1) {
         // TDZ check
         if (UNLIKELY(m_globalDeclarativeStorage->at(slot.m_index).isEmpty())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
         }
 
         // Storing to const variable check
         if (UNLIKELY(!m_globalDeclarativeRecord->at(slot.m_index).m_isMutable)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
         }
         m_globalDeclarativeStorage->at(slot.m_index) = V;
         return;
@@ -204,7 +204,7 @@ void DeclarativeEnvironmentRecordNotIndexed::createBinding(ExecutionState& state
     auto hasBindingResult = hasBinding(state, name);
     if (UNLIKELY(hasBindingResult.m_index != SIZE_MAX)) {
         if (!m_recordVector[hasBindingResult.m_index].m_isVarDeclaration || !isVarDeclaration) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
         }
         return;
     }
@@ -227,7 +227,7 @@ EnvironmentRecord::GetBindingValueResult DeclarativeEnvironmentRecordNotIndexed:
     for (size_t i = 0; i < len; i++) {
         if (m_recordVector[i].m_name == name) {
             if (UNLIKELY(m_heapStorage[i].isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
             }
             return EnvironmentRecord::GetBindingValueResult(m_heapStorage[i]);
         }
@@ -241,10 +241,10 @@ void DeclarativeEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& s
     for (size_t i = 0; i < len; i++) {
         if (m_recordVector[i].m_name == name) {
             if (UNLIKELY(m_heapStorage[i].isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
             }
             if (UNLIKELY(!m_recordVector[i].m_isMutable)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
             }
             m_heapStorage[i] = V;
             return;
@@ -257,12 +257,12 @@ void DeclarativeEnvironmentRecordNotIndexed::setMutableBindingByBindingSlot(Exec
 {
     // TDZ check
     if (UNLIKELY(m_heapStorage[slot.m_index].isEmpty())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
     }
 
     // Storing to const variable check
     if (UNLIKELY(!m_recordVector[slot.m_index].m_isMutable)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
     }
     m_heapStorage[slot.m_index] = v;
 }
@@ -292,7 +292,7 @@ void FunctionEnvironmentRecordOnHeap<canBindThisValue, hasNewTarget>::setMutable
     const auto& recordInfo = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
     if (UNLIKELY(!recordInfo[slot.m_index].m_isMutable)) {
         if (state.inStrictMode()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
         }
         return;
     }
@@ -312,7 +312,7 @@ void FunctionEnvironmentRecordOnHeapWithInlineStorage<canBindThisValue, hasNewTa
     const auto& recordInfo = FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget>::functionObject()->interpretedCodeBlock()->identifierInfos();
     if (UNLIKELY(!recordInfo[slot.m_index].m_isMutable)) {
         if (state.inStrictMode()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
         }
         return;
     }
@@ -379,7 +379,7 @@ void FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::setMut
         if (m_recordVector[i].m_name == name) {
             if (UNLIKELY(!m_recordVector[i].m_isMutable)) {
                 if (state.inStrictMode())
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
+                    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
                 return;
             }
             m_heapStorage[i] = V;
@@ -395,7 +395,7 @@ void FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::setMut
     // Storing to const variable check only (TDZ check is already done by bytecode generation)
     if (UNLIKELY(!m_recordVector[slot.m_index].m_isMutable)) {
         if (state.inStrictMode())
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
         return;
     }
     m_heapStorage[slot.m_index] = v;
@@ -462,7 +462,7 @@ void ModuleEnvironmentRecord::createBinding(ExecutionState& state, const AtomicS
     auto hasBindingResult = hasBinding(state, name);
     if (UNLIKELY(hasBindingResult.m_index != SIZE_MAX)) {
         if (!m_moduleBindings[hasBindingResult.m_index].m_isVarDeclaration || !isVarDeclaration) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
         }
         return;
     }

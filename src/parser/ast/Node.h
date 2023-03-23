@@ -20,7 +20,6 @@
 #ifndef Node_h
 #define Node_h
 
-#include "runtime/AtomicString.h"
 #include "runtime/Value.h"
 #include "parser/ASTAllocator.h"
 
@@ -28,6 +27,7 @@ namespace Escargot {
 
 class ByteCodeBlock;
 class InterpretedCodeBlock;
+class AtomicString;
 struct ByteCodeGenerateContext;
 
 enum ASTNodeType : uint16_t {

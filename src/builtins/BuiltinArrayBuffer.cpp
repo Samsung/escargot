@@ -30,12 +30,12 @@ namespace Escargot {
 static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     uint64_t byteLength = argv[0].toIndex(state);
     if (UNLIKELY(byteLength == Value::InvalidIndexValue)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
     }
 
     Optional<uint64_t> maxByteLength;
@@ -46,7 +46,7 @@ static Value builtinArrayBufferConstructor(ExecutionState& state, Value thisValu
         if (!maxLengthValue.isUndefined()) {
             maxByteLength = maxLengthValue.toIndex(state);
             if (UNLIKELY((maxByteLength.value() == Value::InvalidIndexValue) || (byteLength > maxByteLength.value()))) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
             }
         }
     }
@@ -70,11 +70,11 @@ static Value builtinArrayBufferIsView(ExecutionState& state, Value thisValue, si
 }
 
 
-#define RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                  \
-    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isArrayBuffer() || thisValue.asObject()->isSharedArrayBufferObject())) {                                                                                                                \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                    \
-                                                                                                                                                                                                                                                         \
+#define RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                \
+    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isArrayBuffer() || thisValue.asObject()->isSharedArrayBufferObject())) {                                                                                                              \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                  \
+                                                                                                                                                                                                                                                       \
     ArrayBuffer* NAME = thisValue.asObject()->asArrayBuffer();
 
 // https://262.ecma-international.org/#sec-get-arraybuffer.prototype.bytelength
@@ -117,12 +117,12 @@ static Value builtinArrayBufferResize(ExecutionState& state, Value thisValue, si
     obj->throwTypeErrorIfDetached(state);
 
     if (!obj->isResizableArrayBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().resize.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().resize.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     double newByteLength = argv[0].toInteger(state);
     if (newByteLength < 0 || newByteLength > obj->maxByteLength()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().resize.string(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().resize.string(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
     }
 
     obj->backingStore()->resize(static_cast<size_t>(newByteLength));
@@ -170,18 +170,18 @@ static Value builtinArrayBufferSlice(ExecutionState& state, Value thisValue, siz
     Value arguments[] = { Value(newLen) };
     Object* newValue = Object::construct(state, constructor, 1, arguments).toObject(state);
     if (!newValue->isArrayBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
     }
 
     ArrayBuffer* newObject = newValue->asArrayBuffer();
     newObject->throwTypeErrorIfDetached(state);
 
     if (newObject == obj) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
     }
 
     if (newObject->byteLength() < newLen) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().ArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor ArrayBuffer is not valid ArrayBuffer");
     }
     obj->throwTypeErrorIfDetached(state);
 

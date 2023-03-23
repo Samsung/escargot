@@ -110,7 +110,7 @@ static Value builtinAsyncFromSyncIteratorNext(ExecutionState& state, Value thisV
     // If Type(O) is not Object, or if O does not have a [[SyncIteratorRecord]] internal slot, then
     if (!O.isObject() || !O.asObject()->isAsyncFromSyncIteratorObject()) {
         // Let invalidIteratorError be a newly created TypeError object.
-        Value invalidIteratorError = ErrorObject::createError(state, ErrorObject::TypeError, String::fromASCII("given this value is not Async-from-Sync Iterator"));
+        Value invalidIteratorError = ErrorObject::createError(state, ErrorCode::TypeError, String::fromASCII("given this value is not Async-from-Sync Iterator"));
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « invalidIteratorError »).
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &invalidIteratorError);
         // Return promiseCapability.[[Promise]].
@@ -147,7 +147,7 @@ static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thi
     // If Type(O) is not Object, or if O does not have a [[SyncIteratorRecord]] internal slot, then
     if (!O.isObject() || !O.asObject()->isAsyncFromSyncIteratorObject()) {
         // Let invalidIteratorError be a newly created TypeError object.
-        Value invalidIteratorError = ErrorObject::createError(state, ErrorObject::TypeError, String::fromASCII("given this value is not Async-from-Sync Iterator"));
+        Value invalidIteratorError = ErrorObject::createError(state, ErrorCode::TypeError, String::fromASCII("given this value is not Async-from-Sync Iterator"));
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « invalidIteratorError »).
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &invalidIteratorError);
         // Return promiseCapability.[[Promise]].
@@ -197,7 +197,7 @@ static Value builtinAsyncFromSyncIteratorReturn(ExecutionState& state, Value thi
     // If Type(result) is not Object, then
     if (!result.isObject()) {
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
-        Value typeError = ErrorObject::createError(state, ErrorObject::TypeError, String::fromASCII("result of iterator is not Object"));
+        Value typeError = ErrorObject::createError(state, ErrorCode::TypeError, String::fromASCII("result of iterator is not Object"));
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &typeError);
         // Return promiseCapability.[[Promise]].
         return promiseCapability.m_promise;
@@ -217,7 +217,7 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
     // If Type(O) is not Object, or if O does not have a [[SyncIteratorRecord]] internal slot, then
     if (!O.isObject() || !O.asObject()->isAsyncFromSyncIteratorObject()) {
         // Let invalidIteratorError be a newly created TypeError object.
-        Value invalidIteratorError = ErrorObject::createError(state, ErrorObject::TypeError, String::fromASCII("given this value is not Async-from-Sync Iterator"));
+        Value invalidIteratorError = ErrorObject::createError(state, ErrorCode::TypeError, String::fromASCII("given this value is not Async-from-Sync Iterator"));
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « invalidIteratorError »).
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &invalidIteratorError);
         // Return promiseCapability.[[Promise]].
@@ -259,7 +259,7 @@ static Value builtinAsyncFromSyncIteratorThrow(ExecutionState& state, Value this
     // If Type(result) is not Object, then
     if (!result.isObject()) {
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
-        Value typeError = ErrorObject::createError(state, ErrorObject::TypeError, String::fromASCII("result of iterator is not Object"));
+        Value typeError = ErrorObject::createError(state, ErrorCode::TypeError, String::fromASCII("result of iterator is not Object"));
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &typeError);
         // Return promiseCapability.[[Promise]].
         return promiseCapability.m_promise;

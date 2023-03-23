@@ -79,7 +79,7 @@ IteratorRecord* IteratorObject::getIterator(ExecutionState& state, const Value& 
 
     // If Type(iterator) is not Object, throw a TypeError exception.
     if (!iterator.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "result of GetIterator is not an object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "result of GetIterator is not an object");
     }
 
     // Let nextMethod be ? GetV(iterator, "next").
@@ -107,7 +107,7 @@ Object* IteratorObject::iteratorNext(ExecutionState& state, IteratorRecord* iter
     }
 
     if (!result.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "result is not an object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "result is not an object");
     }
 
     return result.asObject();
@@ -169,7 +169,7 @@ Value IteratorObject::iteratorClose(ExecutionState& state, IteratorRecord* itera
     }
     // If Type(innerResult.[[value]]) is not Object, throw a TypeError exception.
     if (!innerResult.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Iterator close result is not an object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Iterator close result is not an object");
     }
     // Return Completion(completion).
     return completionValue;
@@ -223,7 +223,7 @@ ValueVector IteratorObject::iterableToListOfType(ExecutionState& state, const Va
         }
         Value nextValue = IteratorObject::iteratorValue(state, next->asObject());
         if (!nextValue.isString()) {
-            Value throwCompletion = ErrorObject::createError(state, ErrorObject::RangeError, new ASCIIString("Got invalid value"));
+            Value throwCompletion = ErrorObject::createError(state, ErrorCode::RangeError, new ASCIIString("Got invalid value"));
             return { IteratorObject::iteratorClose(state, iteratorRecord, throwCompletion, true) };
         }
         values.pushBack(nextValue);

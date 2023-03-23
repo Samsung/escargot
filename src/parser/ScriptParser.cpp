@@ -19,11 +19,11 @@
 
 #include "Escargot.h"
 #include "ScriptParser.h"
+#include "Script.h"
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
 #include "interpreter/ByteCode.h"
 #include "parser/esprima_cpp/esprima.h"
-#include "parser/ScriptParser.h"
 #include "parser/ast/AST.h"
 #include "parser/CodeBlock.h"
 #include "runtime/Environment.h"
@@ -41,6 +41,21 @@ ScriptParser::ScriptParser(Context* c)
     , m_codeBlockCacheInfo(nullptr)
 #endif
 {
+}
+
+ScriptParser::InitializeScriptResult::InitializeScriptResult()
+    : parseErrorCode(ErrorCode::None)
+    , parseErrorMessage(String::emptyString)
+{
+}
+
+Script* ScriptParser::InitializeScriptResult::scriptThrowsExceptionIfParseError(ExecutionState& state)
+{
+    if (!script) {
+        ErrorObject::throwBuiltinError(state, parseErrorCode, parseErrorMessage->toUTF8StringData().data());
+    }
+
+    return script.value();
 }
 
 InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction)
@@ -256,7 +271,7 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
     cb->computeVariables();
     if (cb->m_identifierOnStackCount > VARIABLE_LIMIT || cb->m_identifierOnHeapCount > VARIABLE_LIMIT || cb->m_lexicalBlockStackAllocatedIdentifierMaximumDepth > VARIABLE_LIMIT) {
         auto err = new esprima::Error(new ASCIIString("variable limit exceeded"));
-        err->errorCode = ErrorObject::SyntaxError;
+        err->errorCode = ErrorCode::SyntaxError;
         err->lineNumber = cb->m_functionStart.line;
         err->column = cb->m_functionStart.column;
         err->index = cb->m_functionStart.index;
@@ -458,7 +473,7 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
 
         auto str = orgError->message->toUTF8StringData();
         delete orgError;
-        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, str.data());
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, str.data());
         RELEASE_ASSERT_NOT_REACHED();
     }
 

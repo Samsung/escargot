@@ -134,7 +134,7 @@ static Value defaultNumberOption(ExecutionState& state, Value value, double mini
         double doubleValue = value.toNumber(state);
         // If value is NaN or less than minimum or greater than maximum, throw a RangeError exception.
         if (std::isnan(doubleValue) || doubleValue < minimum || maximum < doubleValue) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Got invalid number option value");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Got invalid number option value");
         }
         // Return floor(value).
         return Value(floor(doubleValue));
@@ -332,14 +332,14 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     UVersionInfo versionArray;
     u_getVersion(versionArray);
     if (versionArray[0] < 62) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Intl.NumberFormat needs 62+ version of ICU");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.NumberFormat needs 62+ version of ICU");
     }
 #endif
 
     // If dateTimeFormat has an [[initializedIntlObject]] internal property with value true, throw a TypeError exception.
     AtomicString initializedIntlObject = state.context()->staticStrings().lazyInitializedIntlObject();
     if (numberFormat->hasInternalSlot() && numberFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state, ObjectStructurePropertyName(initializedIntlObject)))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot initialize Intl Object twice");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot initialize Intl Object twice");
     }
 
     // Set the [[initializedIntlObject]] internal property of dateTimeFormat to true.
@@ -374,7 +374,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     if (!numberingSystem.isUndefined()) {
         // If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
         if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(numberingSystem.asString())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The numberingSystem value you gave is not valid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "The numberingSystem value you gave is not valid");
         }
     }
     // Set opt.[[nu]] to numberingSystem.
@@ -411,13 +411,13 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         String* currencyString = currency.asString();
         UTF8StringDataNonGCStd cc = currencyString->toUTF8StringData().data();
         if (currencyString->length() != 3 || !isAllSpecialCharacters(cc, isASCIIAlpha)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "currency is not a well-formed currency code");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "currency is not a well-formed currency code");
         }
     }
 
     // If style is "currency" and currency is undefined, throw a TypeError exception.
     if (style.equalsTo(state, state.context()->staticStrings().lazyCurrency().string()) && currency.isUndefined()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "if style option is `currency`, you must specify currency");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "if style option is `currency`, you must specify currency");
     }
 
     // Let currencyDisplay be ? GetOption(options, "currencyDisplay", "string", « "code", "symbol", "narrowSymbol", "name" », "symbol").
@@ -432,13 +432,13 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         String* unitString = unit.asString();
         UTF8StringDataNonGCStd cc = unitString->toUTF8StringData().data();
         if (!isWellFormedUnitIdenifier(cc)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "unit is not a well-formed unit idenitfier");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "unit is not a well-formed unit idenitfier");
         }
     }
 
     // If style is "unit" and unit is undefined, throw a TypeError exception.
     if (style.equalsTo(state, state.context()->staticStrings().lazyUnit().string()) && unit.isUndefined()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "if style option is `unit`, you must specify unit");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "if style option is `unit`, you must specify unit");
     }
 
     // Let unitDisplay be ? GetOption(options, "unitDisplay", "string", « "short", "narrow", "long" », "short").
@@ -750,7 +750,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     UErrorCode status = U_ZERO_ERROR;
     UNumberFormatter* fomatter = unumf_openForSkeletonAndLocale((UChar*)skeleton.data(), skeleton.length(), localeOption->toNonGCUTF8StringData().data(), &status);
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to init NumberFormat");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to init NumberFormat");
     }
 
     numberFormat->internalSlot()->setExtraData(fomatter);
@@ -774,7 +774,7 @@ UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* 
     unumf_formatDouble(formatter, x, uresult.get(), &status);
 
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to format a number");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
     }
 
     resultString.resize(32);
@@ -786,7 +786,7 @@ UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* 
         unumf_resultToString(uresult.get(), (UChar*)resultString.data(), resultString.size(), &status);
     }
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to format a number");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
     }
 
     return resultString;
@@ -806,7 +806,7 @@ UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* 
     unumf_formatDecimal(formatter, s.data(), s.length(), uresult.get(), &status);
 
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to format a number");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
     }
 
     resultString.resize(32);
@@ -818,7 +818,7 @@ UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* 
         unumf_resultToString(uresult.get(), (UChar*)resultString.data(), resultString.size(), &status);
     }
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to format a number");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
     }
 
     return resultString;
@@ -838,7 +838,7 @@ ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numb
     unumf_formatDouble(formatter, x, uresult.get(), &status);
 
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to format a number");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
     }
 
     resultString.resize(32);
@@ -850,7 +850,7 @@ ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numb
         unumf_resultToString(uresult.get(), (UChar*)resultString.data(), resultString.size(), &status);
     }
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to format a number");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
     }
 
     LocalResourcePointer<UFieldPositionIterator> fpositer(ufieldpositer_open(&status), [](UFieldPositionIterator* f) { ufieldpositer_close(f); });
@@ -859,7 +859,7 @@ ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numb
     unumf_resultGetAllFieldPositions(uresult.get(), fpositer.get(), &status);
 
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to format a number");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
     }
 
     std::vector<Intl::NumberFieldItem> fields;

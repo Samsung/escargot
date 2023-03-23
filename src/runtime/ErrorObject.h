@@ -27,6 +27,23 @@ namespace Escargot {
 class ByteCodeBlock;
 class SandBox;
 
+enum class ErrorCode : uint8_t {
+    None,
+    ReferenceError,
+    TypeError,
+    SyntaxError,
+    RangeError,
+    URIError,
+    EvalError,
+    AggregateError,
+#if defined(ENABLE_WASM)
+    WASMCompileError,
+    WASMLinkError,
+    WASMRuntimeError,
+#endif
+};
+
+
 class ErrorObject : public DerivedObject {
 public:
     class Messages {
@@ -129,22 +146,6 @@ public:
 #endif
     };
 
-    enum Code {
-        None,
-        ReferenceError,
-        TypeError,
-        SyntaxError,
-        RangeError,
-        URIError,
-        EvalError,
-        AggregateError,
-#if defined(ENABLE_WASM)
-        WASMCompileError,
-        WASMLinkError,
-        WASMRuntimeError,
-#endif
-    };
-
     struct StackTraceGCData {
         union {
             ByteCodeBlock* byteCodeBlock;
@@ -168,30 +169,30 @@ public:
         StackTraceData() {}
     };
 
-    static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString)
+    static void throwBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString)
     {
         throwBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString);
     }
 
-    static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString, AtomicString templateDataString)
+    static void throwBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString, AtomicString templateDataString)
     {
         throwBuiltinError(state, code, templateDataString.string(), false, String::emptyString, templateString);
     }
 
-    static void throwBuiltinError(ExecutionState& state, Code code, const char* templateString, String* templateDataString)
+    static void throwBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString, String* templateDataString)
     {
         throwBuiltinError(state, code, templateDataString, false, String::emptyString, templateString);
     }
 
-    static ErrorObject* createBuiltinError(ExecutionState& state, Code code, const char* templateString)
+    static ErrorObject* createBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString)
     {
         return createBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString);
     }
 
-    static ErrorObject* createError(ExecutionState& state, ErrorObject::Code code, String* errorMessage);
-    static ErrorObject* createBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
-    static void throwBuiltinError(ExecutionState& state, Code code, String* objectName, bool prototype, String* functionName, const char* templateString);
-    static void throwBuiltinError(ExecutionState& state, Code code, String* errorMessage);
+    static ErrorObject* createError(ExecutionState& state, ErrorCode code, String* errorMessage);
+    static ErrorObject* createBuiltinError(ExecutionState& state, ErrorCode code, String* objectName, bool prototype, String* functionName, const char* templateString);
+    static void throwBuiltinError(ExecutionState& state, ErrorCode code, String* objectName, bool prototype, String* functionName, const char* templateString);
+    static void throwBuiltinError(ExecutionState& state, ErrorCode code, String* errorMessage);
 
     ErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
 

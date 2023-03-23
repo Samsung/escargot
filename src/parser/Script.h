@@ -20,7 +20,6 @@
 #ifndef __EscargotScript__
 #define __EscargotScript__
 
-#include "runtime/Value.h"
 #include "runtime/PromiseObject.h"
 #include "runtime/Platform.h"
 

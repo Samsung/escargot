@@ -77,7 +77,7 @@ Value ScriptAsyncGeneratorFunctionObject::construct(ExecutionState& state, const
 {
     ExecutionState newState(m_codeBlock->context(), &state,
                             static_cast<LexicalEnvironment*>(nullptr), argc, argv, m_codeBlock->asInterpretedCodeBlock()->isStrict());
-    ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "AsyncGenerator cannot be invoked with 'new'");
+    ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, "AsyncGenerator cannot be invoked with 'new'");
     ASSERT_NOT_REACHED();
     return Value();
 }

@@ -338,7 +338,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     if (!calendar.isUndefined()) {
         // If calendar does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
         if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(calendar.asString())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The calendar value you gave is not valid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "The calendar value you gave is not valid");
         }
     }
 
@@ -353,7 +353,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     if (!numberingSystem.isUndefined()) {
         // If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
         if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(numberingSystem.asString())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "The numberingSystem value you gave is not valid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "The numberingSystem value you gave is not valid");
         }
     }
     // Set opt.[[nu]] to numberingSystem.
@@ -419,7 +419,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
         timeZone = canonicalizeTimeZoneName(state, tzString);
         tzString = timeZone.toString(state);
         if (tzString->length() == 0) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "got invalid timezone value");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "got invalid timezone value");
         }
     }
 
@@ -617,7 +617,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     LocalResourcePointer<UDateTimePatternGenerator> generator(udatpg_open(dataLocale.toString(state)->toUTF8StringData().data(), &status),
                                                               [](UDateTimePatternGenerator* d) { udatpg_close(d); });
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
         return;
     }
 
@@ -630,7 +630,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
         auto iter = opt.begin();
         while (iter != opt.end()) {
             if (iter->second->length()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "dateStyle and timeStyle may not be used with other DateTimeFormat options");
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "dateStyle and timeStyle may not be used with other DateTimeFormat options");
             }
             iter++;
         }
@@ -659,14 +659,14 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
             [](UDateFormat* fmt) { udat_close(fmt); });
 
         if (U_FAILURE(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
             return;
         }
 
         auto toPatternResult = INTL_ICU_STRING_BUFFER_OPERATION(udat_toPattern, dateFormatFromStyle.get(), false);
         patternBuffer = std::move(toPatternResult.second);
         if (U_FAILURE(toPatternResult.first)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
             return;
         }
 
@@ -693,7 +693,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
             if (extractedHourCycle.size() && (extractedHourCycle == "h11" || extractedHourCycle == "h12") != specifiedHour12) {
                 auto getSkeletonResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getSkeleton, nullptr, (UChar*)patternBuffer.data(), patternBuffer.size());
                 if (U_FAILURE(getSkeletonResult.first)) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
+                    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
                     return;
                 }
 
@@ -711,7 +711,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
 
                 auto getBestPatternWithOptionsResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getBestPatternWithOptions, generator.get(), (UChar*)skeleton.data(), skeleton.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH);
                 if (U_FAILURE(getBestPatternWithOptionsResult.first)) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
+                    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
                     return;
                 }
                 patternBuffer = std::move(getBestPatternWithOptionsResult.second);
@@ -728,7 +728,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
         skeleton = skeletonBuilder.finalize()->toUTF16StringData();
         auto getBestPatternWithOptionsResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getBestPatternWithOptions, generator.get(), (UChar*)skeleton.data(), skeleton.length(), UDATPG_MATCH_HOUR_FIELD_LENGTH);
         if (U_FAILURE(getBestPatternWithOptionsResult.first)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
             return;
         }
         patternBuffer = std::move(getBestPatternWithOptionsResult.second);
@@ -811,7 +811,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     UTF16StringData timeZoneView = m_timeZone->toUTF16StringData();
     m_icuDateFormat = udat_open(UDAT_PATTERN, UDAT_PATTERN, dataLocaleWithExtensions.data(), (UChar*)timeZoneView.data(), timeZoneView.length(), (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DateTimeFormat");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
         return;
     }
 
@@ -963,7 +963,7 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
     // If x is NaN, throw a RangeError exception
     // If abs(time) > 8.64 × 10^15, return NaN.
     if (std::isinf(x) || std::isnan(x) || !IS_IN_TIME_RANGE(x)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "date value is valid in DateTimeFormat format()");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date value is valid in DateTimeFormat format()");
     }
 
     x = Value(x).toInteger(state);
@@ -971,7 +971,7 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
     // Delegate remaining steps to ICU.
     auto formatResult = INTL_ICU_STRING_BUFFER_OPERATION_COMPLEX(udat_format, nullptr, m_icuDateFormat, x);
     if (U_FAILURE(formatResult.first)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format date value");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format date value");
     }
 
     return formatResult.second;
@@ -983,7 +983,7 @@ ArrayObject* IntlDateTimeFormatObject::formatToParts(ExecutionState& state, doub
     // If x is NaN, throw a RangeError exception
     // If abs(time) > 8.64 × 10^15, return NaN.
     if (std::isinf(x) || std::isnan(x) || !IS_IN_TIME_RANGE(x)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "date value is not valid in DateTimeFormat formatToParts()");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date value is not valid in DateTimeFormat formatToParts()");
     }
 
     x = Value(x).toInteger(state);
@@ -1080,7 +1080,7 @@ ArrayObject* IntlDateTimeFormatObject::formatToParts(ExecutionState& state, doub
     }
 
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format date value");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format date value");
     }
 
     return result;
@@ -1137,14 +1137,14 @@ Value IntlDateTimeFormatObject::toDateTimeOptions(ExecutionState& state, Value o
     if (required.equalsTo(state, state.context()->staticStrings().lazyDate().string())) {
         if (!timeStyle.isUndefined()) {
             // Throw a TypeError exception.
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "The given option value is invalid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "The given option value is invalid");
         }
     }
     // If required is "time" and dateStyle is not undefined, then
     if (required.equalsTo(state, state.context()->staticStrings().lazyTime().string())) {
         if (!dateStyle.isUndefined()) {
             // Throw a TypeError exception.
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "The given option value is invalid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "The given option value is invalid");
         }
     }
 

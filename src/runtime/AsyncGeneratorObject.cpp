@@ -93,7 +93,7 @@ Value AsyncGeneratorObject::asyncGeneratorEnqueue(ExecutionState& state, const V
     // If Type(generator) is not Object, or if generator does not have an [[AsyncGeneratorState]] internal slot, then
     if (!generator.isObject() || !generator.asObject()->isAsyncGeneratorObject()) {
         // Let badGeneratorError be a newly created TypeError object.
-        ErrorObject* badGeneratorError = ErrorObject::createError(state, ErrorObject::TypeError, String::fromASCII("This value is not Async Generator Object."));
+        ErrorObject* badGeneratorError = ErrorObject::createError(state, ErrorCode::TypeError, String::fromASCII("This value is not Async Generator Object."));
         // Perform ! Call(promiseCapability.[[Reject]], undefined, « badGeneratorError »).
         Value argv(badGeneratorError);
         Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);

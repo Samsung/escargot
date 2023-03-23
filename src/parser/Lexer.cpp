@@ -21,7 +21,7 @@
 #include "parser/Lexer.h"
 #include "parser/UnicodeIdentifierTables.h"
 #include "parser/esprima_cpp/ParserContext.h"
-
+#include "runtime/Context.h"
 // These two must be the last because they overwrite the ASSERT macro.
 #include "double-conversion.h"
 #include "ieee.h"
@@ -447,7 +447,7 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
     }
 }
 
-void ErrorHandler::throwError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code)
+void ErrorHandler::throwError(size_t index, size_t line, size_t col, String* description, ErrorCode code)
 {
     UTF16StringDataNonGCStd msg = u"Line ";
     const size_t bufferLength = 64;
@@ -749,6 +749,11 @@ void Scanner::resetSource(StringView code)
     this->index = 0;
     this->lineNumber = 1;
     this->lineStart = 0;
+}
+
+void Scanner::throwUnexpectedToken(const char* message)
+{
+    ErrorHandler::throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, new ASCIIString(message), ErrorCode::SyntaxError);
 }
 
 void Scanner::skipSingleLine()
@@ -1250,7 +1255,7 @@ void Scanner::testNumericSeparator(size_t start, bool isBigInt, bool isHex, bool
     for (size_t i = start; i < this->index - 1; i++) {
         char16_t ch = this->sourceCharAt(i);
         if (UNLIKELY(ch == '_' && this->sourceCharAt(i + 1) == '_')) {
-            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Only one underscore is allowed as numeric separator"), ErrorObject::SyntaxError);
+            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Only one underscore is allowed as numeric separator"), ErrorCode::SyntaxError);
         }
         if (UNLIKELY(isHex && (ch == 'x' || ch == 'X') && this->sourceCharAt(i + 1) == '_')) {
             this->throwUnexpectedToken();
@@ -1263,7 +1268,7 @@ void Scanner::testNumericSeparator(size_t start, bool isBigInt, bool isHex, bool
         }
     }
     if (this->sourceCharAt(this->index - 1) == '_' || (isBigInt && this->sourceCharAt(this->index - 2) == '_')) {
-        ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separators are not allowed at the end of numeric literals"), ErrorObject::SyntaxError);
+        ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separators are not allowed at the end of numeric literals"), ErrorCode::SyntaxError);
     }
 }
 
@@ -1531,23 +1536,23 @@ void Scanner::scanNumericLiteral(Scanner::ScannerResult* token)
 
     if (UNLIKELY(seenUnderscore)) {
         if (this->sourceCharAt(start) == '0') {
-            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separator can not be used after leading 0"), ErrorObject::SyntaxError);
+            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separator can not be used after leading 0"), ErrorCode::SyntaxError);
         }
 
         for (size_t i = start; i < this->index - 1; i++) {
             char16_t ch = this->sourceCharAt(i);
             if (UNLIKELY(ch == '_' && this->sourceCharAt(i + 1) == '_')) {
-                ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Only one underscore is allowed as numeric separator"), ErrorObject::SyntaxError);
+                ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Only one underscore is allowed as numeric separator"), ErrorCode::SyntaxError);
             }
             if (UNLIKELY(ch == '_' && (this->sourceCharAt(i + 1) == 'e' || this->sourceCharAt(i + 1) == 'E'))) {
-                ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separator may not appear adjacent to ExponentPart"), ErrorObject::SyntaxError);
+                ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separator may not appear adjacent to ExponentPart"), ErrorCode::SyntaxError);
             }
             if (UNLIKELY(ch == '.' && this->sourceCharAt(i + 1) == '_')) {
                 this->throwUnexpectedToken();
             }
         }
         if (this->sourceCharAt(this->index - 1) == '_' || (isBigInt && this->sourceCharAt(this->index - 2) == '_')) {
-            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separators are not allowed at the end of numeric literals"), ErrorObject::SyntaxError);
+            ErrorHandler::throwError(start, this->lineNumber, start - this->lineStart + 1, new ASCIIString("Numeric separators are not allowed at the end of numeric literals"), ErrorCode::SyntaxError);
         }
     }
 
@@ -1670,6 +1675,11 @@ bool Scanner::isStrictModeReservedWord(::Escargot::Context* ctx, const AtomicStr
     }
 
     return false;
+}
+
+bool Scanner::isRestrictedWord(::Escargot::Context* ctx, const AtomicString& identifier)
+{
+    return identifier == ctx->staticStrings().arguments || identifier == ctx->staticStrings().eval;
 }
 
 void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
