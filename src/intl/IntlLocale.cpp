@@ -61,18 +61,18 @@ static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, 
     auto u8Tag = tag->toNonGCUTF8StringData();
     auto tagPart = split(u8Tag, '-');
     if ((tagPart.size() > 0 && tagPart[0].length() == 1) || (tagPart.size() > 1 && tagPart[1].length() == 3 && isAllSpecialCharacters(tagPart[1], isASCIIAlpha))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Incorrect locale information provided");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Incorrect locale information provided");
     }
 
     // If IsStructurallyValidLanguageTag(tag) is false, throw a RangeError exception.
     auto parsedResult = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(u8Tag);
     if (!parsedResult.canonicalizedTag) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Incorrect locale information provided");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Incorrect locale information provided");
     }
 
     // We should not allow extlang here
     if (parsedResult.extLang.size()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Incorrect locale information provided");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Incorrect locale information provided");
     }
 
     String* languageString = state.context()->staticStrings().language.string();
@@ -86,7 +86,7 @@ static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, 
         int32_t len = uloc_forLanguageTag(u8Lang.data(), nullptr, 0, nullptr, &status);
         UNUSED_VARIABLE(len);
         if (status != U_BUFFER_OVERFLOW_ERROR || u8Lang.length() != 2 || !isAllSpecialCharacters(u8Lang, isASCIIAlpha)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "lanuage tag you give into Intl.Locale is invalid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "lanuage tag you give into Intl.Locale is invalid");
         }
     }
 
@@ -98,7 +98,7 @@ static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, 
         // If script does not match the unicode_script_subtag, throw a RangeError exception.
         String* scriptString = script.asString();
         if (scriptString->length() != 4 || !scriptString->isAllSpecialCharacters(isASCIIAlpha)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "script you give into Intl.Locale is invalid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "script you give into Intl.Locale is invalid");
         }
     }
 
@@ -110,7 +110,7 @@ static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, 
         // If region does not match the unicode_region_subtag, throw a RangeError exception.
         String* regionString = region.asString();
         if ((!(regionString->length() == 2 && regionString->isAllSpecialCharacters(isASCIIAlpha)) && !(regionString->length() == 3 && regionString->isAllSpecialCharacters(isASCIIDigit)))) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "region you give into Intl.Locale is invalid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "region you give into Intl.Locale is invalid");
         }
     }
 
@@ -160,12 +160,12 @@ static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, 
 
     auto newParsedResult = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(localeStr);
     if (!newParsedResult.canonicalizedTag) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Incorrect locale information provided");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Incorrect locale information provided");
     }
 
     // We should not allow extlang here
     if (newParsedResult.extLang.size()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "First argument of Intl.Locale should have valid tag");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "First argument of Intl.Locale should have valid tag");
     }
 
     newParsedResult.privateUse = parsedResult.privateUse;
@@ -249,7 +249,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
         // If calendar does not match the [(3*8alphanum) *("-" (3*8alphanum))] sequence, throw a RangeError exception.
         std::string value = calendar.asString()->toNonGCUTF8StringData();
         if (!uloc_toLegacyType("calendar", value.data()) || !checkOptionValueIsAlphaNum38DashAlphaNum38(value)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "`calendar` option you input is not valid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "`calendar` option you input is not valid");
         }
         // Set opt.[[ca]] to calendar.
         ca = calendar.asString();
@@ -263,7 +263,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
         // If collation does not match the [(3*8alphanum) *("-" (3*8alphanum))] sequence, throw a RangeError exception.
         std::string value = collation.asString()->toNonGCUTF8StringData();
         if (!uloc_toLegacyType("collation", value.data()) || !checkOptionValueIsAlphaNum38DashAlphaNum38(value)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "`collation` option you input is not valid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "`collation` option you input is not valid");
         }
         // Set opt.[[co]] to collation.
         co = collation.asString();
@@ -302,7 +302,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
         // If numberingSystem does not match the [(3*8alphanum) *("-" (3*8alphanum))] sequence, throw a RangeError exception.
         std::string value = numberingSystem.asString()->toNonGCUTF8StringData();
         if (!uloc_toLegacyType(uloc_toLegacyKey("nu"), value.data()) || !checkOptionValueIsAlphaNum38DashAlphaNum38(value)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "`collation` option you input is not valid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "`collation` option you input is not valid");
         }
         // Set opt.[[nu]] to numberingSystem.
         nu = numberingSystem.asString();
@@ -413,7 +413,7 @@ Value IntlLocaleObject::calendars(ExecutionState& state)
             [](UEnumeration* fmt) { uenum_close(fmt); });
 
         if (!U_SUCCESS(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
             return Value();
         }
 
@@ -426,7 +426,7 @@ Value IntlLocaleObject::calendars(ExecutionState& state)
         }
 
         if (!U_SUCCESS(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
             return Value();
         }
     }
@@ -446,7 +446,7 @@ Value IntlLocaleObject::collations(ExecutionState& state)
             [](UEnumeration* f) { uenum_close(f); });
 
         if (!U_SUCCESS(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
             return Value();
         }
 
@@ -467,7 +467,7 @@ Value IntlLocaleObject::collations(ExecutionState& state)
         }
 
         if (!U_SUCCESS(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
             return Value();
         }
     }
@@ -485,14 +485,14 @@ Value IntlLocaleObject::hourCycles(ExecutionState& state)
         LocalResourcePointer<UDateTimePatternGenerator> generator(udatpg_open(m_locale->toNonGCUTF8StringData().data(), &status),
                                                                   [](UDateTimePatternGenerator* d) { udatpg_close(d); });
         if (!U_SUCCESS(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
             return Value();
         }
 
         UChar skeleton[] = { 'j', 0 };
         auto getBestPatternWithOptionsResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getBestPatternWithOptions, generator.get(), skeleton, 1, UDATPG_MATCH_HOUR_FIELD_LENGTH);
         if (U_FAILURE(getBestPatternWithOptionsResult.first)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
             return Value();
         }
 
@@ -517,7 +517,7 @@ Value IntlLocaleObject::numberingSystems(ExecutionState& state)
             [](UNumberingSystem* p) { unumsys_close(p); });
 
         if (!U_SUCCESS(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
             return Value();
         }
 
@@ -533,7 +533,7 @@ Value IntlLocaleObject::textInfo(ExecutionState& state)
     UErrorCode status = U_ZERO_ERROR;
     ULayoutType layout = uloc_getCharacterOrientation(m_locale->toNonGCUTF8StringData().data(), &status);
     if (!U_SUCCESS(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
         return Value();
     }
 
@@ -560,7 +560,7 @@ Value IntlLocaleObject::weekInfo(ExecutionState& state)
     LocalResourcePointer<UCalendar> calendar(ucal_open(nullptr, 0, m_locale->toNonGCUTF8StringData().data(), UCAL_DEFAULT, &status),
                                              [](UCalendar* d) { ucal_close(d); });
     if (!U_SUCCESS(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
         return Value();
     }
 
@@ -584,7 +584,7 @@ Value IntlLocaleObject::weekInfo(ExecutionState& state)
 
     UCalendarWeekdayType previous = canonicalizeDayOfWeekType(ucal_getDayOfWeekType(calendar.get(), UCAL_SATURDAY, &status));
     if (!U_SUCCESS(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
         return Value();
     }
 
@@ -593,7 +593,7 @@ Value IntlLocaleObject::weekInfo(ExecutionState& state)
     for (int32_t day = UCAL_SUNDAY; day <= UCAL_SATURDAY; ++day) {
         UCalendarWeekdayType type = canonicalizeDayOfWeekType(ucal_getDayOfWeekType(calendar.get(), static_cast<UCalendarDaysOfWeek>(day), &status));
         if (!U_SUCCESS(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
             return Value();
         }
         if (previous != type) {
@@ -645,7 +645,7 @@ Value IntlLocaleObject::timeZones(ExecutionState& state)
     LocalResourcePointer<UEnumeration> enumeration(ucal_openTimeZoneIDEnumeration(UCAL_ZONE_TYPE_CANONICAL, m_region->toNonGCUTF8StringData().data(), nullptr, &status),
                                                    [](UEnumeration* d) { uenum_close(d); });
     if (!U_SUCCESS(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
         return Value();
     }
 
@@ -657,7 +657,7 @@ Value IntlLocaleObject::timeZones(ExecutionState& state)
     }
 
     if (!U_SUCCESS(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid locale");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
         return Value();
     }
 

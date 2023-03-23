@@ -20,18 +20,19 @@
 #ifndef __EscargotScriptParser__
 #define __EscargotScriptParser__
 
-#include "parser/Script.h"
-#include "runtime/String.h"
-#include "runtime/ErrorObject.h"
-
 namespace Escargot {
 
 struct ASTScopeContext;
+class Script;
 class CodeBlock;
 class InterpretedCodeBlock;
+class String;
+class StringView;
 class Context;
 class ProgramNode;
 class Node;
+
+enum class ErrorCode : uint8_t;
 
 #if defined(ENABLE_CODE_CACHE)
 struct CodeBlockCacheInfo;
@@ -43,23 +44,11 @@ public:
 
     struct InitializeScriptResult {
         Optional<Script*> script;
-        ErrorObject::Code parseErrorCode;
+        ErrorCode parseErrorCode;
         String* parseErrorMessage;
 
-        InitializeScriptResult()
-            : parseErrorCode(ErrorObject::Code::None)
-            , parseErrorMessage(String::emptyString)
-        {
-        }
-
-        Script* scriptThrowsExceptionIfParseError(ExecutionState& state)
-        {
-            if (!script) {
-                ErrorObject::throwBuiltinError(state, parseErrorCode, parseErrorMessage->toUTF8StringData().data());
-            }
-
-            return script.value();
-        }
+        InitializeScriptResult();
+        Script* scriptThrowsExceptionIfParseError(ExecutionState& state);
     };
 
     InitializeScriptResult initializeScript(String* originSource, size_t originLineOffset, String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode = false, bool isEvalCodeInFunction = false, bool inWithOperation = false, bool strictFromOutside = false, bool allowSuperCall = false, bool allowSuperProperty = false, bool allowNewTarget = false, bool needByteCodeGeneration = true, size_t stackSizeRemain = SIZE_MAX);

@@ -1760,7 +1760,7 @@ ValueVector Intl::canonicalizeLocaleList(ExecutionState& state, Value locales)
             Value kValue = pkResult.value(state, pk, O);
             // If the type of kValue is not String or Object, then throw a TypeError exception.
             if (!kValue.isString() && !kValue.isObject()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Type of element of locales must be String or Object");
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Type of element of locales must be String or Object");
             }
 
             String* tag;
@@ -1779,7 +1779,7 @@ ValueVector Intl::canonicalizeLocaleList(ExecutionState& state, Value locales)
             // If tag is not an element of seen, then append tag as the last element of seen.
             auto canonicalizedTag = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(tag->toNonGCUTF8StringData());
             if (!canonicalizedTag.canonicalizedTag) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "got Invalid locale");
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "got Invalid locale");
             }
             tag = canonicalizedTag.canonicalizedTag.value();
             bool has = false;
@@ -2214,7 +2214,7 @@ Value Intl::supportedLocales(ExecutionState& state, const Vector<String*, GCUtil
             matcher = matcher.toString(state);
             // If matcher is not "lookup" or "best fit", then throw a RangeError exception.
             if (!(matcher.asString()->equals("lookup") || matcher.asString()->equals("best fit"))) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "got invalid value on options.localeMatcher");
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "got invalid value on options.localeMatcher");
             }
         }
     }
@@ -2254,7 +2254,7 @@ Value Intl::getOption(ExecutionState& state, Object* options, Value property, In
         if (type == Intl::OptionValueType::NumberValue) {
             value = Value(value.toNumber(state));
             if (std::isnan(value.asNumber())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "got invalid value");
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "got invalid value");
             }
         }
 #endif
@@ -2268,7 +2268,7 @@ Value Intl::getOption(ExecutionState& state, Object* options, Value property, In
                 }
             }
             if (!contains) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "got invalid value");
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "got invalid value");
             }
         }
         // Return value.
@@ -2292,7 +2292,7 @@ T Intl::getNumberOption(ExecutionState& state, Object* options, String* property
         double doubleValue = value.toNumber(state);
         // If value is NaN or less than minimum or greater than maximum, throw a RangeError exception.
         if (std::isnan(doubleValue) || doubleValue < minimum || maximum < doubleValue) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Got invalid number option value");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Got invalid number option value");
         }
         // Return floor(value).
         return T(floor(doubleValue));

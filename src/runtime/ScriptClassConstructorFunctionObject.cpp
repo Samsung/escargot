@@ -61,7 +61,7 @@ ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(Execu
 Value ScriptClassConstructorFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
 {
     ExecutionState newState(m_codeBlock->context(), &state, static_cast<LexicalEnvironment*>(nullptr), argc, argv, m_codeBlock->asInterpretedCodeBlock()->isStrict());
-    ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "Class constructor cannot be invoked without 'new'");
+    ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, "Class constructor cannot be invoked without 'new'");
     return Value();
 }
 
@@ -107,7 +107,7 @@ public:
         }
         // If result.[[value]] is not undefined, throw a TypeError exception.
         if (!result.isUndefined()) {
-            ErrorObject::throwBuiltinError(callerState, ErrorObject::TypeError, ErrorObject::Messages::InvalidDerivedConstructorReturnValue);
+            ErrorObject::throwBuiltinError(callerState, ErrorCode::TypeError, ErrorObject::Messages::InvalidDerivedConstructorReturnValue);
         }
         // Else, ReturnIfAbrupt(result).
         // Return envRec.GetThisBinding().

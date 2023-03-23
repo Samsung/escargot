@@ -31,7 +31,7 @@ static Value builtinSymbolConstructor(ExecutionState& state, Value thisValue, si
 {
     // If NewTarget is not undefined, throw a TypeError exception.
     if (newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "illegal constructor Symbol");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "illegal constructor Symbol");
     }
     Optional<String*> descString = nullptr;
     // If description is undefined, let descString be undefined.
@@ -43,17 +43,17 @@ static Value builtinSymbolConstructor(ExecutionState& state, Value thisValue, si
     return new Symbol(descString);
 }
 
-#define RESOLVE_THIS_BINDING_TO_SYMBOL(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                           \
-    Symbol* NAME = nullptr;                                                                                                                                                                                                                                  \
-    if (thisValue.isObject()) {                                                                                                                                                                                                                              \
-        if (!thisValue.asObject()->isSymbolObject()) {                                                                                                                                                                                                       \
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-        }                                                                                                                                                                                                                                                    \
-        NAME = thisValue.asObject()->asSymbolObject()->primitiveValue();                                                                                                                                                                                     \
-    } else if (thisValue.isSymbol()) {                                                                                                                                                                                                                       \
-        NAME = thisValue.asSymbol();                                                                                                                                                                                                                         \
-    } else {                                                                                                                                                                                                                                                 \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);     \
+#define RESOLVE_THIS_BINDING_TO_SYMBOL(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                         \
+    Symbol* NAME = nullptr;                                                                                                                                                                                                                                \
+    if (thisValue.isObject()) {                                                                                                                                                                                                                            \
+        if (!thisValue.asObject()->isSymbolObject()) {                                                                                                                                                                                                     \
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+        }                                                                                                                                                                                                                                                  \
+        NAME = thisValue.asObject()->asSymbolObject()->primitiveValue();                                                                                                                                                                                   \
+    } else if (thisValue.isSymbol()) {                                                                                                                                                                                                                     \
+        NAME = thisValue.asSymbol();                                                                                                                                                                                                                       \
+    } else {                                                                                                                                                                                                                                               \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);     \
     }
 
 static Value builtinSymbolToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -85,7 +85,7 @@ static Value builtinSymbolKeyFor(ExecutionState& state, Value thisValue, size_t 
 {
     // If Type(sym) is not Symbol, throw a TypeError exception.
     if (!argv[0].isSymbol()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
     Symbol* sym = argv[0].asSymbol();
     // For each element e of the GlobalSymbolRegistry List (see 19.4.2.1),
@@ -118,7 +118,7 @@ static Value builtinSymbolDescriptionGetter(ExecutionState& state, Value thisVal
         return thisValue.asObject()->asSymbolObject()->primitiveValue()->description().value();
 
     } else {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-Symbol object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "getter called on non-Symbol object");
     }
     return Value();
 }

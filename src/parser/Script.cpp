@@ -84,7 +84,7 @@ Script* Script::loadModuleFromScript(ExecutionState& state, ModuleRequest& reque
 {
     Platform::LoadModuleResult result = Global::platform()->onLoadModule(context(), this, request.m_specifier, request.m_type);
     if (!result.script) {
-        ErrorObject::throwBuiltinError(state, (ErrorObject::Code)result.errorCode, result.errorMessage->toNonGCUTF8StringData().data());
+        ErrorObject::throwBuiltinError(state, (ErrorCode)result.errorCode, result.errorMessage->toNonGCUTF8StringData().data());
     }
     if (!result.script->moduleData()->m_didCallLoadedCallback) {
         Global::platform()->didLoadModule(context(), this, result.script.value());
@@ -266,7 +266,7 @@ Script::ResolveExportResult Script::resolveExport(ExecutionState& state, AtomicS
         // Assert: A default export was not explicitly defined by this module.
         // Throw a SyntaxError exception.
         // NOTE A default export cannot be provided by an export *.
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "The module '%s' does not provide an export named 'default'", srcName());
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "The module '%s' does not provide an export named 'default'", srcName());
     }
 
     // Let starResolution be null.
@@ -336,7 +336,7 @@ static void testDeclareGlobalFunctions(ExecutionState& state, InterpretedCodeBlo
             auto c = childrenVector[i];
             if (c->isFunctionDeclaration() && c->lexicalBlockIndexFunctionLocatedIn() == 0) {
                 if (!canDeclareGlobalFunction(state, globalObject, c->functionName())) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Identifier '%s' has already been declared", c->functionName());
+                    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Identifier '%s' has already been declared", c->functionName());
                 }
             }
         }
@@ -415,7 +415,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
                 InterpretedCodeBlock* child = childrenVector[i];
                 if (child->isFunctionDeclaration()) {
                     if (child->lexicalBlockIndexFunctionLocatedIn() == 0 && !state.context()->globalObject()->defineOwnProperty(state, child->functionName(), ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)))) {
-                        ErrorObject::throwBuiltinError(state, ErrorObject::Code::SyntaxError, "Identifier '%s' has already been declared", child->functionName());
+                        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Identifier '%s' has already been declared", child->functionName());
                     }
                 }
             }
@@ -429,7 +429,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
             // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
             for (size_t j = 0; j < identifierVectorLen; j++) {
                 if (identifierVector[j].m_isVarDeclaration && identifierVector[j].m_name == globalDeclarativeRecord->at(i).m_name) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, globalDeclarativeRecord->at(i).m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+                    ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, globalDeclarativeRecord->at(i).m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
                 }
             }
         }
@@ -439,7 +439,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
             // If hasRestrictedGlobal is true, throw a SyntaxError exception.
             auto desc = context()->globalObject()->getOwnProperty(state, globalLexicalVector[i].m_name);
             if (desc.hasValue() && !desc.isConfigurable()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, globalLexicalVector[i].m_name.string(), false, String::emptyString, "redeclaration of non-configurable global property %s");
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, globalLexicalVector[i].m_name.string(), false, String::emptyString, "redeclaration of non-configurable global property %s");
             }
         }
     }
@@ -548,7 +548,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
                 if (vec[i].m_isVarDeclaration) {
                     auto slot = e->record()->hasBinding(state, vec[i].m_name);
                     if (slot.m_isLexicallyDeclared && slot.m_index != SIZE_MAX) {
-                        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, vec[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+                        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, vec[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
                     }
                 }
             }
@@ -993,7 +993,7 @@ Value Script::moduleInitializeEnvironment(ExecutionState& state)
             builder.appendString("The export binding '");
             builder.appendString(e.m_exportName.value().string());
             builder.appendString("' is ambiguous");
-            return ErrorObject::createBuiltinError(state, ErrorObject::Code::SyntaxError, builder.finalize(&state)->toNonGCUTF8StringData().data());
+            return ErrorObject::createBuiltinError(state, ErrorCode::SyntaxError, builder.finalize(&state)->toNonGCUTF8StringData().data());
         }
         // Assert: resolution is a ResolvedBinding Record.
     }
@@ -1041,7 +1041,7 @@ Value Script::moduleInitializeEnvironment(ExecutionState& state)
                 builder.appendString("' does not provide an export named '");
                 builder.appendString(in.m_localName.string());
                 builder.appendString("'");
-                return ErrorObject::createBuiltinError(state, ErrorObject::Code::SyntaxError, builder.finalize(&state)->toNonGCUTF8StringData().data());
+                return ErrorObject::createBuiltinError(state, ErrorCode::SyntaxError, builder.finalize(&state)->toNonGCUTF8StringData().data());
             } else if (resolution.m_type == Script::ResolveExportResult::Ambiguous) {
                 StringBuilder builder;
                 builder.appendString("The requested module '");
@@ -1049,7 +1049,7 @@ Value Script::moduleInitializeEnvironment(ExecutionState& state)
                 builder.appendString("' does not provide an export named '");
                 builder.appendString(in.m_localName.string());
                 builder.appendString("' correctly");
-                return ErrorObject::createBuiltinError(state, ErrorObject::Code::SyntaxError, builder.finalize(&state)->toNonGCUTF8StringData().data());
+                return ErrorObject::createBuiltinError(state, ErrorCode::SyntaxError, builder.finalize(&state)->toNonGCUTF8StringData().data());
             }
 
             // If resolution.[[BindingName]] is "*namespace*", then

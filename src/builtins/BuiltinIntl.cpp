@@ -95,7 +95,7 @@ static Value builtinIntlCollatorCompare(ExecutionState& state, Value thisValue, 
 {
     FunctionObject* callee = state.resolveCallee();
     if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedCollator()))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     Object* colllator = callee->asObject();
@@ -109,7 +109,7 @@ static Value builtinIntlCollatorCompare(ExecutionState& state, Value thisValue, 
 static Value builtinIntlCollatorCompareGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedCollator()))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     Object* internalSlot = thisValue.asObject()->internalSlot();
@@ -129,7 +129,7 @@ static Value builtinIntlCollatorCompareGetter(ExecutionState& state, Value thisV
 static Value builtinIntlCollatorResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedCollator()))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     Object* internalSlot = thisValue.asObject()->internalSlot();
@@ -192,7 +192,7 @@ static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisVa
 {
     FunctionObject* callee = state.resolveCallee();
     if (!callee->internalSlot() || !callee->internalSlot()->isIntlDateTimeFormatObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     IntlDateTimeFormatObject* dateTimeFormat = callee->internalSlot()->asIntlDateTimeFormatObject();
@@ -210,7 +210,7 @@ static Value builtinIntlDateTimeFormatFormat(ExecutionState& state, Value thisVa
 static Value builtinIntlDateTimeFormatFormatGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlDateTimeFormatObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     IntlDateTimeFormatObject* dtf = thisValue.asObject()->asIntlDateTimeFormatObject();
@@ -230,7 +230,7 @@ static Value builtinIntlDateTimeFormatFormatToParts(ExecutionState& state, Value
     // If Type(dtf) is not Object, throw a TypeError exception.
     // If dtf does not have an [[InitializedDateTimeFormat]] internal slot, throw a TypeError exception.
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlDateTimeFormatObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     IntlDateTimeFormatObject* dtf = thisValue.asObject()->asIntlDateTimeFormatObject();
     Value date = argv[0];
@@ -261,7 +261,7 @@ static void setFormatOpt(ExecutionState& state, Object* internalSlot, Object* re
 static Value builtinIntlDateTimeFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlDateTimeFormatObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     IntlDateTimeFormatObject* intlDateTimeFormatObject = thisValue.asObject()->asIntlDateTimeFormatObject();
     Object* result = new Object(state);
@@ -320,7 +320,7 @@ static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValu
 {
     FunctionObject* callee = state.resolveCallee();
     if (!callee->hasInternalSlot() || !callee->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedNumberFormat()))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     Object* numberFormat = callee->asObject();
@@ -339,7 +339,7 @@ static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValu
 static Value builtinIntlNumberFormatFormatGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedNumberFormat()))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     Object* internalSlot = thisValue.asObject()->internalSlot();
@@ -386,7 +386,7 @@ static Value builtinIntlNumberFormatConstructor(ExecutionState& state, Value thi
 static Value builtinIntlNumberFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, state.context()->staticStrings().lazyInitializedNumberFormat())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     Object* internalSlot = thisValue.asObject()->internalSlot();
@@ -418,7 +418,7 @@ static Value builtinIntlNumberFormatFormatToParts(ExecutionState& state, Value t
     // If Type(nf) is not Object, throw a TypeError exception.
     // If nf does not have an [[InitializedNumberFormat]] internal slot, throw a TypeError exception.
     if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, state.context()->staticStrings().lazyInitializedNumberFormat())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     // Let x be ? ToNumeric(value).
     double x = argv[0].toNumber(state);
@@ -448,14 +448,14 @@ static Value builtinIntlPluralRulesConstructor(ExecutionState& state, Value this
 {
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
     UVersionInfo versionArray;
     u_getVersion(versionArray);
     if (versionArray[0] < 60) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Intl.PluralRules needs 60+ version of ICU");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.PluralRules needs 60+ version of ICU");
     }
 #endif
 
@@ -476,7 +476,7 @@ static Value builtinIntlPluralRulesSelect(ExecutionState& state, Value thisValue
     // If Type(pr) is not Object, throw a TypeError exception.
     // If pr does not have an [[InitializedPluralRules]] internal slot, throw a TypeError exception.
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlPluralRulesObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     // Let n be ? ToNumber(value).
     double n = argv[0].toNumber(state);
@@ -490,7 +490,7 @@ static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value 
     // If Type(pr) is not Object, throw a TypeError exception.
     // If pr does not have an [[InitializedPluralRules]] internal slot, throw a TypeError exception.
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlPluralRulesObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     IntlPluralRulesObject* pr = thisValue.asObject()->asIntlPluralRulesObject();
@@ -569,14 +569,14 @@ static Value builtinIntlLocaleConstructor(ExecutionState& state, Value thisValue
 {
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     Value tagValue = argv[0];
 
     // If Type(tag) is not String or Object, throw a TypeError exception.
     if (!tagValue.isObject() && !tagValue.isString()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "First argument of Intl.Locale should be String or Object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "First argument of Intl.Locale should be String or Object");
     }
 
     String* tag;
@@ -612,7 +612,7 @@ static Value builtinIntlLocaleToString(ExecutionState& state, Value thisValue, s
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     // Return loc.[[Locale]].
     return loc.asObject()->asIntlLocaleObject()->locale();
@@ -624,7 +624,7 @@ static Value builtinIntlLocaleBaseNameGetter(ExecutionState& state, Value thisVa
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     return loc.asObject()->asIntlLocaleObject()->baseName();
@@ -636,7 +636,7 @@ static Value builtinIntlLocaleCalendarGetter(ExecutionState& state, Value thisVa
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     return loc.asObject()->asIntlLocaleObject()->calendar().hasValue() ? loc.asObject()->asIntlLocaleObject()->calendar().value() : Value();
@@ -648,7 +648,7 @@ static Value builtinIntlLocaleCaseFirstGetter(ExecutionState& state, Value thisV
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     return loc.asObject()->asIntlLocaleObject()->caseFirst().hasValue() ? loc.asObject()->asIntlLocaleObject()->caseFirst().value() : Value();
@@ -660,7 +660,7 @@ static Value builtinIntlLocaleCollationGetter(ExecutionState& state, Value thisV
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     return loc.asObject()->asIntlLocaleObject()->collation().hasValue() ? loc.asObject()->asIntlLocaleObject()->collation().value() : Value();
@@ -672,7 +672,7 @@ static Value builtinIntlLocaleHourCycleGetter(ExecutionState& state, Value thisV
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     return loc.asObject()->asIntlLocaleObject()->hourCycle().hasValue() ? loc.asObject()->asIntlLocaleObject()->hourCycle().value() : Value();
@@ -684,7 +684,7 @@ static Value builtinIntlLocaleNumericGetter(ExecutionState& state, Value thisVal
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     return loc.asObject()->asIntlLocaleObject()->numeric().hasValue() ? Value(loc.asObject()->asIntlLocaleObject()->numeric().value()->equals("true")) : Value(false);
@@ -696,7 +696,7 @@ static Value builtinIntlLocaleNumberingSystemGetter(ExecutionState& state, Value
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     return loc.asObject()->asIntlLocaleObject()->numberingSystem().hasValue() ? loc.asObject()->asIntlLocaleObject()->numberingSystem().value() : Value();
@@ -708,7 +708,7 @@ static Value builtinIntlLocaleLanguageGetter(ExecutionState& state, Value thisVa
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     return loc.asObject()->asIntlLocaleObject()->language();
@@ -720,7 +720,7 @@ static Value builtinIntlLocaleScriptGetter(ExecutionState& state, Value thisValu
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     return loc.asObject()->asIntlLocaleObject()->script();
@@ -732,7 +732,7 @@ static Value builtinIntlLocaleRegionGetter(ExecutionState& state, Value thisValu
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     return loc.asObject()->asIntlLocaleObject()->region();
@@ -775,7 +775,7 @@ static Value builtinIntlLocaleMaximize(ExecutionState& state, Value thisValue, s
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     // Let maximal be the result of the Add Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set maximal to loc.[[Locale]].
@@ -794,7 +794,7 @@ static Value builtinIntlLocaleMaximize(ExecutionState& state, Value thisValue, s
         return new IntlLocaleObject(state, sb.finalize(), nullptr);
 
     } else if (status != U_BUFFER_OVERFLOW_ERROR) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Unexpected error is occured while parsing locale");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Unexpected error is occured while parsing locale");
     }
     status = U_ZERO_ERROR;
     char* newBuf = (char*)alloca(len + 1);
@@ -814,7 +814,7 @@ static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, s
     // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
     if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     // Let minimal be the result of the Remove Likely Subtags algorithm applied to loc.[[Locale]]. If an error is signaled, set minimal to loc.[[Locale]].
@@ -832,7 +832,7 @@ static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, s
         sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
         return new IntlLocaleObject(state, sb.finalize(), nullptr);
     } else if (status != U_BUFFER_OVERFLOW_ERROR) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Unexpected error is occured while parsing locale");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Unexpected error is occured while parsing locale");
     }
     status = U_ZERO_ERROR;
     char* newBuf = (char*)alloca(len + 1);
@@ -849,7 +849,7 @@ static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, s
 static Value builtinIntlLocaleCalendarsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     return thisValue.asObject()->asIntlLocaleObject()->calendars(state);
 }
@@ -857,7 +857,7 @@ static Value builtinIntlLocaleCalendarsGetter(ExecutionState& state, Value thisV
 static Value builtinIntlLocaleCollationsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     return thisValue.asObject()->asIntlLocaleObject()->collations(state);
 }
@@ -865,7 +865,7 @@ static Value builtinIntlLocaleCollationsGetter(ExecutionState& state, Value this
 static Value builtinIntlLocaleHourCyclesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     return thisValue.asObject()->asIntlLocaleObject()->hourCycles(state);
 }
@@ -873,7 +873,7 @@ static Value builtinIntlLocaleHourCyclesGetter(ExecutionState& state, Value this
 static Value builtinIntlLocaleNumberingSystemsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     return thisValue.asObject()->asIntlLocaleObject()->numberingSystems(state);
 }
@@ -881,7 +881,7 @@ static Value builtinIntlLocaleNumberingSystemsGetter(ExecutionState& state, Valu
 static Value builtinIntlLocaleTextInfoGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     return thisValue.asObject()->asIntlLocaleObject()->textInfo(state);
 }
@@ -889,7 +889,7 @@ static Value builtinIntlLocaleTextInfoGetter(ExecutionState& state, Value thisVa
 static Value builtinIntlLocaleWeekInfoGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     return thisValue.asObject()->asIntlLocaleObject()->weekInfo(state);
 }
@@ -897,7 +897,7 @@ static Value builtinIntlLocaleWeekInfoGetter(ExecutionState& state, Value thisVa
 static Value builtinIntlLocaleTimeZonesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlLocaleObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
     return thisValue.asObject()->asIntlLocaleObject()->timeZones(state);
 }
@@ -907,14 +907,14 @@ static Value builtinIntlRelativeTimeFormatConstructor(ExecutionState& state, Val
 {
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
     UVersionInfo versionArray;
     u_getVersion(versionArray);
     if (versionArray[0] < 64) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Intl.RelativeTimeFormat needs 64+ version of ICU");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.RelativeTimeFormat needs 64+ version of ICU");
     }
 #endif
 
@@ -931,7 +931,7 @@ static Value builtinIntlRelativeTimeFormatConstructor(ExecutionState& state, Val
 static Value builtinIntlRelativeTimeFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlRelativeTimeFormatObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     IntlRelativeTimeFormatObject* r = thisValue.asObject()->asIntlRelativeTimeFormatObject();
@@ -965,7 +965,7 @@ static Value builtinIntlRelativeTimeFormatSupportedLocalesOf(ExecutionState& sta
 static Value builtinIntlRelativeTimeFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlRelativeTimeFormatObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     // Let relativeTimeFormat be the this value.
@@ -981,7 +981,7 @@ static Value builtinIntlRelativeTimeFormatFormat(ExecutionState& state, Value th
 static Value builtinIntlRelativeTimeFormatFormatToParts(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlRelativeTimeFormatObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     // Let relativeTimeFormat be the this value.
@@ -1001,7 +1001,7 @@ static Value builtinIntlDisplayNamesConstructor(ExecutionState& state, Value thi
     // https://402.ecma-international.org/8.0/#sec-Intl.DisplayNames
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* realm) -> Object* {
@@ -1013,7 +1013,7 @@ static Value builtinIntlDisplayNamesConstructor(ExecutionState& state, Value thi
 static Value builtinIntlDisplayNamesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlDisplayNamesObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     IntlDisplayNamesObject* r = thisValue.asObject()->asIntlDisplayNamesObject();
@@ -1023,7 +1023,7 @@ static Value builtinIntlDisplayNamesOf(ExecutionState& state, Value thisValue, s
 static Value builtinIntlDisplayNamesResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlDisplayNamesObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     IntlDisplayNamesObject* r = thisValue.asObject()->asIntlDisplayNamesObject();
@@ -1045,7 +1045,7 @@ static Value builtinIntlListFormatConstructor(ExecutionState& state, Value thisV
 {
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* realm) -> Object* {
@@ -1075,7 +1075,7 @@ static Value builtinIntlListFormatSupportedLocalesOf(ExecutionState& state, Valu
 static Value builtinIntlListFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlListFormatObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     IntlListFormatObject* r = thisValue.asObject()->asIntlListFormatObject();
@@ -1092,7 +1092,7 @@ static Value builtinIntlListFormatResolvedOptions(ExecutionState& state, Value t
 static Value builtinIntlListFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlListFormatObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     IntlListFormatObject* r = thisValue.asObject()->asIntlListFormatObject();
@@ -1102,7 +1102,7 @@ static Value builtinIntlListFormatFormat(ExecutionState& state, Value thisValue,
 static Value builtinIntlListFormatFormatToParts(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isIntlListFormatObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Method called on incompatible receiver");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
     IntlListFormatObject* r = thisValue.asObject()->asIntlListFormatObject();

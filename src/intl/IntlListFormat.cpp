@@ -45,7 +45,7 @@ IntlListFormatObject::IntlListFormatObject(ExecutionState& state, Object* proto,
     UVersionInfo versionArray;
     u_getVersion(versionArray);
     if (versionArray[0] < 67) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Intl.ListFormat needs 67+ version of ICU");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.ListFormat needs 67+ version of ICU");
     }
 #endif
 
@@ -58,7 +58,7 @@ IntlListFormatObject::IntlListFormatObject(ExecutionState& state, Object* proto,
         options = new Object(state, Object::PrototypeIsNull);
     }
     if (!options.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "options must be object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "options must be object");
     }
     Object* optionsObject = options.asObject();
     // Let opt be a new Record.
@@ -113,7 +113,7 @@ IntlListFormatObject::IntlListFormatObject(ExecutionState& state, Object* proto,
     UErrorCode status = U_ZERO_ERROR;
     m_icuListFormatter = ulistfmt_openForType(m_locale->toNonGCUTF8StringData().data(), listFormatterType, listFormatterStyle, &status);
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize ListFormat");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize ListFormat");
         return;
     }
 
@@ -149,7 +149,7 @@ static StringVector stringListFromIterable(ExecutionState& state, const Value& i
             if (!nextValue.isString()) {
                 // Let error be ThrowCompletion(a newly created TypeError object).
                 // Return ? IteratorClose(iteratorRecord, error).
-                IteratorObject::iteratorClose(state, iteratorRecord, ErrorObject::createBuiltinError(state, ErrorObject::TypeError, "iterator value is not String"), true);
+                IteratorObject::iteratorClose(state, iteratorRecord, ErrorObject::createBuiltinError(state, ErrorCode::TypeError, "iterator value is not String"), true);
             }
             // Append nextValue to the end of the List list.
             list.pushBack(nextValue.asString());
@@ -217,16 +217,16 @@ Value IntlListFormatObject::format(ExecutionState& state, const Value& list)
     StringVectorToUCharList ucharList(stringList);
     auto result = INTL_ICU_STRING_BUFFER_OPERATION(ulistfmt_format, m_icuListFormatter, ucharList.strings(), ucharList.stringLengths(), ucharList.stringCount());
     if (U_FAILURE(result.first)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format string list");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format string list");
     }
     return Value(new UTF16String(result.second.data(), result.second.length()));
 }
 
 Value IntlListFormatObject::formatToParts(ExecutionState& state, const Value& list)
 {
-#define THROW_IF_FAILED()                                                                              \
-    if (U_FAILURE(status)) {                                                                           \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to format string list"); \
+#define THROW_IF_FAILED()                                                                            \
+    if (U_FAILURE(status)) {                                                                         \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format string list"); \
     }
     // https://tc39.es/ecma402/#sec-Intl.ListFormat.prototype.formatToParts
     // Let lf be the this value.

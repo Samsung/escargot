@@ -85,7 +85,7 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, exec);
     if (!thisObject->isRegExpObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().exec.string(), ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().exec.string(), ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
     }
     RegExpObject* regexp = thisObject->asRegExpObject();
     unsigned int option = regexp->option();
@@ -142,7 +142,7 @@ static Value regExpExec(ExecutionState& state, Object* R, String* S)
         if (result.isNull() || result.isObject()) {
             return result;
         }
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().test.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().test.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
     return builtinRegExpExec(state, R, 1, arg, nullptr);
 }
@@ -151,7 +151,7 @@ static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t ar
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, test);
     if (!thisObject->isRegExpObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().test.string(), ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().test.string(), ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
     }
     RegExpObject* regexp = thisObject->asRegExpObject();
     unsigned int option = regexp->option();
@@ -173,7 +173,7 @@ static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t ar
 static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
     Object* thisObject = thisValue.asObject();
@@ -197,12 +197,12 @@ static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_
 static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isRegExpObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
     }
 
     if (argv[0].isObject() && argv[0].asObject()->isRegExpObject()) {
         if (!argv[1].isUndefined()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Cannot supply flags when constructing one RegExp from another");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot supply flags when constructing one RegExp from another");
         } else {
             RegExpObject* retVal = thisValue.asPointerValue()->asObject()->asRegExpObject();
             RegExpObject* patternRegExp = argv[0].asPointerValue()->asObject()->asRegExpObject();
@@ -247,7 +247,7 @@ static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t 
 static Value builtinRegExpSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
     Object* rx = thisValue.asObject();
     String* S = argv[0].toString(state);
@@ -392,7 +392,7 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
     ASSERT(argc == 0 || argv != nullptr);
     Value rx = thisValue;
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
     String* str = argv[0].toString(state);
     Value replaceValue = argv[1];
@@ -501,7 +501,7 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
     Value rx = thisValue;
 
     if (!rx.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true,
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().RegExp.string(), true,
                                        state.context()->staticStrings().toPrimitive.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
@@ -548,7 +548,7 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
 static Value builtinRegExpMatchAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExp.string(), true,
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().RegExp.string(), true,
                                        state.context()->staticStrings().toPrimitive.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
     bool global = false;
@@ -577,14 +577,14 @@ static Value builtinRegExpMatchAll(ExecutionState& state, Value thisValue, size_
 static Value builtinRegExpOptionGetterHelper(ExecutionState& state, Value thisValue, unsigned int option)
 {
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
     if (!thisValue.asObject()->isRegExpObject()) {
         if (thisValue.asObject() == state.context()->globalObject()->regexpPrototype()) {
             return Value();
         } else {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
         }
     }
 
@@ -594,7 +594,7 @@ static Value builtinRegExpOptionGetterHelper(ExecutionState& state, Value thisVa
 static Value builtinRegExpFlagsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, "getter called on non-object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "getter called on non-object");
     }
 
     return Value(RegExpObject::computeRegExpOptionString(state, thisValue.asObject()));
@@ -623,14 +623,14 @@ static Value builtinRegExpMultiLineGetter(ExecutionState& state, Value thisValue
 static Value builtinRegExpSourceGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
     if (!thisValue.asObject()->isRegExpObject()) {
         if (thisValue.asObject() == state.context()->globalObject()->regexpPrototype()) {
             return Value(state.context()->staticStrings().defaultRegExpString.string());
         } else {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
         }
     }
 
@@ -652,11 +652,11 @@ static Value builtinRegExpUnicodeGetter(ExecutionState& state, Value thisValue, 
 static Value builtinRegExpInputGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || thisValue.asObject() != state.context()->globalObject()->regexp()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
     }
     auto& status = state.context()->regexpLegacyFeatures();
     if (!status.isValid()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::String_InvalidStringLength);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::String_InvalidStringLength);
     }
     return status.input;
 }
@@ -664,7 +664,7 @@ static Value builtinRegExpInputGetter(ExecutionState& state, Value thisValue, si
 static Value builtinRegExpInputSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || thisValue.asObject() != state.context()->globalObject()->regexp()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
     }
     state.context()->regexpLegacyFeatures().input = argv[0].toString(state);
     return Value();
@@ -691,12 +691,12 @@ static Value builtinRegExpInputSetter(ExecutionState& state, Value thisValue, si
     static Value builtinRegExp##NAME##Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
     {                                                                                                                                       \
         if (!thisValue.isObject() || thisValue.asObject() != state.context()->globalObject()->regexp()) {                                   \
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);         \
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);           \
         }                                                                                                                                   \
                                                                                                                                             \
         auto& status = state.context()->regexpLegacyFeatures();                                                                             \
         if (!status.isValid()) {                                                                                                            \
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::String_InvalidStringLength);               \
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::String_InvalidStringLength);                 \
         }                                                                                                                                   \
         return new StringView(status.name);                                                                                                 \
     }
@@ -705,11 +705,11 @@ static Value builtinRegExpInputSetter(ExecutionState& state, Value thisValue, si
     static Value builtinRegExpDollar##number##Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
     {                                                                                                                                               \
         if (!thisValue.isObject() || thisValue.asObject() != state.context()->globalObject()->regexp()) {                                           \
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);                 \
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);                   \
         }                                                                                                                                           \
         auto& status = state.context()->regexpLegacyFeatures();                                                                                     \
         if (!status.isValid()) {                                                                                                                    \
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::String_InvalidStringLength);                       \
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::String_InvalidStringLength);                         \
         }                                                                                                                                           \
         return (status.dollarCount < number) ? String::emptyString : new StringView(status.dollars[number - 1]);                                    \
     }
@@ -720,7 +720,7 @@ REGEXP_LEGACY_DOLLAR_NUMBER_FEATURES(DEFINE_LEGACY_DOLLAR_NUMBER_FEATURE_GETTER)
 static Value builtinRegExpStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isRegExpStringIteratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().RegExpStringIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().RegExpStringIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
     RegExpStringIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asRegExpStringIteratorObject();
     return iter->next(state);

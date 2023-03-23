@@ -23,7 +23,6 @@
 #include "ExpressionNode.h"
 #include "TryStatementNode.h"
 #include "ReturnStatementNode.h"
-#include "runtime/ExecutionPauser.h"
 
 namespace Escargot {
 
@@ -271,7 +270,7 @@ public:
 
             // NOTE: The next step throws a TypeError to indicate that there was a yield* protocol violation: iterator does not have a throw method.
             // Throw a TypeError exception.
-            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), ErrorObject::TypeError, "yield* violation. there is no throw method on iterator Object"), context, this);
+            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::TypeError, "yield* violation. there is no throw method on iterator Object"), context, this);
 
             context->giveUpRegister(); // for drop throwRegister
 

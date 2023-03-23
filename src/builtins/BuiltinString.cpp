@@ -68,7 +68,7 @@ static Value builtinStringToString(ExecutionState& state, Value thisValue, size_
     if (thisValue.isString())
         return thisValue.toString(state);
 
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotString);
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotString);
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -184,7 +184,7 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
 static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
 
     Value regexp = argv[0];
@@ -206,7 +206,7 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
 static Value builtinStringMatchAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
 
     Value regexp = argv[0];
@@ -214,7 +214,7 @@ static Value builtinStringMatchAll(ExecutionState& state, Value thisValue, size_
         if (regexp.isObject() && regexp.asObject()->isRegExpObject()) {
             String* flags = regexp.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, regexp).toString(state);
             if (flags->find("g") == SIZE_MAX) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
             }
         }
         Value matcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().matchAll));
@@ -259,7 +259,7 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
         } else if (formString->equals("NFKD")) {
             form = NFKD;
         } else {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "invalid normalization form");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid normalization form");
             return Value();
         }
     }
@@ -287,14 +287,14 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
         break;
     }
     if (!normalizer || U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "normalization fails");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "normalization fails");
         return Value();
     }
     int32_t normalizedStringLength = unorm2_normalize(normalizer, (const UChar*)utf16Str.data(), utf16Str.length(), nullptr, 0, &status);
 
     if (U_FAILURE(status) && status != U_BUFFER_OVERFLOW_ERROR) {
         // when normalize fails.
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "normalization fails");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "normalization fails");
         return Value();
     }
     UTF16StringData ret;
@@ -303,7 +303,7 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
     unorm2_normalize(normalizer, (const UChar*)utf16Str.data(), utf16Str.length(), (UChar*)ret.data(), normalizedStringLength, &status);
 
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "normalization fails");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "normalization fails");
         return Value();
     }
     return new UTF16String(std::move(ret));
@@ -318,7 +318,7 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
     double count = argument.toInteger(state);
     double newStringLength = str->length() * count;
     if (count < 0 || count == std::numeric_limits<double>::infinity() || newStringLength > STRING_MAXIMUM_LENGTH) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "invalid count number of String repeat method");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid count number of String repeat method");
     }
 
     if (newStringLength == 0) {
@@ -337,7 +337,7 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
 static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
 
     Value searchValue = argv[0];
@@ -554,7 +554,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
 static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replaceAll.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replaceAll.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
     Value searchValue = argv[0];
     Value replaceValue = argv[1];
@@ -564,7 +564,7 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
         if (searchValue.isObject() && searchValue.asObject()->isRegExp(state)) {
             Value flags = searchValue.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, searchValue);
             if (flags.isUndefinedOrNull() || !flags.toString(state)->contains("g")) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().replaceAll.string(), true, state.context()->staticStrings().replaceAll.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().replaceAll.string(), true, state.context()->staticStrings().replaceAll.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
             }
         }
         // Let replacer be ? GetMethod(searchValue, @@replace).
@@ -625,7 +625,7 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
 static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().search.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().search.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
 
     Value regexp = argv[0];
@@ -647,7 +647,7 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
 static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().split.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().split.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
 
     Value separator = argv[0];
@@ -866,7 +866,7 @@ static Value builtinStringFromCodePoint(ExecutionState& state, Value thisValue, 
         double toIntegerNexCP = next.toInteger(state);
 
         if (nextCP != toIntegerNexCP || nextCP < 0 || nextCP > 0x10FFFF) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "invalid code point");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid code point");
         }
 
         uint32_t cp = (uint32_t)nextCP;
@@ -1148,7 +1148,7 @@ static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t
     } else if (thisValue.isObject() && thisValue.asObject()->isStringObject()) {
         return Value(thisValue.asPointerValue()->asStringObject()->primitiveValue());
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotString);
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotString);
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -1162,7 +1162,7 @@ static Value builtinStringStartsWith(ExecutionState& state, Value thisValue, siz
     // If isRegExp is true, throw a TypeError exception.
 
     if (searchString.isObject() && searchString.asObject()->isRegExp(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't use RegExp with startsWith");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't use RegExp with startsWith");
     }
     // Let searchStr be ? ToString(searchString).
     String* searchStr = searchString.toString(state);
@@ -1205,7 +1205,7 @@ static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
     if (searchString.isObject() && searchString.asObject()->isRegExp(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't use RegExp with endsWith");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't use RegExp with endsWith");
     }
     // Let len be the number of elements in S.
     double len = S->length();
@@ -1416,7 +1416,7 @@ static String* createHTML(ExecutionState& state, Value string, String* tag, Stri
     // Let S be ToString(str).
     // ReturnIfAbrupt(S).
     if (string.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().String.string(), true, methodName.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, methodName.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
     String* S = string.toString(state);
 
@@ -1571,7 +1571,7 @@ static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_
     // If isRegExp is true, throw a TypeError exception.
     Value searchString = argv[0];
     if (searchString.isObject() && searchString.asObject()->isRegExp(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "can't use RegExp with includes");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't use RegExp with includes");
     }
 
     // Let searchStr be ? ToString(searchString).
@@ -1600,7 +1600,7 @@ static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_
 static Value builtinStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isStringIteratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().StringIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().StringIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
     StringIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asStringIteratorObject();
     return iter->next(state);

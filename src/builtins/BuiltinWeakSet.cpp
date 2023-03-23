@@ -32,7 +32,7 @@ static Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, s
 {
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     // Let set be ? OrdinaryCreateFromConstructor(NewTarget, "%WeakSetPrototype%", « [[WeakSetData]] »).
@@ -57,7 +57,7 @@ static Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, s
     Value adder = set->get(state, ObjectPropertyName(state.context()->staticStrings().add)).value(state, set);
     // If IsCallable(adder) is false, throw a TypeError exception.
     if (!adder.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
 
     // Let iteratorRecord be ? GetIterator(iterable).
@@ -88,17 +88,17 @@ static Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, s
     return set;
 }
 
-#define RESOLVE_THIS_BINDING_TO_WEAKSET(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                      \
-    if (!thisValue.isObject() || !thisValue.asObject()->isWeakSetObject()) {                                                                                                                                                                             \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                    \
+#define RESOLVE_THIS_BINDING_TO_WEAKSET(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                    \
+    if (!thisValue.isObject() || !thisValue.asObject()->isWeakSetObject()) {                                                                                                                                                                           \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                  \
     WeakSetObject* NAME = thisValue.asObject()->asWeakSetObject();
 
 static Value builtinWeakSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKSET(S, WeakSet, add);
     if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid value used as weak set key");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid value used as weak set key");
     }
 
     S->add(state, argv[0].asObject());

@@ -28,10 +28,10 @@
 
 namespace Escargot {
 
-#define RESOLVE_THIS_BINDING_TO_TYPEDARRAY(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                   \
-    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject())) {                                                                                                                                                                \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                    \
+#define RESOLVE_THIS_BINDING_TO_TYPEDARRAY(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                 \
+    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject())) {                                                                                                                                                              \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                  \
     TypedArrayObject* NAME = thisValue.asPointerValue()->asTypedArrayObject();
 
 
@@ -44,7 +44,7 @@ static Object* createTypedArray(ExecutionState& state, const Value& constructor,
     if (argc == 1 && argv[0].isNumber()) {
         double arrayLength = newTypedArray->asTypedArrayObject()->arrayLength();
         if (arrayLength < argv[0].asNumber()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "invalid TypedArray length");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "invalid TypedArray length");
         }
     }
 
@@ -92,14 +92,14 @@ static Value TypedArraySpeciesCreate(ExecutionState& state, TypedArrayObject* ex
     Value A = Object::construct(state, C, argc, argumentList);
     TypedArrayObject::validateTypedArray(state, A);
     if (argc == 1 && argumentList[0].isNumber() && A.asObject()->asTypedArrayObject()->arrayLength() < argumentList->toNumber(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
     return A;
 }
 
 static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor);
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
     return Value();
 }
 
@@ -110,7 +110,7 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
     Value source = argv[0];
 
     if (!C.isConstructor()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotConstructor);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotConstructor);
     }
 
     Value mapfn;
@@ -125,7 +125,7 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
     bool mapping = false;
     if (!mapfn.isUndefined()) {
         if (!mapfn.isCallable()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "mapfn is not callable");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "mapfn is not callable");
         }
         mapping = true;
     }
@@ -180,7 +180,7 @@ static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t 
     size_t len = argc;
     Value C = thisValue;
     if (!C.isConstructor()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotConstructor);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotConstructor);
     }
 
     Value arg[1] = { Value(len) };
@@ -295,14 +295,14 @@ static void initializeTypedArrayFromArrayBuffer(ExecutionState& state, TypedArra
     size_t elementSize = obj->elementSize();
     uint64_t offset = byteOffset.toIndex(state);
     if (offset == Value::InvalidIndexValue || offset % elementSize != 0) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
     }
 
     uint64_t newLength = 0;
     if (!length.isUndefined()) {
         newLength = length.toIndex(state);
         if (newLength == Value::InvalidIndexValue) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
     }
 
@@ -312,13 +312,13 @@ static void initializeTypedArrayFromArrayBuffer(ExecutionState& state, TypedArra
     size_t newByteLength = 0;
     if (length.isUndefined()) {
         if ((bufferByteLength % elementSize != 0) || (bufferByteLength < offset)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
         newByteLength = bufferByteLength - offset;
     } else {
         newByteLength = newLength * elementSize;
         if (offset + newByteLength > bufferByteLength) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
     }
 
@@ -366,7 +366,7 @@ static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue
 {
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     if (argc == 0) {
@@ -378,7 +378,7 @@ static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue
     if (!firstArg.isObject()) {
         uint64_t elemlen = firstArg.toIndex(state);
         if (elemlen == Value::InvalidIndexValue) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
         }
         return TA::allocateTypedArray(state, newTarget.value(), elemlen);
     }
@@ -674,7 +674,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     if (!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
     }
 
     TypedArrayObject* target = thisValue.asObject()->asTypedArrayObject();
@@ -684,7 +684,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
         targetOffset = argv[1].toInteger(state);
     }
     if (targetOffset < 0) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), "Start offset is negative");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->TypedArray.string(), true, strings->set.string(), "Start offset is negative");
     }
 
     auto typedArrayType = target->typedArrayType();
@@ -701,7 +701,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
         // 22.2.3.23.1%TypedArray%.prototype.set ( array [ , offset ] )
         size_t srcLength = src->length(state);
         if (srcLength + targetOffset > targetLength) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
         }
 
         size_t targetByteIndex = targetOffset * targetElementSize + targetByteOffset;
@@ -737,14 +737,14 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
     size_t srcByteOffset = srcTypedArray->byteOffset();
 
     if (srcLength + targetOffset > targetLength) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
 
     // If one of srcType and targetType contains the substring "Big" and the other does not, throw a TypeError exception.
     auto srcTypedArrayType = srcTypedArray->typedArrayType();
     bool isSrcBigIntArray = srcTypedArrayType == TypedArrayType::BigInt64 || srcTypedArrayType == TypedArrayType::BigUint64;
     if (isBigIntArray != isSrcBigIntArray) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->TypedArray.string(), true, strings->set.string(), "Cannot mix BigIntArray with other Array");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->TypedArray.string(), true, strings->set.string(), "Cannot mix BigIntArray with other Array");
     }
 
     size_t srcByteIndex = srcByteOffset;
@@ -795,7 +795,7 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true,
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true,
                                        state.context()->staticStrings().some.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
@@ -841,7 +841,7 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
 
     Value cmpfn = argv[0];
     if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotCallable);
     }
     bool defaultSort = (argc == 0) || cmpfn.isUndefined();
 
@@ -936,7 +936,7 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true,
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true,
                                        state.context()->staticStrings().every.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
@@ -1026,7 +1026,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().filter.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().filter.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // If thisArg was supplied, let T be thisArg; else let T be undefined.
@@ -1083,7 +1083,7 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     if (!predicate.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().find.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().find.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // Let k be 0.
@@ -1122,7 +1122,7 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     if (!predicate.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findIndex.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findIndex.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // Let k be 0.
@@ -1159,7 +1159,7 @@ static Value builtinTypedArrayFindLast(ExecutionState& state, Value thisValue, s
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     if (!predicate.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findLast.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findLast.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // Let k be len - 1.
@@ -1197,7 +1197,7 @@ static Value builtinTypedArrayFindLastIndex(ExecutionState& state, Value thisVal
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     if (!predicate.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findIndex.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findIndex.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // Let k be len - 1.
@@ -1235,7 +1235,7 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
 
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true,
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true,
                                        state.context()->staticStrings().forEach.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
@@ -1296,7 +1296,7 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
     while (curIndex < len) {
         if (sep->length() > 0) {
             if (static_cast<double>(builder.contentLength()) > static_cast<double>(lenMax - sep->length())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::String_InvalidStringLength);
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
             }
             builder.appendString(sep);
         }
@@ -1324,7 +1324,7 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().map.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().map.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // If thisArg was supplied, let T be thisArg; else let T be undefined.
@@ -1365,11 +1365,11 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
 
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduce.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduce.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     if (len == 0 && argc < 2) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduce.string(), ErrorObject::Messages::GlobalObject_ReduceError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduce.string(), ErrorObject::Messages::GlobalObject_ReduceError);
     }
 
     size_t k = 0; // 6
@@ -1406,13 +1406,13 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true,
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true,
                                        state.context()->staticStrings().reduceRight.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // If len is 0 and initialValue is not present, throw a TypeError exception.
     if (len == 0 && argc < 2) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduceRight.string(), ErrorObject::Messages::GlobalObject_ReduceError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduceRight.string(), ErrorObject::Messages::GlobalObject_ReduceError);
     }
 
     // Let k be len-1.
@@ -1466,10 +1466,10 @@ static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, si
         Value lowerValue = lowerResult.value(state, O);
 
         if (!O->setIndexedProperty(state, Value(lower), upperValue)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
         }
         if (!O->setIndexedProperty(state, Value(upper), lowerValue)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
         }
 
         lower++;

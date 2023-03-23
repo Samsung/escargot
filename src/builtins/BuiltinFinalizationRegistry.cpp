@@ -26,19 +26,19 @@
 
 namespace Escargot {
 
-#define RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(NAME, BUILT_IN_METHOD)                                                                                                                                                                                               \
-    if (!thisValue.isObject() || !thisValue.asObject()->isFinalizationRegistryObject()) {                                                                                                                                                                                 \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().FinalizationRegistry.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                                     \
+#define RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(NAME, BUILT_IN_METHOD)                                                                                                                                                                                             \
+    if (!thisValue.isObject() || !thisValue.asObject()->isFinalizationRegistryObject()) {                                                                                                                                                                               \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().FinalizationRegistry.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                   \
     FinalizationRegistryObject* NAME = thisValue.asObject()->asFinalizationRegistryObject();
 
 static Value builtinFinalizationRegistryConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
     if (argc == 0 || !argv[0].isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "cleanup Callback is not callable");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "cleanup Callback is not callable");
     }
 
     // Let finalizationRegistry be ? OrdinaryCreateFromConstructor(NewTarget, "%FinalizationRegistryPrototype%", « [[Realm]], [[CleanupCallback]], [[Cells]] »).
@@ -54,10 +54,10 @@ static Value builtinfinalizationRegistryRegister(ExecutionState& state, Value th
     RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, stringRegister);
 
     if (argc == 0 || !argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "target is not object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "target is not object");
     }
     if (argv[0] == argv[1]) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "target and heldValue is the same");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "target and heldValue is the same");
     }
 
     Optional<Object*> unregisterToken;
@@ -65,7 +65,7 @@ static Value builtinfinalizationRegistryRegister(ExecutionState& state, Value th
         if (argv[2].isObject()) {
             unregisterToken = argv[2].asObject();
         } else if (!argv[2].isUndefined()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "unregisterToken is not undefined");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "unregisterToken is not undefined");
         }
     }
     finalRegistry->setCell(argv[0].asObject(), argv[1], unregisterToken);
@@ -76,7 +76,7 @@ static Value builtinfinalizationRegistryUnregister(ExecutionState& state, Value 
 {
     RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, unregister);
     if (argc == 0 || !argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "unregisterToken is not object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "unregisterToken is not object");
     }
     return Value(finalRegistry->deleteCell(argv[0].asObject()));
 }
@@ -89,7 +89,7 @@ static Value builtinfinalizationRegistryCleanupSome(ExecutionState& state, Value
     Object* callback = nullptr;
     if (argc && !argv[0].isUndefined()) {
         if (!argv[0].isCallable()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "callback is not callable");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "callback is not callable");
         }
         callback = argv[0].asObject();
     }

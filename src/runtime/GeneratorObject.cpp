@@ -53,17 +53,17 @@ void* GeneratorObject::operator new(size_t size)
 GeneratorObject* GeneratorObject::generatorValidate(ExecutionState& state, const Value& generator)
 {
     if (!generator.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
     if (!generator.asObject()->isGeneratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Generator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Generator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     GeneratorObject* gen = generator.asObject()->asGeneratorObject();
 
     if (gen->generatorState() == GeneratorObject::GeneratorState::Executing) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Generator is already running");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Generator is already running");
     }
 
     return gen;

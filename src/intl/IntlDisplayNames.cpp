@@ -43,7 +43,7 @@ IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* pr
     UVersionInfo versionArray;
     u_getVersion(versionArray);
     if (versionArray[0] < 62) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Intl.DisplayNames needs 61+ version of ICU");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.DisplayNames needs 61+ version of ICU");
     }
 #endif
     // https://402.ecma-international.org/8.0/#sec-Intl.DisplayNames
@@ -56,7 +56,7 @@ IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* pr
     // If options is undefined, throw a TypeError exception.
     // Let options be ? GetOptionsObject(options).
     if (!options.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "options must be object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "options must be object");
     }
     Object* optionsObject = options.asObject();
     // Let opt be a new Record.
@@ -82,7 +82,7 @@ IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* pr
     Value type = Intl::getOption(state, optionsObject, staticStrings.lazyType().string(), Intl::StringValue, typeValues, 6, Value());
     // If type is undefined, throw a TypeError exception.
     if (type.isUndefined()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "type of options is required");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "type of options is required");
     }
     // Set displayNames.[[Type]] to type.
     m_type = type.asString();
@@ -123,7 +123,7 @@ IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* pr
     UErrorCode status = U_ZERO_ERROR;
     m_icuLocaleDisplayNames = uldn_openForContext(m_locale->toNonGCUTF8StringData().data(), contexts, 4, &status);
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "failed to initialize DisplayNames");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DisplayNames");
         return;
     }
 
@@ -169,7 +169,7 @@ static String* canonicalCodeForDisplayNames(ExecutionState& state, String* type,
         // d. Return code.
         auto parsedResult = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(code->toNonGCUTF8StringData().data());
         if (!parsedResult.canonicalizedTag) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid language code");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid language code");
         }
         return parsedResult.canonicalizedTag.value();
     } else if (type->equals("region")) {
@@ -186,7 +186,7 @@ static String* canonicalCodeForDisplayNames(ExecutionState& state, String* type,
             isValid = true;
         }
         if (!isValid) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid region code");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid region code");
         }
 
         std::string s = code->toNonGCUTF8StringData();
@@ -202,7 +202,7 @@ static String* canonicalCodeForDisplayNames(ExecutionState& state, String* type,
 
         // unicode_script_subtag = alpha{4} ;
         if (code->length() != 4 || !code->isAllSpecialCharacters(isASCIIAlphanumeric)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid script code");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid script code");
         }
         std::string s = code->toNonGCUTF8StringData();
         ASSERT(s.length() == 4);
@@ -226,7 +226,7 @@ static String* canonicalCodeForDisplayNames(ExecutionState& state, String* type,
         }
 
         if (!Intl::isValidUnicodeLocaleIdentifier(code)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid calendar code");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar code");
         }
 
         std::string s = code->toNonGCUTF8StringData();
@@ -240,7 +240,7 @@ static String* canonicalCodeForDisplayNames(ExecutionState& state, String* type,
         // a. If the result of IsValidDateTimeFieldCode(code) is false, throw a RangeError exception.
         // b. Return code.
         if (!isValidDatetimeFieldCode(code)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid dateTimeField code");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid dateTimeField code");
         }
         return code;
     } else {
@@ -251,7 +251,7 @@ static String* canonicalCodeForDisplayNames(ExecutionState& state, String* type,
         // 9. Return code.
         std::string s = code->toNonGCUTF8StringData();
         if (s.length() != 3 || !isAllSpecialCharacters(s, isASCIIAlpha)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid dateTimeField code");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid dateTimeField code");
         }
 
         for (size_t i = 0; i < s.length(); i++) {
@@ -304,7 +304,7 @@ Value IntlDisplayNamesObject::of(ExecutionState& state, const Value& codeInput)
         result.first = U_ZERO_ERROR;
         const UChar* buffer = ucurr_getName(code->toUTF16StringData().data(), m_locale->toNonGCUTF8StringData().data(), style, &unused, &length, &result.first);
         if (U_FAILURE(result.first)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Failed to query a display name");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to query a display name");
         }
         result.second.assign(buffer, length);
         auto u16Code = code->toUTF16StringData();
@@ -354,7 +354,7 @@ Value IntlDisplayNamesObject::of(ExecutionState& state, const Value& codeInput)
         LocalResourcePointer<UDateTimePatternGenerator> generator(udatpg_open(m_locale->toNonGCUTF8StringData().data(), &status),
                                                                   [](UDateTimePatternGenerator* d) { udatpg_close(d); });
         if (U_FAILURE(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, errorMessage);
         }
 
         result = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getFieldDisplayName, generator.get(), fieldCode, style);
@@ -368,7 +368,7 @@ Value IntlDisplayNamesObject::of(ExecutionState& state, const Value& codeInput)
                 return code;
             }
         }
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, errorMessage);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, errorMessage);
     }
     return new UTF16String(result.second.data(), result.second.length());
 }

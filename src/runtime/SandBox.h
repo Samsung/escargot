@@ -20,10 +20,11 @@
 #ifndef __EscargotSandBox__
 #define __EscargotSandBox__
 
-#include "parser/ast/Node.h"
 #include "runtime/Context.h"
 
 namespace Escargot {
+
+struct ExtendedNodeLOC;
 
 class SandBox : public gc {
     friend class ByteCodeInterpreter;

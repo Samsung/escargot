@@ -22,18 +22,14 @@
 
 #include "parser/ast/Node.h"
 #include "parser/ast/ASTContext.h"
-#include "runtime/AtomicString.h"
-#include "runtime/ExecutionState.h"
-#include "runtime/String.h"
 
 namespace Escargot {
 
-class Node;
 class ByteCodeBlock;
-class LexicalEnvironment;
-class CodeBlock;
 class InterpretedCodeBlock;
+class NativeCodeBlock;
 class Script;
+class AtomicString;
 struct ByteCodeGenerateContext;
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
@@ -62,8 +58,6 @@ struct NativeFunctionInfo {
     }
 };
 
-class NativeCodeBlock;
-class InterpretedCodeBlock;
 
 class CodeBlock : public gc {
 public:

@@ -20,10 +20,7 @@
 #ifndef ProgramNode_h
 #define ProgramNode_h
 
-#include "Node.h"
 #include "StatementNode.h"
-#include "parser/ScriptParser.h"
-#include "parser/Script.h"
 
 namespace Escargot {
 

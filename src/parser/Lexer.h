@@ -25,6 +25,8 @@
 
 namespace Escargot {
 
+class AtomicString;
+
 namespace esprima {
 struct ParserContext;
 }
@@ -254,7 +256,7 @@ public:
     {
     }
 
-    static void throwError(size_t index, size_t line, size_t col, String* description, ErrorObject::Code code);
+    static void throwError(size_t index, size_t line, size_t col, String* description, ErrorCode code);
 };
 
 class Messages {
@@ -577,10 +579,7 @@ public:
         return index >= length;
     }
 
-    ALWAYS_INLINE void throwUnexpectedToken(const char* message = Messages::UnexpectedTokenIllegal)
-    {
-        ErrorHandler::throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, new ASCIIString(message), ErrorObject::SyntaxError);
-    }
+    ALWAYS_INLINE void throwUnexpectedToken(const char* message = Messages::UnexpectedTokenIllegal);
 
     ALWAYS_INLINE char16_t sourceCharAt(const size_t idx) const
     {
@@ -663,11 +662,7 @@ public:
     }
 
     static bool isStrictModeReservedWord(::Escargot::Context* ctx, const AtomicString& identifier);
-
-    static bool isRestrictedWord(::Escargot::Context* ctx, const AtomicString& identifier)
-    {
-        return identifier == ctx->staticStrings().arguments || identifier == ctx->staticStrings().eval;
-    }
+    static bool isRestrictedWord(::Escargot::Context* ctx, const AtomicString& identifier);
 
     char32_t codePointAt(size_t i)
     {

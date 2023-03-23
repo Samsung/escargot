@@ -23,7 +23,6 @@
 #include "Node.h"
 #include "LiteralNode.h"
 #include "TryStatementNode.h"
-#include "runtime/Context.h"
 
 namespace Escargot {
 

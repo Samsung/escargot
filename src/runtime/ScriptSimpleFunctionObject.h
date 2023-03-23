@@ -49,7 +49,7 @@ protected:
 #else
         if (UNLIKELY(state.stackLimit() < (size_t)currentStackPointer())) {
 #endif
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
         }
 
         ASSERT(codeBlock()->isInterpretedCodeBlock());
@@ -119,7 +119,7 @@ protected:
 #else
         if (UNLIKELY(state.stackLimit() < (size_t)currentStackPointer())) {
 #endif
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
         }
 
         // Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").

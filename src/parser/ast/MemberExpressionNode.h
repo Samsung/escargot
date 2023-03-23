@@ -23,7 +23,6 @@
 #include "ExpressionNode.h"
 #include "IdentifierNode.h"
 #include "ThisExpressionNode.h"
-#include "runtime/Context.h"
 
 namespace Escargot {
 

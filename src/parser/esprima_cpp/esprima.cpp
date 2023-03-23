@@ -41,6 +41,8 @@
 #include "esprima.h"
 
 #include "Messages.h"
+#include "runtime/Context.h"
+#include "runtime/ErrorObject.h"
 #include "interpreter/ByteCode.h"
 #include "parser/ast/AST.h"
 #include "parser/CodeBlock.h"
@@ -95,6 +97,17 @@ using namespace Escargot::EscargotLexer;
 
 namespace Escargot {
 namespace esprima {
+
+Error::Error(String* message)
+    : name(String::emptyString)
+    , message(message)
+    , index(0)
+    , lineNumber(0)
+    , column(0)
+    , description(String::emptyString)
+    , errorCode(ErrorCode::SyntaxError)
+{
+}
 
 struct Marker {
     size_t index;
@@ -519,7 +532,7 @@ public:
         return true;
     }
 
-    void throwError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString, ErrorObject::Code code = ErrorObject::SyntaxError)
+    void throwError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString, ErrorCode code = ErrorCode::SyntaxError)
     {
         UTF16StringDataNonGCStd msg;
         if (arg0->length() && arg1->length()) {
@@ -632,12 +645,12 @@ public:
             const size_t index = token.start;
             const size_t line = token.lineNumber;
             const size_t column = token.start - this->lastMarker.lineStart + 1;
-            ErrorHandler::throwError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorObject::SyntaxError);
+            ErrorHandler::throwError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorCode::SyntaxError);
         } else {
             const size_t index = this->lastMarker.index;
             const size_t line = this->lastMarker.lineNumber;
             const size_t column = index - this->lastMarker.lineStart + 1;
-            ErrorHandler::throwError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorObject::SyntaxError);
+            ErrorHandler::throwError(index, line, column, new UTF16String(msgData.data(), msgData.length()), ErrorCode::SyntaxError);
         }
     }
 
@@ -927,7 +940,7 @@ public:
 #else
         if (UNLIKELY(currentStackBase > stackLimit)) {
 #endif
-            this->throwError("too many recursion in script", String::emptyString, String::emptyString, ErrorObject::RangeError);
+            this->throwError("too many recursion in script", String::emptyString, String::emptyString, ErrorCode::RangeError);
         }
     }
 
@@ -3703,7 +3716,7 @@ public:
     void openBlock(ParserBlockContext& ctx)
     {
         if (UNLIKELY(this->lexicalBlockCount == LEXICAL_BLOCK_INDEX_MAX - 1)) {
-            this->throwError("too many lexical blocks in script", String::emptyString, String::emptyString, ErrorObject::RangeError);
+            this->throwError("too many lexical blocks in script", String::emptyString, String::emptyString, ErrorCode::RangeError);
         }
 
         this->lastUsingName = AtomicString();
@@ -6234,7 +6247,7 @@ public:
         this->expect(RightBrace);
 
         if (UNLIKELY(fieldCount > std::numeric_limits<uint16_t>::max())) {
-            this->throwError("too many fields in class", String::emptyString, String::emptyString, ErrorObject::RangeError);
+            this->throwError("too many fields in class", String::emptyString, String::emptyString, ErrorCode::RangeError);
         }
 
         if (privateNames.size() && !this->isParsingSingleFunction) {

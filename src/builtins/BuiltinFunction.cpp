@@ -40,7 +40,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         Value checkMSG = state.context()->securityPolicyCheckCallback()(state, false);
         if (!checkMSG.isEmpty()) {
             ASSERT(checkMSG.isString());
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::EvalError, checkMSG.asString());
+            ErrorObject::throwBuiltinError(state, ErrorCode::EvalError, checkMSG.asString());
             return Value();
         }
     }
@@ -100,14 +100,14 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
         }
     }
 
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
     return Value();
 }
 
 static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
     }
     Value thisArg = argv[0];
     Value argArray = argv[1];
@@ -128,7 +128,7 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
 static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
     }
     Value thisArg = argv[0];
     size_t arrlen = argc > 0 ? argc - 1 : 0;
@@ -145,7 +145,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
 {
     // If IsCallable(Target) is false, throw a TypeError exception.
     if (!thisValue.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().bind.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().bind.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
     }
 
     // Let Target be the this value.
@@ -232,7 +232,7 @@ static Value builtinCallerAndArgumentsGetterSetter(ExecutionState& state, Value 
     }
 
     if (needThrow) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "'caller' and 'arguments' restrict properties may not be accessed on strict mode functions or the arguments objects for calls to them");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "'caller' and 'arguments' restrict properties may not be accessed on strict mode functions or the arguments objects for calls to them");
     }
 
     bool inStrict = false;

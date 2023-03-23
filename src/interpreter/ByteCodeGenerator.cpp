@@ -19,11 +19,11 @@
 
 #include "Escargot.h"
 #include "ByteCodeGenerator.h"
+#include "runtime/VMInstance.h"
 #include "interpreter/ByteCode.h"
 #include "parser/ast/AST.h"
 #include "parser/CodeBlock.h"
 #include "debugger/Debugger.h"
-#include "runtime/VMInstance.h"
 
 #if defined(ENABLE_CODE_CACHE)
 #include "codecache/CodeCache.h"

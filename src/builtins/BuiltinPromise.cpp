@@ -36,12 +36,12 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
 {
     auto strings = &state.context()->staticStrings();
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, String::emptyString, "%s: Promise constructor should be called with new Promise()");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Promise.string(), false, String::emptyString, "%s: Promise constructor should be called with new Promise()");
     }
 
     Value executor = argv[0];
     if (!executor.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, String::emptyString, "%s: Promise executor is not a function object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Promise.string(), false, String::emptyString, "%s: Promise executor is not a function object");
     }
 
     // Let promise be ? OrdinaryCreateFromConstructor(NewTarget, "%PromisePrototype%", « [[PromiseState]], [[PromiseResult]], [[PromiseFulfillReactions]], [[PromiseRejectReactions]], [[PromiseIsHandled]] »).
@@ -81,7 +81,7 @@ static Value getPromiseResolve(ExecutionState& state, Object* promiseConstructor
     auto promiseResolve = promiseConstructor->get(state, state.context()->staticStrings().resolve).value(state, promiseConstructor);
     // If IsCallable(promiseResolve) is false, throw a TypeError exception.
     if (!promiseResolve.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Promise resolve is not callable");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Promise resolve is not callable");
     }
     // Return promiseResolve.
     return promiseResolve;
@@ -95,7 +95,7 @@ static Value builtinPromiseAll(ExecutionState& state, Value thisValue, size_t ar
     // Let C be the this value.
     // If Type(C) is not Object, throw a TypeError exception.
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->all.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Promise.string(), false, strings->all.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
     Object* C = thisValue.asObject();
     // Let promiseCapability be NewPromiseCapability(C).
@@ -239,7 +239,7 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
     // Let C be the this value.
     // If Type(C) is not Object, throw a TypeError exception.
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->race.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Promise.string(), false, strings->race.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
     Object* C = thisValue.asObject();
 
@@ -356,7 +356,7 @@ static Value builtinPromiseResolve(ExecutionState& state, Value thisValue, size_
     const Value& C = thisValue;
     // If Type(C) is not Object, throw a TypeError exception.
     if (!C.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().Promise.string(), false, state.context()->staticStrings().resolve.string(), "%s: PromiseResolve called on non-object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Promise.string(), false, state.context()->staticStrings().resolve.string(), "%s: PromiseResolve called on non-object");
     }
     // Return ? PromiseResolve(C, x).
     return PromiseObject::promiseResolve(state, C.asObject(), argv[0]);
@@ -379,7 +379,7 @@ static Value builtinPromiseFinally(ExecutionState& state, Value thisValue, size_
     auto strings = &state.context()->staticStrings();
 
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->finally.string(), "%s: not a Promise object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Promise.string(), false, strings->finally.string(), "%s: not a Promise object");
     }
 
     Object* thisObject = thisValue.asObject();
@@ -409,7 +409,7 @@ static Value builtinPromiseThen(ExecutionState& state, Value thisValue, size_t a
 {
     auto strings = &state.context()->staticStrings();
     if (!thisValue.isObject() || !thisValue.asObject()->isPromiseObject())
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->then.string(), "%s: not a Promise object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Promise.string(), false, strings->then.string(), "%s: not a Promise object");
     Value C = thisValue.asObject()->speciesConstructor(state, state.context()->globalObject()->promise());
     PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C.asObject(), thisValue.asObject()->asPromiseObject());
     return thisValue.asObject()->asPromiseObject()->then(state, argv[0], argv[1], promiseCapability).value();
@@ -523,7 +523,7 @@ static Value builtinPromiseAllSettled(ExecutionState& state, Value thisValue, si
     // Let C be the this value.
     // If Type(C) is not Object, throw a TypeError exception.
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "this value of allSettled is not Object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "this value of allSettled is not Object");
     }
     Object* C = thisValue.asObject();
     // Let promiseCapability be ? NewPromiseCapability(C).
@@ -621,7 +621,7 @@ static Value performPromiseAny(ExecutionState& state, IteratorRecord* iteratorRe
             // If remainingElementsCount.[[Value]] is 0, then
             if (*remainingElementsCount == 0) {
                 // Let error be a newly created AggregateError object.
-                ErrorObject* error = ErrorObject::createBuiltinError(state, ErrorObject::AggregateError, "Got AggregateError on processing Promise.any");
+                ErrorObject* error = ErrorObject::createBuiltinError(state, ErrorCode::AggregateError, "Got AggregateError on processing Promise.any");
                 // Perform ! DefinePropertyOrThrow(error, "errors", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: ! CreateArrayFromList(errors) }).
                 error->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("errors")),
                                                         ObjectPropertyDescriptor(Object::createArrayFromList(state, *errors),
@@ -684,7 +684,7 @@ static Value builtinPromiseAny(ExecutionState& state, Value thisValue, size_t ar
     // Let C be the this value.
     // If Type(C) is not Object, throw a TypeError exception.
     if (!thisValue.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->Promise.string(), false, strings->all.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Promise.string(), false, strings->all.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
     Object* C = thisValue.asObject();
 

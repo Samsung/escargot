@@ -53,7 +53,7 @@ Value ScriptVirtualArrowFunctionObject::call(ExecutionState& state, const Value&
 {
     ExecutionState newState(m_codeBlock->context(), &state,
                             static_cast<LexicalEnvironment*>(nullptr), argc, argv, m_codeBlock->asInterpretedCodeBlock()->isStrict());
-    ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "This function cannot be invoked");
+    ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, "This function cannot be invoked");
     ASSERT_NOT_REACHED();
     return Value();
 }
@@ -62,7 +62,7 @@ Value ScriptVirtualArrowFunctionObject::construct(ExecutionState& state, const s
 {
     ExecutionState newState(m_codeBlock->context(), &state,
                             static_cast<LexicalEnvironment*>(nullptr), argc, argv, m_codeBlock->asInterpretedCodeBlock()->isStrict());
-    ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "This function cannot be invoked");
+    ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, "This function cannot be invoked");
     ASSERT_NOT_REACHED();
     return Value();
 }

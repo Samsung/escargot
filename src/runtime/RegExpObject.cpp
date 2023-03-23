@@ -153,7 +153,7 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, Option op
     if (entry.m_yarrError) {
         m_source = previousSource;
         setOptionValueForGC(previousOptions);
-        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, entry.m_yarrError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, entry.m_yarrError);
     }
 
     setLastIndex(state, Value(0));
@@ -205,36 +205,36 @@ RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, String* op
         switch (bufferAccessData.charAt(i)) {
         case 'g':
             if (tempOption & Option::Global)
-                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'g' flags");
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'g' flags");
             tempOption = (Option)(tempOption | Option::Global);
             break;
         case 'i':
             if (tempOption & Option::IgnoreCase)
-                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'i' flags");
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'i' flags");
             tempOption = (Option)(tempOption | Option::IgnoreCase);
             break;
         case 'm':
             if (tempOption & Option::MultiLine)
-                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'm' flags");
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'm' flags");
             tempOption = (Option)(tempOption | Option::MultiLine);
             break;
         case 'u':
             if (tempOption & Option::Unicode)
-                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'u' flags");
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'u' flags");
             tempOption = (Option)(tempOption | Option::Unicode);
             break;
         case 'y':
             if (tempOption & Option::Sticky)
-                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 'y' flags");
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'y' flags");
             tempOption = (Option)(tempOption | Option::Sticky);
             break;
         case 's':
             if (tempOption & Option::DotAll)
-                ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has multiple 's' flags");
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 's' flags");
             tempOption = (Option)(tempOption | Option::DotAll);
             break;
         default:
-            ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, "RegExp has invalid flag");
+            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has invalid flag");
         }
     }
 
@@ -266,7 +266,7 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
             yarrPattern = JSC::Yarr::YarrPattern::createYarrPattern(source, (JSC::Yarr::RegExpFlags)option, errorCode);
             yarrError = JSC::Yarr::errorMessage(errorCode);
         } catch (const std::bad_alloc& e) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "got too complicated RegExp pattern to process");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "got too complicated RegExp pattern to process");
         }
         return cache->insert(std::make_pair(RegExpCacheKey(source, option), RegExpCacheEntry(yarrError, yarrPattern))).first->second;
     }
@@ -416,7 +416,7 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
     do {
         const size_t maximumReasonableMatchSize = 1000000000;
         if (len > maximumReasonableMatchSize) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::Code::RangeError, "Maximum Reasonable match size exceeded.");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum Reasonable match size exceeded.");
         }
 
         if (lastIndex().toIndex(state) == previousLastIndex) {

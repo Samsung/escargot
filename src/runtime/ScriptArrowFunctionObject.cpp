@@ -41,7 +41,7 @@ Value ScriptArrowFunctionObject::construct(ExecutionState& state, const size_t a
 {
     ExecutionState newState(m_codeBlock->context(), &state,
                             static_cast<LexicalEnvironment*>(nullptr), argc, argv, m_codeBlock->asInterpretedCodeBlock()->isStrict());
-    ErrorObject::throwBuiltinError(newState, ErrorObject::TypeError, "Arrow function cannot be invoked with 'new'");
+    ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, "Arrow function cannot be invoked with 'new'");
     ASSERT_NOT_REACHED();
     return Value();
 }

@@ -92,7 +92,7 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
 #else
     if (UNLIKELY(state.stackLimit() < currentStackBase)) {
 #endif
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Maximum call stack size exceeded");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
     }
 
     if (value.IsBool()) {
@@ -161,7 +161,7 @@ static Value parseJSON(ExecutionState& state, const CharType* data, size_t lengt
     JSONStringStream<JSONCharType> stringStream(data, length);
     jsonDocument.ParseStream(stringStream);
     if (jsonDocument.HasParseError()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::SyntaxError, strings->JSON.string(), true, strings->parse.string(), rapidjson::GetParseError_En(jsonDocument.GetParseError()));
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, strings->JSON.string(), true, strings->parse.string(), rapidjson::GetParseError_En(jsonDocument.GetParseError()));
     }
 
     return parseJSONWorker<CharType, JSONCharType>(state, jsonDocument);
@@ -376,7 +376,7 @@ static bool builtinJSONStringifyStr(ExecutionState& state, Value key, Object* ho
         return true;
     }
     if (value.isBigInt()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Could not serialize a BigInt");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Could not serialize a BigInt");
     }
     if (value.isObject() && !value.isCallable()) {
         if (value.asObject()->isArray(state)) {
@@ -400,7 +400,7 @@ static void builtinJSONStringifyJA(ExecutionState& state, Object* obj,
     for (size_t i = 0; i < stack.size(); i++) {
         Value& v = stack[i];
         if (v == Value(obj)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
         }
     }
     // 2
@@ -418,7 +418,7 @@ static void builtinJSONStringifyJA(ExecutionState& state, Object* obj,
 
     // Each array element requires at least 1 character for the value, and 1 character for the separator
     if (len / 2 > STRING_MAXIMUM_LENGTH) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
     }
 
     // 8 ~ 9
@@ -471,7 +471,7 @@ static void builtinJSONStringifyJO(ExecutionState& state, Object* value,
     // 1
     for (size_t i = 0; i < stack.size(); i++) {
         if (stack[i] == value) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JOError);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JOError);
         }
     }
     // 2

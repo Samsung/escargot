@@ -247,7 +247,7 @@ void BigInt::throwBFException(ExecutionState& state, int status)
     } else {
         message = ErrorObject::Messages::Overflow;
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, message);
+    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, message);
     return;
 }
 

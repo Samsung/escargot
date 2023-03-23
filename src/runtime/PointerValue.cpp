@@ -40,7 +40,7 @@ DECLARE_SCRIPTSIMPLEFUNCTION_LIST(DEFINE_SCRIPTSIMPLEFUNCTION_TAGS);
 Value PointerValue::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
 {
     ASSERT(!isCallable());
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     ASSERT_NOT_REACHED();
 
     // never get here. but I add return statement for removing compile warning
@@ -51,9 +51,9 @@ Value PointerValue::construct(ExecutionState& state, const size_t argc, Value* a
 {
     ASSERT(!isConstructor());
     if (isFunctionObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor_Function, asFunctionObject()->codeBlock()->functionName());
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor_Function, asFunctionObject()->codeBlock()->functionName());
     }
-    ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::Not_Constructor);
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
     ASSERT_NOT_REACHED();
 
     // never get here. but I add return statement for removing compile warning

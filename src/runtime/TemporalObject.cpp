@@ -104,7 +104,7 @@ std::string TemporalObject::getNNumberFromString(ExecutionState& state, std::str
     std::string retVal;
 
     if (!TemporalObject::isNumber(isoString.substr(index, n))) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO string");
     }
 
     retVal = isoString.substr(index, n);
@@ -120,7 +120,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalObject::getSeconds(Executio
     counter -= (index + 2);
 
     if (counter > 9) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO string");
     }
 
     std::string tmp = isoString.substr(index + 1, counter);
@@ -215,7 +215,7 @@ std::string TemporalObject::tzComponent(ExecutionState& state, std::string& isoS
         }
 
         if (!(isoString[index + 1] != '.' && (isoString[index + 1] == '-' || isoString[index + 1] == '_' || std::isalpha(isoString[index + 1]))) || (isoString[index + 1] == '.' && i == 2)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid TimeZone");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid TimeZone");
         }
     } else if (isoString[index] == '_' || std::isalpha(isoString[index])) {
         for (i = index + 1; i < index + 13; ++i) {
@@ -236,7 +236,7 @@ std::string TemporalObject::tzComponent(ExecutionState& state, std::string& isoS
 TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState& state, std::string isoString, const bool parseTimeZone = false)
 {
     if (isoString.empty()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid ISO string");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid ISO string");
     }
 
     DateTime dateTime = { 0, 1, 1, 0, 0, 0, 0, 0, 0, String::emptyString, new TimeZone(false, String::emptyString, String::emptyString) };
@@ -270,7 +270,7 @@ TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState&
             }
 
             if (isoString.at(index) != '-' && monthDay) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO string");
             } else if (isoString.at(index) == '-') {
                 ++index;
             }
@@ -285,12 +285,12 @@ TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState&
 
                 if (monthDay) {
                     if (index != isoString.length()) {
-                        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+                        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO string");
                     }
                     end = true;
                 }
             } else if (!end && !(isoString.at(index) == '+' || isoString.at(index) == '-' || isoString.rfind("−", index) == 0)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO string");
             }
         }
 
@@ -333,7 +333,7 @@ TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState&
             if (parseTimeZone && timeZoneOffset.offsetString && timeZoneOffset.name) {
                 dateTime.tz = new TimeZone{ timeZoneOffset.z, timeZoneOffset.offsetString, timeZoneOffset.name };
             } else if (!(timeZoneOffset.offsetString && timeZoneOffset.name)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO string");
             }
 
             // Calendar
@@ -350,14 +350,14 @@ TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState&
                     // A calendar can't be longer than 8 character
                     if (i == 8) {
                         if (isoString.at(index) != '-' && isoString.at(index) != ']') {
-                            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+                            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO string");
                         }
                         i = 0;
                     }
 
                     // A calendar must be at least 3 character
                     if (i < 3 && (isoString.at(index) == '-' || isoString.at(index) == ']')) {
-                        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+                        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO string");
                     }
                 }
 
@@ -368,21 +368,21 @@ TemporalObject::DateTime TemporalObject::parseValidIso8601String(ExecutionState&
             }
         }
     } catch (const std::invalid_argument& ia) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO string");
     } catch (const std::out_of_range& oor) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO string");
     }
 
     if (isoString.length() != index) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO string");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO string");
     }
 
     if (!TemporalPlainDateObject::isValidISODate(state, dateTime.year, dateTime.month, dateTime.day)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO date");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO date");
     }
 
     if (!TemporalPlainTimeObject::isValidTime(state, dateTime.hour, dateTime.minute, dateTime.second, dateTime.millisecond, dateTime.microsecond, dateTime.nanosecond)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid ISO time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid ISO time");
     }
 
     if (parseTimeZone) {
@@ -402,7 +402,7 @@ TemporalObject::DateTime TemporalObject::parseTemporalDateString(ExecutionState&
 TemporalObject::DateTime TemporalObject::parseTemporalDateTimeString(ExecutionState& state, const std::string& isoString)
 {
     if (isoString.find('z') != std::string::npos || isoString.find('Z') != std::string::npos) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "isoString contains UTCDesignator");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "isoString contains UTCDesignator");
     }
     return TemporalObject::parseValidIso8601String(state, isoString);
 }
@@ -424,7 +424,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalObject::parseTemporalDurati
     int fSeconds = -1;
 
     if (isoString.length() < 3 || isoString[index + 1] != 'P') {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration string");
     }
 
     if (isoString.rfind("−", index) == 0) {
@@ -432,7 +432,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalObject::parseTemporalDurati
         index += 4;
 
         if (isoString.length() < 5) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration string");
         }
     } else {
         index += 2;
@@ -462,7 +462,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalObject::parseTemporalDurati
             days = std::stoi(value);
             break;
         default:
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration string");
         }
         index++;
     }
@@ -485,7 +485,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalObject::parseTemporalDurati
                 index++;
 
                 if (index - start == 10) {
-                    ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+                    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration string");
                 }
             }
             fvalue = isoString.substr(start, index - start);
@@ -517,7 +517,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalObject::parseTemporalDurati
 
             break;
         default:
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration string");
         }
         index++;
     }
@@ -528,7 +528,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalObject::parseTemporalDurati
 
     if (fHours != -1) {
         if (minutes != -1 || fMinutes != -1 || seconds != -1 || fSeconds != -1) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration string");
         }
 
         minutesMV = fHours / pow(10, trunc(log10(fHours)) + 1) * 60;
@@ -538,7 +538,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalObject::parseTemporalDurati
 
     if (fMinutes != -1) {
         if (seconds != -1 || fSeconds != -1) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration string");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration string");
         }
 
         secondsMV = fMinutes / pow(10, trunc(log10(fMinutes)) + 1) * 60;
@@ -574,7 +574,7 @@ TemporalObject::DateTime TemporalObject::parseTemporalInstantString(ExecutionSta
     }
 
     if (!result.tz->offsetString || result.tz->offsetString->length() == 0) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "undefined offsetString");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "undefined offsetString");
     }
 
     return result;
@@ -590,7 +590,7 @@ TemporalObject::TimeZone TemporalObject::parseTemporalTimeZoneString(ExecutionSt
     }
 
     if (isoString == "z" || isoString == "Z") {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "z is not valid timeZone string");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "z is not valid timeZone string");
     }
 
     unsigned int index = 0;
@@ -605,7 +605,7 @@ TemporalObject::TimeZone TemporalObject::parseTemporalTimeZoneString(ExecutionSt
     }
 
     if (!(result.offsetString && result.name) || (result.offsetString->length() == 0 && result.name->length() == 0 && !result.z)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "bare date-time string is not a time zone");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "bare date-time string is not a time zone");
     }
 
     return result;
@@ -741,7 +741,7 @@ Value TemporalObject::toRelativeTemporalObject(ExecutionState& state, Object* op
 
         if (parseResult.tz->name->length() != 0) {
             if (!TemporalTimeZoneObject::isValidTimeZoneName(parseResult.tz->name->toNonGCUTF8StringData())) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid TimeZone name");
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid TimeZone name");
             }
 
             parseResult.tz->name = new ASCIIString(TemporalTimeZoneObject::canonicalizeTimeZoneName(parseResult.tz->name->toNonGCUTF8StringData()).c_str());
@@ -826,7 +826,7 @@ BigInt* TemporalObject::applyUnsignedRoundingMode(ExecutionState& state, BigInt*
     }
 
     if (r1->greaterThan(x) || x->greaterThan(r2)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid rounding");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid rounding");
     }
 
     if (unsignedRoundingMode == UnsignedRoundingMode::ZERO) {
@@ -849,7 +849,7 @@ BigInt* TemporalObject::applyUnsignedRoundingMode(ExecutionState& state, BigInt*
     }
 
     if (!d1->equals(d2)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid rounding");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid rounding");
     }
 
     if (unsignedRoundingMode == UnsignedRoundingMode::HALF_ZERO) {
@@ -950,7 +950,7 @@ Value TemporalPlainTimeObject::toTemporalTime(ExecutionState& state, const Value
         Value calendar = TemporalCalendarObject::getTemporalCalendarWithISODefault(state, item);
 
         if (!calendar.asObject()->asTemporalCalendarObject()->getIdentifier()->equals(state.context()->staticStrings().lazyISO8601().string())) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Calendar is not ISO8601");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Calendar is not ISO8601");
         }
 
         result = TemporalPlainTimeObject::toTemporalTimeRecord(state, item);
@@ -963,7 +963,7 @@ Value TemporalPlainTimeObject::toTemporalTime(ExecutionState& state, const Value
     ASSERT(TemporalPlainTimeObject::isValidTime(state, tmp.hour, tmp.minute, tmp.second, tmp.millisecond, tmp.microsecond, tmp.nanosecond));
 
     if (tmp.calendar->length() != 0 && !tmp.calendar->equals("iso8601")) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Calendar is not ISO8601");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Calendar is not ISO8601");
     }
 
     return TemporalPlainTimeObject::createTemporalTime(state, tmp.hour, tmp.minute, tmp.second, tmp.millisecond, tmp.microsecond, tmp.nanosecond, nullptr);
@@ -987,13 +987,13 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalPlainTimeObject::toTemporal
         ObjectHasPropertyResult objectHasPropertyResult = partial.asObject()->hasProperty(state, ObjectPropertyName(state, TemporalObject::dateTimeUnitString(state, i)));
 
         if (!objectHasPropertyResult.hasProperty()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "any is false");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "any is false");
         }
 
         Value value = objectHasPropertyResult.value(state, ObjectPropertyName(state, TemporalObject::dateTimeUnitString(state, i)), partial);
 
         if (!value.isInt32() || (value.isDouble() && !std::isfinite(value.asDouble()))) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "any is false");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "any is false");
         }
 
         result[i] = value.asInt32();
@@ -1011,7 +1011,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalPlainTimeObject::regulateTi
     }
 
     if (TemporalPlainTimeObject::isValidTime(state, hour, minute, second, millisecond, microsecond, nanosecond)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid time");
     }
 
     return { { TemporalObject::HOUR_UNIT, hour }, { TemporalObject::MINUTE_UNIT, minute }, { TemporalObject::SECOND_UNIT, second }, { TemporalObject::MILLISECOND_UNIT, millisecond }, { TemporalObject::MICROSECOND_UNIT, microsecond }, { TemporalObject::NANOSECOND_UNIT, nanosecond } };
@@ -1054,7 +1054,7 @@ std::map<TemporalObject::DateTimeUnits, Value> TemporalPlainTimeObject::toPartia
     }
 
     if (!any) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "any is false");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "any is false");
     }
 
     return result;
@@ -1074,7 +1074,7 @@ Value TemporalPlainTimeObject::addDurationToOrSubtractDurationFromPlainTime(Exec
     auto result = TemporalPlainTimeObject::addTime(state, time, duration);
 
     if (!TemporalPlainTimeObject::isValidTime(state, result[TemporalObject::HOUR_UNIT], result[TemporalObject::MINUTE_UNIT], result[TemporalObject::SECOND_UNIT], result[TemporalObject::MILLISECOND_UNIT], result[TemporalObject::MICROSECOND_UNIT], result[TemporalObject::NANOSECOND_UNIT])) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid time");
     }
 
     return TemporalPlainTimeObject::createTemporalTime(state, result[TemporalObject::HOUR_UNIT], result[TemporalObject::MINUTE_UNIT], result[TemporalObject::SECOND_UNIT], result[TemporalObject::MILLISECOND_UNIT], result[TemporalObject::MICROSECOND_UNIT], result[TemporalObject::NANOSECOND_UNIT]);
@@ -1120,7 +1120,7 @@ TemporalCalendarObject* TemporalCalendarObject::createTemporalCalendar(Execution
 Value TemporalCalendarObject::getBuiltinCalendar(ExecutionState& state, String* id)
 {
     if (!TemporalCalendarObject::isBuiltinCalendar(id)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, ErrorObject::Messages::IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::IsNotDefined);
     }
 
     return TemporalCalendarObject::createTemporalCalendar(state, id);
@@ -1156,7 +1156,7 @@ Value TemporalCalendarObject::toTemporalCalendar(ExecutionState& state, Value ca
     }
 
     if (!calendar.isString()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid type");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid type");
     }
 
     String* identifier = calendar.asString();
@@ -1165,7 +1165,7 @@ Value TemporalCalendarObject::toTemporalCalendar(ExecutionState& state, Value ca
         identifier = TemporalCalendarObject::parseTemporalCalendarString(state, identifier).asString();
 
         if (!TemporalCalendarObject::isBuiltinCalendar(identifier)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::IsNotDefined);
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::IsNotDefined);
         }
     }
 
@@ -1337,7 +1337,7 @@ Value TemporalCalendarObject::getterHelper(ExecutionState& state, const Value& c
     Value result = Object::call(state, callee, thisValue, 1, argv);
 
     if (result.isUndefined()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Undefined");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Undefined");
     }
 
     return result;
@@ -1462,13 +1462,13 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalCalendarObject::ISODateFrom
     auto day = fields.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazyDay().string())).value(state, fields);
 
     if (!day.isInt32()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "month and montCode is undefined");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "month and montCode is undefined");
     }
 
     int dayNumber = day.asInt32();
 
     if (dayNumber < 1 || dayNumber > 31) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "day is out of range");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "day is out of range");
     }
 
     return TemporalPlainDateObject::regulateISODate(state, year.asInt32(), month, dayNumber, overflow);
@@ -1481,13 +1481,13 @@ int TemporalCalendarObject::resolveISOMonth(ExecutionState& state, const Value& 
 
     if (monthCode.isUndefined()) {
         if (!month.isInt32()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "month and montCode is undefined");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "month and montCode is undefined");
         }
 
         int monthNumber = month.asInt32();
 
         if (monthNumber < 1 || monthNumber > 12) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "month is out of range");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "month is out of range");
         }
 
         return month.asInt32();
@@ -1496,21 +1496,21 @@ int TemporalCalendarObject::resolveISOMonth(ExecutionState& state, const Value& 
     ASSERT(monthCode.isString());
 
     if (monthCode.asString()->length() != 3) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "monthCode length is invalid");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "monthCode length is invalid");
     }
 
     if (monthCode.asString()->toNonGCUTF8StringData()[0] == 'm' || !std::isdigit(monthCode.asString()->toNonGCUTF8StringData()[1]) || !std::isdigit(monthCode.asString()->toNonGCUTF8StringData()[2])) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "monthCode is invalid");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "monthCode is invalid");
     }
 
     int numberPart = stoi(monthCode.asString()->toNonGCUTF8StringData().substr(1));
 
     if (numberPart < 1 || numberPart > 12) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "monthCode number is out of range");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "monthCode number is out of range");
     }
 
     if (!month.isUndefined() && numberPart != month.asInt32()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "monthCode number doesn't match with month");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "monthCode number doesn't match with month");
     }
 
     return numberPart;
@@ -1583,11 +1583,11 @@ Value TemporalPlainDateObject::createTemporalDate(ExecutionState& state, const i
     ASSERT(calendar.isObject());
 
     if (!TemporalPlainDateObject::isValidISODate(state, isoYear, isoMonth, isoDay)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Not valid ISOdate");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Not valid ISOdate");
     }
 
     if (!TemporalPlainDateTimeObject::ISODateTimeWithinLimits(state, isoYear, isoMonth, isoDay, 12, 0, 0, 0, 0, 0)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Not valid ISOdate");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Not valid ISOdate");
     }
 
     TemporalDate date(isoYear, isoMonth, isoDay);
@@ -1708,7 +1708,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalPlainDateObject::regulateIS
         ASSERT(overflow.asString()->equals(state.context()->staticStrings().reject.string()));
 
         if (!TemporalPlainDateObject::isValidISODate(state, year, month, day)) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Not valid ISODate");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Not valid ISODate");
         }
     }
 
@@ -1755,15 +1755,15 @@ Value TemporalPlainDateTimeObject::createTemporalDateTime(ExecutionState& state,
     ASSERT(calendar.isObject());
 
     if (!TemporalPlainDateObject::isValidISODate(state, isoYear, isoMonth, isoDay)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "invalid Date");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid Date");
     }
 
     if (!TemporalPlainTimeObject::isValidTime(state, hour, minute, second, millisecond, microsecond, nanosecond)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "invalid Time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid Time");
     }
 
     if (!TemporalPlainDateTimeObject::ISODateTimeWithinLimits(state, isoYear, isoMonth, isoDay, hour, minute, second, millisecond, microsecond, nanosecond)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "ISODateTime is out of limits");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ISODateTime is out of limits");
     }
 
     TemporalDate date(isoYear, isoMonth, isoDay);
@@ -1851,7 +1851,7 @@ Value TemporalPlainDateTimeObject::addDurationToOrSubtractDurationFromPlainDateT
     auto result = TemporalPlainDateTimeObject::addDateTime(state, time, temporalDateTime->getCalendar(), duration, Temporal::getOptionsObject(state, options).asObject());
 
     if (!TemporalPlainDateObject::isValidISODate(state, result[TemporalObject::YEAR_UNIT], result[TemporalObject::MONTH_UNIT], result[TemporalObject::DAY_UNIT]) || !TemporalPlainTimeObject::isValidTime(state, result[TemporalObject::HOUR_UNIT], result[TemporalObject::MINUTE_UNIT], result[TemporalObject::SECOND_UNIT], result[TemporalObject::MILLISECOND_UNIT], result[TemporalObject::MICROSECOND_UNIT], result[TemporalObject::NANOSECOND_UNIT])) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid date or time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid date or time");
     }
 
     return TemporalPlainDateTimeObject::createTemporalDateTime(state, result[TemporalObject::YEAR_UNIT], result[TemporalObject::MONTH_UNIT], result[TemporalObject::DAY_UNIT], result[TemporalObject::HOUR_UNIT], result[TemporalObject::MINUTE_UNIT], result[TemporalObject::SECOND_UNIT], result[TemporalObject::MILLISECOND_UNIT], result[TemporalObject::MICROSECOND_UNIT], result[TemporalObject::NANOSECOND_UNIT], temporalDateTime->getCalendar());
@@ -1861,7 +1861,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalPlainDateTimeObject::differ
 {
     if (!TemporalPlainDateTimeObject::ISODateTimeWithinLimits(state, first[TemporalObject::YEAR_UNIT], first[TemporalObject::MONTH_UNIT], first[TemporalObject::DAY_UNIT], first[TemporalObject::HOUR_UNIT], first[TemporalObject::MINUTE_UNIT], first[TemporalObject::SECOND_UNIT], first[TemporalObject::MILLISECOND_UNIT], first[TemporalObject::MICROSECOND_UNIT], first[TemporalObject::NANOSECOND_UNIT])
         || !TemporalPlainDateTimeObject::ISODateTimeWithinLimits(state, second[TemporalObject::YEAR_UNIT], second[TemporalObject::MONTH_UNIT], second[TemporalObject::DAY_UNIT], second[TemporalObject::HOUR_UNIT], second[TemporalObject::MINUTE_UNIT], second[TemporalObject::SECOND_UNIT], first[TemporalObject::MILLISECOND_UNIT], second[TemporalObject::MICROSECOND_UNIT], second[TemporalObject::NANOSECOND_UNIT])) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid date or time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid date or time");
     }
 
     std::map<TemporalObject::DateTimeUnits, int> timeDifference = TemporalPlainTimeObject::differenceTime(state, first, second);
@@ -1957,7 +1957,7 @@ Value TemporalZonedDateTimeObject::toTemporalZonedDateTime(ExecutionState& state
 
         if (TemporalObject::offset(state, timeZoneName, index).empty()) {
             if (!TemporalTimeZoneObject::isValidTimeZoneName(timeZoneName)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid TimeZone identifier");
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid TimeZone identifier");
             }
 
             parseResult.tz->name = new ASCIIString(TemporalTimeZoneObject::canonicalizeTimeZoneName(timeZoneName).c_str());
@@ -2001,7 +2001,7 @@ Value TemporalZonedDateTimeObject::interpretISODateTimeOffset(ExecutionState& st
         time64_t epochNanoseconds = TemporalPlainDateTimeObject::getEpochFromISOParts(state, dateTime[TemporalObject::YEAR_UNIT], dateTime[TemporalObject::MONTH_UNIT], dateTime[TemporalObject::DAY_UNIT], dateTime[TemporalObject::HOUR_UNIT], dateTime[TemporalObject::MINUTE_UNIT], dateTime[TemporalObject::SECOND_UNIT], dateTime[TemporalObject::MILLISECOND_UNIT], dateTime[TemporalObject::MICROSECOND_UNIT], dateTime[TemporalObject::NANOSECOND_UNIT]) - offsetNanoseconds;
 
         if (!TemporalInstantObject::isValidEpochNanoseconds(Value(epochNanoseconds))) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid epoch nanoseconds");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid epoch nanoseconds");
         }
 
         return Value(epochNanoseconds);
@@ -2024,7 +2024,7 @@ Value TemporalZonedDateTimeObject::interpretISODateTimeOffset(ExecutionState& st
     }
 
     if (offsetOption.toString(state)->equals(state.context()->staticStrings().reject.string())) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "option is reject");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "option is reject");
     }
 
     return TemporalTimeZoneObject::disambiguatePossibleInstants(state, possibleInstants, timeZone, dateTimeObject.asObject()->asTemporalPlainDateTimeObject(), disambiguation).asObject()->asTemporalInstantObject()->getNanoseconds();
@@ -2088,7 +2088,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalZonedDateTimeObject::nanose
     BigInt* endNs = relativeToObject->getNanoseconds()->addition(state, new BigInt(nanoseconds));
 
     if (!TemporalInstantObject::isValidEpochNanoseconds(endNs)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "epochNanosecond is out of limits");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "epochNanosecond is out of limits");
     }
 
     TemporalInstantObject* endInstant = TemporalInstantObject::createTemporalInstant(state, endNs).asObject()->asTemporalInstantObject();
@@ -2193,15 +2193,15 @@ Value TemporalInstantObject::toTemporalInstant(ExecutionState& state, const Valu
             return TemporalInstantObject::createTemporalInstant(state, item.asObject()->asTemporalZonedDateTimeObject()->getNanoseconds());
         }
 
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid type");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid type");
     }
 
     if (!item.isString() || item.asString()->length() == 0) {
         if (item.isSymbol()) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid type");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
         }
 
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid type");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid type");
     }
 
     return TemporalInstantObject::createTemporalInstant(state, parseTemporalInstant(state, std::string(item.asString()->toNonGCUTF8StringData())));
@@ -2215,7 +2215,7 @@ Value TemporalInstantObject::parseTemporalInstant(ExecutionState& state, const s
     auto utcWithOffset = new BigInt(utc - offsetNanoseconds);
 
     if (!TemporalInstantObject::isValidEpochNanoseconds(utcWithOffset)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "epochNanosecond is out of limits");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "epochNanosecond is out of limits");
     }
 
     return utcWithOffset;
@@ -2268,7 +2268,7 @@ BigInt* TemporalInstantObject::addInstant(ExecutionState& state, const BigInt* e
     auto result = epochNanoseconds->addition(state, new BigInt((int64_t)duration[TemporalObject::NANOSECOND_UNIT]))->addition(state, new BigInt((int64_t)duration[TemporalObject::MICROSECOND_UNIT] * TemporalInstantObject::MicrosecondToNanosecond))->addition(state, new BigInt((int64_t)duration[TemporalObject::MILLISECOND_UNIT] * TemporalInstantObject::MillisecondToNanosecond))->addition(state, new BigInt((int64_t)duration[TemporalObject::SECOND_UNIT] * TemporalInstantObject::SecondToNanosecond))->addition(state, new BigInt((int64_t)duration[TemporalObject::MINUTE_UNIT] * TemporalInstantObject::MinuteToNanosecond))->addition(state, new BigInt((int64_t)duration[TemporalObject::HOUR_UNIT] * TemporalInstantObject::HourToNanosecond));
 
     if (!TemporalInstantObject::isValidEpochNanoseconds(result)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid epoch Nanosecond");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid epoch Nanosecond");
     }
 
     return result;
@@ -2310,7 +2310,7 @@ Value TemporalInstantObject::addDurationToOrSubtractDurationFromInstant(Executio
     std::map<TemporalObject::DateTimeUnits, int> duration = TemporalDurationObject::toTemporalDurationRecord(state, other);
 
     if (duration[TemporalObject::YEAR_UNIT] != 0 || duration[TemporalObject::MONTH_UNIT] != 0 || duration[TemporalObject::DAY_UNIT] != 0 || duration[TemporalObject::WEEK_UNIT] != 0) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration");
     }
 
     std::map<TemporalObject::DateTimeUnits, int> tmp = { { TemporalObject::HOUR_UNIT, duration[TemporalObject::HOUR_UNIT] * operation }, { TemporalObject::MINUTE_UNIT, duration[TemporalObject::MINUTE_UNIT] * operation }, { TemporalObject::SECOND_UNIT, duration[TemporalObject::SECOND_UNIT] * operation }, { TemporalObject::MILLISECOND_UNIT, duration[TemporalObject::MILLISECOND_UNIT] * operation }, { TemporalObject::MICROSECOND_UNIT, duration[TemporalObject::MICROSECOND_UNIT] * operation }, { TemporalObject::NANOSECOND_UNIT, duration[TemporalObject::NANOSECOND_UNIT] * operation } };
@@ -2346,17 +2346,17 @@ int64_t TemporalTimeZoneObject::getOffsetNanosecondsFor(ExecutionState& state, c
     Value offsetNanoseconds = Object::call(state, getOffsetNanosecondsFor, timeZone, 1, const_cast<Value*>(&instant));
 
     if (!offsetNanoseconds.isNumber()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "offsetNanoseconds is not a Number");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "offsetNanoseconds is not a Number");
     }
 
     if (!offsetNanoseconds.isInt32()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "offsetNanoseconds is not an Integer");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "offsetNanoseconds is not an Integer");
     }
 
     int64_t nanoseconds = offsetNanoseconds.asInt32();
 
     if (std::abs(nanoseconds) > TemporalInstantObject::dayToNanosecond) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "offsetNanoseconds is out of range");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "offsetNanoseconds is out of range");
     }
 
     return nanoseconds;
@@ -2480,7 +2480,7 @@ Value TemporalTimeZoneObject::toTemporalTimeZone(ExecutionState& state, const Va
 
         if (!item->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyTimeZone()))) {
             /*if (!item->asTemporalTimeZoneObject()->getOffsetNanoseconds().isNumber()) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid TimeZone offset");
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid TimeZone offset");
             }*/
 
             return temporalTimeZoneLike;
@@ -2494,11 +2494,11 @@ Value TemporalTimeZoneObject::toTemporalTimeZone(ExecutionState& state, const Va
     }
 
     if (temporalTimeZoneLike.isSymbol()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "string expected");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "string expected");
     }
 
     if (!timeZoneLike.isString() && !temporalTimeZoneLike.isString()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "string expected");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "string expected");
     }
 
     TemporalObject::TimeZone parseResult = TemporalObject::parseTemporalTimeZoneString(state, timeZoneLike.isUndefined() ? temporalTimeZoneLike.asString()->toNonGCUTF8StringData() : timeZoneLike.asString()->toNonGCUTF8StringData());
@@ -2509,7 +2509,7 @@ Value TemporalTimeZoneObject::toTemporalTimeZone(ExecutionState& state, const Va
 
         if (TemporalObject::offset(state, name, index).empty()) {
             if (!TemporalTimeZoneObject::isValidTimeZoneName(name)) {
-                ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid TimeZone identifier");
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid TimeZone identifier");
             }
 
             parseResult.name = new ASCIIString(TemporalTimeZoneObject::canonicalizeTimeZoneName(name).c_str());
@@ -2622,7 +2622,7 @@ Value TemporalTimeZoneObject::getIANATimeZoneTransition(ExecutionState& state, B
             rightNanos = middle;
             rightOffsetNs = mState;
         } else {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "invalid state");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid state");
             break;
         }
     }
@@ -2651,7 +2651,7 @@ ValueVector TemporalTimeZoneObject::getPossibleInstantsFor(ExecutionState& state
 
         if (next.hasValue()) {
             if (!next.value()->isObject() || !next.value()->asObject()->isTemporalInstantObject()) {
-                IteratorObject::iteratorClose(state, iteratorRecord, ErrorObject::createBuiltinError(state, ErrorObject::TypeError, "iterator value is not TemporalInstantObject"), true);
+                IteratorObject::iteratorClose(state, iteratorRecord, ErrorObject::createBuiltinError(state, ErrorCode::TypeError, "iterator value is not TemporalInstantObject"), true);
             }
 
             list.push_back(next.value());
@@ -2679,28 +2679,28 @@ Value TemporalTimeZoneObject::disambiguatePossibleInstants(ExecutionState& state
         }
 
         ASSERT(disambiguation.asString()->equals(state.context()->staticStrings().reject.string()));
-        ErrorObject::createBuiltinError(state, ErrorObject::RangeError, "Invalid disambiguation");
+        ErrorObject::createBuiltinError(state, ErrorCode::RangeError, "Invalid disambiguation");
     }
 
 
     ASSERT(possibleInstants.empty());
 
     if (disambiguation.asString()->equals(state.context()->staticStrings().reject.string())) {
-        ErrorObject::createBuiltinError(state, ErrorObject::RangeError, "disambiguation is reject");
+        ErrorObject::createBuiltinError(state, ErrorCode::RangeError, "disambiguation is reject");
     }
 
     uint64_t epochNanoseconds = TemporalPlainDateTimeObject::getEpochFromISOParts(state, dateTime->getYear(), dateTime->getMonth(), dateTime->getDay(), dateTime->getHour(), dateTime->getMinute(), dateTime->getSecond(), dateTime->getMillisecond(), dateTime->getMicrosecond(), dateTime->getNanosecond());
     Value daysBeforeNs = Value(new BigInt(epochNanoseconds - (const_Date_msPerDay * 1000000)));
 
     if (!TemporalInstantObject::isValidEpochNanoseconds(daysBeforeNs)) {
-        ErrorObject::createBuiltinError(state, ErrorObject::RangeError, "invalid epoch nanoseconds");
+        ErrorObject::createBuiltinError(state, ErrorCode::RangeError, "invalid epoch nanoseconds");
     }
 
     auto dayBefore = TemporalInstantObject::createTemporalInstant(state, daysBeforeNs);
     Value daysAfterNs = Value(new BigInt(epochNanoseconds + (const_Date_msPerDay * 1000000)));
 
     if (!TemporalInstantObject::isValidEpochNanoseconds(daysAfterNs)) {
-        ErrorObject::createBuiltinError(state, ErrorObject::RangeError, "invalid epoch nanoseconds");
+        ErrorObject::createBuiltinError(state, ErrorCode::RangeError, "invalid epoch nanoseconds");
     }
 
     auto dayAfter = TemporalInstantObject::createTemporalInstant(state, daysAfterNs);
@@ -2716,7 +2716,7 @@ Value TemporalTimeZoneObject::disambiguatePossibleInstants(ExecutionState& state
         possibleInstants = TemporalTimeZoneObject::getPossibleInstantsFor(state, timeZone, earlierDateTime);
 
         if (possibleInstants.empty()) {
-            ErrorObject::createBuiltinError(state, ErrorObject::RangeError, "no possible instants");
+            ErrorObject::createBuiltinError(state, ErrorCode::RangeError, "no possible instants");
         }
 
         return possibleInstants[0];
@@ -2731,7 +2731,7 @@ Value TemporalTimeZoneObject::disambiguatePossibleInstants(ExecutionState& state
     possibleInstants = TemporalTimeZoneObject::getPossibleInstantsFor(state, timeZone, earlierDateTime);
 
     if (possibleInstants.empty()) {
-        ErrorObject::createBuiltinError(state, ErrorObject::RangeError, "no possible instants");
+        ErrorObject::createBuiltinError(state, ErrorCode::RangeError, "no possible instants");
     }
 
     return possibleInstants[possibleInstants.size() - 1];
@@ -2756,11 +2756,11 @@ Value TemporalPlainYearMonthObject::createTemporalYearMonth(ExecutionState& stat
     ASSERT(calendar.isObject());
 
     if (!TemporalPlainDateObject::isValidISODate(state, isoYear, isoMonth, referenceISODay)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid date");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid date");
     }
 
     if (!TemporalPlainYearMonthObject::isoYearMonthWithinLimits(isoYear, isoMonth)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid date");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid date");
     }
 
     if (!newTarget.hasValue()) {
@@ -2820,7 +2820,7 @@ Value TemporalPlainYearMonthObject::addDurationToOrSubtractDurationFromPlainYear
         day = TemporalCalendarObject::calendarDaysInMonth(state, yearMonth->getCalendar(), yearMonth).asInt32();
 
         if (day <= 0) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid days in Month");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid days in Month");
         }
     }
 
@@ -2879,7 +2879,7 @@ Value TemporalDurationObject::createTemporalDuration(ExecutionState& state, int 
 {
     int dateTime[] = { years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds };
     if (!isValidDuration(dateTime)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid time");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid time");
     }
 
     return new TemporalDurationObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalDurationPrototype(), years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds);
@@ -2917,7 +2917,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalDurationObject::toTemporalD
     int dateTime[] = { result[TemporalObject::YEAR_UNIT], result[TemporalObject::MONTH_UNIT], result[TemporalObject::WEEK_UNIT], result[TemporalObject::DAY_UNIT], result[TemporalObject::HOUR_UNIT], result[TemporalObject::MINUTE_UNIT], result[TemporalObject::SECOND_UNIT], result[TemporalObject::MILLISECOND_UNIT], result[TemporalObject::MICROSECOND_UNIT], result[TemporalObject::NANOSECOND_UNIT] };
 
     if (!TemporalDurationObject::isValidDuration(dateTime)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration");
     }
 
     return result;
@@ -2926,7 +2926,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalDurationObject::toTemporalD
 std::map<TemporalObject::DateTimeUnits, Value> TemporalDurationObject::toTemporalPartialDurationRecord(ExecutionState& state, const Value& temporalDurationLike)
 {
     if (!temporalDurationLike.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Expected object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Expected object");
     }
 
     std::map<TemporalObject::DateTimeUnits, Value> result;
@@ -2945,7 +2945,7 @@ std::map<TemporalObject::DateTimeUnits, Value> TemporalDurationObject::toTempora
     }
 
     if (!any) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "any is false");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "any is false");
     }
 
     return result;
@@ -2956,7 +2956,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalDurationObject::createDurat
     int dateTime[] = { years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds };
 
     if (!TemporalDurationObject::isValidDuration(dateTime)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration");
     }
     return { { TemporalObject::YEAR_UNIT, years }, { TemporalObject::MONTH_UNIT, months }, { TemporalObject::WEEK_UNIT, weeks }, { TemporalObject::DAY_UNIT, days }, { TemporalObject::HOUR_UNIT, hours }, { TemporalObject::MINUTE_UNIT, minutes }, { TemporalObject::SECOND_UNIT, seconds }, { TemporalObject::MILLISECOND_UNIT, milliseconds }, { TemporalObject::MICROSECOND_UNIT, microseconds }, { TemporalObject::NANOSECOND_UNIT, nanoseconds } };
 }
@@ -2997,7 +2997,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalDurationObject::addDuration
 
     if (relativeTo.isUndefined()) {
         if (largestUnit < TemporalObject::DAY_UNIT) {
-            ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Largest unit is invalid");
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Largest unit is invalid");
         }
 
         auto result = TemporalDurationObject::balanceDuration(state, duration, largestUnit);
@@ -3052,7 +3052,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalDurationObject::balanceDura
     auto balanceResult = TemporalDurationObject::balancePossiblyInfiniteDuration(state, duration, largestUnit, relativeTo);
 
     if (balanceResult.empty()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "duration is positive or negative overflow");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "duration is positive or negative overflow");
     }
 
     return balanceResult;
@@ -3148,7 +3148,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalDurationObject::createTimeD
     int duration[] = { 0, 0, 0, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds };
 
     if (TemporalDurationObject::isValidDuration(duration)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid duration");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration");
     }
 
     return {
@@ -3179,7 +3179,7 @@ TemporalPlainMonthDayObject::TemporalPlainMonthDayObject(ExecutionState& state, 
 Value TemporalPlainMonthDayObject::createTemporalMonthDay(ExecutionState& state, int isoMonth, int isoDay, TemporalCalendarObject* calendar, int referenceISOYear, Optional<Object*> newTarget)
 {
     if (!TemporalPlainDateObject::isValidISODate(state, referenceISOYear, isoMonth, isoDay)) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::RangeError, "Invalid date");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid date");
     }
 
     return new TemporalPlainMonthDayObject(state, state.context()->globalObject()->temporal()->asTemporalObject()->getTemporalPlainMonthDayPrototype(), isoMonth, isoDay, calendar, referenceISOYear);

@@ -30,7 +30,7 @@ namespace Escargot {
 static Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     // Let map be ? OrdinaryCreateFromConstructor(NewTarget, "%MapPrototype%", « [[MapData]] »).
@@ -51,7 +51,7 @@ static Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, s
     Value adder = map->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, map);
     // If IsCallable(adder) is false, throw a TypeError exception.
     if (!adder.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, ErrorObject::Messages::NOT_Callable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
 
     // Let iteratorRecord be ? GetIterator(iterable).
@@ -64,7 +64,7 @@ static Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, s
 
         Value nextItem = IteratorObject::iteratorValue(state, next.value());
         if (!nextItem.isObject()) {
-            ErrorObject* errorobj = ErrorObject::createError(state, ErrorObject::TypeError, new ASCIIString("TypeError"));
+            ErrorObject* errorobj = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("TypeError"));
             return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);
         }
 
@@ -90,10 +90,10 @@ static Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, s
     return map;
 }
 
-#define RESOLVE_THIS_BINDING_TO_WEAKMAP(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                      \
-    if (!thisValue.isObject() || !thisValue.asObject()->isWeakMapObject()) {                                                                                                                                                                             \
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                    \
+#define RESOLVE_THIS_BINDING_TO_WEAKMAP(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                    \
+    if (!thisValue.isObject() || !thisValue.asObject()->isWeakMapObject()) {                                                                                                                                                                           \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                  \
     WeakMapObject* NAME = thisValue.asObject()->asWeakMapObject();
 
 static Value builtinWeakMapDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -130,7 +130,7 @@ static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t ar
 {
     RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, set);
     if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::TypeError, "Invalid value used as weak map key");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid value used as weak map key");
     }
 
     M->set(state, argv[0].asObject(), argv[1]);
