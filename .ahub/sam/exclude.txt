@@ -1,4 +1,8 @@
+/escargot/third_party/double_conversion/double-conversion.cc
+/escargot/third_party/double_conversion/bignum.h
 /escargot/third_party/GCutil/
-/escargot/third_party/lz4/
-/escargot/third_party/libbf/
+/escargot/third_party/libbf/libbf.c
+/escargot/third_party/lz4/lz4.cpp
+/escargot/third_party/rapidjson/include/rapidjson/document.h
+/escargot/third_party/rapidjson/include/rapidjson/reader.h
 /escargot/third_party/yarr/

@@ -24,7 +24,6 @@
 #include "runtime/WeakMapObject.h"
 #include "runtime/IteratorObject.h"
 #include "runtime/NativeFunctionObject.h"
-#include "runtime/ToStringRecursionPreventer.h"
 
 namespace Escargot {
 
