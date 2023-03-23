@@ -276,9 +276,13 @@ void ScriptParser::deleteCodeBlockCacheInfo()
     delete m_codeBlockCacheInfo;
     m_codeBlockCacheInfo = nullptr;
 }
+#endif
 
 ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* originSource, size_t originLineOffset, String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget, bool needByteCodeGeneration, size_t stackSizeRemain)
 {
+    ASSERT(m_context->astAllocator().isInitialized());
+
+#if defined(ENABLE_CODE_CACHE)
     UNUSED_PARAMETER(originSource);
 
     size_t srcHash = 0;
@@ -322,107 +326,8 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
             setCodeBlockCacheInfo(new CodeBlockCacheInfo());
         }
     }
-
-    GC_disable();
-
-    bool inWith = (parentCodeBlock ? parentCodeBlock->inWith() : false) || inWithOperation;
-    bool allowSC = (parentCodeBlock ? parentCodeBlock->allowSuperCall() : false) || allowSuperCall;
-    bool allowSP = (parentCodeBlock ? parentCodeBlock->allowSuperProperty() : false) || allowSuperProperty;
-    bool allowArguments = (parentCodeBlock ? parentCodeBlock->allowArguments() : true);
-
-    InterpretedCodeBlock* topCodeBlock = nullptr;
-    StringView sourceView(source, 0, source->length());
-    ProgramNode* programNode = nullptr;
-    Script* script = nullptr;
-
-    // Parsing
-    try {
-        ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock);
-
-        programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo,
-                                            isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP, allowNewTarget, allowArguments);
-
-        script = new Script(srcName, source, programNode->moduleData(), !parentCodeBlock, originLineOffset);
-        if (parentCodeBlock) {
-            programNode->scopeContext()->m_hasEval = parentCodeBlock->hasEval();
-            programNode->scopeContext()->m_hasWith = parentCodeBlock->hasWith();
-            programNode->scopeContext()->m_isClassConstructor = parentCodeBlock->isClassConstructor();
-            programNode->scopeContext()->m_isDerivedClassConstructor = parentCodeBlock->isDerivedClassConstructor();
-            programNode->scopeContext()->m_isObjectMethod = parentCodeBlock->isObjectMethod();
-            programNode->scopeContext()->m_isClassMethod = parentCodeBlock->isClassMethod();
-            programNode->scopeContext()->m_isClassStaticMethod = parentCodeBlock->isClassStaticMethod();
-            programNode->scopeContext()->m_allowSuperCall = parentCodeBlock->allowSuperCall();
-            programNode->scopeContext()->m_allowSuperProperty = parentCodeBlock->allowSuperProperty();
-            programNode->scopeContext()->m_allowArguments = parentCodeBlock->allowArguments();
-            topCodeBlock = generateCodeBlockTreeFromASTWalker(m_context, sourceView, script, programNode->scopeContext(), parentCodeBlock, isEvalMode, isEvalCodeInFunction);
-        } else {
-            topCodeBlock = generateCodeBlockTreeFromAST(m_context, sourceView, script, programNode, isEvalMode, isEvalCodeInFunction);
-        }
-
-        generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
-    } catch (esprima::Error* orgError) {
-        // reset ASTAllocator
-        m_context->astAllocator().reset();
-        GC_enable();
-        if (cacheable) {
-            deleteCodeBlockCacheInfo();
-        }
-
-        ScriptParser::InitializeScriptResult result;
-        result.parseErrorCode = orgError->errorCode;
-        result.parseErrorMessage = orgError->message;
-        delete orgError;
-        return result;
-    }
-
-    // dump Code Block
-#ifndef NDEBUG
-    {
-        char* dumpCodeBlockTreeValue = getenv("DUMP_CODEBLOCK_TREE");
-        if (dumpCodeBlockTreeValue && (strcmp(dumpCodeBlockTreeValue, "1") == 0)) {
-            dumpCodeBlockTree(topCodeBlock);
-        }
-    }
 #endif
 
-    script->m_topCodeBlock = topCodeBlock;
-
-    // Generate ByteCode
-    if (LIKELY(needByteCodeGeneration)) {
-        // Store cache
-        if (cacheable) {
-            codeCache->prepareCacheWriting(srcHash);
-
-            // For storing cache, CodeBlockTree is firstly saved
-            codeCache->storeCodeBlockTree(topCodeBlock, m_codeBlockCacheInfo);
-
-            // After CodeBlockTree, ByteCode and StringTable are stored sequentially
-            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, true);
-
-            codeCache->postCacheWriting(srcHash);
-            deleteCodeBlockCacheInfo();
-
-            ESCARGOT_LOG_INFO("[CodeCache] Store CodeCache Done (%s)\n", srcName->toUTF8StringData().data());
-        } else {
-            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, false);
-        }
-    }
-
-    // reset ASTAllocator
-    m_context->astAllocator().reset();
-
-    GC_enable();
-
-    ScriptParser::InitializeScriptResult result;
-    result.script = script;
-    return result;
-}
-
-#else
-
-ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* originSource, size_t originLineOffset, String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget, bool needByteCodeGeneration, size_t stackSizeRemain)
-{
-    ASSERT(m_context->astAllocator().isInitialized());
 #ifdef ESCARGOT_DEBUGGER
     if (LIKELY(needByteCodeGeneration) && m_context->debuggerEnabled() && srcName->length() && !m_context->debugger()->skipSourceCode(srcName)) {
         return initializeScriptWithDebugger(originSource, originLineOffset, source, srcName, parentCodeBlock, isModule, isEvalMode, isEvalCodeInFunction, inWithOperation, strictFromOutside, allowSuperCall, allowSuperProperty, allowNewTarget);
@@ -470,6 +375,11 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
         // reset ASTAllocator
         m_context->astAllocator().reset();
         GC_enable();
+#if defined(ENABLE_CODE_CACHE)
+        if (cacheable) {
+            deleteCodeBlockCacheInfo();
+        }
+#endif
 
         ScriptParser::InitializeScriptResult result;
         result.parseErrorCode = orgError->errorCode;
@@ -492,7 +402,27 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
 
     // Generate ByteCode
     if (LIKELY(needByteCodeGeneration)) {
+#if defined(ENABLE_CODE_CACHE)
+        // Store cache
+        if (cacheable) {
+            codeCache->prepareCacheWriting(srcHash);
+
+            // For storing cache, CodeBlockTree is firstly saved
+            codeCache->storeCodeBlockTree(topCodeBlock, m_codeBlockCacheInfo);
+
+            // After CodeBlockTree, ByteCode and StringTable are stored sequentially
+            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, true);
+
+            codeCache->postCacheWriting(srcHash);
+            deleteCodeBlockCacheInfo();
+
+            ESCARGOT_LOG_INFO("[CodeCache] Store CodeCache Done (%s)\n", srcName->toUTF8StringData().data());
+        } else {
+            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, false);
+        }
+#else
         topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith);
+#endif
     }
 
     // reset ASTAllocator
@@ -504,7 +434,6 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
     result.script = script;
     return result;
 }
-#endif
 
 void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)
 {
