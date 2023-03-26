@@ -220,7 +220,7 @@ public:
         ReturnValueBinder returnValueBinder;
         const Value returnValue = returnValueBinder(state, *newState, self,
                                                     std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value ? ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async)
-                                                                                                                       : ByteCodeInterpreter::interpret(newState, blk, reinterpret_cast<const size_t>(blk->m_code.data()), registerFile),
+                                                                                                                       : Interpreter::interpret(newState, blk, reinterpret_cast<const size_t>(blk->m_code.data()), registerFile),
                                                     thisArgument, record);
 
         if (UNLIKELY(blk->m_shouldClearStack)) {

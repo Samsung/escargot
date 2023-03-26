@@ -81,7 +81,6 @@ typedef Vector<std::pair<FunctionTemplate*, FunctionObject*>, GCUtil::gc_malloc_
 class Context : public gc {
     friend class AtomicString;
     friend class SandBox;
-    friend class ByteCodeInterpreter;
     friend struct OpcodeTable;
     friend class ContextRef;
     friend class VirtualIdDisabler;

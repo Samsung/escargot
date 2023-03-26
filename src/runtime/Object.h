@@ -770,7 +770,8 @@ class Object : public PointerValue {
     friend class ObjectRef;
     friend class Global;
     friend class GlobalObject;
-    friend class ByteCodeInterpreter;
+    friend class Interpreter;
+    friend class InterpreterSlowPath;
     friend class EnumerateObjectWithDestruction;
     friend class EnumerateObjectWithIteration;
     friend struct ObjectRareData;

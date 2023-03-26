@@ -27,7 +27,7 @@ namespace Escargot {
 struct ExtendedNodeLOC;
 
 class SandBox : public gc {
-    friend class ByteCodeInterpreter;
+    friend class InterpreterSlowPath;
     friend class ErrorObject;
 
 public:

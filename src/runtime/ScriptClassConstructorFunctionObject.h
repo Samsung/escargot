@@ -52,7 +52,7 @@ private:
 
 class ScriptClassConstructorFunctionObject : public ScriptFunctionObject {
     friend class ScriptClassConstructorFunctionObjectThisValueBinder;
-    friend class ByteCodeInterpreter;
+    friend class InterpreterSlowPath;
 
 public:
     ScriptClassConstructorFunctionObject(ExecutionState& state, Object* proto, InterpretedCodeBlock* codeBlock, LexicalEnvironment* outerEnvironment,

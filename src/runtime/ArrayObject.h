@@ -34,7 +34,8 @@ class ArrayIteratorObject;
 class ArrayObject : public DerivedObject {
     friend class VMInstance;
     friend class Global;
-    friend class ByteCodeInterpreter;
+    friend class Interpreter;
+    friend class InterpreterSlowPath;
     friend class EnumerateObject;
     friend class EnumerateObjectWithDestruction;
     friend class EnumerateObjectWithIteration;

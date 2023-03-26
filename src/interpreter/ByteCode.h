@@ -1649,7 +1649,7 @@ public:
 };
 
 class ControlFlowRecord : public gc {
-    friend class ByteCodeInterpreter;
+    friend class InterpreterSlowPath;
 #if defined(ENABLE_CODE_CACHE)
     friend class CodeCacheWriter;
     friend class CodeCacheReader;

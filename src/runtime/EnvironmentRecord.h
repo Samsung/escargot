@@ -902,8 +902,7 @@ private:
 template <bool canBindThisValue, bool hasNewTarget>
 class FunctionEnvironmentRecordWithExtraData : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
-    friend class FunctionObject;
-    friend class ByteCodeInterpreter;
+    //friend class FunctionObject;
 
 public:
     ALWAYS_INLINE explicit FunctionEnvironmentRecordWithExtraData(ScriptFunctionObject* function)
@@ -957,8 +956,6 @@ public:
 template <bool canBindThisValue, bool hasNewTarget>
 class FunctionEnvironmentRecordOnHeap : public FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget> {
     friend class LexicalEnvironment;
-    friend class ByteCodeInterpreter;
-    friend class ScriptFunctionObject;
 
 public:
     FunctionEnvironmentRecordOnHeap(ScriptFunctionObject* function);
@@ -1038,8 +1035,6 @@ private:
 template <bool canBindThisValue, bool hasNewTarget, size_t inlineStorageSize>
 class FunctionEnvironmentRecordOnHeapWithInlineStorage : public FunctionEnvironmentRecordWithExtraData<canBindThisValue, hasNewTarget> {
     friend class LexicalEnvironment;
-    friend class ByteCodeInterpreter;
-    friend class ScriptFunctionObject;
 
 public:
     FunctionEnvironmentRecordOnHeapWithInlineStorage(ScriptFunctionObject* function);
