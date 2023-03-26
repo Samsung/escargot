@@ -58,7 +58,8 @@ struct ExecutionStateRareData : public gc {
 
 class ExecutionState : public gc {
     friend class FunctionObject;
-    friend class ByteCodeInterpreter;
+    friend class Interpreter;
+    friend class InterpreterSlowPath;
     friend class ExecutionPauser;
     friend class ExecutionStateProgramCounterBinder;
     friend class FunctionObjectProcessCallGenerator;

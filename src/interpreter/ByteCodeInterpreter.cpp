@@ -1,4 +1,5 @@
 /*
+    static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
  * Copyright (c) 2016-present Samsung Electronics Co., Ltd
  *
  *  This library is free software; you can redistribute it and/or
@@ -95,11 +96,108 @@ OpcodeTable::OpcodeTable()
 #else
     size_t dummyCode = reinterpret_cast<size_t>(FillOpcodeTableAddress[0]);
 #endif
-    ByteCodeInterpreter::interpret(&state, nullptr, reinterpret_cast<size_t>(&dummyCode), nullptr);
+    Interpreter::interpret(&state, nullptr, reinterpret_cast<size_t>(&dummyCode), nullptr);
 #endif
 }
 
-Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile)
+
+class InterpreterSlowPath {
+public:
+    static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException = true);
+    static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException = true);
+    static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value);
+    static void initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value);
+    static void resolveNameAddress(ExecutionState& state, ResolveNameAddress* code, Value* registerFile);
+    static void storeByNameWithAddress(ExecutionState& state, StoreByNameWithAddress* code, Value* registerFile);
+
+    static Value plusSlowCase(ExecutionState& state, const Value& a, const Value& b);
+    static Value minusSlowCase(ExecutionState& state, const Value& a, const Value& b);
+    static Value multiplySlowCase(ExecutionState& state, const Value& a, const Value& b);
+    static Value divisionSlowCase(ExecutionState& state, const Value& a, const Value& b);
+    static Value unaryMinusSlowCase(ExecutionState& state, const Value& a);
+    static Value modOperation(ExecutionState& state, const Value& left, const Value& right);
+    static Value exponentialOperation(ExecutionState& state, const Value& left, const Value& right);
+    static void instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile);
+    static void deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
+    static void templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile);
+    static Value bitwiseOperationSlowCase(ExecutionState& state, const Value& a, const Value& b, Interpreter::BitwiseOperationKind kind);
+    static Value bitwiseNotOperationSlowCase(ExecutionState& state, const Value& a);
+    static Value shiftOperationSlowCase(ExecutionState& state, const Value& a, const Value& b, Interpreter::ShiftOperationKind kind);
+
+    // http://www.ecma-international.org/ecma-262/5.1/#sec-11.8.5
+    static bool abstractLeftIsLessThanRight(ExecutionState& state, const Value& left, const Value& right, bool switched);
+    static bool abstractLeftIsLessThanEqualRight(ExecutionState& state, const Value& left, const Value& right, bool switched);
+
+    static void getObjectPrecomputedCaseOperation(ExecutionState& state, GetObjectPreComputedCase* code, Value* registerFile, ByteCodeBlock* block);
+    static void setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
+
+    static Object* fastToObject(ExecutionState& state, const Value& obj);
+
+    static Value getGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, ByteCodeBlock* block);
+    static void setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block);
+    static void initializeGlobalVariable(ExecutionState& state, InitializeGlobalVariable* code, const Value& value);
+
+    static Value tryOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+
+    static void createFunctionOperation(ExecutionState& state, CreateFunction* createFunction, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static ArrayObject* createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock);
+    static void initializeClassOperation(ExecutionState& state, InitializeClass* code, Value* registerFile);
+    static void superOperation(ExecutionState& state, SuperReference* code, Value* registerFile);
+    static void complexSetObjectOperation(ExecutionState& state, ComplexSetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
+    static void complexGetObjectOperation(ExecutionState& state, ComplexGetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
+    static Value openLexicalEnvironment(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static Value blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static void replaceBlockLexicalEnvironmentOperation(ExecutionState& state, size_t programCounter, ByteCodeBlock* byteCodeBlock);
+    static void binaryInOperation(ExecutionState& state, BinaryInOperation* code, Value* registerFile);
+    static Value constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv);
+    static void callFunctionComplexCase(ExecutionState& state, CallFunctionComplexCase* code, Value* registerFile, ByteCodeBlock* byteCodeBlock);
+    static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
+
+    static void createEnumerateObject(ExecutionState& state, CreateEnumerateObject* code, Value* registerFile);
+    static void checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, char* codeBuffer, size_t& programCounter, Value* registerFile);
+    static void markEnumerateKey(ExecutionState& state, MarkEnumerateKey* code, Value* registerFile);
+
+    static void executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
+    static Value executionResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
+
+    static void metaPropertyOperation(ExecutionState& state, MetaPropertyOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+
+    static void objectDefineOwnPropertyOperation(ExecutionState& state, ObjectDefineOwnPropertyOperation* code, Value* registerFile);
+    static void objectDefineOwnPropertyWithNameOperation(ExecutionState& state, ObjectDefineOwnPropertyWithNameOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static void arrayDefineOwnPropertyOperation(ExecutionState& state, ArrayDefineOwnPropertyOperation* code, Value* registerFile);
+    static void arrayDefineOwnPropertyBySpreadElementOperation(ExecutionState& state, ArrayDefineOwnPropertyBySpreadElementOperation* code, Value* registerFile);
+    static void createSpreadArrayObject(ExecutionState& state, CreateSpreadArrayObject* code, Value* registerFile);
+    static void defineObjectGetterSetter(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static Value incrementOperation(ExecutionState& state, const Value& value);
+    static Value decrementOperation(ExecutionState& state, const Value& value);
+
+    static void getObjectOpcodeSlowCase(ExecutionState& state, GetObject* code, Value* registerFile);
+    static void setObjectOpcodeSlowCase(ExecutionState& state, SetObjectOperation* code, Value* registerFile);
+
+    static void unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile);
+
+    static void iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer);
+    static void getMethodOperation(ExecutionState& state, size_t programCounter, Value* registerFile);
+    static Object* restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord);
+
+    static void taggedTemplateOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer, ByteCodeBlock* byteCodeBlock);
+
+    static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+
+    static int evaluateImportAssertionOperation(ExecutionState& state, const Value& options);
+
+private:
+    static bool abstractLeftIsLessThanRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched);
+    static bool abstractLeftIsLessThanEqualRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched);
+    static bool setObjectPreComputedCaseOperationSlowCase(ExecutionState& state, Object* obj, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
+    static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
+    static void defineObjectGetterSetterOperation(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile, Object* object);
+    static Value incrementOperationSlowCase(ExecutionState& state, const Value& value);
+    static Value decrementOperationSlowCase(ExecutionState& state, const Value& value);
+};
+
+
+Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile)
 {
     state->m_programCounter = &programCounter;
     {
@@ -186,7 +284,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 }
             }
             if (UNLIKELY(!isCacheWork)) {
-                registerFile[code->m_registerIndex] = getGlobalVariableSlowCase(*state, globalObject, slot, byteCodeBlock);
+                registerFile[code->m_registerIndex] = InterpreterSlowPath::getGlobalVariableSlowCase(*state, globalObject, slot, byteCodeBlock);
             }
             ADD_PROGRAM_COUNTER(GetGlobalVariable);
             NEXT_INSTRUCTION();
@@ -224,7 +322,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             }
 
             if (UNLIKELY(!isCacheWork)) {
-                setGlobalVariableSlowCase(*state, globalObject, slot, registerFile[code->m_registerIndex], byteCodeBlock);
+                InterpreterSlowPath::setGlobalVariableSlowCase(*state, globalObject, slot, registerFile[code->m_registerIndex], byteCodeBlock);
             }
 
             ADD_PROGRAM_COUNTER(SetGlobalVariable);
@@ -252,7 +350,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 // most cases are double
                 ret = Value(Value::EncodeAsDouble, v0.asNumber() + v1.asNumber());
             } else {
-                ret = plusSlowCase(*state, v0, v1);
+                ret = InterpreterSlowPath::plusSlowCase(*state, v0, v1);
             }
             ADD_PROGRAM_COUNTER(BinaryPlus);
             NEXT_INSTRUCTION();
@@ -279,7 +377,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 // most cases are double
                 ret = Value(Value::EncodeAsDouble, left.asNumber() - right.asNumber());
             } else {
-                ret = minusSlowCase(*state, left, right);
+                ret = InterpreterSlowPath::minusSlowCase(*state, left, right);
             }
             ADD_PROGRAM_COUNTER(BinaryMinus);
             NEXT_INSTRUCTION();
@@ -310,7 +408,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 // most cases are double
                 ret = Value(Value::EncodeAsDouble, left.asNumber() * right.asNumber());
             } else {
-                ret = multiplySlowCase(*state, left, right);
+                ret = InterpreterSlowPath::multiplySlowCase(*state, left, right);
             }
             ADD_PROGRAM_COUNTER(BinaryMultiply);
             NEXT_INSTRUCTION();
@@ -327,7 +425,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 // most cases are double
                 ret = Value(Value::EncodeAsDouble, left.asNumber() / right.asNumber());
             } else {
-                ret = divisionSlowCase(*state, left, right);
+                ret = InterpreterSlowPath::divisionSlowCase(*state, left, right);
             }
             ADD_PROGRAM_COUNTER(BinaryDivision);
             NEXT_INSTRUCTION();
@@ -361,7 +459,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryLessThan* code = (BinaryLessThan*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(abstractLeftIsLessThanRight(*state, left, right, false));
+            registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanRight(*state, left, right, false));
             ADD_PROGRAM_COUNTER(BinaryLessThan);
             NEXT_INSTRUCTION();
         }
@@ -372,7 +470,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryLessThanOrEqual* code = (BinaryLessThanOrEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(abstractLeftIsLessThanEqualRight(*state, left, right, false));
+            registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanEqualRight(*state, left, right, false));
             ADD_PROGRAM_COUNTER(BinaryLessThanOrEqual);
             NEXT_INSTRUCTION();
         }
@@ -383,7 +481,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryGreaterThan* code = (BinaryGreaterThan*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(abstractLeftIsLessThanRight(*state, right, left, true));
+            registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanRight(*state, right, left, true));
             ADD_PROGRAM_COUNTER(BinaryGreaterThan);
             NEXT_INSTRUCTION();
         }
@@ -394,7 +492,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryGreaterThanOrEqual* code = (BinaryGreaterThanOrEqual*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = Value(abstractLeftIsLessThanEqualRight(*state, right, left, true));
+            registerFile[code->m_dstIndex] = Value(InterpreterSlowPath::abstractLeftIsLessThanEqualRight(*state, right, left, true));
             ADD_PROGRAM_COUNTER(BinaryGreaterThanOrEqual);
             NEXT_INSTRUCTION();
         }
@@ -404,7 +502,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             ToNumericIncrement* code = (ToNumericIncrement*)programCounter;
             registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
-            registerFile[code->m_storeIndex] = incrementOperation(*state, registerFile[code->m_dstIndex]);
+            registerFile[code->m_storeIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_dstIndex]);
             ADD_PROGRAM_COUNTER(ToNumericIncrement);
             NEXT_INSTRUCTION();
         }
@@ -413,7 +511,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             Increment* code = (Increment*)programCounter;
-            registerFile[code->m_dstIndex] = incrementOperation(*state, registerFile[code->m_srcIndex]);
+            registerFile[code->m_dstIndex] = InterpreterSlowPath::incrementOperation(*state, registerFile[code->m_srcIndex]);
             ADD_PROGRAM_COUNTER(Increment);
             NEXT_INSTRUCTION();
         }
@@ -423,7 +521,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             ToNumericDecrement* code = (ToNumericDecrement*)programCounter;
             registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex].toNumeric(*state).first);
-            registerFile[code->m_storeIndex] = decrementOperation(*state, registerFile[code->m_dstIndex]);
+            registerFile[code->m_storeIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_dstIndex]);
             ADD_PROGRAM_COUNTER(ToNumericDecrement);
             NEXT_INSTRUCTION();
         }
@@ -432,7 +530,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             Decrement* code = (Decrement*)programCounter;
-            registerFile[code->m_dstIndex] = decrementOperation(*state, registerFile[code->m_srcIndex]);
+            registerFile[code->m_dstIndex] = InterpreterSlowPath::decrementOperation(*state, registerFile[code->m_srcIndex]);
             ADD_PROGRAM_COUNTER(Decrement);
             NEXT_INSTRUCTION();
         }
@@ -505,7 +603,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 if (LIKELY(receiver.isObject())) {
                     obj = receiver.asObject();
                 } else {
-                    obj = fastToObject(*state, receiver);
+                    obj = InterpreterSlowPath::fastToObject(*state, receiver);
                 }
             }
 
@@ -527,7 +625,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             GetObjectPreComputedCase* code = (GetObjectPreComputedCase*)programCounter;
-            getObjectPrecomputedCaseOperation(*state, code, registerFile, byteCodeBlock);
+            InterpreterSlowPath::getObjectPrecomputedCaseOperation(*state, code, registerFile, byteCodeBlock);
             ADD_PROGRAM_COUNTER(GetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
@@ -536,7 +634,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             SetObjectPreComputedCase* code = (SetObjectPreComputedCase*)programCounter;
-            setObjectPreComputedCaseOperation(*state, registerFile[code->m_objectRegisterIndex], registerFile[code->m_loadRegisterIndex], code, byteCodeBlock);
+            InterpreterSlowPath::setObjectPreComputedCaseOperation(*state, registerFile[code->m_objectRegisterIndex], registerFile[code->m_loadRegisterIndex], code, byteCodeBlock);
             ADD_PROGRAM_COUNTER(SetObjectPreComputedCase);
             NEXT_INSTRUCTION();
         }
@@ -557,7 +655,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             ASSERT(code->m_jumpPosition != SIZE_MAX);
             const Value& left = registerFile[code->m_leftIndex];
             const Value& right = registerFile[code->m_rightIndex];
-            bool result = code->m_containEqual ? abstractLeftIsLessThanEqualRight(*state, left, right, code->m_switched) : abstractLeftIsLessThanRight(*state, left, right, code->m_switched);
+            bool result = code->m_containEqual ? InterpreterSlowPath::abstractLeftIsLessThanEqualRight(*state, left, right, code->m_switched) : InterpreterSlowPath::abstractLeftIsLessThanRight(*state, left, right, code->m_switched);
 
             // Jump if the condition is NOT fulfilled
             if (result) {
@@ -697,7 +795,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             UnaryMinus* code = (UnaryMinus*)programCounter;
             const Value& val = registerFile[code->m_srcIndex];
             if (UNLIKELY(val.isPointerValue())) {
-                registerFile[code->m_dstIndex] = unaryMinusSlowCase(*state, val);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::unaryMinusSlowCase(*state, val);
             } else {
                 registerFile[code->m_dstIndex] = Value(-val.toNumber(*state));
             }
@@ -711,7 +809,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryMod* code = (BinaryMod*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = modOperation(*state, left, right);
+            registerFile[code->m_dstIndex] = InterpreterSlowPath::modOperation(*state, left, right);
             ADD_PROGRAM_COUNTER(BinaryMod);
             NEXT_INSTRUCTION();
         }
@@ -725,7 +823,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             if (left.isInt32() && right.isInt32()) {
                 registerFile[code->m_dstIndex] = Value(left.asInt32() & right.asInt32());
             } else {
-                registerFile[code->m_dstIndex] = bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::And);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::And);
             }
             ADD_PROGRAM_COUNTER(BinaryBitwiseAnd);
             NEXT_INSTRUCTION();
@@ -740,7 +838,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             if (left.isInt32() && right.isInt32()) {
                 registerFile[code->m_dstIndex] = Value(left.asInt32() | right.asInt32());
             } else {
-                registerFile[code->m_dstIndex] = bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::Or);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::Or);
             }
             ADD_PROGRAM_COUNTER(BinaryBitwiseOr);
             NEXT_INSTRUCTION();
@@ -755,7 +853,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             if (left.isInt32() && right.isInt32()) {
                 registerFile[code->m_dstIndex] = Value(left.asInt32() ^ right.asInt32());
             } else {
-                registerFile[code->m_dstIndex] = bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::Xor);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseOperationSlowCase(*state, left, right, BitwiseOperationKind::Xor);
             }
             ADD_PROGRAM_COUNTER(BinaryBitwiseXor);
             NEXT_INSTRUCTION();
@@ -773,7 +871,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 lnum <<= ((unsigned int)rnum) & 0x1F;
                 registerFile[code->m_dstIndex] = Value(lnum);
             } else {
-                registerFile[code->m_dstIndex] = shiftOperationSlowCase(*state, left, right, ShiftOperationKind::Left);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::Left);
             }
             ADD_PROGRAM_COUNTER(BinaryLeftShift);
             NEXT_INSTRUCTION();
@@ -791,7 +889,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 lnum >>= ((unsigned int)rnum) & 0x1F;
                 registerFile[code->m_dstIndex] = Value(lnum);
             } else {
-                registerFile[code->m_dstIndex] = shiftOperationSlowCase(*state, left, right, ShiftOperationKind::SignedRight);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::SignedRight);
             }
             ADD_PROGRAM_COUNTER(BinarySignedRightShift);
             NEXT_INSTRUCTION();
@@ -809,7 +907,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 lnum = (lnum) >> ((rnum)&0x1F);
                 registerFile[code->m_dstIndex] = Value(lnum);
             } else {
-                registerFile[code->m_dstIndex] = shiftOperationSlowCase(*state, left, right, ShiftOperationKind::UnsignedRight);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::UnsignedRight);
             }
             ADD_PROGRAM_COUNTER(BinaryUnsignedRightShift);
             NEXT_INSTRUCTION();
@@ -821,7 +919,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             BinaryExponentiation* code = (BinaryExponentiation*)programCounter;
             const Value& left = registerFile[code->m_srcIndex0];
             const Value& right = registerFile[code->m_srcIndex1];
-            registerFile[code->m_dstIndex] = exponentialOperation(*state, left, right);
+            registerFile[code->m_dstIndex] = InterpreterSlowPath::exponentialOperation(*state, left, right);
             ADD_PROGRAM_COUNTER(BinaryExponentiation);
             NEXT_INSTRUCTION();
         }
@@ -834,7 +932,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             if (val.isInt32()) {
                 registerFile[code->m_dstIndex] = Value(~val.asInt32());
             } else {
-                registerFile[code->m_dstIndex] = bitwiseNotOperationSlowCase(*state, val);
+                registerFile[code->m_dstIndex] = InterpreterSlowPath::bitwiseNotOperationSlowCase(*state, val);
             }
             ADD_PROGRAM_COUNTER(UnaryBitwiseNot);
             NEXT_INSTRUCTION();
@@ -888,7 +986,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         {
             InitializeGlobalVariable* code = (InitializeGlobalVariable*)programCounter;
             ASSERT(byteCodeBlock->m_codeBlock->context() == state->context());
-            initializeGlobalVariable(*state, code, registerFile[code->m_registerIndex]);
+            InterpreterSlowPath::initializeGlobalVariable(*state, code, registerFile[code->m_registerIndex]);
             ADD_PROGRAM_COUNTER(InitializeGlobalVariable);
             NEXT_INSTRUCTION();
         }
@@ -906,7 +1004,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ObjectDefineOwnPropertyOperation* code = (ObjectDefineOwnPropertyOperation*)programCounter;
-            objectDefineOwnPropertyOperation(*state, code, registerFile);
+            InterpreterSlowPath::objectDefineOwnPropertyOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyOperation);
             NEXT_INSTRUCTION();
         }
@@ -915,7 +1013,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ObjectDefineOwnPropertyWithNameOperation* code = (ObjectDefineOwnPropertyWithNameOperation*)programCounter;
-            objectDefineOwnPropertyWithNameOperation(*state, code, byteCodeBlock, registerFile);
+            InterpreterSlowPath::objectDefineOwnPropertyWithNameOperation(*state, code, byteCodeBlock, registerFile);
             ADD_PROGRAM_COUNTER(ObjectDefineOwnPropertyWithNameOperation);
             NEXT_INSTRUCTION();
         }
@@ -924,7 +1022,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ArrayDefineOwnPropertyOperation* code = (ArrayDefineOwnPropertyOperation*)programCounter;
-            arrayDefineOwnPropertyOperation(*state, code, registerFile);
+            InterpreterSlowPath::arrayDefineOwnPropertyOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(ArrayDefineOwnPropertyOperation);
             NEXT_INSTRUCTION();
         }
@@ -933,7 +1031,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ArrayDefineOwnPropertyBySpreadElementOperation* code = (ArrayDefineOwnPropertyBySpreadElementOperation*)programCounter;
-            arrayDefineOwnPropertyBySpreadElementOperation(*state, code, registerFile);
+            InterpreterSlowPath::arrayDefineOwnPropertyBySpreadElementOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(ArrayDefineOwnPropertyBySpreadElementOperation);
             NEXT_INSTRUCTION();
         }
@@ -942,7 +1040,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             CreateSpreadArrayObject* code = (CreateSpreadArrayObject*)programCounter;
-            createSpreadArrayObject(*state, code, registerFile);
+            InterpreterSlowPath::createSpreadArrayObject(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(CreateSpreadArrayObject);
             NEXT_INSTRUCTION();
         }
@@ -951,7 +1049,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             NewOperation* code = (NewOperation*)programCounter;
-            registerFile[code->m_resultIndex] = constructOperation(*state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+            registerFile[code->m_resultIndex] = InterpreterSlowPath::constructOperation(*state, registerFile[code->m_calleeIndex], code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
             ADD_PROGRAM_COUNTER(NewOperation);
             NEXT_INSTRUCTION();
         }
@@ -960,7 +1058,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             UnaryTypeof* code = (UnaryTypeof*)programCounter;
-            unaryTypeof(*state, code, registerFile);
+            InterpreterSlowPath::unaryTypeof(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(UnaryTypeof);
             NEXT_INSTRUCTION();
         }
@@ -969,7 +1067,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             GetObject* code = (GetObject*)programCounter;
-            getObjectOpcodeSlowCase(*state, code, registerFile);
+            InterpreterSlowPath::getObjectOpcodeSlowCase(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(GetObject);
             NEXT_INSTRUCTION();
         }
@@ -978,7 +1076,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             SetObjectOperation* code = (SetObjectOperation*)programCounter;
-            setObjectOpcodeSlowCase(*state, code, registerFile);
+            InterpreterSlowPath::setObjectOpcodeSlowCase(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(SetObjectOperation);
             NEXT_INSTRUCTION();
         }
@@ -987,7 +1085,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             LoadByName* code = (LoadByName*)programCounter;
-            registerFile[code->m_registerIndex] = loadByName(*state, state->lexicalEnvironment(), code->m_name);
+            registerFile[code->m_registerIndex] = InterpreterSlowPath::loadByName(*state, state->lexicalEnvironment(), code->m_name);
             ADD_PROGRAM_COUNTER(LoadByName);
             NEXT_INSTRUCTION();
         }
@@ -996,7 +1094,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             StoreByName* code = (StoreByName*)programCounter;
-            storeByName(*state, state->lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex]);
+            InterpreterSlowPath::storeByName(*state, state->lexicalEnvironment(), code->m_name, registerFile[code->m_registerIndex]);
             ADD_PROGRAM_COUNTER(StoreByName);
             NEXT_INSTRUCTION();
         }
@@ -1005,7 +1103,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             InitializeByName* code = (InitializeByName*)programCounter;
-            initializeByName(*state, state->lexicalEnvironment(), code->m_name, code->m_isLexicallyDeclaredName, registerFile[code->m_registerIndex]);
+            InterpreterSlowPath::initializeByName(*state, state->lexicalEnvironment(), code->m_name, code->m_isLexicallyDeclaredName, registerFile[code->m_registerIndex]);
             ADD_PROGRAM_COUNTER(InitializeByName);
             NEXT_INSTRUCTION();
         }
@@ -1035,7 +1133,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             CreateFunction* code = (CreateFunction*)programCounter;
-            createFunctionOperation(*state, code, byteCodeBlock, registerFile);
+            InterpreterSlowPath::createFunctionOperation(*state, code, byteCodeBlock, registerFile);
             ADD_PROGRAM_COUNTER(CreateFunction);
             NEXT_INSTRUCTION();
         }
@@ -1044,7 +1142,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             InitializeClass* code = (InitializeClass*)programCounter;
-            initializeClassOperation(*state, code, registerFile);
+            InterpreterSlowPath::initializeClassOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(InitializeClass);
             NEXT_INSTRUCTION();
         }
@@ -1053,7 +1151,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             SuperReference* code = (SuperReference*)programCounter;
-            superOperation(*state, code, registerFile);
+            InterpreterSlowPath::superOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(SuperReference);
             NEXT_INSTRUCTION();
         }
@@ -1062,7 +1160,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ComplexSetObjectOperation* code = (ComplexSetObjectOperation*)programCounter;
-            complexSetObjectOperation(*state, code, registerFile, byteCodeBlock);
+            InterpreterSlowPath::complexSetObjectOperation(*state, code, registerFile, byteCodeBlock);
             ADD_PROGRAM_COUNTER(ComplexSetObjectOperation);
             NEXT_INSTRUCTION();
         }
@@ -1071,7 +1169,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ComplexGetObjectOperation* code = (ComplexGetObjectOperation*)programCounter;
-            complexGetObjectOperation(*state, code, registerFile, byteCodeBlock);
+            InterpreterSlowPath::complexGetObjectOperation(*state, code, registerFile, byteCodeBlock);
             ADD_PROGRAM_COUNTER(ComplexGetObjectOperation);
             NEXT_INSTRUCTION();
         }
@@ -1080,7 +1178,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             CreateRestElement* code = (CreateRestElement*)programCounter;
-            registerFile[code->m_registerIndex] = createRestElementOperation(*state, byteCodeBlock);
+            registerFile[code->m_registerIndex] = InterpreterSlowPath::createRestElementOperation(*state, byteCodeBlock);
             ADD_PROGRAM_COUNTER(CreateRestElement);
             NEXT_INSTRUCTION();
         }
@@ -1099,7 +1197,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         DEFINE_OPCODE(TryOperation)
             :
         {
-            Value v = tryOperation(state, programCounter, byteCodeBlock, registerFile);
+            Value v = InterpreterSlowPath::tryOperation(state, programCounter, byteCodeBlock, registerFile);
             if (!v.isEmpty()) {
                 return v;
             }
@@ -1123,7 +1221,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         DEFINE_OPCODE(OpenLexicalEnvironment)
             :
         {
-            Value v = openLexicalEnvironment(state, programCounter, byteCodeBlock, registerFile);
+            Value v = InterpreterSlowPath::openLexicalEnvironment(state, programCounter, byteCodeBlock, registerFile);
             if (!v.isEmpty()) {
                 return v;
             }
@@ -1142,7 +1240,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             CreateEnumerateObject* code = (CreateEnumerateObject*)programCounter;
-            createEnumerateObject(*state, code, registerFile);
+            InterpreterSlowPath::createEnumerateObject(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(CreateEnumerateObject);
             NEXT_INSTRUCTION();
         }
@@ -1151,7 +1249,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             CheckLastEnumerateKey* code = (CheckLastEnumerateKey*)programCounter;
-            checkLastEnumerateKey(*state, code, byteCodeBlock->m_code.data(), programCounter, registerFile);
+            InterpreterSlowPath::checkLastEnumerateKey(*state, code, byteCodeBlock->m_code.data(), programCounter, registerFile);
             NEXT_INSTRUCTION();
         }
 
@@ -1169,7 +1267,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             MarkEnumerateKey* code = (MarkEnumerateKey*)programCounter;
-            markEnumerateKey(*state, code, registerFile);
+            InterpreterSlowPath::markEnumerateKey(*state, code, registerFile);
 
             ADD_PROGRAM_COUNTER(MarkEnumerateKey);
             NEXT_INSTRUCTION();
@@ -1179,7 +1277,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             IteratorOperation* code = (IteratorOperation*)programCounter;
-            iteratorOperation(*state, programCounter, registerFile, byteCodeBlock->m_code.data());
+            InterpreterSlowPath::iteratorOperation(*state, programCounter, registerFile, byteCodeBlock->m_code.data());
             NEXT_INSTRUCTION();
         }
 
@@ -1187,7 +1285,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             GetMethod* code = (GetMethod*)programCounter;
-            getMethodOperation(*state, programCounter, registerFile);
+            InterpreterSlowPath::getMethodOperation(*state, programCounter, registerFile);
             ADD_PROGRAM_COUNTER(GetMethod);
             NEXT_INSTRUCTION();
         }
@@ -1205,7 +1303,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             UnaryDelete* code = (UnaryDelete*)programCounter;
-            deleteOperation(*state, state->lexicalEnvironment(), code, registerFile, byteCodeBlock);
+            InterpreterSlowPath::deleteOperation(*state, state->lexicalEnvironment(), code, registerFile, byteCodeBlock);
             ADD_PROGRAM_COUNTER(UnaryDelete);
             NEXT_INSTRUCTION();
         }
@@ -1214,7 +1312,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             TemplateOperation* code = (TemplateOperation*)programCounter;
-            templateOperation(*state, state->lexicalEnvironment(), code, registerFile);
+            InterpreterSlowPath::templateOperation(*state, state->lexicalEnvironment(), code, registerFile);
             ADD_PROGRAM_COUNTER(TemplateOperation);
             NEXT_INSTRUCTION();
         }
@@ -1223,7 +1321,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             BinaryInOperation* code = (BinaryInOperation*)programCounter;
-            binaryInOperation(*state, code, registerFile);
+            InterpreterSlowPath::binaryInOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(BinaryInOperation);
             NEXT_INSTRUCTION();
         }
@@ -1232,7 +1330,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             BinaryInstanceOfOperation* code = (BinaryInstanceOfOperation*)programCounter;
-            instanceOfOperation(*state, code, registerFile);
+            InterpreterSlowPath::instanceOfOperation(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(BinaryInstanceOfOperation);
             NEXT_INSTRUCTION();
         }
@@ -1241,7 +1339,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             MetaPropertyOperation* code = (MetaPropertyOperation*)programCounter;
-            metaPropertyOperation(*state, code, byteCodeBlock, registerFile);
+            InterpreterSlowPath::metaPropertyOperation(*state, code, byteCodeBlock, registerFile);
             ADD_PROGRAM_COUNTER(MetaPropertyOperation);
             NEXT_INSTRUCTION();
         }
@@ -1250,7 +1348,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ObjectDefineGetterSetter* code = (ObjectDefineGetterSetter*)programCounter;
-            defineObjectGetterSetter(*state, code, byteCodeBlock, registerFile);
+            InterpreterSlowPath::defineObjectGetterSetter(*state, code, byteCodeBlock, registerFile);
             ADD_PROGRAM_COUNTER(ObjectDefineGetterSetter);
             NEXT_INSTRUCTION();
         }
@@ -1269,7 +1367,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             CallFunctionComplexCase* code = (CallFunctionComplexCase*)programCounter;
-            callFunctionComplexCase(*state, code, registerFile, byteCodeBlock);
+            InterpreterSlowPath::callFunctionComplexCase(*state, code, registerFile, byteCodeBlock);
             ADD_PROGRAM_COUNTER(CallFunctionComplexCase);
             NEXT_INSTRUCTION();
         }
@@ -1289,8 +1387,8 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
 
             {
                 ValueVector spreadArgs;
-                spreadFunctionArguments(*state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
-                registerFile[code->m_resultIndex] = constructOperation(*state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data());
+                InterpreterSlowPath::spreadFunctionArguments(*state, &registerFile[code->m_argumentsStartIndex], code->m_argumentCount, spreadArgs);
+                registerFile[code->m_resultIndex] = InterpreterSlowPath::constructOperation(*state, registerFile[code->m_calleeIndex], spreadArgs.size(), spreadArgs.data());
             }
 
             ADD_PROGRAM_COUNTER(NewOperationWithSpreadElement);
@@ -1311,7 +1409,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
                 result = new Object(*state);
                 enumObj->fillRestElement(*state, result);
             } else {
-                result = restBindOperation(*state, iterOrEnum.asPointerValue()->asIteratorRecord());
+                result = InterpreterSlowPath::restBindOperation(*state, iterOrEnum.asPointerValue()->asIteratorRecord());
             }
 
             registerFile[code->m_dstIndex] = result;
@@ -1322,7 +1420,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         DEFINE_OPCODE(ExecutionResume)
             :
         {
-            Value v = executionResumeOperation(state, programCounter, byteCodeBlock);
+            Value v = InterpreterSlowPath::executionResumeOperation(state, programCounter, byteCodeBlock);
             if (!v.isEmpty()) {
                 return v;
             }
@@ -1333,7 +1431,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ExecutionPause* code = (ExecutionPause*)programCounter;
-            executionPauseOperation(*state, registerFile, programCounter, byteCodeBlock->m_code.data());
+            InterpreterSlowPath::executionPauseOperation(*state, registerFile, programCounter, byteCodeBlock->m_code.data());
             return Value();
         }
 
@@ -1341,7 +1439,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             BlockOperation* code = (BlockOperation*)programCounter;
-            Value v = blockOperation(state, code, programCounter, byteCodeBlock, registerFile);
+            Value v = InterpreterSlowPath::blockOperation(state, code, programCounter, byteCodeBlock, registerFile);
             if (!v.isEmpty()) {
                 return v;
             }
@@ -1351,7 +1449,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         DEFINE_OPCODE(ReplaceBlockLexicalEnvironmentOperation)
             :
         {
-            replaceBlockLexicalEnvironmentOperation(*state, programCounter, byteCodeBlock);
+            InterpreterSlowPath::replaceBlockLexicalEnvironmentOperation(*state, programCounter, byteCodeBlock);
             ADD_PROGRAM_COUNTER(ReplaceBlockLexicalEnvironmentOperation);
             NEXT_INSTRUCTION();
         }
@@ -1359,7 +1457,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         DEFINE_OPCODE(EnsureArgumentsObject)
             :
         {
-            ensureArgumentsObjectOperation(*state, byteCodeBlock, registerFile);
+            InterpreterSlowPath::ensureArgumentsObjectOperation(*state, byteCodeBlock, registerFile);
             ADD_PROGRAM_COUNTER(EnsureArgumentsObject);
             NEXT_INSTRUCTION();
         }
@@ -1367,7 +1465,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
         DEFINE_OPCODE(TaggedTemplateOperation)
             :
         {
-            taggedTemplateOperation(*state, programCounter, registerFile, byteCodeBlock->m_code.data(), byteCodeBlock);
+            InterpreterSlowPath::taggedTemplateOperation(*state, programCounter, registerFile, byteCodeBlock->m_code.data(), byteCodeBlock);
             NEXT_INSTRUCTION();
         }
 
@@ -1375,7 +1473,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             ResolveNameAddress* code = (ResolveNameAddress*)programCounter;
-            resolveNameAddress(*state, code, registerFile);
+            InterpreterSlowPath::resolveNameAddress(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(ResolveNameAddress);
             NEXT_INSTRUCTION();
         }
@@ -1384,7 +1482,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
             :
         {
             StoreByNameWithAddress* code = (StoreByNameWithAddress*)programCounter;
-            storeByNameWithAddress(*state, code, registerFile);
+            InterpreterSlowPath::storeByNameWithAddress(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(StoreByNameWithAddress);
             NEXT_INSTRUCTION();
         }
@@ -1446,7 +1544,7 @@ Value ByteCodeInterpreter::interpret(ExecutionState* state, ByteCodeBlock* byteC
     return Value();
 }
 
-NEVER_INLINE EnvironmentRecord* ByteCodeInterpreter::getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException)
+NEVER_INLINE EnvironmentRecord* InterpreterSlowPath::getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException)
 {
     while (env) {
         EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, name);
@@ -1463,7 +1561,7 @@ NEVER_INLINE EnvironmentRecord* ByteCodeInterpreter::getBindedEnvironmentRecordB
     return NULL;
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException)
+NEVER_INLINE Value InterpreterSlowPath::loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException)
 {
     while (env) {
         EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, name);
@@ -1485,7 +1583,7 @@ NEVER_INLINE Value ByteCodeInterpreter::loadByName(ExecutionState& state, Lexica
     return Value();
 }
 
-NEVER_INLINE void ByteCodeInterpreter::storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value)
+NEVER_INLINE void InterpreterSlowPath::storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value)
 {
     while (env) {
         auto result = env->record()->hasBinding(state, name);
@@ -1502,7 +1600,7 @@ NEVER_INLINE void ByteCodeInterpreter::storeByName(ExecutionState& state, Lexica
     o->setThrowsExceptionWhenStrictMode(state, name, value, o);
 }
 
-NEVER_INLINE void ByteCodeInterpreter::initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value)
+NEVER_INLINE void InterpreterSlowPath::initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value)
 {
     if (isLexicallyDeclaredName) {
         state.lexicalEnvironment()->record()->initializeBinding(state, name, value);
@@ -1521,7 +1619,7 @@ NEVER_INLINE void ByteCodeInterpreter::initializeByName(ExecutionState& state, L
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::resolveNameAddress(ExecutionState& state, ResolveNameAddress* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::resolveNameAddress(ExecutionState& state, ResolveNameAddress* code, Value* registerFile)
 {
     LexicalEnvironment* env = state.lexicalEnvironment();
     int64_t count = 0;
@@ -1537,7 +1635,7 @@ NEVER_INLINE void ByteCodeInterpreter::resolveNameAddress(ExecutionState& state,
     registerFile[code->m_registerIndex] = Value(-1);
 }
 
-NEVER_INLINE void ByteCodeInterpreter::storeByNameWithAddress(ExecutionState& state, StoreByNameWithAddress* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::storeByNameWithAddress(ExecutionState& state, StoreByNameWithAddress* code, Value* registerFile)
 {
     LexicalEnvironment* env = state.lexicalEnvironment();
     const Value& value = registerFile[code->m_valueRegisterIndex];
@@ -1560,7 +1658,7 @@ NEVER_INLINE void ByteCodeInterpreter::storeByNameWithAddress(ExecutionState& st
     o->setThrowsExceptionWhenStrictMode(state, code->m_name, value, o);
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE Value InterpreterSlowPath::plusSlowCase(ExecutionState& state, const Value& left, const Value& right)
 {
     Value ret(Value::ForceUninitialized);
     Value lval(Value::ForceUninitialized);
@@ -1603,7 +1701,7 @@ NEVER_INLINE Value ByteCodeInterpreter::plusSlowCase(ExecutionState& state, cons
     return ret;
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::minusSlowCase(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE Value InterpreterSlowPath::minusSlowCase(ExecutionState& state, const Value& left, const Value& right)
 {
     // https://www.ecma-international.org/ecma-262/#sec-subtraction-operator-minus
     // Let lref be the result of evaluating AdditiveExpression.
@@ -1627,7 +1725,7 @@ NEVER_INLINE Value ByteCodeInterpreter::minusSlowCase(ExecutionState& state, con
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::multiplySlowCase(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE Value InterpreterSlowPath::multiplySlowCase(ExecutionState& state, const Value& left, const Value& right)
 {
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
@@ -1641,7 +1739,7 @@ NEVER_INLINE Value ByteCodeInterpreter::multiplySlowCase(ExecutionState& state, 
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::divisionSlowCase(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE Value InterpreterSlowPath::divisionSlowCase(ExecutionState& state, const Value& left, const Value& right)
 {
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
@@ -1658,7 +1756,7 @@ NEVER_INLINE Value ByteCodeInterpreter::divisionSlowCase(ExecutionState& state, 
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::unaryMinusSlowCase(ExecutionState& state, const Value& src)
+NEVER_INLINE Value InterpreterSlowPath::unaryMinusSlowCase(ExecutionState& state, const Value& src)
 {
     auto r = src.toNumeric(state);
     if (r.second) {
@@ -1668,7 +1766,7 @@ NEVER_INLINE Value ByteCodeInterpreter::unaryMinusSlowCase(ExecutionState& state
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE Value InterpreterSlowPath::modOperation(ExecutionState& state, const Value& left, const Value& right)
 {
     Value ret(Value::ForceUninitialized);
 
@@ -1717,7 +1815,7 @@ NEVER_INLINE Value ByteCodeInterpreter::modOperation(ExecutionState& state, cons
     return ret;
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::exponentialOperation(ExecutionState& state, const Value& left, const Value& right)
+NEVER_INLINE Value InterpreterSlowPath::exponentialOperation(ExecutionState& state, const Value& left, const Value& right)
 {
     Value ret(Value::ForceUninitialized);
 
@@ -1744,12 +1842,12 @@ NEVER_INLINE Value ByteCodeInterpreter::exponentialOperation(ExecutionState& sta
     return Value(pow(base, exp));
 }
 
-NEVER_INLINE void ByteCodeInterpreter::instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile)
 {
     registerFile[code->m_dstIndex] = Value(registerFile[code->m_srcIndex0].instanceOf(state, registerFile[code->m_srcIndex1]));
 }
 
-NEVER_INLINE void ByteCodeInterpreter::templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::templateOperation(ExecutionState& state, LexicalEnvironment* env, TemplateOperation* code, Value* registerFile)
 {
     const Value& s1 = registerFile[code->m_src0Index];
     const Value& s2 = registerFile[code->m_src1Index];
@@ -1760,7 +1858,7 @@ NEVER_INLINE void ByteCodeInterpreter::templateOperation(ExecutionState& state, 
     registerFile[code->m_dstIndex] = Value(builder.finalize(&state));
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::bitwiseOperationSlowCase(ExecutionState& state, const Value& left, const Value& right, ByteCodeInterpreter::BitwiseOperationKind kind)
+NEVER_INLINE Value InterpreterSlowPath::bitwiseOperationSlowCase(ExecutionState& state, const Value& left, const Value& right, Interpreter::BitwiseOperationKind kind)
 {
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
@@ -1769,22 +1867,22 @@ NEVER_INLINE Value ByteCodeInterpreter::bitwiseOperationSlowCase(ExecutionState&
     }
     if (UNLIKELY(lnum.second)) {
         switch (kind) {
-        case BitwiseOperationKind::And:
+        case Interpreter::BitwiseOperationKind::And:
             return lnum.first.asBigInt()->bitwiseAnd(state, rnum.first.asBigInt());
-        case BitwiseOperationKind::Or:
+        case Interpreter::BitwiseOperationKind::Or:
             return lnum.first.asBigInt()->bitwiseOr(state, rnum.first.asBigInt());
-        case BitwiseOperationKind::Xor:
+        case Interpreter::BitwiseOperationKind::Xor:
             return lnum.first.asBigInt()->bitwiseXor(state, rnum.first.asBigInt());
         default:
             ASSERT_NOT_REACHED();
         }
     } else {
         switch (kind) {
-        case BitwiseOperationKind::And:
+        case Interpreter::BitwiseOperationKind::And:
             return Value(lnum.first.toInt32(state) & rnum.first.toInt32(state));
-        case BitwiseOperationKind::Or:
+        case Interpreter::BitwiseOperationKind::Or:
             return Value(lnum.first.toInt32(state) | rnum.first.toInt32(state));
-        case BitwiseOperationKind::Xor:
+        case Interpreter::BitwiseOperationKind::Xor:
             return Value(lnum.first.toInt32(state) ^ rnum.first.toInt32(state));
         default:
             ASSERT_NOT_REACHED();
@@ -1795,7 +1893,7 @@ NEVER_INLINE Value ByteCodeInterpreter::bitwiseOperationSlowCase(ExecutionState&
     return Value();
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::bitwiseNotOperationSlowCase(ExecutionState& state, const Value& a)
+NEVER_INLINE Value InterpreterSlowPath::bitwiseNotOperationSlowCase(ExecutionState& state, const Value& a)
 {
     auto r = a.toNumeric(state);
     if (r.second) {
@@ -1805,7 +1903,7 @@ NEVER_INLINE Value ByteCodeInterpreter::bitwiseNotOperationSlowCase(ExecutionSta
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::shiftOperationSlowCase(ExecutionState& state, const Value& left, const Value& right, ByteCodeInterpreter::ShiftOperationKind kind)
+NEVER_INLINE Value InterpreterSlowPath::shiftOperationSlowCase(ExecutionState& state, const Value& left, const Value& right, Interpreter::ShiftOperationKind kind)
 {
     auto lnum = left.toNumeric(state);
     auto rnum = right.toNumeric(state);
@@ -1814,11 +1912,11 @@ NEVER_INLINE Value ByteCodeInterpreter::shiftOperationSlowCase(ExecutionState& s
     }
     if (UNLIKELY(lnum.second)) {
         switch (kind) {
-        case ShiftOperationKind::Left:
+        case Interpreter::ShiftOperationKind::Left:
             return lnum.first.asBigInt()->leftShift(state, rnum.first.asBigInt());
-        case ShiftOperationKind::SignedRight:
+        case Interpreter::ShiftOperationKind::SignedRight:
             return lnum.first.asBigInt()->rightShift(state, rnum.first.asBigInt());
-        case ShiftOperationKind::UnsignedRight:
+        case Interpreter::ShiftOperationKind::UnsignedRight:
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "BigInts have no unsigned right shift, use >> instead");
             break;
         default:
@@ -1826,19 +1924,19 @@ NEVER_INLINE Value ByteCodeInterpreter::shiftOperationSlowCase(ExecutionState& s
         }
     } else {
         switch (kind) {
-        case ShiftOperationKind::Left: {
+        case Interpreter::ShiftOperationKind::Left: {
             int32_t lnum32 = lnum.first.toInt32(state);
             int32_t rnum32 = rnum.first.toInt32(state);
             lnum32 <<= ((unsigned int)rnum32) & 0x1F;
             return Value(lnum32);
         }
-        case ShiftOperationKind::SignedRight: {
+        case Interpreter::ShiftOperationKind::SignedRight: {
             int32_t lnum32 = lnum.first.toInt32(state);
             int32_t rnum32 = rnum.first.toInt32(state);
             lnum32 >>= ((unsigned int)rnum32) & 0x1F;
             return Value(lnum32);
         }
-        case ShiftOperationKind::UnsignedRight: {
+        case Interpreter::ShiftOperationKind::UnsignedRight: {
             uint32_t lnum32 = lnum.first.toUint32(state);
             uint32_t rnum32 = rnum.first.toUint32(state);
             lnum32 = (lnum32) >> ((rnum32)&0x1F);
@@ -1853,7 +1951,7 @@ NEVER_INLINE Value ByteCodeInterpreter::shiftOperationSlowCase(ExecutionState& s
     return Value();
 }
 
-NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE void InterpreterSlowPath::deleteOperation(ExecutionState& state, LexicalEnvironment* env, UnaryDelete* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
     if (code->m_id.string()->length()) {
         bool result;
@@ -1895,7 +1993,7 @@ NEVER_INLINE void ByteCodeInterpreter::deleteOperation(ExecutionState& state, Le
     }
 }
 
-ALWAYS_INLINE bool ByteCodeInterpreter::abstractLeftIsLessThanRight(ExecutionState& state, const Value& left, const Value& right, bool switched)
+ALWAYS_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanRight(ExecutionState& state, const Value& left, const Value& right, bool switched)
 {
     // consume very fast case
     if (LIKELY(left.isInt32() && right.isInt32())) {
@@ -1909,7 +2007,7 @@ ALWAYS_INLINE bool ByteCodeInterpreter::abstractLeftIsLessThanRight(ExecutionSta
     return abstractLeftIsLessThanRightSlowCase(state, left, right, switched);
 }
 
-ALWAYS_INLINE bool ByteCodeInterpreter::abstractLeftIsLessThanEqualRight(ExecutionState& state, const Value& left, const Value& right, bool switched)
+ALWAYS_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanEqualRight(ExecutionState& state, const Value& left, const Value& right, bool switched)
 {
     // consume very fast case
     if (LIKELY(left.isInt32() && right.isInt32())) {
@@ -1984,7 +2082,7 @@ ALWAYS_INLINE bool abstractLeftIsLessThanRightNumeric(ExecutionState& state, con
     }
 }
 
-NEVER_INLINE bool ByteCodeInterpreter::abstractLeftIsLessThanRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched)
+NEVER_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched)
 {
     Value lval, rval;
     if (switched) {
@@ -2016,7 +2114,7 @@ NEVER_INLINE bool ByteCodeInterpreter::abstractLeftIsLessThanRightSlowCase(Execu
     }
 }
 
-NEVER_INLINE bool ByteCodeInterpreter::abstractLeftIsLessThanEqualRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched)
+NEVER_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanEqualRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched)
 {
     Value lval, rval;
     if (switched) {
@@ -2048,7 +2146,7 @@ NEVER_INLINE bool ByteCodeInterpreter::abstractLeftIsLessThanEqualRightSlowCase(
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::getObjectPrecomputedCaseOperation(ExecutionState& state, GetObjectPreComputedCase* code, Value* registerFile, ByteCodeBlock* block)
+NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(ExecutionState& state, GetObjectPreComputedCase* code, Value* registerFile, ByteCodeBlock* block)
 {
     const Value& receiver = registerFile[code->m_objectRegisterIndex];
     Object* orgObj;
@@ -2294,7 +2392,7 @@ GiveUp:
     // clang-format on
 }
 
-ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
+ALWAYS_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperation(ExecutionState& state, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
 {
     Object* obj;
     if (UNLIKELY(!willBeObject.isObject())) {
@@ -2333,7 +2431,7 @@ ALWAYS_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperation(Execut
     setObjectPreComputedCaseOperationCacheMiss(state, originalObject, willBeObject, value, code, block);
 }
 
-NEVER_INLINE bool ByteCodeInterpreter::setObjectPreComputedCaseOperationSlowCase(ExecutionState& state, Object* originalObject, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
+NEVER_INLINE bool InterpreterSlowPath::setObjectPreComputedCaseOperationSlowCase(ExecutionState& state, Object* originalObject, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
 {
     Object* obj = originalObject;
     Object* objChain[GetObjectPreComputedCase::inlineCacheProtoTraverseMaxCount];
@@ -2374,7 +2472,7 @@ NEVER_INLINE bool ByteCodeInterpreter::setObjectPreComputedCaseOperationSlowCase
     return false;
 }
 
-NEVER_INLINE void ByteCodeInterpreter::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
+NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* originalObject, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block)
 {
     if (code->m_isLength && originalObject->isArrayObject()) {
         if (LIKELY(originalObject->asArrayObject()->isFastModeArray())) {
@@ -2543,7 +2641,7 @@ GiveUp:
     code->m_missCount = maxCacheMissCount + 1;
 }
 
-NEVER_INLINE Object* ByteCodeInterpreter::fastToObject(ExecutionState& state, const Value& obj)
+NEVER_INLINE Object* InterpreterSlowPath::fastToObject(ExecutionState& state, const Value& obj)
 {
     if (LIKELY(obj.isString())) {
         StringObject* o = state.context()->globalObject()->stringProxyObject();
@@ -2557,7 +2655,7 @@ NEVER_INLINE Object* ByteCodeInterpreter::fastToObject(ExecutionState& state, co
     return obj.toObject(state);
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, ByteCodeBlock* block)
+NEVER_INLINE Value InterpreterSlowPath::getGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, ByteCodeBlock* block)
 {
     Context* ctx = state.context();
     auto& records = *ctx->globalDeclarativeRecord();
@@ -2608,7 +2706,7 @@ NEVER_INLINE Value ByteCodeInterpreter::getGlobalVariableSlowCase(ExecutionState
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block)
+NEVER_INLINE void InterpreterSlowPath::setGlobalVariableSlowCase(ExecutionState& state, Object* go, GlobalVariableAccessCacheItem* slot, const Value& value, ByteCodeBlock* block)
 {
     Context* ctx = state.context();
     auto& records = *ctx->globalDeclarativeRecord();
@@ -2657,7 +2755,7 @@ NEVER_INLINE void ByteCodeInterpreter::setGlobalVariableSlowCase(ExecutionState&
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::initializeGlobalVariable(ExecutionState& state, InitializeGlobalVariable* code, const Value& value)
+NEVER_INLINE void InterpreterSlowPath::initializeGlobalVariable(ExecutionState& state, InitializeGlobalVariable* code, const Value& value)
 {
     Context* ctx = state.context();
     auto& records = *ctx->globalDeclarativeRecord();
@@ -2670,7 +2768,7 @@ NEVER_INLINE void ByteCodeInterpreter::initializeGlobalVariable(ExecutionState& 
     ASSERT_NOT_REACHED();
 }
 
-NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& state, CreateFunction* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::createFunctionOperation(ExecutionState& state, CreateFunction* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     InterpretedCodeBlock* cb = code->m_codeBlock;
 
@@ -2710,7 +2808,7 @@ NEVER_INLINE void ByteCodeInterpreter::createFunctionOperation(ExecutionState& s
     }
 }
 
-NEVER_INLINE ArrayObject* ByteCodeInterpreter::createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE ArrayObject* InterpreterSlowPath::createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock)
 {
     ASSERT(state.resolveCallee());
 
@@ -2732,7 +2830,7 @@ NEVER_INLINE ArrayObject* ByteCodeInterpreter::createRestElementOperation(Execut
     return newArray;
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     char* codeBuffer = byteCodeBlock->m_code.data();
     TryOperation* code = (TryOperation*)programCounter;
@@ -2770,7 +2868,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
             });
 
             size_t newPc = programCounter + sizeof(TryOperation);
-            interpret(newState, byteCodeBlock, newPc, registerFile);
+            Interpreter::interpret(newState, byteCodeBlock, newPc, registerFile);
             if (newState->inExecutionStopState()) {
                 return Value();
             }
@@ -2820,7 +2918,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
                     ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
                         state.m_onCatch = in;
                     });
-                    interpret(newState, byteCodeBlock, (size_t)codeBuffer + code->m_catchPosition, registerFile);
+                    Interpreter::interpret(newState, byteCodeBlock, (size_t)codeBuffer + code->m_catchPosition, registerFile);
                     if (newState->inExecutionStopState()) {
                         return Value();
                     }
@@ -2835,7 +2933,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
             ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
                 state.m_onCatch = in;
             });
-            interpret(newState, byteCodeBlock, programCounter + sizeof(TryOperation), registerFile);
+            Interpreter::interpret(newState, byteCodeBlock, programCounter + sizeof(TryOperation), registerFile);
             if (UNLIKELY(newState->inExecutionStopState() || newState->parent()->inExecutionStopState())) {
                 return Value();
             }
@@ -2852,7 +2950,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
         ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
             state.m_onFinally = in;
         });
-        interpret(newState, byteCodeBlock, programCounter + sizeof(TryOperation), registerFile);
+        Interpreter::interpret(newState, byteCodeBlock, programCounter + sizeof(TryOperation), registerFile);
         if (newState->inExecutionStopState() || newState->parent()->inExecutionStopState()) {
             return Value();
         }
@@ -2871,7 +2969,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
         ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
             state.m_onFinally = in;
         });
-        interpret(newState, byteCodeBlock, (size_t)codeBuffer + code->m_tryCatchEndPosition, registerFile);
+        Interpreter::interpret(newState, byteCodeBlock, (size_t)codeBuffer + code->m_tryCatchEndPosition, registerFile);
         if (newState->inExecutionStopState()) {
             return Value();
         }
@@ -2916,7 +3014,7 @@ NEVER_INLINE Value ByteCodeInterpreter::tryOperation(ExecutionState*& state, siz
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& state, InitializeClass* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::initializeClassOperation(ExecutionState& state, InitializeClass* code, Value* registerFile)
 {
     if (code->m_stage == InitializeClass::CreateClass) {
         Value protoParent;
@@ -3064,7 +3162,7 @@ NEVER_INLINE void ByteCodeInterpreter::initializeClassOperation(ExecutionState& 
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::superOperation(ExecutionState& state, SuperReference* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::superOperation(ExecutionState& state, SuperReference* code, Value* registerFile)
 {
     if (code->m_isCall) {
         // Let newTarget be GetNewTarget().
@@ -3079,7 +3177,7 @@ NEVER_INLINE void ByteCodeInterpreter::superOperation(ExecutionState& state, Sup
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::complexSetObjectOperation(ExecutionState& state, ComplexSetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE void InterpreterSlowPath::complexSetObjectOperation(ExecutionState& state, ComplexSetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
     if (code->m_type == ComplexSetObjectOperation::Super) {
         // find `this` value for receiver
@@ -3116,7 +3214,7 @@ NEVER_INLINE void ByteCodeInterpreter::complexSetObjectOperation(ExecutionState&
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::complexGetObjectOperation(ExecutionState& state, ComplexGetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE void InterpreterSlowPath::complexGetObjectOperation(ExecutionState& state, ComplexGetObjectOperation* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
     if (code->m_type == ComplexGetObjectOperation::Super) {
         // find `this` value for receiver
@@ -3139,7 +3237,7 @@ NEVER_INLINE void ByteCodeInterpreter::complexGetObjectOperation(ExecutionState&
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::openLexicalEnvironment(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     OpenLexicalEnvironment* code = (OpenLexicalEnvironment*)programCounter;
     bool inWithStatement = code->m_kind == OpenLexicalEnvironment::WithStatement;
@@ -3175,7 +3273,7 @@ NEVER_INLINE Value ByteCodeInterpreter::openLexicalEnvironment(ExecutionState*& 
     size_t newPc = programCounter + sizeof(OpenLexicalEnvironment);
     char* codeBuffer = byteCodeBlock->m_code.data();
 
-    interpret(newState, byteCodeBlock, newPc, registerFile);
+    Interpreter::interpret(newState, byteCodeBlock, newPc, registerFile);
 
     if (newState->inExecutionStopState() || (!inWithStatement && newState->parent()->inExecutionStopState())) {
         return Value();
@@ -3218,7 +3316,7 @@ NEVER_INLINE Value ByteCodeInterpreter::openLexicalEnvironment(ExecutionState*& 
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::replaceBlockLexicalEnvironmentOperation(ExecutionState& state, size_t programCounter, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE void InterpreterSlowPath::replaceBlockLexicalEnvironmentOperation(ExecutionState& state, size_t programCounter, ByteCodeBlock* byteCodeBlock)
 {
     ReplaceBlockLexicalEnvironmentOperation* code = (ReplaceBlockLexicalEnvironmentOperation*)programCounter;
     // setup new env
@@ -3244,7 +3342,7 @@ NEVER_INLINE void ByteCodeInterpreter::replaceBlockLexicalEnvironmentOperation(E
     state.setLexicalEnvironment(newEnv, state.inStrictMode());
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, BlockOperation* code, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     if (!state->ensureRareData()->m_controlFlowRecord) {
         state->ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
@@ -3297,7 +3395,7 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, B
         newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
     }
 
-    interpret(newState, byteCodeBlock, newPc, registerFile);
+    Interpreter::interpret(newState, byteCodeBlock, newPc, registerFile);
     if (newState->inExecutionStopState() || (inPauserResumeProcess && newState->parent()->inExecutionStopState())) {
         return Value();
     }
@@ -3339,7 +3437,7 @@ NEVER_INLINE Value ByteCodeInterpreter::blockOperation(ExecutionState*& state, B
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::binaryInOperation(ExecutionState& state, BinaryInOperation* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::binaryInOperation(ExecutionState& state, BinaryInOperation* code, Value* registerFile)
 {
     const Value& left = registerFile[code->m_srcIndex0];
     const Value& right = registerFile[code->m_srcIndex1];
@@ -3354,7 +3452,7 @@ NEVER_INLINE void ByteCodeInterpreter::binaryInOperation(ExecutionState& state, 
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv)
+NEVER_INLINE Value InterpreterSlowPath::constructOperation(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv)
 {
     if (!constructor.isConstructor()) {
         if (constructor.isFunction()) {
@@ -3404,7 +3502,7 @@ static Value callDynamicImportRejected(ExecutionState& state, Value thisValue, s
     return Value();
 }
 
-NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& state, CallFunctionComplexCase* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& state, CallFunctionComplexCase* code, Value* registerFile, ByteCodeBlock* byteCodeBlock)
 {
     switch (code->m_kind) {
     case CallFunctionComplexCase::InWithScope: {
@@ -3640,7 +3738,7 @@ NEVER_INLINE void ByteCodeInterpreter::callFunctionComplexCase(ExecutionState& s
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector)
+NEVER_INLINE void InterpreterSlowPath::spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector)
 {
     for (size_t i = 0; i < argc; i++) {
         Value arg = argv[i];
@@ -3656,7 +3754,7 @@ NEVER_INLINE void ByteCodeInterpreter::spreadFunctionArguments(ExecutionState& s
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::createEnumerateObject(ExecutionState& state, CreateEnumerateObject* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::createEnumerateObject(ExecutionState& state, CreateEnumerateObject* code, Value* registerFile)
 {
     Object* obj = registerFile[code->m_objectRegisterIndex].toObject(state);
     bool isDestruction = code->m_isDestruction;
@@ -3670,7 +3768,7 @@ NEVER_INLINE void ByteCodeInterpreter::createEnumerateObject(ExecutionState& sta
     registerFile[code->m_dataRegisterIndex] = Value((PointerValue*)enumObj);
 }
 
-NEVER_INLINE void ByteCodeInterpreter::checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, char* codeBuffer, size_t& programCounter, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, char* codeBuffer, size_t& programCounter, Value* registerFile)
 {
     EnumerateObject* data = (EnumerateObject*)registerFile[code->m_registerIndex].asPointerValue();
     if (data->checkLastEnumerateKey(state)) {
@@ -3681,7 +3779,7 @@ NEVER_INLINE void ByteCodeInterpreter::checkLastEnumerateKey(ExecutionState& sta
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::markEnumerateKey(ExecutionState& state, MarkEnumerateKey* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::markEnumerateKey(ExecutionState& state, MarkEnumerateKey* code, Value* registerFile)
 {
     EnumerateObject* data = (EnumerateObject*)registerFile[code->m_dataRegisterIndex].asPointerValue();
     Value key = registerFile[code->m_keyRegisterIndex];
@@ -3702,7 +3800,7 @@ NEVER_INLINE void ByteCodeInterpreter::markEnumerateKey(ExecutionState& state, M
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer)
+NEVER_INLINE void InterpreterSlowPath::executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer)
 {
     ExecutionPause* code = (ExecutionPause*)programCounter;
     if (code->m_reason == ExecutionPause::Yield) {
@@ -3734,7 +3832,7 @@ NEVER_INLINE void ByteCodeInterpreter::executionPauseOperation(ExecutionState& s
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::executionResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE Value InterpreterSlowPath::executionResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock)
 {
     ExecutionResume* code = (ExecutionResume*)programCounter;
 
@@ -3796,7 +3894,7 @@ NEVER_INLINE Value ByteCodeInterpreter::executionResumeOperation(ExecutionState*
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::metaPropertyOperation(ExecutionState& state, MetaPropertyOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::metaPropertyOperation(ExecutionState& state, MetaPropertyOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     if (code->m_type == MetaPropertyOperation::NewTarget) {
         auto newTarget = state.getNewTarget();
@@ -3831,7 +3929,7 @@ static Value createObjectPropertyFunctionName(ExecutionState& state, const Value
     return builder.finalize(&state);
 }
 
-NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyOperation(ExecutionState& state, ObjectDefineOwnPropertyOperation* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyOperation(ExecutionState& state, ObjectDefineOwnPropertyOperation* code, Value* registerFile)
 {
     const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
     const Value& property = registerFile[code->m_propertyRegisterIndex];
@@ -3848,7 +3946,7 @@ NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyOperation(Executio
     willBeObject.asObject()->defineOwnProperty(state, ObjectPropertyName(state, propertyStringOrSymbol), ObjectPropertyDescriptor(value, code->m_presentAttribute));
 }
 
-NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyWithNameOperation(ExecutionState& state, ObjectDefineOwnPropertyWithNameOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyWithNameOperation(ExecutionState& state, ObjectDefineOwnPropertyWithNameOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     Object* object = registerFile[code->m_objectRegisterIndex].asObject();
     const Value& v = registerFile[code->m_loadRegisterIndex];
@@ -3888,7 +3986,7 @@ NEVER_INLINE void ByteCodeInterpreter::objectDefineOwnPropertyWithNameOperation(
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::arrayDefineOwnPropertyOperation(ExecutionState& state, ArrayDefineOwnPropertyOperation* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::arrayDefineOwnPropertyOperation(ExecutionState& state, ArrayDefineOwnPropertyOperation* code, Value* registerFile)
 {
     ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
     if (LIKELY(arr->isFastModeArray())) {
@@ -3907,7 +4005,7 @@ NEVER_INLINE void ByteCodeInterpreter::arrayDefineOwnPropertyOperation(Execution
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::arrayDefineOwnPropertyBySpreadElementOperation(ExecutionState& state, ArrayDefineOwnPropertyBySpreadElementOperation* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::arrayDefineOwnPropertyBySpreadElementOperation(ExecutionState& state, ArrayDefineOwnPropertyBySpreadElementOperation* code, Value* registerFile)
 {
     ArrayObject* arr = registerFile[code->m_objectRegisterIndex].asObject()->asArrayObject();
 
@@ -3982,7 +4080,7 @@ NEVER_INLINE void ByteCodeInterpreter::arrayDefineOwnPropertyBySpreadElementOper
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::createSpreadArrayObject(ExecutionState& state, CreateSpreadArrayObject* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::createSpreadArrayObject(ExecutionState& state, CreateSpreadArrayObject* code, Value* registerFile)
 {
     ArrayObject* spreadArray = ArrayObject::createSpreadArray(state);
     ASSERT(spreadArray->isFastModeArray());
@@ -4000,7 +4098,7 @@ NEVER_INLINE void ByteCodeInterpreter::createSpreadArrayObject(ExecutionState& s
     registerFile[code->m_registerIndex] = spreadArray;
 }
 
-static void defineObjectGetterSetterOperation(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile, Object* object)
+NEVER_INLINE void InterpreterSlowPath::defineObjectGetterSetterOperation(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile, Object* object)
 {
     FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
     Value pName = code->m_objectPropertyNameRegisterIndex == REGISTER_LIMIT ? fn->codeBlock()->functionName().string() : registerFile[code->m_objectPropertyNameRegisterIndex];
@@ -4021,7 +4119,7 @@ static void defineObjectGetterSetterOperation(ExecutionState& state, ObjectDefin
     object->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, pName), desc);
 }
 
-NEVER_INLINE void ByteCodeInterpreter::defineObjectGetterSetter(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::defineObjectGetterSetter(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     Object* object = registerFile[code->m_objectRegisterIndex].toObject(state);
     const size_t minCacheFillCount = 2;
@@ -4059,7 +4157,7 @@ NEVER_INLINE void ByteCodeInterpreter::defineObjectGetterSetter(ExecutionState& 
     }
 }
 
-ALWAYS_INLINE Value ByteCodeInterpreter::incrementOperation(ExecutionState& state, const Value& value)
+ALWAYS_INLINE Value InterpreterSlowPath::incrementOperation(ExecutionState& state, const Value& value)
 {
     if (LIKELY(value.isInt32())) {
         int32_t a = value.asInt32();
@@ -4076,7 +4174,7 @@ ALWAYS_INLINE Value ByteCodeInterpreter::incrementOperation(ExecutionState& stat
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::incrementOperationSlowCase(ExecutionState& state, const Value& value)
+NEVER_INLINE Value InterpreterSlowPath::incrementOperationSlowCase(ExecutionState& state, const Value& value)
 {
     // https://www.ecma-international.org/ecma-262/#sec-postfix-increment-operator
     // https://www.ecma-international.org/ecma-262/#sec-prefix-increment-operator
@@ -4088,7 +4186,7 @@ NEVER_INLINE Value ByteCodeInterpreter::incrementOperationSlowCase(ExecutionStat
     }
 }
 
-ALWAYS_INLINE Value ByteCodeInterpreter::decrementOperation(ExecutionState& state, const Value& value)
+ALWAYS_INLINE Value InterpreterSlowPath::decrementOperation(ExecutionState& state, const Value& value)
 {
     if (LIKELY(value.isInt32())) {
         int32_t a = value.asInt32();
@@ -4105,7 +4203,7 @@ ALWAYS_INLINE Value ByteCodeInterpreter::decrementOperation(ExecutionState& stat
     }
 }
 
-NEVER_INLINE Value ByteCodeInterpreter::decrementOperationSlowCase(ExecutionState& state, const Value& value)
+NEVER_INLINE Value InterpreterSlowPath::decrementOperationSlowCase(ExecutionState& state, const Value& value)
 {
     // https://www.ecma-international.org/ecma-262/#sec-postfix-decrement-operator
     // https://www.ecma-international.org/ecma-262/#sec-prefix-decrement-operator
@@ -4117,7 +4215,7 @@ NEVER_INLINE Value ByteCodeInterpreter::decrementOperationSlowCase(ExecutionStat
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile)
 {
     Value val;
     if (code->m_id.string()->length()) {
@@ -4159,7 +4257,7 @@ NEVER_INLINE void ByteCodeInterpreter::unaryTypeof(ExecutionState& state, UnaryT
     registerFile[code->m_dstIndex] = val;
 }
 
-NEVER_INLINE void ByteCodeInterpreter::iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer)
+NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer)
 {
     IteratorOperation* code = (IteratorOperation*)programCounter;
     if (code->m_operation == IteratorOperation::Operation::GetIterator) {
@@ -4273,13 +4371,13 @@ NEVER_INLINE void ByteCodeInterpreter::iteratorOperation(ExecutionState& state, 
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::getMethodOperation(ExecutionState& state, size_t programCounter, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::getMethodOperation(ExecutionState& state, size_t programCounter, Value* registerFile)
 {
     GetMethod* code = (GetMethod*)programCounter;
     registerFile[code->m_resultRegisterIndex] = Object::getMethod(state, registerFile[code->m_objectRegisterIndex], code->m_propertyName);
 }
 
-NEVER_INLINE Object* ByteCodeInterpreter::restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord)
+NEVER_INLINE Object* InterpreterSlowPath::restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord)
 {
     auto strings = &state.context()->staticStrings();
 
@@ -4321,7 +4419,7 @@ NEVER_INLINE Object* ByteCodeInterpreter::restBindOperation(ExecutionState& stat
     return result;
 }
 
-NEVER_INLINE void ByteCodeInterpreter::taggedTemplateOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE void InterpreterSlowPath::taggedTemplateOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer, ByteCodeBlock* byteCodeBlock)
 {
     TaggedTemplateOperation* code = (TaggedTemplateOperation*)programCounter;
     InterpretedCodeBlock* cb = byteCodeBlock->m_codeBlock;
@@ -4344,7 +4442,7 @@ NEVER_INLINE void ByteCodeInterpreter::taggedTemplateOperation(ExecutionState& s
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::getObjectOpcodeSlowCase(ExecutionState& state, GetObject* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::getObjectOpcodeSlowCase(ExecutionState& state, GetObject* code, Value* registerFile)
 {
     const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
     const Value& property = registerFile[code->m_propertyRegisterIndex];
@@ -4357,7 +4455,7 @@ NEVER_INLINE void ByteCodeInterpreter::getObjectOpcodeSlowCase(ExecutionState& s
     registerFile[code->m_storeRegisterIndex] = obj->getIndexedPropertyValue(state, property, willBeObject);
 }
 
-NEVER_INLINE void ByteCodeInterpreter::setObjectOpcodeSlowCase(ExecutionState& state, SetObjectOperation* code, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::setObjectOpcodeSlowCase(ExecutionState& state, SetObjectOperation* code, Value* registerFile)
 {
     const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
     const Value& property = registerFile[code->m_propertyRegisterIndex];
@@ -4374,7 +4472,7 @@ NEVER_INLINE void ByteCodeInterpreter::setObjectOpcodeSlowCase(ExecutionState& s
     }
 }
 
-NEVER_INLINE void ByteCodeInterpreter::ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     auto functionRecord = state.mostNearestFunctionLexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
     auto functionObject = functionRecord->functionObject()->asScriptFunctionObject();
@@ -4382,7 +4480,7 @@ NEVER_INLINE void ByteCodeInterpreter::ensureArgumentsObjectOperation(ExecutionS
     functionObject->generateArgumentsObject(state, state.argc(), state.argv(), functionRecord, registerFile + byteCodeBlock->m_requiredOperandRegisterNumber, isMapped);
 }
 
-NEVER_INLINE int ByteCodeInterpreter::evaluateImportAssertionOperation(ExecutionState& state, const Value& options)
+NEVER_INLINE int InterpreterSlowPath::evaluateImportAssertionOperation(ExecutionState& state, const Value& options)
 {
     if (options.isUndefined()) {
         return Platform::ModuleES;

@@ -153,7 +153,8 @@ class PointerValue : public gc {
     friend class Object;
     friend class Context;
     friend class Global;
-    friend class ByteCodeInterpreter;
+    friend class Interpreter;
+    friend class InterpreterSlowPath;
     friend class EncodedValue;
 
 public:

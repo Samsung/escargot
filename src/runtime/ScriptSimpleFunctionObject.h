@@ -98,11 +98,11 @@ protected:
         }
 
         if (shouldClearStack) {
-            const Value returnValue = ByteCodeInterpreter::interpret(&newState, blk, programStart, registerFile);
+            const Value returnValue = Interpreter::interpret(&newState, blk, programStart, registerFile);
             clearStack<512>();
             return returnValue;
         } else {
-            return ByteCodeInterpreter::interpret(&newState, blk, programStart, registerFile);
+            return Interpreter::interpret(&newState, blk, programStart, registerFile);
         }
     }
 
@@ -168,7 +168,7 @@ protected:
 
         record.setNewTarget(newTarget);
 
-        const Value returnValue = ByteCodeInterpreter::interpret(&newState, blk, reinterpret_cast<const size_t>(blk->m_code.data()), registerFile);
+        const Value returnValue = Interpreter::interpret(&newState, blk, reinterpret_cast<const size_t>(blk->m_code.data()), registerFile);
         if (shouldClearStack) {
             clearStack<512>();
         }

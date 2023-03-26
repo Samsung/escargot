@@ -32,7 +32,7 @@ class ExecutionPauser : public gc {
 public:
     friend class GeneratorObject;
     friend class AsyncGeneratorObject;
-    friend class ByteCodeInterpreter;
+    friend class InterpreterSlowPath;
     friend class Script;
     friend class FunctionObjectProcessCallGenerator;
 

@@ -29,7 +29,6 @@
 namespace Escargot {
 
 class AsyncGeneratorObject : public DerivedObject {
-    friend class ByteCodeInterpreter;
     friend class ExecutionPauser;
 
 public:
