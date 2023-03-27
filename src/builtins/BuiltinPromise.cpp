@@ -247,9 +247,9 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
     // ReturnIfAbrupt(promiseCapability).
     PromiseReaction::Capability promiseCapability = PromiseObject::newPromiseCapability(state, C);
     // Let promiseResolve be GetPromiseResolve(C).
-    Value promiseResolve;
+    Value resolve;
     try {
-        promiseResolve = getPromiseResolve(state, C);
+        resolve = getPromiseResolve(state, C);
     } catch (const Value& v) {
         Value thrownValue = v;
         // If value is an abrupt completion,
@@ -261,9 +261,9 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
 
     // Let iteratorRecord be GetIterator(iterable).
     // IfAbruptRejectPromise(iteratorRecord, promiseCapability).
-    IteratorRecord* iteratorRecord;
+    IteratorRecord* record;
     try {
-        iteratorRecord = IteratorObject::getIterator(state, argv[0]);
+        record = IteratorObject::getIterator(state, argv[0]);
     } catch (const Value& v) {
         Value thrownValue = v;
         // If value is an abrupt completion,
@@ -281,17 +281,17 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
             // Let next be IteratorStep(iteratorRecord).
             Optional<Object*> next;
             try {
-                next = IteratorObject::iteratorStep(state, iteratorRecord);
+                next = IteratorObject::iteratorStep(state, record);
             } catch (const Value& e) {
                 // If next is an abrupt completion, set iteratorRecord.[[done]] to true.
                 // ReturnIfAbrupt(next).
-                iteratorRecord->m_done = true;
+                record->m_done = true;
                 state.throwException(e);
             }
             // If next is false, then
             if (!next.hasValue()) {
                 // Set iteratorRecord.[[done]] to true.
-                iteratorRecord->m_done = true;
+                record->m_done = true;
                 // Return resultCapability.[[Promise]].
                 result = promiseCapability.m_promise;
                 break;
@@ -303,13 +303,13 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
                 nextValue = IteratorObject::iteratorValue(state, next.value());
             } catch (const Value& e) {
                 // If next is an abrupt completion, set iteratorRecord.[[done]] to true.
-                iteratorRecord->m_done = true;
+                record->m_done = true;
                 // ReturnIfAbrupt(next).
                 state.throwException(e);
             }
 
             // Let nextPromise be Invoke(C, "resolve", «nextValue»).
-            Value nextPromise = Object::call(state, promiseResolve, C, 1, &nextValue);
+            Value nextPromise = Object::call(state, resolve, C, 1, &nextValue);
             // Perform ? Invoke(nextPromise, "then", « resultCapability.[[Resolve]], resultCapability.[[Reject]] »).
             Object* nextPromiseObject = nextPromise.toObject(state);
             Value argv[] = { Value(promiseCapability.m_resolveFunction), Value(promiseCapability.m_rejectFunction) };
@@ -321,8 +321,8 @@ static Value builtinPromiseRace(ExecutionState& state, Value thisValue, size_t a
         // If iteratorRecord.[[Done]] is false, set result to IteratorClose(iteratorRecord, result).
         // IfAbruptRejectPromise(result, promiseCapability).
         try {
-            if (!iteratorRecord->m_done) {
-                result = IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
+            if (!record->m_done) {
+                result = IteratorObject::iteratorClose(state, record, exceptionValue, true);
             }
         } catch (const Value& v) {
             exceptionValue = v;

@@ -30,62 +30,48 @@ namespace Escargot {
 // https://www.ecma-international.org/ecma-262/10.0/#sec-weakset-constructor
 static Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
-    // Let set be ? OrdinaryCreateFromConstructor(NewTarget, "%WeakSetPrototype%", « [[WeakSetData]] »).
-    // Set set's [[WeakSetData]] internal slot to a new empty List.
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->weakSetPrototype();
     });
-    WeakSetObject* set = new WeakSetObject(state, proto);
 
-    // If iterable is not present, let iterable be undefined.
+    WeakSetObject* weakSet = new WeakSetObject(state, proto);
+
     Value iterable;
     if (argc > 0) {
         iterable = argv[0];
     }
-
-    // If iterable is either undefined or null, return set.
     if (iterable.isUndefinedOrNull()) {
-        return set;
+        return weakSet;
     }
-
-    // Let adder be ? Get(set, "add").
-    Value adder = set->get(state, ObjectPropertyName(state.context()->staticStrings().add)).value(state, set);
-    // If IsCallable(adder) is false, throw a TypeError exception.
-    if (!adder.isCallable()) {
+    Value add = weakSet->get(state, ObjectPropertyName(state.context()->staticStrings().add)).value(state, weakSet);
+    if (!add.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
 
-    // Let iteratorRecord be ? GetIterator(iterable).
     auto iteratorRecord = IteratorObject::getIterator(state, iterable);
 
-    // Repeat
     while (true) {
-        // Let next be ? IteratorStep(iteratorRecord).
         auto next = IteratorObject::iteratorStep(state, iteratorRecord);
-        // If next is false, return set.
         if (!next.hasValue()) {
-            return set;
+            return weakSet;
         }
-        // Let nextValue be ? IteratorValue(next).
+
         Value nextValue = IteratorObject::iteratorValue(state, next.value());
 
-        // Let status be Call(adder, set, « nextValue »).
         try {
             Value argv[1] = { nextValue };
-            Object::call(state, adder, set, 1, argv);
+            Object::call(state, add, weakSet, 1, argv);
         } catch (const Value& v) {
-            // we should save thrown value bdwgc cannot track thrown value
             Value exceptionValue = v;
-            // If status is an abrupt completion, return ? IteratorClose(iteratorRecord, status).
             return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
         }
     }
-    return set;
+
+    return weakSet;
 }
 
 #define RESOLVE_THIS_BINDING_TO_WEAKSET(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                    \

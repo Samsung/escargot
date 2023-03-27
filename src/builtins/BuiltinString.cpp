@@ -1300,14 +1300,8 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
     }
 }
 
-// https://www.ecma-international.org/ecma-262/8.0/#sec-string.prototype.padstart
-// 21.1.3.14String.prototype.padStart( maxLength [ , fillString ] )
-static Value builtinStringPadStart(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value stringPad(ExecutionState& state, String* S, size_t argc, Value* argv, bool isPadStart)
 {
-    // Let O be ? RequireObjectCoercible(this value).
-    // Let S be ? ToString(O).
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, padStart);
-
     // Let intMaxLength be ? ToLength(maxLength).
     // Let stringLength be the number of elements in S.
     uint64_t intMaxLength = 0;
@@ -1349,9 +1343,24 @@ static Value builtinStringPadStart(ExecutionState& state, Value thisValue, size_
     truncatedStringFiller = truncatedStringFiller->substring(0, fillLen);
 
     // Return a new String value computed by the concatenation of truncatedStringFiller and S.
-    sb.appendString(truncatedStringFiller);
-    sb.appendString(S);
+    if (isPadStart) {
+        sb.appendString(truncatedStringFiller);
+        sb.appendString(S);
+    } else {
+        sb.appendString(S);
+        sb.appendString(truncatedStringFiller);
+    }
     return sb.finalize(&state);
+}
+
+// https://www.ecma-international.org/ecma-262/8.0/#sec-string.prototype.padstart
+// 21.1.3.14String.prototype.padStart( maxLength [ , fillString ] )
+static Value builtinStringPadStart(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be ? RequireObjectCoercible(this value).
+    // Let S be ? ToString(O).
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, padStart);
+    return stringPad(state, S, argc, argv, true);
 }
 
 // https://www.ecma-international.org/ecma-262/8.0/#sec-string.prototype.padend
@@ -1360,52 +1369,8 @@ static Value builtinStringPadEnd(ExecutionState& state, Value thisValue, size_t 
 {
     // Let O be ? RequireObjectCoercible(this value).
     // Let S be ? ToString(O).
-    RESOLVE_THIS_BINDING_TO_STRING(S, String, padStart);
-
-    // Let intMaxLength be ? ToLength(maxLength).
-    // Let stringLength be the number of elements in S.
-    uint64_t intMaxLength = 0;
-    if (argc >= 1) {
-        intMaxLength = argv[0].toLength(state);
-    }
-    uint64_t stringLength = S->length();
-
-    // If intMaxLength is not greater than stringLength, return S.
-    if (intMaxLength <= stringLength) {
-        return S;
-    }
-
-    // If fillString is undefined, let filler be a String consisting solely of the code unit 0x0020 (SPACE).
-    // Else, let filler be ? ToString(fillString).
-    String* filler;
-    if (argc >= 2 && (!argv[1].isUndefined())) {
-        filler = argv[1].toString(state);
-    } else {
-        filler = state.context()->staticStrings().asciiTable[0x20].string();
-    }
-
-    // If filler is the empty String, return S.
-    if (filler->length() == 0) {
-        return S;
-    }
-
-    // Let fillLen be intMaxLength - stringLength.
-    uint64_t fillLen = intMaxLength - stringLength;
-
-    // Let truncatedStringFiller be a new String value consisting of repeated concatenations of filler truncated to length fillLen.
-    StringBuilder sb;
-    while (sb.contentLength() < fillLen) {
-        sb.appendString(filler);
-    }
-
-    // Build the string, than truncate the characters over fillLen
-    String* truncatedStringFiller = sb.finalize(&state);
-    truncatedStringFiller = truncatedStringFiller->substring(0, fillLen);
-
-    // Return a new String value computed by the concatenation of S and truncatedStringFiller.
-    sb.appendString(S);
-    sb.appendString(truncatedStringFiller);
-    return sb.finalize(&state);
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, padEnd);
+    return stringPad(state, S, argc, argv, false);
 }
 
 // http://www.ecma-international.org/ecma-262/6.0/#sec-createhtml

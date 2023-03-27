@@ -33,61 +33,46 @@ static Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, s
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
-    // Let map be ? OrdinaryCreateFromConstructor(NewTarget, "%MapPrototype%", « [[MapData]] »).
-    // Set map's [[MapData]] internal slot to a new empty List.
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->weakMapPrototype();
     });
-    WeakMapObject* map = new WeakMapObject(state, proto);
 
-    // If iterable is not present, or is either undefined or null, return map.
+    WeakMapObject* weakMap = new WeakMapObject(state, proto);
+
     if (argc == 0 || argv[0].isUndefinedOrNull()) {
-        return map;
+        return weakMap;
     }
 
     Value iterable = argv[0];
-
-    // Let adder be ? Get(map, "set").
-    Value adder = map->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, map);
-    // If IsCallable(adder) is false, throw a TypeError exception.
-    if (!adder.isCallable()) {
+    Value add = weakMap->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, weakMap);
+    if (!add.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
 
-    // Let iteratorRecord be ? GetIterator(iterable).
     auto iteratorRecord = IteratorObject::getIterator(state, iterable);
     while (true) {
         auto next = IteratorObject::iteratorStep(state, iteratorRecord);
         if (!next.hasValue()) {
-            return map;
+            return weakMap;
         }
 
         Value nextItem = IteratorObject::iteratorValue(state, next.value());
         if (!nextItem.isObject()) {
-            ErrorObject* errorobj = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("TypeError"));
-            return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);
+            ErrorObject* error = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("TypeError"));
+            return IteratorObject::iteratorClose(state, iteratorRecord, error, true);
         }
 
         try {
-            // Let k be Get(nextItem, "0").
-            // If k is an abrupt completion, return ? IteratorClose(iter, k).
             Value k = nextItem.asObject()->getIndexedProperty(state, Value(0)).value(state, nextItem);
-            // Let v be Get(nextItem, "1").
-            // If v is an abrupt completion, return ? IteratorClose(iter, v).
             Value v = nextItem.asObject()->getIndexedProperty(state, Value(1)).value(state, nextItem);
-
-            // Let status be Call(adder, map, « k.[[Value]], v.[[Value]] »).
             Value argv[2] = { k, v };
-            Object::call(state, adder, map, 2, argv);
+            Object::call(state, add, weakMap, 2, argv);
         } catch (const Value& v) {
-            // we should save thrown value bdwgc cannot track thrown value
-            Value exceptionValue = v;
-            // If status is an abrupt completion, return ? IteratorClose(iteratorRecord, status).
-            return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
+            Value exception = v;
+            return IteratorObject::iteratorClose(state, iteratorRecord, exception, true);
         }
     }
-
-    return map;
+    return weakMap;
 }
 
 #define RESOLVE_THIS_BINDING_TO_WEAKMAP(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                    \

@@ -26,6 +26,7 @@
 #include "runtime/Global.h"
 #include "runtime/BigInt.h"
 #include "runtime/Platform.h"
+#include "runtime/PromiseObject.h"
 
 namespace Escargot {
 

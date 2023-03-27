@@ -109,27 +109,26 @@ char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
     unsigned length;
     const char sch = *sequence;
     valid = true;
+
     if ((sch & 0x80) == 0)
         length = 1;
     else {
         unsigned char ch2 = static_cast<unsigned char>(*(sequence + 1));
-        if ((sch & 0xE0) == 0xC0
-            && (ch2 & 0xC0) == 0x80)
+
+        if ((sch & 0xE0) == 0xC0 && (ch2 & 0xC0) == 0x80) {
             length = 2;
-        else {
+        } else {
             unsigned char ch3 = static_cast<unsigned char>(*(sequence + 2));
-            if ((sch & 0xF0) == 0xE0
-                && (ch2 & 0xC0) == 0x80
-                && (ch3 & 0xC0) == 0x80)
+
+            if ((sch & 0xF0) == 0xE0 && (ch2 & 0xC0) == 0x80 && (ch3 & 0xC0) == 0x80) {
                 length = 3;
-            else {
+            } else {
                 unsigned char ch4 = static_cast<unsigned char>(*(sequence + 3));
-                if ((sch & 0xF8) == 0xF0
-                    && (ch2 & 0xC0) == 0x80
-                    && (ch3 & 0xC0) == 0x80
-                    && (ch4 & 0xC0) == 0x80)
+
+                if ((sch & 0xF8) == 0xF0 && (ch2 & 0xC0) == 0x80
+                    && (ch3 & 0xC0) == 0x80 && (ch4 & 0xC0) == 0x80) {
                     length = 4;
-                else {
+                } else {
                     valid = false;
                     sequence++;
                     return -1;
@@ -143,16 +142,20 @@ char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
     switch (length) {
     case 4:
         ch += static_cast<unsigned char>(*sequence++);
-        ch <<= 6; // Fall through.
+        ch <<= 6;
+        // Fall through.
     case 3:
         ch += static_cast<unsigned char>(*sequence++);
-        ch <<= 6; // Fall through.
+        ch <<= 6;
+        // Fall through.
     case 2:
         ch += static_cast<unsigned char>(*sequence++);
-        ch <<= 6; // Fall through.
+        ch <<= 6;
+        // Fall through.
     case 1:
         ch += static_cast<unsigned char>(*sequence++);
     }
+
     return ch - offsetsFromUTF8[length - 1];
 }
 

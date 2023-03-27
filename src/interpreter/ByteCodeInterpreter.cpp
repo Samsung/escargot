@@ -1,5 +1,4 @@
 /*
-    static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
  * Copyright (c) 2016-present Samsung Electronics Co., Ltd
  *
  *  This library is free software; you can redistribute it and/or

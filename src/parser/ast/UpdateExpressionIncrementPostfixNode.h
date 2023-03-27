@@ -45,6 +45,17 @@ public:
         m_argument->generateStoreByteCode(codeBlock, context, storeIndex, false);
     }
 
+    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
+    {
+        m_argument->iterateChildrenIdentifierAssigmentCase(fn);
+    }
+
+    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
+    {
+        fn(this);
+        m_argument->iterateChildren(fn);
+    }
+
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         if (m_argument->isIdentifier()) {
@@ -61,18 +72,6 @@ public:
         codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), src, dst), context, this);
         m_argument->generateStoreByteCode(codeBlock, context, dst, true);
         context->giveUpRegister();
-    }
-
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
-    {
-        m_argument->iterateChildrenIdentifierAssigmentCase(fn);
-    }
-
-    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
-    {
-        fn(this);
-
-        m_argument->iterateChildren(fn);
     }
 
 private:

@@ -80,7 +80,7 @@ public:
         // per iteration block
         size_t iterationLexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
         ByteCodeBlock::ByteCodeLexicalBlockContext iterationBlockContext;
-        uint8_t tmpIdentifierNode[sizeof(IdentifierNode)];
+        uint8_t tempNode[sizeof(IdentifierNode)];
 
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
@@ -90,7 +90,7 @@ public:
             }
 
             for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[i].m_name);
+                IdentifierNode* id = new (tempNode) IdentifierNode(bi->m_identifiers[i].m_name);
                 id->m_loc = m_loc;
                 id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
             }
@@ -104,7 +104,7 @@ public:
 
             size_t reverse = bi->m_identifiers.size() - 1;
             for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
-                IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
+                IdentifierNode* id = new (tempNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
                 id->m_loc = m_loc;
                 newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
                 id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
@@ -166,7 +166,7 @@ public:
                 }
 
                 for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                    IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[i].m_name);
+                    IdentifierNode* id = new (tempNode) IdentifierNode(bi->m_identifiers[i].m_name);
                     id->m_loc = m_loc;
                     id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
                 }
@@ -177,7 +177,7 @@ public:
 
                 size_t reverse = bi->m_identifiers.size() - 1;
                 for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
-                    IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
+                    IdentifierNode* id = new (tempNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
                     id->m_loc = m_loc;
                     newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
                     id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
