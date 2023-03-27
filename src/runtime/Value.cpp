@@ -499,19 +499,19 @@ bool Value::equalsToByTheSameValueAlgorithm(ExecutionState& ec, const Value& val
             return false;
         }
 
-        PointerValue* o = asPointerValue();
+        PointerValue* o1 = asPointerValue();
         PointerValue* o2 = val.asPointerValue();
-        if (o->isString()) {
+        if (o1->isString()) {
             if (!o2->isString()) {
                 return false;
             }
-            return *o->asString() == *o2->asString();
+            return *o1->asString() == *o2->asString();
         }
-        if (UNLIKELY(o->isBigInt())) {
+        if (UNLIKELY(o1->isBigInt())) {
             if (!o2->isBigInt()) {
                 return false;
             }
-            return o->asBigInt()->equals(o2->asBigInt());
+            return o1->asBigInt()->equals(o2->asBigInt());
         }
     }
 

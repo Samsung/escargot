@@ -1722,23 +1722,22 @@ public:
             // wrap right expression with arrow function
             result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
         } else {
-            auto startNode = this->createNode();
+            auto node = this->createNode();
             InterpretedCodeBlock* currentTarget = this->codeBlock;
-            size_t orgIndex = this->lookahead.start;
 
             InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
             this->scanner->index = childBlock->src().length() + childBlock->functionStart().index - currentTarget->functionStart().index;
-            this->scanner->lineNumber = childBlock->functionStart().line;
             this->scanner->lineStart = childBlock->functionStart().index - childBlock->functionStart().column;
+            this->scanner->lineNumber = childBlock->functionStart().line;
 
-            this->lookahead.lineNumber = this->scanner->lineNumber;
             this->lookahead.lineStart = this->scanner->lineStart;
+            this->lookahead.lineNumber = this->scanner->lineNumber;
             this->nextToken();
 
             // increase subCodeBlockIndex because parsing of an internal function is skipped
             this->subCodeBlockIndex++;
 
-            result = this->finalize(startNode, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
+            result = this->finalize(node, builder.createArrowFunctionExpressionNode(subCodeBlockIndex));
         }
 
         return result;
@@ -3605,7 +3604,6 @@ public:
         } else {
             auto startNode = this->createNode();
             InterpretedCodeBlock* currentTarget = this->codeBlock;
-            size_t orgIndex = this->lookahead.start;
 
             InterpretedCodeBlock* childBlock = currentTarget->childBlockAt(this->subCodeBlockIndex);
             this->scanner->index = childBlock->src().length() + childBlock->functionStart().index - currentTarget->functionStart().index;

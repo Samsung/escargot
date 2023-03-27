@@ -146,6 +146,10 @@ public:
         m_bufferData.buffer = str;
     }
 
+    void* operator new(size_t size) = delete;
+    void* operator new(size_t, void* ptr) = delete;
+    void* operator new[](size_t size) = delete;
+
     virtual char16_t charAt(const size_t idx) const
     {
         return m_bufferData.uncheckedCharAtFor8Bit(idx);
@@ -157,13 +161,13 @@ public:
     }
 
     // unused
-    virtual UTF16StringData toUTF16StringData() const
+    virtual UTF8StringData toUTF8StringData() const
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
 
     // unused
-    virtual UTF8StringData toUTF8StringData() const
+    virtual UTF16StringData toUTF16StringData() const
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -173,10 +177,6 @@ public:
     {
         RELEASE_ASSERT_NOT_REACHED();
     }
-
-    void* operator new(size_t size) = delete;
-    void* operator new(size_t, void* ptr) = delete;
-    void* operator new[](size_t size) = delete;
 };
 
 void AtomicString::init(AtomicStringMap* map, const LChar* src, size_t len)

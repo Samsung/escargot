@@ -167,125 +167,29 @@ InterpretedCodeBlock* InterpretedCodeBlock::createInterpretedCodeBlock(Context* 
 }
 
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
-    : CodeBlock(ctx)
-    , m_script(script)
-    , m_src(src)
-    , m_byteCodeBlock(nullptr)
-    , m_parent(nullptr)
-    , m_children(nullptr)
-    , m_functionStart(1, 1, 0)
-#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
-    , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-#endif
-    , m_functionLength(0)
-    , m_parameterCount(0)
-    , m_identifierOnStackCount(0)
-    , m_identifierOnHeapCount(0)
-    , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
-    , m_functionBodyBlockIndex(0)
-    , m_lexicalBlockIndexFunctionLocatedIn(0)
-    , m_isFunctionNameUsedBySelf(false)
-    , m_isFunctionNameSaveOnHeap(false)
-    , m_isFunctionNameExplicitlyDeclared(false)
-    , m_canUseIndexedVariableStorage(false)
-    , m_canAllocateVariablesOnStack(false)
-    , m_canAllocateEnvironmentOnStack(false)
-    , m_hasDescendantUsesNonIndexedVariableStorage(false)
-    , m_hasEval(false)
-    , m_hasWith(false)
-    , m_isStrict(false)
-    , m_inWith(false)
-    , m_isEvalCode(false)
-    , m_isEvalCodeInFunction(false)
-    , m_usesArgumentsObject(false)
-    , m_isFunctionExpression(false)
-    , m_isFunctionDeclaration(false)
-    , m_isArrowFunctionExpression(false)
-    , m_isOneExpressionOnlyVirtualArrowFunctionExpression(false)
-    , m_isFunctionBodyOnlyVirtualArrowFunctionExpression(false)
-    , m_isClassConstructor(false)
-    , m_isDerivedClassConstructor(false)
-    , m_isObjectMethod(false)
-    , m_isClassMethod(false)
-    , m_isClassStaticMethod(false)
-    , m_isGenerator(false)
-    , m_isAsync(false)
-    , m_needsVirtualIDOperation(false)
-    , m_hasArrowParameterPlaceHolder(false)
-    , m_hasParameterOtherThanIdentifier(false)
-    , m_allowSuperCall(false)
-    , m_allowSuperProperty(false)
-    , m_allowArguments(false)
-    , m_hasDynamicSourceCode(false)
-#ifdef ESCARGOT_DEBUGGER
-    , m_markDebugging(ctx->inDebuggingCodeMode())
-#endif
-#ifndef NDEBUG
-    , m_scopeContext(scopeCtx)
-#endif
+    : InterpretedCodeBlock(ctx, script)
 {
+    m_src = src;
+    m_functionStart = ExtendedNodeLOC(1, 1, 0);
+#ifndef NDEBUG
+    m_scopeContext = scopeCtx;
+#endif
     recordGlobalParsingInfo(scopeCtx, isEvalCode, isEvalCodeInFunction);
 }
 
 InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
-    : CodeBlock(ctx)
-    , m_script(script)
-    , m_src(StringView(src, scopeCtx->m_functionStartLOC.index, scopeCtx->m_bodyEndLOC.index))
-    , m_byteCodeBlock(nullptr)
-    , m_parent(parentBlock)
-    , m_children(nullptr)
-    , m_functionName(scopeCtx->m_functionName)
-    , m_functionStart(scopeCtx->m_functionStartLOC)
-#if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
-    , m_bodyEndLOC(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-#endif
-    , m_functionLength(scopeCtx->m_functionLength)
-    , m_parameterCount(scopeCtx->m_parameterCount)
-    , m_identifierOnStackCount(0)
-    , m_identifierOnHeapCount(0)
-    , m_lexicalBlockStackAllocatedIdentifierMaximumDepth(0)
-    , m_functionBodyBlockIndex(0)
-    , m_lexicalBlockIndexFunctionLocatedIn(scopeCtx->m_lexicalBlockIndexFunctionLocatedIn)
-    , m_isFunctionNameUsedBySelf(false)
-    , m_isFunctionNameSaveOnHeap(false)
-    , m_isFunctionNameExplicitlyDeclared(false)
-    , m_canUseIndexedVariableStorage(false)
-    , m_canAllocateVariablesOnStack(false)
-    , m_canAllocateEnvironmentOnStack(false)
-    , m_hasDescendantUsesNonIndexedVariableStorage(false)
-    , m_hasEval(false)
-    , m_hasWith(false)
-    , m_isStrict(false)
-    , m_inWith(false)
-    , m_isEvalCode(false)
-    , m_isEvalCodeInFunction(false)
-    , m_usesArgumentsObject(false)
-    , m_isFunctionExpression(false)
-    , m_isFunctionDeclaration(false)
-    , m_isArrowFunctionExpression(false)
-    , m_isOneExpressionOnlyVirtualArrowFunctionExpression(false)
-    , m_isFunctionBodyOnlyVirtualArrowFunctionExpression(false)
-    , m_isClassConstructor(false)
-    , m_isDerivedClassConstructor(false)
-    , m_isObjectMethod(false)
-    , m_isClassMethod(false)
-    , m_isClassStaticMethod(false)
-    , m_isGenerator(false)
-    , m_isAsync(false)
-    , m_needsVirtualIDOperation(false)
-    , m_hasArrowParameterPlaceHolder(false)
-    , m_hasParameterOtherThanIdentifier(false)
-    , m_allowSuperCall(false)
-    , m_allowSuperProperty(false)
-    , m_allowArguments(false)
-    , m_hasDynamicSourceCode(false)
-#ifdef ESCARGOT_DEBUGGER
-    , m_markDebugging(ctx->inDebuggingCodeMode())
-#endif
-#ifndef NDEBUG
-    , m_scopeContext(scopeCtx)
-#endif
+    : InterpretedCodeBlock(ctx, script)
 {
+    m_src = StringView(src, scopeCtx->m_functionStartLOC.index, scopeCtx->m_bodyEndLOC.index);
+    m_parent = parentBlock;
+    m_functionName = scopeCtx->m_functionName;
+    m_functionStart = scopeCtx->m_functionStartLOC;
+    m_functionLength = scopeCtx->m_functionLength;
+    m_parameterCount = scopeCtx->m_parameterCount;
+    m_lexicalBlockIndexFunctionLocatedIn = scopeCtx->m_lexicalBlockIndexFunctionLocatedIn;
+#ifndef NDEBUG
+    m_scopeContext = scopeCtx;
+#endif
     recordFunctionParsingInfo(scopeCtx, isEvalCode, isEvalCodeInFunction);
 }
 
