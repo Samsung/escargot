@@ -21,7 +21,6 @@
 #define MetaPropertyNode_h
 
 #include "Node.h"
-#include "parser/Script.h"
 
 namespace Escargot {
 

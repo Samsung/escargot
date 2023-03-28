@@ -35,6 +35,7 @@ class SandBox;
 class ByteCodeBlock;
 class ToStringRecursionPreventer;
 class FunctionTemplate;
+class ASTAllocator;
 class Debugger;
 
 #if defined(ENABLE_WASM)

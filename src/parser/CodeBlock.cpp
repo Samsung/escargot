@@ -20,10 +20,10 @@
 #include "Escargot.h"
 #include "CodeBlock.h"
 #include "parser/Script.h"
-#include "runtime/Context.h"
+#include "parser/ASTAllocator.h"
+#include "parser/ast/ASTContext.h"
 #include "interpreter/ByteCode.h"
-#include "runtime/Environment.h"
-#include "runtime/EnvironmentRecord.h"
+#include "runtime/Context.h"
 
 namespace Escargot {
 
@@ -62,6 +62,26 @@ void* InterpretedCodeBlock::operator new(size_t size)
 #else
     return CustomAllocator<InterpretedCodeBlock>().allocate(1);
 #endif
+}
+
+InterpretedCodeBlockWithRareData::InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
+    : InterpretedCodeBlock(ctx, script, src, scopeCtx, isEvalCode, isEvalCodeInFunction)
+    , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap, scopeCtx->m_classPrivateNames))
+{
+    ASSERT(scopeCtx->m_needRareData);
+#ifdef ESCARGOT_DEBUGGER
+    m_rareData->m_debuggerLineStart = scopeCtx->m_debuggerLineStart;
+#endif /* ESCARGOT_DEBUGGER */
+}
+
+InterpretedCodeBlockWithRareData::InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
+    : InterpretedCodeBlock(ctx, script, src, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction)
+    , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap, scopeCtx->m_classPrivateNames))
+{
+    ASSERT(scopeCtx->m_needRareData);
+#ifdef ESCARGOT_DEBUGGER
+    m_rareData->m_debuggerLineStart = scopeCtx->m_debuggerLineStart;
+#endif /* ESCARGOT_DEBUGGER */
 }
 
 void* InterpretedCodeBlockWithRareData::operator new(size_t size)
@@ -821,4 +841,63 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
 
     return info;
 }
+
+size_t InterpretedCodeBlock::findVarName(const AtomicString& name)
+{
+    auto map = identifierInfoMap();
+    if (UNLIKELY(map)) {
+        auto iter = map->find(name);
+        if (iter == map->end()) {
+            return SIZE_MAX;
+        } else {
+            return iter->second;
+        }
+    }
+
+    auto& v = this->m_identifierInfos;
+    size_t size = v.size();
+
+    if (LIKELY(size <= 12)) {
+        size_t idx = SIZE_MAX;
+        switch (size) {
+        case 12:
+            if (v[11].m_name == name) {
+                idx = 11;
+            }
+            FALLTHROUGH;
+#define TEST_ONCE(n)                                      \
+    case n:                                               \
+        if (idx == SIZE_MAX && v[n - 1].m_name == name) { \
+            idx = n - 1;                                  \
+        }                                                 \
+        FALLTHROUGH;
+            TEST_ONCE(11)
+            TEST_ONCE(10)
+            TEST_ONCE(9)
+            TEST_ONCE(8)
+            TEST_ONCE(7)
+            TEST_ONCE(6)
+            TEST_ONCE(5)
+            TEST_ONCE(4)
+            TEST_ONCE(3)
+            TEST_ONCE(2)
+            TEST_ONCE(1)
+#undef TEST_ONCE
+        case 0:
+            break;
+        default:
+            ASSERT_NOT_REACHED();
+        }
+
+        return idx;
+    } else {
+        for (size_t i = 0; i < size; i++) {
+            if (v[i].m_name == name) {
+                return i;
+            }
+        }
+        return SIZE_MAX;
+    }
+}
+
 } // namespace Escargot
