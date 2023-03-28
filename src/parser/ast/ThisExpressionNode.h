@@ -44,11 +44,11 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         if (UNLIKELY(codeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment())) {
-            codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), dstRegister), context, this);
+            codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), dstRegister), context, this->m_loc.index);
             return;
         }
         if (dstRegister != REGULAR_REGISTER_LIMIT) {
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT, dstRegister), context, this);
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT, dstRegister), context, this->m_loc.index);
         }
     }
 };

@@ -48,7 +48,7 @@ public:
         context->giveUpRegister();
         context->giveUpRegister();
 
-        codeBlock->pushCode(BinaryInOperation(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
+        codeBlock->pushCode(BinaryInOperation(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this->m_loc.index);
 
         context->m_canSkipCopyToRegister = directBefore;
     }

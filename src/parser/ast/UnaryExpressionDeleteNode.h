@@ -49,9 +49,9 @@ public:
             }
 
             if (nameCase) {
-                codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), SIZE_MAX, SIZE_MAX, dstRegister, name, hasSuperExpression), context, this);
+                codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), SIZE_MAX, SIZE_MAX, dstRegister, name, hasSuperExpression), context, this->m_loc.index);
             } else {
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value(false)), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value(false)), context, this->m_loc.index);
             }
         } else if (m_argument->isMemberExpression()) {
             hasSuperExpression = ((MemberExpressionNode*)m_argument)->object()->isSuperExpression();
@@ -59,13 +59,13 @@ public:
                 ByteCodeRegisterIndex p;
                 if (((MemberExpressionNode*)m_argument)->isPreComputedCase()) {
                     p = context->getRegister();
-                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), p, Value(((MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string())), context, this);
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), p, Value(((MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string())), context, this->m_loc.index);
                 } else {
                     p = ((MemberExpressionNode*)m_argument)->property()->getRegister(codeBlock, context);
                     ((MemberExpressionNode*)m_argument)->property()->generateExpressionByteCode(codeBlock, context, p);
                 }
                 context->giveUpRegister();
-                codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), 0, p, dstRegister, AtomicString(), hasSuperExpression), context, this);
+                codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), 0, p, dstRegister, AtomicString(), hasSuperExpression), context, this->m_loc.index);
             } else {
                 ByteCodeRegisterIndex o = m_argument->getRegister(codeBlock, context);
                 ((MemberExpressionNode*)m_argument)->object()->generateExpressionByteCode(codeBlock, context, o);
@@ -75,7 +75,7 @@ public:
                     // because, (MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string()
                     // is private by AtomicString (IdentifierNode always has AtomicString)
                     p = context->getRegister();
-                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), p, Value(((MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string())), context, this);
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), p, Value(((MemberExpressionNode*)m_argument)->property()->asIdentifier()->name().string())), context, this->m_loc.index);
                 } else {
                     p = ((MemberExpressionNode*)m_argument)->property()->getRegister(codeBlock, context);
                     ((MemberExpressionNode*)m_argument)->property()->generateExpressionByteCode(codeBlock, context, p);
@@ -83,13 +83,13 @@ public:
 
                 context->giveUpRegister();
                 context->giveUpRegister();
-                codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), o, p, dstRegister, AtomicString(), hasSuperExpression), context, this);
+                codeBlock->pushCode(UnaryDelete(ByteCodeLOC(m_loc.index), o, p, dstRegister, AtomicString(), hasSuperExpression), context, this->m_loc.index);
             }
         } else {
             ByteCodeRegisterIndex o = m_argument->getRegister(codeBlock, context);
             m_argument->generateExpressionByteCode(codeBlock, context, o);
             context->giveUpRegister();
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value(true)), context, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value(true)), context, this->m_loc.index);
         }
     }
 

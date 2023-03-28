@@ -66,7 +66,7 @@ public:
             if (m_hasRestElement) {
                 context->m_inObjectDestruction = true;
                 ByteCodeRegisterIndex enumDataIndex = context->getRegister();
-                codeBlock->pushCode(CreateEnumerateObject(ByteCodeLOC(m_loc.index), srcRegister, enumDataIndex, true), context, this);
+                codeBlock->pushCode(CreateEnumerateObject(ByteCodeLOC(m_loc.index), srcRegister, enumDataIndex, true), context, this->m_loc.index);
 
                 for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
                     context->m_isLexicallyDeclaredBindingInitialization = isLexicallyDeclaredBindingInitialization;
@@ -90,10 +90,10 @@ public:
         } else {
             // ObjectAssignmentPattern without AssignmentPropertyList requires object-coercible
             // check if srcRegister is undefined or null
-            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), true, srcRegister), context, this);
+            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), true, srcRegister), context, this->m_loc.index);
             size_t pos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
 
-            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::TypeError, ErrorObject::Messages::Can_Not_Be_Destructed), context, this);
+            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::TypeError, ErrorObject::Messages::Can_Not_Be_Destructed), context, this->m_loc.index);
 
             codeBlock->peekCode<JumpIfUndefinedOrNull>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
         }

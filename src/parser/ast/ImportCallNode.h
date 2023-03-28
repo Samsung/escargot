@@ -51,7 +51,7 @@ public:
 
         codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::Import, false, false, false,
                                                     SIZE_MAX, SIZE_MAX, specifierReg, dstRegister, m_options ? 2 : 1),
-                            context, this);
+                            context, this->m_loc.index);
 
 
         if (m_options) {

@@ -20,8 +20,9 @@
 #ifndef __EscargotByteCodeGenerator__
 #define __EscargotByteCodeGenerator__
 
-#include "parser/ast/Node.h"
+#include "parser/ast/CommonASTData.h"
 #include "debugger/Debugger.h"
+#include "runtime/AtomicString.h"
 
 namespace Escargot {
 
@@ -64,7 +65,8 @@ struct ByteCodeBreakpointContext {
 
 struct ByteCodeGenerateContext {
     ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, bool isGlobalScope, bool isEvalCode,
-                            bool isWithScope, NumeralLiteralVector* numeralLiteralData);
+                            bool isWithScope, void* numeralLiteralData);
+
     ByteCodeGenerateContext(const ByteCodeGenerateContext& contextBefore)
         : m_baseRegisterCount(contextBefore.m_baseRegisterCount)
         , m_codeBlock(contextBefore.m_codeBlock)
@@ -95,7 +97,7 @@ struct ByteCodeGenerateContext {
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
         , m_openedNonBlockEnvCount(contextBefore.m_openedNonBlockEnvCount)
         , m_classInfo(contextBefore.m_classInfo)
-        , m_numeralLiteralData(contextBefore.m_numeralLiteralData)
+        , m_numeralLiteralData(contextBefore.m_numeralLiteralData) // should be NumeralLiteralVector
 #ifdef ESCARGOT_DEBUGGER
         , m_breakpointContext(contextBefore.m_breakpointContext)
 #endif /* ESCARGOT_DEBUGGER */
@@ -344,7 +346,7 @@ struct ByteCodeGenerateContext {
     size_t m_openedNonBlockEnvCount;
     ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
-    NumeralLiteralVector* m_numeralLiteralData;
+    void* m_numeralLiteralData; // should be NumeralLiteralVector
 #ifdef ESCARGOT_DEBUGGER
     ByteCodeBreakpointContext* m_breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */

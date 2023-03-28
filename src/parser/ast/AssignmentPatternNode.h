@@ -65,11 +65,11 @@ public:
         undefinedNode->generateExpressionByteCode(codeBlock, context, undefinedIndex);
 
         size_t cmpIndex = context->getRegister();
-        codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), srcRegister, undefinedIndex, cmpIndex), context, this);
+        codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), srcRegister, undefinedIndex, cmpIndex), context, this->m_loc.index);
 
         context->giveUpRegister(); // for drop undefinedIndex
 
-        codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), cmpIndex), context, this);
+        codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), cmpIndex), context, this->m_loc.index);
         size_t pos1 = codeBlock->lastCodePosition<JumpIfTrue>();
         context->giveUpRegister(); // for drop cmpIndex
 
@@ -85,7 +85,7 @@ public:
 
         context->m_inParameterInitialization = oldInParameterInitialization;
 
-        codeBlock->pushCode<Jump>(Jump(ByteCodeLOC(m_loc.index)), context, this);
+        codeBlock->pushCode<Jump>(Jump(ByteCodeLOC(m_loc.index)), context, this->m_loc.index);
         size_t pos2 = codeBlock->lastCodePosition<Jump>();
 
         // undefined case, set default node

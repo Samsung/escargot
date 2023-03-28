@@ -21,8 +21,11 @@
 #define __EscargotByteCode__
 
 #include "interpreter/ByteCodeGenerator.h"
-#include "parser/CodeBlock.h"
 #include "runtime/ExecutionPauser.h"
+
+#ifndef NDEBUG
+#include "parser/CodeBlock.h"
+#endif
 
 namespace Escargot {
 class Node;
@@ -2679,7 +2682,7 @@ public:
 
 class BlockOperation : public ByteCode {
 public:
-    BlockOperation(const ByteCodeLOC& loc, InterpretedCodeBlock::BlockInfo* bi)
+    BlockOperation(const ByteCodeLOC& loc, void* bi)
         : ByteCode(Opcode::BlockOperationOpcode, loc)
         , m_blockEndPosition(SIZE_MAX)
         , m_blockInfo(bi)
@@ -2687,7 +2690,7 @@ public:
     }
 
     size_t m_blockEndPosition;
-    InterpretedCodeBlock::BlockInfo* m_blockInfo;
+    void* m_blockInfo; // should be InterpretedCodeBlock::BlockInfo
 #ifndef NDEBUG
     void dump()
     {
@@ -2698,13 +2701,13 @@ public:
 
 class ReplaceBlockLexicalEnvironmentOperation : public ByteCode {
 public:
-    ReplaceBlockLexicalEnvironmentOperation(const ByteCodeLOC& loc, InterpretedCodeBlock::BlockInfo* bi)
+    ReplaceBlockLexicalEnvironmentOperation(const ByteCodeLOC& loc, void* bi)
         : ByteCode(Opcode::ReplaceBlockLexicalEnvironmentOperationOpcode, loc)
         , m_blockInfo(bi)
     {
     }
 
-    InterpretedCodeBlock::BlockInfo* m_blockInfo;
+    void* m_blockInfo; // should be InterpretedCodeBlock::BlockInfo
 #ifndef NDEBUG
     void dump()
     {
@@ -2884,10 +2887,8 @@ public:
     void* operator new[](size_t size) = delete;
 
     template <typename CodeType>
-    void pushCode(const CodeType& code, ByteCodeGenerateContext* context, Node* node)
+    void pushCode(const CodeType& code, ByteCodeGenerateContext* context, size_t idx)
     {
-        size_t idx = node ? node->m_loc.index : SIZE_MAX;
-
 #ifndef NDEBUG
         {
             CodeType& t = const_cast<CodeType&>(code);
@@ -2941,9 +2942,9 @@ public:
         }
     };
 
-    ByteCodeLexicalBlockContext pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node, bool initFunctionDeclarationInside = true);
+    ByteCodeLexicalBlockContext pushLexicalBlock(ByteCodeGenerateContext* context, void* bi, Node* node, bool initFunctionDeclarationInside = true);
     void finalizeLexicalBlock(ByteCodeGenerateContext* context, const ByteCodeBlock::ByteCodeLexicalBlockContext& ctx);
-    void initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node);
+    void initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, void* bi, Node* node);
 
     void pushPauseStatementExtraData(ByteCodeGenerateContext* context);
 

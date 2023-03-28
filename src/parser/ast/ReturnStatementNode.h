@@ -52,11 +52,11 @@ public:
             if (m_argument) {
                 index = m_argument->getRegister(codeBlock, context);
                 m_argument->generateExpressionByteCode(codeBlock, context, index);
-                codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), index), context, this);
+                codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), index), context, this->m_loc.index);
             } else {
                 index = context->getRegister();
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), index, Value()), context, this);
-                codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), index), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), index, Value()), context, this->m_loc.index);
+                codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), index), context, this->m_loc.index);
             }
             context->giveUpRegister();
         } else {
@@ -66,9 +66,9 @@ public:
                 m_argument->generateExpressionByteCode(codeBlock, context, r);
             } else {
                 r = context->getRegister();
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), r, Value()), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), r, Value()), context, this->m_loc.index);
             }
-            codeBlock->pushCode(End(ByteCodeLOC(m_loc.index), r), context, this);
+            codeBlock->pushCode(End(ByteCodeLOC(m_loc.index), r), context, this->m_loc.index);
             context->giveUpRegister();
         }
     }
@@ -76,9 +76,9 @@ public:
     static void generateReturnCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, Node* srcNode, ByteCodeLOC loc, size_t srcRegister)
     {
         if (context->tryCatchWithBlockStatementCount() != 0) {
-            codeBlock->pushCode(ReturnFunctionSlowCase(loc, srcRegister), context, srcNode);
+            codeBlock->pushCode(ReturnFunctionSlowCase(loc, srcRegister), context, srcNode->m_loc.index);
         } else {
-            codeBlock->pushCode(End(loc, srcRegister), context, srcNode);
+            codeBlock->pushCode(End(loc, srcRegister), context, srcNode->m_loc.index);
         }
     }
 

@@ -40,7 +40,7 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::SuperExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
-        codeBlock->pushCode(SuperReference(ByteCodeLOC(m_loc.index), dstIndex, m_isCall), context, this);
+        codeBlock->pushCode(SuperReference(ByteCodeLOC(m_loc.index), dstIndex, m_isCall), context, this->m_loc.index);
     }
 
 private:

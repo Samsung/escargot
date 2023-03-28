@@ -54,7 +54,7 @@ public:
             }
         }
         if (dstRegister < REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT) {
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, m_value), context, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, m_value), context, this->m_loc.index);
         }
     }
 
@@ -62,8 +62,9 @@ public:
     {
         size_t idxExists = SIZE_MAX;
         if (context->m_keepNumberalLiteralsInRegisterFile && !m_value.isPointerValue()) {
-            for (size_t i = 0; i < context->m_numeralLiteralData->size(); i++) {
-                if ((*context->m_numeralLiteralData)[i] == m_value) {
+            NumeralLiteralVector* numeralLiteralData = reinterpret_cast<NumeralLiteralVector*>(context->m_numeralLiteralData);
+            for (size_t i = 0; i < numeralLiteralData->size(); i++) {
+                if ((*numeralLiteralData)[i] == m_value) {
                     context->pushRegister(REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT + i);
                     return context->getLastRegisterIndex();
                 }

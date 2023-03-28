@@ -47,14 +47,14 @@ public:
 
     static void generateTryStatementStartByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx)
     {
-        codeBlock->pushCode(TryOperation(ByteCodeLOC(self->loc().index)), context, self);
+        codeBlock->pushCode(TryOperation(ByteCodeLOC(self->loc().index)), context, self->m_loc.index);
         ctx.tryStartPosition = codeBlock->lastCodePosition<TryOperation>();
         context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Try, ctx.tryStartPosition));
     }
 
     static void generateTryStatementBodyEndByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx)
     {
-        codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(self->loc().index)), context, self);
+        codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(self->loc().index)), context, self->m_loc.index);
         ctx.tryCatchBodyPos = codeBlock->lastCodePosition<CloseLexicalEnvironment>();
     }
 
@@ -113,7 +113,7 @@ public:
             context->m_lexicalBlockIndex = lexicalBlockIndexBefore;
         }
 
-        codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(self->loc().index)), context, self);
+        codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(self->loc().index)), context, self->m_loc.index);
         context->m_recursiveStatementStack.pop_back();
         context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Try, ctx.tryStartPosition));
     }
@@ -138,7 +138,7 @@ public:
         context->registerJumpPositionsToComplexCase(ctx.tryStartPosition);
         if (codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_hasFinalizer) {
             // we should use End opcode here because we don't want to remove ControlFlowRecord here
-            codeBlock->pushCode(End(ByteCodeLOC(self->loc().index), 0), context, self);
+            codeBlock->pushCode(End(ByteCodeLOC(self->loc().index), 0), context, self->m_loc.index);
         }
         codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_finallyEndPosition = codeBlock->currentCodeSize();
         codeBlock->m_shouldClearStack = true;
@@ -148,7 +148,7 @@ public:
     virtual void generateStatementByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context) override
     {
         if (context->shouldCareScriptExecutionResult()) {
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this->m_loc.index);
         }
 
         TryStatementByteCodeContext ctx;

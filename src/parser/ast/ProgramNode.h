@@ -55,7 +55,7 @@ public:
             insertBreakpoint(context);
         }
 #endif /* ESCARGOT_DEBUGGER */
-        codeBlock->pushCode(End(ByteCodeLOC(SIZE_MAX), 0), context, this);
+        codeBlock->pushCode(End(ByteCodeLOC(SIZE_MAX), 0), context, this->m_loc.index);
     }
 
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override

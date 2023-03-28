@@ -49,7 +49,7 @@ public:
             // 10. If C.[[type]] is normal and C.[[value]] is empty, return
             //     NormalCompletion(undefined).
             // 11. Return Completion(C).
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this->m_loc.index);
         }
 
         size_t start = codeBlock->currentCodeSize();
@@ -63,7 +63,7 @@ public:
         if (shouldCareScriptExecutionResult) {
             context->giveUpRegister();
         }
-        codeBlock->pushCode(OpenLexicalEnvironment(ByteCodeLOC(m_loc.index), OpenLexicalEnvironment::WithStatement, r), context, this);
+        codeBlock->pushCode(OpenLexicalEnvironment(ByteCodeLOC(m_loc.index), OpenLexicalEnvironment::WithStatement, r), context, this->m_loc.index);
         context->giveUpRegister();
 
         bool isWithScopeBefore = context->m_isWithScope;
@@ -71,7 +71,7 @@ public:
         m_body->generateStatementByteCode(codeBlock, context);
         context->registerJumpPositionsToComplexCase(start);
 
-        codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(m_loc.index)), context, this);
+        codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(m_loc.index)), context, this->m_loc.index);
         codeBlock->peekCode<OpenLexicalEnvironment>(withPos)->m_endPostion = codeBlock->currentCodeSize();
         context->m_isWithScope = isWithScopeBefore;
 

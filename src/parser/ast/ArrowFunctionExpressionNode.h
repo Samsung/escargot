@@ -75,9 +75,9 @@ public:
     {
         InterpretedCodeBlock* blk = context->m_codeBlock->childBlockAt(m_subCodeBlockIndex);
         if (blk->usesArgumentsObject() && !codeBlock->m_codeBlock->isArrowFunctionExpression()) {
-            codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this);
+            codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this->m_loc.index);
         }
-        codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, REGULAR_REGISTER_LIMIT, blk), context, this);
+        codeBlock->pushCode(CreateFunction(ByteCodeLOC(m_loc.index), dstIndex, REGULAR_REGISTER_LIMIT, blk), context, this->m_loc.index);
     }
 
 private:

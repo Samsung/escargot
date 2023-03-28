@@ -57,7 +57,7 @@ public:
         data.m_srcObjectRegisterIndex = srcRegister;
         data.m_dstIteratorRecordIndex = iteratorRecordIndex;
         data.m_dstIteratorObjectIndex = REGISTER_LIMIT;
-        codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), data), context, this);
+        codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), data), context, this->m_loc.index);
 
         TryStatementNode::TryStatementByteCodeContext iteratorBindingContext;
 
@@ -71,7 +71,7 @@ public:
                     IteratorOperation::IteratorBindData iteratorBindData;
                     iteratorBindData.m_registerIndex = iteratorValueIndex;
                     iteratorBindData.m_iterRegisterIndex = iteratorRecordIndex;
-                    codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorBindData), context, this);
+                    codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorBindData), context, this->m_loc.index);
                     element->astNode()->generateStoreByteCode(codeBlock, context, iteratorValueIndex, false);
                 } else {
                     element->astNode()->generateStoreByteCode(codeBlock, context, iteratorRecordIndex, false);
@@ -80,7 +80,7 @@ public:
                 IteratorOperation::IteratorBindData iteratorBindData;
                 iteratorBindData.m_registerIndex = iteratorValueIndex;
                 iteratorBindData.m_iterRegisterIndex = iteratorRecordIndex;
-                codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorBindData), context, this);
+                codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorBindData), context, this->m_loc.index);
             }
         }
         context->giveUpRegister(); // for drop iteratorValueIndex
@@ -93,14 +93,14 @@ public:
         iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex = iteratorRecordIndex;
         iteratorTestDoneData.m_dstRegisterIndex = doneIndex;
         iteratorTestDoneData.m_isIteratorRecord = true;
-        codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorTestDoneData), context, this);
-        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), doneIndex), context, this);
+        codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorTestDoneData), context, this->m_loc.index);
+        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), doneIndex), context, this->m_loc.index);
         size_t jumpPos = codeBlock->lastCodePosition<JumpIfTrue>();
 
         IteratorOperation::IteratorCloseData iteratorCloseData;
         iteratorCloseData.m_iterRegisterIndex = iteratorRecordIndex;
         iteratorCloseData.m_execeptionRegisterIndexIfExists = REGISTER_LIMIT;
-        codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorCloseData), context, this);
+        codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), iteratorCloseData), context, this->m_loc.index);
         codeBlock->peekCode<JumpIfTrue>(jumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
         TryStatementNode::generateTryFinalizerStatementEndByteCode(codeBlock, context, this, iteratorBindingContext, true);
 

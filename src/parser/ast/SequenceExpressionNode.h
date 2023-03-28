@@ -42,7 +42,7 @@ public:
             context->giveUpRegister();
         }
         if (r != dstRegister) {
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, dstRegister), context, this);
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, dstRegister), context, this->m_loc.index);
         }
     }
 

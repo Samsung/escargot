@@ -76,7 +76,7 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
         if (isOptional()) {
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstIndex, Value()), context, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstIndex, Value()), context, this->m_loc.index);
         }
 
         bool prevHead = context->m_isHeadOfMemberExpression;
@@ -98,14 +98,14 @@ public:
         // we should check super binding by loading this variable
         // for covering this case eg) super[super()]
         if (m_object->isSuperExpression() && !isPreComputedCase() && codeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
-            codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), objectIndex), context, this);
+            codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), objectIndex), context, this->m_loc.index);
         }
 
         m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
 
         size_t optionalJumpPos = SIZE_MAX;
         if (isOptional()) {
-            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, objectIndex), context, this);
+            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, objectIndex), context, this->m_loc.index);
             optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
         }
 
@@ -113,31 +113,31 @@ public:
             ASSERT(m_property->isIdentifier());
             if (UNLIKELY(m_object->isSuperExpression())) {
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
-                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property->m_loc.index);
+                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this->m_loc.index);
                 context->giveUpRegister();
             } else if (UNLIKELY(hasInfinityPropertyName(codeBlock))) {
                 // Handle Infinity property not to be inline-cached
                 // because TypedArray has a corner case (TypedArrayObject get/set should be invoked)
                 // e.g. typedarr.Infinity
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
-                codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property->m_loc.index);
+                codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this->m_loc.index);
                 context->giveUpRegister();
             } else if (UNLIKELY(isReferencePrivateField())) {
                 codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name(),
                                                               needsToReferOuterClassWhenEvaluatePrivateMember(context)),
-                                    context, this);
+                                    context, this->m_loc.index);
             } else {
-                codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this);
+                codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name()), context, this->m_loc.index);
             }
         } else {
             size_t propertyIndex = m_property->getRegister(codeBlock, context);
             m_property->generateExpressionByteCode(codeBlock, context, propertyIndex);
             if (UNLIKELY(m_object->isSuperExpression())) {
-                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this);
+                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this->m_loc.index);
             } else {
-                codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this);
+                codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this->m_loc.index);
             }
             context->giveUpRegister();
         }
@@ -168,8 +168,8 @@ public:
 
             if (UNLIKELY(m_object->isSuperExpression())) {
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
-                codeBlock->pushCode(ComplexSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property->m_loc.index);
+                codeBlock->pushCode(ComplexSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this->m_loc.index);
                 context->giveUpRegister();
                 context->giveUpRegister();
             } else if (UNLIKELY(hasInfinityPropertyName(codeBlock))) {
@@ -177,18 +177,18 @@ public:
                 // because TypedArray has a corner case (TypedArrayObject get/set should be invoked)
                 // e.g. typedarr.Infinity
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
-                codeBlock->pushCode(SetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property->m_loc.index);
+                codeBlock->pushCode(SetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this->m_loc.index);
                 context->giveUpRegister();
                 context->giveUpRegister();
             } else if (UNLIKELY(isReferencePrivateField())) {
                 codeBlock->pushCode(ComplexSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex,
                                                               m_property->asIdentifier()->name(), valueIndex,
                                                               needsToReferOuterClassWhenEvaluatePrivateMember(context)),
-                                    context, this);
+                                    context, this->m_loc.index);
                 context->giveUpRegister();
             } else {
-                codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this);
+                codeBlock->pushCode(SetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, m_property->asIdentifier()->name(), valueIndex), context, this->m_loc.index);
                 context->giveUpRegister();
             }
         } else {
@@ -208,9 +208,9 @@ public:
                 objectIndex = context->getLastRegisterIndex(1);
             }
             if (m_object->isSuperExpression()) {
-                codeBlock->pushCode(ComplexSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+                codeBlock->pushCode(ComplexSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this->m_loc.index);
             } else {
-                codeBlock->pushCode(SetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this);
+                codeBlock->pushCode(SetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this->m_loc.index);
             }
             context->giveUpRegister();
             context->giveUpRegister();
@@ -222,7 +222,7 @@ public:
         // we should check super binding by loading this variable
         // for covering this case eg) super[super()]
         if (!isPreComputedCase() && m_object->isSuperExpression() && codeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
-            codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), context->getRegister()), context, this);
+            codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), context->getRegister()), context, this->m_loc.index);
             context->giveUpRegister();
         }
 
@@ -245,21 +245,21 @@ public:
                 // because TypedArray has a corner case (TypedArrayObject get/set should be invoked)
                 // e.g. typedarr.Infinity
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property);
-                codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, resultIndex), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property->m_loc.index);
+                codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, resultIndex), context, this->m_loc.index);
                 context->giveUpRegister();
             } else if (UNLIKELY(isReferencePrivateField())) {
                 codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name(),
                                                               needsToReferOuterClassWhenEvaluatePrivateMember(context)),
-                                    context, this);
+                                    context, this->m_loc.index);
             } else {
-                codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name()), context, this);
+                codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name()), context, this->m_loc.index);
             }
         } else {
             size_t objectIndex = context->getLastRegisterIndex(1);
             size_t propertyIndex = context->getLastRegisterIndex();
             size_t resultIndex = context->getRegister();
-            codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, resultIndex), context, this);
+            codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, resultIndex), context, this->m_loc.index);
         }
     }
 

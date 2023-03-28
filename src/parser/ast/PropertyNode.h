@@ -83,7 +83,7 @@ public:
         if (m_key->isIdentifier() && !m_computed) {
             AtomicString propertyAtomicName = m_key->asIdentifier()->name();
             size_t valueIndex = context->getRegister();
-            codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), srcRegister, valueIndex, propertyAtomicName), context, this);
+            codeBlock->pushCode(GetObjectPreComputedCase(ByteCodeLOC(m_loc.index), srcRegister, valueIndex, propertyAtomicName), context, this->m_loc.index);
             m_value->generateResolveAddressByteCode(codeBlock, context);
             m_value->generateStoreByteCode(codeBlock, context, valueIndex, false);
             context->giveUpRegister(); // for drop valueIndex
@@ -93,20 +93,20 @@ public:
                 // because, propertyAtomicName.string()
                 // is protected by AtomicString (IdentifierNode always has AtomicString)
                 size_t propertyIndex = context->getRegister();
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), propertyIndex, Value(propertyAtomicName.string())), context, this);
-                codeBlock->pushCode(MarkEnumerateKey(ByteCodeLOC(m_loc.index), enumDataIndex, propertyIndex), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), propertyIndex, Value(propertyAtomicName.string())), context, this->m_loc.index);
+                codeBlock->pushCode(MarkEnumerateKey(ByteCodeLOC(m_loc.index), enumDataIndex, propertyIndex), context, this->m_loc.index);
                 context->giveUpRegister(); // for drop propertyIndex
             }
         } else {
             size_t valueIndex = context->getRegister();
             size_t propertyIndex = m_key->getRegister(codeBlock, context);
             m_key->generateExpressionByteCode(codeBlock, context, propertyIndex);
-            codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), srcRegister, propertyIndex, valueIndex), context, this);
+            codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), srcRegister, propertyIndex, valueIndex), context, this->m_loc.index);
             m_value->generateResolveAddressByteCode(codeBlock, context);
             m_value->generateStoreByteCode(codeBlock, context, valueIndex, false);
 
             if (enumDataIndex != REGISTER_LIMIT) {
-                codeBlock->pushCode(MarkEnumerateKey(ByteCodeLOC(m_loc.index), enumDataIndex, propertyIndex), context, this);
+                codeBlock->pushCode(MarkEnumerateKey(ByteCodeLOC(m_loc.index), enumDataIndex, propertyIndex), context, this->m_loc.index);
             }
             context->giveUpRegister(); // for drop propertyIndex
             context->giveUpRegister(); // for drop valueIndex

@@ -3323,13 +3323,14 @@ NEVER_INLINE void InterpreterSlowPath::replaceBlockLexicalEnvironmentOperation(E
     LexicalEnvironment* newEnv;
 
     bool shouldUseIndexedStorage = byteCodeBlock->m_codeBlock->canUseIndexedVariableStorage();
-    ASSERT(code->m_blockInfo->m_shouldAllocateEnvironment);
+    InterpretedCodeBlock::BlockInfo* blockInfo = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(code->m_blockInfo);
+    ASSERT(blockInfo && blockInfo->m_shouldAllocateEnvironment);
     if (LIKELY(shouldUseIndexedStorage)) {
-        newRecord = new DeclarativeEnvironmentRecordIndexed(state, code->m_blockInfo);
+        newRecord = new DeclarativeEnvironmentRecordIndexed(state, blockInfo);
     } else {
         newRecord = new DeclarativeEnvironmentRecordNotIndexed(state);
 
-        auto& iv = code->m_blockInfo->m_identifiers;
+        auto& iv = blockInfo->m_identifiers;
         auto siz = iv.size();
         for (size_t i = 0; i < siz; i++) {
             newRecord->createBinding(state, iv[i].m_name, false, iv[i].m_isMutable, false);
@@ -3358,13 +3359,14 @@ NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, B
     bool inPauserScope = state->inPauserScope();
 
     if (LIKELY(!inPauserResumeProcess)) {
-        ASSERT(code->m_blockInfo->m_shouldAllocateEnvironment);
+        InterpretedCodeBlock::BlockInfo* blockInfo = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(code->m_blockInfo);
+        ASSERT(blockInfo->m_shouldAllocateEnvironment);
         if (LIKELY(shouldUseIndexedStorage)) {
-            newRecord = new DeclarativeEnvironmentRecordIndexed(*state, code->m_blockInfo);
+            newRecord = new DeclarativeEnvironmentRecordIndexed(*state, blockInfo);
         } else {
-            newRecord = new DeclarativeEnvironmentRecordNotIndexed(*state, false, code->m_blockInfo->m_nodeType == ASTNodeType::CatchClause);
+            newRecord = new DeclarativeEnvironmentRecordNotIndexed(*state, false, blockInfo->m_nodeType == ASTNodeType::CatchClause);
 
-            auto& iv = code->m_blockInfo->m_identifiers;
+            auto& iv = blockInfo->m_identifiers;
             auto siz = iv.size();
             for (size_t i = 0; i < siz; i++) {
                 newRecord->createBinding(*state, iv[i].m_name, false, iv[i].m_isMutable, false);

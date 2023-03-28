@@ -155,13 +155,13 @@ public:
         bool isSubSequenceOfOptionalExpression = this->isSubSequenceOfOptionalExpression();
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
             ByteCodeRegisterIndex evalIndex = context->getRegister();
-            codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), evalIndex, codeBlock->m_codeBlock->context()->staticStrings().eval), context, this);
+            codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), evalIndex, codeBlock->m_codeBlock->context()->staticStrings().eval), context, this->m_loc.index);
             auto args = generateArguments(codeBlock, context, false);
             ByteCodeRegisterIndex startIndex = args.first;
             context->giveUpRegister();
             codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::MayBuiltinEval, context->m_isWithScope, args.second,
                                                         isOptional, REGULAR_REGISTER_LIMIT, evalIndex, startIndex, dstRegister, m_arguments.size()),
-                                context, this);
+                                context, this->m_loc.index);
             return;
         }
 
@@ -182,7 +182,7 @@ public:
             context->m_inCallingExpressionScope = prevInCallingExpressionScope;
             codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), args.second, isOptional,
                                                         calleeName, startIndex, dstRegister, m_arguments.size()),
-                                context, this);
+                                context, this->m_loc.index);
             return;
         }
 
@@ -223,7 +223,7 @@ public:
 
             codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::MayBuiltinApply, false, false, false,
                                                         receiverIndex, calleeIndex, firstArgumentRegister, dstRegister, m_arguments.size()),
-                                context, this);
+                                context, this->m_loc.index);
 
             context->m_inCallingExpressionScope = prevInCallingExpressionScope;
             context->m_canSkipCopyToRegister = directBefore;
@@ -231,7 +231,7 @@ public:
         }
 
         if (isOptional || isSubSequenceOfOptionalExpression) {
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value()), context, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value()), context, this->m_loc.index);
         }
 
         ByteCodeRegisterIndex receiverIndex = REGISTER_LIMIT;
@@ -242,7 +242,7 @@ public:
 
         size_t optionalJumpPos = SIZE_MAX;
         if (isSubSequenceOfOptionalExpression) {
-            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this);
+            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this->m_loc.index);
             optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
         }
 
@@ -261,7 +261,7 @@ public:
 
         if (isOptional) {
             ASSERT(optionalJumpPos == SIZE_MAX);
-            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this);
+            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this->m_loc.index);
             optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
         }
 
@@ -276,15 +276,15 @@ public:
         if (isSuperCall) {
             codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::Super, false, args.second, false,
                                                         REGISTER_LIMIT, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
-                                context, this);
+                                context, this->m_loc.index);
         } else if (hasSpreadElement) {
             codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::WithSpreadElement, false, args.second, false,
                                                         receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()),
-                                context, this);
+                                context, this->m_loc.index);
         } else if (isCalleeHasReceiver) {
-            codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
+            codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
         } else {
-            codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this);
+            codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
         }
 
         if (isOptional || isSubSequenceOfOptionalExpression) {

@@ -103,9 +103,9 @@ public:
         context->giveUpRegister();
 
         if (m_hasSpreadElement) {
-            codeBlock->pushCode(NewOperationWithSpreadElement(ByteCodeLOC(m_loc.index), callee, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
+            codeBlock->pushCode(NewOperationWithSpreadElement(ByteCodeLOC(m_loc.index), callee, argumentsStartIndex, m_arguments.size(), dstRegister), context, this->m_loc.index);
         } else {
-            codeBlock->pushCode(NewOperation(ByteCodeLOC(m_loc.index), callee, argumentsStartIndex, m_arguments.size(), dstRegister), context, this);
+            codeBlock->pushCode(NewOperation(ByteCodeLOC(m_loc.index), callee, argumentsStartIndex, m_arguments.size(), dstRegister), context, this->m_loc.index);
         }
 
         codeBlock->m_shouldClearStack = true;

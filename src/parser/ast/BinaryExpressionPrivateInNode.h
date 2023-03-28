@@ -43,14 +43,14 @@ public:
         size_t src0 = context->getRegister();
         size_t src1 = m_right->getRegister(codeBlock, context);
         AtomicString p = m_left->asIdentifier()->name();
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), src0, Value(p.string())), context, this);
+        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), src0, Value(p.string())), context, this->m_loc.index);
         m_right->generateExpressionByteCode(codeBlock, context, src1);
 
         context->giveUpRegister();
         context->giveUpRegister();
 
         // extra data 1 means private id in operation
-        codeBlock->pushCode(BinaryInOperation(ByteCodeLOC(m_loc.index), src0, src1, dstRegister, 1), context, this);
+        codeBlock->pushCode(BinaryInOperation(ByteCodeLOC(m_loc.index), src0, src1, dstRegister, 1), context, this->m_loc.index);
 
         context->m_canSkipCopyToRegister = directBefore;
     }
