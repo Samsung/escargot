@@ -20,8 +20,8 @@
 #ifndef __EscargotCodeBlock__
 #define __EscargotCodeBlock__
 
-#include "parser/ast/Node.h"
-#include "parser/ast/ASTContext.h"
+#include "parser/ast/CommonASTData.h"
+#include "runtime/AtomicString.h"
 
 namespace Escargot {
 
@@ -29,8 +29,14 @@ class ByteCodeBlock;
 class InterpretedCodeBlock;
 class NativeCodeBlock;
 class Script;
-class AtomicString;
+class Value;
+class Object;
+struct ASTScopeContext;
 struct ByteCodeGenerateContext;
+
+typedef std::unordered_map<AtomicString, StorePositiveNumberAsOddNumber, std::hash<AtomicString>, std::equal_to<AtomicString>,
+                           GCUtil::gc_malloc_allocator<std::pair<AtomicString const, StorePositiveNumberAsOddNumber>>>
+    FunctionContextVarMap;
 
 // length of argv is same with NativeFunctionInfo.m_argumentCount
 // only in construct call, newTarget have Object*
@@ -742,63 +748,7 @@ public:
 
     IndexedIdentifierInfo indexedIdentifierInfo(const AtomicString& name, ByteCodeGenerateContext* context);
 
-    size_t findVarName(const AtomicString& name)
-    {
-        auto map = identifierInfoMap();
-        if (UNLIKELY(map)) {
-            auto iter = map->find(name);
-            if (iter == map->end()) {
-                return SIZE_MAX;
-            } else {
-                return iter->second;
-            }
-        }
-
-        auto& v = this->m_identifierInfos;
-        size_t size = v.size();
-
-        if (LIKELY(size <= 12)) {
-            size_t idx = SIZE_MAX;
-            switch (size) {
-            case 12:
-                if (v[11].m_name == name) {
-                    idx = 11;
-                }
-                FALLTHROUGH;
-#define TEST_ONCE(n)                                      \
-    case n:                                               \
-        if (idx == SIZE_MAX && v[n - 1].m_name == name) { \
-            idx = n - 1;                                  \
-        }                                                 \
-        FALLTHROUGH;
-                TEST_ONCE(11)
-                TEST_ONCE(10)
-                TEST_ONCE(9)
-                TEST_ONCE(8)
-                TEST_ONCE(7)
-                TEST_ONCE(6)
-                TEST_ONCE(5)
-                TEST_ONCE(4)
-                TEST_ONCE(3)
-                TEST_ONCE(2)
-                TEST_ONCE(1)
-#undef TEST_ONCE
-            case 0:
-                break;
-            default:
-                ASSERT_NOT_REACHED();
-            }
-
-            return idx;
-        } else {
-            for (size_t i = 0; i < size; i++) {
-                if (v[i].m_name == name) {
-                    return i;
-                }
-            }
-            return SIZE_MAX;
-        }
-    }
+    size_t findVarName(const AtomicString& name);
 
     bool hasName(LexicalBlockIndex blockIndex, const AtomicString& name)
     {
@@ -1021,25 +971,9 @@ public:
     }
 
 private:
-    InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
-        : InterpretedCodeBlock(ctx, script, src, scopeCtx, isEvalCode, isEvalCodeInFunction)
-        , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap, scopeCtx->m_classPrivateNames))
-    {
-        ASSERT(scopeCtx->m_needRareData);
-#ifdef ESCARGOT_DEBUGGER
-        m_rareData->m_debuggerLineStart = scopeCtx->m_debuggerLineStart;
-#endif /* ESCARGOT_DEBUGGER */
-    }
+    InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
 
-    InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction)
-        : InterpretedCodeBlock(ctx, script, src, scopeCtx, parentBlock, isEvalCode, isEvalCodeInFunction)
-        , m_rareData(new InterpretedCodeBlockRareData(scopeCtx->m_varNamesMap, scopeCtx->m_classPrivateNames))
-    {
-        ASSERT(scopeCtx->m_needRareData);
-#ifdef ESCARGOT_DEBUGGER
-        m_rareData->m_debuggerLineStart = scopeCtx->m_debuggerLineStart;
-#endif /* ESCARGOT_DEBUGGER */
-    }
+    InterpretedCodeBlockWithRareData(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
 
     InterpretedCodeBlockWithRareData(Context* ctx, Script* script)
         : InterpretedCodeBlock(ctx, script)
