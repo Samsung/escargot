@@ -44,7 +44,7 @@ public:
         if (context->shouldCareScriptExecutionResult()) {
             // IterationStatement : while ( Expression ) Statement
             // 1. Let V = undefined.
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this->m_loc.index);
         }
 
         ByteCodeGenerateContext newContext(*context);
@@ -66,7 +66,7 @@ public:
             } else {
                 ByteCodeRegisterIndex testR = m_test->getRegister(codeBlock, &newContext);
                 m_test->generateExpressionByteCode(codeBlock, &newContext, testR);
-                codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testR), &newContext, this);
+                codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testR), &newContext, this->m_loc.index);
                 testPos = codeBlock->lastCodePosition<JumpIfFalse>();
                 newContext.giveUpRegister();
             }
@@ -79,7 +79,7 @@ public:
 #endif /* ESCARGOT_DEBUGGER */
         m_body->generateStatementByteCode(codeBlock, &newContext);
 
-        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), whileStart), &newContext, this);
+        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), whileStart), &newContext, this->m_loc.index);
         newContext.consumeContinuePositions(codeBlock, whileStart, context->tryCatchWithBlockStatementCount());
         size_t whileEnd = codeBlock->currentCodeSize();
         newContext.consumeBreakPositions(codeBlock, whileEnd, context->tryCatchWithBlockStatementCount());

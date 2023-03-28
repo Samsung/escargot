@@ -38,7 +38,7 @@ public:
         insertBreakpoint(context);
 #endif /* ESCARGOT_DEBUGGER */
 
-        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
+        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this->m_loc.index);
         context->pushContinuePositions(codeBlock->lastCodePosition<Jump>());
     }
 };

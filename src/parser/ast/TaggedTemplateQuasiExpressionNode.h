@@ -42,7 +42,7 @@ public:
         testCache.m_jumpPosition = SIZE_MAX;
         testCache.m_registerIndex = dstRegister;
         size_t testCachePos = codeBlock->currentCodeSize();
-        codeBlock->pushCode(TaggedTemplateOperation(ByteCodeLOC(m_loc.index), testCache), context, this);
+        codeBlock->pushCode(TaggedTemplateOperation(ByteCodeLOC(m_loc.index), testCache), context, this->m_loc.index);
 
         // create quasi if there is no cache value
         m_generatorNode->generateExpressionByteCode(codeBlock, context, dstRegister);
@@ -53,7 +53,7 @@ public:
         TaggedTemplateOperation::FillCacheOperationData fillCache;
         fillCache.m_cacheIndex = m_cacheIndex;
         fillCache.m_registerIndex = dstRegister;
-        codeBlock->pushCode(TaggedTemplateOperation(ByteCodeLOC(m_loc.index), fillCache), context, this);
+        codeBlock->pushCode(TaggedTemplateOperation(ByteCodeLOC(m_loc.index), fillCache), context, this->m_loc.index);
     }
 
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override

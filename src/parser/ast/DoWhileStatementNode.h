@@ -47,7 +47,7 @@ public:
         if (context->shouldCareScriptExecutionResult()) {
             // IterationStatement : do Statement while ( Expression ) ;
             // 1. Let V = undefined.
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), &newContext, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), &newContext, this->m_loc.index);
         }
 
 #ifdef ESCARGOT_DEBUGGER
@@ -59,7 +59,7 @@ public:
         size_t testPos = codeBlock->currentCodeSize();
         size_t testReg = m_test->getRegister(codeBlock, &newContext);
         m_test->generateExpressionByteCode(codeBlock, &newContext, testReg);
-        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), testReg, doStart), &newContext, this);
+        codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), testReg, doStart), &newContext, this->m_loc.index);
 
         newContext.giveUpRegister();
         newContext.giveUpRegister();

@@ -66,13 +66,13 @@ public:
                 value = String::emptyString;
             }
         }
-        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, value), context, this);
+        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, value), context, this->m_loc.index);
 
         size_t index = 0;
         for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.end(); expression = expression->next()) {
             size_t eSrc = expression->astNode()->getRegister(codeBlock, context);
             expression->astNode()->generateExpressionByteCode(codeBlock, context, eSrc);
-            codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, eSrc, dstRegister), context, this);
+            codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, eSrc, dstRegister), context, this->m_loc.index);
             context->giveUpRegister();
 
             if ((*m_quasis)[index + 1]->value) {
@@ -81,14 +81,14 @@ public:
                     String* str = new UTF16String(std::move(sd));
                     codeBlock->m_stringLiteralData.push_back(str);
                     size_t reg = context->getRegister();
-                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), reg, Value(str)), context, this);
-                    codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, reg, dstRegister), context, this);
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), reg, Value(str)), context, this->m_loc.index);
+                    codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, reg, dstRegister), context, this->m_loc.index);
                     context->giveUpRegister();
                 }
             } else {
                 size_t reg = context->getRegister();
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), reg, Value()), context, this);
-                codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, reg, dstRegister), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), reg, Value()), context, this->m_loc.index);
+                codeBlock->pushCode(TemplateOperation(ByteCodeLOC(m_loc.index), dstRegister, reg, dstRegister), context, this->m_loc.index);
                 context->giveUpRegister();
             }
             index++;

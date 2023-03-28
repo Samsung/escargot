@@ -51,7 +51,7 @@ public:
         m_right->generateExpressionByteCode(codeBlock, context, src1);
         context->giveUpRegister();
         context->giveUpRegister();
-        codeBlock->pushCode(BinaryExponentiation(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this);
+        codeBlock->pushCode(BinaryExponentiation(ByteCodeLOC(m_loc.index), src0, src1, dstRegister), context, this->m_loc.index);
         m_left->generateStoreByteCode(codeBlock, context, dstRegister, false);
 
         if (slowMode) {

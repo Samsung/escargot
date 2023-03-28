@@ -44,13 +44,13 @@ void Node::generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateConte
 {
     generateExpressionByteCode(codeBlock, context, context->getRegister());
     context->giveUpRegister();
-    codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::ReferenceError, ErrorObject::Messages::InvalidLHSInAssignment), context, this);
+    codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::ReferenceError, ErrorObject::Messages::InvalidLHSInAssignment), context, this->m_loc.index);
 }
 
 void Node::generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context)
 {
     context->getRegister();
-    codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::ReferenceError, ErrorObject::Messages::InvalidLHSInAssignment), context, this);
+    codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::ReferenceError, ErrorObject::Messages::InvalidLHSInAssignment), context, this->m_loc.index);
     return;
 }
 } // namespace Escargot

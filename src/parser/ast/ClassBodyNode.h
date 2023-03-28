@@ -102,7 +102,7 @@ public:
 #endif
 
         if (fieldSize || staticFieldSize) {
-            codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldSize, staticFieldSize), context, this);
+            codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldSize, staticFieldSize), context, this->m_loc.index);
         }
 
         size_t fieldIndex = 0;
@@ -113,25 +113,25 @@ public:
             if (p->kind() == ClassElementNode::Kind::Field) {
                 ByteCodeRegisterIndex keyIndex = context->getRegister();
                 if (hasKeyName) {
-                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), keyIndex, p->key()->asIdentifier()->name().string()), context, this);
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), keyIndex, p->key()->asIdentifier()->name().string()), context, this->m_loc.index);
                 } else {
                     p->key()->generateExpressionByteCode(codeBlock, context, keyIndex);
                 }
 
                 if (p->isStatic()) {
                     if (p->isPrivate()) {
-                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, keyIndex, InitializeClass::InitStaticPrivateFieldDataTagValue), context, this);
+                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, keyIndex, InitializeClass::InitStaticPrivateFieldDataTagValue), context, this->m_loc.index);
                     } else {
-                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, keyIndex, InitializeClass::InitStaticFieldDataTagValue), context, this);
+                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, keyIndex, InitializeClass::InitStaticFieldDataTagValue), context, this->m_loc.index);
                     }
                     staticFieldIndex++;
                 } else {
                     if (p->isPrivate()) {
                         codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldIndex, keyIndex,
                                                             ScriptClassConstructorFunctionObject::PrivateFieldValue, InitializeClass::InitPrivateFieldTagValue),
-                                            context, this);
+                                            context, this->m_loc.index);
                     } else {
-                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldIndex, keyIndex, InitializeClass::InitFieldDataTagValue), context, this);
+                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldIndex, keyIndex, InitializeClass::InitFieldDataTagValue), context, this->m_loc.index);
                     }
                     fieldIndex++;
                 }
@@ -141,15 +141,15 @@ public:
                 ASSERT(p->kind() == ClassElementNode::Kind::Method || p->kind() == ClassElementNode::Kind::Get || p->kind() == ClassElementNode::Kind::Set);
 
                 ByteCodeRegisterIndex keyIndex = context->getRegister();
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), keyIndex, p->key()->asIdentifier()->name().string()), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), keyIndex, p->key()->asIdentifier()->name().string()), context, this->m_loc.index);
 
                 size_t type = privateElementType(p);
 
                 if (p->isStatic()) {
-                    codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, keyIndex, InitializeClass::InitStaticPrivateFieldDataTagValue), context, this);
+                    codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, keyIndex, InitializeClass::InitStaticPrivateFieldDataTagValue), context, this->m_loc.index);
                     staticFieldIndex++;
                 } else {
-                    codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldIndex, keyIndex, type, InitializeClass::InitPrivateFieldTagValue), context, this);
+                    codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldIndex, keyIndex, type, InitializeClass::InitPrivateFieldTagValue), context, this->m_loc.index);
                     fieldIndex++;
                 }
                 context->giveUpRegister();
@@ -168,9 +168,9 @@ public:
                 p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
                 if (p->isStatic()) {
                     if (p->isPrivate()) {
-                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, valueIndex, ScriptClassConstructorFunctionObject::PrivateFieldValue, InitializeClass::SetStaticPrivateFieldDataTagValue), context, this);
+                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, valueIndex, ScriptClassConstructorFunctionObject::PrivateFieldValue, InitializeClass::SetStaticPrivateFieldDataTagValue), context, this->m_loc.index);
                     } else {
-                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, valueIndex, InitializeClass::SetStaticFieldDataTagValue), context, this);
+                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, valueIndex, InitializeClass::SetStaticFieldDataTagValue), context, this->m_loc.index);
                     }
 
                     staticFieldIndex++;
@@ -178,9 +178,9 @@ public:
                     if (p->isPrivate()) {
                         codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldIndex, valueIndex,
                                                             ScriptClassConstructorFunctionObject::PrivateFieldValue, InitializeClass::SetPrivateFieldDataTagValue),
-                                            context, this);
+                                            context, this->m_loc.index);
                     } else {
-                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldIndex, valueIndex, InitializeClass::SetFieldDataTagValue), context, this);
+                        codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldIndex, valueIndex, InitializeClass::SetFieldDataTagValue), context, this->m_loc.index);
                     }
 
                     fieldIndex++;
@@ -200,12 +200,12 @@ public:
                 if (p->isStatic()) {
                     codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, staticFieldIndex, valueIndex, type,
                                                         InitializeClass::SetStaticPrivateFieldDataTagValue),
-                                        context, this);
+                                        context, this->m_loc.index);
                     staticFieldIndex++;
                 } else {
                     codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, fieldIndex, valueIndex,
                                                         type, InitializeClass::SetPrivateFieldDataTagValue),
-                                        context, this);
+                                        context, this->m_loc.index);
                     fieldIndex++;
                 }
                 context->giveUpRegister();
@@ -215,7 +215,7 @@ public:
                 p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
                 codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex, valueIndex,
                                                     InitializeClass::RunStaticInitializerTagValue),
-                                    context, this);
+                                    context, this->m_loc.index);
                 context->giveUpRegister();
                 continue;
             }
@@ -233,14 +233,14 @@ public:
                 if (p->isStatic() && p->isComputed()) {
                     // we don't need to root `prototype` string because it is AtomicString
                     auto stringReg = context->getRegister();
-                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), stringReg, Value(context->m_codeBlock->context()->staticStrings().prototype.string())), context, this);
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), stringReg, Value(context->m_codeBlock->context()->staticStrings().prototype.string())), context, this->m_loc.index);
                     auto testReg = context->getRegister();
-                    codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), propertyIndex, stringReg, testReg), context, this);
+                    codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), propertyIndex, stringReg, testReg), context, this->m_loc.index);
 
                     size_t jmpPos = codeBlock->currentCodeSize();
-                    codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this);
+                    codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this->m_loc.index);
 
-                    codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Static_Generator), context, this);
+                    codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::TypeError, ErrorObject::Messages::Class_Prototype_Is_Not_Static_Generator), context, this->m_loc.index);
 
                     codeBlock->peekCode<JumpIfFalse>(jmpPos)->m_jumpPosition = codeBlock->currentCodeSize();
 
@@ -256,15 +256,15 @@ public:
 
             if (p->kind() == ClassElementNode::Kind::Method) {
                 if (hasKeyName) {
-                    codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), destIndex, p->key()->asIdentifier()->name(), valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)), context, this);
+                    codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), destIndex, p->key()->asIdentifier()->name(), valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)), context, this->m_loc.index);
                 } else {
-                    codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent), true), context, this);
+                    codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent), true), context, this->m_loc.index);
                 }
             } else if (p->kind() == ClassElementNode::Kind::Get) {
-                codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::NonEnumerablePresent), true, hasKeyName), context, this);
+                codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::NonEnumerablePresent), true, hasKeyName), context, this->m_loc.index);
             } else {
                 ASSERT(p->kind() == ClassElementNode::Kind::Set);
-                codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::NonEnumerablePresent), false, hasKeyName), context, this);
+                codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), destIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::NonEnumerablePresent), false, hasKeyName), context, this->m_loc.index);
             }
 
             if (propertyIndex != SIZE_MAX) {
@@ -275,7 +275,7 @@ public:
         }
 
         if (staticFieldSize) {
-            codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex), context, this);
+            codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), context->m_classInfo.m_constructorIndex), context, this->m_loc.index);
         }
 
         codeBlock->m_shouldClearStack = true;

@@ -38,7 +38,7 @@ public:
         m_argument->generateResolveAddressByteCode(codeBlock, context);
         m_argument->generateReferenceResolvedAddressByteCode(codeBlock, context);
         size_t srcIndex = context->getLastRegisterIndex();
-        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), srcIndex, dstRegister), context, this);
+        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), srcIndex, dstRegister), context, this->m_loc.index);
         context->giveUpRegister();
         m_argument->generateStoreByteCode(codeBlock, context, dstRegister, false);
     }
@@ -48,7 +48,7 @@ public:
         if (m_argument->isIdentifier()) {
             auto r = m_argument->asIdentifier()->isAllocatedOnStack(context);
             if (std::get<0>(r)) {
-                codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), std::get<1>(r), std::get<1>(r)), context, this);
+                codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), std::get<1>(r), std::get<1>(r)), context, this->m_loc.index);
                 return;
             }
         }
@@ -56,7 +56,7 @@ public:
         m_argument->generateExpressionByteCode(codeBlock, context, src);
         context->giveUpRegister();
         size_t dst = m_argument->getRegister(codeBlock, context);
-        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), src, dst), context, this);
+        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), src, dst), context, this->m_loc.index);
         m_argument->generateStoreByteCode(codeBlock, context, dst, true);
         context->giveUpRegister();
     }

@@ -168,7 +168,7 @@ public:
                         auto r2 = m_right->getRegister(codeBlock, context);
                         if (r2 >= REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT) {
                             context->giveUpRegister();
-                            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r2, std::get<1>(r)), context, this);
+                            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r2, std::get<1>(r)), context, this->m_loc.index);
                             return;
                         }
                     }

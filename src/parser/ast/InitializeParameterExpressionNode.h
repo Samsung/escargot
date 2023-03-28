@@ -42,11 +42,11 @@ public:
             auto r = m_left->asIdentifier()->isAllocatedOnStack(context);
             if (std::get<0>(r)) {
                 context->addInitializedParameterNames(m_left->asIdentifier()->name());
-                codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), std::get<1>(r), m_paramIndex), context, this);
+                codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), std::get<1>(r), m_paramIndex), context, this->m_loc.index);
             } else {
                 size_t rightRegister = context->getRegister();
                 m_left->generateResolveAddressByteCode(codeBlock, context);
-                codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), rightRegister, m_paramIndex), context, this);
+                codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), rightRegister, m_paramIndex), context, this->m_loc.index);
                 m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
                 context->giveUpRegister();
             }
@@ -54,7 +54,7 @@ public:
             // pattern or default parameter cases
             size_t rightRegister = context->getRegister();
             m_left->generateResolveAddressByteCode(codeBlock, context);
-            codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), rightRegister, m_paramIndex), context, this);
+            codeBlock->pushCode(GetParameter(ByteCodeLOC(m_loc.index), rightRegister, m_paramIndex), context, this->m_loc.index);
             m_left->generateStoreByteCode(codeBlock, context, rightRegister, false);
             context->giveUpRegister();
         }

@@ -71,14 +71,14 @@ public:
             }
 
             if (!find) {
-                codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::ReferenceError, ErrorObject::Messages::IsNotInitialized, m_name), context, this);
+                codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::ReferenceError, ErrorObject::Messages::IsNotInitialized, m_name), context, this->m_loc.index);
             }
         }
 
         // <const variable check>
         // every indexed variables are checked on bytecode generation time
         if (!isLexicallyDeclaredBindingInitialization && isVariableChainging && info.m_isResultSaved && !info.m_isMutable && info.m_type == InterpretedCodeBlock::IndexedIdentifierInfo::LexicallyDeclared) {
-            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, m_name), context, this);
+            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, m_name), context, this->m_loc.index);
         }
     }
 
@@ -100,7 +100,7 @@ public:
         }
 
         if (isPointsArgumentsObject(context)) {
-            codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this);
+            codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this->m_loc.index);
         }
 
         if (context->m_codeBlock->canUseIndexedVariableStorage()) {
@@ -115,45 +115,45 @@ public:
                         context->giveUpRegister();
                     }
                     if (isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization || isVarDeclaredBindingInitialization) {
-                        codeBlock->pushCode(InitializeByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isLexicallyDeclaredBindingInitialization), context, this);
+                        codeBlock->pushCode(InitializeByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isLexicallyDeclaredBindingInitialization), context, this->m_loc.index);
                     } else {
                         if (addressRegisterIndex != SIZE_MAX) {
-                            codeBlock->pushCode(StoreByNameWithAddress(ByteCodeLOC(m_loc.index), addressRegisterIndex, srcRegister, m_name), context, this);
+                            codeBlock->pushCode(StoreByNameWithAddress(ByteCodeLOC(m_loc.index), addressRegisterIndex, srcRegister, m_name), context, this->m_loc.index);
                         } else {
-                            codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                            codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this->m_loc.index);
                         }
                     }
                 } else {
                     if (isLexicallyDeclaredBindingInitialization) {
-                        codeBlock->pushCode(InitializeGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                        codeBlock->pushCode(InitializeGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this->m_loc.index);
                     } else {
-                        codeBlock->pushCode(SetGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
+                        codeBlock->pushCode(SetGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this->m_loc.index);
                     }
                 }
             } else {
                 if (info.m_type != InterpretedCodeBlock::IndexedIdentifierInfo::LexicallyDeclared && !isVarDeclaredBindingInitialization) {
                     if (!info.m_isMutable) {
                         if (codeBlock->m_codeBlock->isStrict())
-                            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, m_name), context, this);
+                            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, m_name), context, this->m_loc.index);
                         return;
                     }
                 }
 
                 if (info.m_isStackAllocated) {
                     if (srcRegister != REGULAR_REGISTER_LIMIT + info.m_index) {
-                        codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), srcRegister, REGULAR_REGISTER_LIMIT + info.m_index), context, this);
+                        codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), srcRegister, REGULAR_REGISTER_LIMIT + info.m_index), context, this->m_loc.index);
                     }
                 } else {
                     if (info.m_isGlobalLexicalVariable) {
                         if (isLexicallyDeclaredBindingInitialization) {
-                            codeBlock->pushCode(InitializeGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                            codeBlock->pushCode(InitializeGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this->m_loc.index);
                         } else {
-                            codeBlock->pushCode(SetGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
+                            codeBlock->pushCode(SetGlobalVariable(ByteCodeLOC(m_loc.index), srcRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this->m_loc.index);
                         }
                     } else {
                         if (isLexicallyDeclaredBindingInitialization || isVarDeclaredBindingInitialization) {
                             if (LIKELY(info.m_upperIndex == 0)) {
-                                codeBlock->pushCode(InitializeByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_index), context, this);
+                                codeBlock->pushCode(InitializeByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_index), context, this->m_loc.index);
                                 return;
                             }
 
@@ -161,7 +161,7 @@ public:
                             ASSERT(m_name == codeBlock->codeBlock()->functionName() && codeBlock->codeBlock()->isFunctionExpression() && codeBlock->codeBlock()->isFunctionNameSaveOnHeap());
                         }
 
-                        codeBlock->pushCode(StoreByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_upperIndex, info.m_index), context, this);
+                        codeBlock->pushCode(StoreByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_upperIndex, info.m_index), context, this->m_loc.index);
                     }
                 }
             }
@@ -173,12 +173,12 @@ public:
                 context->giveUpRegister();
             }
             if (isLexicallyDeclaredBindingInitialization || isFunctionDeclarationBindingInitialization || isVarDeclaredBindingInitialization) {
-                codeBlock->pushCode(InitializeByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isLexicallyDeclaredBindingInitialization), context, this);
+                codeBlock->pushCode(InitializeByName(ByteCodeLOC(m_loc.index), srcRegister, m_name, isLexicallyDeclaredBindingInitialization), context, this->m_loc.index);
             } else {
                 if (addressRegisterIndex != SIZE_MAX) {
-                    codeBlock->pushCode(StoreByNameWithAddress(ByteCodeLOC(m_loc.index), addressRegisterIndex, srcRegister, m_name), context, this);
+                    codeBlock->pushCode(StoreByNameWithAddress(ByteCodeLOC(m_loc.index), addressRegisterIndex, srcRegister, m_name), context, this->m_loc.index);
                 } else {
-                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this);
+                    codeBlock->pushCode(StoreByName(ByteCodeLOC(m_loc.index), srcRegister, m_name), context, this->m_loc.index);
                 }
             }
         }
@@ -187,7 +187,7 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         if (isPointsArgumentsObject(context)) {
-            codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this);
+            codeBlock->pushCode(EnsureArgumentsObject(ByteCodeLOC(m_loc.index)), context, this->m_loc.index);
         }
 
         if (context->m_inParameterInitialization && codeBlock->m_codeBlock->hasParameterName(m_name)) {
@@ -200,37 +200,37 @@ public:
 
             if (!info.m_isResultSaved) {
                 if (codeBlock->m_codeBlock->hasAncestorUsesNonIndexedVariableStorage()) {
-                    codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
+                    codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this->m_loc.index);
                 } else {
                     if (context->m_codeBlock->context()->staticStrings().undefined == m_name) {
                         // getting global undefined value
                         // convert to LoadLiteral of undefined value
-                        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value()), context, this);
+                        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value()), context, this->m_loc.index);
                     } else {
-                        codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
+                        codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this->m_loc.index);
                     }
                 }
             } else {
                 if (info.m_isStackAllocated) {
                     if (context->m_canSkipCopyToRegister) {
                         if (dstRegister != (REGULAR_REGISTER_LIMIT + info.m_index)) {
-                            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + info.m_index, dstRegister), context, this);
+                            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + info.m_index, dstRegister), context, this->m_loc.index);
                         }
                     } else
-                        codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + info.m_index, dstRegister), context, this);
+                        codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + info.m_index, dstRegister), context, this->m_loc.index);
                 } else {
                     if (info.m_isGlobalLexicalVariable) {
                         // m_isResultSaved should be false for global undefined
                         ASSERT(context->m_codeBlock->context()->staticStrings().undefined != m_name);
-                        codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this);
+                        codeBlock->pushCode(GetGlobalVariable(ByteCodeLOC(m_loc.index), dstRegister, codeBlock->m_codeBlock->context()->ensureGlobalVariableAccessCacheSlot(m_name)), context, this->m_loc.index);
                     } else {
-                        codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_upperIndex, info.m_index), context, this);
+                        codeBlock->pushCode(LoadByHeapIndex(ByteCodeLOC(m_loc.index), dstRegister, info.m_upperIndex, info.m_index), context, this->m_loc.index);
                     }
                 }
             }
         } else {
             ASSERT(!context->m_codeBlock->canAllocateEnvironmentOnStack());
-            codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this);
+            codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), dstRegister, m_name), context, this->m_loc.index);
         }
     }
 
@@ -243,7 +243,7 @@ public:
     {
         if (mayNeedsResolveAddress(codeBlock, context)) {
             auto r = context->getRegister();
-            codeBlock->pushCode(ResolveNameAddress(ByteCodeLOC(m_loc.index), m_name, r), context, this);
+            codeBlock->pushCode(ResolveNameAddress(ByteCodeLOC(m_loc.index), m_name, r), context, this->m_loc.index);
         }
     }
 
@@ -313,7 +313,7 @@ private:
         }
 
         if (!find) {
-            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::ReferenceError, ErrorObject::Messages::IsNotInitialized, m_name), context, this);
+            codeBlock->pushCode(ThrowStaticErrorOperation(ByteCodeLOC(m_loc.index), (uint8_t)ErrorCode::ReferenceError, ErrorObject::Messages::IsNotInitialized, m_name), context, this->m_loc.index);
         }
     }
 

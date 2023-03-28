@@ -42,10 +42,10 @@ public:
                 if (UNLIKELY(m_argument->asIdentifier()->isPointsArgumentsObject(context))) {
                     size_t srcIndex = m_argument->getRegister(codeBlock, context);
                     m_argument->generateExpressionByteCode(codeBlock, context, srcIndex);
-                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstRegister, AtomicString()), context, this);
+                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstRegister, AtomicString()), context, this->m_loc.index);
                     context->giveUpRegister();
                 } else {
-                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), SIZE_MAX, dstRegister, name), context, this);
+                    codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), SIZE_MAX, dstRegister, name), context, this->m_loc.index);
                 }
                 return;
             }
@@ -53,7 +53,7 @@ public:
 
         size_t srcIndex = m_argument->getRegister(codeBlock, context);
         m_argument->generateExpressionByteCode(codeBlock, context, srcIndex);
-        codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstRegister, AtomicString()), context, this);
+        codeBlock->pushCode(UnaryTypeof(ByteCodeLOC(m_loc.index), srcIndex, dstRegister, AtomicString()), context, this->m_loc.index);
         context->giveUpRegister();
     }
 

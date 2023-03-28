@@ -41,14 +41,14 @@ public:
 
         size_t testReg = m_test->getRegister(codeBlock, context);
         m_test->generateExpressionByteCode(codeBlock, context, testReg);
-        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this);
+        codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this->m_loc.index);
 
         // give testReg
         context->giveUpRegister();
 
         size_t jumpPosForTestIsFalse = codeBlock->lastCodePosition<JumpIfFalse>();
         m_consequente->generateExpressionByteCode(codeBlock, context, dstRegister);
-        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this);
+        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this->m_loc.index);
         JumpIfFalse* jumpForTestIsFalse = codeBlock->peekCode<JumpIfFalse>(jumpPosForTestIsFalse);
         size_t jumpPosForEndOfConsequence = codeBlock->lastCodePosition<Jump>();
 

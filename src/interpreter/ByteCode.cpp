@@ -231,13 +231,15 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
     return ExtendedNodeLOC(line, column, index);
 }
 
-void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node)
+void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, void* bi, Node* node)
 {
     InterpretedCodeBlock* codeBlock = context->m_codeBlock;
     if (!codeBlock->hasChildren()) {
         return;
     }
 
+    ASSERT(!!bi);
+    InterpretedCodeBlock::BlockInfo* blockInfo = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(bi);
     InterpretedCodeBlockVector& childrenVector = codeBlock->children();
     for (size_t i = 0; i < childrenVector.size(); i++) {
         InterpretedCodeBlock* child = childrenVector[i];
@@ -251,7 +253,7 @@ void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* 
             context->getRegister();
 
             auto dstIndex = id->getRegister(this, context);
-            pushCode(CreateFunction(ByteCodeLOC(node->m_loc.index), dstIndex, SIZE_MAX, child), context, node);
+            pushCode(CreateFunction(ByteCodeLOC(node->m_loc.index), dstIndex, SIZE_MAX, child), context, node->m_loc.index);
 
             // We would not use InitializeByName where `global + eval`
             // ex) eval("delete f; function f() {}")
@@ -259,8 +261,8 @@ void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* 
                 context->m_isFunctionDeclarationBindingInitialization = true;
             }
 
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                if (bi->m_identifiers[i].m_name == child->functionName()) {
+            for (size_t i = 0; i < blockInfo->m_identifiers.size(); i++) {
+                if (blockInfo->m_identifiers[i].m_name == child->functionName()) {
                     context->m_isLexicallyDeclaredBindingInitialization = true;
                     break;
                 }
@@ -274,19 +276,22 @@ void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* 
     }
 }
 
-ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, InterpretedCodeBlock::BlockInfo* bi, Node* node, bool initFunctionDeclarationInside)
+ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, void* bi, Node* node, bool initFunctionDeclarationInside)
 {
+    ASSERT(!!bi);
+    InterpretedCodeBlock::BlockInfo* blockInfo = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(bi);
+
     ByteCodeBlock::ByteCodeLexicalBlockContext ctx;
     ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
 
-    if (bi->m_shouldAllocateEnvironment) {
+    if (blockInfo->m_shouldAllocateEnvironment) {
         ctx.lexicalBlockSetupStartPosition = currentCodeSize();
         context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Block, ctx.lexicalBlockSetupStartPosition));
-        this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), bi), context, nullptr);
+        this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), blockInfo), context, SIZE_MAX);
     }
 
     if (initFunctionDeclarationInside) {
-        initFunctionDeclarationWithinBlock(context, bi, node);
+        initFunctionDeclarationWithinBlock(context, blockInfo, node);
     }
     ctx.lexicalBlockStartPosition = currentCodeSize();
 
@@ -305,7 +310,7 @@ void ByteCodeBlock::finalizeLexicalBlock(ByteCodeGenerateContext* context, const
         context->registerJumpPositionsToComplexCase(ctx.lexicalBlockStartPosition);
     }
 
-    this->pushCode(CloseLexicalEnvironment(ByteCodeLOC(SIZE_MAX)), context, nullptr);
+    this->pushCode(CloseLexicalEnvironment(ByteCodeLOC(SIZE_MAX)), context, SIZE_MAX);
     this->peekCode<BlockOperation>(ctx.lexicalBlockSetupStartPosition)->m_blockEndPosition = this->currentCodeSize();
     context->m_recursiveStatementStack.pop_back();
 }

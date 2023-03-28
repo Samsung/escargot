@@ -42,7 +42,7 @@ public:
 #endif /* ESCARGOT_DEBUGGER */
 
         if (context->shouldCareScriptExecutionResult()) {
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this->m_loc.index);
         }
 
         context->getRegister(); // ExeuctionResult of m_consequente|m_alternate should not be overwritten by m_test
@@ -56,7 +56,7 @@ public:
         } else {
             size_t testReg = m_test->getRegister(codeBlock, context);
             m_test->generateExpressionByteCode(codeBlock, context, testReg);
-            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this);
+            codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testReg), context, this->m_loc.index);
             jPos = codeBlock->lastCodePosition<JumpIfFalse>();
             context->giveUpRegister();
         }
@@ -65,7 +65,7 @@ public:
         m_consequente->generateStatementByteCode(codeBlock, context);
         size_t jPos2 = 0;
         if (m_alternate) {
-            codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index)), context, this);
+            codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index)), context, this->m_loc.index);
             jPos2 = codeBlock->lastCodePosition<Jump>();
         }
         codeBlock->peekCode<Jump>(jPos)->m_jumpPosition = codeBlock->currentCodeSize();

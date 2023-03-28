@@ -50,10 +50,10 @@ public:
         context->giveUpRegister();
 
         if (src0 != dstRegister) {
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), src0, dstRegister), context, this);
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), src0, dstRegister), context, this->m_loc.index);
         }
 
-        codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), true, src0), context, this);
+        codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), true, src0), context, this->m_loc.index);
         size_t pos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
 
         size_t src1 = m_right->getRegister(codeBlock, context);
@@ -62,7 +62,7 @@ public:
         m_left->generateStoreByteCode(codeBlock, context, src1, false);
 
         if (src1 != dstRegister) {
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), src1, dstRegister), context, this);
+            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), src1, dstRegister), context, this->m_loc.index);
         }
 
         codeBlock->peekCode<JumpIfUndefinedOrNull>(pos)->m_jumpPosition = codeBlock->currentCodeSize();

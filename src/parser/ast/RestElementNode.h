@@ -51,7 +51,7 @@ public:
         // srcRegister indicates iterator or EnumerateObject
         size_t restElementRegister = m_argument->getRegister(codeBlock, context);
         m_argument->generateResolveAddressByteCode(codeBlock, context);
-        codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), srcRegister, restElementRegister), context, this);
+        codeBlock->pushCode(BindingRestElement(ByteCodeLOC(m_loc.index), srcRegister, restElementRegister), context, this->m_loc.index);
         m_argument->generateStoreByteCode(codeBlock, context, restElementRegister, false);
         context->giveUpRegister();
     }
@@ -59,7 +59,7 @@ public:
     virtual void generateResultNotRequiredExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
         size_t restElementRegister = m_argument->getRegister(codeBlock, context);
-        codeBlock->pushCode(CreateRestElement(ByteCodeLOC(m_loc.index), restElementRegister), context, this);
+        codeBlock->pushCode(CreateRestElement(ByteCodeLOC(m_loc.index), restElementRegister), context, this->m_loc.index);
         m_argument->generateResolveAddressByteCode(codeBlock, context);
         m_argument->generateStoreByteCode(codeBlock, context, restElementRegister, false);
         context->giveUpRegister();

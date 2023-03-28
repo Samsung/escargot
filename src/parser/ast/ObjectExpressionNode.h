@@ -44,7 +44,7 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::ObjectExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), dstRegister), context, this);
+        codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), dstRegister), context, this->m_loc.index);
         size_t objIndex = dstRegister;
         for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
             if (property->astNode()->isProperty()) {
@@ -68,17 +68,17 @@ public:
 
                 if (p->kind() == PropertyNode::Kind::Init) {
                     if (hasKeyName) {
-                        codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), objIndex, p->key()->asIdentifier()->name(), valueIndex, ObjectPropertyDescriptor::AllPresent), context, this);
+                        codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), objIndex, p->key()->asIdentifier()->name(), valueIndex, ObjectPropertyDescriptor::AllPresent), context, this->m_loc.index);
                     } else {
                         bool hasFunctionOnRightSide = p->value()->type() == ASTNodeType::FunctionExpression || p->value()->type() == ASTNodeType::ArrowFunctionExpression;
                         bool hasClassOnRightSide = p->value()->type() == ASTNodeType::ClassExpression && !p->value()->asClassExpression()->classNode().classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name);
-                        codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, ObjectPropertyDescriptor::AllPresent, hasFunctionOnRightSide | hasClassOnRightSide), context, this);
+                        codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, ObjectPropertyDescriptor::AllPresent, hasFunctionOnRightSide | hasClassOnRightSide), context, this->m_loc.index);
                     }
                 } else if (p->kind() == PropertyNode::Kind::Get) {
-                    codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent), true, hasKeyName), context, this);
+                    codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent), true, hasKeyName), context, this->m_loc.index);
                 } else {
                     ASSERT(p->kind() == PropertyNode::Kind::Set);
-                    codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent), false, hasKeyName), context, this);
+                    codeBlock->pushCode(ObjectDefineGetterSetter(ByteCodeLOC(m_loc.index), objIndex, propertyIndex, valueIndex, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::EnumerablePresent), false, hasKeyName), context, this->m_loc.index);
                 }
 
                 if (!hasKeyName) {
@@ -98,19 +98,19 @@ public:
 
                 element->generateExpressionByteCode(codeBlock, context, elementIndex);
 
-                codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, elementIndex), context, this);
+                codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, elementIndex), context, this->m_loc.index);
                 size_t pos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
 
-                codeBlock->pushCode(CreateEnumerateObject(ByteCodeLOC(m_loc.index), elementIndex, dataIndex, true), context, this);
+                codeBlock->pushCode(CreateEnumerateObject(ByteCodeLOC(m_loc.index), elementIndex, dataIndex, true), context, this->m_loc.index);
 
                 size_t checkPos = codeBlock->currentCodeSize();
-                codeBlock->pushCode(CheckLastEnumerateKey(ByteCodeLOC(m_loc.index)), context, this);
+                codeBlock->pushCode(CheckLastEnumerateKey(ByteCodeLOC(m_loc.index)), context, this->m_loc.index);
                 codeBlock->peekCode<CheckLastEnumerateKey>(checkPos)->m_registerIndex = dataIndex;
-                codeBlock->pushCode(GetEnumerateKey(ByteCodeLOC(m_loc.index), keyIndex, dataIndex), context, this);
+                codeBlock->pushCode(GetEnumerateKey(ByteCodeLOC(m_loc.index), keyIndex, dataIndex), context, this->m_loc.index);
 
-                codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), elementIndex, keyIndex, valueIndex), context, this);
-                codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, keyIndex, valueIndex, ObjectPropertyDescriptor::AllPresent, false), context, this);
-                codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), checkPos), context, this);
+                codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), elementIndex, keyIndex, valueIndex), context, this->m_loc.index);
+                codeBlock->pushCode(ObjectDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, keyIndex, valueIndex, ObjectPropertyDescriptor::AllPresent, false), context, this->m_loc.index);
+                codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), checkPos), context, this->m_loc.index);
 
                 size_t exitPos = codeBlock->currentCodeSize();
                 codeBlock->peekCode<CheckLastEnumerateKey>(checkPos)->m_exitPosition = exitPos;

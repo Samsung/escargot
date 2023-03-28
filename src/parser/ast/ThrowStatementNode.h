@@ -43,7 +43,7 @@ public:
         context->getRegister();
         auto r = m_argument->getRegister(codeBlock, context);
         m_argument->generateExpressionByteCode(codeBlock, context, r);
-        codeBlock->pushCode(ThrowOperation(ByteCodeLOC(m_loc.index), r), context, this);
+        codeBlock->pushCode(ThrowOperation(ByteCodeLOC(m_loc.index), r), context, this->m_loc.index);
         context->giveUpRegister();
         context->giveUpRegister();
     }

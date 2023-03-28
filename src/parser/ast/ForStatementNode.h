@@ -74,7 +74,7 @@ public:
         if (shouldCareScriptExecutionResult) {
             // 13.7.4.8 Runtime Semantics: ForBodyEvaluation
             // 1. Let V = undefined.
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), &newContext, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), &newContext, this->m_loc.index);
         }
 
         // per iteration block
@@ -138,7 +138,7 @@ public:
             } else {
                 testIndex = m_test->getRegister(codeBlock, &newContext);
                 m_test->generateExpressionByteCode(codeBlock, &newContext, testIndex);
-                codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testIndex), &newContext, this);
+                codeBlock->pushCode(JumpIfFalse(ByteCodeLOC(m_loc.index), testIndex), &newContext, this->m_loc.index);
                 testPos = codeBlock->lastCodePosition<JumpIfFalse>();
                 newContext.giveUpRegister();
             }
@@ -171,7 +171,7 @@ public:
                     id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
                 }
 
-                codeBlock->pushCode(ReplaceBlockLexicalEnvironmentOperation(ByteCodeLOC(m_loc.index), bi), &newContext, this);
+                codeBlock->pushCode(ReplaceBlockLexicalEnvironmentOperation(ByteCodeLOC(m_loc.index), bi), &newContext, this->m_loc.index);
 
                 codeBlock->initFunctionDeclarationWithinBlock(&newContext, bi, this);
 
@@ -202,7 +202,7 @@ public:
             }
         }
 
-        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), forStart), &newContext, this);
+        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), forStart), &newContext, this->m_loc.index);
 
         size_t forEnd = codeBlock->currentCodeSize();
         if (m_test) {

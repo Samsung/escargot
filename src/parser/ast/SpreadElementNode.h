@@ -42,7 +42,7 @@ public:
     {
         ByteCodeRegisterIndex argumentIndex = m_argument->getRegister(codeBlock, context);
         m_argument->generateExpressionByteCode(codeBlock, context, argumentIndex);
-        codeBlock->pushCode(CreateSpreadArrayObject(ByteCodeLOC(m_loc.index), dstRegister, argumentIndex), context, this);
+        codeBlock->pushCode(CreateSpreadArrayObject(ByteCodeLOC(m_loc.index), dstRegister, argumentIndex), context, this->m_loc.index);
         context->giveUpRegister();
     }
 

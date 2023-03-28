@@ -31,7 +31,7 @@
 
 namespace Escargot {
 
-ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, bool isGlobalScope, bool isEvalCode, bool isWithScope, NumeralLiteralVector* numeralLiteralData)
+ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, bool isGlobalScope, bool isEvalCode, bool isWithScope, void* numeralLiteralData)
     : m_baseRegisterCount(0)
     , m_codeBlock(codeBlock)
     , m_byteCodeBlock(byteCodeBlock)
@@ -59,7 +59,7 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_lexicalBlockIndex(0)
     , m_openedNonBlockEnvCount(0)
     , m_classInfo()
-    , m_numeralLiteralData(numeralLiteralData)
+    , m_numeralLiteralData(numeralLiteralData) // should be NumeralLiteralVector
 #ifdef ESCARGOT_DEBUGGER
     , m_breakpointContext(nullptr)
 #endif /* ESCARGOT_DEBUGGER */

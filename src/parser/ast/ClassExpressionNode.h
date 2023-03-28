@@ -83,7 +83,7 @@ public:
             codeBlock->pushCode(InitializeClass(ByteCodeLOC(m_loc.index), dstIndex, context->m_classInfo.m_prototypeIndex,
                                                 context->m_classInfo.m_superIndex, nullptr, context->m_classInfo.m_src,
                                                 context->m_classInfo.m_name),
-                                context, this);
+                                context, this->m_loc.index);
         }
 
         m_class.classBody()->generateClassInitializer(codeBlock, context, dstIndex);

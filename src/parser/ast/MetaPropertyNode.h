@@ -40,10 +40,10 @@ public:
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         if (m_type == Type::NewTarget) {
-            codeBlock->pushCode(MetaPropertyOperation(ByteCodeLOC(m_loc.index), MetaPropertyOperation::NewTarget, dstRegister), context, this);
+            codeBlock->pushCode(MetaPropertyOperation(ByteCodeLOC(m_loc.index), MetaPropertyOperation::NewTarget, dstRegister), context, this->m_loc.index);
         } else {
             ASSERT(m_type == Type::ImportMeta);
-            codeBlock->pushCode(MetaPropertyOperation(ByteCodeLOC(m_loc.index), MetaPropertyOperation::ImportMeta, dstRegister), context, this);
+            codeBlock->pushCode(MetaPropertyOperation(ByteCodeLOC(m_loc.index), MetaPropertyOperation::ImportMeta, dstRegister), context, this->m_loc.index);
         }
     }
 

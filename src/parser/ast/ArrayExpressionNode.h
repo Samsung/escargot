@@ -47,7 +47,7 @@ public:
     {
         size_t arrayIndex = codeBlock->currentCodeSize();
         size_t arrLen = 0;
-        codeBlock->pushCode(CreateArray(ByteCodeLOC(m_loc.index), dstRegister), context, this);
+        codeBlock->pushCode(CreateArray(ByteCodeLOC(m_loc.index), dstRegister), context, this->m_loc.index);
         size_t objIndex = dstRegister;
 
         size_t baseIndex = 0;
@@ -72,11 +72,11 @@ public:
             }
 
             if (m_hasSpreadElement) {
-                codeBlock->pushCode(ArrayDefineOwnPropertyBySpreadElementOperation(ByteCodeLOC(m_loc.index), objIndex, fillCount), context, this);
+                codeBlock->pushCode(ArrayDefineOwnPropertyBySpreadElementOperation(ByteCodeLOC(m_loc.index), objIndex, fillCount), context, this->m_loc.index);
                 memcpy(codeBlock->peekCode<ArrayDefineOwnPropertyBySpreadElementOperation>(codeBlock->lastCodePosition<ArrayDefineOwnPropertyBySpreadElementOperation>())->m_loadRegisterIndexs,
                        regs, sizeof(regs));
             } else {
-                codeBlock->pushCode(ArrayDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, baseIndex, fillCount), context, this);
+                codeBlock->pushCode(ArrayDefineOwnPropertyOperation(ByteCodeLOC(m_loc.index), objIndex, baseIndex, fillCount), context, this->m_loc.index);
                 memcpy(codeBlock->peekCode<ArrayDefineOwnPropertyOperation>(codeBlock->lastCodePosition<ArrayDefineOwnPropertyOperation>())->m_loadRegisterIndexs,
                        regs, sizeof(regs));
             }
@@ -99,12 +99,12 @@ public:
         if (m_additionalPropertyExpression) {
             ByteCodeRegisterIndex additionalPropertyExpressionRegister = m_additionalPropertyExpression->getRegister(codeBlock, context);
             m_additionalPropertyExpression->generateExpressionByteCode(codeBlock, context, additionalPropertyExpressionRegister);
-            codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstRegister, m_additionalPropertyName, additionalPropertyExpressionRegister, ObjectPropertyDescriptor::NotPresent), context, this);
+            codeBlock->pushCode(ObjectDefineOwnPropertyWithNameOperation(ByteCodeLOC(m_loc.index), dstRegister, m_additionalPropertyName, additionalPropertyExpressionRegister, ObjectPropertyDescriptor::NotPresent), context, this->m_loc.index);
 
             if (m_isTaggedTemplateExpression) {
                 auto freezeFunctionRegister = context->getRegister();
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), freezeFunctionRegister, Value(codeBlock->m_codeBlock->context()->globalObject()->objectFreeze())), context, this);
-                codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), freezeFunctionRegister, additionalPropertyExpressionRegister, freezeFunctionRegister, 1), context, this);
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), freezeFunctionRegister, Value(codeBlock->m_codeBlock->context()->globalObject()->objectFreeze())), context, this->m_loc.index);
+                codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), freezeFunctionRegister, additionalPropertyExpressionRegister, freezeFunctionRegister, 1), context, this->m_loc.index);
                 context->giveUpRegister();
             }
 
@@ -113,8 +113,8 @@ public:
 
         if (m_isTaggedTemplateExpression) {
             auto freezeFunctionRegister = context->getRegister();
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), freezeFunctionRegister, Value(codeBlock->m_codeBlock->context()->globalObject()->objectFreeze())), context, this);
-            codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), freezeFunctionRegister, dstRegister, freezeFunctionRegister, 1), context, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), freezeFunctionRegister, Value(codeBlock->m_codeBlock->context()->globalObject()->objectFreeze())), context, this->m_loc.index);
+            codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), freezeFunctionRegister, dstRegister, freezeFunctionRegister, 1), context, this->m_loc.index);
             context->giveUpRegister();
         }
     }

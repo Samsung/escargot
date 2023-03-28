@@ -54,7 +54,7 @@ public:
         newContext.m_canSkipCopyToRegister = canSkipCopyToRegister;
 
         if (firstRegister == 0 && context->shouldCareScriptExecutionResult()) {
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this);
+            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), 0, Value()), context, this->m_loc.index);
         }
 
         size_t lexicalBlockIndexBefore = newContext.m_lexicalBlockIndex;
@@ -72,9 +72,9 @@ public:
             size_t refIndex = caseNode->test()->getRegister(codeBlock, &newContext);
             caseNode->test()->generateExpressionByteCode(codeBlock, &newContext, refIndex);
             size_t resultIndex = newContext.getRegister();
-            codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), refIndex, rIndex0, resultIndex), &newContext, this);
+            codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), refIndex, rIndex0, resultIndex), &newContext, this->m_loc.index);
             jumpCodePerCaseNodePosition.push_back(codeBlock->currentCodeSize());
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), resultIndex), &newContext, this);
+            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), resultIndex), &newContext, this->m_loc.index);
             newContext.giveUpRegister();
             newContext.giveUpRegister();
             nd = nd->nextSibling();
@@ -87,9 +87,9 @@ public:
             size_t refIndex = caseNode->test()->getRegister(codeBlock, &newContext);
             caseNode->test()->generateExpressionByteCode(codeBlock, &newContext, refIndex);
             size_t resultIndex = newContext.getRegister();
-            codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), refIndex, rIndex0, resultIndex), &newContext, this);
+            codeBlock->pushCode(BinaryStrictEqual(ByteCodeLOC(m_loc.index), refIndex, rIndex0, resultIndex), &newContext, this->m_loc.index);
             jumpCodePerCaseNodePosition.push_back(codeBlock->currentCodeSize());
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), resultIndex), &newContext, this);
+            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), resultIndex), &newContext, this->m_loc.index);
             newContext.giveUpRegister();
             newContext.giveUpRegister();
             nd = nd->nextSibling();
@@ -100,7 +100,7 @@ public:
 
         size_t jmpToDefault = SIZE_MAX;
         jmpToDefault = codeBlock->currentCodeSize();
-        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), &newContext, this);
+        codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), &newContext, this->m_loc.index);
         size_t caseIdx = 0;
         nd = m_casesB->firstChild();
         while (nd) {

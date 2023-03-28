@@ -45,7 +45,7 @@ public:
         if (m_flag->length()) {
             codeBlock->m_stringLiteralData.pushBack(m_flag);
         }
-        codeBlock->pushCode(LoadRegExp(ByteCodeLOC(m_loc.index), dstRegister, m_body, m_flag), context, this);
+        codeBlock->pushCode(LoadRegExp(ByteCodeLOC(m_loc.index), dstRegister, m_body, m_flag), context, this->m_loc.index);
     }
 
 private:

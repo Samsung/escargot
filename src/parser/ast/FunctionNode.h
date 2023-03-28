@@ -43,7 +43,7 @@ public:
         // binding function name if needs
         if (context->m_codeBlock->functionName().string()->length()) {
             if (context->m_codeBlock->isFunctionNameSaveOnHeap() || context->m_codeBlock->isFunctionNameUsedBySelf()) {
-                codeBlock->pushCode(BindingCalleeIntoRegister(ByteCodeLOC(m_loc.index)), context, this);
+                codeBlock->pushCode(BindingCalleeIntoRegister(ByteCodeLOC(m_loc.index)), context, this->m_loc.index);
             }
         }
 
@@ -58,15 +58,16 @@ public:
                     continue;
                 }
                 if (var.m_needToAllocateOnStack && !var.m_isParameterName) {
-                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + var.m_indexForIndexedStorage, Value()), context, this);
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + var.m_indexForIndexedStorage, Value()), context, this->m_loc.index);
                 }
             }
         }
 
         // init literal values
         if (context->m_numeralLiteralData) {
-            for (size_t i = 0; i < context->m_numeralLiteralData->size(); i++) {
-                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT + i, context->m_numeralLiteralData->data()[i]), context, this);
+            NumeralLiteralVector* numeralLiteralData = reinterpret_cast<NumeralLiteralVector*>(context->m_numeralLiteralData);
+            for (size_t i = 0; i < numeralLiteralData->size(); i++) {
+                codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), REGULAR_REGISTER_LIMIT + VARIABLE_LIMIT + i, numeralLiteralData->data()[i]), context, this->m_loc.index);
             }
         }
 
@@ -139,7 +140,7 @@ public:
             ExecutionPause::ExecutionPauseGeneratorsInitializeData data;
             data.m_tailDataLength = tailDataLength;
 
-            codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this);
+            codeBlock->pushCode(ExecutionPause(ByteCodeLOC(m_loc.index), data), context, this->m_loc.index);
         }
     }
 
