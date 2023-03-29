@@ -5,4 +5,15 @@
 /escargot/third_party/lz4/lz4.cpp
 /escargot/third_party/rapidjson/include/rapidjson/document.h
 /escargot/third_party/rapidjson/include/rapidjson/reader.h
+/escargot/third_party/rapidjson/include/rapidjson/encodings.h
 /escargot/third_party/yarr/
+/escargot/src/parser/Lexer.h
+/escargot/src/parser/Lexer.cpp
+/escargot/src/parser/esprima_cpp/esprima.cpp
+/escargot/src/interpreter/ByteCodeInterpreter.h
+/escargot/src/interpreter/ByteCodeInterpreter.cpp
+/escargot/src/parser/CodeBlock.h
+/escargot/src/runtime/GlobalObject.h
+/escargot/src/runtime/Object.h
+/escargot/src/runtime/DateObject.h
+/escargot/src/runtime/Value.h
