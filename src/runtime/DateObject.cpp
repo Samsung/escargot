@@ -473,6 +473,49 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
     }
 
     int year = 0;
+    bool cont = false;
+    time64_t result;
+
+    result = parseStringToDate_1_1(day, month, year, dateString, newPosStr, cont);
+    if (!cont) {
+        return result;
+    }
+
+    // Don't fail if the time is missing.
+    long hour = 0;
+    long minute = 0;
+    long second = 0;
+
+    result = parseStringToDate_1_2(year, hour, minute, second, dateString, newPosStr, cont);
+    if (!cont) {
+        return result;
+    }
+
+    result = parseStringToDate_1_3(year, haveTZ, offset, dateString, newPosStr, cont);
+    if (!cont) {
+        return result;
+    }
+
+    // Trailing garbage
+    if (*dateString) {
+        return TIME64NAN;
+    }
+
+    // Y2K: Handle 2 digit years.
+    if (year >= 0 && year < 100) {
+        if (year < 50) {
+            year += 2000;
+        } else {
+            year += 1900;
+        }
+    }
+
+    return timeinfoToMs(state, year, month, day, hour, minute, second, 0);
+}
+
+time64_t DateObject::parseStringToDate_1_1(long int& day, long& month, int& year, const char*& dateString, char*& newPosStr, bool& cont)
+{
+    cont = false;
     if (day > 31) {
         // ### where is the boundary and what happens below?
         if (*dateString != '/') {
@@ -557,10 +600,13 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
         return TIME64NAN;
     }
 
-    // Don't fail if the time is missing.
-    long hour = 0;
-    long minute = 0;
-    long second = 0;
+    cont = true;
+    return TIME64NAN;
+}
+
+time64_t DateObject::parseStringToDate_1_2(int& year, long& hour, long& minute, long& second, const char*& dateString, char*& newPosStr, bool& cont)
+{
+    cont = false;
     if (!*newPosStr) {
         dateString = newPosStr;
     } else {
@@ -652,6 +698,13 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
         }
     }
 
+    cont = true;
+    return TIME64NAN;
+}
+
+time64_t DateObject::parseStringToDate_1_3(int& year, bool& haveTZ, int& offset, const char*& dateString, char*& newPosStr, bool& cont)
+{
+    cont = false;
     // The year may be after the time but before the time zone.
     if (isASCIIDigit(*dateString) && year == -1) {
         if (!parseInt(dateString, &newPosStr, 10, &year)) {
@@ -709,6 +762,7 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
             }
         }
     }
+
     skipSpacesAndComments(dateString);
 
     if (*dateString && year == -1) {
@@ -719,21 +773,8 @@ time64_t DateObject::parseStringToDate_1(ExecutionState& state, String* istr, bo
         skipSpacesAndComments(dateString);
     }
 
-    // Trailing garbage
-    if (*dateString) {
-        return TIME64NAN;
-    }
-
-    // Y2K: Handle 2 digit years.
-    if (year >= 0 && year < 100) {
-        if (year < 50) {
-            year += 2000;
-        } else {
-            year += 1900;
-        }
-    }
-
-    return timeinfoToMs(state, year, month, day, hour, minute, second, 0);
+    cont = true;
+    return TIME64NAN;
 }
 
 static char* parseES5DatePortion(const char* currentPosition, int& year, long& month, long& day)

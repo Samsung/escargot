@@ -33,6 +33,9 @@ public:
     static UTF16StringDataNonGCStd format(ExecutionState& state, Object* numberFormat, double x);
     static UTF16StringDataNonGCStd format(ExecutionState& state, Object* numberFormat, String* str);
     static ArrayObject* formatToParts(ExecutionState& state, Object* numberFormat, double x);
+
+private:
+    static void initNumberFormatSkeleton(ExecutionState& state, Object* numberFormat, const Value& style, const Value& currency, const Value& currencyDisplay, const Value& currencySign, const Value& unit, const Value& unitDisplay, const Value& compactDisplay, const Value& signDisplay, const Value& useGrouping, const Value& notation, UTF16StringDataNonGCStd& skeleton);
 };
 
 } // namespace Escargot

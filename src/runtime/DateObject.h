@@ -176,6 +176,11 @@ protected:
     void resolveCache(ExecutionState& state);
     static time64_t parseStringToDate(ExecutionState& state, String* istr);
     static time64_t parseStringToDate_1(ExecutionState& state, String* istr, bool& haveTZ, int& offset);
+
+    static time64_t parseStringToDate_1_1(long int& day, long& month, int& year, const char*& dateString, char*& newPosStr, bool& cont);
+    static time64_t parseStringToDate_1_2(int& year, long& hour, long& minute, long& second, const char*& dateString, char*& newPosStr, bool& cont);
+    static time64_t parseStringToDate_1_3(int& year, bool& haveTZ, int& offset, const char*& dateString, char*& newPosStr, bool& cont);
+
     static time64_t parseStringToDate_2(ExecutionState& state, String* istr, bool& haveTZ);
     static int daysFromMonth(int year, int month);
     static int daysFromYear(int year);
