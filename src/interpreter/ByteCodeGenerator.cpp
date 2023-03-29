@@ -189,7 +189,7 @@ void ByteCodeGenerateContext::insertBreakpointAt(size_t line, Node* node)
     // we should consider original source code and insert bytecode only for the original source code case
     if (line > m_breakpointContext->m_originSourceLineOffset) {
         m_breakpointContext->m_breakpointLocations->breakpointLocations.push_back(Debugger::BreakpointLocation(line, (uint32_t)m_byteCodeBlock->currentCodeSize()));
-        m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node);
+        m_byteCodeBlock->pushCode(BreakpointDisabled(ByteCodeLOC(node->loc().index)), this, node->m_loc.index);
     }
 }
 

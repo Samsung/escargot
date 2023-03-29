@@ -557,7 +557,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
             }
             case BlockOperationOpcode: {
                 BlockOperation* bc = static_cast<BlockOperation*>(currentCode);
-                InterpretedCodeBlock::BlockInfo* info = bc->m_blockInfo;
+                InterpretedCodeBlock::BlockInfo* info = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(bc->m_blockInfo);
                 size_t infoIndex = VectorUtil::findInVector(block->codeBlock()->m_blockInfos, info);
                 ASSERT(infoIndex != VectorUtil::invalidIndex);
                 relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_BLOCKINFO, (size_t)currentCode - codeBase, infoIndex));
@@ -565,7 +565,7 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
             }
             case ReplaceBlockLexicalEnvironmentOperationOpcode: {
                 ReplaceBlockLexicalEnvironmentOperation* bc = static_cast<ReplaceBlockLexicalEnvironmentOperation*>(currentCode);
-                InterpretedCodeBlock::BlockInfo* info = bc->m_blockInfo;
+                InterpretedCodeBlock::BlockInfo* info = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(bc->m_blockInfo);
                 size_t infoIndex = VectorUtil::findInVector(block->codeBlock()->m_blockInfos, info);
                 ASSERT(infoIndex != VectorUtil::invalidIndex);
                 relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_BLOCKINFO, (size_t)currentCode - codeBase, infoIndex));

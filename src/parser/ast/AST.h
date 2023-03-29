@@ -39,6 +39,7 @@
 #include "AssignmentExpressionLogicalAndNode.h"
 #include "AssignmentExpressionLogicalOrNode.h"
 #include "AssignmentExpressionLogicalNullishNode.h"
+#include "AssignmentExpressionNode.h"
 #include "AwaitExpressionNode.h"
 #include "BinaryExpressionBitwiseAndNode.h"
 #include "BinaryExpressionBitwiseOrNode.h"

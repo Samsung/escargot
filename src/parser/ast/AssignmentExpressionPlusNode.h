@@ -20,25 +20,22 @@
 #ifndef AssignmentExpressionPlusNode_h
 #define AssignmentExpressionPlusNode_h
 
-#include "ExpressionNode.h"
-#include "AssignmentExpressionSimpleNode.h"
+#include "AssignmentExpressionNode.h"
 
 namespace Escargot {
 
 // An assignment operator expression.
-class AssignmentExpressionPlusNode : public ExpressionNode {
+class AssignmentExpressionPlusNode : public AssignmentExpressionNode {
 public:
     AssignmentExpressionPlusNode(Node* left, Node* right)
-        : ExpressionNode()
-        , m_left(left)
-        , m_right(right)
+        : AssignmentExpressionNode(left, right)
     {
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::AssignmentExpressionPlus; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        bool slowMode = AssignmentExpressionSimpleNode::isLeftReferenceExpressionRelatedWithRightExpression(m_left, m_right);
+        bool slowMode = isLeftReferenceExpressionRelatedWithRightExpression();
         bool flagBefore = context->m_canSkipCopyToRegister;
         if (slowMode) {
             context->m_canSkipCopyToRegister = false;
@@ -58,29 +55,6 @@ public:
             context->m_canSkipCopyToRegister = flagBefore;
         }
     }
-
-    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
-    {
-        return m_left->getRegister(codeBlock, context);
-    }
-
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
-    {
-        m_left->iterateChildrenIdentifierAssigmentCase(fn);
-        m_right->iterateChildrenIdentifier(fn);
-    }
-
-    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
-    {
-        fn(this);
-
-        m_left->iterateChildren(fn);
-        m_right->iterateChildren(fn);
-    }
-
-private:
-    Node* m_left; // left: Pattern;
-    Node* m_right; // right: Expression;
 };
 } // namespace Escargot
 
