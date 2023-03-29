@@ -136,6 +136,7 @@ public:
     }
 
 protected:
+    void initDateTimeFormatOther(ExecutionState& state, const Value& dataLocale, const Value& dateStyle, const Value& timeStyle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, std::string& dataLocaleWithExtensions, StringBuilder& skeletonBuilder);
     void setDateFromPattern(ExecutionState& state, UTF16StringDataNonGCStd& patternBuffer, bool hasHourOption);
 
     String* m_locale;

@@ -610,6 +610,11 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     // Set dateTimeFormat.[[TimeStyle]] to timeStyle.
     m_timeStyle = timeStyle;
 
+    initDateTimeFormatOther(state, dataLocale, dateStyle, timeStyle, hourCycle, hour12, hour, opt, dataLocaleWithExtensions, skeletonBuilder);
+}
+
+void IntlDateTimeFormatObject::initDateTimeFormatOther(ExecutionState& state, const Value& dataLocale, const Value& dateStyle, const Value& timeStyle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, std::string& dataLocaleWithExtensions, StringBuilder& skeletonBuilder)
+{
     UErrorCode status = U_ZERO_ERROR;
     UTF16StringData skeleton;
     UTF16StringDataNonGCStd patternBuffer;

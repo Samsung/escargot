@@ -594,7 +594,27 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     // Return numberFormat
 
     UTF16StringDataNonGCStd skeleton;
+    initNumberFormatSkeleton(state, numberFormat, style, currency, currencyDisplay, currencySign, unit, unitDisplay, compactDisplay, signDisplay, useGrouping, notation, skeleton);
 
+    String* localeOption = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale())).value(state, numberFormat->internalSlot()).toString(state);
+
+    UErrorCode status = U_ZERO_ERROR;
+    UNumberFormatter* fomatter = unumf_openForSkeletonAndLocale((UChar*)skeleton.data(), skeleton.length(), localeOption->toNonGCUTF8StringData().data(), &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to init NumberFormat");
+    }
+
+    numberFormat->internalSlot()->setExtraData(fomatter);
+
+    numberFormat->internalSlot()->addFinalizer([](Object* obj, void* data) {
+        Object* self = (Object*)obj;
+        unumf_close((UNumberFormatter*)self->extraData());
+    },
+                                               nullptr);
+}
+
+void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, Object* numberFormat, const Value& style, const Value& currency, const Value& currencyDisplay, const Value& currencySign, const Value& unit, const Value& unitDisplay, const Value& compactDisplay, const Value& signDisplay, const Value& useGrouping, const Value& notation, UTF16StringDataNonGCStd& skeleton)
+{
     if (style.asString()->equals("currency")) {
         if (!currency.isUndefined()) {
             skeleton += u"currency/";
@@ -744,22 +764,6 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     }
 
     skeleton += u"rounding-mode-half-up ";
-
-    String* localeOption = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale())).value(state, numberFormat->internalSlot()).toString(state);
-
-    UErrorCode status = U_ZERO_ERROR;
-    UNumberFormatter* fomatter = unumf_openForSkeletonAndLocale((UChar*)skeleton.data(), skeleton.length(), localeOption->toNonGCUTF8StringData().data(), &status);
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to init NumberFormat");
-    }
-
-    numberFormat->internalSlot()->setExtraData(fomatter);
-
-    numberFormat->internalSlot()->addFinalizer([](Object* obj, void* data) {
-        Object* self = (Object*)obj;
-        unumf_close((UNumberFormatter*)self->extraData());
-    },
-                                               nullptr);
 }
 
 UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* numberFormat, double x)
