@@ -20,91 +20,29 @@
 #ifndef AssignmentExpressionSimpleNode_h
 #define AssignmentExpressionSimpleNode_h
 
-#include "ExpressionNode.h"
-#include "IdentifierNode.h"
-#include "ArrayPatternNode.h"
-#include "MemberExpressionNode.h"
-#include "UnaryExpressionDeleteNode.h"
-#include "CallExpressionNode.h"
+#include "AssignmentExpressionNode.h"
 
 namespace Escargot {
 
 // An assignment operator expression.
-class AssignmentExpressionSimpleNode : public ExpressionNode {
+class AssignmentExpressionSimpleNode : public AssignmentExpressionNode {
 public:
     AssignmentExpressionSimpleNode(Node* left, Node* right)
-        : ExpressionNode()
-        , m_left(left)
-        , m_right(right)
+        : AssignmentExpressionNode(left, right)
     {
-    }
-
-    Node* left()
-    {
-        return m_left;
-    }
-
-    Node* right()
-    {
-        return m_right;
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::AssignmentExpressionSimple; }
-    static bool isLeftReferenceExpressionRelatedWithRightExpression(Node* left, Node* right)
-    {
-        std::vector<AtomicString> leftNames;
-        left->iterateChildrenIdentifier([&leftNames](AtomicString name, bool isAssignment) {
-            leftNames.push_back(name);
-        });
-
-        bool isSlowMode = false;
-        right->iterateChildrenIdentifier([&leftNames, &isSlowMode](AtomicString name, bool isAssignment) {
-            for (size_t i = 0; i < leftNames.size(); i++) {
-                if (leftNames[i] == name) {
-                    isSlowMode = true;
-                }
-            }
-        });
-
-        return isSlowMode;
-    }
-
-    static bool isLeftBindingAffectedByRightExpression(Node* left, Node* right)
-    {
-        if (left->isIdentifier()) {
-            AtomicString leftName = left->asIdentifier()->name();
-            bool result = false;
-            right->iterateChildren([&](Node* node) {
-                if (node->type() == ASTNodeType::UnaryExpressionDelete) {
-                    UnaryExpressionDeleteNode* del = ((UnaryExpressionDeleteNode*)node);
-                    if (del->argument()->isIdentifier()) {
-                        if (leftName == del->argument()->asIdentifier()->name()) {
-                            // x = delete x;
-                            result = true;
-                        }
-                    }
-                } else if (node->type() == ASTNodeType::CallExpression) {
-                    CallExpressionNode* call = (CallExpressionNode*)node;
-                    if (call->callee()->isIdentifier() && call->callee()->asIdentifier()->name().string()->equals("eval")) {
-                        // x = (eval("var x;"), 1);
-                        result = true;
-                    }
-                }
-            });
-            return result;
-        }
-        return false;
-    }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
 
-        bool isSlowMode = isLeftReferenceExpressionRelatedWithRightExpression(m_left, m_right);
+        bool isSlowMode = isLeftReferenceExpressionRelatedWithRightExpression();
 
         if (codeBlock->m_codeBlock->hasEval()) {
             // x = (eval("var x;"), 1);
-            isSlowMode = isSlowMode || isLeftBindingAffectedByRightExpression(m_left, m_right);
+            isSlowMode = isSlowMode || isLeftBindingAffectedByRightExpression();
         }
 
         bool isBase = context->m_registerStack->size() == 0;
@@ -115,7 +53,7 @@ public:
             context->m_canSkipCopyToRegister = false;
 
             bool oldIsLeftBindingAffectedByRightExpression = context->m_isLeftBindingAffectedByRightExpression;
-            context->m_isLeftBindingAffectedByRightExpression = isLeftBindingAffectedByRightExpression(m_left, m_right);
+            context->m_isLeftBindingAffectedByRightExpression = isLeftBindingAffectedByRightExpression();
 
             m_left->generateResolveAddressByteCode(codeBlock, context);
             context->m_canSkipCopyToRegister = oldCanSkipCopyToRegister;
@@ -135,11 +73,11 @@ public:
     {
         ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
 
-        bool isSlowMode = isLeftReferenceExpressionRelatedWithRightExpression(m_left, m_right);
+        bool isSlowMode = isLeftReferenceExpressionRelatedWithRightExpression();
 
         if (codeBlock->m_codeBlock->hasEval()) {
             // x = (eval("var x;"), 1);
-            isSlowMode = isSlowMode || isLeftBindingAffectedByRightExpression(m_left, m_right);
+            isSlowMode = isSlowMode || isLeftBindingAffectedByRightExpression();
         }
 
         if (isSlowMode) {
@@ -148,7 +86,7 @@ public:
             context->m_canSkipCopyToRegister = false;
 
             bool oldIsLeftBindingAffectedByRightExpression = context->m_isLeftBindingAffectedByRightExpression;
-            context->m_isLeftBindingAffectedByRightExpression = isLeftBindingAffectedByRightExpression(m_left, m_right);
+            context->m_isLeftBindingAffectedByRightExpression = isLeftBindingAffectedByRightExpression();
 
             m_left->generateResolveAddressByteCode(codeBlock, context);
             context->m_canSkipCopyToRegister = canSkipCopyToRegister;
@@ -186,24 +124,6 @@ public:
             context->giveUpRegister();
         }
     }
-
-    virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
-    {
-        m_left->iterateChildrenIdentifierAssigmentCase(fn);
-        m_right->iterateChildrenIdentifier(fn);
-    }
-
-    virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
-    {
-        fn(this);
-
-        m_left->iterateChildren(fn);
-        m_right->iterateChildren(fn);
-    }
-
-private:
-    Node* m_left; // left: Pattern;
-    Node* m_right; // right: Expression;
 };
 } // namespace Escargot
 
