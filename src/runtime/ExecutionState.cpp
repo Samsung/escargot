@@ -28,6 +28,35 @@
 
 namespace Escargot {
 
+ExecutionState::ExecutionState(Optional<Context*> context)
+    : m_context(context ? context.value() : nullptr)
+    , m_lexicalEnvironment(nullptr)
+    , m_programCounter(nullptr)
+    , m_parent(0)
+    , m_hasRareData(false)
+    , m_inStrictMode(false)
+    , m_isNativeFunctionObjectExecutionContext(false)
+    , m_inExecutionStopState(false)
+    , m_onTry(false)
+    , m_onCatch(false)
+    , m_onFinally(false)
+    , m_argc(0)
+    , m_argv(nullptr)
+{
+    if (context) {
+        m_stackLimit = reinterpret_cast<size_t>(context->vmInstance()->lastStackAddressWantToUse());
+    } else {
+        volatile int sp;
+        m_stackLimit = (size_t)&sp;
+
+#ifdef STACK_GROWS_DOWN
+        m_stackLimit = m_stackLimit - STACK_LIMIT_FROM_BASE;
+#else
+        m_stackLimit = m_stackLimit + STACK_LIMIT_FROM_BASE;
+#endif
+    }
+}
+
 void ExecutionState::throwException(const Value& e)
 {
     context()->throwException(*this, e);

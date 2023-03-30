@@ -229,6 +229,15 @@ public:
         return m_stackStartAddress;
     }
 
+    void* lastStackAddressWantToUse()
+    {
+#ifdef STACK_GROWS_DOWN
+        return reinterpret_cast<uint8_t*>(m_stackStartAddress) - STACK_LIMIT_FROM_BASE;
+#else
+        return reinterpret_cast<uint8_t*>(m_stackStartAddress) + STACK_LIMIT_FROM_BASE;
+#endif
+    }
+
     ASCIIString** regexpOptionStringCache()
     {
         return m_regexpOptionStringCache;

@@ -417,27 +417,36 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
 
     // Generate ByteCode
     if (LIKELY(needByteCodeGeneration)) {
+        try {
 #if defined(ENABLE_CODE_CACHE)
-        // Store cache
-        if (cacheable) {
-            codeCache->prepareCacheWriting(srcHash);
+            // Store cache
+            if (cacheable) {
+                codeCache->prepareCacheWriting(srcHash);
 
-            // For storing cache, CodeBlockTree is firstly saved
-            codeCache->storeCodeBlockTree(topCodeBlock, m_codeBlockCacheInfo);
+                // For storing cache, CodeBlockTree is firstly saved
+                codeCache->storeCodeBlockTree(topCodeBlock, m_codeBlockCacheInfo);
 
-            // After CodeBlockTree, ByteCode and StringTable are stored sequentially
-            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, true);
+                // After CodeBlockTree, ByteCode and StringTable are stored sequentially
+                topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, true);
 
-            codeCache->postCacheWriting(srcHash);
-            deleteCodeBlockCacheInfo();
+                codeCache->postCacheWriting(srcHash);
+                deleteCodeBlockCacheInfo();
 
-            ESCARGOT_LOG_INFO("[CodeCache] Store CodeCache Done (%s)\n", srcName->toUTF8StringData().data());
-        } else {
-            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, false);
-        }
+                ESCARGOT_LOG_INFO("[CodeCache] Store CodeCache Done (%s)\n", srcName->toUTF8StringData().data());
+            } else {
+                topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, false);
+            }
 #else
-        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith);
+            topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith);
 #endif
+        } catch (const char* message) {
+            GC_enable();
+
+            ScriptParser::InitializeScriptResult result;
+            result.parseErrorCode = ErrorCode::SyntaxError;
+            result.parseErrorMessage = String::fromASCII(message, strlen(message));
+            return result;
+        }
     }
 
     // reset ASTAllocator
@@ -478,7 +487,15 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     }
 
     // Generate ByteCode
-    codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, functionNode);
+    try {
+        codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, functionNode);
+    } catch (const char* message) {
+        // reset ASTAllocator
+        m_context->astAllocator().reset();
+        GC_enable();
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, message);
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 
     // reset ASTAllocator
     m_context->astAllocator().reset();
@@ -604,21 +621,40 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
     script->m_topCodeBlock = topCodeBlock;
 
     // Generate ByteCode
-    topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith);
+    try {
+        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith);
 
-    // reset ASTAllocator
-    m_context->astAllocator().reset();
+        // reset ASTAllocator
+        m_context->astAllocator().reset();
 
-    Debugger* debugger = m_context->debugger();
-    if (debugger != nullptr) {
-        recursivelyGenerateChildrenByteCode(topCodeBlock);
+        Debugger* debugger = m_context->debugger();
+        if (debugger != nullptr) {
+            recursivelyGenerateChildrenByteCode(topCodeBlock);
 
-        debugger->parseCompleted(originSource ? originSource : source, srcName, originLineOffset);
-        debugger->clearParsingData();
-        debugger->setInDebuggingCodeMode(false);
+            debugger->parseCompleted(originSource ? originSource : source, srcName, originLineOffset);
+            debugger->clearParsingData();
+            debugger->setInDebuggingCodeMode(false);
+        }
+
+        GC_enable();
+    } catch (const char* message) {
+        m_context->astAllocator().reset();
+
+        String* msg = String::fromASCII(message, strlen(message));
+
+        if (m_context->debuggerEnabled()) {
+            m_context->debugger()->parseCompleted(originSource ? originSource : source, srcName, originLineOffset, msg);
+            m_context->debugger()->clearParsingData();
+            m_context->debugger()->setInDebuggingCodeMode(false);
+        }
+
+        GC_enable();
+
+        ScriptParser::InitializeScriptResult result;
+        result.parseErrorCode = ErrorCode::SyntaxError;
+        result.parseErrorMessage = msg;
+        return result;
     }
-
-    GC_enable();
 
     ScriptParser::InitializeScriptResult result;
     result.script = script;

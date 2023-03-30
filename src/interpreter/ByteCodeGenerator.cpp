@@ -31,6 +31,42 @@
 
 namespace Escargot {
 
+ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock, ByteCodeBlock* byteCodeBlock, bool isGlobalScope, bool isEvalCode, bool isWithScope, NumeralLiteralVector* numeralLiteralData)
+    : m_baseRegisterCount(0)
+    , m_codeBlock(codeBlock)
+    , m_byteCodeBlock(byteCodeBlock)
+    , m_locData(nullptr)
+    , m_isGlobalScope(isGlobalScope)
+    , m_isEvalCode(isEvalCode)
+    , m_isOutermostContext(true)
+    , m_isWithScope(isWithScope)
+    , m_isFunctionDeclarationBindingInitialization(false)
+    , m_isVarDeclaredBindingInitialization(false)
+    , m_isLexicallyDeclaredBindingInitialization(false)
+    , m_canSkipCopyToRegister(true)
+    , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
+    , m_inCallingExpressionScope(false)
+    , m_inObjectDestruction(false)
+    , m_inParameterInitialization(false)
+    , m_isHeadOfMemberExpression(false)
+    , m_forInOfVarBinding(false)
+    , m_isLeftBindingAffectedByRightExpression(false)
+    , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
+    , m_lexicallyDeclaredNames(new std::vector<std::pair<size_t, AtomicString>>())
+    , m_positionToContinue(0)
+    , m_complexJumpBreakIgnoreCount(0)
+    , m_complexJumpContinueIgnoreCount(0)
+    , m_lexicalBlockIndex(0)
+    , m_openedNonBlockEnvCount(0)
+    , m_classInfo()
+    , m_numeralLiteralData(numeralLiteralData)
+#ifdef ESCARGOT_DEBUGGER
+    , m_breakpointContext(nullptr)
+#endif /* ESCARGOT_DEBUGGER */
+{
+    m_stackLimit = reinterpret_cast<size_t>(codeBlock->context()->vmInstance()->lastStackAddressWantToUse());
+}
+
 void ByteCodeGenerateContext::consumeLabelledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount)
 {
     for (size_t i = 0; i < m_labelledContinueStatmentPositions.size(); i++) {
@@ -291,7 +327,11 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
     ctx.m_breakpointContext = &breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */
 
-    ast->generateStatementByteCode(&block, &ctx);
+    try {
+        ast->generateStatementByteCode(&block, &ctx);
+    } catch (...) {
+        // ignore error
+    }
 
     // reset ASTAllocator
     context->astAllocator().reset();
