@@ -161,7 +161,7 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
     if (argc == 0) {
         return str;
     } else {
-        int len = str->length();
+        size_t len = str->length();
         double doubleStart = argv[0].toNumber(state);
         Value end = argv[1];
         double doubleEnd = (argc < 2 || end.isUndefined()) ? len : end.toNumber(state);
@@ -415,7 +415,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             builer.appendSubString(string, 0, result.m_matchResults[0][0].m_start);
 
             for (uint32_t i = 0; i < matchCount; i++) {
-                int subLen = result.m_matchResults[i].size();
+                size_t subLen = result.m_matchResults[i].size();
                 Value* arguments;
                 arguments = ALLOCA(sizeof(Value) * (subLen + 2), Value, state);
                 for (unsigned j = 0; j < (unsigned)subLen; j++) {
@@ -789,7 +789,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
 static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, charCodeAt);
-    int position = argv[0].toInteger(state);
+    double position = argv[0].toInteger(state);
     Value ret;
     size_t length = str->length();
     if (position < 0 || position >= (int)length)
@@ -804,10 +804,10 @@ static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, siz
 static Value builtinStringCodePointAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, codePointAt);
-    int position = argv[0].toInteger(state);
+    double position = argv[0].toInteger(state);
     Value ret;
     size_t length = str->length();
-    const int size = (int)length;
+    const size_t size = (int)length;
     if (position < 0 || position >= size)
         return Value();
 
