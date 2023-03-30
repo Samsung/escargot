@@ -152,96 +152,86 @@ Object* IntlNumberFormat::create(ExecutionState& state, Context* realm, Value lo
 }
 
 // https://tc39.es/ecma402/#sec-issanctionedsimpleunitidentifier
-bool isSanctionedSimpleUnitIdentifier(const std::string& s)
+static bool isSanctionedSimpleUnitIdentifier(const std::string& s)
 {
-    if (s == "acre") {
-        return true;
-    } else if (s == "bit") {
-        return true;
-    } else if (s == "byte") {
-        return true;
-    } else if (s == "celsius") {
-        return true;
-    } else if (s == "centimeter") {
-        return true;
-    } else if (s == "day") {
-        return true;
-    } else if (s == "degree") {
-        return true;
-    } else if (s == "fahrenheit") {
-        return true;
-    } else if (s == "fluid-ounce") {
-        return true;
-    } else if (s == "foot") {
-        return true;
-    } else if (s == "gallon") {
-        return true;
-    } else if (s == "gigabit") {
-        return true;
-    } else if (s == "gigabyte") {
-        return true;
-    } else if (s == "gram") {
-        return true;
-    } else if (s == "hectare") {
-        return true;
-    } else if (s == "hour") {
-        return true;
-    } else if (s == "inch") {
-        return true;
-    } else if (s == "kilobit") {
-        return true;
-    } else if (s == "kilobyte") {
-        return true;
-    } else if (s == "kilogram") {
-        return true;
-    } else if (s == "kilometer") {
-        return true;
-    } else if (s == "liter") {
-        return true;
-    } else if (s == "megabit") {
-        return true;
-    } else if (s == "megabyte") {
-        return true;
-    } else if (s == "meter") {
-        return true;
-    } else if (s == "mile") {
-        return true;
-    } else if (s == "mile-scandinavian") {
-        return true;
-    } else if (s == "milliliter") {
-        return true;
-    } else if (s == "millimeter") {
-        return true;
-    } else if (s == "millisecond") {
-        return true;
-    } else if (s == "minute") {
-        return true;
-    } else if (s == "month") {
-        return true;
-    } else if (s == "ounce") {
-        return true;
-    } else if (s == "percent") {
-        return true;
-    } else if (s == "petabyte") {
-        return true;
-    } else if (s == "pound") {
-        return true;
-    } else if (s == "second") {
-        return true;
-    } else if (s == "stone") {
-        return true;
-    } else if (s == "terabit") {
-        return true;
-    } else if (s == "terabyte") {
-        return true;
-    } else if (s == "week") {
-        return true;
-    } else if (s == "yard") {
-        return true;
-    } else if (s == "year") {
-        return true;
+    if (s.length() < 3) {
+        return false;
     }
-    return false;
+
+    switch (s[0]) {
+    case 'a':
+        return (s == "acre");
+    case 'b':
+        return ((s == "bit") || (s == "byte"));
+    case 'c':
+        return ((s == "celsius") || (s == "centimeter"));
+    case 'd':
+        return ((s == "day") || (s == "degree"));
+    case 'f':
+        return ((s == "fahrenheit") || (s == "fluid-ounce") || (s == "foot"));
+    case 'g': {
+        if (s == "gallon") {
+            return true;
+        } else if (s == "gigabit") {
+            return true;
+        } else if (s == "gigabyte") {
+            return true;
+        }
+        return (s == "gram");
+    }
+    case 'h':
+        return ((s == "hectare") || (s == "hour"));
+    case 'i':
+        return (s == "inch");
+    case 'k': {
+        if (s == "kilobit") {
+            return true;
+        } else if (s == "kilobyte") {
+            return true;
+        } else if (s == "kilogram") {
+            return true;
+        }
+        return (s == "kilometer");
+    }
+    case 'l':
+        return (s == "liter");
+    case 'm': {
+        if (s == "megabit") {
+            return true;
+        } else if (s == "megabyte") {
+            return true;
+        } else if (s == "meter") {
+            return true;
+        } else if (s == "mile") {
+            return true;
+        } else if (s == "mile-scandinavian") {
+            return true;
+        } else if (s == "milliliter") {
+            return true;
+        } else if (s == "millimeter") {
+            return true;
+        } else if (s == "millisecond") {
+            return true;
+        } else if (s == "minute") {
+            return true;
+        }
+        return (s == "month");
+    }
+    case 'o':
+        return (s == "ounce");
+    case 'p':
+        return ((s == "percent") || (s == "petabyte") || (s == "pound"));
+    case 's':
+        return ((s == "second") || (s == "stone"));
+    case 't':
+        return ((s == "terabit") || (s == "terabyte"));
+    case 'w':
+        return (s == "week");
+    case 'y':
+        return ((s == "yard") || (s == "year"));
+    default:
+        return false;
+    }
 }
 
 static bool isWellFormedUnitIdenifier(const std::string& s)

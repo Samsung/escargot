@@ -451,8 +451,32 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
             opt.insert(std::make_pair(prop->toNonGCUTF8StringData(), value.toString(state)));
         }
     };
+
     StringBuilder skeletonBuilder;
 
+    String* hour = initDateTimeFormatMainHelper(state, opt, options, hour12, doTable4, skeletonBuilder);
+
+    // Let dataLocaleData be localeData.[[<dataLocale>]].
+
+    matcherValues[0] = state.context()->staticStrings().lazyBasic().string();
+    matcher = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyFormatMatcher().string(), Intl::StringValue, matcherValues, 2, matcherValues[1]);
+
+    // Let dateStyle be ? GetOption(options, "dateStyle", "string", « "full", "long", "medium", "short" », undefined).
+    // Set dateTimeFormat.[[DateStyle]] to dateStyle.
+    Value dateTimeStyleValues[4] = { state.context()->staticStrings().lazyFull().string(), state.context()->staticStrings().lazyLong().string(),
+                                     state.context()->staticStrings().lazyMedium().string(), state.context()->staticStrings().lazyShort().string() };
+    Value dateStyle = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyDateStyle().string(), Intl::StringValue, dateTimeStyleValues, 4, Value());
+    m_dateStyle = dateStyle;
+    // Let timeStyle be ? GetOption(options, "timeStyle", "string", « "full", "long", "medium", "short" », undefined).
+    Value timeStyle = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyTimeStyle().string(), Intl::StringValue, dateTimeStyleValues, 4, Value());
+    // Set dateTimeFormat.[[TimeStyle]] to timeStyle.
+    m_timeStyle = timeStyle;
+
+    initDateTimeFormatOtherHelper(state, dataLocale, dateStyle, timeStyle, hourCycle, hour12, hour, opt, dataLocaleWithExtensions, skeletonBuilder);
+}
+
+String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& state, StringMap& opt, const Value& options, const Value& hour12, std::function<void(String* prop, Value* values, size_t valuesSize)>& doTable4, StringBuilder& skeletonBuilder)
+{
     // For each row of Table 4, except the header row, in table order, do
     // Let prop be the name given in the Property column of the row.
     // If prop is "fractionalSecondDigits", then
@@ -594,26 +618,10 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
         skeletonBuilder.appendString("zzzz");
     }
 
-    // Let dataLocaleData be localeData.[[<dataLocale>]].
-
-    matcherValues[0] = state.context()->staticStrings().lazyBasic().string();
-    matcher = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyFormatMatcher().string(), Intl::StringValue, matcherValues, 2, matcherValues[1]);
-
-    // Let dateStyle be ? GetOption(options, "dateStyle", "string", « "full", "long", "medium", "short" », undefined).
-    // Set dateTimeFormat.[[DateStyle]] to dateStyle.
-    Value dateTimeStyleValues[4] = { state.context()->staticStrings().lazyFull().string(), state.context()->staticStrings().lazyLong().string(),
-                                     state.context()->staticStrings().lazyMedium().string(), state.context()->staticStrings().lazyShort().string() };
-    Value dateStyle = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyDateStyle().string(), Intl::StringValue, dateTimeStyleValues, 4, Value());
-    m_dateStyle = dateStyle;
-    // Let timeStyle be ? GetOption(options, "timeStyle", "string", « "full", "long", "medium", "short" », undefined).
-    Value timeStyle = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyTimeStyle().string(), Intl::StringValue, dateTimeStyleValues, 4, Value());
-    // Set dateTimeFormat.[[TimeStyle]] to timeStyle.
-    m_timeStyle = timeStyle;
-
-    initDateTimeFormatOther(state, dataLocale, dateStyle, timeStyle, hourCycle, hour12, hour, opt, dataLocaleWithExtensions, skeletonBuilder);
+    return hour;
 }
 
-void IntlDateTimeFormatObject::initDateTimeFormatOther(ExecutionState& state, const Value& dataLocale, const Value& dateStyle, const Value& timeStyle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, std::string& dataLocaleWithExtensions, StringBuilder& skeletonBuilder)
+void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& state, const Value& dataLocale, const Value& dateStyle, const Value& timeStyle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, std::string& dataLocaleWithExtensions, StringBuilder& skeletonBuilder)
 {
     UErrorCode status = U_ZERO_ERROR;
     UTF16StringData skeleton;
