@@ -334,6 +334,92 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
     return builder.finalize();
 }
 
+static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, String* replaceString, RegexMatchResult& result)
+{
+    ASSERT(string && replaceString);
+
+    bool hasDollar = false;
+    for (size_t i = 0; i < replaceString->length(); i++) {
+        if (replaceString->charAt(i) == '$') {
+            hasDollar = true;
+            break;
+        }
+    }
+
+    StringBuilder builder;
+    if (!hasDollar) {
+        // flat replace
+        int32_t matchCount = result.m_matchResults.size();
+        builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start);
+        for (int32_t i = 0; i < matchCount; i++) {
+            String* res = replaceString;
+            builder.appendString(res);
+            if (i < matchCount - 1) {
+                builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start);
+            }
+        }
+        builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
+    } else {
+        // dollar replace
+        int32_t matchCount = result.m_matchResults.size();
+        builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start);
+        for (int32_t i = 0; i < matchCount; i++) {
+            for (unsigned j = 0; j < replaceString->length(); j++) {
+                if (replaceString->charAt(j) == '$' && (j + 1) < replaceString->length()) {
+                    char16_t c = replaceString->charAt(j + 1);
+                    if (c == '$') {
+                        builder.appendChar(replaceString->charAt(j));
+                    } else if (c == '&') {
+                        builder.appendSubString(string, result.m_matchResults[i][0].m_start, result.m_matchResults[i][0].m_end);
+                    } else if (c == '\'') {
+                        builder.appendSubString(string, result.m_matchResults[i][0].m_end, string->length());
+                    } else if (c == '`') {
+                        builder.appendSubString(string, 0, result.m_matchResults[i][0].m_start);
+                    } else if ('0' <= c && c <= '9') {
+                        size_t idx = c - '0';
+                        bool usePeek = false;
+                        if (j + 2 < replaceString->length()) {
+                            int peek = replaceString->charAt(j + 2) - '0';
+                            if (0 <= peek && peek <= 9) {
+                                idx *= 10;
+                                idx += peek;
+                                usePeek = true;
+                            }
+                        }
+
+                        if (idx < result.m_matchResults[i].size() && idx != 0) {
+                            builder.appendSubString(string, result.m_matchResults[i][idx].m_start, result.m_matchResults[i][idx].m_end);
+                            if (usePeek)
+                                j++;
+                        } else {
+                            idx = c - '0';
+                            if (idx < result.m_matchResults[i].size() && idx != 0) {
+                                builder.appendSubString(string, result.m_matchResults[i][idx].m_start, result.m_matchResults[i][idx].m_end);
+                            } else {
+                                builder.appendChar('$');
+                                builder.appendChar(c);
+                            }
+                        }
+                    } else {
+                        builder.appendChar('$');
+                        builder.appendChar(c);
+                    }
+                    j++;
+                } else {
+                    builder.appendChar(replaceString->charAt(j));
+                }
+            }
+            if (i < matchCount - 1) {
+                builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start);
+            }
+        }
+
+        builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
+    }
+
+    return builder.finalize(&state);
+}
+
 static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
@@ -440,86 +526,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             builer.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
             return builer.finalize(&state);
         } else {
-            ASSERT(replaceString);
-
-            bool hasDollar = false;
-            for (size_t i = 0; i < replaceString->length(); i++) {
-                if (replaceString->charAt(i) == '$') {
-                    hasDollar = true;
-                    break;
-                }
-            }
-
-            StringBuilder builder;
-            if (!hasDollar) {
-                // flat replace
-                int32_t matchCount = result.m_matchResults.size();
-                builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start);
-                for (int32_t i = 0; i < matchCount; i++) {
-                    String* res = replaceString;
-                    builder.appendString(res);
-                    if (i < matchCount - 1) {
-                        builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start);
-                    }
-                }
-                builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
-            } else {
-                // dollar replace
-                int32_t matchCount = result.m_matchResults.size();
-                builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start);
-                for (int32_t i = 0; i < matchCount; i++) {
-                    for (unsigned j = 0; j < replaceString->length(); j++) {
-                        if (replaceString->charAt(j) == '$' && (j + 1) < replaceString->length()) {
-                            char16_t c = replaceString->charAt(j + 1);
-                            if (c == '$') {
-                                builder.appendChar(replaceString->charAt(j));
-                            } else if (c == '&') {
-                                builder.appendSubString(string, result.m_matchResults[i][0].m_start, result.m_matchResults[i][0].m_end);
-                            } else if (c == '\'') {
-                                builder.appendSubString(string, result.m_matchResults[i][0].m_end, string->length());
-                            } else if (c == '`') {
-                                builder.appendSubString(string, 0, result.m_matchResults[i][0].m_start);
-                            } else if ('0' <= c && c <= '9') {
-                                size_t idx = c - '0';
-                                bool usePeek = false;
-                                if (j + 2 < replaceString->length()) {
-                                    int peek = replaceString->charAt(j + 2) - '0';
-                                    if (0 <= peek && peek <= 9) {
-                                        idx *= 10;
-                                        idx += peek;
-                                        usePeek = true;
-                                    }
-                                }
-
-                                if (idx < result.m_matchResults[i].size() && idx != 0) {
-                                    builder.appendSubString(string, result.m_matchResults[i][idx].m_start, result.m_matchResults[i][idx].m_end);
-                                    if (usePeek)
-                                        j++;
-                                } else {
-                                    idx = c - '0';
-                                    if (idx < result.m_matchResults[i].size() && idx != 0) {
-                                        builder.appendSubString(string, result.m_matchResults[i][idx].m_start, result.m_matchResults[i][idx].m_end);
-                                    } else {
-                                        builder.appendChar('$');
-                                        builder.appendChar(c);
-                                    }
-                                }
-                            } else {
-                                builder.appendChar('$');
-                                builder.appendChar(c);
-                            }
-                            j++;
-                        } else {
-                            builder.appendChar(replaceString->charAt(j));
-                        }
-                    }
-                    if (i < matchCount - 1) {
-                        builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start);
-                    }
-                }
-                builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
-            }
-            return builder.finalize(&state);
+            return stringReplaceFastPathHelper(state, string, replaceString, result);
         }
     } else {
         if (!functionalReplace) {
