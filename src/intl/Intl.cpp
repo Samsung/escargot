@@ -1304,6 +1304,166 @@ static std::string privateUseLangTag(const std::vector<std::string>& parts, size
     return privateuse.finalize()->toNonGCUTF8StringData();
 }
 
+static bool canonicalizeLanguageTagHelper(std::vector<std::string>& parts, const std::string& unicodeExtensionNameShouldIgnored, std::unordered_set<std::string>& subtags, size_t numParts, size_t& currentIndex, Intl::CanonicalizedLangunageTag& result)
+{
+    // Check for extension.
+    // extension = singleton 1*("-" (2*8alphanum))
+    // singleton = alphanum except x or X
+    subtags.clear();
+    while (currentIndex < numParts) {
+        std::string possibleSingleton = parts[currentIndex];
+        unsigned singletonLength = possibleSingleton.length();
+        bool isValidSingleton = (singletonLength == 1 && possibleSingleton != "x" && possibleSingleton != "X" && isASCIIAlphanumeric(possibleSingleton[0]));
+        if (!isValidSingleton) {
+            break;
+        }
+
+        // Cannot include duplicate singleton (case insensitive).
+        std::string singleton = possibleSingleton;
+        std::transform(possibleSingleton.begin(), possibleSingleton.end(), possibleSingleton.begin(), tolower);
+
+        auto iter = subtags.find(singleton);
+        if (iter != subtags.end()) {
+            return false;
+        }
+        subtags.insert(singleton);
+
+        Intl::CanonicalizedLangunageTag::ExtensionSingleton singletonValue;
+        singletonValue.key = possibleSingleton[0];
+
+        ++currentIndex;
+
+        if (singletonValue.key == 'u') {
+            bool unicodeExtensionIgnored = false;
+
+            // "u" needs ordered key, value
+            // "u" doesn't allow single "true" as value
+
+            std::vector<std::pair<std::string, std::vector<std::string>>> values;
+
+            std::string key;
+            std::vector<std::string> value;
+
+            while (currentIndex < numParts) {
+                std::string extPart = parts[currentIndex];
+                unsigned extPartLength = extPart.length();
+
+                bool isValid = (extPartLength >= 2 && extPartLength <= 8 && isAllSpecialCharacters(extPart, isASCIIAlphanumeric));
+                if (!isValid) {
+                    break;
+                }
+
+                ++currentIndex;
+                std::transform(extPart.begin(), extPart.end(), extPart.begin(), tolower);
+
+                if (extPartLength == 2) {
+                    if (key.length() || value.size()) {
+                        if (key.length() && value.size() == 1 && value[0] == "true") {
+                            value.clear();
+                        }
+                        values.push_back(std::make_pair(key, value));
+                        key.clear();
+                        value.clear();
+                    }
+                    key = extPart;
+                } else {
+                    value.push_back(extPart);
+                }
+            }
+
+            bool unicodeExtensionIgnoredOnce = (key.length() && key == unicodeExtensionNameShouldIgnored);
+            unicodeExtensionIgnored |= unicodeExtensionIgnoredOnce;
+
+            if (!unicodeExtensionIgnoredOnce && (key.length() || value.size())) {
+                if (key.length() && value.size() == 1 && value[0] == "true") {
+                    value.clear();
+                }
+                values.push_back(std::make_pair(key, value));
+                key.clear();
+                value.clear();
+            }
+
+            std::sort(values.begin(), values.end(),
+                      [](const std::pair<std::string, std::vector<std::string>>& a, const std::pair<std::string, std::vector<std::string>>& b) -> bool {
+                          return a.first < b.first;
+                      });
+
+            // Attributes in Unicode extensions are reordered in US-ASCII order.
+            if (values.size() && !values.begin()->first.length()) {
+                std::sort(values.begin()->second.begin(), values.begin()->second.end());
+            }
+
+            std::string resultValue;
+            for (size_t i = 0; i < values.size(); i++) {
+                if (values[i].first.size()) {
+                    if (resultValue.size()) {
+                        resultValue += '-';
+                    }
+                    resultValue += values[i].first;
+                }
+
+                for (size_t j = 0; j < values[i].second.size(); j++) {
+                    if (resultValue.size()) {
+                        resultValue += '-';
+                    }
+                    resultValue += values[i].second[j];
+                }
+            }
+
+            singletonValue.value = std::move(resultValue);
+
+            std::vector<std::pair<std::string, std::string>> unicodeExtensionValue;
+
+            for (size_t i = 0; i < values.size(); i++) {
+                std::string singleUnicodeExtensionValue;
+                for (size_t j = 0; j < values[i].second.size(); j++) {
+                    if (singleUnicodeExtensionValue.length()) {
+                        singleUnicodeExtensionValue += '-';
+                    }
+                    singleUnicodeExtensionValue += values[i].second[j];
+                }
+                unicodeExtensionValue.push_back(std::make_pair(values[i].first, singleUnicodeExtensionValue));
+            }
+
+            result.unicodeExtension = std::move(unicodeExtensionValue);
+
+            if (unicodeExtensionIgnored && !result.unicodeExtension.size()) {
+                continue;
+            }
+        } else {
+            std::string single;
+            while (currentIndex < numParts) {
+                std::string extPart = parts[currentIndex];
+                unsigned extPartLength = extPart.length();
+
+                bool isValid = (extPartLength >= 2 && extPartLength <= 8 && isAllSpecialCharacters(extPart, isASCIIAlphanumeric));
+                if (!isValid) {
+                    break;
+                }
+
+                ++currentIndex;
+                std::transform(extPart.begin(), extPart.end(), extPart.begin(), tolower);
+
+                if (single.length()) {
+                    single += '-';
+                }
+                single += extPart;
+            }
+
+            singletonValue.value = std::move(single);
+        }
+
+        result.extensions.push_back(singletonValue);
+
+        // Requires at least one production.
+        if (!result.extensions.back().value.size()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 Intl::CanonicalizedLangunageTag Intl::canonicalizeLanguageTag(const std::string& locale, const std::string& unicodeExtensionNameShouldIgnored)
 {
     std::vector<std::string> parts = split(locale, '-');
@@ -1453,156 +1613,8 @@ Intl::CanonicalizedLangunageTag Intl::canonicalizeLanguageTag(const std::string&
     // Check for extension.
     // extension = singleton 1*("-" (2*8alphanum))
     // singleton = alphanum except x or X
-    subtags.clear();
-    while (currentIndex < numParts) {
-        std::string possibleSingleton = parts[currentIndex];
-        unsigned singletonLength = possibleSingleton.length();
-        bool isValidSingleton = (singletonLength == 1 && possibleSingleton != "x" && possibleSingleton != "X" && isASCIIAlphanumeric(possibleSingleton[0]));
-        if (!isValidSingleton) {
-            break;
-        }
-
-        // Cannot include duplicate singleton (case insensitive).
-        std::string singleton = possibleSingleton;
-        std::transform(possibleSingleton.begin(), possibleSingleton.end(), possibleSingleton.begin(), tolower);
-
-        auto iter = subtags.find(singleton);
-        if (iter != subtags.end()) {
-            return Intl::CanonicalizedLangunageTag();
-        }
-        subtags.insert(singleton);
-
-        Intl::CanonicalizedLangunageTag::ExtensionSingleton singletonValue;
-        singletonValue.key = possibleSingleton[0];
-
-        ++currentIndex;
-
-        if (singletonValue.key == 'u') {
-            bool unicodeExtensionIgnored = false;
-
-            // "u" needs ordered key, value
-            // "u" doesn't allow single "true" as value
-
-            std::vector<std::pair<std::string, std::vector<std::string>>> values;
-
-            std::string key;
-            std::vector<std::string> value;
-
-            while (currentIndex < numParts) {
-                std::string extPart = parts[currentIndex];
-                unsigned extPartLength = extPart.length();
-
-                bool isValid = (extPartLength >= 2 && extPartLength <= 8 && isAllSpecialCharacters(extPart, isASCIIAlphanumeric));
-                if (!isValid) {
-                    break;
-                }
-
-                ++currentIndex;
-                std::transform(extPart.begin(), extPart.end(), extPart.begin(), tolower);
-
-                if (extPartLength == 2) {
-                    if (key.length() || value.size()) {
-                        if (key.length() && value.size() == 1 && value[0] == "true") {
-                            value.clear();
-                        }
-                        values.push_back(std::make_pair(key, value));
-                        key.clear();
-                        value.clear();
-                    }
-                    key = extPart;
-                } else {
-                    value.push_back(extPart);
-                }
-            }
-
-            bool unicodeExtensionIgnoredOnce = (key.length() && key == unicodeExtensionNameShouldIgnored);
-            unicodeExtensionIgnored |= unicodeExtensionIgnoredOnce;
-
-            if (!unicodeExtensionIgnoredOnce && (key.length() || value.size())) {
-                if (key.length() && value.size() == 1 && value[0] == "true") {
-                    value.clear();
-                }
-                values.push_back(std::make_pair(key, value));
-                key.clear();
-                value.clear();
-            }
-
-            std::sort(values.begin(), values.end(),
-                      [](const std::pair<std::string, std::vector<std::string>>& a, const std::pair<std::string, std::vector<std::string>>& b) -> bool {
-                          return a.first < b.first;
-                      });
-
-            // Attributes in Unicode extensions are reordered in US-ASCII order.
-            if (values.size() && !values.begin()->first.length()) {
-                std::sort(values.begin()->second.begin(), values.begin()->second.end());
-            }
-
-            std::string resultValue;
-            for (size_t i = 0; i < values.size(); i++) {
-                if (values[i].first.size()) {
-                    if (resultValue.size()) {
-                        resultValue += '-';
-                    }
-                    resultValue += values[i].first;
-                }
-
-                for (size_t j = 0; j < values[i].second.size(); j++) {
-                    if (resultValue.size()) {
-                        resultValue += '-';
-                    }
-                    resultValue += values[i].second[j];
-                }
-            }
-
-            singletonValue.value = std::move(resultValue);
-
-            std::vector<std::pair<std::string, std::string>> unicodeExtensionValue;
-
-            for (size_t i = 0; i < values.size(); i++) {
-                std::string singleUnicodeExtensionValue;
-                for (size_t j = 0; j < values[i].second.size(); j++) {
-                    if (singleUnicodeExtensionValue.length()) {
-                        singleUnicodeExtensionValue += '-';
-                    }
-                    singleUnicodeExtensionValue += values[i].second[j];
-                }
-                unicodeExtensionValue.push_back(std::make_pair(values[i].first, singleUnicodeExtensionValue));
-            }
-
-            result.unicodeExtension = std::move(unicodeExtensionValue);
-
-            if (unicodeExtensionIgnored && !result.unicodeExtension.size()) {
-                continue;
-            }
-        } else {
-            std::string single;
-            while (currentIndex < numParts) {
-                std::string extPart = parts[currentIndex];
-                unsigned extPartLength = extPart.length();
-
-                bool isValid = (extPartLength >= 2 && extPartLength <= 8 && isAllSpecialCharacters(extPart, isASCIIAlphanumeric));
-                if (!isValid) {
-                    break;
-                }
-
-                ++currentIndex;
-                std::transform(extPart.begin(), extPart.end(), extPart.begin(), tolower);
-
-                if (single.length()) {
-                    single += '-';
-                }
-                single += extPart;
-            }
-
-            singletonValue.value = std::move(single);
-        }
-
-        result.extensions.push_back(singletonValue);
-
-        // Requires at least one production.
-        if (!result.extensions.back().value.size()) {
-            return Intl::CanonicalizedLangunageTag();
-        }
+    if (!canonicalizeLanguageTagHelper(parts, unicodeExtensionNameShouldIgnored, subtags, numParts, currentIndex, result)) {
+        return Intl::CanonicalizedLangunageTag();
     }
 
     // Add extensions to canonical sorted by singleton.
