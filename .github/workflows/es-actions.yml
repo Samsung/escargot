@@ -190,7 +190,6 @@ jobs:
           ninja -Cout/release
           python3 ./tools/run-tests.py --engine="./out/release/escargot" new-es
 
-
   build-test-on-x86-release:
     runs-on: ubuntu-latest
     strategy:
@@ -248,24 +247,22 @@ jobs:
     - name: Install Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y ninja-build
-    - name: Install ICU
-      run: |
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_amd64.deb
-        dpkg -X libicu-dev_70.1-2ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
+        sudo apt-get install -y ninja-build libicu-dev
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
       run: |
-        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/usr/include"
-        export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu"
-        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu/pkgconfig
         cmake -H. -Bout/release/x64 $BUILD_OPTIONS ${{ matrix.build_opt }}
         ninja -Cout/release/x64
     - name: Run release-x64 test
       env:
         GC_FREE_SPACE_DIVISOR: 1
-      run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/release/x64/escargot" ${{ matrix.tc }}
+      run: |
+        # set locale
+        sudo locale-gen en_US.UTF-8
+        export LANG=en_US.UTF-8
+        locale
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/release/x64/escargot" ${{ matrix.tc }}
 
   build-test-on-x86-x64-debug:
     runs-on: ubuntu-latest
@@ -313,17 +310,10 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build
-    - name: Install ICU
-      run: |
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_amd64.deb
-        dpkg -X libicu-dev_70.1-2ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Build
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_DEBUGGER=1 -DESCARGOT_OUTPUT=shell_test -GNinja
       run: |
-        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/usr/include"
-        export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu"
-        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu/pkgconfig
         cmake -H. -Bout/debugger $BUILD_OPTIONS
         ninja -Cout/debugger
     - name: Debugger Test
@@ -341,26 +331,14 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build gcc-multilib g++-multilib
-    - name: Install ICU
-      run: |
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_i386.deb
-        dpkg -X libicu-dev_70.1-2ubuntu1_i386.deb $GITHUB_WORKSPACE/icu32
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_amd64.deb
-        dpkg -X libicu-dev_70.1-2ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Build x86/x64
       env:
-        BUILD_OPTIONS_X86: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_THREADING=1 -DESCARGOT_DEBUGGER=1 -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=cctest -GNinja
+        BUILD_OPTIONS_X86: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_THREADING=1 -DESCARGOT_DEBUGGER=1 -DESCARGOT_OUTPUT=cctest -GNinja
         BUILD_OPTIONS_X64: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_THREADING=1 -DESCARGOT_DEBUGGER=1 -DESCARGOT_OUTPUT=cctest -GNinja
       run: |
-        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu32/usr/include"
-        export LDFLAGS="-L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu"
-        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu/pkgconfig
         cmake -H. -Bout/cctest/x86 $BUILD_OPTIONS_X86
-        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/usr/include"
-        export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu"
-        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu/pkgconfig
-        cmake -H. -Bout/cctest/x64 $BUILD_OPTIONS_X64
         ninja -Cout/cctest/x86
+        cmake -H. -Bout/cctest/x64 $BUILD_OPTIONS_X64
         ninja -Cout/cctest/x64
     - name: Run Test
       run: |
@@ -439,12 +417,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build gcc-multilib g++-multilib
-    - name: Install ICU
-      run: |
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_i386.deb
-        dpkg -X libicu-dev_70.1-2ubuntu1_i386.deb $GITHUB_WORKSPACE/icu32
-        wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_amd64.deb
-        dpkg -X libicu-dev_70.1-2ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Patch WABT
       working-directory: ./third_party/wasm/wabt
       run: |
@@ -452,67 +424,17 @@ jobs:
         patch -p0 < wabt_patch
     - name: Build x86
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
       run: |
-        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu32/usr/include"
-        export LDFLAGS="-L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu"
-        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu/pkgconfig
         cmake -H. -Bout/wasm/x86 $BUILD_OPTIONS
         ninja -Cout/wasm/x86
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
       run: |
-        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/usr/include"
-        export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu"
-        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu/pkgconfig
         cmake -H. -Bout/wasm/x64 $BUILD_OPTIONS
         ninja -Cout/wasm/x64
     - name: Run x86 test
       run: $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/wasm/x86/escargot" wasm-js
     - name: Run x64 test
       run: $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/wasm/x64/escargot" wasm-js
-
-  coverity-scan:
-    if: ${{ github.repository == 'Samsung/escargot' && github.event_name == 'push' }}
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-    - name: Install Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ninja-build
-    - name: Patch WABT
-      working-directory: ./third_party/wasm/wabt
-      run: |
-        cp ../../../tools/test/wasm-js/wabt_patch .
-        patch -p0 < wabt_patch
-    - name: Download Coverity Tool
-      env:
-        TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
-      run: |
-        wget -q https://scan.coverity.com/download/cxx/linux64 --post-data "token=$TOKEN&project=Samsung%2Fescargot" -O cov-analysis-linux64.tar.gz
-        mkdir cov-analysis-linux64
-        tar xzf cov-analysis-linux64.tar.gz --strip 1 -C cov-analysis-linux64
-    - name: Build
-      env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_CODE_CACHE=ON -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
-      run: |
-        export PATH=$GITHUB_WORKSPACE/cov-analysis-linux64/bin:$PATH
-        cmake -H. -Bout/coverity_scan $BUILD_OPTIONS
-        cov-build --dir cov-int ninja -Cout/coverity_scan
-    - name: Submit
-      env:
-        TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
-        NOTI_MAIL: ${{ secrets.COVERITY_SCAN_MAIL }}
-      run: |
-        tar czvf escargot.tgz cov-int
-        curl \
-          --form token=$TOKEN \
-          --form email=$NOTI_MAIL \
-          --form file=@escargot.tgz \
-          --form version="4.0.0" \
-          --form description="escargot coverity scan" \
-          https://scan.coverity.com/builds?project=Samsung%2Fescargot
