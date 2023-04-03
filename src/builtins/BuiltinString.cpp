@@ -800,7 +800,7 @@ static Value builtinStringCharCodeAt(ExecutionState& state, Value thisValue, siz
     Value ret;
     size_t length = str->length();
     if (position < 0 || position >= (int)length)
-        ret = Value(std::numeric_limits<double>::quiet_NaN());
+        ret = Value(Value::NanInit);
     else {
         ret = Value(str->charAt(position));
     }

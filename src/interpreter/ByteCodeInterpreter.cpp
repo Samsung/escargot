@@ -1790,9 +1790,9 @@ NEVER_INLINE Value InterpreterSlowPath::modOperation(ExecutionState& state, cons
         double rvalue = rnum.first.asNumber();
         // http://www.ecma-international.org/ecma-262/5.1/#sec-11.5.3
         if (std::isnan(lvalue) || std::isnan(rvalue)) {
-            ret = Value(std::numeric_limits<double>::quiet_NaN());
+            ret = Value(Value::NanInit);
         } else if (std::isinf(lvalue) || rvalue == 0 || rvalue == -0.0) {
-            ret = Value(std::numeric_limits<double>::quiet_NaN());
+            ret = Value(Value::NanInit);
         } else if (std::isinf(rvalue)) {
             ret = Value(lvalue);
         } else if (lvalue == 0.0) {
@@ -1835,7 +1835,7 @@ NEVER_INLINE Value InterpreterSlowPath::exponentialOperation(ExecutionState& sta
 
     // The result of base ** exponent when base is 1 or -1 and exponent is +Infinity or -Infinity differs from IEEE 754-2008. The first edition of ECMAScript specified a result of NaN for this operation, whereas later versions of IEEE 754-2008 specified 1. The historical ECMAScript behaviour is preserved for compatibility reasons.
     if ((base == -1 || base == 1) && (exp == std::numeric_limits<double>::infinity() || exp == -std::numeric_limits<double>::infinity())) {
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
     }
 
     return Value(pow(base, exp));

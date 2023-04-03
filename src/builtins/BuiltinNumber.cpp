@@ -467,11 +467,11 @@ void GlobalObject::installNumber(ExecutionState& state)
     // $20.1.2.9 Number.MIN_VALUE
     m_number->directDefineOwnProperty(state, strings->MIN_VALUE, ObjectPropertyDescriptor(Value(5E-324), allFalsePresent));
     // $20.1.2.10 Number.NaN
-    m_number->directDefineOwnProperty(state, strings->NaN, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::quiet_NaN()), allFalsePresent));
+    m_number->directDefineOwnProperty(state, strings->NaN, ObjectPropertyDescriptor(Value(Value::NanInit), allFalsePresent));
     // $20.1.2.11 Number.NEGATIVE_INFINITY
-    m_number->directDefineOwnProperty(state, strings->NEGATIVE_INFINITY, ObjectPropertyDescriptor(Value(-std::numeric_limits<double>::infinity()), allFalsePresent));
+    m_number->directDefineOwnProperty(state, strings->NEGATIVE_INFINITY, ObjectPropertyDescriptor(Value(Value::NegativeInfinityInit), allFalsePresent));
     // $20.1.2.14 Number.POSITIVE_INFINITY
-    m_number->directDefineOwnProperty(state, strings->POSITIVE_INFINITY, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::infinity()), allFalsePresent));
+    m_number->directDefineOwnProperty(state, strings->POSITIVE_INFINITY, ObjectPropertyDescriptor(Value(Value::PostiveInfinityInit), allFalsePresent));
 
     m_numberProxyObject = new NumberObject(state);
 

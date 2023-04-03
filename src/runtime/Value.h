@@ -98,12 +98,12 @@ public:
     static constexpr const double MinusZeroIndex = std::numeric_limits<double>::min();
     static constexpr const double UndefinedIndex = std::numeric_limits<double>::max();
 #ifdef ESCARGOT_32
-    enum { EmptyValueTag = ~ValueEmpty };
-    enum { BooleanFalseTag = ~ValueFalse };
-    enum { BooleanTrueTag = ~ValueTrue };
-    enum { NullTag = ~ValueNull };
-    enum { UndefinedTag = ~ValueUndefined };
-    enum { LowestTag = UndefinedTag };
+    enum : uint32_t { EmptyValueTag = ~ValueEmpty };
+    enum : uint32_t { BooleanFalseTag = ~ValueFalse };
+    enum : uint32_t { BooleanTrueTag = ~ValueTrue };
+    enum : uint32_t { NullTag = ~ValueNull };
+    enum : uint32_t { UndefinedTag = ~ValueUndefined };
+    enum : uint32_t { LowestTag = UndefinedTag };
 
     // Any value which last bit is not set
     enum { Int32Tag = 0xfffffffe - 0 };
@@ -148,6 +148,12 @@ public:
 
     // Numbers
     Value(EncodeAsDoubleTag, const double&);
+    enum NaNInitTag { NanInit };
+    explicit Value(NaNInitTag);
+    enum PostiveInfinityInitTag { PostiveInfinityInit };
+    enum NegativeInfinityInitTag { NegativeInfinityInit };
+    explicit Value(PostiveInfinityInitTag);
+    explicit Value(NegativeInfinityInitTag);
     explicit Value(const double&);
     explicit Value(bool);
     explicit Value(char);

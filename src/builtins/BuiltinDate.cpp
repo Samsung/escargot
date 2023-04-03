@@ -143,7 +143,7 @@ static Value builtinDateParse(ExecutionState& state, Value thisValue, size_t arg
         d.setTimeValue(state, str);
         return Value(d.primitiveValue());
     }
-    return Value(std::numeric_limits<double>::quiet_NaN());
+    return Value(Value::NanInit);
 }
 
 static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -399,9 +399,8 @@ static Value builtinDateSetTime(ExecutionState& state, Value thisValue, size_t a
         thisObject->setTimeValue(DateObject::timeClip(state, argv[0].toNumber(state)));
         return Value(thisObject->primitiveValue());
     } else {
-        double value = std::numeric_limits<double>::quiet_NaN();
         thisObject->setTimeValueAsNaN();
-        return Value(value);
+        return Value(Value::NanInit);
     }
 }
 
@@ -409,7 +408,7 @@ static Value builtinDateGetYear(ExecutionState& state, Value thisValue, size_t a
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, getYear);
     if (!(thisObject->isValid())) {
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
     }
     int ret = thisObject->getFullYear(state) - 1900;
     return Value(ret);
@@ -470,7 +469,7 @@ static Value builtinDateGetTimezoneOffset(ExecutionState& state, Value thisValue
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, getTimezoneOffset);
     if (!(thisObject->isValid()))
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
     return Value(thisObject->getTimezoneOffset(state));
 }
 

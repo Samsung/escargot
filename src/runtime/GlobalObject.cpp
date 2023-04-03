@@ -324,7 +324,7 @@ static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc
 
     // 8.a If R < 2 or R > 36, then return NaN.
     if (radix < 2 || radix > 36)
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
 
     // 13. Let mathInt be the mathematical integer value that is represented by Z in radix-R notation,
     //     using the letters AZ and az for digits with values 10 through 35. (However, if R is 10 and Z contains more than 20 significant digits,
@@ -346,7 +346,7 @@ static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc
 
     // 12. If Z is empty, return NaN.
     if (!sawDigit)
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
 
     // 15. Return sign × number.
     return Value(sign * number);
@@ -362,7 +362,7 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
     if (strLen == 1) {
         if (isdigit(s->charAt(0)))
             return Value(s->charAt(0) - '0');
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
     }
 
     // 2, Let trimmedString be a substring of inputString consisting of the leftmost character
@@ -378,7 +378,7 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
 
     // empty string
     if (p == len)
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
 
     char16_t ch = s->charAt(p);
     // HexIntegerLiteral
@@ -393,23 +393,23 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
     switch (ch) {
     case 'I':
         if (isInfinity(s, p, len))
-            return Value(std::numeric_limits<double>::infinity());
+            return Value(Value::PostiveInfinityInit);
         break;
     case '+':
         if (isInfinity(s, p + 1, len))
-            return Value(std::numeric_limits<double>::infinity());
+            return Value(Value::PostiveInfinityInit);
         break;
     case '-':
         if (isInfinity(s, p + 1, len))
-            return Value(-std::numeric_limits<double>::infinity());
+            return Value(Value::NegativeInfinityInit);
         break;
     }
     auto u8Str = s->substring(p, len)->toUTF8StringData();
     double number = atof(u8Str.data());
     if (number == 0.0 && !std::signbit(number) && !isdigit(ch) && !(len - p >= 1 && (ch == '.' || ch == '+') && isdigit(s->charAt(p + 1))))
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
     if (number == std::numeric_limits<double>::infinity())
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
 
     // 5. Return the Number value for the MV of numberString.
     return Value(number);
@@ -860,8 +860,8 @@ void GlobalObject::initializeOthers(ExecutionState& state)
 void GlobalObject::installOthers(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
-    defineOwnProperty(state, strings->Infinity, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::infinity()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
-    defineOwnProperty(state, strings->NaN, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::quiet_NaN()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
+    defineOwnProperty(state, strings->Infinity, ObjectPropertyDescriptor(Value(Value::PostiveInfinityInit), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
+    defineOwnProperty(state, strings->NaN, ObjectPropertyDescriptor(Value(Value::NanInit), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
     defineOwnProperty(state, strings->undefined, ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ValuePresent)));
 
     // $18.2.1 eval (x)
