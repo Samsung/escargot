@@ -876,4 +876,29 @@ public class EscargotTest {
         context = null;
         finalizeEngine();
     }
+
+    @Test
+    public void naNInfIssueTest() {
+        Context context = initEngineAndCreateContext();
+
+        Optional<JavaScriptValue> ret = Evaluator.evalScript(context, "(this.NaN + '') == 'NaN'", "test.js", false);
+        assertTrue(ret.isPresent());
+        assertTrue(ret.get().isTrue());
+
+        ret = Evaluator.evalScript(context, "(this.Infinity + '') == 'Infinity'", "test.js", false);
+        assertTrue(ret.isPresent());
+        assertTrue(ret.get().isTrue());
+
+        ret = Evaluator.evalScript(context, "(parseFloat(undefined) + '') == 'NaN'", "test.js", false);
+        assertTrue(ret.isPresent());
+        assertTrue(ret.get().isTrue());
+
+        ret = Evaluator.evalScript(context, "(undefined + undefined) ? 'a' : 'b' == 'b'", "test.js", false);
+        assertTrue(ret.isPresent());
+        assertTrue(ret.get().isTrue());
+
+        context = null;
+        finalizeEngine();
+    }
+
 }
