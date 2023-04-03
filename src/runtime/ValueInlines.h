@@ -607,6 +607,21 @@ ALWAYS_INLINE bool Value::isInt32ConvertibleDouble(const double& d, int32_t& asI
     return true;
 }
 
+inline Value::Value(NaNInitTag)
+{
+    *this = Value(EncodeAsDouble, std::numeric_limits<double>::quiet_NaN());
+}
+
+inline Value::Value(PostiveInfinityInitTag)
+{
+    *this = Value(EncodeAsDouble, std::numeric_limits<double>::infinity());
+}
+
+inline Value::Value(NegativeInfinityInitTag)
+{
+    *this = Value(EncodeAsDouble, -std::numeric_limits<double>::infinity());
+}
+
 inline Value::Value(const double& d)
 {
     int32_t asInt32;
@@ -772,7 +787,7 @@ inline std::pair<Value, bool> Value::toNumeric(ExecutionState& state) const // <
     }
 #endif
     else if (isUndefined()) {
-        return std::make_pair(Value(std::numeric_limits<double>::quiet_NaN()), false);
+        return std::make_pair(Value(Value::NanInit), false);
     } else if (isNull()) {
         return std::make_pair(Value(0), false);
     } else if (isBoolean()) {

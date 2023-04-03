@@ -52,8 +52,7 @@ static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc,
             maxValue = value;
     }
     if (is_NaN) {
-        double qnan = std::numeric_limits<double>::quiet_NaN();
-        return Value(qnan);
+        return Value(Value::NanInit);
     }
     return Value(maxValue);
 }
@@ -61,7 +60,7 @@ static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc,
 static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argc == 0) {
-        return Value(std::numeric_limits<double>::infinity());
+        return Value(Value::PostiveInfinityInit);
     }
 
     bool hasNaN = false;
@@ -76,8 +75,7 @@ static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc,
         }
     }
     if (hasNaN) {
-        double qnan = std::numeric_limits<double>::quiet_NaN();
-        return Value(qnan);
+        return Value(Value::NanInit);
     }
     return Value(minValue);
 }
@@ -185,7 +183,7 @@ static Value builtinMathSign(ExecutionState& state, Value thisValue, size_t argc
 {
     double x = argv[0].toNumber(state);
     if (std::isnan(x))
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
     else if (x == 0.0) {
         if (std::signbit(x)) {
             return Value(Value::EncodeAsDouble, -0.0);
@@ -209,9 +207,9 @@ static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc,
     double x = argv[0].toNumber(state);
     double y = argv[1].toNumber(state);
     if (UNLIKELY(std::isnan(y)))
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
     if (UNLIKELY(std::abs(x) == 1 && std::isinf(y)))
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
 
     int y_int = static_cast<int>(y);
 
@@ -244,16 +242,16 @@ static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc,
     if (std::isinf(x)) {
         if (x > 0) {
             if (y > 0) {
-                return Value(std::numeric_limits<double>::infinity());
+                return Value(Value::PostiveInfinityInit);
             } else {
                 return Value(0.0);
             }
         } else {
             if (y > 0) {
                 if (y == y_int && y_int % 2) { // odd
-                    return Value(-std::numeric_limits<double>::infinity());
+                    return Value(Value::NegativeInfinityInit);
                 } else {
-                    return Value(std::numeric_limits<double>::infinity());
+                    return Value(Value::PostiveInfinityInit);
                 }
             } else {
                 if (y == y_int && y_int % 2) {
@@ -270,7 +268,7 @@ static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc,
         if (y > 0) {
             return Value(0);
         } else if (y < 0) {
-            return Value(std::numeric_limits<double>::infinity());
+            return Value(Value::PostiveInfinityInit);
         }
     }
 
@@ -339,12 +337,11 @@ static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t arg
         maxValue = std::max(maxValue, absValue);
     }
     if (has_inf) {
-        return Value(std::numeric_limits<double>::infinity());
+        return Value(Value::PostiveInfinityInit);
     }
 
     if (has_nan) {
-        double qnan = std::numeric_limits<double>::quiet_NaN();
-        return Value(qnan);
+        return Value(Value::NanInit);
     }
 
     if (maxValue == 0) {

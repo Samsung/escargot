@@ -1547,7 +1547,7 @@ void* DateObject::operator new(size_t size)
 Value DateObject::makeDay(ExecutionState& state, const Value& year, const Value& month, const Value& day)
 {
     if (!std::isfinite(year.asNumber()) && !std::isfinite(month.asNumber()) && !std::isfinite(day.asNumber())) {
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
     }
 
     double y = year.asNumber();
@@ -1559,7 +1559,7 @@ Value DateObject::makeDay(ExecutionState& state, const Value& year, const Value&
     double ym = y + std::floor(m / const_Date_monthsPerYear);
 
     if (!std::isfinite(ym)) {
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
     }
 
     result += const_Date_msPerDay * DAYS_IN_YEAR * (ym - 1970) + const_Date_msPerMonth * ((int)m % const_Date_monthsPerYear);
@@ -1569,7 +1569,7 @@ Value DateObject::makeDay(ExecutionState& state, const Value& year, const Value&
 Value DateObject::makeTime(ExecutionState& state, const Value& hour, const Value& minute, const Value& sec, const Value& ms)
 {
     if (!std::isfinite(hour.asNumber()) && !std::isfinite(minute.asNumber()) && !std::isfinite(sec.asNumber()) && !std::isfinite(ms.asNumber())) {
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
     }
 
     double h = hour.asNumber();
@@ -1583,7 +1583,7 @@ Value DateObject::makeTime(ExecutionState& state, const Value& hour, const Value
 Value DateObject::makeDate(ExecutionState& state, const Value& day, const Value& time)
 {
     if (!std::isfinite(day.asNumber()) && !std::isfinite(time.asNumber())) {
-        return Value(std::numeric_limits<double>::quiet_NaN());
+        return Value(Value::NanInit);
     }
 
     return Value(day.toLength(state) * const_Date_msPerDay + time.toLength(state));
