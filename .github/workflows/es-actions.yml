@@ -513,6 +513,6 @@ jobs:
           --form token=$TOKEN \
           --form email=$NOTI_MAIL \
           --form file=@escargot.tgz \
-          --form version="3.0.0" \
+          --form version="4.0.0" \
           --form description="escargot coverity scan" \
           https://scan.coverity.com/builds?project=Samsung%2Fescargot
