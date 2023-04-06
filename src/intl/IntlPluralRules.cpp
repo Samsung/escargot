@@ -30,31 +30,6 @@
 
 namespace Escargot {
 
-static double getNumberOption(ExecutionState& state, Optional<Object*> options, String* property, double minimum, double maximum, double fallback)
-{
-    // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.10
-    if (!options) {
-        return fallback;
-    }
-
-    // Let value be the result of calling the [[Get]] internal method of options with argument property.
-    Value value = options.value()->get(state, ObjectPropertyName(state, property)).value(state, options.value());
-    // If value is not undefined, then
-    if (!value.isUndefined()) {
-        // Let value be ToNumber(value).
-        double doubleValue = value.toNumber(state);
-        // If value is NaN or less than minimum or greater than maximum, throw a RangeError exception.
-        if (std::isnan(doubleValue) || doubleValue < minimum || maximum < doubleValue) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Got invalid number option value");
-        }
-        // Return floor(value).
-        return floor(doubleValue);
-    } else {
-        // Else return fallback.
-        return fallback;
-    }
-}
-
 void* IntlPluralRulesObject::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
@@ -115,13 +90,13 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
 
     // Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3).
     // Let mnid be the result of calling the GetNumberOption abstract operation (defined in 9.2.10) with arguments options, "minimumIntegerDigits", 1, 21, and 1.
-    double mnid = getNumberOption(state, optionObject, state.context()->staticStrings().lazyMinimumIntegerDigits().string(), 1, 21, 1);
+    double mnid = Intl::getNumberOption(state, optionObject, state.context()->staticStrings().lazyMinimumIntegerDigits().string(), 1, 21, 1);
     // Set the [[minimumIntegerDigits]] internal property of numberFormat to mnid.
     m_minimumIntegerDigits = mnid;
 
     double mnfdDefault = 0;
     // Let mnfd be the result of calling the GetNumberOption abstract operation with arguments options, "minimumFractionDigits", 0, 20, and mnfdDefault.
-    double mnfd = getNumberOption(state, optionObject, state.context()->staticStrings().lazyMinimumFractionDigits().string(), 0, 20, mnfdDefault);
+    double mnfd = Intl::getNumberOption(state, optionObject, state.context()->staticStrings().lazyMinimumFractionDigits().string(), 0, 20, mnfdDefault);
 
     // Set the [[minimumFractionDigits]] internal property of numberFormat to mnfd.
     m_minimumFractionDigits = mnfd;
@@ -129,7 +104,7 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     double mxfdDefault = 3;
 
     // Let mxfd be the result of calling the GetNumberOption abstract operation with arguments options, "maximumFractionDigits", mnfd, 20, and mxfdDefault.
-    double mxfd = getNumberOption(state, optionObject, state.context()->staticStrings().lazyMaximumFractionDigits().string(), mnfd, 20, mxfdDefault);
+    double mxfd = Intl::getNumberOption(state, optionObject, state.context()->staticStrings().lazyMaximumFractionDigits().string(), mnfd, 20, mxfdDefault);
 
     // Set the [[maximumFractionDigits]] internal property of numberFormat to mxfd.
     m_maximumFractionDigits = mxfd;
@@ -143,9 +118,9 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
         // If mnsd is not undefined or mxsd is not undefined, then:
         if (!mnsd.isUndefined() || !mxsd.isUndefined()) {
             // Let mnsd be the result of calling the GetNumberOption abstract operation with arguments options, "minimumSignificantDigits", 1, 21, and 1.
-            mnsd = Value(getNumberOption(state, optionObject.value(), state.context()->staticStrings().lazyMinimumSignificantDigits().string(), 1, 21, 1));
+            mnsd = Value(Value::DoubleToIntConvertibleTestNeeds, Intl::getNumberOption(state, optionObject, state.context()->staticStrings().lazyMinimumSignificantDigits().string(), 1, 21, 1));
             // Let mxsd be the result of calling the GetNumberOption abstract operation with arguments options, "maximumSignificantDigits", mnsd, 21, and 21.
-            mxsd = Value(getNumberOption(state, optionObject.value(), state.context()->staticStrings().lazyMaximumSignificantDigits().string(), mnsd.asNumber(), 21, 21));
+            mxsd = Value(Value::DoubleToIntConvertibleTestNeeds, Intl::getNumberOption(state, optionObject, state.context()->staticStrings().lazyMaximumSignificantDigits().string(), mnsd.asNumber(), 21, 21));
             // Set the [[minimumSignificantDigits]] internal property of numberFormat to mnsd,
             // and the [[maximumSignificantDigits]] internal property of numberFormat to mxsd.
             m_minimumSignificantDigits = mnsd.asNumber();

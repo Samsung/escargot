@@ -140,7 +140,7 @@ static Value builtinArrayBufferTransfer(ExecutionState& state, Value thisValue, 
         newByteLength = argv[0].toInteger(state);
     }
 
-    Value arguments[] = { Value(newByteLength) };
+    Value arguments[] = { Value(Value::DoubleToIntConvertibleTestNeeds, newByteLength) };
     ArrayBuffer* newValue = Object::construct(state, state.context()->globalObject()->arrayBuffer(), 1, arguments).asObject()->asArrayBuffer();
 
     // Let copyLength be min(newByteLength, O.[[ArrayBufferByteLength]]).

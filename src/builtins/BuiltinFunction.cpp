@@ -192,7 +192,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     // Let status be DefinePropertyOrThrow(F, "length", PropertyDescriptor {[[Value]]: L, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true}).
     // Perform SetFunctionName(F, targetName, "bound").
     // Return F.
-    return new BoundFunctionObject(state, target, boundThis, boundArgc, boundArgv, Value(length), Value(builder.finalize(&state)));
+    return new BoundFunctionObject(state, target, boundThis, boundArgc, boundArgv, Value(Value::DoubleToIntConvertibleTestNeeds, length), Value(builder.finalize(&state)));
 }
 
 static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

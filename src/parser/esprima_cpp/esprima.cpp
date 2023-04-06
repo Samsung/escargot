@@ -1092,7 +1092,7 @@ public:
             auto d = token->valueNumberLiteral(this->scanner);
             if (LIKELY(!d.second)) {
                 if (minus) {
-                    d.first = Value(-d.first.asNumber());
+                    d.first = Value(Value::DoubleToIntConvertibleTestNeeds, -d.first.asNumber());
                 }
                 if (this->context->inLoop || d.first.asNumber() == 0) {
                     this->insertNumeralLiteral(d.first);

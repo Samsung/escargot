@@ -136,7 +136,7 @@ public:
         }
 
         double n = Value(arg).toNumber(state);
-        if (!arg->equals(Value(n).toString(state))) {
+        if (!arg->equals(Value(Value::DoubleToIntConvertibleTestNeeds, n).toString(state))) {
             return Value::UndefinedIndex;
         }
 

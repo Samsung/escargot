@@ -32,15 +32,14 @@ namespace Escargot {
 
 static Value builtinMathAbs(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return Value(std::abs(argv[0].toNumber(state)));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, std::abs(argv[0].toNumber(state)));
 }
 
 static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     bool is_NaN = false;
     if (argc == 0) {
-        double n_inf = -1 * std::numeric_limits<double>::infinity();
-        return Value(n_inf);
+        return Value(Value::NegativeInfinityInit);
     }
 
     double maxValue = argv[0].toNumber(state);
@@ -54,7 +53,7 @@ static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc,
     if (is_NaN) {
         return Value(Value::NanInit);
     }
-    return Value(maxValue);
+    return Value(Value::DoubleToIntConvertibleTestNeeds, maxValue);
 }
 
 static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -77,106 +76,106 @@ static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc,
     if (hasNaN) {
         return Value(Value::NanInit);
     }
-    return Value(minValue);
+    return Value(Value::DoubleToIntConvertibleTestNeeds, minValue);
 }
 
 static Value builtinMathRound(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
     if (x == static_cast<int64_t>(x)) {
-        return Value(x);
+        return Value(Value::DoubleToIntConvertibleTestNeeds, x);
     }
     if (x == -0.5)
-        return Value(-0.0);
+        return Value(UnconvertibleDoubleToInt32(-0.0));
     else if (x > -0.5)
-        return Value(round(x));
+        return Value(Value::DoubleToIntConvertibleTestNeeds, round(x));
     else
-        return Value(floor(x + 0.5));
+        return Value(Value::DoubleToIntConvertibleTestNeeds, floor(x + 0.5));
 }
 
 static Value builtinMathSin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value x = argv[0];
-    return Value(ieee754::sin(x.toNumber(state)));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::sin(x.toNumber(state)));
 }
 
 static Value builtinMathSinh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::sinh(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::sinh(x));
 }
 
 static Value builtinMathCos(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value x = argv[0];
-    return Value(ieee754::cos(x.toNumber(state)));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::cos(x.toNumber(state)));
 }
 
 static Value builtinMathCosh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::cosh(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::cosh(x));
 }
 
 static Value builtinMathAcos(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::acos(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::acos(x));
 }
 
 static Value builtinMathAcosh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::acosh(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::acosh(x));
 }
 
 static Value builtinMathAsin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::asin(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::asin(x));
 }
 
 static Value builtinMathAsinh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::asinh(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::asinh(x));
 }
 
 static Value builtinMathAtan(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::atan(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::atan(x));
 }
 
 static Value builtinMathAtan2(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double y = argv[0].toNumber(state);
     double x = argv[1].toNumber(state);
-    return Value(ieee754::atan2(y, x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::atan2(y, x));
 }
 
 static Value builtinMathAtanh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::atanh(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::atanh(x));
 }
 
 static Value builtinMathTan(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::tan(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::tan(x));
 }
 
 static Value builtinMathTanh(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::tanh(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::tanh(x));
 }
 
 static Value builtinMathTrunc(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(trunc(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, trunc(x));
 }
 
 static Value builtinMathSign(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -199,7 +198,7 @@ static Value builtinMathSign(ExecutionState& state, Value thisValue, size_t argc
 static Value builtinMathSqrt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value x = argv[0];
-    return Value(sqrt(x.toNumber(state)));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, sqrt(x.toNumber(state)));
 }
 
 static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -229,11 +228,11 @@ static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc,
                     // given us a finite p. This happens very rarely.
 
                     double result = 1.0 / p;
-                    return (result == 0 && std::isinf(p)) ? Value(pow(x, static_cast<double>(y))) // Avoid pow(double, int).
-                                                          : Value(result);
+                    return (result == 0 && std::isinf(p)) ? Value(Value::DoubleToIntConvertibleTestNeeds, pow(x, static_cast<double>(y))) // Avoid pow(double, int).
+                                                          : Value(Value::DoubleToIntConvertibleTestNeeds, result);
                 }
 
-                return Value(p);
+                return Value(Value::DoubleToIntConvertibleTestNeeds, p);
             }
             m *= m;
         }
@@ -244,7 +243,7 @@ static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc,
             if (y > 0) {
                 return Value(Value::PostiveInfinityInit);
             } else {
-                return Value(0.0);
+                return Value(0);
             }
         } else {
             if (y > 0) {
@@ -255,9 +254,9 @@ static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc,
                 }
             } else {
                 if (y == y_int && y_int % 2) {
-                    return Value(-0.0);
+                    return Value(UnconvertibleDoubleToInt32(-0.0));
                 } else {
-                    return Value(0.0);
+                    return Value(0);
                 }
             }
         }
@@ -273,18 +272,18 @@ static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc,
     }
 
     if (y == 0.5) {
-        return Value(sqrt(x));
+        return Value(Value::DoubleToIntConvertibleTestNeeds, sqrt(x));
     } else if (y == -0.5) {
-        return Value(1.0 / sqrt(x));
+        return Value(Value::DoubleToIntConvertibleTestNeeds, 1.0 / sqrt(x));
     }
 
-    return Value(pow(x, y));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, pow(x, y));
 }
 
 static Value builtinMathCbrt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::cbrt(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::cbrt(x));
 }
 
 static Value builtinMathCeil(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -293,7 +292,7 @@ static Value builtinMathCeil(ExecutionState& state, Value thisValue, size_t argc
 
     // I add custom ceil implementation
     // because I found some problem from gcc implementation about negative zero
-    return Value(ieee754::ceil(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::ceil(x));
 }
 
 static Value builtinMathClz32(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -312,13 +311,13 @@ static Value builtinMathClz32(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinMathFloor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(floor(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, floor(x));
 }
 
 static Value builtinMathFround(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(static_cast<double>(static_cast<float>(x)));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, static_cast<double>(static_cast<float>(x)));
 }
 
 static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -345,7 +344,7 @@ static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t arg
     }
 
     if (maxValue == 0) {
-        return Value(0.0);
+        return Value(0);
     }
 
     double sum = 0;
@@ -358,7 +357,7 @@ static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t arg
         compensation = (preliminary - sum) - summand;
         sum = preliminary;
     }
-    return Value(std::sqrt(sum) * maxValue);
+    return Value(Value::DoubleToIntConvertibleTestNeeds, std::sqrt(sum) * maxValue);
 }
 
 static Value builtinMathIMul(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -371,43 +370,43 @@ static Value builtinMathIMul(ExecutionState& state, Value thisValue, size_t argc
 static Value builtinMathLog(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::log(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::log(x));
 }
 
 static Value builtinMathLog1p(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::log1p(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::log1p(x));
 }
 
 static Value builtinMathLog10(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::log10(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::log10(x));
 }
 
 static Value builtinMathLog2(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::log2(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::log2(x));
 }
 
 static Value builtinMathRandom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     std::uniform_real_distribution<double> distribution;
-    return Value(distribution(ThreadLocal::randEngine()));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, distribution(ThreadLocal::randEngine()));
 }
 
 static Value builtinMathExp(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::exp(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::exp(x));
 }
 
 static Value builtinMathExpm1(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
-    return Value(ieee754::expm1(x));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::expm1(x));
 }
 
 void GlobalObject::initializeMath(ExecutionState& state)
@@ -432,21 +431,20 @@ void GlobalObject::installMath(ExecutionState& state)
 
     // initialize math object: $20.2.1.6 Math.PI
     const StaticStrings* strings = &state.context()->staticStrings();
-    m_math->directDefineOwnProperty(state, strings->PI, ObjectPropertyDescriptor(Value(3.1415926535897932), ObjectPropertyDescriptor::ValuePresent));
-    // TODO(add reference)
-    m_math->directDefineOwnProperty(state, strings->E, ObjectPropertyDescriptor(Value(2.718281828459045), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, strings->PI, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(3.1415926535897932)), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, strings->E, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(2.718281828459045)), ObjectPropertyDescriptor::ValuePresent));
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.3
-    m_math->directDefineOwnProperty(state, strings->LN2, ObjectPropertyDescriptor(Value(0.6931471805599453), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, strings->LN2, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(0.6931471805599453)), ObjectPropertyDescriptor::ValuePresent));
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.2
-    m_math->directDefineOwnProperty(state, strings->LN10, ObjectPropertyDescriptor(Value(2.302585092994046), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, strings->LN10, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(2.302585092994046)), ObjectPropertyDescriptor::ValuePresent));
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.4
-    m_math->directDefineOwnProperty(state, strings->LOG2E, ObjectPropertyDescriptor(Value(1.4426950408889634), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, strings->LOG2E, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(1.4426950408889634)), ObjectPropertyDescriptor::ValuePresent));
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.5
-    m_math->directDefineOwnProperty(state, strings->LOG10E, ObjectPropertyDescriptor(Value(0.4342944819032518), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, strings->LOG10E, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(0.4342944819032518)), ObjectPropertyDescriptor::ValuePresent));
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.7
-    m_math->directDefineOwnProperty(state, strings->SQRT1_2, ObjectPropertyDescriptor(Value(0.7071067811865476), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, strings->SQRT1_2, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(0.7071067811865476)), ObjectPropertyDescriptor::ValuePresent));
     // http://www.ecma-international.org/ecma-262/5.1/#sec-15.8.1.8
-    m_math->directDefineOwnProperty(state, strings->SQRT2, ObjectPropertyDescriptor(Value(1.4142135623730951), ObjectPropertyDescriptor::ValuePresent));
+    m_math->directDefineOwnProperty(state, strings->SQRT2, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(1.4142135623730951)), ObjectPropertyDescriptor::ValuePresent));
 
     // initialize math object: $20.2.2.1 Math.abs()
     m_math->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().abs),

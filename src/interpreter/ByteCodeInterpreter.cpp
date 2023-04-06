@@ -393,7 +393,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 int32_t a = left.asInt32();
                 int32_t b = right.asInt32();
                 if (UNLIKELY((!a || !b) && (a >> 31 || b >> 31))) { // -1 * 0 should be treated as -0, not +0
-                    ret = Value(left.asNumber() * right.asNumber());
+                    ret = Value(Value::DoubleToIntConvertibleTestNeeds, left.asNumber() * right.asNumber());
                 } else {
                     int32_t c;
                     bool result = ArithmeticOperations<int32_t, int32_t, int32_t>::multiply(a, b, c);
@@ -796,7 +796,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             if (UNLIKELY(val.isPointerValue())) {
                 registerFile[code->m_dstIndex] = InterpreterSlowPath::unaryMinusSlowCase(*state, val);
             } else {
-                registerFile[code->m_dstIndex] = Value(-val.toNumber(*state));
+                registerFile[code->m_dstIndex] = Value(Value::DoubleToIntConvertibleTestNeeds, -val.toNumber(*state));
             }
             ADD_PROGRAM_COUNTER(UnaryMinus);
             NEXT_INSTRUCTION();
@@ -966,7 +966,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             ToNumber* code = (ToNumber*)programCounter;
             const Value& val = registerFile[code->m_srcIndex];
-            registerFile[code->m_dstIndex] = Value(val.toNumber(*state));
+            registerFile[code->m_dstIndex] = Value(Value::DoubleToIntConvertibleTestNeeds, val.toNumber(*state));
             ADD_PROGRAM_COUNTER(ToNumber);
             NEXT_INSTRUCTION();
         }
@@ -1693,7 +1693,7 @@ NEVER_INLINE Value InterpreterSlowPath::plusSlowCase(ExecutionState& state, cons
         if (UNLIKELY(lnum.second)) {
             ret = Value(lnum.first.asBigInt()->addition(state, rnum.first.asBigInt()));
         } else {
-            ret = Value(lnum.first.asNumber() + rnum.first.asNumber());
+            ret = Value(Value::DoubleToIntConvertibleTestNeeds, lnum.first.asNumber() + rnum.first.asNumber());
         }
     }
 
@@ -1720,7 +1720,7 @@ NEVER_INLINE Value InterpreterSlowPath::minusSlowCase(ExecutionState& state, con
     if (UNLIKELY(lnum.second)) {
         return Value(lnum.first.asBigInt()->subtraction(state, rnum.first.asBigInt()));
     } else {
-        return Value(lnum.first.asNumber() - rnum.first.asNumber());
+        return Value(Value::DoubleToIntConvertibleTestNeeds, lnum.first.asNumber() - rnum.first.asNumber());
     }
 }
 
@@ -1734,7 +1734,7 @@ NEVER_INLINE Value InterpreterSlowPath::multiplySlowCase(ExecutionState& state, 
     if (UNLIKELY(lnum.second)) {
         return Value(lnum.first.asBigInt()->multiply(state, rnum.first.asBigInt()));
     } else {
-        return Value(lnum.first.asNumber() * rnum.first.asNumber());
+        return Value(Value::DoubleToIntConvertibleTestNeeds, lnum.first.asNumber() * rnum.first.asNumber());
     }
 }
 
@@ -1751,7 +1751,7 @@ NEVER_INLINE Value InterpreterSlowPath::divisionSlowCase(ExecutionState& state, 
         }
         return Value(lnum.first.asBigInt()->division(state, rnum.first.asBigInt()));
     } else {
-        return Value(lnum.first.asNumber() / rnum.first.asNumber());
+        return Value(Value::DoubleToIntConvertibleTestNeeds, lnum.first.asNumber() / rnum.first.asNumber());
     }
 }
 
@@ -1761,7 +1761,7 @@ NEVER_INLINE Value InterpreterSlowPath::unaryMinusSlowCase(ExecutionState& state
     if (r.second) {
         return r.first.asBigInt()->negativeValue(state);
     } else {
-        return Value(-r.first.asNumber());
+        return Value(Value::DoubleToIntConvertibleTestNeeds, -r.first.asNumber());
     }
 }
 
@@ -1794,7 +1794,7 @@ NEVER_INLINE Value InterpreterSlowPath::modOperation(ExecutionState& state, cons
         } else if (std::isinf(lvalue) || rvalue == 0 || rvalue == -0.0) {
             ret = Value(Value::NanInit);
         } else if (std::isinf(rvalue)) {
-            ret = Value(lvalue);
+            ret = Value(Value::DoubleToIntConvertibleTestNeeds, lvalue);
         } else if (lvalue == 0.0) {
             if (std::signbit(lvalue))
                 ret = Value(Value::EncodeAsDouble, -0.0);
@@ -1807,7 +1807,7 @@ NEVER_INLINE Value InterpreterSlowPath::modOperation(ExecutionState& state, cons
             double r = fmod(lvalue, rvalue);
             if (isLNeg)
                 r = -r;
-            ret = Value(r);
+            ret = Value(Value::DoubleToIntConvertibleTestNeeds, r);
         }
     }
 
@@ -1838,7 +1838,7 @@ NEVER_INLINE Value InterpreterSlowPath::exponentialOperation(ExecutionState& sta
         return Value(Value::NanInit);
     }
 
-    return Value(pow(base, exp));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, pow(base, exp));
 }
 
 NEVER_INLINE void InterpreterSlowPath::instanceOfOperation(ExecutionState& state, BinaryInstanceOfOperation* code, Value* registerFile)
@@ -4183,7 +4183,7 @@ NEVER_INLINE Value InterpreterSlowPath::incrementOperationSlowCase(ExecutionStat
     if (UNLIKELY(newVal.second)) {
         return Value(newVal.first.asBigInt()->increment(state));
     } else {
-        return Value(newVal.first.asNumber() + 1);
+        return Value(Value::DoubleToIntConvertibleTestNeeds, newVal.first.asNumber() + 1);
     }
 }
 
@@ -4212,7 +4212,7 @@ NEVER_INLINE Value InterpreterSlowPath::decrementOperationSlowCase(ExecutionStat
     if (UNLIKELY(newVal.second)) {
         return Value(newVal.first.asBigInt()->decrement(state));
     } else {
-        return Value(value.toNumber(state) - 1);
+        return Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state) - 1);
     }
 }
 

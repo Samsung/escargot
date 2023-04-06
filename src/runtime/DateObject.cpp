@@ -1563,7 +1563,7 @@ Value DateObject::makeDay(ExecutionState& state, const Value& year, const Value&
     }
 
     result += const_Date_msPerDay * DAYS_IN_YEAR * (ym - 1970) + const_Date_msPerMonth * ((int)m % const_Date_monthsPerYear);
-    return Value(std::floor(result / const_Date_msPerDay) + dt - 1);
+    return Value(Value::DoubleToIntConvertibleTestNeeds, std::floor(result / const_Date_msPerDay) + dt - 1);
 }
 
 Value DateObject::makeTime(ExecutionState& state, const Value& hour, const Value& minute, const Value& sec, const Value& ms)
@@ -1577,7 +1577,7 @@ Value DateObject::makeTime(ExecutionState& state, const Value& hour, const Value
     double s = sec.asNumber();
     double milli = ms.asNumber();
 
-    return Value(h * const_Date_msPerHour + m * const_Date_msPerMinute + s * const_Date_msPerSecond + milli);
+    return Value(Value::DoubleToIntConvertibleTestNeeds, h * const_Date_msPerHour + m * const_Date_msPerMinute + s * const_Date_msPerSecond + milli);
 }
 
 Value DateObject::makeDate(ExecutionState& state, const Value& day, const Value& time)

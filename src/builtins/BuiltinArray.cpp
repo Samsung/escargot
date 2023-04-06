@@ -1235,7 +1235,7 @@ static Value builtinArrayIncludes(ExecutionState& state, Value thisValue, size_t
     // Repeat, while k < len
     while (doubleK < len) {
         // Let elementK be the result of ? Get(O, ! ToString(k)).
-        Value elementK = O->get(state, ObjectPropertyName(state, Value(doubleK))).value(state, O);
+        Value elementK = O->get(state, ObjectPropertyName(state, Value(Value::DoubleToIntConvertibleTestNeeds, doubleK))).value(state, O);
         // If SameValueZero(searchElement, elementK) is true, return true.
         if (elementK.equalsToByTheSameValueZeroAlgorithm(state, searchElement)) {
             return Value(true);
@@ -1841,7 +1841,7 @@ static Value builtinArrayAt(ExecutionState& state, Value thisValue, size_t argc,
         return Value();
     }
 
-    return obj->getIndexedProperty(state, Value(k)).value(state, thisValue);
+    return obj->getIndexedProperty(state, Value(Value::DoubleToIntConvertibleTestNeeds, k)).value(state, thisValue);
 }
 
 static Value builtinArrayFindLast(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

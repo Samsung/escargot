@@ -141,7 +141,7 @@ static Value builtinDateParse(ExecutionState& state, Value thisValue, size_t arg
     if (str.isString()) {
         DateObject d(state);
         d.setTimeValue(state, str);
-        return Value(d.primitiveValue());
+        return Value(Value::DoubleToIntConvertibleTestNeeds, d.primitiveValue());
     }
     return Value(Value::NanInit);
 }
@@ -175,7 +175,7 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
     } else {
         d.setTimeValue(state, year, month, date, hour, minute, second, millisecond, false);
     }
-    return Value(d.primitiveValue());
+    return Value(Value::DoubleToIntConvertibleTestNeeds, d.primitiveValue());
 }
 
 #define RESOLVE_THIS_BINDING_TO_DATE(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                            \
@@ -187,14 +187,14 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
 static Value builtinDateGetTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, getTime);
-    return Value(thisObject->primitiveValue());
+    return Value(Value::DoubleToIntConvertibleTestNeeds, thisObject->primitiveValue());
 }
 
 static Value builtinDateValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, valueOf);
     double val = thisObject->primitiveValue();
-    return Value(val);
+    return Value(Value::DoubleToIntConvertibleTestNeeds, val);
 }
 
 static Value builtinDateToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -294,7 +294,7 @@ static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t ar
     {                                                                                                                                \
         RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, get##Name);                                                                   \
         if (!(thisObject->isValid()))                                                                                                \
-            return Value(std::numeric_limits<double>::quiet_NaN());                                                                  \
+            return Value(UnconvertibleDoubleToInt32(std::numeric_limits<double>::quiet_NaN()));                                      \
         return Value(thisObject->get##Name(state));                                                                                  \
     }
 
@@ -323,7 +323,7 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
 
     if (argc < 1) {
         d->setTimeValueAsNaN();
-        return Value(d->primitiveValue());
+        return Value(Value::DoubleToIntConvertibleTestNeeds, d->primitiveValue());
     }
 
     double year = 0, month = 0, date = 0, hour = 0, minute = 0, second = 0, millisecond = 0;
@@ -381,7 +381,7 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         d->setTimeValue(state, year, month, date, hour, minute, second, millisecond, convertToUTC);
     }
 
-    return Value(d->primitiveValue());
+    return Value(Value::DoubleToIntConvertibleTestNeeds, d->primitiveValue());
 }
 
 #define DECLARE_STATIC_DATE_SETTER(Name, setterType, length, utc)                                                                                              \
@@ -397,7 +397,7 @@ static Value builtinDateSetTime(ExecutionState& state, Value thisValue, size_t a
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, setTime);
     if (argc > 0) {
         thisObject->setTimeValue(DateObject::timeClip(state, argv[0].toNumber(state)));
-        return Value(thisObject->primitiveValue());
+        return Value(Value::DoubleToIntConvertibleTestNeeds, thisObject->primitiveValue());
     } else {
         thisObject->setTimeValueAsNaN();
         return Value(Value::NanInit);
@@ -427,7 +427,7 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
 
     if (argc < 1) {
         d->setTimeValueAsNaN();
-        return Value(d->primitiveValue());
+        return Value(Value::DoubleToIntConvertibleTestNeeds, d->primitiveValue());
     }
 
     double y;
@@ -438,7 +438,7 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
     // If y is NaN, set the [[DateValue]] internal slot of this Date object to NaN and return NaN.
     if (std::isnan(y)) {
         d->setTimeValueAsNaN();
-        return Value(d->primitiveValue());
+        return Value(Value::DoubleToIntConvertibleTestNeeds, d->primitiveValue());
     }
 
     month = d->getMonth(state);
@@ -449,7 +449,7 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
     millisecond = d->getMilliseconds(state);
 
     double yyyy;
-    double yAsInteger = Value(y).toInteger(state);
+    double yAsInteger = Value(Value::DoubleToIntConvertibleTestNeeds, y).toInteger(state);
     // If y is not NaN and 0 ≤ ToInteger(y) ≤ 99, let yyyy be ToInteger(y) + 1900.
     if (0 <= yAsInteger && yAsInteger <= 99) {
         yyyy = 1900 + yAsInteger;
@@ -462,7 +462,7 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
         d->setTimeValue(state, yyyy, month, date, hour, minute, second, millisecond);
     }
 
-    return Value(d->primitiveValue());
+    return Value(Value::DoubleToIntConvertibleTestNeeds, d->primitiveValue());
 }
 
 static Value builtinDateGetTimezoneOffset(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

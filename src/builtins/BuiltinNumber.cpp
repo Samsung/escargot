@@ -85,7 +85,7 @@ static Value builtinNumberConstructor(ExecutionState& state, Value thisValue, si
     }
 
     if (!newTarget.hasValue()) {
-        return Value(num);
+        return Value(Value::DoubleToIntConvertibleTestNeeds, num);
     } else {
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
             return constructorRealm->globalObject()->numberPrototype();
@@ -126,7 +126,7 @@ static Value builtinNumberToFixed(ExecutionState& state, Value thisValue, size_t
     }
 
     if (std::abs(number) >= pow(10, 21)) {
-        return Value(number).toString(state);
+        return Value(Value::DoubleToIntConvertibleTestNeeds, number).toString(state);
     }
 
     char buffer[NUMBER_TO_STRING_BUFFER_LENGTH];
@@ -192,7 +192,7 @@ static Value builtinNumberToPrecision(ExecutionState& state, Value thisValue, si
 
     Value precision = argv[0];
     if (precision.isUndefined()) {
-        return Value(number).toString(state);
+        return Value(Value::DoubleToIntConvertibleTestNeeds, number).toString(state);
     }
 
     int p = precision.toInteger(state);
@@ -240,10 +240,10 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
         }
     }
     if (std::isnan(number) || std::isinf(number)) {
-        return Value(number).toString(state);
+        return Value(Value::DoubleToIntConvertibleTestNeeds, number).toString(state);
     }
     if (radix == 10) {
-        return Value(number).toString(state);
+        return Value(Value::DoubleToIntConvertibleTestNeeds, number).toString(state);
     }
 
     bool isInteger = (static_cast<int64_t>(number) == number);
@@ -259,7 +259,7 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
         }
         return String::fromASCII(buffer, strlen(buffer));
     } else {
-        ASSERT(Value(number).isDouble());
+        ASSERT(Value(Value::DoubleToIntConvertibleTestNeeds, number).isDouble());
         NumberObject::RadixBuffer s;
         const char* str = NumberObject::toStringWithRadix(state, s, number, radix);
         return String::fromASCII(str, strlen(str));
@@ -309,7 +309,7 @@ static Value builtinNumberValueOf(ExecutionState& state, Value thisValue, size_t
     if (thisValue.isNumber()) {
         return Value(thisValue);
     } else if (thisValue.isObject() && thisValue.asObject()->isNumberObject()) {
-        return Value(thisValue.asPointerValue()->asNumberObject()->primitiveValue());
+        return Value(Value::DoubleToIntConvertibleTestNeeds, thisValue.asPointerValue()->asNumberObject()->primitiveValue());
     }
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotNumber);
     RELEASE_ASSERT_NOT_REACHED();
@@ -436,7 +436,7 @@ void GlobalObject::installNumber(ExecutionState& state)
                                                                                                               | ObjectPropertyDescriptor::NonConfigurablePresent);
 
     // $20.1.2.1 Number.EPSILON
-    m_number->directDefineOwnProperty(state, strings->EPSILON, ObjectPropertyDescriptor(Value(std::numeric_limits<double>::epsilon()), allFalsePresent));
+    m_number->directDefineOwnProperty(state, strings->EPSILON, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(std::numeric_limits<double>::epsilon())), allFalsePresent));
     // $20.1.2.2 Number.isFinite
     m_number->directDefineOwnProperty(state, strings->isFinite,
                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isFinite, builtinNumberIsFinite, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -459,13 +459,13 @@ void GlobalObject::installNumber(ExecutionState& state)
     m_number->directDefineOwnProperty(state, strings->isSafeInteger,
                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isSafeInteger, builtinNumberIsSafeInteger, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $20.1.2.6 Number.MAX_SAFE_INTEGER
-    m_number->directDefineOwnProperty(state, strings->MAX_SAFE_INTEGER, ObjectPropertyDescriptor(Value(9007199254740991.0), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
+    m_number->directDefineOwnProperty(state, strings->MAX_SAFE_INTEGER, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(9007199254740991.0)), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
     // $20.1.2.7 Number.MAX_VALUE
-    m_number->directDefineOwnProperty(state, strings->MAX_VALUE, ObjectPropertyDescriptor(Value(1.7976931348623157E+308), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
+    m_number->directDefineOwnProperty(state, strings->MAX_VALUE, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(1.7976931348623157E+308)), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
     // $20.1.2.8 Number.MIN_SAFE_INTEGER
-    m_number->directDefineOwnProperty(state, strings->MIN_SAFE_INTEGER, ObjectPropertyDescriptor(Value(-9007199254740991.0), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
+    m_number->directDefineOwnProperty(state, strings->MIN_SAFE_INTEGER, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(-9007199254740991.0)), (ObjectPropertyDescriptor::PresentAttribute)allFalsePresent));
     // $20.1.2.9 Number.MIN_VALUE
-    m_number->directDefineOwnProperty(state, strings->MIN_VALUE, ObjectPropertyDescriptor(Value(5E-324), allFalsePresent));
+    m_number->directDefineOwnProperty(state, strings->MIN_VALUE, ObjectPropertyDescriptor(Value(UnconvertibleDoubleToInt32(5E-324)), allFalsePresent));
     // $20.1.2.10 Number.NaN
     m_number->directDefineOwnProperty(state, strings->NaN, ObjectPropertyDescriptor(Value(Value::NanInit), allFalsePresent));
     // $20.1.2.11 Number.NEGATIVE_INFINITY

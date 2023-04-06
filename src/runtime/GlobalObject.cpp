@@ -349,7 +349,7 @@ static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc
         return Value(Value::NanInit);
 
     // 15. Return sign × number.
-    return Value(sign * number);
+    return Value(Value::DoubleToIntConvertibleTestNeeds, sign * number);
 }
 
 static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -412,7 +412,7 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
         return Value(Value::NanInit);
 
     // 5. Return the Number value for the MV of numberString.
-    return Value(number);
+    return Value(Value::DoubleToIntConvertibleTestNeeds, number);
 }
 
 static Value builtinIsFinite(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

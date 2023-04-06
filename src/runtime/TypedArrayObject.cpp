@@ -50,7 +50,7 @@ bool TypedArrayObject::defineOwnProperty(ExecutionState& state, const ObjectProp
     if (LIKELY(P.isStringType())) {
         double index = P.canonicalNumericIndexString(state);
         if (LIKELY(index != Value::UndefinedIndex)) {
-            if (buffer()->isDetachedBuffer() || !Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength() || desc.isAccessorDescriptor()) {
+            if (buffer()->isDetachedBuffer() || !Value(Value::DoubleToIntConvertibleTestNeeds, index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength() || desc.isAccessorDescriptor()) {
                 return false;
             }
 
@@ -78,7 +78,7 @@ bool TypedArrayObject::deleteOwnProperty(ExecutionState& state, const ObjectProp
     if (LIKELY(P.isStringType())) {
         double index = P.canonicalNumericIndexString(state);
         if (LIKELY(index != Value::UndefinedIndex)) {
-            if (buffer()->isDetachedBuffer() || !Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
+            if (buffer()->isDetachedBuffer() || !Value(Value::DoubleToIntConvertibleTestNeeds, index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
                 return true;
             }
             return false;
@@ -166,7 +166,7 @@ ArrayBuffer* TypedArrayObject::validateTypedArray(ExecutionState& state, const V
 // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementget
 ObjectGetResult TypedArrayObject::integerIndexedElementGet(ExecutionState& state, double index)
 {
-    if (buffer()->isDetachedBuffer() || !Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
+    if (buffer()->isDetachedBuffer() || !Value(Value::DoubleToIntConvertibleTestNeeds, index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
         return ObjectGetResult();
     }
 
@@ -186,10 +186,10 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
         numValue = value.toBigInt(state);
     } else {
         // Otherwise, let numValue be ? ToNumber(value).
-        numValue = Value(value.toNumber(state));
+        numValue = Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state));
     }
 
-    if (buffer()->isDetachedBuffer() || !Value(index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
+    if (buffer()->isDetachedBuffer() || !Value(Value::DoubleToIntConvertibleTestNeeds, index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
         return false;
     }
 
@@ -240,8 +240,20 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
             return Value(new BigInt((int64_t)res));                                                                                             \
         } else if (std::is_same<uint64_t, nativeType>::value) {                                                                                 \
             return Value(new BigInt((uint64_t)res));                                                                                            \
+        } else if (std::is_same<uint8_t, nativeType>::value) {                                                                                  \
+            return Value((uint8_t)res);                                                                                                         \
+        } else if (std::is_same<uint16_t, nativeType>::value) {                                                                                 \
+            return Value((uint16_t)res);                                                                                                        \
+        } else if (std::is_same<uint32_t, nativeType>::value) {                                                                                 \
+            return Value((uint32_t)res);                                                                                                        \
+        } else if (std::is_same<int8_t, nativeType>::value) {                                                                                   \
+            return Value((int8_t)res);                                                                                                          \
+        } else if (std::is_same<int16_t, nativeType>::value) {                                                                                  \
+            return Value((int16_t)res);                                                                                                         \
+        } else if (std::is_same<int32_t, nativeType>::value) {                                                                                  \
+            return Value((int32_t)res);                                                                                                         \
         }                                                                                                                                       \
-        return Value(res);                                                                                                                      \
+        return Value(Value::DoubleToIntConvertibleTestNeeds, res);                                                                              \
     }                                                                                                                                           \
     template <const bool isLittleEndian>                                                                                                        \
     void TYPE##ArrayObject::setDirectValueInBuffer(ExecutionState& state, size_t byteindex, const Value& val)                                   \

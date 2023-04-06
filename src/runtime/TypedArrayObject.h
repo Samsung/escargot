@@ -24,17 +24,17 @@
 
 namespace Escargot {
 
-#define FOR_EACH_TYPEDARRAY_TYPES(F)          \
-    F(Int8, int8, 1, double);                 \
-    F(Int16, int16, 2, double);               \
-    F(Int32, int32, 4, double);               \
-    F(Uint8, uint8, 1, double);               \
-    F(Uint8Clamped, uint8Clamped, 1, double); \
-    F(Uint16, uint16, 2, double);             \
-    F(Uint32, uint32, 4, double);             \
-    F(Float32, float32, 4, double);           \
-    F(Float64, float64, 8, double);           \
-    F(BigInt64, bigInt64, 8, int64_t);        \
+#define FOR_EACH_TYPEDARRAY_TYPES(F)           \
+    F(Int8, int8, 1, int8_t);                  \
+    F(Int16, int16, 2, int16_t);               \
+    F(Int32, int32, 4, int32_t);               \
+    F(Uint8, uint8, 1, uint8_t);               \
+    F(Uint8Clamped, uint8Clamped, 1, uint8_t); \
+    F(Uint16, uint16, 2, uint16_t);            \
+    F(Uint32, uint32, 4, uint32_t);            \
+    F(Float32, float32, 4, double);            \
+    F(Float64, float64, 8, double);            \
+    F(BigInt64, bigInt64, 8, int64_t);         \
     F(BigUint64, bigUint64, 8, uint64_t);
 
 class TypedArrayPrototypeObject : public DerivedObject {

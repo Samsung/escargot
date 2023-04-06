@@ -137,10 +137,10 @@ static Value defaultNumberOption(ExecutionState& state, Value value, double mini
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Got invalid number option value");
         }
         // Return floor(value).
-        return Value(floor(doubleValue));
+        return Value(Value::DoubleToIntConvertibleTestNeeds, floor(doubleValue));
     } else {
         // Else, return fallback.
-        return Value(fallback);
+        return Value(Value::DoubleToIntConvertibleTestNeeds, fallback);
     }
 }
 
@@ -521,7 +521,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     }
 
     // Set intlObj.[[MinimumIntegerDigits]] to mnid.
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumIntegerDigits()), Value(mnid), numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumIntegerDigits()), Value(Value::DoubleToIntConvertibleTestNeeds, mnid), numberFormat->internalSlot());
 
     // If mnsd is not undefined or mxsd is not undefined, then
     if (!mnsd.isUndefined() || !mxsd.isUndefined()) {
@@ -553,9 +553,9 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     } else {
         // Set intlObj.[[RoundingType]] to fractionDigits.
         // Set intlObj.[[MinimumFractionDigits]] to mnfdDefault.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()), Value(mnfdDefault), numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()), Value(Value::DoubleToIntConvertibleTestNeeds, mnfdDefault), numberFormat->internalSlot());
         // Set intlObj.[[MaximumFractionDigits]] to mxfdDefault.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()), Value(mxfdDefault), numberFormat->internalSlot());
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()), Value(Value::DoubleToIntConvertibleTestNeeds, mxfdDefault), numberFormat->internalSlot());
     }
 
     // Let compactDisplay be ? GetOption(options, "compactDisplay", "string", « "short", "long" », "short").

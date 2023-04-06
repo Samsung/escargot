@@ -35,7 +35,7 @@ public:
 
     virtual Value toValue(ExecutionState& state) override
     {
-        return Value(m_value);
+        return Value(Value::DoubleToIntConvertibleTestNeeds, m_value);
     }
 
 protected:

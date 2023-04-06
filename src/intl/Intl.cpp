@@ -2264,7 +2264,7 @@ Value Intl::getOption(ExecutionState& state, Object* options, Value property, In
         // https://tc39.es/proposal-temporal/#sec-getoption
 #if defined(ESCARGOT_ENABLE_TEMPORAL)
         if (type == Intl::OptionValueType::NumberValue) {
-            value = Value(value.toNumber(state));
+            value = Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state));
             if (std::isnan(value.asNumber())) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "got invalid value");
             }
@@ -2292,12 +2292,27 @@ Value Intl::getOption(ExecutionState& state, Object* options, Value property, In
 }
 
 template <typename T>
-T Intl::getNumberOption(ExecutionState& state, Object* options, String* property, double minimum, double maximum, const T& fallback)
+T getNumberOptionResultFactory(double value)
+{
+    return T(value);
+}
+
+template <>
+Value getNumberOptionResultFactory(double value)
+{
+    return Value(Value::DoubleToIntConvertibleTestNeeds, value);
+}
+
+template <typename T>
+T Intl::getNumberOption(ExecutionState& state, Optional<Object*> options, String* property, double minimum, double maximum, const T& fallback)
 {
     // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.10
+    if (!options) {
+        return fallback;
+    }
 
     // Let value be the result of calling the [[Get]] internal method of options with argument property.
-    Value value = options->get(state, ObjectPropertyName(state, property)).value(state, options);
+    Value value = options->get(state, ObjectPropertyName(state, property)).value(state, options.value());
     // If value is not undefined, then
     if (!value.isUndefined()) {
         // Let value be ToNumber(value).
@@ -2307,16 +2322,16 @@ T Intl::getNumberOption(ExecutionState& state, Object* options, String* property
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Got invalid number option value");
         }
         // Return floor(value).
-        return T(floor(doubleValue));
+        return getNumberOptionResultFactory<T>(floor(doubleValue));
     } else {
         // Else return fallback.
         return fallback;
     }
 }
 
-template Value Intl::getNumberOption(ExecutionState& state, Object* options, String* property, double minimum, double maximum, const Value& fallback);
-template double Intl::getNumberOption(ExecutionState& state, Object* options, String* property, double minimum, double maximum, const double& fallback);
-template int Intl::getNumberOption(ExecutionState& state, Object* options, String* property, double minimum, double maximum, const int& fallback);
+template Value Intl::getNumberOption(ExecutionState& state, Optional<Object*> options, String* property, double minimum, double maximum, const Value& fallback);
+template double Intl::getNumberOption(ExecutionState& state, Optional<Object*> options, String* property, double minimum, double maximum, const double& fallback);
+template int Intl::getNumberOption(ExecutionState& state, Optional<Object*> options, String* property, double minimum, double maximum, const int& fallback);
 
 static std::vector<std::string> initAvailableNumberingSystems()
 {

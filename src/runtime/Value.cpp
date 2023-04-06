@@ -357,12 +357,12 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
         } else if (isBoolean()) {
             // If Type(x) is Boolean, return the result of the comparison ToNumber(x) == y.
             // return the result of the comparison ToNumber(x) == y.
-            Value x(toNumber(state));
+            Value x(Value::DoubleToIntConvertibleTestNeeds, toNumber(state));
             return x.abstractEqualsTo(state, val);
         } else if (val.isBoolean()) {
             // If Type(y) is Boolean, return the result of the comparison x == ToNumber(y).
             // return the result of the comparison ToNumber(x) == y.
-            return abstractEqualsTo(state, Value(val.toNumber(state)));
+            return abstractEqualsTo(state, Value(Value::DoubleToIntConvertibleTestNeeds, val.toNumber(state)));
         } else if ((selfIsString || selfIsNumber || isSymbol() || selfIsBigInt) && (valIsPointerValue && val.asPointerValue()->isObject())) {
             // If Type(x) is either String, Number, BigInt, or Symbol and Type(y) is Object, return the result of the comparison x == ? ToPrimitive(y).
             return abstractEqualsTo(state, val.toPrimitive(state));
@@ -796,7 +796,7 @@ std::pair<Value, bool> Value::toNumericSlowCase(ExecutionState& state) const
         return std::make_pair(primValue, true);
     }
     // Return ? ToNumber(primValue).
-    return std::make_pair(Value(primValue.toNumber(state)), false);
+    return std::make_pair(Value(Value::DoubleToIntConvertibleTestNeeds, primValue.toNumber(state)), false);
 }
 
 int32_t Value::toInt32SlowCase(ExecutionState& state) const // $7.1.5 ToInt32

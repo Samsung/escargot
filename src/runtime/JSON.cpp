@@ -106,7 +106,7 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
     } else if (value.IsUint64()) {
         return Value(value.GetUint64());
     } else if (value.IsDouble()) {
-        return Value(value.GetDouble());
+        return Value(Value::DoubleToIntConvertibleTestNeeds, value.GetDouble());
     } else if (value.IsNull()) {
         return Value(Value::Null);
     } else if (value.IsString()) {
@@ -345,7 +345,7 @@ static bool builtinJSONStringifyStr(ExecutionState& state, Value key, Object* ho
 
     if (value.isObject()) {
         if (value.asObject()->isNumberObject()) {
-            value = Value(value.toNumber(state));
+            value = Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state));
         } else if (value.asObject()->isStringObject()) {
             value = Value(value.toString(state));
         } else if (value.asObject()->isBooleanObject()) {
@@ -668,7 +668,7 @@ Value JSON::stringify(ExecutionState& state, Value value, Value replacer, Value 
     // 5
     if (space.isObject()) {
         if (space.isPointerValue() && space.asPointerValue()->isNumberObject()) {
-            space = Value(space.toNumber(state));
+            space = Value(Value::DoubleToIntConvertibleTestNeeds, space.toNumber(state));
         } else if (space.isPointerValue() && space.asPointerValue()->isStringObject()) {
             space = space.toString(state);
         }
