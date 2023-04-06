@@ -176,7 +176,7 @@ public:
                     } else if (prop->equals("month") || prop->equals("day")) {
                         value = Value(value.toUint32(state));
                     } else {
-                        value = Value(value.toInteger(state));
+                        value = Value(Value::DoubleToIntConvertibleTestNeeds, value.toInteger(state));
                     }
                 }
             }

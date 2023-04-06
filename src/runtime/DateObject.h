@@ -88,7 +88,7 @@ public:
         } else if (!IS_IN_TIME_RANGE(V)) {
             return TIME64NAN;
         } else {
-            return Value(V).toInteger(state);
+            return Value(Value::DoubleToIntConvertibleTestNeeds, V).toInteger(state);
         }
     }
 

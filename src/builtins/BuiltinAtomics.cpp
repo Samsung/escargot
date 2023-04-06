@@ -174,7 +174,7 @@ static Value atomicReadModifyWrite(ExecutionState& state, Value typedArray, Valu
     if (type == TypedArrayType::BigInt64 || type == TypedArrayType::BigUint64) {
         v = value.toBigInt(state);
     } else {
-        v = Value(value.toInteger(state));
+        v = Value(Value::DoubleToIntConvertibleTestNeeds, value.toInteger(state));
     }
 
     return getModifySetValueInBuffer(state, buffer, indexedPosition, type, v, op);
@@ -212,8 +212,8 @@ static Value builtinAtomicsCompareExchange(ExecutionState& state, Value thisValu
         expected = argv[2].toBigInt(state);
         replacement = argv[3].toBigInt(state);
     } else {
-        expected = Value(argv[2].toInteger(state));
-        replacement = Value(argv[3].toInteger(state));
+        expected = Value(Value::DoubleToIntConvertibleTestNeeds, argv[2].toInteger(state));
+        replacement = Value(Value::DoubleToIntConvertibleTestNeeds, argv[3].toInteger(state));
     }
 
     size_t elemSize = TypedArrayHelper::elementSize(type);
@@ -307,7 +307,7 @@ static Value builtinAtomicsStore(ExecutionState& state, Value thisValue, size_t 
     if (type == TypedArrayType::BigInt64 || type == TypedArrayType::BigUint64) {
         v = value.toBigInt(state);
     } else {
-        v = Value(value.toInteger(state));
+        v = Value(Value::DoubleToIntConvertibleTestNeeds, value.toInteger(state));
     }
 
     buffer->setValueInBuffer(state, indexedPosition, type, v);
@@ -556,7 +556,7 @@ static Value builtinAtomicsNotify(ExecutionState& state, Value thisValue, size_t
     // 13. Perform LeaveCriticalSection(WL).
     WL->m_mutex.unlock();
     // 14. Return 𝔽(n).
-    return Value(n);
+    return Value(Value::DoubleToIntConvertibleTestNeeds, n);
 }
 
 static Value builtinAtomicsIsLockFree(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

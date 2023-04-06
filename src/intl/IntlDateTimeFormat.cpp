@@ -979,7 +979,7 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date value is valid in DateTimeFormat format()");
     }
 
-    x = Value(x).toInteger(state);
+    x = Value(Value::DoubleToIntConvertibleTestNeeds, x).toInteger(state);
 
     // Delegate remaining steps to ICU.
     auto formatResult = INTL_ICU_STRING_BUFFER_OPERATION_COMPLEX(udat_format, nullptr, m_icuDateFormat, x);
@@ -999,7 +999,7 @@ ArrayObject* IntlDateTimeFormatObject::formatToParts(ExecutionState& state, doub
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date value is not valid in DateTimeFormat formatToParts()");
     }
 
-    x = Value(x).toInteger(state);
+    x = Value(Value::DoubleToIntConvertibleTestNeeds, x).toInteger(state);
 
     ArrayObject* result = new ArrayObject(state);
 

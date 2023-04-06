@@ -589,6 +589,12 @@ inline intptr_t Value::payload() const
 // ===common architecture========================================================
 // ==============================================================================
 
+inline UnconvertibleDoubleToInt32::UnconvertibleDoubleToInt32(double&& v)
+    : value(std::forward<double>(v))
+{
+    ASSERT(!Value::isInt32ConvertibleDouble(v));
+}
+
 ALWAYS_INLINE bool Value::isInt32ConvertibleDouble(const double& d)
 {
     int32_t asInt32 = static_cast<int32_t>(d);
@@ -622,7 +628,7 @@ inline Value::Value(NegativeInfinityInitTag)
     *this = Value(EncodeAsDouble, -std::numeric_limits<double>::infinity());
 }
 
-inline Value::Value(const double& d)
+inline Value::Value(DoubleToIntConvertibleTestNeedsTag, double d)
 {
     int32_t asInt32;
     if (UNLIKELY(isInt32ConvertibleDouble(d, asInt32))) {
@@ -880,7 +886,7 @@ inline Value::ValueIndex Value::toIndex(ExecutionState& ec) const
     }
 
     auto integerIndex = toInteger(ec);
-    Value::ValueIndex index = Value(integerIndex).toLength(ec);
+    Value::ValueIndex index = Value(Value::DoubleToIntConvertibleTestNeeds, integerIndex).toLength(ec);
     if (UNLIKELY(integerIndex < 0 || integerIndex != index)) {
         return Value::InvalidIndexValue;
     }

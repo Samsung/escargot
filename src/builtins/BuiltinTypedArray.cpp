@@ -712,7 +712,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
             if (UNLIKELY(isBigIntArray)) {
                 value = value.toBigInt(state);
             } else {
-                value = Value(value.toNumber(state));
+                value = Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state));
             }
             targetBuffer->throwTypeErrorIfDetached(state);
 
@@ -916,7 +916,7 @@ static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, s
     size_t beginByteOffset = srcByteOffset + beginIndex * elementSize;
 
     // Let argumentsList be «buffer, beginByteOffset, newLength».
-    Value args[3] = { buffer, Value(beginByteOffset), Value(newLength) };
+    Value args[3] = { buffer, Value(Value::DoubleToIntConvertibleTestNeeds, beginByteOffset), Value(Value::DoubleToIntConvertibleTestNeeds, newLength) };
     // Return ? TypedArraySpeciesCreate(O, argumentsList).
     return TypedArraySpeciesCreate(state, O, 3, args);
 }
@@ -984,7 +984,7 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
     } else {
         // Otherwise, let value be ? ToNumber(value).
         // Set value to ? ToNumber(value).
-        value = Value(argv[0].toNumber(state));
+        value = Value(Value::DoubleToIntConvertibleTestNeeds, argv[0].toNumber(state));
     }
     // Let relativeStart be ? ToInteger(start).
     double relativeStart = 0;
@@ -1642,7 +1642,7 @@ static Value builtinTypedArrayAt(ExecutionState& state, Value thisValue, size_t 
     if (relativeStart < 0 || relativeStart >= len) {
         return Value();
     }
-    return obj->getIndexedProperty(state, Value(relativeStart)).value(state, thisValue);
+    return obj->getIndexedProperty(state, Value(Value::DoubleToIntConvertibleTestNeeds, relativeStart)).value(state, thisValue);
 }
 
 template <typename TA, int elementSize>

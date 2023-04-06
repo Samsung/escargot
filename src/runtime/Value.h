@@ -89,6 +89,12 @@ inline ToType bitwise_cast(FromType from)
 #define CellPayloadOffset PayloadOffset
 #endif
 
+struct UnconvertibleDoubleToInt32 {
+    double value;
+    UnconvertibleDoubleToInt32(double&& v);
+    operator double() const noexcept { return value; }
+};
+
 // basic class for representing ECMAScript Value
 // Int32 convertible double value can exist rarely(for interpreter performance)
 // but Int32 convertible double case is not exist with EncodedValue
@@ -154,7 +160,16 @@ public:
     enum NegativeInfinityInitTag { NegativeInfinityInit };
     explicit Value(PostiveInfinityInitTag);
     explicit Value(NegativeInfinityInitTag);
-    explicit Value(const double&);
+
+    enum DoubleToIntConvertibleTestNeedsTag { DoubleToIntConvertibleTestNeeds };
+    // if you want to init Value with constant double value,
+    // please use Value(UnconvertibleDoubleToInt32) or Value(int32_t)
+    explicit Value(DoubleToIntConvertibleTestNeedsTag, double);
+    // You can use this function with only !isInt32ConvertibleDouble value
+    explicit Value(UnconvertibleDoubleToInt32 v)
+        : Value(EncodeAsDouble, v.value)
+    {
+    }
     explicit Value(bool);
     explicit Value(char);
     explicit Value(unsigned char);

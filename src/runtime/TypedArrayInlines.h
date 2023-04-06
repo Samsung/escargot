@@ -57,7 +57,7 @@ struct IntegralTypedArrayAdapter {
     {
         int32_t result = static_cast<int32_t>(value);
         if (static_cast<double>(result) != value)
-            result = Value(value).toInt32(state);
+            result = Value(Value::EncodeAsDouble, value).toInt32(state);
         return static_cast<TypeArg>(result);
     }
 };
@@ -187,9 +187,9 @@ struct TypedArrayHelper {
         case TypedArrayType::Uint32:
             return Value(*reinterpret_cast<Uint32Adaptor::Type*>(rawBytes));
         case TypedArrayType::Float32:
-            return Value(*reinterpret_cast<Float32Adaptor::Type*>(rawBytes));
+            return Value(Value::DoubleToIntConvertibleTestNeeds, *reinterpret_cast<Float32Adaptor::Type*>(rawBytes));
         case TypedArrayType::Float64:
-            return Value(*reinterpret_cast<Float64Adaptor::Type*>(rawBytes));
+            return Value(Value::DoubleToIntConvertibleTestNeeds, *reinterpret_cast<Float64Adaptor::Type*>(rawBytes));
         case TypedArrayType::BigInt64:
             return Value(new BigInt(*reinterpret_cast<BigInt64Adaptor::Type*>(rawBytes)));
         case TypedArrayType::BigUint64:

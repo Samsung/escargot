@@ -611,7 +611,7 @@ std::pair<Value, bool> Scanner::ScannerResult::valueNumberLiteral(Scanner* scann
         this->valueNumber = ll;
         this->hasNonComputedNumberLiteral = false;
     }
-    return std::make_pair(Value(this->valueNumber), false);
+    return std::make_pair(Value(Value::DoubleToIntConvertibleTestNeeds, this->valueNumber), false);
 }
 
 void Scanner::ScannerResult::constructStringLiteralHelperAppendUTF16(Scanner* scannerInstance, char16_t ch, UTF16StringDataNonGCStd& stringUTF16, bool& isEveryCharLatin1)
