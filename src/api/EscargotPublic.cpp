@@ -2925,6 +2925,32 @@ void ContextRef::setSecurityPolicyCheckCallback(SecurityPolicyCheckCallback cb)
                                                  (void*)cb);
 }
 
+StackOverflowDisabler::StackOverflowDisabler(ExecutionStateRef* es)
+    : m_executionState(es)
+    , m_originStackLimit(toImpl(es)->stackLimit())
+{
+#ifdef STACK_GROWS_DOWN
+    size_t newStackLimit = 0;
+#else
+    size_t newStackLimit = SIZE_MAX;
+#endif
+    ExecutionState* state = toImpl(es);
+
+    // We assume that StackOverflowDisabler should not be nested-called
+    ASSERT(m_originStackLimit != newStackLimit);
+    ASSERT(m_originStackLimit == state->context()->vmInstance()->stackLimit());
+    state->m_stackLimit = newStackLimit;
+    state->context()->vmInstance()->m_stackLimit = newStackLimit;
+}
+
+StackOverflowDisabler::~StackOverflowDisabler()
+{
+    ASSERT(!!m_executionState);
+    ExecutionState* state = toImpl(m_executionState);
+    state->m_stackLimit = m_originStackLimit;
+    state->context()->vmInstance()->m_stackLimit = m_originStackLimit;
+}
+
 OptionalRef<FunctionObjectRef> ExecutionStateRef::resolveCallee()
 {
     auto ec = toImpl(this);
@@ -3001,6 +3027,12 @@ void ExecutionStateRef::throwException(ValueRef* value)
 {
     ExecutionState* imp = toImpl(this);
     imp->throwException(toImpl(value));
+}
+
+void ExecutionStateRef::checkStackOverflow()
+{
+    ExecutionState& imp = *toImpl(this);
+    CHECK_STACK_OVERFLOW(imp);
 }
 
 GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTrace()

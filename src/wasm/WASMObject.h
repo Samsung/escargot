@@ -35,11 +35,12 @@ struct wasm_ref_t;
 namespace Escargot {
 
 struct WASMHostFunctionEnvironment : public gc {
-    WASMHostFunctionEnvironment(Object* f, wasm_functype_t* ft);
+    WASMHostFunctionEnvironment(Context* r, Object* f, wasm_functype_t* ft);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
+    Context* realm;
     Object* func;
     wasm_functype_t* functype;
 };

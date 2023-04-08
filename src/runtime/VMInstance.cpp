@@ -378,22 +378,30 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     // UnconvertibleDoubleToInt32 v2(2.22);
     // UnconvertibleDoubleToInt32 v3(-0.0);
 #if defined(OS_WINDOWS)
-    m_stackStartAddress = getTIB()->StackBase;
+    void* stackStartAddress = getTIB()->StackBase;
 #elif defined(OS_DARWIN)
-    m_stackStartAddress = pthread_get_stackaddr_np(pthread_self());
+    void* stackStartAddress = pthread_get_stackaddr_np(pthread_self());
 #else
     pthread_attr_t attr;
     RELEASE_ASSERT(pthread_getattr_np(pthread_self(), &attr) == 0);
 
     size_t size;
-    RELEASE_ASSERT(pthread_attr_getstack(&attr, &m_stackStartAddress, &size) == 0);
+    void* stackStartAddress;
+    RELEASE_ASSERT(pthread_attr_getstack(&attr, &stackStartAddress, &size) == 0);
     pthread_attr_destroy(&attr);
 #ifdef STACK_GROWS_DOWN
-    m_stackStartAddress = (char*)m_stackStartAddress + size;
+    stackStartAddress = (char*)stackStartAddress + size;
 #endif
 #endif
     // test stack base property aligned
-    RELEASE_ASSERT(((size_t)m_stackStartAddress) % sizeof(size_t) == 0);
+    RELEASE_ASSERT(((size_t)stackStartAddress) % sizeof(size_t) == 0);
+
+    // set stack limit
+#ifdef STACK_GROWS_DOWN
+    m_stackLimit = reinterpret_cast<size_t>(stackStartAddress) - STACK_LIMIT_FROM_BASE;
+#else
+    m_stackLimit = return reinterpret_cast<size_t>(stackStartAddress) + STACK_LIMIT_FROM_BASE;
+#endif
 
     if (!String::emptyString) {
         String::initEmptyString();
@@ -439,7 +447,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
 #undef DECLARE_GLOBAL_SYMBOLS
 
-    ExecutionState stateForInit((Context*)nullptr);
+    ExecutionState stateForInit;
 
     m_defaultStructureForObject = new ObjectStructureWithTransition(ObjectStructureItemTightVector(), false, false, false, false);
 

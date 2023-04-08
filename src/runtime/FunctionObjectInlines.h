@@ -91,13 +91,7 @@ public:
     template <typename FunctionObjectType, bool isConstructCall, bool hasNewTargetOnEnvironment, bool canBindThisValueOnEnvironment, typename ThisValueBinder, typename NewTargetBinder, typename ReturnValueBinder>
     static ALWAYS_INLINE Value processCall(ExecutionState& state, FunctionObjectType* self, const Value& thisArgument, const size_t argc, Value* argv, Object* newTarget) // newTarget is null on [[call]]
     {
-#ifdef STACK_GROWS_DOWN
-        if (UNLIKELY(state.stackLimit() > (size_t)currentStackPointer())) {
-#else
-        if (UNLIKELY(state.stackLimit() < (size_t)currentStackPointer())) {
-#endif
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
-        }
+        CHECK_STACK_OVERFLOW(state);
 
         ASSERT(self->codeBlock()->isInterpretedCodeBlock());
         InterpretedCodeBlock* codeBlock = self->interpretedCodeBlock();
@@ -262,15 +256,7 @@ private:
 template <bool isConstruct, bool shouldReturnsObjectOnConstructCall>
 Value NativeFunctionObject::processNativeFunctionCall(ExecutionState& state, const Value& receiverSrc, const size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    volatile int sp;
-    size_t currentStackBase = (size_t)&sp;
-#ifdef STACK_GROWS_DOWN
-    if (UNLIKELY(state.stackLimit() > currentStackBase)) {
-#else
-    if (UNLIKELY(state.stackLimit() < currentStackBase)) {
-#endif
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
-    }
+    CHECK_STACK_OVERFLOW(state);
 
     NativeCodeBlock* codeBlock = nativeCodeBlock();
     Context* ctx = codeBlock->context();

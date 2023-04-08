@@ -34,11 +34,12 @@
 
 namespace Escargot {
 
-WASMHostFunctionEnvironment::WASMHostFunctionEnvironment(Object* f, wasm_functype_t* ft)
-    : func(f)
+WASMHostFunctionEnvironment::WASMHostFunctionEnvironment(Context* r, Object* f, wasm_functype_t* ft)
+    : realm(r)
+    , func(f)
     , functype(ft)
 {
-    ASSERT(!!ft && !!f);
+    ASSERT(!!r && !!ft && !!f);
     ASSERT(f->isCallable());
 
     // FIXME current wasm_func_new_with_env does not support env-finalizer,
@@ -56,6 +57,7 @@ void* WASMHostFunctionEnvironment::operator new(size_t size)
     static MAY_THREAD_LOCAL GC_descr descr;
     if (!typeInited) {
         GC_word obj_bitmap[GC_BITMAP_SIZE(WASMHostFunctionEnvironment)] = { 0 };
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WASMHostFunctionEnvironment, realm));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(WASMHostFunctionEnvironment, func));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(WASMHostFunctionEnvironment));
         typeInited = true;

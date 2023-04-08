@@ -74,6 +74,7 @@ typedef Vector<GlobalSymbolRegistryItem, GCUtil::gc_malloc_allocator<GlobalSymbo
 class VMInstance : public gc {
     friend class Context;
     friend class VMInstanceRef;
+    friend class StackOverflowDisabler;
     friend class ScriptParser;
     friend class SandBox;
     friend void vmMarkStartCallback(void* data);
@@ -224,18 +225,9 @@ public:
         return m_currentSandBox;
     }
 
-    void* stackStartAddress()
+    size_t stackLimit()
     {
-        return m_stackStartAddress;
-    }
-
-    void* lastStackAddressWantToUse()
-    {
-#ifdef STACK_GROWS_DOWN
-        return reinterpret_cast<uint8_t*>(m_stackStartAddress) - STACK_LIMIT_FROM_BASE;
-#else
-        return reinterpret_cast<uint8_t*>(m_stackStartAddress) + STACK_LIMIT_FROM_BASE;
-#endif
+        return m_stackLimit;
     }
 
     ASCIIString** regexpOptionStringCache()
@@ -456,7 +448,7 @@ private:
 
     ToStringRecursionPreventer m_toStringRecursionPreventer;
 
-    void* m_stackStartAddress;
+    size_t m_stackLimit;
 
     // regexp object data
     RegExpCacheMap* m_regexpCache;

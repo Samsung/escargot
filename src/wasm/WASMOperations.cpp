@@ -49,8 +49,7 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[],
 
     // Let realm be func's associated Realm.
     // Let relevant settings be realm?s settings object.
-    ExecutionState temp(nullptr);
-    ExecutionState state(func->getFunctionRealm(temp));
+    ExecutionState state(funcEnv->realm);
 
     // Let [parameters] ? [results] be functype.
     wasm_functype_t* functype = funcEnv->functype;
@@ -121,7 +120,7 @@ static own wasm_func_t* wasmCreateHostFunction(ExecutionState& state, Object* fu
     // NOTE) we should clone functype here because functype needs to be maintained for host function call later.
     own wasm_functype_t* functypeCopy = wasm_functype_copy(functype);
 
-    WASMHostFunctionEnvironment* env = new WASMHostFunctionEnvironment(func, functypeCopy);
+    WASMHostFunctionEnvironment* env = new WASMHostFunctionEnvironment(func->getFunctionRealm(state), func, functypeCopy);
     own wasm_func_t* funcaddr = wasm_func_new_with_env(ThreadLocal::wasmStore(), functypeCopy, callbackHostFunction, env, nullptr);
 
     state.context()->wasmEnvCache()->push_back(env);

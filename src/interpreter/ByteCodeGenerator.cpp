@@ -36,6 +36,7 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_codeBlock(codeBlock)
     , m_byteCodeBlock(byteCodeBlock)
     , m_locData(nullptr)
+    , m_stackLimit(codeBlock->context()->vmInstance()->stackLimit())
     , m_isGlobalScope(isGlobalScope)
     , m_isEvalCode(isEvalCode)
     , m_isOutermostContext(true)
@@ -64,7 +65,6 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_breakpointContext(nullptr)
 #endif /* ESCARGOT_DEBUGGER */
 {
-    m_stackLimit = reinterpret_cast<size_t>(codeBlock->context()->vmInstance()->lastStackAddressWantToUse());
 }
 
 void ByteCodeGenerateContext::consumeLabelledContinuePositions(ByteCodeBlock* cb, size_t position, String* lbl, int outerLimitCount)

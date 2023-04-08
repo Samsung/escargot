@@ -89,7 +89,7 @@ OpcodeTable::OpcodeTable()
 {
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
     // Dummy bytecode execution to initialize the OpcodeTable.
-    ExecutionState state(nullptr);
+    ExecutionState state;
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
     size_t dummyCode = 0;
 #else
