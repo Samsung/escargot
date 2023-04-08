@@ -44,13 +44,7 @@ protected:
 
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv) override
     {
-#ifdef STACK_GROWS_DOWN
-        if (UNLIKELY(state.stackLimit() > (size_t)currentStackPointer())) {
-#else
-        if (UNLIKELY(state.stackLimit() < (size_t)currentStackPointer())) {
-#endif
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
-        }
+        CHECK_STACK_OVERFLOW(state);
 
         ASSERT(codeBlock()->isInterpretedCodeBlock());
         InterpretedCodeBlock* codeBlock = interpretedCodeBlock();
@@ -114,13 +108,7 @@ protected:
         // Let kind be F’s [[ConstructorKind]] internal slot.
         ASSERT(constructorKind() == ConstructorKind::Base); // this is always `Base` because we define ScriptClassConsturctor::construct
 
-#ifdef STACK_GROWS_DOWN
-        if (UNLIKELY(state.stackLimit() > (size_t)currentStackPointer())) {
-#else
-        if (UNLIKELY(state.stackLimit() < (size_t)currentStackPointer())) {
-#endif
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
-        }
+        CHECK_STACK_OVERFLOW(state);
 
         // Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {

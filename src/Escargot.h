@@ -506,6 +506,19 @@ typedef uint16_t LexicalBlockIndex;
 #define STACK_LIMIT_FROM_BASE (1024 * 1024 * 3) // 3MB
 #endif
 
+#ifdef STACK_GROWS_DOWN
+#define CHECK_STACK_OVERFLOW(state)                                                                       \
+    if (UNLIKELY(state.stackLimit() > (size_t)currentStackPointer())) {                                   \
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded"); \
+    }
+#else
+#define CHECK_STACK_OVERFLOW(state)                                                                       \
+    if (UNLIKELY(state.stackLimit() < (size_t)currentStackPointer())) {                                   \
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded"); \
+    }
+#endif
+
+
 #ifndef STRING_MAXIMUM_LENGTH
 #define STRING_MAXIMUM_LENGTH 1024 * 1024 * 512 // 512MB
 #endif

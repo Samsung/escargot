@@ -2462,6 +2462,39 @@ TEST(ReloadableString, Basic)
                        string, &d);
 }
 
+TEST(DisabledStackOverflow, Basic)
+{
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        // generate a recursive function that triggers a stack overflow exception
+        ValueRef* argv[1] = { StringRef::createFromASCII("n") };
+        StringRef* funcBody = StringRef::createFromASCII("if (n == 0) { return; } else { return stack_func(n - 1); }");
+        FunctionObjectRef* funcRef = FunctionObjectRef::create(state, AtomicStringRef::create(state->context(), "stack_func"), 1, argv, funcBody);
+        state->context()->globalObject()->defineDataProperty(state, StringRef::createFromASCII("stack_func"), funcRef, true, true, true);
+        return ValueRef::createUndefined();
+    });
+
+    auto result = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        state->checkStackOverflow();
+        // Block stack overflow, but should be carefully used
+        // StackOverflowDisabler just unlocks the stack limit (3MB) predefined in Escargot
+        // It cannot prevent system stack overflow
+        StackOverflowDisabler disabler(state);
+        ValueRef* argv[1] = { ValueRef::create(2000) };
+        state->context()->globalObject()->getOwnProperty(state, StringRef::createFromASCII("stack_func"))->call(state, ValueRef::createUndefined(), 1, argv);
+        return ValueRef::createUndefined();
+    });
+
+    // stack overflow is blocked by StackOverflowDisabler, so there is no exception
+    EXPECT_TRUE(result.isSuccessful());
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        state->checkStackOverflow();
+        // delete 'stack_func' property from GlobalObject
+        EXPECT_TRUE(state->context()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("stack_func")));
+        return ValueRef::createUndefined();
+    });
+}
+
 class DebuggerTest : public DebuggerOperationsRef::DebuggerClient {
 public:
     DebuggerTest()

@@ -85,15 +85,7 @@ struct JSONStringStream {
 template <typename CharType, typename JSONCharType>
 static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSONCharType>& value)
 {
-    volatile int sp;
-    size_t currentStackBase = (size_t)&sp;
-#ifdef STACK_GROWS_DOWN
-    if (UNLIKELY(state.stackLimit() > currentStackBase)) {
-#else
-    if (UNLIKELY(state.stackLimit() < currentStackBase)) {
-#endif
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
-    }
+    CHECK_STACK_OVERFLOW(state);
 
     if (value.IsBool()) {
         return Value(value.GetBool());

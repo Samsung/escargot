@@ -57,18 +57,16 @@ struct ExecutionStateRareData : public gc {
 };
 
 class ExecutionState : public gc {
-    friend class FunctionObject;
     friend class Interpreter;
     friend class InterpreterSlowPath;
     friend class ExecutionPauser;
-    friend class ExecutionStateProgramCounterBinder;
-    friend class FunctionObjectProcessCallGenerator;
     friend class SandBox;
-    friend class Script;
-    friend class GeneratorObject;
+    friend class VMInstance;
+    friend class StackOverflowDisabler;
+    friend struct OpcodeTable;
 
 public:
-    ExecutionState(Optional<Context*> context);
+    ExecutionState(Context* context);
 
     ALWAYS_INLINE ExecutionState(ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
         : m_context(parent->context())
@@ -309,6 +307,9 @@ public:
     ExecutionPauser* executionPauser();
 
 private:
+    // create a dummy ExecutionState for initialization of Escargot engine
+    ExecutionState();
+
     Context* m_context;
     LexicalEnvironment* m_lexicalEnvironment;
     size_t m_stackLimit;

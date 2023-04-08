@@ -606,6 +606,19 @@ private:
     }
 };
 
+// temporally disable StackOverflow check
+// StackOverflowDisabler only unlocks the predefined stack limit (STACK_LIMIT_FROM_BASE: 3MB)
+// should be carefully used because it cannot prevent the system-stackoverflow exception
+class ESCARGOT_EXPORT StackOverflowDisabler {
+public:
+    StackOverflowDisabler(ExecutionStateRef*);
+    ~StackOverflowDisabler();
+
+private:
+    ExecutionStateRef* m_executionState;
+    size_t m_originStackLimit;
+};
+
 // Don't save pointer of ExecutionStateRef anywhere yourself
 // If you want to acquire ExecutionStateRef, you can use Evaluator::execute
 class ESCARGOT_EXPORT ExecutionStateRef {
@@ -619,6 +632,7 @@ public:
     bool onFinally();
 
     void throwException(ValueRef* value);
+    void checkStackOverflow();
 
     GCManagedVector<Evaluator::StackTraceData> computeStackTrace();
 
