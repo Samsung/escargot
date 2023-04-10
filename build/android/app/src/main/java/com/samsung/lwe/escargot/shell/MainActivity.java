@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.TextView;
 
 import com.samsung.lwe.escargot.Context;
@@ -74,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
         final String base = getApplicationContext().getFilesDir().getAbsolutePath() + "/";
         new Thread(() -> {
             Globals.initializeGlobals();
-            Memory.setGCFrequency(1);
+            Memory.setGCFrequency(2);
 
             VMInstance vm = VMInstance.create(Optional.empty(), Optional.empty());
             Context context = Context.create(vm);
@@ -191,6 +192,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         // copy assets to internal storage (for copying js files which are used by test)
         copyAssets();

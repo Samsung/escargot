@@ -23,7 +23,6 @@
 #include <mutex>
 #include <sstream>
 
-#include <sys/timeb.h>
 #if defined(_MSC_VER)
 #include <stdlib.h>
 #define realpath(N, R) _fullpath((R), (N), _MAX_PATH)
