@@ -5,6 +5,7 @@
 ![Build status](http://13.209.201.68:8080/job/escargot-pr/job/master/badge/icon)
 [![Actions Status](https://github.com/Samsung/escargot/workflows/Escargot%20Actions/badge.svg)](https://github.com/Samsung/escargot/actions)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/21647/badge.svg)](https://scan.coverity.com/projects/samsung-escargot)
+[![codecov](https://codecov.io/gh/Samsung/escargot/branch/master/graph/badge.svg?token=DX8CN6E7A8)](https://codecov.io/gh/Samsung/escargot)
 
 ## Prerequisites
 
