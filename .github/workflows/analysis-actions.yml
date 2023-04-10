@@ -2,8 +2,8 @@ name: Analysis
 
 on:
   schedule:
-    # trigger on every sunday and wednesday
-    - cron: '30 22 * * 0,3'
+    # trigger on every monday, wednesday and friday
+    - cron: '30 22 * * 1,3,5'
 
 jobs:
   coverity-scan:
@@ -76,7 +76,7 @@ jobs:
         sudo locale-gen en_US.UTF-8
         export LANG=en_US.UTF-8
         locale
-        tools/run-tests.py --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/coverage/escargot" test262
+        tools/run-tests.py --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/coverage/escargot" new-es test262
     - name: Generate coverage report
       run: |
         gcovr --gcov-ignore-parse-errors --exclude-unreachable-branches --exclude-throw-branches --exclude third_party --exclude src/api -r . --xml coverage.xml
