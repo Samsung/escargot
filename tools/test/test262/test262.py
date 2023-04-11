@@ -62,6 +62,15 @@ ESCARGOT_LD_PRELOAD = os.environ.get('ESCARGOT_LD_PRELOAD')
 if ESCARGOT_LD_PRELOAD is None:
     ESCARGOT_LD_PRELOAD = ""
 
+ESCARGOT_DUMP262DATA = os.environ.get('ESCARGOT_DUMP262DATA')
+if ESCARGOT_DUMP262DATA is None:
+  ESCARGOT_DUMP262DATA = ""
+else:
+  if os.path.exists("test262_data"):
+    shutil.rmtree("test262_data")
+  os.mkdir("test262_data")
+  ESCARGOT_TEST_FILE = open("test262_data/data", 'w+')
+
 def BuildOptions():
   result = optparse.OptionParser()
   result.add_option("--command", default=None, help="The command-line to run")
@@ -419,6 +428,18 @@ class TestCase(object):
     })
 
     (code, out, err) = self.Execute(command)
+
+    if len(ESCARGOT_DUMP262DATA):
+      self.escargot_data = dict()
+      self.escargot_data["can_block_is_false"] = can_block_is_false
+      self.escargot_data["is_module"] = is_module
+      self.escargot_data["full_path"] = self.full_path.replace(ESCARGOT_DUMP262DATA_ROOT, '')
+      self.escargot_data["driver_file"] = "test262_data/" + os.path.basename(driver_tmp.name)
+      self.escargot_data["test_file"] = "test262_data/" + os.path.basename(tmp.name)
+      self.escargot_data["code"] = code
+      shutil.copyfile(driver_tmp.name, self.escargot_data["driver_file"])
+      shutil.copyfile(tmp.name, self.escargot_data["test_file"])
+
     return TestResult(code, out, err, self)
 
   def Run(self, command_template):
@@ -490,6 +511,10 @@ class TestSuite(object):
   def __init__(self, root, strict_only, non_strict_only, unmarked_default, print_handle):
     # TODO: derive from packagerConfig.py
     self.test_root = path.join(root, 'test')
+    if len(ESCARGOT_DUMP262DATA):
+      global ESCARGOT_DUMP262DATA_ROOT
+      ESCARGOT_DUMP262DATA_ROOT = path.join(root)
+      shutil.copytree(self.test_root, "test262_data/test")
     self.lib_root = path.join(root, 'harness')
     self.strict_only = strict_only
     self.non_strict_only = non_strict_only
@@ -711,6 +736,13 @@ class TestSuite(object):
     for case in cases:
       #result = case.Run(command_template)
       result = resultTemp[cases.index(case)]
+      if len(ESCARGOT_DUMP262DATA):
+        ESCARGOT_TEST_FILE.write(str(result.case.escargot_data["can_block_is_false"]) + "\n")
+        ESCARGOT_TEST_FILE.write(str(result.case.escargot_data["is_module"]) + "\n")
+        ESCARGOT_TEST_FILE.write(str(result.case.escargot_data["full_path"]) + "\n")
+        ESCARGOT_TEST_FILE.write(str(result.case.escargot_data["driver_file"]) + "\n")
+        ESCARGOT_TEST_FILE.write(str(result.case.escargot_data["test_file"]) + "\n")
+        ESCARGOT_TEST_FILE.write(str(result.case.escargot_data["code"]) + "\n")
 
       if junitfile:
         TestCaseElement = result.XmlAssemble(result)
