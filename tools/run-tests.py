@@ -255,6 +255,49 @@ def run_test262_nonstrict(engine, arch):
 
         print('test262-nonstrict: All tests passed')
 
+@runner('test262-dump', default=False)
+def run_test262_dump(engine, arch):
+    TEST262_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'test262')
+    TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
+
+    copy(join(TEST262_OVERRIDE_DIR, 'excludelist.orig.xml'), join(TEST262_DIR, 'excludelist.xml'))
+    copy(join(TEST262_OVERRIDE_DIR, 'cth.js'), join(TEST262_DIR, 'harness', 'cth.js'))
+    copy(join(TEST262_OVERRIDE_DIR, 'testIntl.js'), join(TEST262_DIR, 'harness', 'testIntl.js'))
+
+    copy(join(TEST262_OVERRIDE_DIR, 'parseTestRecord.py'), join(TEST262_DIR, 'tools', 'packaging', 'parseTestRecord.py'))
+    copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py')) # for parallel running (we should re-implement this for es6 suite)
+
+    stdout = run(['pypy', join('tools', 'packaging', 'test262.py'),
+         '--command', engine,
+         '--summary'],
+        cwd=TEST262_DIR,
+        env={'TZ': 'US/Pacific', 'ESCARGOT_DUMP262DATA': '1'},
+        stdout=PIPE)
+
+    summary = stdout.decode("utf-8").split('=== Test262 Summary ===')[1]
+    if summary.find('- All tests succeeded') < 0:
+        raise Exception('test262 failed')
+    print('test262: All tests passed and dumped')
+
+@runner('test262-dump-run', default=False)
+def run_test262_dump_run(engine, arch):
+    run(['g++', "./tools/test/test262/test-data-runner.cpp", "-o", "./test/test262/test-data-runner", "-g3", "-std=c++11", "-lpthread"],
+        cwd=PROJECT_SOURCE_DIR,
+        stdout=PIPE)
+
+    import multiprocessing
+    cc = multiprocessing.cpu_count()
+    stdout = run(['./test-data-runner', engine, str(cc), "1"],
+        cwd=join(PROJECT_SOURCE_DIR, 'test', 'test262'),
+        stdout=PIPE)
+
+    stdout = stdout.decode("utf-8")
+    if stdout.find("Passed") < 0:
+        raise Exception('failed')
+    print(stdout)
+    print('test262-dump-passed')
+
+
 
 @runner('spidermonkey', default=True)
 def run_spidermonkey(engine, arch):
