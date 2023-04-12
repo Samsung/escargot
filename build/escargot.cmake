@@ -65,10 +65,11 @@ IF (NOT ${ESCARGOT_OUTPUT} MATCHES "shell")
 ENDIF()
 
 IF (${ESCARGOT_OUTPUT} STREQUAL "cctest")
-	ADD_COMPILE_OPTIONS(${ESCARGOT_THIRDPARTY_CFLAGS} -Wno-maybe-uninitialized) # googletest needs this option
-	ADD_SUBDIRECTORY (third_party/googletest/googletest)
-	TARGET_INCLUDE_DIRECTORIES (gtest PUBLIC ${ESCARGOT_THIRD_PARTY_ROOT}/googletest/googletest/include)
-	FILE (GLOB CCTEST_SRC ${ESCARGOT_ROOT}/test/cctest/testapi.cpp)
+    SET (BUILD_GMOCK OFF)
+    SET (INSTALL_GTEST OFF)
+    ADD_COMPILE_OPTIONS(${ESCARGOT_THIRDPARTY_CFLAGS})
+    ADD_SUBDIRECTORY (third_party/googletest)
+    FILE (GLOB CCTEST_SRC ${ESCARGOT_ROOT}/test/cctest/testapi.cpp)
 ENDIF()
 
 SET (ESCARGOT_SRC_LIST
