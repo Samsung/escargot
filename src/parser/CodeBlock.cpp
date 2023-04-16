@@ -778,7 +778,7 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
                     if (info.m_isStackAllocated) {
                         info.m_index += identifierOnStackCount();
                     }
-                    info.m_upperIndex = upperIndex + generatorContext->m_openedNonBlockEnvCount;
+                    info.m_upperIndex = upperIndex;
                     info.m_isMutable = bi->m_identifiers[i].m_isMutable;
                     info.m_type = IndexedIdentifierInfo::DeclarationType::LexicallyDeclared;
                     info.m_blockIndex = bi->m_blockIndex;
@@ -821,7 +821,7 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
                 info.m_isResultSaved = true;
                 info.m_isGlobalLexicalVariable = false;
                 info.m_isStackAllocated = blk->m_identifierInfos[index].m_needToAllocateOnStack;
-                info.m_upperIndex = upperIndex + generatorContext->m_openedNonBlockEnvCount;
+                info.m_upperIndex = upperIndex;
                 info.m_isMutable = blk->m_identifierInfos[index].m_isMutable;
                 info.m_index = blk->m_identifierInfos[index].m_indexForIndexedStorage;
                 info.m_type = IndexedIdentifierInfo::DeclarationType::VarDeclared;

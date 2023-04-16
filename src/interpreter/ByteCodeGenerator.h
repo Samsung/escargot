@@ -95,7 +95,6 @@ struct ByteCodeGenerateContext {
         , m_complexJumpBreakIgnoreCount(contextBefore.m_recursiveStatementStack.size())
         , m_complexJumpContinueIgnoreCount(m_complexJumpBreakIgnoreCount)
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
-        , m_openedNonBlockEnvCount(contextBefore.m_openedNonBlockEnvCount)
         , m_classInfo(contextBefore.m_classInfo)
         , m_numeralLiteralData(contextBefore.m_numeralLiteralData) // should be NumeralLiteralVector
 #ifdef ESCARGOT_DEBUGGER
@@ -343,7 +342,6 @@ struct ByteCodeGenerateContext {
     int m_complexJumpBreakIgnoreCount;
     int m_complexJumpContinueIgnoreCount;
     size_t m_lexicalBlockIndex;
-    size_t m_openedNonBlockEnvCount;
     ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
     void* m_numeralLiteralData; // should be NumeralLiteralVector

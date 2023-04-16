@@ -58,7 +58,6 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_complexJumpBreakIgnoreCount(0)
     , m_complexJumpContinueIgnoreCount(0)
     , m_lexicalBlockIndex(0)
-    , m_openedNonBlockEnvCount(0)
     , m_classInfo()
     , m_numeralLiteralData(numeralLiteralData) // should be NumeralLiteralVector
 #ifdef ESCARGOT_DEBUGGER
