@@ -217,10 +217,6 @@ if (f.type == Type::B) { puts("failed in msvc."); }
 #define ENSURE_ENUM_UNSIGNED
 #endif
 
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
-#define HAVE_BUILTIN_ATOMIC_FUNCTIONS
-#endif
-
 #if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
 #define CPU_X86_64
 
@@ -235,6 +231,11 @@ if (f.type == Type::B) { puts("failed in msvc."); }
 
 #else
 #error "Could't find cpu arch."
+#endif
+
+// FIXME arm devices raise SIGBUS when using unaligned address to __atomic_* functions
+#if (defined(COMPILER_GCC) || defined(COMPILER_CLANG)) && !defined(CPU_ARM32) && !defined(CPU_ARM64)
+#define HAVE_BUILTIN_ATOMIC_FUNCTIONS
 #endif
 
 #if defined(COMPILER_MSVC)

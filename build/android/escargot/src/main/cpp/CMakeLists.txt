@@ -42,6 +42,7 @@ if (ENABLE_SHELL)
         (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/GCutil/bdwgc/include)
         (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../src))
     TARGET_LINK_LIBRARIES (escargot-shell PRIVATE escargot ${LOG_LIBRARY})
+    ADD_DEFINITIONS(-DNDEBUG)
 
     ADD_EXECUTABLE(test262-runner ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../tools/test/test262/test-data-runner.cpp)
     TARGET_COMPILE_OPTIONS(test262-runner PRIVATE -std=c++11)

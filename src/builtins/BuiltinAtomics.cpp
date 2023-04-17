@@ -562,8 +562,13 @@ static Value builtinAtomicsNotify(ExecutionState& state, Value thisValue, size_t
 static Value builtinAtomicsIsLockFree(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     const auto size = argv[0].toInteger(state);
+    // https://tc39.es/ecma262/multipage/structured-data.html#sec-atomics.islockfree
+    // Atomics.isLockFree(4) always returns true as that can be supported on all known relevant hardware. Being able to assume this will generally simplify programs.
+    if (size == 4) {
+        return Value(true);
+    }
 #if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-    if (size == 1 || size == 2 || size == 4 || size == 8) {
+    if (size == 1 || size == 2 || size == 8) {
         return Value(true);
     }
     return Value(false);
