@@ -54,7 +54,7 @@ void ByteCode::dumpCode(const char* byteCodeStart, const size_t endPos)
         static_cast<name*>(curCode)->dump();            \
         opcodeName = #name;                             \
         break;
-            FOR_EACH_BYTECODE_OP(RETURN_BYTECODE_NAME)
+            FOR_EACH_BYTECODE(RETURN_BYTECODE_NAME)
 #undef RETURN_BYTECODE_NAME
         default:
             RELEASE_ASSERT_NOT_REACHED();

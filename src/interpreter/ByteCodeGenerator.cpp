@@ -232,7 +232,7 @@ const uint8_t byteCodeLengths[] = {
 #define ITER_BYTE_CODE(code, pushCount, popCount) \
     (uint8_t)sizeof(code),
 
-    FOR_EACH_BYTECODE_OP(ITER_BYTE_CODE)
+    FOR_EACH_BYTECODE(ITER_BYTE_CODE)
 #undef ITER_BYTE_CODE
 };
 
@@ -821,7 +821,11 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             break;
         }
 
+#ifdef ESCARGOT_DEBUGGER
+        ASSERT((opcode <= EndOpcode) || (opcode == BreakpointDisabledOpcode || opcode == BreakpointEnabledOpcode));
+#else
         ASSERT(opcode <= EndOpcode);
+#endif
         code += byteCodeLengths[opcode];
     }
 }
