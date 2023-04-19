@@ -23,7 +23,7 @@ std::vector<TestData> g_testDatas;
 std::atomic<int> g_index;
 std::atomic<int> g_passCount;
 std::atomic<int> g_skipCount;
-bool g_enableIntl = true;
+std::string g_skipPattern;
 
 int main(int argc, char* argv[])
 {
@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
         numThread = std::stoi(argv[2]);
     }
     if (argc >= 4) {
-        g_enableIntl = false;
+        g_skipPattern = argv[3];
     }
 
     g_inputPath = "test262_data";
@@ -91,8 +91,7 @@ int main(int argc, char* argv[])
                 std::string commandline = "TZ=US/Pacific " + shellPath;
                 const auto& data = g_testDatas[j];
 
-                if ((data.fullPath.find("/intl402/") != std::string::npos ||
-                    data.fullPath.find("/Temporal/") != std::string::npos) && !g_enableIntl) {
+                if (g_skipPattern.size() && data.fullPath.find(g_skipPattern) != std::string::npos) {
                     g_skipCount++;
                     printf("SKIP [%d] %s\n", g_index++, data.fullPath.data());
                     continue;
