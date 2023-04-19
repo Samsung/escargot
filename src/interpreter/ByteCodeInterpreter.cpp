@@ -1486,14 +1486,13 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
+#ifdef ESCARGOT_DEBUGGER
         DEFINE_OPCODE(BreakpointDisabled)
             :
         {
-#ifdef ESCARGOT_DEBUGGER
             if (state->context()->debuggerEnabled()) {
                 state->context()->debugger()->processDisabledBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)byteCodeBlock->m_code.data()), state);
             }
-#endif /* ESCARGOT_DEBUGGER */
 
             ADD_PROGRAM_COUNTER(BreakpointDisabled);
             NEXT_INSTRUCTION();
@@ -1502,15 +1501,14 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         DEFINE_OPCODE(BreakpointEnabled)
             :
         {
-#ifdef ESCARGOT_DEBUGGER
             if (state->context()->debuggerEnabled()) {
                 state->context()->debugger()->stopAtBreakpoint(byteCodeBlock, (uint32_t)(programCounter - (size_t)byteCodeBlock->m_code.data()), state);
             }
-#endif /* ESCARGOT_DEBUGGER */
 
             ADD_PROGRAM_COUNTER(BreakpointEnabled);
             NEXT_INSTRUCTION();
         }
+#endif /* ESCARGOT_DEBUGGER */
 
         DEFINE_OPCODE(FillOpcodeTable)
             :
@@ -1528,7 +1526,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
 #define REGISTER_TABLE(opcode, pushCount, popCount) \
     g_opcodeTable.m_addressTable[opcode##Opcode] = &&opcode##OpcodeLbl;
 #endif
-            FOR_EACH_BYTECODE_OP(REGISTER_TABLE);
+            FOR_EACH_BYTECODE(REGISTER_TABLE);
 
 #undef REGISTER_TABLE
 #endif

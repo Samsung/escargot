@@ -63,8 +63,6 @@ struct GlobalVariableAccessCacheItem;
     F(BinaryUnsignedRightShift, 1, 2)                       \
     F(BinaryInOperation, 1, 2)                              \
     F(BinaryInstanceOfOperation, 1, 2)                      \
-    F(BreakpointDisabled, 0, 0)                             \
-    F(BreakpointEnabled, 0, 0)                              \
     F(CreateObject, 1, 0)                                   \
     F(CreateArray, 1, 0)                                    \
     F(CreateSpreadArrayObject, 1, 0)                        \
@@ -138,10 +136,21 @@ struct GlobalVariableAccessCacheItem;
     F(FillOpcodeTable, 0, 0)                                \
     F(End, 0, 0)
 
+#ifdef ESCARGOT_DEBUGGER
+#define FOR_EACH_BYTECODE_DEBUGGER_OP(F) \
+    F(BreakpointDisabled, 0, 0)          \
+    F(BreakpointEnabled, 0, 0)
+#else
+#define FOR_EACH_BYTECODE_DEBUGGER_OP(F)
+#endif /* ESCARGOT_DEBUGGER */
+
+#define FOR_EACH_BYTECODE(F) \
+    FOR_EACH_BYTECODE_OP(F)  \
+    FOR_EACH_BYTECODE_DEBUGGER_OP(F)
 
 enum Opcode {
 #define DECLARE_BYTECODE(name, pushCount, popCount) name##Opcode,
-    FOR_EACH_BYTECODE_OP(DECLARE_BYTECODE)
+    FOR_EACH_BYTECODE(DECLARE_BYTECODE)
 #undef DECLARE_BYTECODE
         OpcodeKindEnd,
     // special opcode only used in interpreter
@@ -897,6 +906,7 @@ DEFINE_BINARY_OPERATION(SignedRightShift, "signed right shift");
 DEFINE_BINARY_OPERATION(StrictEqual, "strict equal");
 DEFINE_BINARY_OPERATION(UnsignedRightShift, "unsigned right shift");
 
+#ifdef ESCARGOT_DEBUGGER
 class BreakpointDisabled : public ByteCode {
 public:
     BreakpointDisabled(const ByteCodeLOC& loc)
@@ -928,6 +938,7 @@ public:
 };
 
 COMPILE_ASSERT(sizeof(BreakpointDisabled) == sizeof(BreakpointEnabled), "");
+#endif /* ESCARGOT_DEBUGGER */
 
 class CreateObject : public ByteCode {
 public:
