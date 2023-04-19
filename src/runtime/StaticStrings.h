@@ -891,6 +891,7 @@ namespace Escargot {
     F(zonedDateTimeISO, "zonedDateTimeISO")
 #else
 #define FOR_EACH_LAZY_INTL_STATIC_STRING(F)
+#define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)
 #endif
 
 #if defined(ENABLE_THREADING)
