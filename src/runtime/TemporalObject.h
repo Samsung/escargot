@@ -31,7 +31,7 @@ namespace Escargot {
 
 class TemporalDate {
 public:
-    TemporalDate(short year, char month, char day)
+    TemporalDate(int16_t year, int8_t month, int8_t day)
         : m_year(year)
         , m_month(month)
         , m_day(day)
@@ -45,14 +45,14 @@ public:
     {
     }
 
-    short m_year;
-    char m_month;
-    char m_day;
+    int16_t m_year;
+    int8_t m_month;
+    int8_t m_day;
 };
 
 class TemporalTime {
 public:
-    TemporalTime(char hour, char minute, char second, short millisecond, short microsecond, short nanosecond)
+    TemporalTime(int8_t hour, int8_t minute, int8_t second, int16_t millisecond, int16_t microsecond, int16_t nanosecond)
         : m_hour(hour)
         , m_minute(minute)
         , m_second(second)
@@ -72,12 +72,12 @@ public:
     {
     }
 
-    char m_hour;
-    char m_minute;
-    char m_second;
-    short m_millisecond;
-    short m_microsecond;
-    short m_nanosecond;
+    int8_t m_hour;
+    int8_t m_minute;
+    int8_t m_second;
+    int16_t m_millisecond;
+    int16_t m_microsecond;
+    int16_t m_nanosecond;
 };
 
 enum RoundingMode {
@@ -275,15 +275,15 @@ public:
     static std::map<TemporalObject::DateTimeUnits, int> balanceISODate(ExecutionState& state, int year, int month, int day);
     static int compareISODate(int firstYear, int firstMonth, int firstDay, int secondYear, int secondMonth, int secondDay);
 
-    short year() const
+    int16_t year() const
     {
         return m_date.m_year;
     }
-    char month() const
+    int8_t month() const
     {
         return m_date.m_month;
     }
-    char day() const
+    int8_t day() const
     {
         return m_date.m_day;
     }
@@ -337,27 +337,27 @@ public:
     static std::map<TemporalObject::DateTimeUnits, int> addTime(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int>& first, std::map<TemporalObject::DateTimeUnits, int>& second);
     static Value addDurationToOrSubtractDurationFromPlainTime(ExecutionState& state, Operation operation, TemporalPlainTimeObject* temporalTime, const Value& temporalDurationLike);
 
-    char getHour() const
+    int8_t getHour() const
     {
         return m_time.m_hour;
     }
-    char getMinute() const
+    int8_t getMinute() const
     {
         return m_time.m_minute;
     }
-    char getSecond() const
+    int8_t getSecond() const
     {
         return m_time.m_second;
     }
-    short getMillisecond() const
+    int16_t getMillisecond() const
     {
         return m_time.m_millisecond;
     }
-    short getMicrosecond() const
+    int16_t getMicrosecond() const
     {
         return m_time.m_microsecond;
     }
-    short getNanosecond() const
+    int16_t getNanosecond() const
     {
         return m_time.m_nanosecond;
     }
@@ -399,39 +399,39 @@ public:
     static std::map<TemporalObject::DateTimeUnits, int> differenceISODateTime(ExecutionState& state, std::map<TemporalObject::DateTimeUnits, int> first, std::map<TemporalObject::DateTimeUnits, int> second, const Value& calendar, TemporalObject::DateTimeUnits largestUnit, const Value& options);
     static Value addDurationToOrSubtractDurationFromPlainDateTime(ExecutionState& state, TemporalPlainTimeObject::Operation operation, TemporalPlainDateTimeObject* temporalDateTime, const Value& temporalDurationLike, const Value& options);
 
-    short getYear() const
+    int16_t getYear() const
     {
         return m_date.m_year;
     }
-    char getMonth() const
+    int8_t getMonth() const
     {
         return m_date.m_month;
     }
-    char getDay() const
+    int8_t getDay() const
     {
         return m_date.m_day;
     }
-    char getHour() const
+    int8_t getHour() const
     {
         return m_time.m_hour;
     }
-    char getMinute() const
+    int8_t getMinute() const
     {
         return m_time.m_minute;
     }
-    char getSecond() const
+    int8_t getSecond() const
     {
         return m_time.m_second;
     }
-    short getMillisecond() const
+    int16_t getMillisecond() const
     {
         return m_time.m_millisecond;
     }
-    short getMicrosecond() const
+    int16_t getMicrosecond() const
     {
         return m_time.m_microsecond;
     }
-    short getNanosecond() const
+    int16_t getNanosecond() const
     {
         return m_time.m_nanosecond;
     }
@@ -546,7 +546,7 @@ public:
     {
         return m_year;
     }
-    int getMonth() const
+    int8_t getMonth() const
     {
         return m_month;
     }
@@ -554,7 +554,7 @@ public:
     {
         return m_week;
     }
-    int getDay() const
+    int8_t getDay() const
     {
         return m_day;
     }

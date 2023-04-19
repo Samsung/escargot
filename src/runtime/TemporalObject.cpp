@@ -1220,7 +1220,7 @@ bool TemporalCalendarObject::isIsoLeapYear(ExecutionState& state, const int year
 
 std::string TemporalCalendarObject::buildISOMonthCode(ExecutionState& state, const int month)
 {
-    return "M" + std::string((month < 10 ? "0" : "") + char(48 + month));
+    return "M" + std::string((month < 10 ? "0" : "") + int8_t(48 + month));
 }
 
 int TemporalCalendarObject::ISOYear(ExecutionState& state, const Value& temporalObject)
@@ -1785,8 +1785,8 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalPlainDateTimeObject::interp
     auto temporalDate = TemporalCalendarObject::dateFromFields(state, calendar, fields, options).asObject()->asTemporalPlainDateObject();
     timeResult = TemporalPlainTimeObject::regulateTime(state, timeResult[TemporalObject::HOUR_UNIT], timeResult[TemporalObject::MINUTE_UNIT], timeResult[TemporalObject::SECOND_UNIT], timeResult[TemporalObject::MILLISECOND_UNIT], timeResult[TemporalObject::MICROSECOND_UNIT], timeResult[TemporalObject::NANOSECOND_UNIT], overFlow);
     timeResult[TemporalObject::YEAR_UNIT] = temporalDate->year();
-    timeResult[TemporalObject::MONTH_UNIT] = static_cast<unsigned char>(temporalDate->month());
-    timeResult[TemporalObject::DAY_UNIT] = static_cast<unsigned char>(temporalDate->day());
+    timeResult[TemporalObject::MONTH_UNIT] = static_cast<uint8_t>(temporalDate->month());
+    timeResult[TemporalObject::DAY_UNIT] = static_cast<uint8_t>(temporalDate->day());
     return timeResult;
 }
 
