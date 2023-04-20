@@ -123,24 +123,29 @@ public:
         return m_locale;
     }
 
-    const std::string& timezoneID()
-    {
-        return m_timezoneID;
-    }
-
-    void ensureTimezone();
-
 #if !defined(OS_WINDOWS_UWP)
-    VZone* timezone()
+    VZone* vzone()
     {
         if (m_timezone == nullptr) {
-            ensureTimezone();
+            ensureVZone();
         }
         return m_timezone;
     }
 #endif
 
+    const std::string& timezoneID()
+    {
+        ensureTimezoneID();
+        return m_timezoneID;
+    }
 #endif
+
+    const std::string& tzname(size_t i)
+    {
+        ensureTzname();
+        return m_tzname[i];
+    }
+
     DateObject* cachedUTC(ExecutionState& state);
 
     // object
@@ -461,7 +466,11 @@ private:
     VZone* m_timezone;
 #endif
     std::string m_timezoneID;
+    void ensureTimezoneID();
+    void ensureVZone();
 #endif
+    void ensureTzname();
+    std::string m_tzname[2];
     DateObject* m_cachedUTC;
 
     // promise job queue

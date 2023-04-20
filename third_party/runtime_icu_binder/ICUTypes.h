@@ -5781,6 +5781,24 @@ enum UCalendarDateFields {
     UCAL_DAY_OF_MONTH = UCAL_DATE
 };
 
+/**
+ * Possible formats for a UCalendar's display name
+ * @stable ICU 2.0
+ */
+enum UCalendarDisplayNameType {
+    /** Standard display name */
+    UCAL_STANDARD,
+    /** Short standard display name */
+    UCAL_SHORT_STANDARD,
+    /** Daylight savings display name */
+    UCAL_DST,
+    /** Short daylight savings display name */
+    UCAL_SHORT_DST
+};
+
+/** @stable ICU 2.0 */
+typedef enum UCalendarDisplayNameType UCalendarDisplayNameType;
+
 /** @stable ICU 2.0 */
 typedef enum UCalendarDateFields UCalendarDateFields;
 /**

@@ -126,6 +126,8 @@ namespace RuntimeICUBinder {
     F(unumsys_getName, const char* (*)(const UNumberingSystem* unumsys), const char*)                                                                                                          \
     F(unumsys_open, UNumberingSystem* (*)(const char* locale, UErrorCode* status), UNumberingSystem*)                                                                                          \
     F(ucal_open, UCalendar* (*)(const UChar* zoneID, int32_t len, const char* locale, UCalendarType type, UErrorCode* status), UCalendar*)                                                     \
+    F(ucal_getDefaultTimeZone, int32_t (*)(UChar* result, int32_t resultCapacity, UErrorCode* ec), int32_t)                                                                                    \
+    F(ucal_getTimeZoneDisplayName, int32_t (*)(const UCalendar* cal, UCalendarDisplayNameType type, const char* locale, UChar* result, int32_t resultLength, UErrorCode* status), int32_t)     \
     F(ucal_getKeywordValuesForLocale, UEnumeration* (*)(const char* key, const char* locale, UBool commonlyUsed, UErrorCode* status), UEnumeration*)                                           \
     F(ucal_openTimeZoneIDEnumeration, UEnumeration* (*)(USystemTimeZoneType zoneType, const char* region, const int32_t* rawOffset, UErrorCode* ec), UEnumeration*)                            \
     F(ucal_openTimeZones, UEnumeration* (*)(UErrorCode * ec), UEnumeration*)                                                                                                                   \
@@ -156,6 +158,8 @@ namespace RuntimeICUBinder {
     F(ures_getKey, const char* (*)(const UResourceBundle* resourceBundle), const char*)                                                                                                        \
     F(ures_getNextResource, UResourceBundle* (*)(UResourceBundle * resourceBundle, UResourceBundle * fillIn, UErrorCode * status), UResourceBundle*)                                           \
     F(ures_hasNext, UBool (*)(const UResourceBundle* resourceBundle), UBool)                                                                                                                   \
+    F(ures_getSize, int32_t (*)(const UResourceBundle* resourceBundle), int32_t)                                                                                                               \
+    F(ures_getStringByIndex, const UChar* (*)(const UResourceBundle *resourceBundle, int32_t indexS, int32_t* len, UErrorCode *status), const UChar*)                                          \
     F(uplrules_select, int32_t (*)(const UPluralRules* uplrules, double number, UChar* keyword, int32_t capacity, UErrorCode* status), int32_t)                                                \
     F(uplrules_getKeywords, UEnumeration* (*)(const UPluralRules* uplrules, UErrorCode* status), UEnumeration*)                                                                                \
     F(uplrules_open, UPluralRules* (*)(const char* locale, UErrorCode* status), UPluralRules*)                                                                                                 \

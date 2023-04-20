@@ -64,6 +64,7 @@ jobs:
     strategy:
       matrix:
         arch: [x86, x86_64]
+        api: [28]
     steps:
     - uses: actions/checkout@v3
       with:
@@ -86,12 +87,12 @@ jobs:
         path: |
           ~/.android/avd/*
           ~/.android/adb*
-        key: avd-29-${{ matrix.arch }}
+        key: avd-${{ matrix.api }}-${{ matrix.arch }}
     - name: Create AVD and generate snapshot for caching
       if: steps.avd-cache.outputs.cache-hit != 'true'
       uses: reactivecircus/android-emulator-runner@v2
       with:
-        api-level: 29
+        api-level: ${{ matrix.api }}
         arch: ${{ matrix.arch }}
         force-avd-creation: false
         emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
@@ -100,7 +101,7 @@ jobs:
     - name: Run tests
       uses: reactivecircus/android-emulator-runner@v2
       with:
-        api-level: 29
+        api-level: ${{ matrix.api }}
         arch: ${{ matrix.arch }}
         force-avd-creation: false
         emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none

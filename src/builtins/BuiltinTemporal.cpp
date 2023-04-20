@@ -111,7 +111,6 @@ static Value temporalInstantFromEpoch(ExecutionState& state, size_t argc, Value*
 
 static Value builtinTemporalNowTimeZone(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    state.context()->vmInstance()->ensureTimezone();
     return Value(String::fromUTF8(state.context()->vmInstance()->timezoneID().c_str(), state.context()->vmInstance()->timezoneID().length(), true));
 }
 

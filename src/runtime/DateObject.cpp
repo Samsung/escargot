@@ -281,7 +281,7 @@ time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
 
 // roughly check range before calling yearFromTime function
 #if defined(ENABLE_ICU) && !defined(OS_WINDOWS_UWP)
-    stdOffset = vzone_getRawOffset(state.context()->vmInstance()->timezone());
+    stdOffset = vzone_getRawOffset(state.context()->vmInstance()->vzone());
 #else
     stdOffset = 0;
 #endif
@@ -301,7 +301,7 @@ time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
 
     t += msBetweenYears;
 #if defined(ENABLE_ICU) && !defined(OS_WINDOWS_UWP)
-    vzone_getOffset3(state.context()->vmInstance()->timezone(), t, true, stdOffset, dstOffset, succ);
+    vzone_getOffset3(state.context()->vmInstance()->vzone(), t, true, stdOffset, dstOffset, succ);
 #else
     dstOffset = 0;
 #endif
@@ -1243,7 +1243,7 @@ void DateObject::resolveCache(ExecutionState& state)
     int32_t stdOffset = 0, dstOffset = 0;
 #if defined(ENABLE_ICU) && !defined(OS_WINDOWS_UWP)
     UErrorCode succ = U_ZERO_ERROR;
-    vzone_getOffset3(state.context()->vmInstance()->timezone(), t, true, stdOffset, dstOffset, succ);
+    vzone_getOffset3(state.context()->vmInstance()->vzone(), t, true, stdOffset, dstOffset, succ);
 #endif
 
     m_cachedLocal.isdst = dstOffset == 0 ? 0 : 1;
@@ -1300,24 +1300,23 @@ String* DateObject::toTimeString(ExecutionState& state)
 {
     RESOLVECACHE(state);
     if (IS_VALID_TIME(m_primitiveValue)) {
-        char buffer[32];
+        char buffer[256];
         int tzOffsetAsMin = -getTimezoneOffset(state); // 540
         int tzOffsetHour = (tzOffsetAsMin / const_Date_minutesPerHour);
         int tzOffsetMin = ((tzOffsetAsMin / (double)const_Date_minutesPerHour) - tzOffsetHour) * 60;
         tzOffsetHour *= 100;
+        const std::string& timeZoneName = state.context()->vmInstance()->tzname(m_cachedLocal.isdst ? 1 : 0);
 #if defined(OS_WINDOWS)
-        const char* timeZoneName = _tzname[m_cachedLocal.isdst ? 1 : 0];
         snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin));
         StringBuilder sb;
         sb.appendString(buffer);
         sb.appendChar('(');
-        sb.appendString(String::fromUTF8(timeZoneName, strlen(timeZoneName)));
+        sb.appendString(String::fromUTF8(timeZoneName.data(), timeZoneName.length()));
         sb.appendChar(')');
         return sb.finalize();
 #else
-        const char* timeZoneName = m_cachedLocal.isdst ? tzname[1] : tzname[0];
-        snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d (%s)", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin), timeZoneName);
-        return new ASCIIString(buffer);
+        snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d (%s)", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin), timeZoneName.data());
+        return String::fromUTF8(buffer, strnlen(buffer, sizeof(buffer)));
 #endif
     } else {
         return new ASCIIString(invalidDate);
