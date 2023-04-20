@@ -114,6 +114,8 @@
 
 #define ucal_open RuntimeICUBinder::ICU::instance().ucal_open
 #define ucal_close RuntimeICUBinder::ICU::instance().ucal_close
+#define ucal_getDefaultTimeZone RuntimeICUBinder::ICU::instance().ucal_getDefaultTimeZone
+#define ucal_getTimeZoneDisplayName RuntimeICUBinder::ICU::instance().ucal_getTimeZoneDisplayName
 #define ucal_getKeywordValuesForLocale RuntimeICUBinder::ICU::instance().ucal_getKeywordValuesForLocale
 #define ucal_openTimeZoneIDEnumeration RuntimeICUBinder::ICU::instance().ucal_openTimeZoneIDEnumeration
 #define ucal_openTimeZones RuntimeICUBinder::ICU::instance().ucal_openTimeZones
@@ -181,6 +183,8 @@
 #define ures_getNextResource RuntimeICUBinder::ICU::instance().ures_getNextResource
 #define ures_hasNext RuntimeICUBinder::ICU::instance().ures_hasNext
 #define ures_resetIterator RuntimeICUBinder::ICU::instance().ures_resetIterator
+#define ures_getSize RuntimeICUBinder::ICU::instance().ures_getSize
+#define ures_getStringByIndex RuntimeICUBinder::ICU::instance().ures_getStringByIndex
 
 #define unumf_openForSkeletonAndLocale RuntimeICUBinder::ICU::instance().unumf_openForSkeletonAndLocale
 #define unumf_openForSkeletonAndLocaleWithError RuntimeICUBinder::ICU::instance().unumf_openForSkeletonAndLocaleWithError

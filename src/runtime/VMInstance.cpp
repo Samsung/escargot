@@ -52,6 +52,8 @@ NT_TIB* getTIB()
 #include <pthread.h>
 #endif
 
+#include <time.h> // for tzname
+
 namespace Escargot {
 
 #if defined(ENABLE_WASM)
@@ -436,7 +438,13 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
         m_locale = uloc_getDefault();
 #endif
     }
+
+    // remove posix postfix(A_POSIX -> A)
+    if (m_locale.find("_POSIX") == m_locale.length() - 6) {
+        m_locale = m_locale.substr(0, m_locale.length() - 6);
+    }
 #endif
+
 
     // add gc event callback
     GCEventListenerSet& list = ThreadLocal::gcEventListenerSet();
@@ -566,19 +574,89 @@ static std::string findTimezone()
 #endif
 
 
-void VMInstance::ensureTimezone()
+void VMInstance::ensureVZone()
+{
+    ensureTimezoneID();
+
+#if !defined(OS_WINDOWS_UWP)
+    auto u16 = utf8StringToUTF16String(timezoneID().data(), timezoneID().size());
+    m_timezone = vzone_openID(u16.data(), u16.size());
+#endif
+}
+
+void VMInstance::ensureTimezoneID()
 {
     if (m_timezoneID == "") {
         m_timezoneID = findTimezone();
-    } else {
-#if !defined(OS_WINDOWS_UWP)
-        tzset();
-#endif
+    }
+}
+
+void VMInstance::ensureTzname()
+{
+    if (m_tzname[0].size()) {
+        return;
     }
 
-#if !defined(OS_WINDOWS_UWP)
-    auto u16 = utf8StringToUTF16String(m_timezoneID.data(), m_timezoneID.size());
-    m_timezone = vzone_openID(u16.data(), u16.size());
+    auto u16timezoneID = String::fromUTF8(timezoneID().data(), timezoneID().size())->toUTF16StringData();
+    UErrorCode status = U_ZERO_ERROR;
+    UCalendar* cal = ucal_open(u16timezoneID.data(), u16timezoneID.length(), "en", UCAL_DEFAULT, &status);
+    if (U_SUCCESS(status)) {
+        UChar name[128];
+        int32_t nameLength = ucal_getTimeZoneDisplayName(cal, UCalendarDisplayNameType::UCAL_STANDARD, locale().data(), name, sizeof(name) / sizeof(UChar), &status);
+        if (U_SUCCESS(status)) {
+            m_tzname[0] = (new UTF16String(name, nameLength))->toNonGCUTF8StringData();
+            nameLength = ucal_getTimeZoneDisplayName(cal, UCalendarDisplayNameType::UCAL_DST, locale().data(), name, sizeof(name) / sizeof(UChar), &status);
+            if (U_SUCCESS(status)) {
+                m_tzname[1] = (new UTF16String(name, nameLength))->toNonGCUTF8StringData();
+            }
+        }
+        ucal_close(cal);
+        if (m_tzname[0].size() && m_tzname[1].size()) {
+            return;
+        }
+    }
+
+    // Fallback route
+#if defined(OS_WINDOWS)
+    size_t s;
+    char tznameResult[100];
+    _get_tzname(&s, tznameResult, sizeof(tznameResult), 0);
+    m_tzname[0] = tznameResult;
+    _get_tzname(&s, tznameResult, sizeof(tznameResult), 1);
+    m_tzname[1] = tznameResult;
+#else
+    // FIXME tzset function is MT-safe but changing TZ value and read tzname is not MT-safe
+#if defined(ENABLE_THREADING)
+    static std::mutex s_mutex;
+    std::lock_guard<std::mutex> guard(s_mutex);
+#endif
+    char* oldTZ = getenv("TZ");
+    setenv("TZ", timezoneID().data(), 1);
+    tzset();
+    m_tzname[0] = ::tzname[0];
+    m_tzname[1] = ::tzname[1];
+    if (oldTZ) {
+        setenv("TZ", oldTZ, 1);
+    } else {
+        unsetenv("TZ");
+    }
+    tzset();
+#endif
+}
+
+#else
+void VMInstance::ensureTzname()
+{
+    if (m_tzname[0].size()) {
+        return;
+    }
+    tzset();
+#if defined(OS_WINDOWS)
+    m_tzname[0] = ::_tzname[0];
+    m_tzname[1] = ::_tzname[1];
+#else
+    m_tzname[0] = ::tzname[0];
+    m_tzname[1] = ::tzname[1];
 #endif
 }
 #endif

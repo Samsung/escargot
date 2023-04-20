@@ -242,7 +242,10 @@ std::string ICU::findSystemLocale()
     }
     c = setlocale(LC_CTYPE, "");
     if (c && strlen(c)) {
-        return extractLocaleName(c);
+        auto locale = extractLocaleName(c);
+        if (locale != "C") {
+            return locale;
+        }
     }
     return ICU::instance().uloc_getDefault();
 }
@@ -304,8 +307,19 @@ std::string ICU::findSystemTimezoneName()
     } else if (timeValueFromFile("/etc/TIMEZONE", "TZ", tz, tzSize)) { // Solaris.
         return tz;
     }
-
 #endif
+    UChar result[256];
+    UErrorCode status = U_ZERO_ERROR;
+    int32_t len = ICU::instance().ucal_getDefaultTimeZone(result, sizeof(result) / sizeof(UChar), &status);
+    if (U_SUCCESS(status)) {
+        std::string u8Result;
+        for (int32_t i = 0; i < len; i ++) {
+            u8Result.push_back(result[i]);
+        }
+        return u8Result;
+    }
+
+    // fallback
     time_t t;
     tm lt;
     t = time(NULL);
