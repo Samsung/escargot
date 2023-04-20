@@ -42,6 +42,11 @@ protected:
     {
     }
 
+    virtual bool isScriptSimpleFunctionObject() const override
+    {
+        return true;
+    }
+
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv) override
     {
         CHECK_STACK_OVERFLOW(state);

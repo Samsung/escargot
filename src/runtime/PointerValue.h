@@ -231,6 +231,11 @@ public:
         return false;
     }
 
+    virtual bool isScriptSimpleFunctionObject() const
+    {
+        return false;
+    }
+
     virtual bool isScriptVirtualArrowFunctionObject() const
     {
         return false;

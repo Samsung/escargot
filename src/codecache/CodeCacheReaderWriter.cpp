@@ -522,9 +522,9 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 STORE_ATOMICSTRING_RELOC(m_id);
                 break;
             }
-            case CallFunctionComplexCaseOpcode: {
-                CallFunctionComplexCase* bc = static_cast<CallFunctionComplexCase*>(currentCode);
-                if (bc->m_kind == CallFunctionComplexCase::InWithScope) {
+            case CallComplexCaseOpcode: {
+                CallComplexCase* bc = static_cast<CallComplexCase*>(currentCode);
+                if (bc->m_kind == CallComplexCase::InWithScope) {
                     STORE_ATOMICSTRING_RELOC(m_calleeName);
                 }
                 break;
@@ -1099,9 +1099,9 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 LOAD_ATOMICSTRING_RELOC(m_id);
                 break;
             }
-            case CallFunctionComplexCaseOpcode: {
-                CallFunctionComplexCase* bc = static_cast<CallFunctionComplexCase*>(currentCode);
-                ASSERT(bc->m_kind == CallFunctionComplexCase::InWithScope);
+            case CallComplexCaseOpcode: {
+                CallComplexCase* bc = static_cast<CallComplexCase*>(currentCode);
+                ASSERT(bc->m_kind == CallComplexCase::InWithScope);
                 LOAD_ATOMICSTRING_RELOC(m_calleeName);
                 break;
             }

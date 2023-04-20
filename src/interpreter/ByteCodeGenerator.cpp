@@ -60,6 +60,7 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_lexicalBlockIndex(0)
     , m_classInfo()
     , m_numeralLiteralData(numeralLiteralData) // should be NumeralLiteralVector
+    , m_returnRegister(SIZE_MAX)
 #ifdef ESCARGOT_DEBUGGER
     , m_breakpointContext(nullptr)
 #endif /* ESCARGOT_DEBUGGER */
@@ -571,24 +572,51 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
-        case CallFunctionOpcode: {
-            CallFunction* cd = (CallFunction*)currentCode;
+        case CallOpcode: {
+            Call* cd = (Call*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
-        case CallFunctionWithReceiverOpcode: {
-            CallFunctionWithReceiver* cd = (CallFunctionWithReceiver*)currentCode;
+        case CallWithReceiverOpcode: {
+            CallWithReceiver* cd = (CallWithReceiver*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
-        case CallFunctionComplexCaseOpcode: {
-            CallFunctionComplexCase* cd = (CallFunctionComplexCase*)currentCode;
-            if (cd->m_kind != CallFunctionComplexCase::InWithScope) {
+        // TCO
+        case CallReturnOpcode: {
+            CallReturn* cd = (CallReturn*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            break;
+        }
+        case TailRecursionOpcode: {
+            TailRecursion* cd = (TailRecursion*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            break;
+        }
+        case CallReturnWithReceiverOpcode: {
+            CallReturnWithReceiver* cd = (CallReturnWithReceiver*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            break;
+        }
+        case TailRecursionWithReceiverOpcode: {
+            TailRecursionWithReceiver* cd = (TailRecursionWithReceiver*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            break;
+        }
+        case CallComplexCaseOpcode: {
+            CallComplexCase* cd = (CallComplexCase*)currentCode;
+            if (cd->m_kind != CallComplexCase::InWithScope) {
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverOrThisIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
             }

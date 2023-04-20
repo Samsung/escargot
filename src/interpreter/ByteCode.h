@@ -104,8 +104,12 @@ struct GlobalVariableAccessCacheItem;
     F(JumpIfFalse, 0, 0)                                    \
     F(JumpIfNotFulfilled, 0, 0)                             \
     F(JumpIfEqual, 0, 0)                                    \
-    F(CallFunction, -1, 0)                                  \
-    F(CallFunctionWithReceiver, -1, 0)                      \
+    F(Call, -1, 0)                                          \
+    F(CallWithReceiver, -1, 0)                              \
+    F(CallReturn, -1, 0)                                    \
+    F(TailRecursion, -1, 0)                                 \
+    F(CallReturnWithReceiver, -1, 0)                        \
+    F(TailRecursionWithReceiver, -1, 0)                     \
     F(GetParameter, 0, 0)                                   \
     F(ReturnFunctionSlowCase, 0, 0)                         \
     F(TryOperation, 0, 0)                                   \
@@ -121,7 +125,7 @@ struct GlobalVariableAccessCacheItem;
     F(LoadRegExp, 1, 0)                                     \
     F(OpenLexicalEnvironment, 0, 0)                         \
     F(ObjectDefineGetterSetter, 0, 0)                       \
-    F(CallFunctionComplexCase, 0, 0)                        \
+    F(CallComplexCase, 0, 0)                                \
     F(BindingRestElement, 1, 0)                             \
     F(ExecutionResume, 0, 0)                                \
     F(ExecutionPause, 0, 0)                                 \
@@ -1937,10 +1941,10 @@ public:
 #endif
 };
 
-class CallFunction : public ByteCode {
+class Call : public ByteCode {
 public:
-    CallFunction(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
-        : ByteCode(Opcode::CallFunctionOpcode, loc)
+    Call(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
+        : ByteCode(Opcode::CallOpcode, loc)
         , m_calleeIndex(calleeIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_resultIndex(resultIndex)
@@ -1960,10 +1964,10 @@ public:
 #endif
 };
 
-class CallFunctionWithReceiver : public ByteCode {
+class CallWithReceiver : public ByteCode {
 public:
-    CallFunctionWithReceiver(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
-        : ByteCode(Opcode::CallFunctionWithReceiverOpcode, loc)
+    CallWithReceiver(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
+        : ByteCode(Opcode::CallWithReceiverOpcode, loc)
         , m_receiverIndex(receiverIndex)
         , m_calleeIndex(calleeIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
@@ -1986,7 +1990,101 @@ public:
 #endif
 };
 
-class CallFunctionComplexCase : public ByteCode {
+// TCO
+class CallReturn : public ByteCode {
+public:
+    CallReturn(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
+        : ByteCode(Opcode::CallReturnOpcode, loc)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+    {
+    }
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    uint16_t m_argumentCount;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("tail call r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+    }
+#endif
+};
+
+class TailRecursion : public ByteCode {
+public:
+    TailRecursion(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
+        : ByteCode(Opcode::TailRecursionOpcode, loc)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+    {
+    }
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    uint16_t m_argumentCount;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("tail recursion call r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+    }
+#endif
+};
+
+class CallReturnWithReceiver : public ByteCode {
+public:
+    CallReturnWithReceiver(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
+        : ByteCode(Opcode::CallReturnWithReceiverOpcode, loc)
+        , m_receiverIndex(receiverIndex)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+    {
+    }
+
+    ByteCodeRegisterIndex m_receiverIndex;
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    uint16_t m_argumentCount;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("tail call with receiver <- r%u,r%u(r%u-r%u)", m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+    }
+#endif
+};
+
+class TailRecursionWithReceiver : public ByteCode {
+public:
+    TailRecursionWithReceiver(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
+        : ByteCode(Opcode::TailRecursionWithReceiverOpcode, loc)
+        , m_receiverIndex(receiverIndex)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+    {
+    }
+
+    ByteCodeRegisterIndex m_receiverIndex;
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    uint16_t m_argumentCount;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("tail recursion call with receiver r%u,r%u(r%u-r%u)", m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+    }
+#endif
+};
+
+COMPILE_ASSERT(sizeof(CallReturn) == sizeof(TailRecursion), "");
+COMPILE_ASSERT(sizeof(CallReturnWithReceiver) == sizeof(TailRecursionWithReceiver), "");
+
+class CallComplexCase : public ByteCode {
 public:
     enum Kind ENSURE_ENUM_UNSIGNED {
         WithSpreadElement,
@@ -1997,10 +2095,10 @@ public:
         Import
     };
 
-    CallFunctionComplexCase(const ByteCodeLOC& loc, Kind kind,
-                            bool inWithScope, bool hasSpreadElement, bool isOptional,
-                            const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
-        : ByteCode(Opcode::CallFunctionComplexCaseOpcode, loc)
+    CallComplexCase(const ByteCodeLOC& loc, Kind kind,
+                    bool inWithScope, bool hasSpreadElement, bool isOptional,
+                    const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
+        : ByteCode(Opcode::CallComplexCaseOpcode, loc)
         , m_kind(kind)
         , m_inWithScope(inWithScope)
         , m_hasSpreadElement(hasSpreadElement)
@@ -2014,9 +2112,9 @@ public:
         ASSERT(m_kind != InWithScope);
     }
 
-    CallFunctionComplexCase(const ByteCodeLOC& loc, bool hasSpreadElement, bool isOptional,
-                            AtomicString calleeName, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
-        : ByteCode(Opcode::CallFunctionComplexCaseOpcode, loc)
+    CallComplexCase(const ByteCodeLOC& loc, bool hasSpreadElement, bool isOptional,
+                    AtomicString calleeName, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
+        : ByteCode(Opcode::CallComplexCaseOpcode, loc)
         , m_kind(InWithScope)
         , m_inWithScope(true)
         , m_hasSpreadElement(hasSpreadElement)

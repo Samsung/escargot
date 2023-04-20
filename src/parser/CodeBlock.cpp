@@ -544,12 +544,12 @@ void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockI
 void InterpretedCodeBlock::computeVariables()
 {
     // we should check m_inWith
-    // because CallFunctionInWithScope needs LoadByName
+    // because CallInWithScope needs LoadByName
     m_canAllocateVariablesOnStack = !m_isEvalCode && !m_hasDescendantUsesNonIndexedVariableStorage && m_canUseIndexedVariableStorage && !m_inWith;
 
     if (m_canAllocateEnvironmentOnStack) {
         // we should check m_inWith
-        // because CallFunctionInWithScope needs LoadByName
+        // because CallInWithScope needs LoadByName
         m_canAllocateEnvironmentOnStack = !m_isEvalCode && !m_hasDescendantUsesNonIndexedVariableStorage && m_canUseIndexedVariableStorage && !m_inWith;
     }
 

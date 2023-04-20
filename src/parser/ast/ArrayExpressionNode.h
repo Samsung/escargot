@@ -104,7 +104,7 @@ public:
             if (m_isTaggedTemplateExpression) {
                 auto freezeFunctionRegister = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), freezeFunctionRegister, Value(codeBlock->m_codeBlock->context()->globalObject()->objectFreeze())), context, this->m_loc.index);
-                codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), freezeFunctionRegister, additionalPropertyExpressionRegister, freezeFunctionRegister, 1), context, this->m_loc.index);
+                codeBlock->pushCode(Call(ByteCodeLOC(m_loc.index), freezeFunctionRegister, additionalPropertyExpressionRegister, freezeFunctionRegister, 1), context, this->m_loc.index);
                 context->giveUpRegister();
             }
 
@@ -114,7 +114,7 @@ public:
         if (m_isTaggedTemplateExpression) {
             auto freezeFunctionRegister = context->getRegister();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), freezeFunctionRegister, Value(codeBlock->m_codeBlock->context()->globalObject()->objectFreeze())), context, this->m_loc.index);
-            codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), freezeFunctionRegister, dstRegister, freezeFunctionRegister, 1), context, this->m_loc.index);
+            codeBlock->pushCode(Call(ByteCodeLOC(m_loc.index), freezeFunctionRegister, dstRegister, freezeFunctionRegister, 1), context, this->m_loc.index);
             context->giveUpRegister();
         }
     }

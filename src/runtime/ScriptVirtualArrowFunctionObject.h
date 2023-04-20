@@ -55,8 +55,6 @@ public:
         ASSERT(!hasRareData());
         return m_prototype;
     }
-
-private:
 };
 } // namespace Escargot
 
