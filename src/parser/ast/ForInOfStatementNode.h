@@ -442,7 +442,7 @@ public:
                 TryStatementNode::TryStatementByteCodeContext callingReturnContext;
                 TryStatementNode::generateTryStatementStartByteCode(codeBlock, &newContext, this, callingReturnContext);
                 // innerResult = call(..)
-                codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectRegisterIndex, returnOrInnerResultRegister, REGISTER_LIMIT, returnOrInnerResultRegister, 0), &newContext, this->m_loc.index);
+                codeBlock->pushCode(CallWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectRegisterIndex, returnOrInnerResultRegister, REGISTER_LIMIT, returnOrInnerResultRegister, 0), &newContext, this->m_loc.index);
                 // throwTest = true;
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), throwTestRegister, Value(true)), &newContext, this->m_loc.index);
                 // } catch () {}

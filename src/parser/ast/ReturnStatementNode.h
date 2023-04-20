@@ -63,7 +63,14 @@ public:
             size_t r;
             if (m_argument) {
                 r = m_argument->getRegister(codeBlock, context);
-                m_argument->generateExpressionByteCode(codeBlock, context, r);
+                if (context->tryCatchWithBlockStatementCount() == 0) {
+                    // consider TCO
+                    context->setReturnRegister(r);
+                    m_argument->generateTCOExpressionByteCode(codeBlock, context, r);
+                    context->setReturnRegister(SIZE_MAX);
+                } else {
+                    m_argument->generateExpressionByteCode(codeBlock, context, r);
+                }
             } else {
                 r = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), r, Value()), context, this->m_loc.index);

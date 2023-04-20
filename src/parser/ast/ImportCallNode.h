@@ -49,8 +49,8 @@ public:
             m_options->generateExpressionByteCode(codeBlock, context, optionsReg);
         }
 
-        codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::Import, false, false, false,
-                                                    SIZE_MAX, SIZE_MAX, specifierReg, dstRegister, m_options ? 2 : 1),
+        codeBlock->pushCode(CallComplexCase(ByteCodeLOC(m_loc.index), CallComplexCase::Import, false, false, false,
+                                            SIZE_MAX, SIZE_MAX, specifierReg, dstRegister, m_options ? 2 : 1),
                             context, this->m_loc.index);
 
 

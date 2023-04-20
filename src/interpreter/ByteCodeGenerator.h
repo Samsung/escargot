@@ -97,6 +97,7 @@ struct ByteCodeGenerateContext {
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
         , m_classInfo(contextBefore.m_classInfo)
         , m_numeralLiteralData(contextBefore.m_numeralLiteralData) // should be NumeralLiteralVector
+        , m_returnRegister(contextBefore.m_returnRegister)
 #ifdef ESCARGOT_DEBUGGER
         , m_breakpointContext(contextBefore.m_breakpointContext)
 #endif /* ESCARGOT_DEBUGGER */
@@ -306,6 +307,12 @@ struct ByteCodeGenerateContext {
         return false;
     }
 
+    void setReturnRegister(size_t dstRegister)
+    {
+        ASSERT(m_returnRegister != dstRegister);
+        m_returnRegister = dstRegister;
+    }
+
 #ifndef NDEBUG
     void checkAllDataUsed()
     {
@@ -381,6 +388,8 @@ struct ByteCodeGenerateContext {
     ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;
     void* m_numeralLiteralData; // should be NumeralLiteralVector
+
+    size_t m_returnRegister; // for tail call optimizaiton (TCO)
 #ifdef ESCARGOT_DEBUGGER
     ByteCodeBreakpointContext* m_breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */

@@ -146,7 +146,7 @@ public:
             codeBlock->pushCode(JumpIfEqual(ByteCodeLOC(m_loc.index), throwUndefinedTestRegister, throwRegister, true, false), context, this->m_loc.index);
             context->giveUpRegister(); // for drop throwUndefinedTestRegister
             // Let innerResult be ? Call(throw, iterator, « received.[[Value]] »).
-            codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, throwRegister, valueIdx, valueIdx, 1), context, this->m_loc.index);
+            codeBlock->pushCode(CallWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, throwRegister, valueIdx, valueIdx, 1), context, this->m_loc.index);
             // If generatorKind is async, then set innerResult to ? Await(innerResult).
             if (isAsyncGenerator) {
                 pushAwait(codeBlock, context, valueIdx, valueIdx, REGISTER_LIMIT, tailDataLength);
@@ -216,7 +216,7 @@ public:
                 TryStatementNode::TryStatementByteCodeContext callingReturnContext;
                 TryStatementNode::generateTryStatementStartByteCode(codeBlock, context, this, callingReturnContext);
                 // innerResult = call(..)
-                codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, returnOrInnerResultRegister, REGISTER_LIMIT, returnOrInnerResultRegister, 0), context, this->m_loc.index);
+                codeBlock->pushCode(CallWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, returnOrInnerResultRegister, REGISTER_LIMIT, returnOrInnerResultRegister, 0), context, this->m_loc.index);
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), throwTestRegister, Value(true)), context, this->m_loc.index);
                 // } catch () {}
                 TryStatementNode::generateTryStatementBodyEndByteCode(codeBlock, context, this, callingReturnContext);
@@ -298,7 +298,7 @@ public:
             codeBlock->peekCode<JumpIfTrue>(returnUndefinedCompareJump)->m_jumpPosition = codeBlock->currentCodeSize();
 
             // Let innerReturnResult be ? Call(return, iterator, « received.[[Value]] »).
-            codeBlock->pushCode(CallFunctionWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, returnRegister, valueIdx, valueIdx, 1), context, this->m_loc.index);
+            codeBlock->pushCode(CallWithReceiver(ByteCodeLOC(m_loc.index), iteratorObjectIdx, returnRegister, valueIdx, valueIdx, 1), context, this->m_loc.index);
             // If generatorKind is async, then set innerReturnResult to ? Await(innerReturnResult).
             if (isAsyncGenerator) {
                 pushAwait(codeBlock, context, valueIdx, valueIdx, REGISTER_LIMIT, tailDataLength);

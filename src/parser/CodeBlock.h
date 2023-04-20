@@ -615,6 +615,14 @@ public:
         return m_isAsync;
     }
 
+    // for TCO
+    bool isTailRecursionTarget() const
+    {
+        // global scope cannot create a return statement, neither tail recursion
+        ASSERT(!isGlobalScope());
+        return (!m_canAllocateVariablesOnStack || m_isArrowFunctionExpression || m_isClassConstructor || m_isDerivedClassConstructor || m_isClassMethod || m_isClassStaticMethod || m_isGenerator || m_isAsync || m_usesArgumentsObject) != true;
+    }
+
     bool usesArgumentsObject() const
     {
         return m_usesArgumentsObject;
