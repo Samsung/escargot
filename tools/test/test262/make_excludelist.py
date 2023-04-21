@@ -71,16 +71,16 @@ def run_all_test262(engine, arch):
     if not out:
         raise Exception('test262 run with empty exclude list returns no result')
 
-    return out
+    return out.decode('utf-8')
 
 def front_template():
     template_file = open(join(SCRIPT_SOURCE_DIR, 'template.xml'), 'r')
-    template = template_file.read()
+    template = str(template_file.read())
     template_file.close()
     return template
 
 def rear_template():
-    return '</excludeList>'
+    return str('</excludeList>')
 
 def main():
     parser = ArgumentParser()
@@ -128,8 +128,8 @@ def main():
             out_file.write(item)
         out_file.write(rear_template())
 
-    numstat = subprocess.check_output(["git", "diff", "--numstat", DEFAULT_EXCLUDE_LIST]).split("\t")
-    lines = sorted(re.findall(r'^[+|-][^+|-].*', subprocess.check_output(["git", "diff", "--unified=0", DEFAULT_EXCLUDE_LIST]), re.MULTILINE), key=lambda x:x[:1])
+    numstat = subprocess.check_output(["git", "diff", "--numstat", DEFAULT_EXCLUDE_LIST]).decode('utf-8').split("\t")
+    lines = sorted(re.findall(r'^[+|-][^+|-].*', subprocess.check_output(["git", "diff", "--unified=0", DEFAULT_EXCLUDE_LIST]).decode('utf-8'), re.MULTILINE), key=lambda x:x[:1])
 
     for i in lines:
         if i[0] == "+":
