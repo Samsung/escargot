@@ -169,6 +169,29 @@ struct TypedArrayHelper {
         return elementSizeTable[(size_t)type];
     }
 
+#if defined(CPU_ARM32)
+    // reading unaligned address raises SIGBUS error in armeabi-v7a
+#define ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 ATTRIBUTE_NO_OPTIMIZE
+#else
+#define ATTRIBUTE_NO_OPTIMIZE_IF_ARM32
+#endif
+    ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 static Float32Adaptor::Type readFloat32(uint8_t* rawBytes)
+    {
+        return bitwise_cast<Float32Adaptor::Type>(*reinterpret_cast<uint32_t*>(rawBytes));
+    }
+    ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 static Float64Adaptor::Type readFloat64(uint8_t* rawBytes)
+    {
+        return bitwise_cast<Float64Adaptor::Type>(*reinterpret_cast<uint64_t*>(rawBytes));
+    }
+    ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 static BigInt64Adaptor::Type readInt64(uint8_t* rawBytes)
+    {
+        return *reinterpret_cast<BigInt64Adaptor::Type*>(rawBytes);
+    }
+    ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 static BigUint64Adaptor::Type readUint64(uint8_t* rawBytes)
+    {
+        return *reinterpret_cast<BigUint64Adaptor::Type*>(rawBytes);
+    }
+
     static Value rawBytesToNumber(ExecutionState& state, TypedArrayType type, uint8_t* rawBytes)
     {
         switch (type) {
@@ -187,13 +210,13 @@ struct TypedArrayHelper {
         case TypedArrayType::Uint32:
             return Value(*reinterpret_cast<Uint32Adaptor::Type*>(rawBytes));
         case TypedArrayType::Float32:
-            return Value(Value::DoubleToIntConvertibleTestNeeds, *reinterpret_cast<Float32Adaptor::Type*>(rawBytes));
+            return Value(Value::DoubleToIntConvertibleTestNeeds, readFloat32(rawBytes));
         case TypedArrayType::Float64:
-            return Value(Value::DoubleToIntConvertibleTestNeeds, *reinterpret_cast<Float64Adaptor::Type*>(rawBytes));
+            return Value(Value::DoubleToIntConvertibleTestNeeds, readFloat64(rawBytes));
         case TypedArrayType::BigInt64:
-            return Value(new BigInt(*reinterpret_cast<BigInt64Adaptor::Type*>(rawBytes)));
+            return Value(new BigInt(readInt64(rawBytes)));
         case TypedArrayType::BigUint64:
-            return Value(new BigInt(*reinterpret_cast<BigUint64Adaptor::Type*>(rawBytes)));
+            return Value(new BigInt(readUint64(rawBytes)));
         default:
             RELEASE_ASSERT_NOT_REACHED();
             return Value();

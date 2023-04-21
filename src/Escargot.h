@@ -170,6 +170,16 @@
 #endif
 #endif
 
+#ifndef ATTRIBUTE_NO_OPTIMIZE
+#if defined(COMPILER_GCC)
+#define ATTRIBUTE_NO_OPTIMIZE __attribute__((optimize("O0")))
+#elif defined(COMPILER_CLANG)
+#define ATTRIBUTE_NO_OPTIMIZE [[clang::optnone]]
+#else
+#define ATTRIBUTE_NO_OPTIMIZE
+#endif
+#endif
+
 // #define OS(NAME) (defined OS_##NAME && OS_##NAME)
 
 #ifdef _WIN32
