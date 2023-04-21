@@ -376,9 +376,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     },
                                    nullptr, nullptr, nullptr);
 
-    // UnconvertibleDoubleToInt32 v(1.0);
-    // UnconvertibleDoubleToInt32 v2(2.22);
-    // UnconvertibleDoubleToInt32 v3(-0.0);
 #if defined(OS_WINDOWS)
     void* stackStartAddress = getTIB()->StackBase;
 #elif defined(OS_DARWIN)

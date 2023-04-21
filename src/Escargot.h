@@ -208,6 +208,10 @@
 #error "failed to detect target OS"
 #endif
 
+#if defined(ANDROID)
+#define OS_ANDROID 1
+#endif
+
 #if defined(OS_WINDOWS)
 #define NOMINMAX
 #endif
@@ -482,7 +486,7 @@ void customEscargotErrorLogger(const char* format, ...);
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define ESCARGOT_COMPUTED_GOTO_INTERPRETER
 // some devices cannot support getting label address from outside well
-#if (defined(CPU_ARM64) || (defined(CPU_ARM32) && defined(COMPILER_CLANG))) || defined(OS_DARWIN)
+#if (defined(CPU_ARM64) || (defined(CPU_ARM32) && defined(COMPILER_CLANG))) || defined(OS_DARWIN) || defined(OS_ANDROID)
 #define ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL
 #endif
 #endif
