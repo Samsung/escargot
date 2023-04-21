@@ -323,7 +323,7 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
 
     if (argc < 1) {
         d->setTimeValueAsNaN();
-        return Value(Value::DoubleToIntConvertibleTestNeeds, d->primitiveValue());
+        return Value(Value::NanInit);
     }
 
     double year = 0, month = 0, date = 0, hour = 0, minute = 0, second = 0, millisecond = 0;
@@ -427,7 +427,7 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
 
     if (argc < 1) {
         d->setTimeValueAsNaN();
-        return Value(Value::DoubleToIntConvertibleTestNeeds, d->primitiveValue());
+        return Value(Value::NanInit);
     }
 
     double y;
@@ -438,7 +438,7 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
     // If y is NaN, set the [[DateValue]] internal slot of this Date object to NaN and return NaN.
     if (std::isnan(y)) {
         d->setTimeValueAsNaN();
-        return Value(Value::DoubleToIntConvertibleTestNeeds, d->primitiveValue());
+        return Value(Value::NanInit);
     }
 
     month = d->getMonth(state);
