@@ -21,10 +21,13 @@
 #include "FinalizationRegistryObject.h"
 #include "runtime/Context.h"
 #include "runtime/SandBox.h"
+#include "runtime/ScriptFunctionObject.h"
 #include "runtime/Job.h"
 #include "runtime/JobQueue.h"
 #include "runtime/VMInstance.h"
 #include "runtime/PromiseObject.h"
+#include "interpreter/ByteCode.h"
+#include "parser/CodeBlock.h"
 #include "util/Util.h"
 
 namespace Escargot {
@@ -163,18 +166,31 @@ void FinalizationRegistryObject::finalizer(Object* self, void* data)
 
     ASSERT(!!item->source);
     if (item->source->m_cleanupCallback) {
-        SandBox sb(item->source->m_realm);
-        struct ExecutionData {
-            FinalizationRegistryObjectItem* item;
-        } ed;
-        ed.item = item;
-        sb.run([](ExecutionState& state, void* data) -> Value {
-            ExecutionData* ed = (ExecutionData*)data;
-            Value argv = ed->item->heldValue;
-            Object::call(state, ed->item->source->m_cleanupCallback.value(), Value(), 1, &argv);
-            return Value();
-        },
-               &ed);
+        bool wasCallbackDeleted = false;
+        auto callback = item->source->m_cleanupCallback.value();
+        if (callback->isScriptFunctionObject()) {
+            auto cb = callback->asScriptFunctionObject()->interpretedCodeBlock();
+            if (cb->byteCodeBlock() && cb->byteCodeBlock()->m_code.data() == nullptr) {
+                // NOTE this case means this function was deleted by gc(same time with this FinalizationRegistryObject)
+                // we should check before calling because finalizer is not ordered
+                wasCallbackDeleted = true;
+            }
+        }
+
+        if (!wasCallbackDeleted) {
+            SandBox sb(item->source->m_realm);
+            struct ExecutionData {
+                FinalizationRegistryObjectItem* item;
+            } ed;
+            ed.item = item;
+            sb.run([](ExecutionState& state, void* data) -> Value {
+                ExecutionData* ed = (ExecutionData*)data;
+                Value argv = ed->item->heldValue;
+                Object::call(state, ed->item->source->m_cleanupCallback.value(), Value(), 1, &argv);
+                return Value();
+            },
+                   &ed);
+        }
     }
 
     // remove item from FinalizationRegistryObject
