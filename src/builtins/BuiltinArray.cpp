@@ -893,7 +893,7 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, lastIndexOf);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
     // Let len be ToLength(Get(O, "length")).
-    int64_t len = O->length(state);
+    double len = O->length(state);
 
     // If len is 0, return -1.
     if (len == 0) {
@@ -909,15 +909,21 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
     }
 
     // If n ≥ 0, then let k be min(n, len – 1).
-    int64_t k;
+    double doubleK;
     if (n >= 0) {
-        k = (n == -0) ? 0 : std::min(n, len - 1.0);
+        doubleK = (n == -0) ? 0 : std::min(n, len - 1.0);
     } else {
         // Else, n < 0
         // Let k be len - abs(n).
-        k = len - std::abs(n);
+        doubleK = len - std::abs(n);
     }
 
+    // NOTE in android arm32, -Inf to int64 generates wrong result
+    if (doubleK < 0) {
+        return Value(-1);
+    }
+
+    int64_t k = doubleK;
     // Repeat, while k≥ 0
     while (k >= 0) {
         // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
