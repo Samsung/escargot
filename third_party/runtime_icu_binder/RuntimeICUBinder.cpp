@@ -308,6 +308,22 @@ std::string ICU::findSystemTimezoneName()
         return tz;
     }
 #endif
+#if defined(ANDROID)
+    FILE* fp = popen("getprop persist.sys.timezone", "r");
+    if (fp) {
+        char buffer[512];
+        fgets(buffer, sizeof(buffer), fp);
+        std::string ret = buffer;
+        fclose(fp);
+
+        if (ret.size() && ret.back() == '\n') {
+            ret = ret.substr(0, ret.size() - 1);
+        }
+        if (ret.size()) {
+            return ret;
+        }
+    }
+#endif
     UChar result[256];
     UErrorCode status = U_ZERO_ERROR;
     int32_t len = ICU::instance().ucal_getDefaultTimeZone(result, sizeof(result) / sizeof(UChar), &status);
