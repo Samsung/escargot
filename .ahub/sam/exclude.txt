@@ -1,3 +1,4 @@
+# Exclude external third-party libraries
 /escargot/third_party/double_conversion/double-conversion.cc
 /escargot/third_party/double_conversion/bignum.h
 /escargot/third_party/GCutil/
@@ -7,12 +8,16 @@
 /escargot/third_party/rapidjson/include/rapidjson/reader.h
 /escargot/third_party/rapidjson/include/rapidjson/encodings.h
 /escargot/third_party/yarr/
+
+# Exclude parser/interpreter codes which have intensive control statements and similar patterns essentially used for compilation and execution
 /escargot/src/parser/Lexer.h
 /escargot/src/parser/Lexer.cpp
 /escargot/src/parser/esprima_cpp/esprima.cpp
 /escargot/src/interpreter/ByteCodeInterpreter.h
 /escargot/src/interpreter/ByteCodeInterpreter.cpp
 /escargot/src/parser/CodeBlock.h
+
+# Exclude huge-scaled Object classes that represent built-in JavaScript Objects
 /escargot/src/runtime/GlobalObject.h
 /escargot/src/runtime/Object.h
 /escargot/src/runtime/DateObject.h
