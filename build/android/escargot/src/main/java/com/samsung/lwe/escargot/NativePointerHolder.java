@@ -3,6 +3,8 @@ package com.samsung.lwe.escargot;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -34,14 +36,28 @@ public abstract class NativePointerHolder {
 
     public static void cleanUp()
     {
-        try {
-            for (NativePointerHolderPhantomReference reference : s_referenceSet.get()) {
-                reference.refersTo(null);
+        Method refersToMethod = null;
+        Method[] methods = NativePointerHolderPhantomReference.class
+                .getSuperclass().getSuperclass() // <- points Reference<T>
+                .getDeclaredMethods();
+        for (int i = 0; i < methods.length; i ++) {
+            if (methods[i].getName().equals("refersTo")) {
+                refersToMethod = methods[i];
+                break;
             }
-        } catch (NoSuchMethodError e) {
-            for (NativePointerHolderPhantomReference reference : s_referenceSet.get()) {
-                reference.isEnqueued();
+        }
+
+        for (NativePointerHolderPhantomReference reference : s_referenceSet.get()) {
+            if (refersToMethod != null) {
+                try {
+                    refersToMethod.invoke(reference, (java.lang.Object)null);
+                    continue;
+                } catch (Exception e) {
+                    refersToMethod = null;
+                    e.printStackTrace();
+                }
             }
+            reference.isEnqueued();
         }
 
         Reference<?> ref;

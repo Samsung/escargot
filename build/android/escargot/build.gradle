@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.library'
+    id 'jacoco'
 }
 
 android {
@@ -30,6 +31,7 @@ android {
         }
 
         debug {
+            testCoverageEnabled true
             debuggable = true
             jniDebuggable = true
             ndk {
@@ -48,6 +50,11 @@ android {
 
         releaseShell {
             initWith(buildTypes.release)
+            debuggable = true
+            jniDebuggable = true
+            ndk {
+                debuggable = true
+            }
             externalNativeBuild {
                 cmake {
                     arguments "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DESCARGOT_HOST=android", "-DESCARGOT_OUTPUT=static_lib", "-DENABLE_SHELL=ON"
@@ -115,6 +122,23 @@ task buildGMakeNativeNoNDK(type: Exec) {
     commandLine "/usr/bin/env", "make", "-j" + Runtime.getRuntime().availableProcessors().toString();
 }
 
+task jacocoTestReport(type: JacocoReport, dependsOn: ['testDebugUnitTest', 'createDebugCoverageReport']) {
+    reports {
+        xml.enabled = true
+        html.enabled = true
+    }
+
+    def mainSrc = "${project.projectDir}/src/main/java"
+    sourceDirectories.setFrom(files([mainSrc]))
+
+    def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*',
+                      'android/**/*.*', '**/*Activity*.*']
+    def debugTree = fileTree(dir: "${buildDir}/intermediates/classes/debug", excludes: fileFilter)
+    classDirectories.setFrom(files([debugTree]))
+
+    executionData.setFrom(fileTree(dir: "${buildDir}/jacoco/testDebugUnitTest.exec"))
+}
+
 project.afterEvaluate {
     if (org.gradle.internal.os.OperatingSystem.current().isLinux() || org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
         testDebugUnitTest {
@@ -125,6 +149,7 @@ project.afterEvaluate {
             dependsOn buildGMakeNativeNoNDK
             systemProperty "java.library.path", dirForNativeNoNDK.asFile.absolutePath + ":" + System.getProperty("java.library.path")
         }
+
     }
 }
 

@@ -10,17 +10,16 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.io.ByteArrayInputStream;
 import java.util.Optional;
 
 @RunWith(AndroidJUnit4.class)
 public class EscargotTest {
-    public void printNegativeTC(String desc)
-    {
+    public void printNegativeTC(String desc) {
         System.out.println("[NEGATIVE TC] " + desc);
     }
 
-    public void printPositiveTC(String desc)
-    {
+    public void printPositiveTC(String desc) {
         System.out.println("[POSITIVE TC] " + desc);
     }
 
@@ -45,7 +44,18 @@ public class EscargotTest {
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
         Context context = Context.create(vmInstance);
 
-        for (int i = 0; i < 30000; i ++) {
+        // dump build config
+        Evaluator.evalScript(context, "'" + BuildConfig.BUILD_TYPE + "'", null, true);
+        Evaluator.evalScript(context, "'" + BuildConfig.LIBRARY_PACKAGE_NAME + "'", null, true);
+        Evaluator.evalScript(context, "'" + BuildConfig.DEBUG + "'", null, true);
+
+        // test writable of /tmp/
+        Optional<String> s = Escargot.copyStreamAsTempFile(new ByteArrayInputStream("asdf".getBytes()), "test", ".txt", false);
+        assertTrue(s.isPresent());
+
+        printPositiveTC("test build config and copy file in jar");
+
+        for (int i = 0; i < 30000; i++) {
             // alloc many trash objects for testing memory management
             JavaScriptValue.create("asdf");
         }
@@ -161,8 +171,7 @@ public class EscargotTest {
     }
 
     @Test
-    public void simpleOneByOneThreadingTest()
-    {
+    public void simpleOneByOneThreadingTest() {
         Thread t1 = new Thread(() -> {
             assertFalse(Globals.isInitialized());
             Globals.initializeGlobals();
@@ -177,7 +186,7 @@ public class EscargotTest {
             context.getGlobalObject().set(context, JavaScriptValue.create("ddd"), vv);
             Evaluator.evalScript(context, "'java.version' + ddd", "invalid", true);
 
-            for (int i = 0; i < 30000; i ++) {
+            for (int i = 0; i < 30000; i++) {
                 // alloc many trash objects for testing memory management
                 JavaScriptValue.create("asdf");
             }
@@ -245,7 +254,7 @@ public class EscargotTest {
             context.getGlobalObject().set(context, JavaScriptValue.create("ddd"), vv);
             Evaluator.evalScript(context, "'java.version' + ddd", "invalid", true);
 
-            for (int i = 0; i < 30000; i ++) {
+            for (int i = 0; i < 999999; i++) {
                 // alloc many trash objects for testing memory management
                 JavaScriptValue.create("asdf");
             }
@@ -272,6 +281,11 @@ public class EscargotTest {
             context.getGlobalObject().set(context, JavaScriptValue.create("ddd"), vv);
             Evaluator.evalScript(context, "'java.version' + ddd", "invalid", true);
 
+            for (int i = 0; i < 999999; i++) {
+                // alloc many trash objects for testing memory management
+                JavaScriptValue.create("asdf");
+            }
+
             context = null;
             vmInstance = null;
             System.gc();
@@ -281,11 +295,6 @@ public class EscargotTest {
 
         t1.start();
         t2.start();
-
-        for (int i = 0; i < 30000; i ++) {
-            // alloc many trash objects for testing memory management
-            JavaScriptValue.create("asdf");
-        }
 
         try {
             t1.join();
@@ -304,15 +313,13 @@ public class EscargotTest {
         printPositiveTC("simpleMultiThreadingTest");
     }
 
-    private Context initEngineAndCreateContext()
-    {
+    private Context initEngineAndCreateContext() {
         Globals.initializeGlobals();
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
         return Context.create(vmInstance);
     }
 
-    private void finalizeEngine()
-    {
+    private void finalizeEngine() {
         System.gc();
         System.gc();
         System.gc();
@@ -333,7 +340,7 @@ public class EscargotTest {
         }
 
         assertThrows(NullPointerException.class, () -> {
-               Bridge.register(null, "a", "b", new EmptyBridge());
+            Bridge.register(null, "a", "b", new EmptyBridge());
         });
         printNegativeTC("register bridge with null 1");
         assertFalse(Bridge.register(context, null, "b", new EmptyBridge()));
@@ -347,6 +354,7 @@ public class EscargotTest {
 
         class TestBridge extends Bridge.Adapter {
             public boolean called = false;
+
             @Override
             public Optional<JavaScriptValue> callback(Optional<JavaScriptValue> data) {
                 assertFalse(called);
@@ -356,6 +364,7 @@ public class EscargotTest {
                 return Optional.of(JavaScriptValue.create(data.get().asScriptString().toJavaString() + "ASdfasdfasdf"));
             }
         };
+
         TestBridge testBridge = new TestBridge();
         Bridge.register(context, "Native", "addString", testBridge);
         printPositiveTC("register bridge 1");
@@ -477,7 +486,7 @@ public class EscargotTest {
         assertTrue(JavaScriptValue.create(Integer.MAX_VALUE).isNumber());
         result = JavaScriptValue.create(Integer.MAX_VALUE).toString(context);
         assertTrue(result.isPresent());
-        assertEquals(result.get().toJavaString(), Integer.MAX_VALUE+"");
+        assertEquals(result.get().toJavaString(), Integer.MAX_VALUE + "");
 
         printPositiveTC("value toString test");
 
@@ -782,7 +791,7 @@ public class EscargotTest {
         assertTrue(value.isCallable());
 
         value = value.call(context, JavaScriptString.createUndefined(), new JavaScriptValue[]{
-           JavaScriptValue.create(1), JavaScriptValue.create(2), JavaScriptValue.create(3)
+                JavaScriptValue.create(1), JavaScriptValue.create(2), JavaScriptValue.create(3)
         }).get();
 
         assertTrue(value.isArrayObject());
@@ -796,7 +805,7 @@ public class EscargotTest {
         JavaScriptGlobalObject global = context.getGlobalObject();
         JavaScriptValue globalFunction = global.get(context, JavaScriptString.create("Function")).get();
         JavaScriptValue newFunction = globalFunction.call(context, JavaScriptValue.createUndefined(),
-                new JavaScriptValue[]{ JavaScriptString.create("return this") }).get();
+                new JavaScriptValue[]{JavaScriptString.create("return this")}).get();
         assertTrue(newFunction.isFunctionObject());
         JavaScriptValue ret = newFunction.call(context, JavaScriptValue.createUndefined(), new JavaScriptValue[]{}).get();
         assertTrue(ret.equalsTo(context, global).get().booleanValue());
@@ -871,15 +880,15 @@ public class EscargotTest {
         JavaScriptGlobalObject global = context.getGlobalObject();
         JavaScriptValue globalFunction = global.get(context, JavaScriptString.create("Function")).get();
         JavaScriptValue newFunction = globalFunction.construct(context, new JavaScriptValue[]{
-           JavaScriptString.create("a"),
-           JavaScriptString.create("return a")
+                JavaScriptString.create("a"),
+                JavaScriptString.create("return a")
         }).get();
 
         assertTrue(newFunction.isFunctionObject());
         printPositiveTC("construct test 1");
 
         JavaScriptValue returnValue = newFunction.call(context, JavaScriptValue.createUndefined(), new JavaScriptValue[]{
-            JavaScriptValue.create("test")
+                JavaScriptValue.create("test")
         }).get();
 
         assertEquals(returnValue.asScriptString().toJavaString(), "test");
@@ -959,7 +968,7 @@ public class EscargotTest {
                             @Override
                             public Optional<JavaScriptValue> callback(JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
                                 int sum = 0;
-                                for (int i = 0; i < arguments.length; i ++) {
+                                for (int i = 0; i < arguments.length; i++) {
                                     sum += arguments[i].asInt32();
                                 }
                                 return Optional.of(JavaScriptValue.create(sum));
@@ -1020,6 +1029,43 @@ public class EscargotTest {
         printNegativeTC("nanInfIssueTest test 4");
 
         context = null;
+        finalizeEngine();
+    }
+
+    @Test
+    public void promiseTest()
+    {
+        Globals.initializeGlobals();
+        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+        Context context = Context.create(vmInstance);
+
+        Evaluator.evalScript(context, "var myResolve\n" +
+                "var myPromise = new Promise((resolve, reject) => {\n" +
+                "  myResolve = resolve;\n" +
+                "});\n" +
+                "myPromise.then( () => { globalThis.thenCalled = true; } )", "test.js", true);
+
+        assertTrue(context.getGlobalObject().get(context, JavaScriptValue.create("thenCalled")).get().isUndefined());
+        Evaluator.evalScript(context, "myResolve()", "test.js", true);
+        assertTrue(context.getGlobalObject().get(context, JavaScriptValue.create("thenCalled")).get().asBoolean());
+        assertFalse(vmInstance.hasPendingJob());
+        printPositiveTC("promiseTest 1");
+
+        context = Context.create(vmInstance);
+        Evaluator.evalScript(context, "var myResolve\n" +
+                "var myPromise = new Promise((resolve, reject) => {\n" +
+                "  myResolve = resolve;\n" +
+                "});\n" +
+                "myPromise.then( () => { globalThis.thenCalled = true; } )", "test.js", true);
+        context.getGlobalObject().get(context, JavaScriptValue.create("myResolve")).get().call(context, JavaScriptValue.createUndefined(), new JavaScriptValue[]{});
+        assertTrue(vmInstance.hasPendingJob());
+        vmInstance.executeEveryPendingJobIfExists();
+        assertTrue(context.getGlobalObject().get(context, JavaScriptValue.create("thenCalled")).get().asBoolean());
+        assertFalse(vmInstance.hasPendingJob());
+        printPositiveTC("promiseTest 2");
+
+        context = null;
+        vmInstance = null;
         finalizeEngine();
     }
 
