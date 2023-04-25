@@ -1,7 +1,9 @@
 package com.samsung.lwe.escargot;
 
-public class Memory {
+final public class Memory {
     static { Escargot.init(); }
+    private Memory() {
+    }
 
     static public native void gc();
 

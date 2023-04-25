@@ -1,6 +1,9 @@
 package com.samsung.lwe.escargot;
 
-public class Globals {
+final public class Globals {
+    private Globals() {
+
+    }
     static { Escargot.init(); }
 
     static public native void initializeGlobals();

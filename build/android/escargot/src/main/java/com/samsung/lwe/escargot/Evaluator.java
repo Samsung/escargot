@@ -2,9 +2,12 @@ package com.samsung.lwe.escargot;
 
 import java.util.Optional;
 
-public class Evaluator {
+final public class Evaluator {
+    static { Escargot.init(); }
+    private Evaluator() {
+    }
+
     /**
-     *
      * @param context
      * @param source
      * @param sourceFileName
