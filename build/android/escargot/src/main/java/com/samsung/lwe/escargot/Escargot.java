@@ -19,8 +19,9 @@ public class Escargot {
                     "libescargot-jni-", ".so", true);
             if (r.isPresent()) {
                 System.load(r.get());
+            } else {
+                throw e;
             }
-            throw e;
         }
     }
     static public Optional<String> copyStreamAsTempFile(InputStream is, String prefix, String suffix, boolean isExecutable)
