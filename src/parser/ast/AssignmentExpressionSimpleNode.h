@@ -124,6 +124,11 @@ public:
             context->giveUpRegister();
         }
     }
+
+    virtual ByteCodeRegisterIndex getRegister(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
+    {
+        return context->getRegister();
+    }
 };
 } // namespace Escargot
 
