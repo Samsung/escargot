@@ -28,10 +28,14 @@ namespace Escargot {
 
 class MemberExpressionNode : public ExpressionNode {
 public:
-    MemberExpressionNode(Node* object, Node* property)
+    MemberExpressionNode(Node* object, Node* property, bool isPreComputedCase = false, bool isOptional = false, bool isReferencePrivateField = false)
         : ExpressionNode()
         , m_object(object)
         , m_property(property)
+        , m_isPreComputedCase(isPreComputedCase)
+        , m_isOptional(isOptional)
+        , m_isReferencePrivateField(isReferencePrivateField)
+        , m_startOfOptionalChaining(false)
     {
     }
 
@@ -46,36 +50,44 @@ public:
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::MemberExpression; }
-    virtual bool isPreComputedCase()
-    {
-        return false;
-    }
-
-    virtual bool isOptional()
-    {
-        return false;
-    }
-
-    virtual bool isReferencePrivateField()
-    {
-        return false;
-    }
 
     inline AtomicString propertyName()
     {
-        ASSERT(isPreComputedCase());
+        ASSERT(m_isPreComputedCase);
         return ((IdentifierNode*)m_property)->name();
     }
 
     inline bool hasInfinityPropertyName(ByteCodeBlock* codeBlock)
     {
-        ASSERT(isPreComputedCase());
+        ASSERT(m_isPreComputedCase);
         return (propertyName() == codeBlock->m_codeBlock->context()->staticStrings().Infinity || propertyName() == codeBlock->m_codeBlock->context()->staticStrings().NegativeInfinity);
+    }
+
+    inline bool isPreComputedCase()
+    {
+        return m_isPreComputedCase;
+    }
+
+    inline bool isOptional()
+    {
+        return m_isOptional;
+    }
+
+    inline bool isReferencePrivateField()
+    {
+        return m_isReferencePrivateField;
+    }
+
+    virtual void setStartOfOptionalChaining() override
+    {
+        ASSERT(!m_startOfOptionalChaining);
+        m_startOfOptionalChaining = true;
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstIndex) override
     {
-        if (isOptional()) {
+        if (UNLIKELY(m_startOfOptionalChaining)) {
+            context->pushOptionalChainingJumpPositionList();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstIndex, Value()), context, this->m_loc.index);
         }
 
@@ -89,7 +101,7 @@ public:
         }
 
         size_t objectIndex;
-        if (isSimple || isPreComputedCase()) {
+        if (isSimple || m_isPreComputedCase) {
             objectIndex = m_object->getRegister(codeBlock, context);
         } else {
             objectIndex = context->getRegister();
@@ -97,19 +109,19 @@ public:
 
         // we should check super binding by loading this variable
         // for covering this case eg) super[super()]
-        if (m_object->isSuperExpression() && !isPreComputedCase() && codeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
+        if (m_object->isSuperExpression() && !m_isPreComputedCase && codeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
             codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), objectIndex), context, this->m_loc.index);
         }
 
         m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
 
-        size_t optionalJumpPos = SIZE_MAX;
-        if (isOptional()) {
+        if (m_isOptional) {
             codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, objectIndex), context, this->m_loc.index);
-            optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+            size_t optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+            context->addOptionalChainingJumpPosition(optionalJumpPos);
         }
 
-        if (isPreComputedCase()) {
+        if (m_isPreComputedCase) {
             ASSERT(m_property->isIdentifier());
             if (UNLIKELY(m_object->isSuperExpression())) {
                 size_t propertyIndex = m_property->getRegister(codeBlock, context);
@@ -124,7 +136,7 @@ public:
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property->m_loc.index);
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this->m_loc.index);
                 context->giveUpRegister();
-            } else if (UNLIKELY(isReferencePrivateField())) {
+            } else if (UNLIKELY(m_isReferencePrivateField)) {
                 codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, m_property->asIdentifier()->name(),
                                                               needsToReferOuterClassWhenEvaluatePrivateMember(context)),
                                     context, this->m_loc.index);
@@ -146,15 +158,16 @@ public:
             context->giveUpRegister();
         }
 
-        if (isOptional()) {
-            codeBlock->peekCode<JumpIfUndefinedOrNull>(optionalJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
+        if (UNLIKELY(m_startOfOptionalChaining)) {
+            context->linkOptionalChainingJumpPosition(codeBlock, codeBlock->currentCodeSize());
+            context->popOptionalChainingJumpPositionList();
         }
     }
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex src, bool needToReferenceSelf) override
     {
-        ASSERT(!isOptional());
-        if (isPreComputedCase()) {
+        ASSERT(!m_isOptional);
+        if (m_isPreComputedCase) {
             size_t valueIndex;
             size_t objectIndex;
             if (needToReferenceSelf) {
@@ -181,7 +194,7 @@ public:
                 codeBlock->pushCode(SetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, valueIndex), context, this->m_loc.index);
                 context->giveUpRegister();
                 context->giveUpRegister();
-            } else if (UNLIKELY(isReferencePrivateField())) {
+            } else if (UNLIKELY(m_isReferencePrivateField)) {
                 codeBlock->pushCode(ComplexSetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex,
                                                               m_property->asIdentifier()->name(), valueIndex,
                                                               needsToReferOuterClassWhenEvaluatePrivateMember(context)),
@@ -221,7 +234,7 @@ public:
     {
         // we should check super binding by loading this variable
         // for covering this case eg) super[super()]
-        if (!isPreComputedCase() && m_object->isSuperExpression() && codeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
+        if (!m_isPreComputedCase && m_object->isSuperExpression() && codeBlock->m_codeBlock->needsToLoadThisBindingFromEnvironment()) {
             codeBlock->pushCode(LoadThisBinding(ByteCodeLOC(m_loc.index), context->getRegister()), context, this->m_loc.index);
             context->giveUpRegister();
         }
@@ -229,7 +242,7 @@ public:
         ByteCodeRegisterIndex objectIndex = m_object->getRegister(codeBlock, context);
         m_object->generateExpressionByteCode(codeBlock, context, objectIndex);
 
-        if (!isPreComputedCase()) {
+        if (!m_isPreComputedCase) {
             ByteCodeRegisterIndex propertyIndex = m_property->getRegister(codeBlock, context);
             m_property->generateExpressionByteCode(codeBlock, context, propertyIndex);
         }
@@ -237,7 +250,7 @@ public:
 
     virtual void generateReferenceResolvedAddressByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
-        if (isPreComputedCase()) {
+        if (m_isPreComputedCase) {
             size_t objectIndex = context->getLastRegisterIndex();
             size_t resultIndex = context->getRegister();
             if (UNLIKELY(hasInfinityPropertyName(codeBlock))) {
@@ -248,7 +261,7 @@ public:
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property->m_loc.index);
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, resultIndex), context, this->m_loc.index);
                 context->giveUpRegister();
-            } else if (UNLIKELY(isReferencePrivateField())) {
+            } else if (UNLIKELY(m_isReferencePrivateField)) {
                 codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, resultIndex, m_property->asIdentifier()->name(),
                                                               needsToReferOuterClassWhenEvaluatePrivateMember(context)),
                                     context, this->m_loc.index);
@@ -266,7 +279,7 @@ public:
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_object->iterateChildrenIdentifier(fn);
-        if (!isPreComputedCase()) {
+        if (!m_isPreComputedCase) {
             m_property->iterateChildrenIdentifier(fn);
         }
     }
@@ -274,7 +287,7 @@ public:
     virtual void iterateChildrenIdentifierAssigmentCase(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
         m_object->iterateChildrenIdentifierAssigmentCase(fn);
-        if (!isPreComputedCase()) {
+        if (!m_isPreComputedCase) {
             m_property->iterateChildrenIdentifierAssigmentCase(fn);
         }
     }
@@ -289,7 +302,7 @@ public:
 
     bool needsToReferOuterClassWhenEvaluatePrivateMember(ByteCodeGenerateContext* context)
     {
-        ASSERT(isReferencePrivateField());
+        ASSERT(m_isReferencePrivateField);
 
         auto pnames = context->m_codeBlock->classPrivateNames();
         if (pnames) {
@@ -318,30 +331,11 @@ public:
 private:
     Node* m_object; // object: Expression;
     Node* m_property; // property: Identifier | Expression;
-};
 
-template <const bool isPreComputedCaseValue = false, const bool isOptionalValue = false, const bool referencePrivateField = false>
-class MemberExpressionNodeOptional : public MemberExpressionNode {
-public:
-    MemberExpressionNodeOptional(Node* object, Node* property)
-        : MemberExpressionNode(object, property)
-    {
-    }
-
-    virtual bool isPreComputedCase() override
-    {
-        return isPreComputedCaseValue;
-    }
-
-    virtual bool isOptional() override
-    {
-        return isOptionalValue;
-    }
-
-    virtual bool isReferencePrivateField() override
-    {
-        return referencePrivateField;
-    }
+    bool m_isPreComputedCase;
+    bool m_isOptional;
+    bool m_isReferencePrivateField;
+    bool m_startOfOptionalChaining;
 };
 } // namespace Escargot
 

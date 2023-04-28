@@ -29,21 +29,19 @@ namespace Escargot {
 
 class CallExpressionNode : public ExpressionNode {
 public:
-    CallExpressionNode(Node* callee, const NodeList& arguments)
+    CallExpressionNode(Node* callee, const NodeList& arguments, bool isOptional)
         : ExpressionNode()
         , m_callee(callee)
         , m_arguments(arguments)
+        , m_isOptional(isOptional)
+        , m_startOfOptionalChaining(false)
     {
     }
 
-    virtual bool isOptional()
+    virtual void setStartOfOptionalChaining() override
     {
-        return false;
-    }
-
-    virtual bool isSubSequenceOfOptionalExpression()
-    {
-        return false;
+        ASSERT(!m_startOfOptionalChaining);
+        m_startOfOptionalChaining = true;
     }
 
     Node* callee() { return m_callee; }
@@ -151,8 +149,6 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        bool isOptional = this->isOptional();
-        bool isSubSequenceOfOptionalExpression = this->isSubSequenceOfOptionalExpression();
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
             ByteCodeRegisterIndex evalIndex = context->getRegister();
             codeBlock->pushCode(LoadByName(ByteCodeLOC(m_loc.index), evalIndex, codeBlock->m_codeBlock->context()->staticStrings().eval), context, this->m_loc.index);
@@ -160,7 +156,7 @@ public:
             ByteCodeRegisterIndex startIndex = args.first;
             context->giveUpRegister();
             codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), CallFunctionComplexCase::MayBuiltinEval, context->m_isWithScope, args.second,
-                                                        isOptional, REGULAR_REGISTER_LIMIT, evalIndex, startIndex, dstRegister, m_arguments.size()),
+                                                        m_isOptional, REGULAR_REGISTER_LIMIT, evalIndex, startIndex, dstRegister, m_arguments.size()),
                                 context, this->m_loc.index);
             return;
         }
@@ -180,7 +176,7 @@ public:
             auto args = generateArguments(codeBlock, context);
             ByteCodeRegisterIndex startIndex = args.first;
             context->m_inCallingExpressionScope = prevInCallingExpressionScope;
-            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), args.second, isOptional,
+            codeBlock->pushCode(CallFunctionComplexCase(ByteCodeLOC(m_loc.index), args.second, m_isOptional,
                                                         calleeName, startIndex, dstRegister, m_arguments.size()),
                                 context, this->m_loc.index);
             return;
@@ -191,7 +187,7 @@ public:
         bool maySpecialBuiltinApplyCall = false; // ex) function.apply(<any>, arguments)
         bool calleeIsMemberExpression = m_callee->isMemberExpression();
 
-        if (calleeIsMemberExpression && !isOptional && !isSubSequenceOfOptionalExpression && m_callee->asMemberExpression()->property()->isIdentifier() && m_callee->asMemberExpression()->property()->asIdentifier()->name().string()->equals("apply")) {
+        if (calleeIsMemberExpression && !m_isOptional && m_callee->asMemberExpression()->property()->isIdentifier() && m_callee->asMemberExpression()->property()->asIdentifier()->name().string()->equals("apply")) {
             if (m_arguments.size() == 2 && codeBlock->m_codeBlock->parameterCount() == 0) {
                 auto node = m_arguments.begin();
                 node = node->next();
@@ -230,7 +226,8 @@ public:
             return;
         }
 
-        if (isOptional || isSubSequenceOfOptionalExpression) {
+        if (UNLIKELY(m_startOfOptionalChaining)) {
+            context->pushOptionalChainingJumpPositionList();
             codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, Value()), context, this->m_loc.index);
         }
 
@@ -239,12 +236,6 @@ public:
 
         calleeIndex = m_callee->getRegister(codeBlock, context);
         m_callee->generateExpressionByteCode(codeBlock, context, calleeIndex);
-
-        size_t optionalJumpPos = SIZE_MAX;
-        if (isSubSequenceOfOptionalExpression) {
-            codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this->m_loc.index);
-            optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
-        }
 
         if (isCalleeHasReceiver) {
             receiverIndex = context->getLastRegisterIndex();
@@ -259,10 +250,10 @@ public:
         ByteCodeRegisterIndex argumentsStartIndex = args.first;
         bool hasSpreadElement = args.second;
 
-        if (isOptional) {
-            ASSERT(optionalJumpPos == SIZE_MAX);
+        if (m_isOptional) {
             codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, calleeIndex), context, this->m_loc.index);
-            optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+            size_t optionalJumpPos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+            context->addOptionalChainingJumpPosition(optionalJumpPos);
         }
 
         // drop callee, receiver registers
@@ -287,12 +278,13 @@ public:
             codeBlock->pushCode(CallFunction(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
         }
 
-        if (isOptional || isSubSequenceOfOptionalExpression) {
-            codeBlock->peekCode<JumpIfUndefinedOrNull>(optionalJumpPos)->m_jumpPosition = codeBlock->currentCodeSize();
-        }
-
         context->m_inCallingExpressionScope = prevInCallingExpressionScope;
         context->m_canSkipCopyToRegister = directBefore;
+
+        if (UNLIKELY(m_startOfOptionalChaining)) {
+            context->linkOptionalChainingJumpPosition(codeBlock, codeBlock->currentCodeSize());
+            context->popOptionalChainingJumpPositionList();
+        }
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
@@ -316,24 +308,9 @@ public:
 private:
     Node* m_callee; // callee: Expression;
     NodeList m_arguments; // arguments: [ Expression ];
-};
 
-template <const bool isOptionalValue = false, const bool isSubSequenceOfOptionalExpressionValue = false>
-class CallExpressionNodeOptional : public CallExpressionNode {
-public:
-    CallExpressionNodeOptional(Node* callee, const NodeList& arguments)
-        : CallExpressionNode(callee, arguments)
-    {
-    }
-
-    virtual bool isOptional() override
-    {
-        return isOptionalValue;
-    }
-    virtual bool isSubSequenceOfOptionalExpression() override
-    {
-        return isSubSequenceOfOptionalExpressionValue;
-    }
+    bool m_isOptional;
+    bool m_startOfOptionalChaining;
 };
 } // namespace Escargot
 

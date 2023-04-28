@@ -339,6 +339,11 @@ public:
         fn(this);
     }
 
+    virtual void setStartOfOptionalChaining()
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
     NodeLOC m_loc;
 };
 

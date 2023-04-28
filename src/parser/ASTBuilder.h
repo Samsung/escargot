@@ -75,6 +75,7 @@ namespace Escargot {
     F(BlockStatement)                         \
     F(BreakLabelStatement)                    \
     F(BreakStatement)                         \
+    F(CallExpression)                         \
     F(CatchClause)                            \
     F(ClassBody)                              \
     F(ClassElement)                           \
@@ -361,6 +362,11 @@ public:
         return SyntaxNode();
     }
 
+    ALWAYS_INLINE void setStartOfOptionalChaining()
+    {
+        // Do nothing
+    }
+
     SyntaxNodeList& expressions()
     {
         // dummy function for expressions() of SequenceExpressionNode
@@ -591,11 +597,6 @@ public:
         return SyntaxNode(MemberExpression, (optional ? SyntaxNode::MemberExpressionIsOptional : 0) | (referencePrivateField ? SyntaxNode::MemberExpressionIsReferencePrivateField : 0));
     }
 
-    ALWAYS_INLINE SyntaxNode createCallExpressionNode(SyntaxNode callee, const SyntaxNodeList& arguments, bool isOptional = false, bool isSubSequenceOfOptionalExpression = false)
-    {
-        return SyntaxNode(CallExpression);
-    }
-
 #define DECLARE_CREATE_FUNCTION(name)                         \
     template <typename... Args>                               \
     ALWAYS_INLINE SyntaxNode create##name##Node(Args... args) \
@@ -746,48 +747,7 @@ public:
 
     MemberExpressionNode* createMemberExpressionNode(Node* object, Node* property, bool computed, bool optional, bool referencePrivateField = false)
     {
-        if (computed) {
-            if (UNLIKELY(optional)) {
-                if (UNLIKELY(referencePrivateField)) {
-                    return new (m_allocator) MemberExpressionNodeOptional<true, true, true>(object, property);
-                } else {
-                    return new (m_allocator) MemberExpressionNodeOptional<true, true>(object, property);
-                }
-            } else {
-                if (UNLIKELY(referencePrivateField)) {
-                    return new (m_allocator) MemberExpressionNodeOptional<true, false, true>(object, property);
-                } else {
-                    return new (m_allocator) MemberExpressionNodeOptional<true, false>(object, property);
-                }
-            }
-        } else {
-            if (UNLIKELY(optional)) {
-                if (UNLIKELY(referencePrivateField)) {
-                    return new (m_allocator) MemberExpressionNodeOptional<false, true, true>(object, property);
-                } else {
-                    return new (m_allocator) MemberExpressionNodeOptional<false, true>(object, property);
-                }
-            } else {
-                if (UNLIKELY(referencePrivateField)) {
-                    return new (m_allocator) MemberExpressionNodeOptional<false, false, true>(object, property);
-                } else {
-                    return new (m_allocator) MemberExpressionNode(object, property);
-                }
-            }
-        }
-    }
-
-    CallExpressionNode* createCallExpressionNode(Node* callee, const NodeList& arguments, bool isOptional = false, bool isSubSequenceOfOptionalExpression = false)
-    {
-        if (LIKELY(!isOptional && !isSubSequenceOfOptionalExpression)) {
-            return new (m_allocator) CallExpressionNode(callee, arguments);
-        } else if (isOptional && !isSubSequenceOfOptionalExpression) {
-            return new (m_allocator) CallExpressionNodeOptional<true, false>(callee, arguments);
-        } else if (!isOptional && isSubSequenceOfOptionalExpression) {
-            return new (m_allocator) CallExpressionNodeOptional<false, true>(callee, arguments);
-        } else {
-            return new (m_allocator) CallExpressionNodeOptional<true, true>(callee, arguments);
-        }
+        return new (m_allocator) MemberExpressionNode(object, property, computed, optional, referencePrivateField);
     }
 
     StatementContainer* createStatementContainer()
@@ -919,7 +879,7 @@ public:
             scopeContext->m_hasEval = true;
         }
 
-        return new (m_allocator) CallExpressionNode(taggedTemplateExpressionNode, args);
+        return new (m_allocator) CallExpressionNode(taggedTemplateExpressionNode, args, false);
     }
 
     void setValueStringLiteral(const ParserStringView& string)

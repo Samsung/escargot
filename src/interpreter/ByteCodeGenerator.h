@@ -148,6 +148,25 @@ struct ByteCodeGenerateContext {
         m_labelledContinueStatmentPositions.push_back(std::make_pair(lbl, pos));
     }
 
+    void addOptionalChainingJumpPosition(size_t pos)
+    {
+        ASSERT(m_optionalChainingJumpPositionLists.size());
+        m_optionalChainingJumpPositionLists.back().push_back(pos);
+    }
+
+    void pushOptionalChainingJumpPositionList()
+    {
+        m_optionalChainingJumpPositionLists.push_back(std::vector<size_t>());
+    }
+
+    void popOptionalChainingJumpPositionList()
+    {
+        ASSERT(m_optionalChainingJumpPositionLists.size());
+        m_optionalChainingJumpPositionLists.pop_back();
+    }
+
+    void linkOptionalChainingJumpPosition(ByteCodeBlock* cb, size_t jumpToPosition);
+
     void registerJumpPositionsToComplexCase(size_t frontlimit)
     {
         ASSERT(tryCatchWithBlockStatementCount());
@@ -196,11 +215,9 @@ struct ByteCodeGenerateContext {
 
     size_t getRegister()
     {
-        if ((m_baseRegisterCount + 1) > REGULAR_REGISTER_LIMIT) {
+        if (UNLIKELY(m_baseRegisterCount >= REGULAR_REGISTER_LIMIT)) {
             throw "register limit exceed while generate byte code";
         }
-        RELEASE_ASSERT(m_baseRegisterCount + 1 < REGULAR_REGISTER_LIMIT);
-
 #ifdef STACK_GROWS_DOWN
         if (UNLIKELY(m_stackLimit > (size_t)currentStackPointer())) {
 #else
@@ -289,6 +306,22 @@ struct ByteCodeGenerateContext {
         return false;
     }
 
+#ifndef NDEBUG
+    void checkAllDataUsed()
+    {
+        // below member vectors should be all consumed during bytecode generation
+        // this check cannot be embedded in ~ByteCodeGenerateContext() because
+        // an exception could be ocurred during bytecode generation
+        // so, this check function is invoked after bytecode generation completed normally
+        ASSERT(m_breakStatementPositions.empty());
+        ASSERT(m_continueStatementPositions.empty());
+        ASSERT(m_labelledBreakStatmentPositions.empty());
+        ASSERT(m_labelledContinueStatmentPositions.empty());
+        ASSERT(m_optionalChainingJumpPositionLists.empty());
+        ASSERT(m_recursiveStatementStack.empty());
+    }
+#endif
+
 #ifdef ESCARGOT_DEBUGGER
     void calculateBreakpointLocation(size_t index, ExtendedNodeLOC sourceElementStart);
     void insertBreakpoint(size_t index, Node* node);
@@ -327,7 +360,10 @@ struct ByteCodeGenerateContext {
     std::vector<size_t> m_continueStatementPositions;
     std::vector<std::pair<String*, size_t>> m_labelledBreakStatmentPositions;
     std::vector<std::pair<String*, size_t>> m_labelledContinueStatmentPositions;
-    std::vector<size_t> m_getObjectCodePositions;
+
+    // For recording optional chaing jump positions when target is undefined or null
+    std::vector<std::vector<size_t>> m_optionalChainingJumpPositionLists;
+
     // For Label Statement
     size_t m_positionToContinue;
     // code position, special Statement count
