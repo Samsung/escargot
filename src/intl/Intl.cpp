@@ -1304,7 +1304,7 @@ static std::string privateUseLangTag(const std::vector<std::string>& parts, size
     return privateuse.finalize()->toNonGCUTF8StringData();
 }
 
-static bool canonicalizeLanguageTagHelper(std::vector<std::string>& parts, const std::string& unicodeExtensionNameShouldIgnored, std::unordered_set<std::string>& subtags, size_t numParts, size_t& currentIndex, Intl::CanonicalizedLangunageTag& result)
+static bool canonicalizeLanguageTagHelper(std::vector<std::string>& parts, const std::string& unicodeExtensionNameShouldIgnored, std::unordered_set<std::string>& subtags, const size_t numParts, size_t& currentIndex, Intl::CanonicalizedLangunageTag& result)
 {
     // Check for extension.
     // extension = singleton 1*("-" (2*8alphanum))

@@ -2493,7 +2493,7 @@ public:
                     this->context->isBindingElement = false;
                     this->context->isAssignmentTarget = true;
                     this->nextToken();
-                    exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode, seenOptionalExpression);
+                    exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode);
                 } else if (this->lookahead.valuePunctuatorKind == LeftParenthesis) {
                     bool asyncArrow = maybeAsync && (startToken->lineNumber == this->lookahead.lineNumber);
                     this->context->isBindingElement = false;
@@ -2503,7 +2503,7 @@ public:
                     if (exprNode->isIdentifier() && exprNode->asIdentifier()->name() == escargotContext->staticStrings().eval) {
                         this->currentScopeContext->m_hasEval = true;
                     }
-                    exprNode = this->finalize(this->startNode(startToken), builder.createCallExpressionNode(exprNode, args, false, seenOptionalExpression));
+                    exprNode = this->finalize(this->startNode(startToken), builder.createCallExpressionNode(exprNode, args, false));
                     if (asyncArrow && this->match(Arrow)) {
                         for (ASTSentinelNode arg = args.begin(); arg != args.end(); arg = arg->next()) {
                             arg->setASTNode(builder.reinterpretExpressionAsPattern(arg->astNode()));
@@ -2515,7 +2515,7 @@ public:
                     this->context->isAssignmentTarget = true;
                     this->nextToken();
                     ASTNode property = this->isolateCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
-                    exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode, property, false, seenOptionalExpression));
+                    exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode, property, false));
                     this->expect(RightSquareBracket);
                 } else if (this->lookahead.valuePunctuatorKind == GuessDot) {
                     bool oldBindingElement = this->context->isBindingElement;
@@ -2536,11 +2536,12 @@ public:
                         }
                     } else if (this->lookahead.type == Token::IdentifierToken || this->match(PunctuatorKind::Hash)) {
                         seenOptionalExpression = true;
-                        exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode, seenOptionalExpression);
+                        exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode, true);
                         if (this->lookahead.type == Token::TemplateToken) {
                             this->throwUnexpectedToken(this->lookahead);
                         }
                     } else if (this->match(PunctuatorKind::LeftParenthesis)) {
+                        seenOptionalExpression = true;
                         ASTNodeList args = this->parseArguments(builder);
                         // check callee of CallExpressionNode
                         if (exprNode->isIdentifier() && exprNode->asIdentifier()->name() == escargotContext->staticStrings().eval) {
@@ -2579,6 +2580,11 @@ public:
         }
         this->context->allowIn = previousAllowIn;
 
+        if (seenOptionalExpression) {
+            ASSERT(exprNode->type() == MemberExpression || exprNode->type() == CallExpression);
+            exprNode->setStartOfOptionalChaining();
+        }
+
         return exprNode;
     }
 
@@ -2603,7 +2609,7 @@ public:
     }
 
     template <class ASTBuilder>
-    ASTNode parseMemberExpressionPreComputedCase(ASTBuilder& builder, const MetaNode& node, ASTNode exprNode, bool seenOptionalExpression)
+    ASTNode parseMemberExpressionPreComputedCase(ASTBuilder& builder, const MetaNode& node, ASTNode exprNode, bool isOptional = false)
     {
         TrackUsingNameBlocker blocker(this);
         if (UNLIKELY(this->match(PunctuatorKind::Hash))) {
@@ -2630,10 +2636,10 @@ public:
                     this->throwError(Messages::PrivateFieldMustBeDeclared, property->asIdentifier()->name().string());
                 }
             }
-            return this->finalize(node, builder.createMemberExpressionNode(exprNode, property, true, seenOptionalExpression, true));
+            return this->finalize(node, builder.createMemberExpressionNode(exprNode, property, true, isOptional, true));
         } else {
             ASTNode property = this->parseIdentifierName(builder);
-            return this->finalize(node, builder.createMemberExpressionNode(exprNode, property, true, seenOptionalExpression));
+            return this->finalize(node, builder.createMemberExpressionNode(exprNode, property, true, isOptional));
         }
     }
 
@@ -2665,13 +2671,13 @@ public:
                 this->context->isAssignmentTarget = true;
                 this->nextToken();
                 ASTNode property = this->isolateCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, false, seenOptionalExpression));
+                exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, false));
                 this->expect(RightSquareBracket);
             } else if (this->match(Period)) {
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = true;
                 this->nextToken();
-                exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, node, exprNode, seenOptionalExpression);
+                exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, node, exprNode);
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
                 ASTNode quasi = this->parseTemplateLiteral(builder, true);
                 ASTNode convertedNode = builder.convertTaggedTemplateExpressionToCallExpression(quasi, exprNode, this->taggedTemplateExpressionIndex, this->currentScopeContext, escargotContext->staticStrings().raw);
@@ -2723,6 +2729,11 @@ public:
             } else {
                 break;
             }
+        }
+
+        if (seenOptionalExpression) {
+            ASSERT(exprNode->type() == MemberExpression);
+            exprNode->setStartOfOptionalChaining();
         }
 
         return exprNode;

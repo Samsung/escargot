@@ -129,6 +129,15 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
     }
 }
 
+void ByteCodeGenerateContext::linkOptionalChainingJumpPosition(ByteCodeBlock* cb, size_t jumpToPosition)
+{
+    ASSERT(m_optionalChainingJumpPositionLists.size());
+    std::vector<size_t>& jumpPositions = m_optionalChainingJumpPositionLists.back();
+    for (size_t i = 0; i < jumpPositions.size(); i++) {
+        cb->peekCode<JumpIfUndefinedOrNull>(jumpPositions[i])->m_jumpPosition = jumpToPosition;
+    }
+}
+
 #ifdef ESCARGOT_DEBUGGER
 void ByteCodeGenerateContext::calculateBreakpointLocation(size_t index, ExtendedNodeLOC sourceElementStart)
 {
@@ -278,6 +287,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
 
 #ifndef NDEBUG
     ByteCodeGenerator::printByteCode(context, block);
+    ctx.checkAllDataUsed();
 #endif
 
     return block;
