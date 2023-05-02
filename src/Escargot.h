@@ -379,7 +379,9 @@ void customEscargotErrorLogger(const char* format, ...);
 
 #if defined(ESCARGOT_ANDROID)
 #include <android/log.h>
+#undef ESCARGOT_LOG_INFO
 #undef ESCARGOT_LOG_ERROR
+#define ESCARGOT_LOG_INFO(...) __android_log_print(ANDROID_LOG_INFO, "Escargot", __VA_ARGS__);
 #define ESCARGOT_LOG_ERROR(...) __android_log_print(ANDROID_LOG_ERROR, "Escargot", __VA_ARGS__);
 #endif
 

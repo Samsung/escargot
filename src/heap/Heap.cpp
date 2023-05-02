@@ -33,6 +33,12 @@ void Heap::initialize()
     GC_init();
     RELEASE_ASSERT(GC_get_all_interior_pointers() == 0);
 
+#if defined(OS_ANDROID)
+    GC_set_abort_func([](const char* msg) {
+        ESCARGOT_LOG_ERROR("%s", msg);
+    });
+#endif
+
     GC_set_force_unmap_on_gcollect(1);
     initializeCustomAllocators();
 
