@@ -42,19 +42,38 @@ public:
             context->m_canSkipCopyToRegister = false;
         }
 
-        size_t resultRegisterExpected = dstRegister;
+        m_left->generateExpressionByteCode(codeBlock, context, dstRegister);
 
-        m_left->generateExpressionByteCode(codeBlock, context, resultRegisterExpected);
-
-        codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), true, resultRegisterExpected), context, this->m_loc.index);
+        codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), true, dstRegister), context, this->m_loc.index);
         size_t pos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
 
-        m_right->generateExpressionByteCode(codeBlock, context, resultRegisterExpected);
-
+        m_right->generateExpressionByteCode(codeBlock, context, dstRegister);
         codeBlock->peekCode<JumpIfUndefinedOrNull>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
 
         context->m_canSkipCopyToRegister = directBefore;
     }
+
+#if defined(ENABLE_TCO)
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCall) override
+    {
+        bool isSlow = !canUseDirectRegister(context, m_left, m_right);
+        bool directBefore = context->m_canSkipCopyToRegister;
+        if (isSlow) {
+            context->m_canSkipCopyToRegister = false;
+        }
+
+        m_left->generateExpressionByteCode(codeBlock, context, dstRegister);
+
+        codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), true, dstRegister), context, this->m_loc.index);
+        size_t pos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+
+        // try TCO only for right hand-side because we need to check the result of left hand-side expression
+        m_right->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
+        codeBlock->peekCode<JumpIfUndefinedOrNull>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
+
+        context->m_canSkipCopyToRegister = directBefore;
+    }
+#endif
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {

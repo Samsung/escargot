@@ -5070,8 +5070,6 @@
     <test id="language/expressions/class/scope-name-lex-open-heritage"><reason>TODO</reason></test>
     <test id="language/expressions/coalesce/chainable-if-parenthesis-covered-logical-and"><reason>TODO</reason></test>
     <test id="language/expressions/coalesce/chainable-if-parenthesis-covered-logical-or"><reason>TODO</reason></test>
-    <test id="language/expressions/coalesce/tco-pos-null"><reason>TODO</reason></test>
-    <test id="language/expressions/coalesce/tco-pos-undefined"><reason>TODO</reason></test>
     <test id="language/expressions/comma/tco-final"><reason>TODO</reason></test>
     <test id="language/expressions/compound-assignment/S11.13.2_A6.10_T1"><reason>TODO</reason></test>
     <test id="language/expressions/compound-assignment/S11.13.2_A6.11_T1"><reason>TODO</reason></test>
@@ -5117,8 +5115,6 @@
     <test id="language/expressions/compound-assignment/right-shift-non-simple"><reason>TODO</reason></test>
     <test id="language/expressions/compound-assignment/subtract-non-simple"><reason>TODO</reason></test>
     <test id="language/expressions/compound-assignment/u-right-shift-non-simple"><reason>TODO</reason></test>
-    <test id="language/expressions/conditional/tco-cond"><reason>TODO</reason></test>
-    <test id="language/expressions/conditional/tco-pos"><reason>TODO</reason></test>
     <test id="language/expressions/delete/super-property-null-base"><reason>TODO</reason></test>
     <test id="language/expressions/dynamic-import/2nd-param-assert-enumeration"><reason>TODO</reason></test>
     <test id="language/expressions/function/eval-var-scope-syntax-err"><reason>TODO</reason></test>
