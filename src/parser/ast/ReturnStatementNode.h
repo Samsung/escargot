@@ -60,14 +60,15 @@ public:
             }
             context->giveUpRegister();
         } else {
+            bool skipEnd = false;
             size_t r;
             if (m_argument) {
                 r = m_argument->getRegister(codeBlock, context);
                 if (context->tryCatchWithBlockStatementCount() == 0) {
-                    // consider TCO
+                    // consider tail recursion (TCO)
                     context->setReturnRegister(r);
 #if defined(ENABLE_TCO)
-                    m_argument->generateTCOExpressionByteCode(codeBlock, context, r);
+                    m_argument->generateTCOExpressionByteCode(codeBlock, context, r, skipEnd);
 #else
                     m_argument->generateExpressionByteCode(codeBlock, context, r);
 #endif
@@ -79,7 +80,10 @@ public:
                 r = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), r, Value()), context, this->m_loc.index);
             }
-            codeBlock->pushCode(End(ByteCodeLOC(m_loc.index), r), context, this->m_loc.index);
+
+            if (!skipEnd) {
+                codeBlock->pushCode(End(ByteCodeLOC(m_loc.index), r), context, this->m_loc.index);
+            }
             context->giveUpRegister();
         }
     }
