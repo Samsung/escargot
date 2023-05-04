@@ -316,9 +316,9 @@ public:
     }
 
 #if defined(ENABLE_TCO)
-    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& skipEnd)
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCall)
     {
-        UNUSED_PARAMETER(skipEnd);
+        UNUSED_PARAMETER(isTailCall);
         generateExpressionByteCode(codeBlock, context, dstRegister);
     }
 #endif

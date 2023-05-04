@@ -60,7 +60,7 @@ public:
             }
             context->giveUpRegister();
         } else {
-            bool skipEnd = false;
+            bool isTailCall = false;
             size_t r;
             if (m_argument) {
                 r = m_argument->getRegister(codeBlock, context);
@@ -68,7 +68,7 @@ public:
                     // consider tail recursion (TCO)
                     context->setReturnRegister(r);
 #if defined(ENABLE_TCO)
-                    m_argument->generateTCOExpressionByteCode(codeBlock, context, r, skipEnd);
+                    m_argument->generateTCOExpressionByteCode(codeBlock, context, r, isTailCall);
 #else
                     m_argument->generateExpressionByteCode(codeBlock, context, r);
 #endif
@@ -81,7 +81,8 @@ public:
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), r, Value()), context, this->m_loc.index);
             }
 
-            if (!skipEnd) {
+            if (!isTailCall || (m_argument->type() != CallExpression)) {
+                // skip End bytecode only if it directly returns the result of tail call
                 codeBlock->pushCode(End(ByteCodeLOC(m_loc.index), r), context, this->m_loc.index);
             }
             context->giveUpRegister();
