@@ -288,7 +288,7 @@ public:
     }
 
 #if defined(ENABLE_TCO)
-    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& skipEnd) override
     {
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
             ByteCodeRegisterIndex evalIndex = context->getRegister();
@@ -416,6 +416,8 @@ public:
         } else if (isCalleeHasReceiver) {
             if (dstRegister == context->m_returnRegister) {
                 // Try tail recursion optimization (TCO)
+                ASSERT(!skipEnd);
+                skipEnd = true;
                 if (context->m_codeBlock->isTailRecursionTarget()) {
                     codeBlock->pushCode(TailRecursionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
                 } else {
@@ -427,6 +429,8 @@ public:
         } else {
             if (dstRegister == context->m_returnRegister) {
                 // Try tail recursion optimization (TCO)
+                ASSERT(!skipEnd);
+                skipEnd = true;
                 if (context->m_codeBlock->isTailRecursionTarget()) {
                     codeBlock->pushCode(TailRecursion(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
                 } else {
