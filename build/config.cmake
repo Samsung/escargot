@@ -154,6 +154,10 @@ IF (ESCARGOT_THREADING)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_THREADING -DGC_THREAD_ISOLATE)
 ENDIF()
 
+IF (ESCARGOT_TCO)
+    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_TCO)
+ENDIF()
+
 #######################################################
 # FLAGS FOR $(MODE) : debug/release
 #######################################################

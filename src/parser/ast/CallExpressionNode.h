@@ -287,6 +287,7 @@ public:
         }
     }
 
+#if defined(ENABLE_TCO)
     virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
@@ -444,6 +445,7 @@ public:
             context->popOptionalChainingJumpPositionList();
         }
     }
+#endif
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {

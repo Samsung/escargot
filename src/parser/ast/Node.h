@@ -315,10 +315,12 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+#if defined(ENABLE_TCO)
     virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister)
     {
         generateExpressionByteCode(codeBlock, context, dstRegister);
     }
+#endif
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf);
 
