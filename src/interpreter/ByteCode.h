@@ -106,10 +106,6 @@ struct GlobalVariableAccessCacheItem;
     F(JumpIfEqual, 0, 0)                                    \
     F(Call, -1, 0)                                          \
     F(CallWithReceiver, -1, 0)                              \
-    F(CallReturn, -1, 0)                                    \
-    F(TailRecursion, -1, 0)                                 \
-    F(CallReturnWithReceiver, -1, 0)                        \
-    F(TailRecursionWithReceiver, -1, 0)                     \
     F(GetParameter, 0, 0)                                   \
     F(ReturnFunctionSlowCase, 0, 0)                         \
     F(TryOperation, 0, 0)                                   \
@@ -140,6 +136,16 @@ struct GlobalVariableAccessCacheItem;
     F(FillOpcodeTable, 0, 0)                                \
     F(End, 0, 0)
 
+#if defined(ENABLE_TCO)
+#define FOR_EACH_BYTECODE_TCO_OP(F)  \
+    F(CallReturn, -1, 0)             \
+    F(TailRecursion, -1, 0)          \
+    F(CallReturnWithReceiver, -1, 0) \
+    F(TailRecursionWithReceiver, -1, 0)
+#else
+#define FOR_EACH_BYTECODE_TCO_OP(F)
+#endif
+
 #ifdef ESCARGOT_DEBUGGER
 #define FOR_EACH_BYTECODE_DEBUGGER_OP(F) \
     F(BreakpointDisabled, 0, 0)          \
@@ -148,9 +154,10 @@ struct GlobalVariableAccessCacheItem;
 #define FOR_EACH_BYTECODE_DEBUGGER_OP(F)
 #endif /* ESCARGOT_DEBUGGER */
 
-#define FOR_EACH_BYTECODE(F) \
-    FOR_EACH_BYTECODE_OP(F)  \
-    FOR_EACH_BYTECODE_DEBUGGER_OP(F)
+#define FOR_EACH_BYTECODE(F)         \
+    FOR_EACH_BYTECODE_TCO_OP(F)      \
+    FOR_EACH_BYTECODE_DEBUGGER_OP(F) \
+    FOR_EACH_BYTECODE_OP(F)
 
 enum Opcode {
 #define DECLARE_BYTECODE(name, pushCount, popCount) name##Opcode,
@@ -1990,6 +1997,7 @@ public:
 #endif
 };
 
+#if defined(ENABLE_TCO)
 // TCO
 class CallReturn : public ByteCode {
 public:
@@ -2083,6 +2091,7 @@ public:
 
 COMPILE_ASSERT(sizeof(CallReturn) == sizeof(TailRecursion), "");
 COMPILE_ASSERT(sizeof(CallReturnWithReceiver) == sizeof(TailRecursionWithReceiver), "");
+#endif
 
 class CallComplexCase : public ByteCode {
 public:

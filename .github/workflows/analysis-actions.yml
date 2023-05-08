@@ -64,7 +64,7 @@ jobs:
         sudo apt-get install -y pypy ninja-build libicu-dev gcovr
     - name: Build x64
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_COVERAGE=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_COVERAGE=ON -DESCARGOT_OUTPUT=shell_test -GNinja
       run: |
         cmake -H. -Bout/coverage $BUILD_OPTIONS
         ninja -Cout/coverage

@@ -66,7 +66,11 @@ public:
                 if (context->tryCatchWithBlockStatementCount() == 0) {
                     // consider TCO
                     context->setReturnRegister(r);
+#if defined(ENABLE_TCO)
                     m_argument->generateTCOExpressionByteCode(codeBlock, context, r);
+#else
+                    m_argument->generateExpressionByteCode(codeBlock, context, r);
+#endif
                     context->setReturnRegister(SIZE_MAX);
                 } else {
                     m_argument->generateExpressionByteCode(codeBlock, context, r);

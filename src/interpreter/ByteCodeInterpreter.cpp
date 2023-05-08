@@ -185,8 +185,10 @@ public:
 
     static int evaluateImportAssertionOperation(ExecutionState& state, const Value& options);
 
+#if defined(ENABLE_TCO)
     static Value tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, const Value& callee, Value* registerFile);
     static Value tailRecursionWithReceiverSlowCase(ExecutionState& state, TailRecursionWithReceiver* code, const Value& callee, const Value& receiver, Value* registerFile);
+#endif
 
 private:
     static bool abstractLeftIsLessThanRightSlowCase(ExecutionState& state, const Value& left, const Value& right, bool switched);
@@ -1067,6 +1069,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
+#if defined(ENABLE_TCO)
         // return the result of call directly for tail call
         DEFINE_OPCODE(CallReturn)
             :
@@ -1101,6 +1104,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
 
             return callee.asPointerValue()->call(*state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
         }
+#endif
 
         DEFINE_OPCODE(GetObjectOpcodeSlowCase)
             :
@@ -1526,6 +1530,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             NEXT_INSTRUCTION();
         }
 
+#if defined(ENABLE_TCO)
         // TCO : tail recursion case
         DEFINE_OPCODE(TailRecursion)
             :
@@ -1598,6 +1603,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
 
             NEXT_INSTRUCTION();
         }
+#endif
 
 #ifdef ESCARGOT_DEBUGGER
         DEFINE_OPCODE(BreakpointDisabled)
@@ -4649,6 +4655,7 @@ NEVER_INLINE int InterpreterSlowPath::evaluateImportAssertionOperation(Execution
     return Platform::ModuleES;
 }
 
+#if defined(ENABLE_TCO)
 NEVER_INLINE Value InterpreterSlowPath::tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, const Value& callee, Value* registerFile)
 {
     // fail to tail recursion
@@ -4680,4 +4687,5 @@ NEVER_INLINE Value InterpreterSlowPath::tailRecursionWithReceiverSlowCase(Execut
 
     return callee.asPointerValue()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 }
+#endif
 } // namespace Escargot

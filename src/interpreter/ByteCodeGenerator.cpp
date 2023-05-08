@@ -587,6 +587,7 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
+#if defined(ENABLE_TCO)
         // TCO
         case CallReturnOpcode: {
             CallReturn* cd = (CallReturn*)currentCode;
@@ -614,6 +615,7 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
+#endif
         case CallComplexCaseOpcode: {
             CallComplexCase* cd = (CallComplexCase*)currentCode;
             if (cd->m_kind != CallComplexCase::InWithScope) {
