@@ -3,6 +3,10 @@ plugins {
     id 'jacoco'
 }
 
+ext {
+    force64Option = System.getProperty("ESCARGOT_BUILD_64BIT_FORCE_LARGE", "OFF")
+}
+
 android {
     namespace 'com.samsung.lwe.escargot'
     compileSdk 33
@@ -15,7 +19,8 @@ android {
         consumerProguardFiles "consumer-rules.pro"
         externalNativeBuild {
             cmake {
-                arguments "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DESCARGOT_HOST=android", "-DESCARGOT_OUTPUT=static_lib", "-DENABLE_SHELL=OFF"
+                arguments "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DESCARGOT_HOST=android", "-DESCARGOT_OUTPUT=static_lib", "-DENABLE_SHELL=OFF",
+                        "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option
             }
         }
 

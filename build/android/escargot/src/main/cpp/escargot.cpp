@@ -70,6 +70,8 @@ static OptionalRef<JNIEnv> fetchJNIEnvFromCallback()
     return env;
 }
 
+class JavaRuntimeException {};
+
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_samsung_lwe_escargot_Escargot_init(JNIEnv* env, jclass clazz)
@@ -619,8 +621,12 @@ Java_com_samsung_lwe_escargot_VMInstance_executePendingJob(JNIEnv* env, jobject 
 {
     auto vmPtr = getPersistentPointerFromJava<VMInstanceRef>(env, env->GetObjectClass(thiz),
                                                              thiz);
-    if (vmPtr->get()->hasPendingJob()) {
-        vmPtr->get()->executePendingJob();
+    try {
+        if (vmPtr->get()->hasPendingJob()) {
+            vmPtr->get()->executePendingJob();
+        }
+    } catch(JavaRuntimeException) {
+        return;
     }
 }
 
@@ -670,20 +676,23 @@ Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv* env, jclass clazz, jo
 {
     THROW_NPE_RETURN_NULL(context, "Context");
 
-    auto ptr = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto result = evalScript(ptr->get(), createJSStringFromJava(env, source),
-                             createJSStringFromJava(env, sourceFileName), shouldPrintScriptResult,
-                             false);
-
-    jclass optionalClazz = env->FindClass("java/util/Optional");
-    if (result.isSuccessful()) {
-        return env->CallStaticObjectMethod(optionalClazz,
-                                           env->GetStaticMethodID(optionalClazz, "of",
-                                                                  "(Ljava/lang/Object;)Ljava/util/Optional;"),
-                                           createJavaObjectFromValue(env, result.result));
+    try {
+        auto ptr = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+        Evaluator::EvaluatorResult result = evalScript(ptr->get(), createJSStringFromJava(env, source),
+                                 createJSStringFromJava(env, sourceFileName), shouldPrintScriptResult,
+                                 false);
+        jclass optionalClazz = env->FindClass("java/util/Optional");
+        if (result.isSuccessful()) {
+            return env->CallStaticObjectMethod(optionalClazz,
+                                               env->GetStaticMethodID(optionalClazz, "of",
+                                                                      "(Ljava/lang/Object;)Ljava/util/Optional;"),
+                                               createJavaObjectFromValue(env, result.result));
+        }
+        return env->CallStaticObjectMethod(optionalClazz, env->GetStaticMethodID(optionalClazz, "empty",
+                                                                                 "()Ljava/util/Optional;"));
+    } catch (JavaRuntimeException) {
+        return nullptr;
     }
-    return env->CallStaticObjectMethod(optionalClazz, env->GetStaticMethodID(optionalClazz, "empty",
-                                                                             "()Ljava/util/Optional;"));
 }
 
 extern "C"
@@ -766,6 +775,11 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
                                                                          "callback",
                                                                          "(Ljava/util/Optional;)Ljava/util/Optional;"),
                                                                  callbackArg);
+
+                                                         if (env->ExceptionCheck()) {
+                                                             throw JavaRuntimeException();
+                                                             return ValueRef::createUndefined();
+                                                         }
 
                                                          auto methodIsPresent = env->GetMethodID(
                                                                  optionalClazz, "isPresent", "()Z");
@@ -1193,12 +1207,16 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toString(JNIEnv* env, jobject thiz
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
-        return thisValueRef->toString(state);
-    }, thisValueRef);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+            return thisValueRef->toString(state);
+        }, thisValueRef);
 
-    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
-                                                                 evaluatorResult);
+        return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                     evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1210,12 +1228,16 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toNumber(JNIEnv* env, jobject thiz
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
-        return ValueRef::create(thisValueRef->toNumber(state));
-    }, thisValueRef);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+            return ValueRef::create(thisValueRef->toNumber(state));
+        }, thisValueRef);
 
-    return createOptionalValueFromEvaluatorDoubleResult(env, context, contextRef->get(),
-                                                                 evaluatorResult);
+        return createOptionalValueFromEvaluatorDoubleResult(env, context, contextRef->get(),
+                                                            evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1227,12 +1249,16 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toInteger(JNIEnv* env, jobject thi
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
-        return ValueRef::create(thisValueRef->toInteger(state));
-    }, thisValueRef);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+            return ValueRef::create(thisValueRef->toInteger(state));
+        }, thisValueRef);
 
-    return createOptionalValueFromEvaluatorDoubleResult(env, context, contextRef->get(),
-                                                        evaluatorResult);
+        return createOptionalValueFromEvaluatorDoubleResult(env, context, contextRef->get(),
+                                                            evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1244,12 +1270,16 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toInt32(JNIEnv* env, jobject thiz,
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
-        return ValueRef::create(thisValueRef->toInt32(state));
-    }, thisValueRef);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+            return ValueRef::create(thisValueRef->toInt32(state));
+        }, thisValueRef);
 
-    return createOptionalValueFromEvaluatorIntegerResult(env, context, contextRef->get(),
-                                                        evaluatorResult);
+        return createOptionalValueFromEvaluatorIntegerResult(env, context, contextRef->get(),
+                                                             evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1261,12 +1291,16 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toBoolean(JNIEnv* env, jobject thi
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
-        return ValueRef::create(thisValueRef->toBoolean(state));
-    }, thisValueRef);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+            return ValueRef::create(thisValueRef->toBoolean(state));
+        }, thisValueRef);
 
-    return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
-                                                         evaluatorResult);
+        return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
+                                                             evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1275,15 +1309,19 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_toObject(JNIEnv* env, jobject thiz
 {
     THROW_NPE_RETURN_NULL(context, "Context");
 
-    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+    try {
+        auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+        ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
-        return thisValueRef->toObject(state);
-    }, thisValueRef);
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef) -> ValueRef* {
+            return thisValueRef->toObject(state);
+        }, thisValueRef);
 
-    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
-                                                                 evaluatorResult);
+        return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                     evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1298,12 +1336,16 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_abstractEqualsTo(JNIEnv* env, jobj
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
     ValueRef* otherValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(other), other);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* otherValueRef) -> ValueRef* {
-        return ValueRef::create(thisValueRef->abstractEqualsTo(state, otherValueRef));
-    }, thisValueRef, otherValueRef);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* otherValueRef) -> ValueRef* {
+            return ValueRef::create(thisValueRef->abstractEqualsTo(state, otherValueRef));
+        }, thisValueRef, otherValueRef);
 
-    return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
-                                                                 evaluatorResult);
+        return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
+                                                             evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1318,12 +1360,16 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_equalsTo(JNIEnv* env, jobject thiz
     ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
     ValueRef* otherValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(other), other);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* otherValueRef) -> ValueRef* {
-        return ValueRef::create(thisValueRef->equalsTo(state, otherValueRef));
-    }, thisValueRef, otherValueRef);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* otherValueRef) -> ValueRef* {
+            return ValueRef::create(thisValueRef->equalsTo(state, otherValueRef));
+        }, thisValueRef, otherValueRef);
 
-    return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
-                                                         evaluatorResult);
+        return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
+                                                             evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1334,16 +1380,20 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_instanceOf(JNIEnv* env, jobject th
     THROW_NPE_RETURN_NULL(context, "Context");
     THROW_NPE_RETURN_NULL(other, "JavaScriptValue");
 
-    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
-    ValueRef* otherValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(other), other);
+    try {
+        auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+        ValueRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+        ValueRef* otherValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(other), other);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* otherValueRef) -> ValueRef* {
-        return ValueRef::create(thisValueRef->instanceOf(state, otherValueRef));
-    }, thisValueRef, otherValueRef);
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* otherValueRef) -> ValueRef* {
+            return ValueRef::create(thisValueRef->instanceOf(state, otherValueRef));
+        }, thisValueRef, otherValueRef);
 
-    return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
-                                                         evaluatorResult);
+        return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
+                                                             evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1368,15 +1418,20 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_call(JNIEnv* env, jobject thiz, jo
         env->DeleteLocalRef(e);
     }
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(),
-[](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* receiverValueRef, ValueRef** argVector, int argvLength) -> ValueRef* {
-        return thisValueRef->call(state, receiverValueRef, argvLength, argVector);
-    }, thisValueRef, receiverValueRef, argVector, argvLength);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(),
+                                                  [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef* receiverValueRef, ValueRef** argVector, int argvLength) -> ValueRef* {
+                                                      return thisValueRef->call(state, receiverValueRef, argvLength, argVector);
+                                                  }, thisValueRef, receiverValueRef, argVector, argvLength);
 
-    Memory::gcFree(argVector);
+        Memory::gcFree(argVector);
 
-    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
-                                                         evaluatorResult);
+        return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                     evaluatorResult);
+    } catch(JavaRuntimeException) {
+        Memory::gcFree(argVector);
+        return nullptr;
+    }
 }
 
 
@@ -1400,15 +1455,20 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_construct(JNIEnv* env, jobject thi
         env->DeleteLocalRef(e);
     }
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(),
-                                              [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef** argVector, int argvLength) -> ValueRef* {
-                                                  return thisValueRef->construct(state, argvLength, argVector);
-                                              }, thisValueRef, argVector, argvLength);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(),
+                                                  [](ExecutionStateRef* state, ValueRef* thisValueRef, ValueRef** argVector, int argvLength) -> ValueRef* {
+                                                      return thisValueRef->construct(state, argvLength, argVector);
+                                                  }, thisValueRef, argVector, argvLength);
 
-    Memory::gcFree(argVector);
+        Memory::gcFree(argVector);
 
-    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
-                                                                 evaluatorResult);
+        return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                     evaluatorResult);
+    } catch(JavaRuntimeException) {
+        Memory::gcFree(argVector);
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1516,12 +1576,16 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_get(JNIEnv* env, jobject thiz, jo
     ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
     ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
-        return thisValueRef->get(state, propertyNameValueRef);
-    }, thisValueRef, propertyNameValueRef);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
+            return thisValueRef->get(state, propertyNameValueRef);
+        }, thisValueRef, propertyNameValueRef);
 
-    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
-                                                         evaluatorResult);
+        return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                     evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1538,12 +1602,16 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_set(JNIEnv* env, jobject thiz, jo
     ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
     ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef) -> ValueRef* {
-        return ValueRef::create(thisValueRef->set(state, propertyNameValueRef, valueRef));
-    }, thisValueRef, propertyNameValueRef, valueRef);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef) -> ValueRef* {
+            return ValueRef::create(thisValueRef->set(state, propertyNameValueRef, valueRef));
+        }, thisValueRef, propertyNameValueRef, valueRef);
 
-    return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
-                                                                 evaluatorResult);
+        return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
+                                                             evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 extern "C"
 JNIEXPORT jobject JNICALL
@@ -1564,15 +1632,19 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_defineDataProperty(JNIEnv* env, j
     ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
     ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef,
-                                                                    jboolean isWritable,
-                                                                    jboolean isEnumerable,
-                                                                    jboolean isConfigurable) -> ValueRef* {
-        return ValueRef::create(thisValueRef->defineDataProperty(state, propertyNameValueRef, valueRef, isWritable, isEnumerable, isConfigurable));
-    }, thisValueRef, propertyNameValueRef, valueRef, isWritable, isEnumerable, isConfigurable);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef,
+                                                                        jboolean isWritable,
+                                                                        jboolean isEnumerable,
+                                                                        jboolean isConfigurable) -> ValueRef* {
+            return ValueRef::create(thisValueRef->defineDataProperty(state, propertyNameValueRef, valueRef, isWritable, isEnumerable, isConfigurable));
+        }, thisValueRef, propertyNameValueRef, valueRef, isWritable, isEnumerable, isConfigurable);
 
-    return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
-                                                         evaluatorResult);
+        return createOptionalValueFromEvaluatorBooleanResult(env, context, contextRef->get(),
+                                                             evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 extern "C"
 JNIEXPORT jobject JNICALL
@@ -1587,12 +1659,16 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_getOwnProperty(JNIEnv* env, jobje
     ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
     ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
-        return thisValueRef->getOwnProperty(state, propertyNameValueRef);
-    }, thisValueRef, propertyNameValueRef);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
+            return thisValueRef->getOwnProperty(state, propertyNameValueRef);
+        }, thisValueRef, propertyNameValueRef);
 
-    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
-                                                                 evaluatorResult);
+        return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                     evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 extern "C"
 JNIEXPORT jobject JNICALL
@@ -1633,13 +1709,18 @@ Java_com_samsung_lwe_escargot_JavaScriptArrayObject_length(JNIEnv* env, jobject 
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ArrayObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asArrayObject();
-    int64_t length = 0;
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ArrayObjectRef* thisValueRef, int64_t* pLength) -> ValueRef* {
-        *pLength = static_cast<int64_t>(thisValueRef->length(state));
-        return ValueRef::createUndefined();
-    }, thisValueRef, &length);
 
-    return length;
+    try {
+        int64_t length = 0;
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ArrayObjectRef* thisValueRef, int64_t* pLength) -> ValueRef* {
+            *pLength = static_cast<int64_t>(thisValueRef->length(state));
+            return ValueRef::createUndefined();
+        }, thisValueRef, &length);
+
+        return length;
+    } catch(JavaRuntimeException) {
+        return 0;
+    }
 }
 
 extern "C"
@@ -1662,12 +1743,16 @@ Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_jsonStringify(JNIEnv* env, 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* inputValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(input), input);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* inputValueRef) -> ValueRef* {
-        return globalObject->jsonStringify()->call(state, globalObject->json(), 1, &inputValueRef);
-    }, globalObjectRef->get(), inputValueRef);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* inputValueRef) -> ValueRef* {
+            return globalObject->jsonStringify()->call(state, globalObject->json(), 1, &inputValueRef);
+        }, globalObjectRef->get(), inputValueRef);
 
-    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
-                                                                 evaluatorResult);
+        return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                     evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1682,12 +1767,16 @@ Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_jsonParse(JNIEnv* env, jobj
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* inputValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(input), input);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* inputValueRef) -> ValueRef* {
-        return globalObject->jsonParse()->call(state, globalObject->json(), 1, &inputValueRef);
-    }, globalObjectRef->get(), inputValueRef);
+    try {
+        auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* inputValueRef) -> ValueRef* {
+            return globalObject->jsonParse()->call(state, globalObject->json(), 1, &inputValueRef);
+        }, globalObjectRef->get(), inputValueRef);
 
-    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
-                                                                 evaluatorResult);
+        return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                     evaluatorResult);
+    } catch(JavaRuntimeException) {
+        return nullptr;
+    }
 }
 
 extern "C"
@@ -1732,6 +1821,12 @@ Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv
                     createJavaObjectFromValue(env.get(), thisValue),
                     javaArgv
                     );
+
+            if (env->ExceptionCheck()) {
+                env->PopLocalFrame(NULL);
+                throw JavaRuntimeException();
+                return ValueRef::createUndefined();
+            }
 
             ValueRef* nativeReturnValue = ValueRef::createUndefined();
             if (returnValue) {
