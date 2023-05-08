@@ -402,6 +402,20 @@ public class EscargotTest {
         assertTrue(Evaluator.evalScript(context, "Native.returnNull() === undefined", "from_java8.js", true).get().toString(context).get().toJavaString().equals("true"));
         printNegativeTC("register bridge return null 2");
 
+        Bridge.register(context, "Native", "runtimeException", new Bridge.Adapter() {
+            @Override
+            public Optional<JavaScriptValue> callback(Optional<JavaScriptValue> data) {
+                throw new RuntimeException("test");
+            }
+        });
+        {
+            final Context finalContext = context;
+            assertThrows(RuntimeException.class, () -> {
+                Evaluator.evalScript(finalContext, "Native.runtimeException()", "from_java9.js", true);
+            });
+        }
+        printNegativeTC("register bridge throws exception");
+
         context = null;
         finalizeEngine();
     }
@@ -999,6 +1013,26 @@ public class EscargotTest {
         ret = Evaluator.evalScript(context, "asdf()", "test.js", false);
         assertTrue(ret.get().isUndefined());
         printNegativeTC("callback null test 3");
+
+        callbackFunctionObject =
+                JavaScriptJavaCallbackFunctionObject.create(context,
+                        "fnname",
+                        0,
+                        false,
+                        new JavaScriptJavaCallbackFunctionObject.Callback() {
+                            @Override
+                            public Optional<JavaScriptValue> callback(JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                                throw new RuntimeException("test");
+                            }
+                        });
+        context.getGlobalObject().set(context, JavaScriptString.create("asdf"), callbackFunctionObject);
+        {
+            final Context finalContext1 = context;
+            assertThrows(RuntimeException.class, () -> {
+                finalContext1.getGlobalObject().get(finalContext1, JavaScriptString.create("asdf")).get().call(finalContext1, JavaScriptValue.createUndefined(), new JavaScriptValue[]{});
+            });
+        }
+        printNegativeTC("callback RuntimeException test");
 
         context = null;
         finalizeEngine();
