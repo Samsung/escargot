@@ -48,7 +48,14 @@ using namespace Escargot;
 #define  LOGS(...)  fprintf(stderr,__VA_ARGS__)
 #endif
 
-#define THROW_NPE_RETURN_NULL(param, paramType) if (!param) { env->ThrowNew(env->FindClass("java/lang/NullPointerException"), paramType" cannot be null"); return 0; }
+#define THROW_NPE_RETURN_NULL(param, paramType)                                                      \
+    if (env->ExceptionCheck()) {                                                                     \
+        return 0;                                                                                    \
+    }                                                                                                \
+    if (!param) {                                                                                    \
+        env->ThrowNew(env->FindClass("java/lang/NullPointerException"), paramType" cannot be null"); \
+        return 0;                                                                                    \
+    }
 
 static JavaVM* g_jvm;
 static size_t g_nonPointerValueLast = reinterpret_cast<size_t>(ValueRef::createUndefined());
@@ -200,7 +207,7 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
         if (state) {
             state->throwException(URIErrorObjectRef::create(state.get(), StringRef::createFromUTF8(msg, strnlen(msg, sizeof msg))));
         } else {
-            LOGI("%s", msg);
+            LOGD("%s", msg);
         }
         return nullptr;
     }
@@ -355,30 +362,30 @@ static Evaluator::EvaluatorResult evalScript(ContextRef* context, StringRef* sou
 
     auto scriptInitializeResult = context->scriptParser()->initializeScript(source, srcName, isModule);
     if (!scriptInitializeResult.script) {
-        LOGI("Script parsing error: ");
+        LOGD("Script parsing error: ");
         switch (scriptInitializeResult.parseErrorCode) {
             case Escargot::ErrorObjectRef::Code::SyntaxError:
-                LOGI("SyntaxError");
+                LOGD("SyntaxError");
                 break;
             case Escargot::ErrorObjectRef::Code::EvalError:
-                LOGI("EvalError");
+                LOGD("EvalError");
                 break;
             case Escargot::ErrorObjectRef::Code::RangeError:
-                LOGI("RangeError");
+                LOGD("RangeError");
                 break;
             case Escargot::ErrorObjectRef::Code::ReferenceError:
-                LOGI("ReferenceError");
+                LOGD("ReferenceError");
                 break;
             case Escargot::ErrorObjectRef::Code::TypeError:
-                LOGI("TypeError");
+                LOGD("TypeError");
                 break;
             case Escargot::ErrorObjectRef::Code::URIError:
-                LOGI("URIError");
+                LOGD("URIError");
                 break;
             default:
                 break;
         }
-        LOGI(": %s\n", scriptInitializeResult.parseErrorMessage->toStdUTF8String().data());
+        LOGD(": %s\n", scriptInitializeResult.parseErrorMessage->toStdUTF8String().data());
         Evaluator::EvaluatorResult evalResult;
         evalResult.error = StringRef::createFromASCII("script parsing error");
         return evalResult;
@@ -390,15 +397,15 @@ static Evaluator::EvaluatorResult evalScript(ContextRef* context, StringRef* sou
                                          scriptInitializeResult.script.get());
 
     if (!evalResult.isSuccessful()) {
-        LOGI("Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
+        LOGD("Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
         for (size_t i = 0; i < evalResult.stackTrace.size(); i++) {
-            LOGI("%s (%d:%d)\n", evalResult.stackTrace[i].srcName->toStdUTF8String().data(), (int)evalResult.stackTrace[i].loc.line, (int)evalResult.stackTrace[i].loc.column);
+            LOGD("%s (%d:%d)\n", evalResult.stackTrace[i].srcName->toStdUTF8String().data(), (int)evalResult.stackTrace[i].loc.line, (int)evalResult.stackTrace[i].loc.column);
         }
         return evalResult;
     }
 
     if (shouldPrintScriptResult) {
-        LOGI("%s", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
+        LOGD("%s", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
     }
 
     bool result = true;
@@ -410,10 +417,10 @@ static Evaluator::EvaluatorResult evalScript(ContextRef* context, StringRef* sou
             auto jobResult = context->vmInstance()->executePendingJob();
             if (shouldPrintScriptResult || jobResult.error) {
                 if (jobResult.error) {
-                    LOGI("Uncaught %s:(in promise job)\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                    LOGD("Uncaught %s:(in promise job)\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
                     result = false;
                 } else {
-                    LOGI("%s(in promise job)\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
+                    LOGD("%s(in promise job)\n", jobResult.resultOrErrorToString(context)->toStdUTF8String().data());
                 }
             }
         }
@@ -442,11 +449,13 @@ static void gcCallback(void* data)
         LOGE("failed to fetch env from gc event callback");
         return;
     }
-    env->PushLocalFrame(32);
-    jclass clazz = env->FindClass("com/samsung/lwe/escargot/NativePointerHolder");
-    jmethodID mId = env->GetStaticMethodID(clazz, "cleanUp", "()V");
-    env->CallStaticVoidMethod(clazz, mId);
-    env->PopLocalFrame(NULL);
+    if (!env->ExceptionCheck()) {
+        env->PushLocalFrame(32);
+        jclass clazz = env->FindClass("com/samsung/lwe/escargot/NativePointerHolder");
+        jmethodID mId = env->GetStaticMethodID(clazz, "cleanUp", "()V");
+        env->CallStaticVoidMethod(clazz, mId);
+        env->PopLocalFrame(NULL);
+    }
 }
 
 extern "C"
@@ -568,6 +577,9 @@ static std::string fetchStringFromJavaOptionalString(JNIEnv *env, jobject option
 template<typename T>
 static jobject nativeOptionalValueIntoJavaOptionalValue(JNIEnv* env, OptionalRef<T> ref)
 {
+    if (env->ExceptionCheck()) {
+        return nullptr;
+    }
     jclass optionalClazz = env->FindClass("java/util/Optional");
     if (ref) {
         jmethodID ctorMethod = env->GetStaticMethodID(optionalClazz, "of",
@@ -688,6 +700,11 @@ Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv* env, jclass clazz, jo
                                                                              "()Ljava/util/Optional;"));
 }
 
+static void throwJavaRuntimeException(ExecutionStateRef* state)
+{
+    state->throwException(ErrorObjectRef::create(state, ErrorObjectRef::None, StringRef::createFromASCII("Java runtime exception")));
+}
+
 extern "C"
 JNIEXPORT jboolean JNICALL
 Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject context,
@@ -742,6 +759,11 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
                                                              return ValueRef::createUndefined();
                                                          }
 
+                                                         if (env->ExceptionCheck()) {
+                                                             throwJavaRuntimeException(state);
+                                                             return ValueRef::createUndefined();
+                                                         }
+
                                                          env->PushLocalFrame(32);
 
                                                          jobject callbackArg;
@@ -771,7 +793,7 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
 
                                                          if (env->ExceptionCheck()) {
                                                              env->PopLocalFrame(NULL);
-                                                             state->throwException(ErrorObjectRef::create(state, ErrorObjectRef::None, StringRef::createFromASCII("Java runtime exception")));
+                                                             throwJavaRuntimeException(state);
                                                              return ValueRef::createUndefined();
                                                          }
 
@@ -1118,6 +1140,9 @@ Java_com_samsung_lwe_escargot_JavaScriptString_toJavaString(JNIEnv* env, jobject
 
 static jobject storeExceptionOnContextAndReturnsIt(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult)
 {
+    if (env->ExceptionCheck()) {
+        return nullptr;
+    }
     jclass optionalClazz = env->FindClass("java/util/Optional");
     // store exception to context
     auto fieldId = env->GetFieldID(env->GetObjectClass(contextObject), "m_lastThrownException", "Ljava/util/Optional;");
@@ -1735,6 +1760,11 @@ Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv
                 return ValueRef::createUndefined();
             }
 
+            if (env->ExceptionCheck()) {
+                throwJavaRuntimeException(state);
+                return ValueRef::createUndefined();
+            }
+
             env->PushLocalFrame(32);
             jobject callback = reinterpret_cast<jobject>(state->resolveCallee()->extraData());
             auto callbackMethodId = env->GetMethodID(env->GetObjectClass(callback), "callback",
@@ -1756,7 +1786,7 @@ Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv
 
             if (env->ExceptionCheck()) {
                 env->PopLocalFrame(NULL);
-                state->throwException(ErrorObjectRef::create(state, ErrorObjectRef::None, StringRef::createFromASCII("Java runtime exception")));
+                throwJavaRuntimeException(state);
                 return ValueRef::createUndefined();
             }
 
