@@ -15,10 +15,11 @@ SET (ESCARGOT_ARCH ${ANDROID_SYSROOT_ABI})
 # STRING(TOLOWER ${CMAKE_BUILD_TYPE} ESCARGOT_MODE)
 SET (ESCARGOT_MODE "release")
 SET (ESCARGOT_THREADING ON)
-SET (ESCARGOT_BUILD_64BIT_FORCE_LARGE ON)
+
 if (ENABLE_SHELL)
     ADD_DEFINITIONS(-DESCARGOT_ENABLE_TEST)
     ADD_DEFINITIONS(-DESCARGOT_ENABLE_TEMPORAL)
+    SET (ESCARGOT_EXPORT_ALL ON)
 endif ()
 ADD_SUBDIRECTORY (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../ escargot)
 
@@ -38,14 +39,16 @@ endif ()
 TARGET_LINK_LIBRARIES (escargot-jni PRIVATE escargot ${LOG_LIBRARY})
 
 if (ENABLE_SHELL)
+    SET(CMAKE_EXE_LINKER_FLAGS -Wl,-export-dynamic) # export symbol of Shell.cpp
+    ADD_COMPILE_OPTIONS(-DNDEBUG -g3)
+    ADD_LINK_OPTIONS(-static-libstdc++)
     ADD_EXECUTABLE(escargot-shell ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../src/shell/Shell.cpp)
     TARGET_INCLUDE_DIRECTORIES(escargot-shell PRIVATE ADD_SUBDIRECTORY
         (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/GCutil/)
         (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/GCutil/bdwgc/include)
         (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../src))
     TARGET_LINK_LIBRARIES (escargot-shell PRIVATE escargot ${LOG_LIBRARY})
-    ADD_DEFINITIONS(-DNDEBUG)
 
-    ADD_EXECUTABLE(test262-runner ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../tools/test/test262/test-data-runner.cpp)
-    TARGET_COMPILE_OPTIONS(test262-runner PRIVATE -std=c++11)
+    ADD_EXECUTABLE(test-data-runner ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../tools/test/test-data-runner/test-data-runner.cpp)
+    TARGET_COMPILE_OPTIONS(test-data-runner PRIVATE -std=c++11)
 endif ()
