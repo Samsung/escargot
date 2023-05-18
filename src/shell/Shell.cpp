@@ -36,6 +36,98 @@
 #if defined(ESCARGOT_ENABLE_TEST)
 // these header & function below are used for Escargot internal development
 // general client doesn't need this
+
+#if defined(ANDROID)
+#include <unwind.h>
+#include <dlfcn.h>
+#endif
+
+#if !defined(__APPLE__)
+#include <signal.h>
+#include <execinfo.h>
+
+void btSighandler(int sig, struct sigcontext ctx)
+{
+    if (sig == SIGSEGV) {
+#if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64) \
+    || defined(i386) || defined(__i386) || defined(__i386__) || defined(__IA32__) || defined(_M_IX86) || defined(__X86__)      \
+    || defined(_X86_) || defined(__THW_INTEL__) || defined(__I86__) || defined(__INTEL__) || defined(__386)
+        printf("Got signal %d, pid %d, faulty address is %p\n",
+               sig, (int)getpid(), (void*)ctx.cr2);
+#elif defined(__arm__) || defined(__thumb__) || defined(_ARM) || defined(_M_ARM) || defined(_M_ARMT) || defined(__arm) || defined(__arm) || defined(__aarch64__)
+        printf("Got signal %d, pid %d, faulty address is %p\n",
+               sig, (int)getpid(), (void*)ctx.fault_address);
+#else
+        printf("Got signal %d, pid %d\n", sig, (int)getpid());
+#endif
+    } else {
+        printf("Got signal %d, pid %d\n", sig, (int)getpid());
+    }
+
+    printf("[bt] Execution path:\n");
+#if defined(ANDROID)
+    struct BacktraceContext {
+        int ignoreCount; // ignore signal handler
+        int currentDepth;
+        int maxDepth;
+    } backtraceContext = { 1, 0, 128 };
+
+    _Unwind_Backtrace([](struct _Unwind_Context* ctx, void* data) -> _Unwind_Reason_Code {
+        BacktraceContext* backtraceContext = (BacktraceContext*)data;
+        if (backtraceContext->ignoreCount < backtraceContext->currentDepth) {
+            void* pc = (void*)_Unwind_GetIP(ctx);
+
+            Dl_info dlInfo;
+            dladdr(pc, &dlInfo);
+
+            void* computedPc = (void*)((size_t)pc - (size_t)dlInfo.dli_fbase);
+
+            printf("[bt] #%d pc: %p - %s(%s)", backtraceContext->currentDepth, computedPc, dlInfo.dli_sname, dlInfo.dli_fname);
+            printf("\n");
+        }
+        if (backtraceContext->currentDepth++ < backtraceContext->maxDepth) {
+            return _URC_NO_REASON;
+        }
+        return _URC_END_OF_STACK;
+    },
+                      &backtraceContext);
+#else
+    void* trace[128];
+    char** messages = (char**)NULL;
+    int i, traceSize = 0;
+    traceSize = backtrace(trace, 128);
+
+    messages = backtrace_symbols(trace, traceSize);
+    /* skip first stack frame (points here) */
+    for (i = 1; i < traceSize; ++i) {
+        printf("[bt] #%d %s ", i, messages[i]);
+
+        char syscom[256];
+        std::string temp = messages[i];
+        auto moduleEnd = temp.find("(");
+        auto addrStart = temp.find("+");
+        auto addrEnd = temp.find(")");
+        if (moduleEnd != std::string::npos && addrStart != std::string::npos && addrEnd != std::string::npos) {
+            std::string modulePath = temp.substr(0, moduleEnd);
+            std::string addr = temp.substr(addrStart, addrEnd - addrStart);
+            sprintf(syscom, "addr2line %s -e %s", addr.c_str(),
+                    modulePath.c_str());
+            system(syscom);
+        } else {
+            printf("\n");
+        }
+    }
+#endif
+
+    fflush(stdout);
+    fflush(stderr);
+
+    // this is the trick: it will trigger the core dump
+    signal(sig, SIG_DFL);
+    kill(getpid(), sig);
+}
+#endif
+
 #include <GCUtil.h>
 void doFullGCWithoutSeeingStack()
 {
@@ -59,7 +151,11 @@ void printEveryReachableGCObjects()
         [](void* obj, size_t bytes, void* cd) {
             size_t size;
             int kind = GC_get_kind_and_size(obj, &size);
+#if defined(NDEBUG)
+            void* ptr = obj;
+#else
             void* ptr = GC_USR_PTR_FROM_BASE(obj);
+#endif
             size_t* totalSize = (size_t*)cd;
             *totalSize += size;
             printf("@@@ kind %d pointer %p size %d\n", (int)kind, ptr, (int)size);
@@ -961,6 +1057,16 @@ int main(int argc, char* argv[])
     setbuf(stderr, NULL);
 #endif
 
+#if defined(ESCARGOT_ENABLE_TEST) && !defined(__APPLE__)
+    struct sigaction sa;
+    sa.sa_handler = (void (*)(int))btSighandler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+
+    sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGABRT, &sa, NULL);
+#endif
+
 #ifdef M_MMAP_THRESHOLD
     mallopt(M_MMAP_THRESHOLD, 2048);
 #endif
@@ -968,7 +1074,7 @@ int main(int argc, char* argv[])
     mallopt(M_MMAP_MAX, 1024 * 1024);
 #endif
 
-    bool wait_before_exit = false;
+    bool waitBeforeExit = false;
 
     ShellPlatform* platform = new ShellPlatform();
     Globals::initialize(platform);
@@ -1024,7 +1130,7 @@ int main(int argc, char* argv[])
                     continue;
                 }
                 if (strcmp(argv[i], "--wait-before-exit") == 0) {
-                    wait_before_exit = true;
+                    waitBeforeExit = true;
                     continue;
                 }
             } else { // `-option` case
@@ -1076,7 +1182,7 @@ int main(int argc, char* argv[])
         printf("escargot version:%s, %s%s\n", Globals::version(), Globals::buildDate(), Globals::supportsThreading() ? "(supports threading)" : "");
     }
 
-    if (wait_before_exit || context->isWaitBeforeExit()) {
+    if (waitBeforeExit || context->isWaitBeforeExit()) {
         auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
             return script->execute(state);
         },
