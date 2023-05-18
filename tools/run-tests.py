@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2018-present Samsung Electronics Co., Ltd.
 #
@@ -281,13 +281,12 @@ def run_test262_dump(engine, arch):
 
 @runner('test262-dump-run', default=False)
 def run_test262_dump_run(engine, arch):
-    run(['g++', "./tools/test/test262/test-data-runner.cpp", "-o", "./test/test262/test-data-runner", "-g3", "-std=c++11", "-lpthread"],
+    run(['g++', "./tools/test/test-data-runner/test-data-runner.cpp", "-o", "./tools/test/test-data-runner/test-data-runner", "-g3", "-std=c++11", "-lpthread"],
         cwd=PROJECT_SOURCE_DIR,
         stdout=PIPE)
 
-    import multiprocessing
-    cc = multiprocessing.cpu_count()
-    stdout = run(['./test-data-runner', engine, str(cc), "1"],
+    stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
+                  "--test", "test262", "--test-data", join(PROJECT_SOURCE_DIR, 'test', 'test262', 'test262_data')],
         cwd=join(PROJECT_SOURCE_DIR, 'test', 'test262'),
         stdout=PIPE)
 
@@ -327,6 +326,50 @@ def run_spidermonkey(engine, arch):
         for diffline in diff:
             print(diffline)
         raise Exception('failure files differ')
+
+@runner('spidermonkey-dump', default=True)
+def run_spidermonkey_dump(engine, arch):
+    SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'spidermonkey')
+    SPIDERMONKEY_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'SpiderMonkey')
+
+    log_path = join(SPIDERMONKEY_OVERRIDE_DIR, '%s.log.txt' % arch)
+    if not os.path.exists(log_path):
+        run_spidermonkey(engine, arch)
+
+    log = sorted(readfile(log_path))
+    for idx, x in enumerate(log):
+        text = log[idx]
+        text = text.replace(engine + " ", "")
+        text = text.replace(PROJECT_SOURCE_DIR + "/", "")
+        text = text.replace("-f ", "")
+        text = text.replace("\n", "")
+        log[idx] = text
+
+    with open(join(SPIDERMONKEY_OVERRIDE_DIR, '%s.data.txt' % arch), "w") as output:
+        for idx, x in enumerate(log):
+            output.write(log[idx] + "\n")
+            if log[idx].endswith("-n.js"):
+                output.write("3\n")
+            else:
+                output.write("0\n")
+
+@runner('spidermonkey-dump-run', default=True)
+def run_spidermonkey_dump_run(engine, arch):
+    run(['g++', "./tools/test/test-data-runner/test-data-runner.cpp", "-o", "./tools/test/test-data-runner/test-data-runner", "-g3", "-std=c++11", "-lpthread"],
+        cwd=PROJECT_SOURCE_DIR,
+        stdout=PIPE)
+
+    SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'spidermonkey')
+    stdout = run(['./tools/test/test-data-runner/test-data-runner', '--test-data', join(SPIDERMONKEY_OVERRIDE_DIR, '%s.data.txt' % arch),
+                  "--shell", engine, "--env", "LOCALE=en_US"],
+        cwd=PROJECT_SOURCE_DIR,
+        stdout=PIPE)
+
+    stdout = stdout.decode("utf-8")
+    if stdout.find("Passed") < 0:
+        raise Exception('failed')
+    print(stdout)
+    print('spidermonkey-dump-passed')
 
 
 @runner('jsc-stress', default=True)

@@ -68,6 +68,9 @@ non262/TypedArray/sort-negative-nan.js
 non262/Intl/PluralRules/call.js
 non262/Intl/Collator/toStringTag.js
 
+# needs spidermonkey only test functions
+non262/extensions/sharedtypedarray.js
+
 # TODO
 non262/Array/unscopables.js
 non262/arrow-functions/arrow-not-as-end-of-statement.js
