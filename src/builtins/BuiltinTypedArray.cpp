@@ -241,7 +241,7 @@ static void initializeTypedArrayFromTypedArray(ExecutionState& state, TypedArray
     size_t srcElementSize = srcArray->elementSize();
     size_t srcByteOffset = srcArray->byteOffset();
     size_t elementSize = obj->elementSize();
-    uint64_t byteLength = elementSize * elementLength;
+    uint64_t byteLength = static_cast<uint64_t>(elementSize) * elementLength;
 
     Value bufferConstructor;
 #if defined(ENABLE_THREADING)
@@ -331,7 +331,7 @@ static void initializeTypedArrayFromList(ExecutionState& state, TypedArrayObject
 
     // Perform ? AllocateTypedArrayBuffer(O, len).
     uint64_t elementSize = obj->elementSize();
-    uint64_t byteLength = ((uint64_t)len) * elementSize;
+    uint64_t byteLength = static_cast<uint64_t>(len) * elementSize;
     ArrayBufferObject* buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), byteLength);
     obj->setBuffer(buffer, 0, byteLength, len);
 
@@ -349,7 +349,7 @@ static void initializeTypedArrayFromArrayLike(ExecutionState& state, TypedArrayO
 
     // Perform ? AllocateTypedArrayBuffer(O, len).
     size_t elementSize = obj->elementSize();
-    uint64_t byteLength = len * elementSize;
+    uint64_t byteLength = static_cast<uint64_t>(len) * elementSize;
     ArrayBufferObject* buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), byteLength);
     obj->setBuffer(buffer, 0, byteLength, len);
 

@@ -222,7 +222,13 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
         }
         m_hiddenClassChain.push_back(proto->structure());
         proto = proto->getPrototypeObject(state);
+
+        // v8 throw exception when there is too many things on prototype chain
+        if (UNLIKELY(m_hiddenClassChain.size() > 1024 * 128)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
+        }
     }
+
 
     if (shouldSearchProto) {
         // TODO sorting properties

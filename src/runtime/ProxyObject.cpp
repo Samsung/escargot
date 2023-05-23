@@ -392,6 +392,8 @@ bool ProxyObject::preventExtensions(ExecutionState& state)
 
 ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     auto strings = &state.context()->staticStrings();
 
     // 3. If handler is null, throw a TypeError exception.
@@ -610,6 +612,8 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
 
 bool ProxyObject::isExtensible(ExecutionState& state)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
@@ -665,6 +669,8 @@ void ProxyObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionS
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-setprototypeof-v
 bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     auto strings = &state.context()->staticStrings();
     // 1. Assert: Either Type(V) is Object or Type(V) is Null.
     ASSERT(value.isObject() || value.isNull());
@@ -807,6 +813,8 @@ Value ProxyObject::getPrototype(ExecutionState& state)
 // https://www.ecma-international.org/ecma-262/6.0/index.html#sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
 ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& receiver)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     auto strings = &state.context()->staticStrings();
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
@@ -870,6 +878,8 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
 // https://www.ecma-international.org/ecma-262/6.0/index.html#sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver
 bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver)
 {
+    CHECK_STACK_OVERFLOW(state);
+
     auto strings = &state.context()->staticStrings();
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {

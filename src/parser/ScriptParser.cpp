@@ -440,6 +440,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
             topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith);
 #endif
         } catch (const char* message) {
+            m_context->astAllocator().reset();
             GC_enable();
 
             ScriptParser::InitializeScriptResult result;
