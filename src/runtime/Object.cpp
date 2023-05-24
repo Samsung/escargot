@@ -1480,7 +1480,7 @@ bool Object::isCompatiblePropertyDescriptor(ExecutionState& state, bool extensib
     } else if (!current.isDataProperty() && desc.isAccessorDescriptor()) { // 9. Else IsAccessorDescriptor(current) and IsAccessorDescriptor(Desc) are both true,
         // a. If the [[Configurable]] field of current is false, then
         if (!current.isConfigurable()) {
-            JSGetterSetter* currgs = current.value(state, Value()).asPointerValue()->asJSGetterSetter();
+            JSGetterSetter* currgs = current.jsGetterSetter();
             // i. Return false, if the [[Set]] field of Desc is present and SameValue(Desc.[[Set]], current.[[Set]]) is false.
             if (desc.getterSetter().hasSetter() && (desc.getterSetter().setter() != (currgs->hasSetter() ? currgs->setter() : Value()))) {
                 return false;
