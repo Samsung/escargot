@@ -553,6 +553,51 @@ def run_v8(engine, arch):
     if '=== All tests succeeded' not in stdout.decode("utf-8"):
         raise Exception('Not all tests succeeded')
 
+    return stdout
+
+
+@runner('v8-dump', default=True)
+def run_v8_dump(engine, arch):
+    stdout = run_v8(engine, arch)
+    stdout = stdout.decode("utf-8").split("\n")
+
+    TOOL_V8_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'v8')
+    STATUS_FILE_CONTENTS = ''.join(readfile(join(TOOL_V8_DIR, 'v8.mjsunit.status')))
+
+    driver_path = "tools/test/v8/v8.mjsunit.js";
+    with open(join(TOOL_V8_DIR, '%s.data.txt' % arch), "w") as output:
+        for line in stdout:
+            if "Done running " in line:
+                casename = line.split(" ")[2].split(":")[0]
+                if casename[8:] not in STATUS_FILE_CONTENTS and "bugs/" not in casename:
+                    print("TEST " + casename)
+                    filename = "test/vendortest/v8/test/" + casename + ".js"
+                    output.write(driver_path)
+                    output.write(" ")
+                    output.write(filename)
+                    output.write("\n")
+                    output.write("0\n")
+                else:
+                    print("SKIP " + casename)
+
+@runner('v8-dump-run', default=True)
+def run_v8_dump_run(engine, arch):
+    run(['g++', "./tools/test/test-data-runner/test-data-runner.cpp", "-o", "./tools/test/test-data-runner/test-data-runner", "-g3", "-std=c++11", "-lpthread"],
+        cwd=PROJECT_SOURCE_DIR,
+        stdout=PIPE)
+
+    TOOL_V8_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'v8')
+    stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
+                "--test-data", join(TOOL_V8_DIR, '%s.data.txt' % arch), "--env", "GC_FREE_SPACE_DIVISOR=1"],
+        cwd=join(PROJECT_SOURCE_DIR),
+        stdout=PIPE)
+
+    stdout = stdout.decode("utf-8")
+    if stdout.find("Passed") < 0:
+        raise Exception('failed')
+
+    print('v8-dump-passed')
+
 @runner('new-es', default=True)
 def run_new_es(engine, arch):
     NEW_ES_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'new-es')

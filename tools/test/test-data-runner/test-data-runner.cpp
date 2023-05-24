@@ -157,12 +157,6 @@ int main(int argc, char* argv[])
                 std::string commandline = g_env + " " + shellPath;
                 const auto& data = g_testDatas[j];
 
-                if (g_skipPattern.size() && data.fullPath.find(g_skipPattern) != std::string::npos) {
-                    g_skipCount++;
-                    printf("SKIP [%d] %s\n", g_index++, data.fullPath.data());
-                    continue;
-                }
-
                 commandline += " " + data.driverFile;
                 if (data.canBlockIsFalse.size()) {
                     commandline += " --canblock-is-false";
@@ -175,13 +169,21 @@ int main(int argc, char* argv[])
 
                 commandline += " " + data.testFile;
 
+                std::string info = data.fullPath.size() ? data.fullPath : commandline;
+
+                if (g_skipPattern.size() && data.fullPath.find(g_skipPattern) != std::string::npos) {
+                    g_skipCount++;
+                    printf("SKIP [%d] %s\n", g_index++, info.data());
+                    continue;
+                }
+
                 int result = WEXITSTATUS(std::system(commandline.data()));
 
                 if (data.code == std::to_string(result)) {
                     g_passCount++;
-                    printf("Success [%d] %s => %d\n", g_index++, data.fullPath.data(), result);
+                    printf("Success [%d] %s => %d\n", g_index++, info.data(), result);
                 } else {
-                    printf("Fail [%d] %s,%s\n", g_index++, data.fullPath.data(), commandline.data());
+                    printf("Fail [%d] %s\n", g_index++, commandline.data());
                 }
             }
         }, threadData[i], shellPath));
