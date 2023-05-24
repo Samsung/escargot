@@ -540,6 +540,7 @@ def run_v8(engine, arch):
                   '--no-network',
                   'mjsunit'],
                  stdout=PIPE,
+                 env={'GC_FREE_SPACE_DIVISOR': '1'},
                  checkresult=False)
     # FIXME: V8 test runner tends to exit with 2 (most probably the result of
     # a `self.remaining != 0` in `testrunner.local.execution.Runner.Run()`.

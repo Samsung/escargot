@@ -614,7 +614,7 @@ public:
         return valueSlowCase(state, receiver);
     }
 
-    JSGetterSetter* jsGetterSetter()
+    JSGetterSetter* jsGetterSetter() const
     {
         ASSERT(!isDataProperty());
         return m_jsGetterSetter;
