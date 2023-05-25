@@ -1552,7 +1552,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 // At the start of tail call, we need to allocate a buffer for arguments
                 // because recursive tail call reuses this buffer
                 if (UNLIKELY(!state->initTCO())) {
-                    Value* newArgs = ALLOCA(sizeof(Value) * code->m_argumentCount, Value, state);
+                    Value* newArgs = ALLOCA(sizeof(Value) * code->m_argumentCount, Value);
                     state->setTCOArguments(newArgs);
                 }
 
@@ -1594,7 +1594,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 // At the start of tail call, we need to allocate a buffer for arguments
                 // because recursive tail call reuses this buffer
                 if (UNLIKELY(!state->initTCO())) {
-                    Value* newArgs = ALLOCA(sizeof(Value) * code->m_argumentCount, Value, state);
+                    Value* newArgs = ALLOCA(sizeof(Value) * code->m_argumentCount, Value);
                     state->setTCOArguments(newArgs);
                 }
 
@@ -3682,7 +3682,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
 
         if (callee.asPointerValue() == state.context()->globalObject()->functionApply()) {
             if (!functionRecord->argumentsObject()) {
-                Value* v = ALLOCA(sizeof(Value) * state.argc(), Value, state);
+                Value* v = ALLOCA(sizeof(Value) * state.argc(), Value);
                 memcpy(v, state.argv(), sizeof(Value) * state.argc());
                 registerFile[code->m_resultIndex] = receiver.asPointerValue()->call(state, registerFile[code->m_argumentsStartIndex], state.argc(), v);
                 return;

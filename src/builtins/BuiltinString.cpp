@@ -503,7 +503,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
             for (uint32_t i = 0; i < matchCount; i++) {
                 size_t subLen = result.m_matchResults[i].size();
                 Value* arguments;
-                arguments = ALLOCA(sizeof(Value) * (subLen + 2), Value, state);
+                arguments = ALLOCA(sizeof(Value) * (subLen + 2), Value);
                 for (unsigned j = 0; j < (unsigned)subLen; j++) {
                     if (result.m_matchResults[i][j].m_start == std::numeric_limits<unsigned>::max())
                         arguments[j] = Value();
@@ -918,7 +918,7 @@ static Value builtinStringSlice(ExecutionState& state, Value thisValue, size_t a
 static String* stringToLocaleConvertCase(ExecutionState& state, String* str, String* locale, bool isUpper)
 {
     int32_t len = str->length();
-    char16_t* src = ALLOCA(len * 2, char16_t, state);
+    char16_t* src = ALLOCA(len * 2, char16_t);
     if (str->has8BitContent()) {
         const LChar* buf = str->characters8();
         for (int32_t i = 0; i < len; i++) {
@@ -930,7 +930,7 @@ static String* stringToLocaleConvertCase(ExecutionState& state, String* str, Str
 
     UErrorCode status = U_ZERO_ERROR;
     int32_t dest_length = len * 3;
-    char16_t* dest = ALLOCA(dest_length * 2, char16_t, state);
+    char16_t* dest = ALLOCA(dest_length * 2, char16_t);
     if (isUpper) {
         dest_length = u_strToUpper(dest, dest_length, src, len, (const char*)locale->characters8(), &status);
     } else {
@@ -952,7 +952,7 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
         LChar* dest;
         Latin1StringData newStr;
         if (len <= LATIN1_LARGE_INLINE_BUFFER_MAX_SIZE) {
-            dest = static_cast<LChar*>(alloca(len));
+            dest = ALLOCA(len, LChar);
         } else {
             newStr.resizeWithUninitializedValues(len);
             dest = newStr.data();

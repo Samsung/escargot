@@ -124,7 +124,7 @@ void* SharedArrayBufferObject::operator new(size_t size)
 void SharedArrayBufferObject::fillData(const uint8_t* newData, size_t length)
 {
 #if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-    uint8_t* rawBytes = ALLOCA(8, uint8_t, nullptr);
+    uint8_t* rawBytes = ALLOCA(8, uint8_t);
     uint8_t* rawTarget = data();
     for (size_t i = 0; i < length; i++) {
         __atomic_load(newData + i, rawBytes, __ATOMIC_SEQ_CST);
@@ -144,7 +144,7 @@ Value SharedArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t 
 
     uint8_t* rawStart = data() + byteindex;
 #if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-    uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
+    uint8_t* rawBytes = ALLOCA(8, uint8_t);
 
     switch (type) {
     case TypedArrayType::Int8:
@@ -186,7 +186,7 @@ Value SharedArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t 
     if (LIKELY(isLittleEndian)) {
         return TypedArrayHelper::rawBytesToNumber(state, type, rawBytes);
     } else {
-        uint8_t* rawBytes2 = ALLOCA(8, uint8_t, state);
+        uint8_t* rawBytes2 = ALLOCA(8, uint8_t);
         for (size_t i = 0; i < elemSize; i++) {
             rawBytes2[elemSize - i - 1] = rawBytes[i];
         }
@@ -197,7 +197,7 @@ Value SharedArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t 
     if (LIKELY(isLittleEndian)) {
         return TypedArrayHelper::rawBytesToNumber(state, type, rawStart);
     } else {
-        uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
+        uint8_t* rawBytes = ALLOCA(8, uint8_t);
         for (size_t i = 0; i < elemSize; i++) {
             rawBytes[elemSize - i - 1] = rawStart[i];
         }
@@ -213,10 +213,10 @@ void SharedArrayBufferObject::setValueInBuffer(ExecutionState& state, size_t byt
     ASSERT(byteindex + elemSize <= byteLength());
 
     uint8_t* rawStart = data() + byteindex;
-    uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
+    uint8_t* rawBytes = ALLOCA(8, uint8_t);
     TypedArrayHelper::numberToRawBytes(state, type, val, rawBytes);
 #if defined(HAVE_BUILTIN_ATOMIC_FUNCTIONS)
-    uint8_t* rawBytes2 = ALLOCA(8, uint8_t, state);
+    uint8_t* rawBytes2 = ALLOCA(8, uint8_t);
     if (LIKELY(isLittleEndian)) {
         rawBytes2 = rawBytes;
     } else {

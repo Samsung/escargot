@@ -132,7 +132,7 @@ static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t 
     }
     Value thisArg = argv[0];
     size_t arrlen = argc > 0 ? argc - 1 : 0;
-    Value* arguments = ALLOCA(sizeof(Value) * arrlen, Value, state);
+    Value* arguments = ALLOCA(sizeof(Value) * arrlen, Value);
     for (size_t i = 0; i < arrlen; i++) {
         arguments[i] = argv[i + 1];
     }

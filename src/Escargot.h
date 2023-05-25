@@ -499,7 +499,7 @@ void customEscargotErrorLogger(const char* format, ...);
     static void operator delete(void*) = delete;  \
     static void operator delete[](void*) = delete;
 
-#define ALLOCA(bytes, typenameWithoutPointer, ec) (typenameWithoutPointer*)(LIKELY(bytes < 512) ? alloca(bytes) : GC_MALLOC(bytes))
+#define ALLOCA(bytes, typenameWithoutPointer) (typenameWithoutPointer*)(LIKELY(bytes < 512) ? alloca(bytes) : GC_MALLOC(bytes))
 
 typedef uint16_t ByteCodeRegisterIndex;
 #define REGISTER_INDEX_IN_BIT 16

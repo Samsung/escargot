@@ -626,7 +626,7 @@ double Value::toNumberSlowCase(ExecutionState& state) const
         int end;
         char* buf;
 
-        buf = ALLOCA(len + 1, char, state);
+        buf = ALLOCA(len + 1, char);
         if (LIKELY(bufferAccessData.has8BitContent)) {
             const LChar* src = (const LChar*)bufferAccessData.buffer;
             for (unsigned i = 0; i < len; i++) {

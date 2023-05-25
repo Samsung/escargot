@@ -314,7 +314,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     bool isGlobal = option() & RegExpObject::Option::Global;
     bool isSticky = option() & RegExpObject::Option::Sticky;
     bool gotResult = false;
-    unsigned* outputBuf = ALLOCA(sizeof(unsigned) * 2 * (subPatternNum + 1), unsigned int, state);
+    unsigned* outputBuf = ALLOCA(sizeof(unsigned) * 2 * (subPatternNum + 1), unsigned int);
     outputBuf[1] = start;
     do {
         start = outputBuf[1];

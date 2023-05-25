@@ -455,9 +455,9 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
         size_t replacerArgsSize = nCaptures + 3;
         if (functionalReplace) {
             if (namedCaptures.isUndefined()) {
-                replacerArgs = ALLOCA(sizeof(Value) * (nCaptures + 3), Value, state);
+                replacerArgs = ALLOCA(sizeof(Value) * (nCaptures + 3), Value);
             } else {
-                replacerArgs = ALLOCA(sizeof(Value) * (nCaptures + 4), Value, state);
+                replacerArgs = ALLOCA(sizeof(Value) * (nCaptures + 4), Value);
                 replacerArgsSize++;
                 replacerArgs[nCaptures + 3] = namedCaptures;
             }

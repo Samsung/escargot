@@ -571,7 +571,7 @@ std::pair<Value, bool> Scanner::ScannerResult::valueNumberLiteral(Scanner* scann
         int length = this->end - this->start;
 
         if (UNLIKELY(this->hasNumberSeparatorOnNumberLiteral)) {
-            buffer = ALLOCA(this->end - this->start, char, ec);
+            buffer = ALLOCA(this->end - this->start, char);
             int underScoreCount = 0;
             for (int i = 0; i < length; i++) {
                 auto c = bd.charAt(i + this->start);
@@ -587,7 +587,7 @@ std::pair<Value, bool> Scanner::ScannerResult::valueNumberLiteral(Scanner* scann
             if (bd.has8BitContent) {
                 buffer = ((char*)bd.buffer) + this->start;
             } else {
-                buffer = ALLOCA(this->end - this->start, char, ec);
+                buffer = ALLOCA(this->end - this->start, char);
 
                 for (int i = 0; i < length; i++) {
                     buffer[i] = bd.uncheckedCharAtFor16Bit(i + this->start);
