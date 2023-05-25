@@ -81,6 +81,9 @@ public:
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
+#if defined(ENABLE_TCO)
+        , m_initTCO(false)
+#endif
         , m_argc(parent->argc())
         , m_argv(parent->argv())
     {
@@ -99,6 +102,9 @@ public:
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
+#if defined(ENABLE_TCO)
+        , m_initTCO(false)
+#endif
         , m_argc(0)
         , m_argv(nullptr)
     {
@@ -117,6 +123,9 @@ public:
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
+#if defined(ENABLE_TCO)
+        , m_initTCO(false)
+#endif
         , m_argc(argc)
         , m_argv(argv)
     {
@@ -135,6 +144,9 @@ public:
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
+#if defined(ENABLE_TCO)
+        , m_initTCO(false)
+#endif
         , m_argc(argc)
         , m_argv(argv)
     {
@@ -156,6 +168,9 @@ public:
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
+#if defined(ENABLE_TCO)
+        , m_initTCO(false)
+#endif
         , m_argc(argc)
         , m_argv(argv)
     {
@@ -253,6 +268,22 @@ public:
         return m_onFinally;
     }
 
+#if defined(ENABLE_TCO)
+    bool initTCO() const
+    {
+        return m_initTCO;
+    }
+
+    void setTCOArguments(Value* argv)
+    {
+        // allocate a new argument buffer
+        // because tail call reuses this buffer which can modify caller's register file
+        ASSERT(!m_initTCO && !!argv);
+        m_initTCO = true;
+        m_argv = argv;
+    }
+#endif
+
     bool isNativeFunctionObjectExecutionContext() const
     {
         return m_isNativeFunctionObjectExecutionContext;
@@ -330,6 +361,10 @@ private:
     bool m_onTry : 1;
     bool m_onCatch : 1;
     bool m_onFinally : 1;
+#if defined(ENABLE_TCO)
+    bool m_initTCO : 1;
+#endif
+
 #ifdef ESCARGOT_32
     size_t m_argc : 24;
 #else

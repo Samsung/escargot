@@ -1546,11 +1546,20 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             // fast tail recursion
             ASSERT(callee.isPointerValue() && callee.asPointerValue()->isScriptFunctionObject());
             ASSERT(callee.asPointerValue()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
-
-            // its safe to overwrite arguments because old arguments are no longer necessary
             ASSERT(state->m_argc == code->m_argumentCount);
-            for (size_t i = 0; i < state->m_argc; i++) {
-                state->m_argv[i] = registerFile[code->m_argumentsStartIndex + i];
+
+            if (code->m_argumentCount) {
+                // At the start of tail call, we need to allocate a buffer for arguments
+                // because recursive tail call reuses this buffer
+                if (UNLIKELY(!state->initTCO())) {
+                    Value* newArgs = ALLOCA(sizeof(Value) * code->m_argumentCount, Value, state);
+                    state->setTCOArguments(newArgs);
+                }
+
+                // its safe to overwrite arguments because old arguments are no longer necessary
+                for (size_t i = 0; i < state->m_argc; i++) {
+                    state->m_argv[i] = registerFile[code->m_argumentsStartIndex + i];
+                }
             }
 
             // set this value
@@ -1579,11 +1588,20 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             // fast tail recursion with receiver
             ASSERT(callee.isPointerValue() && callee.asPointerValue()->isScriptFunctionObject());
             ASSERT(callee.asPointerValue()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
-
-            // its safe to overwrite arguments because old arguments are no longer necessary
             ASSERT(state->m_argc == code->m_argumentCount);
-            for (size_t i = 0; i < state->m_argc; i++) {
-                state->m_argv[i] = registerFile[code->m_argumentsStartIndex + i];
+
+            if (code->m_argumentCount) {
+                // At the start of tail call, we need to allocate a buffer for arguments
+                // because recursive tail call reuses this buffer
+                if (UNLIKELY(!state->initTCO())) {
+                    Value* newArgs = ALLOCA(sizeof(Value) * code->m_argumentCount, Value, state);
+                    state->setTCOArguments(newArgs);
+                }
+
+                // its safe to overwrite arguments because old arguments are no longer necessary
+                for (size_t i = 0; i < state->m_argc; i++) {
+                    state->m_argv[i] = registerFile[code->m_argumentsStartIndex + i];
+                }
             }
 
             // set this value (receiver) // FIXME
