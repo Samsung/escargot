@@ -226,14 +226,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        tc: ['octane', 'v8 chakracore spidermonkey']
-        build_opt: ['', '-DESCARGOT_THREADING=ON', '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_USE_CUSTOM_LOGGING=ON']
+        tc: ['new-es octane', 'v8 chakracore spidermonkey']
+        build_opt: ['', '-DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON', '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_USE_CUSTOM_LOGGING=ON']
         exclude:
           # exclude spidermonkey on threading-enabled build (TODO)
           - tc: 'v8 chakracore spidermonkey'
             build_opt: '-DESCARGOT_THREADING=ON'
           # exclue octane due to low performance incurred by SMALL_CONFIG
-          - tc: 'octane'
+          - tc: 'new-es octane'
             build_opt: '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_USE_CUSTOM_LOGGING=ON'
     steps:
     - uses: actions/checkout@v3

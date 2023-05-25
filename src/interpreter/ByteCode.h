@@ -1966,7 +1966,11 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("call r%u <- r%u(r%u-r%u)", m_resultIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        if (m_argumentCount) {
+            printf("call r%u <- r%u(r%u-r%u)", m_resultIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        } else {
+            printf("call r%u <- r%u()", m_resultIndex, m_calleeIndex);
+        }
     }
 #endif
 };
@@ -1992,13 +1996,16 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("call r%u <- r%u,r%u(r%u-r%u)", m_resultIndex, m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        if (m_argumentCount) {
+            printf("call r%u <- r%u.r%u(r%u-r%u)", m_resultIndex, m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        } else {
+            printf("call r%u <- r%u.r%u()", m_resultIndex, m_receiverIndex, m_calleeIndex);
+        }
     }
 #endif
 };
 
 #if defined(ENABLE_TCO)
-// TCO
 class CallReturn : public ByteCode {
 public:
     CallReturn(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
@@ -2015,7 +2022,11 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("tail call r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        if (m_argumentCount) {
+            printf("tail call r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        } else {
+            printf("tail call r%u()", m_calleeIndex);
+        }
     }
 #endif
 };
@@ -2036,7 +2047,11 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("tail recursion call r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        if (m_argumentCount) {
+            printf("tail recursion call r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        } else {
+            printf("tail recursion call r%u()", m_calleeIndex);
+        }
     }
 #endif
 };
@@ -2060,7 +2075,11 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("tail call with receiver <- r%u,r%u(r%u-r%u)", m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        if (m_argumentCount) {
+            printf("tail call r%u.r%u(r%u-r%u)", m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        } else {
+            printf("tail call r%u.r%u()", m_receiverIndex, m_calleeIndex);
+        }
     }
 #endif
 };
@@ -2084,7 +2103,11 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("tail recursion call with receiver r%u,r%u(r%u-r%u)", m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        if (m_argumentCount) {
+            printf("tail recursion call r%u.r%u(r%u-r%u)", m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        } else {
+            printf("tail recursion call r%u.r%u()", m_receiverIndex, m_calleeIndex);
+        }
     }
 #endif
 };
