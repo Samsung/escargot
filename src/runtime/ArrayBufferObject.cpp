@@ -164,7 +164,7 @@ Value ArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t bytein
     if (LIKELY(isLittleEndian)) {
         return TypedArrayHelper::rawBytesToNumber(state, type, rawStart);
     } else {
-        uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
+        uint8_t* rawBytes = ALLOCA(8, uint8_t);
         for (size_t i = 0; i < elemSize; i++) {
             rawBytes[elemSize - i - 1] = rawStart[i];
         }
@@ -179,7 +179,7 @@ void ArrayBufferObject::setValueInBuffer(ExecutionState& state, size_t byteindex
     size_t elemSize = TypedArrayHelper::elementSize(type);
     ASSERT(byteindex + elemSize <= byteLength());
     uint8_t* rawStart = data() + byteindex;
-    uint8_t* rawBytes = ALLOCA(8, uint8_t, state);
+    uint8_t* rawBytes = ALLOCA(8, uint8_t);
     TypedArrayHelper::numberToRawBytes(state, type, val, rawBytes);
     if (LIKELY(isLittleEndian)) {
         memcpy(rawStart, rawBytes, elemSize);

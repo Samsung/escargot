@@ -468,7 +468,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
 
     Value* registerFile;
     if (LIKELY(!m_topCodeBlock->isAsync())) {
-        registerFile = (Value*)ALLOCA(registerFileSize * sizeof(Value), Value, state);
+        registerFile = ALLOCA(registerFileSize * sizeof(Value), Value);
     } else {
         registerFile = CustomAllocator<Value>().allocate(registerFileSize);
         // we need to reset allocated memory because customAllocator read it
@@ -581,7 +581,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     const size_t registerFileSize = byteCodeBlock->m_requiredTotalRegisterNumber;
     ASSERT(registerFileSize == byteCodeBlock->m_requiredOperandRegisterNumber + m_topCodeBlock->totalStackAllocatedVariableSize() + literalStorageSize);
 
-    Value* registerFile = ALLOCA(registerFileSize * sizeof(Value), Value, state);
+    Value* registerFile = ALLOCA(registerFileSize * sizeof(Value), Value);
     registerFile[0] = Value();
 
     Value* stackStorage = registerFile + byteCodeBlock->m_requiredOperandRegisterNumber;
@@ -1093,7 +1093,7 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
 
     Value* registerFile;
     if (LIKELY(!m_topCodeBlock->isAsync())) {
-        registerFile = (Value*)ALLOCA(registerFileSize * sizeof(Value), Value, state);
+        registerFile = ALLOCA(registerFileSize * sizeof(Value), Value);
     } else {
         registerFile = CustomAllocator<Value>().allocate(registerFileSize);
         // we need to reset allocated memory because customAllocator read it

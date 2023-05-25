@@ -75,7 +75,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     const wasm_valtype_vec_t* results = wasm_functype_results(functype);
 
     // Let args be << >>
-    wasm_val_t* argsBuffer = ALLOCA(parameters->size * sizeof(wasm_val_t), wasm_val_t, state);
+    wasm_val_t* argsBuffer = ALLOCA(parameters->size * sizeof(wasm_val_t), wasm_val_t);
     wasm_val_vec_t args = { parameters->size, argsBuffer };
 
     // For each t of parameters,
@@ -88,7 +88,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
         args.data[i] = WASMValueConverter::wasmToWebAssemblyValue(state, arg, wasm_valtype_kind(parameters->data[i]));
     }
 
-    wasm_val_t* retBuffer = ALLOCA(results->size * sizeof(wasm_val_t), wasm_val_t, state);
+    wasm_val_t* retBuffer = ALLOCA(results->size * sizeof(wasm_val_t), wasm_val_t);
     wasm_val_vec_t ret = { results->size, retBuffer };
 
     wasm_functype_delete(functype);

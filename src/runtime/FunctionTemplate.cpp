@@ -99,7 +99,7 @@ FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool
     auto fnData = new CallTemplateFunctionData(this, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value {
         ExtendedNativeFunctionObject* activeFunction = state.resolveCallee()->asExtendedNativeFunctionObject();
         CallTemplateFunctionData* data = activeFunction->internalSlotAsPointer<CallTemplateFunctionData>(FunctionTemplate::BuiltinFunctionSlot::CallTemplateFunctionDataIndex);
-        ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * argc, ValueRef*, state);
+        ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * argc, ValueRef*);
         for (size_t i = 0; i < argc; i++) {
             newArgv[i] = toRef(argv[i]);
         }

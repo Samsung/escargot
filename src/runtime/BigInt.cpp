@@ -55,7 +55,7 @@ BigIntData::BigIntData(String* src, int radix)
             bf_set_nan(&m_data);
             return;
         }
-        buffer = ALLOCA(bd.length, char, nullptr);
+        buffer = ALLOCA(bd.length, char);
 
         for (size_t i = 0; i < bd.length; i++) {
             buffer[i] = bd.uncheckedCharAtFor16Bit(i);
@@ -78,7 +78,7 @@ void BigIntData::init(const char* buf, size_t length, int radix)
         return;
     }
     // bf_atof needs zero-terminated string
-    char* newBuf = ALLOCA(length + 1, char, nullptr);
+    char* newBuf = ALLOCA(length + 1, char);
     for (size_t i = 0; i < length; i++) {
         if (UNLIKELY(buf[i] == '.')) {
             bf_set_nan(&m_data);
@@ -225,7 +225,7 @@ Optional<BigInt*> BigInt::parseString(String* str, int radix)
         if (!isAllASCII(bd.bufferAs16Bit, bd.length)) {
             return nullptr;
         }
-        buffer = ALLOCA(bd.length, char, nullptr);
+        buffer = ALLOCA(bd.length, char);
 
         for (size_t i = 0; i < bd.length; i++) {
             buffer[i] = bd.uncheckedCharAtFor16Bit(i);

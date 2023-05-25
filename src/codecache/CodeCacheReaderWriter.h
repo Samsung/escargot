@@ -275,12 +275,12 @@ public:
             size_t length = get<size_t>();
             ASSERT(length);
             if (LIKELY(is8Bit)) {
-                LChar* buffer = ALLOCA(sizeof(LChar) * (length + 1), LChar, nullptr);
+                LChar* buffer = ALLOCA(sizeof(LChar) * (length + 1), LChar);
                 buffer[length] = '\0';
                 getData(buffer, length);
                 str = new Latin1String(buffer, length);
             } else {
-                UChar* buffer = ALLOCA(sizeof(UChar) * (length + 1), UChar, nullptr);
+                UChar* buffer = ALLOCA(sizeof(UChar) * (length + 1), UChar);
                 buffer[length] = '\0';
                 getData(buffer, length);
                 str = new UTF16String(buffer, length);

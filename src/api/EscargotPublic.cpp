@@ -2660,7 +2660,7 @@ static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t
     ExtendedNativeFunctionObject* func = state.resolveCallee()->asExtendedNativeFunctionObject();
     CallPublicFunctionData* code = func->internalSlotAsPointer<CallPublicFunctionData>(FunctionObjectRef::BuiltinFunctionSlot::PublicFunctionIndex);
 
-    ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * calledArgc, ValueRef*, state);
+    ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * calledArgc, ValueRef*);
     for (size_t i = 0; i < calledArgc; i++) {
         newArgv[i] = toRef(calledArgv[i]);
     }
@@ -2717,7 +2717,7 @@ FunctionObjectRef* FunctionObjectRef::createBuiltinFunction(ExecutionStateRef* s
 FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* stateRef, AtomicStringRef* functionName, size_t argumentCount, ValueRef** argumentNameArray, ValueRef* body)
 {
     ExecutionState& state = *toImpl(stateRef);
-    Value* newArgv = ALLOCA(sizeof(Value) * argumentCount, Value, state);
+    Value* newArgv = ALLOCA(sizeof(Value) * argumentCount, Value);
     for (size_t i = 0; i < argumentCount; i++) {
         newArgv[i] = toImpl(argumentNameArray[i]);
     }
@@ -2735,7 +2735,7 @@ FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* stateRef, String
     ASSERT(toImpl(sourceName));
 
     ExecutionState& state = *toImpl(stateRef);
-    Value* newArgv = ALLOCA(sizeof(Value) * argumentCount, Value, state);
+    Value* newArgv = ALLOCA(sizeof(Value) * argumentCount, Value);
     for (size_t i = 0; i < argumentCount; i++) {
         newArgv[i] = toImpl(argumentNameArray[i]);
     }
@@ -3264,7 +3264,7 @@ ValueRef* ValueRef::call(ExecutionStateRef* state, ValueRef* receiver, const siz
         ErrorObject::throwBuiltinError(*toImpl(state), ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
     PointerValue* o = impl.asPointerValue();
-    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
+    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value);
     for (size_t i = 0; i < argc; i++) {
         newArgv[i] = toImpl(argv[i]);
     }
@@ -3278,7 +3278,7 @@ ValueRef* ValueRef::construct(ExecutionStateRef* state, const size_t argc, Value
         ErrorObject::throwBuiltinError(*toImpl(state), ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
     PointerValue* o = impl.asPointerValue();
-    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value, state);
+    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value);
     for (size_t i = 0; i < argc; i++) {
         newArgv[i] = toImpl(argv[i]);
     }
@@ -4385,7 +4385,7 @@ ScriptParserRef::InitializeFunctionScriptResult ScriptParserRef::initializeFunct
     // temporal ExecutionState
     ExecutionState state(toImpl(this)->context());
 
-    Value* argArray = ALLOCA(sizeof(Value) * argumentCount, Value, state);
+    Value* argArray = ALLOCA(sizeof(Value) * argumentCount, Value);
     for (size_t i = 0; i < argumentCount; i++) {
         argArray[i] = toImpl(argumentNameArray[i]);
     }

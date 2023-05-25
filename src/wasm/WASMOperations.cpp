@@ -58,7 +58,7 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_t args[],
     size_t argSize = params->size;
 
     // Let jsArguments be << >>
-    Value* jsArguments = ALLOCA(sizeof(Value) * argSize, Value, state);
+    Value* jsArguments = ALLOCA(sizeof(Value) * argSize, Value);
 
     // For each arg of arguments,
     for (size_t i = 0; i < argSize; i++) {

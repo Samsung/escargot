@@ -52,7 +52,7 @@
 #include "parser/ASTAllocator.h"
 #include "parser/esprima_cpp/ParserContext.h"
 
-#define ALLOC_TOKEN(tokenName) Scanner::ScannerResult* tokenName = ALLOCA(sizeof(Scanner::ScannerResult), Scanner::ScannerResult, ec);
+#define ALLOC_TOKEN(tokenName) Scanner::ScannerResult* tokenName = ALLOCA(sizeof(Scanner::ScannerResult), Scanner::ScannerResult);
 
 #define ASTNode typename ASTBuilder::ASTNode
 #define ASTStatementContainer typename ASTBuilder::ASTStatementContainer

@@ -946,7 +946,7 @@ void Object::enumeration(ExecutionState& state, bool (*callback)(ExecutionState&
     size_t cnt = m_structure->propertyCount();
     bool inTransitionMode = m_structure->inTransitionMode();
     if (!inTransitionMode) {
-        auto newData = ALLOCA(sizeof(ObjectStructureItem) * cnt, ObjectStructureItem, state);
+        auto newData = ALLOCA(sizeof(ObjectStructureItem) * cnt, ObjectStructureItem);
         memcpy(newData, propertiesVector, sizeof(ObjectStructureItem) * cnt);
         propertiesVector = newData;
     }

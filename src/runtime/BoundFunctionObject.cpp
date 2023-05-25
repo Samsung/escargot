@@ -52,7 +52,7 @@ Value BoundFunctionObject::call(ExecutionState& state, const Value& thisValue, c
     // Let args be a new list containing the same values as the list boundArgs in the same order followed by the same values as the list argumentsList in the same order.
     size_t boundArgc = m_boundArguments.size();
     size_t mergedArgc = boundArgc + calledArgc;
-    Value* mergedArgv = ALLOCA(mergedArgc * sizeof(Value), Value, state);
+    Value* mergedArgv = ALLOCA(mergedArgc * sizeof(Value), Value);
     for (size_t i = 0; i < boundArgc; i++) {
         mergedArgv[i] = m_boundArguments[i];
     }
@@ -74,7 +74,7 @@ Value BoundFunctionObject::construct(ExecutionState& state, const size_t calledA
     // Let args be a new list containing the same values as the list boundArgs in the same order followed by the same values as the list argumentsList in the same order.
     size_t boundArgc = m_boundArguments.size();
     size_t mergedArgc = boundArgc + calledArgc;
-    Value* mergedArgv = ALLOCA(mergedArgc * sizeof(Value), Value, state);
+    Value* mergedArgv = ALLOCA(mergedArgc * sizeof(Value), Value);
     for (size_t i = 0; i < boundArgc; i++) {
         mergedArgv[i] = m_boundArguments[i];
     }
