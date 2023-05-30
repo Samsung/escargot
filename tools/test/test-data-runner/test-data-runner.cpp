@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
@@ -32,6 +33,20 @@ std::atomic<int> g_skipCount;
 std::string g_skipPattern;
 std::string g_env;
 TestKind g_testKind;
+
+std::pair<std::string, int> exec(const std::string& cmd)
+{
+    char buffer[256];
+    std::string result;
+    FILE* fp = popen((cmd + " 2>&1").data(), "r");
+    if (!fp) {
+        throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer, sizeof(buffer), fp) != nullptr) {
+        result += buffer;
+    }
+    return std::make_pair(result, WEXITSTATUS(pclose(fp)));
+}
 
 int main(int argc, char* argv[])
 {
@@ -177,13 +192,14 @@ int main(int argc, char* argv[])
                     continue;
                 }
 
-                int result = WEXITSTATUS(std::system(commandline.data()));
+                auto result = exec(commandline);
 
-                if (data.code == std::to_string(result)) {
+                if (data.code == std::to_string(result.second)) {
                     g_passCount++;
-                    printf("Success [%d] %s => %d\n", g_index++, info.data(), result);
+                    printf("Success [%d] %s => %d\n", g_index++, info.data(), result.second);
                 } else {
                     printf("Fail [%d] %s\n", g_index++, commandline.data());
+                    printf("Fail output->\n%s", result.first.data());
                 }
             }
         }, threadData[i], shellPath));

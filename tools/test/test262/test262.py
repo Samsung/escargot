@@ -248,8 +248,9 @@ class TestResult(object):
 
 class TestCase(object):
 
-  def __init__(self, suite, name, full_path, strict_mode):
+  def __init__(self, suite, index, name, full_path, strict_mode):
     self.suite = suite
+    self.index = index
     self.name = name
     self.full_path = full_path
     self.strict_mode = strict_mode
@@ -443,8 +444,8 @@ class TestCase(object):
     return TestResult(code, out, err, self)
 
   def Run(self, command_template):
-    driver_tmp = TempFile(suffix=".js", prefix="test262-", text=True)
-    tmp = TempFile(suffix=".js", prefix="test262-", text=True)
+    driver_tmp = TempFile(suffix=".js", prefix=("test262-" + str(self.index) + "-"), text=True)
+    tmp = TempFile(suffix=".js", prefix=("test262-" + str(self.index) + "-"), text=True)
     try:
       result = self.RunTestIn(command_template, driver_tmp, tmp)
     finally:
@@ -584,7 +585,7 @@ class TestSuite(object):
               skip = True
 
             if not self.non_strict_only:
-              strict_case = TestCase(self, name, full_path, True)
+              strict_case = TestCase(self, len(cases), name, full_path, True)
               if not strict_case.IsNoStrict():
                 if strict_case.IsOnlyStrict() or \
                       self.unmarked_default in ['both', 'strict']:
@@ -592,7 +593,7 @@ class TestSuite(object):
                   if not skip:
                     cases.append(strict_case)
             if not self.strict_only:
-              non_strict_case = TestCase(self, name, full_path, False)
+              non_strict_case = TestCase(self, len(cases), name, full_path, False)
               if not non_strict_case.IsOnlyStrict():
                 if non_strict_case.IsNoStrict() or \
                       self.unmarked_default in ['both', 'non_strict']:
