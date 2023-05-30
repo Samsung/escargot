@@ -49,10 +49,10 @@ void ByteCode::dumpCode(const char* byteCodeStart, const size_t endPos)
 
         const char* opcodeName = nullptr;
         switch (curCode->m_orgOpcode) {
-#define RETURN_BYTECODE_NAME(name, pushCount, popCount) \
-    case name##Opcode:                                  \
-        static_cast<name*>(curCode)->dump();            \
-        opcodeName = #name;                             \
+#define RETURN_BYTECODE_NAME(name)           \
+    case name##Opcode:                       \
+        static_cast<name*>(curCode)->dump(); \
+        opcodeName = #name;                  \
         break;
             FOR_EACH_BYTECODE(RETURN_BYTECODE_NAME)
 #undef RETURN_BYTECODE_NAME
