@@ -33,123 +33,123 @@ class ObjectStructure;
 struct GlobalVariableAccessCacheItem;
 
 // <OpcodeName, PushCount, PopCount>
-#define FOR_EACH_BYTECODE_OP(F)                             \
-    F(LoadLiteral, 1, 0)                                    \
-    F(LoadByName, 1, 0)                                     \
-    F(StoreByName, 0, 0)                                    \
-    F(InitializeByName, 0, 0)                               \
-    F(LoadByHeapIndex, 1, 0)                                \
-    F(StoreByHeapIndex, 0, 0)                               \
-    F(InitializeByHeapIndex, 0, 0)                          \
-    F(NewOperation, 1, 0)                                   \
-    F(NewOperationWithSpreadElement, 1, 0)                  \
-    F(BinaryPlus, 1, 2)                                     \
-    F(BinaryMinus, 1, 2)                                    \
-    F(BinaryMultiply, 1, 2)                                 \
-    F(BinaryDivision, 1, 2)                                 \
-    F(BinaryExponentiation, 1, 2)                           \
-    F(BinaryMod, 1, 2)                                      \
-    F(BinaryEqual, 1, 2)                                    \
-    F(BinaryLessThan, 1, 2)                                 \
-    F(BinaryLessThanOrEqual, 1, 2)                          \
-    F(BinaryGreaterThan, 1, 2)                              \
-    F(BinaryGreaterThanOrEqual, 1, 2)                       \
-    F(BinaryStrictEqual, 1, 2)                              \
-    F(BinaryBitwiseAnd, 1, 2)                               \
-    F(BinaryBitwiseOr, 1, 2)                                \
-    F(BinaryBitwiseXor, 1, 2)                               \
-    F(BinaryLeftShift, 1, 2)                                \
-    F(BinarySignedRightShift, 1, 2)                         \
-    F(BinaryUnsignedRightShift, 1, 2)                       \
-    F(BinaryInOperation, 1, 2)                              \
-    F(BinaryInstanceOfOperation, 1, 2)                      \
-    F(CreateObject, 1, 0)                                   \
-    F(CreateArray, 1, 0)                                    \
-    F(CreateSpreadArrayObject, 1, 0)                        \
-    F(CreateFunction, 1, 0)                                 \
-    F(InitializeClass, 0, 0)                                \
-    F(CreateRestElement, 0, 0)                              \
-    F(SuperReference, 1, 0)                                 \
-    F(ComplexSetObjectOperation, 0, 2)                      \
-    F(ComplexGetObjectOperation, 1, 2)                      \
-    F(LoadThisBinding, 0, 0)                                \
-    F(ObjectDefineOwnPropertyOperation, 0, 0)               \
-    F(ObjectDefineOwnPropertyWithNameOperation, 0, 0)       \
-    F(ArrayDefineOwnPropertyOperation, 0, 0)                \
-    F(ArrayDefineOwnPropertyBySpreadElementOperation, 0, 0) \
-    F(GetObject, 1, 2)                                      \
-    F(SetObjectOperation, 0, 2)                             \
-    F(GetObjectPreComputedCase, 1, 1)                       \
-    F(GetObjectPreComputedCaseSimpleInlineCache, 1, 1)      \
-    F(SetObjectPreComputedCase, 0, 1)                       \
-    F(GetGlobalVariable, 1, 1)                              \
-    F(SetGlobalVariable, 0, 1)                              \
-    F(InitializeGlobalVariable, 0, 1)                       \
-    F(Move, 1, 0)                                           \
-    F(Increment, 1, 1)                                      \
-    F(Decrement, 1, 1)                                      \
-    F(ToNumericIncrement, 2, 2)                             \
-    F(ToNumericDecrement, 2, 2)                             \
-    F(ToNumber, 1, 1)                                       \
-    F(UnaryMinus, 1, 1)                                     \
-    F(UnaryNot, 1, 1)                                       \
-    F(UnaryBitwiseNot, 1, 1)                                \
-    F(UnaryTypeof, 1, 1)                                    \
-    F(UnaryDelete, 1, 1)                                    \
-    F(TemplateOperation, 1, 1)                              \
-    F(Jump, 0, 0)                                           \
-    F(JumpComplexCase, 0, 0)                                \
-    F(JumpIfTrue, 0, 0)                                     \
-    F(JumpIfUndefinedOrNull, 0, 0)                          \
-    F(JumpIfFalse, 0, 0)                                    \
-    F(JumpIfNotFulfilled, 0, 0)                             \
-    F(JumpIfEqual, 0, 0)                                    \
-    F(Call, -1, 0)                                          \
-    F(CallWithReceiver, -1, 0)                              \
-    F(GetParameter, 0, 0)                                   \
-    F(ReturnFunctionSlowCase, 0, 0)                         \
-    F(TryOperation, 0, 0)                                   \
-    F(CloseLexicalEnvironment, 0, 0)                        \
-    F(ThrowOperation, 0, 0)                                 \
-    F(ThrowStaticErrorOperation, 0, 0)                      \
-    F(CreateEnumerateObject, 1, 0)                          \
-    F(GetEnumerateKey, 1, 0)                                \
-    F(CheckLastEnumerateKey, 0, 0)                          \
-    F(MarkEnumerateKey, 2, 0)                               \
-    F(IteratorOperation, 0, 0)                              \
-    F(GetMethod, 0, 0)                                      \
-    F(LoadRegExp, 1, 0)                                     \
-    F(OpenLexicalEnvironment, 0, 0)                         \
-    F(ObjectDefineGetterSetter, 0, 0)                       \
-    F(CallComplexCase, 0, 0)                                \
-    F(BindingRestElement, 1, 0)                             \
-    F(ExecutionResume, 0, 0)                                \
-    F(ExecutionPause, 0, 0)                                 \
-    F(MetaPropertyOperation, 1, 0)                          \
-    F(BlockOperation, 0, 0)                                 \
-    F(ReplaceBlockLexicalEnvironmentOperation, 0, 0)        \
-    F(TaggedTemplateOperation, 0, 0)                        \
-    F(EnsureArgumentsObject, 0, 0)                          \
-    F(BindingCalleeIntoRegister, 0, 0)                      \
-    F(ResolveNameAddress, 1, 0)                             \
-    F(StoreByNameWithAddress, 0, 1)                         \
-    F(FillOpcodeTable, 0, 0)                                \
-    F(End, 0, 0)
+#define FOR_EACH_BYTECODE_OP(F)                       \
+    F(LoadLiteral)                                    \
+    F(LoadByName)                                     \
+    F(StoreByName)                                    \
+    F(InitializeByName)                               \
+    F(LoadByHeapIndex)                                \
+    F(StoreByHeapIndex)                               \
+    F(InitializeByHeapIndex)                          \
+    F(NewOperation)                                   \
+    F(NewOperationWithSpreadElement)                  \
+    F(BinaryPlus)                                     \
+    F(BinaryMinus)                                    \
+    F(BinaryMultiply)                                 \
+    F(BinaryDivision)                                 \
+    F(BinaryExponentiation)                           \
+    F(BinaryMod)                                      \
+    F(BinaryEqual)                                    \
+    F(BinaryLessThan)                                 \
+    F(BinaryLessThanOrEqual)                          \
+    F(BinaryGreaterThan)                              \
+    F(BinaryGreaterThanOrEqual)                       \
+    F(BinaryStrictEqual)                              \
+    F(BinaryBitwiseAnd)                               \
+    F(BinaryBitwiseOr)                                \
+    F(BinaryBitwiseXor)                               \
+    F(BinaryLeftShift)                                \
+    F(BinarySignedRightShift)                         \
+    F(BinaryUnsignedRightShift)                       \
+    F(BinaryInOperation)                              \
+    F(BinaryInstanceOfOperation)                      \
+    F(CreateObject)                                   \
+    F(CreateArray)                                    \
+    F(CreateSpreadArrayObject)                        \
+    F(CreateFunction)                                 \
+    F(InitializeClass)                                \
+    F(CreateRestElement)                              \
+    F(SuperReference)                                 \
+    F(ComplexSetObjectOperation)                      \
+    F(ComplexGetObjectOperation)                      \
+    F(LoadThisBinding)                                \
+    F(ObjectDefineOwnPropertyOperation)               \
+    F(ObjectDefineOwnPropertyWithNameOperation)       \
+    F(ArrayDefineOwnPropertyOperation)                \
+    F(ArrayDefineOwnPropertyBySpreadElementOperation) \
+    F(GetObject)                                      \
+    F(SetObjectOperation)                             \
+    F(GetObjectPreComputedCase)                       \
+    F(GetObjectPreComputedCaseSimpleInlineCache)      \
+    F(SetObjectPreComputedCase)                       \
+    F(GetGlobalVariable)                              \
+    F(SetGlobalVariable)                              \
+    F(InitializeGlobalVariable)                       \
+    F(Move)                                           \
+    F(Increment)                                      \
+    F(Decrement)                                      \
+    F(ToNumericIncrement)                             \
+    F(ToNumericDecrement)                             \
+    F(ToNumber)                                       \
+    F(UnaryMinus)                                     \
+    F(UnaryNot)                                       \
+    F(UnaryBitwiseNot)                                \
+    F(UnaryTypeof)                                    \
+    F(UnaryDelete)                                    \
+    F(TemplateOperation)                              \
+    F(Jump)                                           \
+    F(JumpComplexCase)                                \
+    F(JumpIfTrue)                                     \
+    F(JumpIfUndefinedOrNull)                          \
+    F(JumpIfFalse)                                    \
+    F(JumpIfNotFulfilled)                             \
+    F(JumpIfEqual)                                    \
+    F(Call)                                           \
+    F(CallWithReceiver)                               \
+    F(GetParameter)                                   \
+    F(ReturnFunctionSlowCase)                         \
+    F(TryOperation)                                   \
+    F(CloseLexicalEnvironment)                        \
+    F(ThrowOperation)                                 \
+    F(ThrowStaticErrorOperation)                      \
+    F(CreateEnumerateObject)                          \
+    F(GetEnumerateKey)                                \
+    F(CheckLastEnumerateKey)                          \
+    F(MarkEnumerateKey)                               \
+    F(IteratorOperation)                              \
+    F(GetMethod)                                      \
+    F(LoadRegExp)                                     \
+    F(OpenLexicalEnvironment)                         \
+    F(ObjectDefineGetterSetter)                       \
+    F(CallComplexCase)                                \
+    F(BindingRestElement)                             \
+    F(ExecutionResume)                                \
+    F(ExecutionPause)                                 \
+    F(MetaPropertyOperation)                          \
+    F(BlockOperation)                                 \
+    F(ReplaceBlockLexicalEnvironmentOperation)        \
+    F(TaggedTemplateOperation)                        \
+    F(EnsureArgumentsObject)                          \
+    F(BindingCalleeIntoRegister)                      \
+    F(ResolveNameAddress)                             \
+    F(StoreByNameWithAddress)                         \
+    F(FillOpcodeTable)                                \
+    F(End)
 
 #if defined(ENABLE_TCO)
-#define FOR_EACH_BYTECODE_TCO_OP(F)  \
-    F(CallReturn, -1, 0)             \
-    F(TailRecursion, -1, 0)          \
-    F(CallReturnWithReceiver, -1, 0) \
-    F(TailRecursionWithReceiver, -1, 0)
+#define FOR_EACH_BYTECODE_TCO_OP(F) \
+    F(CallReturn)                   \
+    F(TailRecursion)                \
+    F(CallReturnWithReceiver)       \
+    F(TailRecursionWithReceiver)
 #else
 #define FOR_EACH_BYTECODE_TCO_OP(F)
 #endif
 
 #ifdef ESCARGOT_DEBUGGER
 #define FOR_EACH_BYTECODE_DEBUGGER_OP(F) \
-    F(BreakpointDisabled, 0, 0)          \
-    F(BreakpointEnabled, 0, 0)
+    F(BreakpointDisabled)                \
+    F(BreakpointEnabled)
 #else
 #define FOR_EACH_BYTECODE_DEBUGGER_OP(F)
 #endif /* ESCARGOT_DEBUGGER */
@@ -160,7 +160,7 @@ struct GlobalVariableAccessCacheItem;
     FOR_EACH_BYTECODE_OP(F)
 
 enum Opcode {
-#define DECLARE_BYTECODE(name, pushCount, popCount) name##Opcode,
+#define DECLARE_BYTECODE(name) name##Opcode,
     FOR_EACH_BYTECODE(DECLARE_BYTECODE)
 #undef DECLARE_BYTECODE
         OpcodeKindEnd,

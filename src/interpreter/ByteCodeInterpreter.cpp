@@ -1656,11 +1656,11 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
             asm volatile("FillOpcodeTableAsmLbl:");
 #if defined(ENABLE_CODE_CACHE)
-#define REGISTER_TABLE(opcode, pushCount, popCount)                     \
+#define REGISTER_TABLE(opcode)                                          \
     g_opcodeTable.m_addressTable[opcode##Opcode] = &&opcode##OpcodeLbl; \
     g_opcodeTable.m_opcodeMap.insert(std::make_pair(&&opcode##OpcodeLbl, (size_t)opcode##Opcode));
 #else
-#define REGISTER_TABLE(opcode, pushCount, popCount) \
+#define REGISTER_TABLE(opcode) \
     g_opcodeTable.m_addressTable[opcode##Opcode] = &&opcode##OpcodeLbl;
 #endif
             FOR_EACH_BYTECODE(REGISTER_TABLE);

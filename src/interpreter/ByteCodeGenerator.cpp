@@ -230,7 +230,7 @@ ByteCodeBreakpointContext::ByteCodeBreakpointContext(Debugger* debugger, Interpr
     }
 
 const uint8_t byteCodeLengths[] = {
-#define ITER_BYTE_CODE(code, pushCount, popCount) \
+#define ITER_BYTE_CODE(code) \
     (uint8_t)sizeof(code),
 
     FOR_EACH_BYTECODE(ITER_BYTE_CODE)
