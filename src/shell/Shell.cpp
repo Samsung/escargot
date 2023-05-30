@@ -100,7 +100,7 @@ void btSighandler(int sig, struct sigcontext ctx)
     messages = backtrace_symbols(trace, traceSize);
     /* skip first stack frame (points here) */
     for (i = 1; i < traceSize; ++i) {
-        printf("[bt] #%d %s ", i, messages[i]);
+        printf("[bt] #%d %s\n", i, messages[i]);
 
         char syscom[256];
         std::string temp = messages[i];
@@ -113,8 +113,6 @@ void btSighandler(int sig, struct sigcontext ctx)
             sprintf(syscom, "addr2line %s -e %s", addr.c_str(),
                     modulePath.c_str());
             system(syscom);
-        } else {
-            printf("\n");
         }
     }
 #endif
