@@ -628,17 +628,17 @@ Value JSON::stringify(ExecutionState& state, Value value, Value replacer, Value 
             propertyListTouched = true;
             ArrayObject* arrObject = replacer.asObject()->asArrayObject();
 
-            std::vector<Value::ValueIndex> indexes;
+            std::vector<uint32_t> indexes;
             arrObject->enumeration(state, [](ExecutionState& state, Object* self, const ObjectPropertyName& P, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
-                Value::ValueIndex idx = P.toPlainValue().toNumber(state);
-                if (idx != Value::InvalidIndexValue) {
-                    std::vector<Value::ValueIndex>* indexes = (std::vector<Value::ValueIndex>*)data;
+                uint32_t idx = P.toPlainValue().tryToUseAsIndex32(state);
+                if (idx != Value::InvalidIndex32Value) {
+                    std::vector<uint32_t>* indexes = (std::vector<uint32_t>*)data;
                     indexes->push_back(idx);
                 }
                 return true;
             },
                                    &indexes);
-            std::sort(indexes.begin(), indexes.end(), std::less<Value::ValueIndex>());
+            std::sort(indexes.begin(), indexes.end(), std::less<uint32_t>());
             for (uint32_t i = 0; i < indexes.size(); ++i) {
                 Value property = arrObject->get(state, ObjectPropertyName(state, Value(indexes[i]))).value(state, arrObject);
                 builtinJSONArrayReplacerHelper(state, propertyList, property);
