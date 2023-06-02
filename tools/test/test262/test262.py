@@ -744,6 +744,7 @@ class TestSuite(object):
         ESCARGOT_TEST_FILE.write(str(result.case.escargot_data["driver_file"]) + "\n")
         ESCARGOT_TEST_FILE.write(str(result.case.escargot_data["test_file"]) + "\n")
         ESCARGOT_TEST_FILE.write(str(result.case.escargot_data["code"]) + "\n")
+        ESCARGOT_TEST_FILE.write("\n")
 
       if junitfile:
         TestCaseElement = result.XmlAssemble(result)

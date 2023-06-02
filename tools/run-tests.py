@@ -255,6 +255,11 @@ def run_test262_nonstrict(engine, arch):
 
         print('test262-nonstrict: All tests passed')
 
+def compile_test_data_runner():
+    run(['g++', "./tools/test/test-data-runner/test-data-runner.cpp", "-o", "./tools/test/test-data-runner/test-data-runner", "-g3", "-std=c++11", "-lpthread"],
+        cwd=PROJECT_SOURCE_DIR,
+        stdout=PIPE)
+
 @runner('test262-dump', default=False)
 def run_test262_dump(engine, arch):
     TEST262_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'test262')
@@ -281,9 +286,7 @@ def run_test262_dump(engine, arch):
 
 @runner('test262-dump-run', default=False)
 def run_test262_dump_run(engine, arch):
-    run(['g++', "./tools/test/test-data-runner/test-data-runner.cpp", "-o", "./tools/test/test-data-runner/test-data-runner", "-g3", "-std=c++11", "-lpthread"],
-        cwd=PROJECT_SOURCE_DIR,
-        stdout=PIPE)
+    compile_test_data_runner()
 
     stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
                   "--test", "test262", "--test-data", join(PROJECT_SOURCE_DIR, 'test', 'test262', 'test262_data')],
@@ -295,8 +298,6 @@ def run_test262_dump_run(engine, arch):
         raise Exception('failed')
     print(stdout)
     print('test262-dump-passed')
-
-
 
 @runner('spidermonkey', default=True)
 def run_spidermonkey(engine, arch):
@@ -327,7 +328,7 @@ def run_spidermonkey(engine, arch):
             print(diffline)
         raise Exception('failure files differ')
 
-@runner('spidermonkey-dump', default=True)
+@runner('spidermonkey-dump', default=False)
 def run_spidermonkey_dump(engine, arch):
     SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'spidermonkey')
     SPIDERMONKEY_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'SpiderMonkey')
@@ -339,7 +340,9 @@ def run_spidermonkey_dump(engine, arch):
     log = sorted(readfile(log_path))
     for idx, x in enumerate(log):
         text = log[idx]
-        text = text.replace(engine + " ", "")
+        text = text.split(" ")
+        text.pop(0)
+        text = " ".join(text)
         text = text.replace(PROJECT_SOURCE_DIR + "/", "")
         text = text.replace("-f ", "")
         text = text.replace("\n", "")
@@ -352,12 +355,11 @@ def run_spidermonkey_dump(engine, arch):
                 output.write("3\n")
             else:
                 output.write("0\n")
+            output.write("\n")
 
-@runner('spidermonkey-dump-run', default=True)
+@runner('spidermonkey-dump-run', default=False)
 def run_spidermonkey_dump_run(engine, arch):
-    run(['g++', "./tools/test/test-data-runner/test-data-runner.cpp", "-o", "./tools/test/test-data-runner/test-data-runner", "-g3", "-std=c++11", "-lpthread"],
-        cwd=PROJECT_SOURCE_DIR,
-        stdout=PIPE)
+    compile_test_data_runner()
 
     SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'spidermonkey')
     stdout = run(['./tools/test/test-data-runner/test-data-runner', '--test-data', join(SPIDERMONKEY_OVERRIDE_DIR, '%s.data.txt' % arch),
@@ -383,6 +385,41 @@ def run_jsc_stress(engine, arch):
         cwd=PROJECT_SOURCE_DIR,
         env={'PYTHONPATH': '.'})
 
+@runner('jsc-stress-dump', default=False)
+def run_jsc_stress_dump(engine, arch):
+    JSC_DIR = join('test', 'vendortest', 'driver')
+
+    log_path = join(JSC_DIR, 'jsc.stress.%s.gen.txt' % arch)
+    if not os.path.exists(log_path):
+        run_jsc_stress(engine, arch)
+
+    log = readfile(log_path)
+    with open(join(JSC_DIR, 'jsc.stress.%s.data.txt' % arch), "w") as output:
+        for idx, x in enumerate(log):
+            text = log[idx]
+            if ".... Success\n" in text:
+                stext = text.split(" ")
+                output.write(stext[1] + " " + stext[2] + "\n")
+                output.write("0\n")
+                output.write("\n")
+
+@runner('jsc-stress-dump-run', default=False)
+def run_jsc_stress_dump_run(engine, arch):
+    JSC_DIR = join('test', 'vendortest', 'driver')
+    data_path = join(JSC_DIR, 'jsc.stress.%s.data.txt' % arch)
+
+    compile_test_data_runner()
+
+    stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
+                  "--test-data", data_path, "--env", "GC_FREE_SPACE_DIVISOR=1"],
+        cwd=PROJECT_SOURCE_DIR,
+        stdout=PIPE)
+
+    stdout = stdout.decode("utf-8")
+    if stdout.find("Passed") < 0:
+        raise Exception('failed')
+    print(stdout)
+    print('jsc-stress-dump-passed')
 
 def _run_regression_tests(engine, assert_js, files, is_fail):
     fails = 0
@@ -507,6 +544,56 @@ def run_chakracore(engine, arch):
          join(CHAKRACORE_OVERRIDE_DIR, 'chakracore.%s.orig.txt' % arch),
          join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'chakracore.%s.gen.txt' % arch)])
 
+@runner('chakracore-dump', default=False)
+def run_chakracore_dump(engine, arch):
+    CHAKRACORE_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'chakracore')
+    CHAKRACORE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'ChakraCore')
+
+    log_path = join(CHAKRACORE_OVERRIDE_DIR, 'chakracore.%s.orig.txt' % arch)
+
+    driver_file = "tools/test/chakracore/chakracore.include.js"
+    log = readfile(log_path)
+    with open(join(CHAKRACORE_OVERRIDE_DIR, 'chakracore.%s.data.txt' % arch), "w") as output:
+        for idx, x in enumerate(log):
+            if ".......... Pass\n" in x:
+                segs = x.split(" ")
+                kind = segs[0]
+                kind = kind[1:]
+                kind = kind[:-1]
+                tc = join('test', 'vendortest', 'ChakraCore', kind, segs[1])
+                output.write(driver_file + " " + tc + "\n")
+                output.write("0\n")
+
+                baseline = tc[:-2] + "baseline"
+                try:
+                    # some test has invalid unicode
+                    tc_contents = "".join(readfile(tc))
+                except:
+                    tc_contents = ""
+                if os.path.exists(baseline) and "testRunner" not in tc_contents:
+                    baseline = baseline + "\n"
+                else:
+                    baseline = "\n"
+
+                output.write(baseline)
+
+@runner('chakracore-dump-run', default=False)
+def run_chakracore_dump_run(engine, arch):
+    compile_test_data_runner()
+
+    CHAKRACORE_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'chakracore')
+    stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
+                "--test-data", join(CHAKRACORE_OVERRIDE_DIR, 'chakracore.%s.data.txt' % arch),
+                "--env", "GC_FREE_SPACE_DIVISOR=1 TZ=US/Pacific",
+                "--treat-global-tostring-as-object"],
+        cwd=join(PROJECT_SOURCE_DIR),
+        stdout=PIPE)
+
+    stdout = stdout.decode("utf-8")
+    if stdout.find("Passed") < 0:
+        raise Exception('failed')
+
+    print('chakracore-dump-passed')
 
 @runner('v8', default=True)
 def run_v8(engine, arch):
@@ -556,20 +643,25 @@ def run_v8(engine, arch):
     return stdout
 
 
-@runner('v8-dump', default=True)
+@runner('v8-dump', default=False)
 def run_v8_dump(engine, arch):
     stdout = run_v8(engine, arch)
     stdout = stdout.decode("utf-8").split("\n")
 
     TOOL_V8_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'v8')
-    STATUS_FILE_CONTENTS = ''.join(readfile(join(TOOL_V8_DIR, 'v8.mjsunit.status')))
+    STATUS_FILE_CONTENTS = readfile(join(TOOL_V8_DIR, 'v8.mjsunit.status'))
 
     driver_path = "tools/test/v8/v8.mjsunit.js";
     with open(join(TOOL_V8_DIR, '%s.data.txt' % arch), "w") as output:
         for line in stdout:
             if "Done running " in line:
                 casename = line.split(" ")[2].split(":")[0]
-                if casename[8:] not in STATUS_FILE_CONTENTS and "bugs/" not in casename:
+                skipped = False
+                for status_file_content in STATUS_FILE_CONTENTS:
+                    if casename[8:] in status_file_content:
+                        if "PASS" not in status_file_content or "FAIL" in status_file_content:
+                            skipped = True
+                if not skipped and "bugs/" not in casename:
                     print("TEST " + casename)
                     filename = "test/vendortest/v8/test/" + casename + ".js"
                     output.write(driver_path)
@@ -577,14 +669,13 @@ def run_v8_dump(engine, arch):
                     output.write(filename)
                     output.write("\n")
                     output.write("0\n")
+                    output.write("\n")
                 else:
                     print("SKIP " + casename)
 
-@runner('v8-dump-run', default=True)
+@runner('v8-dump-run', default=False)
 def run_v8_dump_run(engine, arch):
-    run(['g++', "./tools/test/test-data-runner/test-data-runner.cpp", "-o", "./tools/test/test-data-runner/test-data-runner", "-g3", "-std=c++11", "-lpthread"],
-        cwd=PROJECT_SOURCE_DIR,
-        stdout=PIPE)
+    compile_test_data_runner()
 
     TOOL_V8_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'v8')
     stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
@@ -648,6 +739,66 @@ def run_intl(engine, arch):
 
     if fails > 0:
         raise Exception('Intl tests failed')
+
+@runner('escargot-test-dump', default=False)
+def run_escargot_test_dump(engine, arch):
+    NEW_ES_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'new-es')
+    NEW_ES_ASSERT_JS = join(NEW_ES_DIR, 'assert.js')
+
+    newes = glob(join(NEW_ES_DIR, '*.js'))
+    newes.remove(NEW_ES_ASSERT_JS)
+
+    REGRESSION_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'regression-tests')
+    REGRESSION_XFAIL_DIR = join(REGRESSION_DIR, 'xfail')
+    REGRESSION_ASSERT_JS = join(REGRESSION_DIR, 'assert.js')
+    xpass = glob(join(REGRESSION_DIR, 'issue-*.js'))
+    xfail = glob(join(REGRESSION_XFAIL_DIR, 'issue-*.js'))
+
+    INTL_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'intl')
+    INTL_ASSERT_JS = join(INTL_DIR, 'assert.js')
+
+    intl = glob(join(INTL_DIR, '*.js'))
+    intl.remove(INTL_ASSERT_JS)
+
+    with open(join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'data.txt'), "w") as output:
+        for file in newes:
+            output.write(NEW_ES_ASSERT_JS.replace(PROJECT_SOURCE_DIR + "/", "") + " "
+                         + file.replace(PROJECT_SOURCE_DIR + "/", "") + " " + "\n")
+            output.write("0\n")
+            output.write("\n")
+
+        for file in xpass:
+            output.write(REGRESSION_ASSERT_JS.replace(PROJECT_SOURCE_DIR + "/", "") + " "
+                         + file.replace(PROJECT_SOURCE_DIR + "/", "") + " " + "\n")
+            output.write("0\n")
+            output.write("\n")
+
+        for file in xfail:
+            output.write(INTL_ASSERT_JS.replace(PROJECT_SOURCE_DIR + "/", "") + " "
+                         + file.replace(PROJECT_SOURCE_DIR + "/", "") + " " + "\n")
+            output.write("3\n")
+            output.write("\n")
+
+        for file in intl:
+            output.write(INTL_ASSERT_JS.replace(PROJECT_SOURCE_DIR + "/", "") + " "
+                         + file.replace(PROJECT_SOURCE_DIR + "/", "") + " " + "\n")
+            output.write("0\n")
+            output.write("\n")
+
+@runner('escargot-test-dump-run', default=False)
+def run_escargot_test_dump_run(engine, arch):
+    compile_test_data_runner()
+
+    stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
+                  "--test-data", join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'data.txt')],
+        cwd=join(PROJECT_SOURCE_DIR),
+        stdout=PIPE)
+
+    stdout = stdout.decode("utf-8")
+    if stdout.find("Passed") < 0:
+        raise Exception('failed')
+    print(stdout)
+    print('escargot-dump-passed')
 
 @runner('wasm-js', default=False)
 def run_wasm_js(engine, arch):
@@ -766,6 +917,18 @@ def run_escargot_debugger2(engine, arch):
                  fails += 1
     if fails > 0:
         raise Exception('Escargot-Debugger-Client-Source tests failed')
+
+@runner('dump-all', default=False)
+def run_dump_all(engine, arch):
+    for test in RUNNERS:
+        if test.endswith("-dump"):
+            RUNNERS[test](engine, arch)
+
+@runner('dump-run-all', default=False)
+def run_dump_run_all(engine, arch):
+    for test in RUNNERS:
+        if test.endswith("-dump-run"):
+            RUNNERS[test](engine, arch)
 
 def main():
     parser = ArgumentParser(description='Escargot Test Suite Runner')

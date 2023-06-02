@@ -90,6 +90,8 @@
     <default>
       <files>date_cache_bug.js</files>
       <baseline>date_cache_bug.baseline</baseline>
+      <!-- test is timezone-sensitive; -->
+      <timezone-sensitive></timezone-sensitive>
     </default>
   </test>
   <test>
