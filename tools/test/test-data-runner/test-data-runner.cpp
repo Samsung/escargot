@@ -18,6 +18,7 @@ struct TestData {
     std::string driverFile;
     std::string testFile;
     std::string code;
+    std::string outputFile;
 };
 
 enum TestKind {
@@ -32,6 +33,7 @@ std::atomic<int> g_passCount;
 std::atomic<int> g_skipCount;
 std::string g_skipPattern;
 std::string g_env;
+bool g_treatGlobalTostringAsObject;
 TestKind g_testKind;
 
 std::pair<std::string, int> exec(const std::string& cmd)
@@ -47,6 +49,45 @@ std::pair<std::string, int> exec(const std::string& cmd)
     }
     return std::make_pair(result, WEXITSTATUS(pclose(fp)));
 }
+
+constexpr const char* ws = " \t\n\r\f\v";
+
+inline std::string& rtrim(std::string& s, const char* t = ws)
+{
+    s.erase(s.find_last_not_of(t) + 1);
+    return s;
+}
+
+inline std::string& ltrim(std::string& s, const char* t = ws)
+{
+    s.erase(0, s.find_first_not_of(t));
+    return s;
+}
+
+inline std::string& trim(std::string& s, const char* t = ws)
+{
+    return ltrim(rtrim(s, t), t);
+}
+
+void replaceAll(std::string &source, const std::string &from, const std::string &to)
+{
+    std::string newString;
+    newString.reserve(source.length());
+
+    std::string::size_type lastPos = 0;
+    std::string::size_type findPos;
+
+    while (std::string::npos != (findPos = source.find(from, lastPos))) {
+        newString.append(source, lastPos, findPos - lastPos);
+        newString += to;
+        lastPos = findPos + from.length();
+    }
+
+    newString += source.substr(lastPos);
+
+    source.swap(newString);
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -81,11 +122,14 @@ int main(int argc, char* argv[])
                         numThread = std::stoi(argv[++i]);
                         continue;
                     }
-                }else if (strcmp(argv[i], "--env") == 0) {
+                } else if (strcmp(argv[i], "--env") == 0) {
                     if (argc > i) {
                         g_env = argv[++i];
                         continue;
                     }
+                } else if (strcmp(argv[i], "--treat-global-tostring-as-object") == 0) {
+                    g_treatGlobalTostringAsObject = true;
+                    continue;
                 }
             } else { // `-option` case
             }
@@ -113,6 +157,7 @@ int main(int argc, char* argv[])
         std::string driverFile;
         std::string testFile;
         std::string code;
+        std::string outputFile;
 
         while (std::getline(input, canBlockIsFalse)) {
             std::getline(input, isModule);
@@ -120,6 +165,7 @@ int main(int argc, char* argv[])
             std::getline(input, driverFile);
             std::getline(input, testFile);
             std::getline(input, code);
+            std::getline(input, outputFile);
 
             g_testDatas.push_back({
                 canBlockIsFalse,
@@ -127,7 +173,8 @@ int main(int argc, char* argv[])
                 fullPath,
                 driverFile,
                 testFile,
-                code
+                code,
+                outputFile
             });
             caseNum++;
         }
@@ -136,15 +183,18 @@ int main(int argc, char* argv[])
 
         std::string commandLine;
         std::string code;
+        std::string outputFile;
         while (std::getline(input, commandLine)) {
             std::getline(input, code);
+            std::getline(input, outputFile);
             g_testDatas.push_back({
                 "",
                 "",
                 "",
                 "",
                 commandLine,
-                code
+                code,
+                outputFile
             });
             caseNum++;
         }
@@ -194,12 +244,39 @@ int main(int argc, char* argv[])
 
                 auto result = exec(commandline);
 
-                if (data.code == std::to_string(result.second)) {
+                bool outputTest = true;
+                if (data.outputFile.size()) {
+                    std::ifstream input(data.outputFile);
+                    std::string outputContents;
+                    std::string line;
+                    while (std::getline(input, line)) {
+                        if (outputContents.size()) {
+                            outputContents += "\n";
+
+                        }
+                        outputContents += line;
+                    }
+
+                    std::string org = outputContents;
+                    trim(outputContents);
+                    trim(result.first);
+
+                    replaceAll(outputContents, "\r","");
+                    replaceAll(result.first, "\r","");
+
+                    if (g_treatGlobalTostringAsObject) {
+                        replaceAll(result.first, "[object global]","[object Object]");
+                    }
+
+                    outputTest = outputContents == result.first;
+                }
+
+                if (data.code == std::to_string(result.second) && outputTest) {
                     g_passCount++;
                     printf("Success [%d] %s => %d\n", g_index++, info.data(), result.second);
                 } else {
                     printf("Fail [%d] %s\n", g_index++, commandline.data());
-                    printf("Fail output->\n%s", result.first.data());
+                    printf("Fail output->\n%s\n", result.first.data());
                 }
             }
         }, threadData[i], shellPath));

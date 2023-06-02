@@ -475,7 +475,7 @@ private:
                         break;
                     }
 
-                    if (delegate.isValidNamedForwardReference(groupName.value())) {
+                    if (groupName && delegate.isValidNamedForwardReference(groupName.value())) {
                         delegate.atomNamedForwardReference(groupName.value());
                         break;
                     }

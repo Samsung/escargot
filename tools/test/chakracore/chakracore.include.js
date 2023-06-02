@@ -1,5 +1,4 @@
 var nativePrint = print;
-var nativeGlobal = this;
 var WScript = {
     Echo : function() {
         var length = arguments.length;
@@ -15,17 +14,41 @@ var WScript = {
         }
         nativePrint(finalResult);
     },
-    LoadScriptFile : function(path) {
+    LoadScriptFile : function(path, mode) {
         path = path.replace(/\\/g, "/");
-        try {
-            load(path);
-        } catch (e) {
-            if (e.message == "GlobalObject.load: cannot load file")
-                load("test/chakracore/UnitTestFramework/" + path);
-            else
-                throw e;
+        var target = globalThis;
+        if (!!mode && mode != "self") {
+            target = $262.createRealm().global
+            try {
+                target.load("tools/test/chakracore/chakracore.include.js");
+            } catch(e) {
+                target.load("../../../../tools/test/chakracore/chakracore.include.js");
+            }
         }
-        return nativeGlobal;
+        var subPathList = [
+          "test/vendortest/ChakraCore/UnitTestFramework/",
+          "test/vendortest/ChakraCore/Array/",
+          "test/vendortest/ChakraCore/Function/",
+          "test/vendortest/ChakraCore/Object/",
+          "test/vendortest/ChakraCore/Operators/",
+          "test/vendortest/ChakraCore/InlineCaches/",
+          "test/vendortest/ChakraCore/es5/"
+        ]
+        try {
+            target.load(path);
+        } catch (e) {
+            if (e.message.startsWith("GlobalObject.load: cannot open file")) {
+                for (var i = 0; i < subPathList.length; i ++) {
+                    try {
+                        target.load(subPathList[i] + path);
+                        return target;
+                    } catch (e) {
+                    }
+                }
+            }
+            throw e;
+        }
+        return target;
     },
     Arguments : ["summary"],
     Quit : function(code) {
