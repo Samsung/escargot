@@ -494,9 +494,7 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
         }
         return Value(state.context()->staticStrings().lazyTimedOut().string());
     }
-    return Value();
 }
-
 
 static Value builtinAtomicsWait(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
