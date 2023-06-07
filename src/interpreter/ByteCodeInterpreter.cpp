@@ -3012,7 +3012,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
     Debugger::updateStopState(state->context()->debugger(), state, newState);
 #endif /* ESCARGOT_DEBUGGER */
 
-    if (!LIKELY(inPauserResumeProcess)) {
+    if (LIKELY(!inPauserResumeProcess)) {
         if (!state->ensureRareData()->m_controlFlowRecord) {
             state->ensureRareData()->m_controlFlowRecord = new ControlFlowRecordVector();
         }

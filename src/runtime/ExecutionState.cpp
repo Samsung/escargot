@@ -41,6 +41,9 @@ ExecutionState::ExecutionState()
     , m_onTry(false)
     , m_onCatch(false)
     , m_onFinally(false)
+#if defined(ENABLE_TCO)
+    , m_initTCO(false)
+#endif
     , m_argc(0)
     , m_argv(nullptr)
 {
@@ -67,6 +70,9 @@ ExecutionState::ExecutionState(Context* context)
     , m_onTry(false)
     , m_onCatch(false)
     , m_onFinally(false)
+#if defined(ENABLE_TCO)
+    , m_initTCO(false)
+#endif
     , m_argc(0)
     , m_argv(nullptr)
 {

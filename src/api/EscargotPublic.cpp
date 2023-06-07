@@ -18,7 +18,6 @@
  */
 
 #include "Escargot.h"
-#include <cstdlib> // size_t
 #include "EscargotPublic.h"
 #include "parser/ast/Node.h"
 #include "parser/Script.h"
