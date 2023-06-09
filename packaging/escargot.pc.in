@@ -1,0 +1,11 @@
+prefix=/usr
+exec_prefix=/usr
+libdir=@LIBDIR@/escargot
+includedir=@INCLUDEDIR@/escargot
+
+Name: Escargot
+Description: Lightweight JavaScript engine Escargot
+Version: 0.0.1
+Cflags: -I${includedir}
+Libs: -L${libdir} -lescargot
+

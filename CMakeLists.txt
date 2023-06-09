@@ -19,3 +19,6 @@ PROCESSORCOUNT (NPROCS)
 # INCLUDE CMAKE FILES
 INCLUDE (${PROJECT_SOURCE_DIR}/build/config.cmake)
 INCLUDE (${PROJECT_SOURCE_DIR}/build/escargot.cmake)
+
+# Pkgconfig
+CONFIGURE_FILE(${PROJECT_SOURCE_DIR}/packaging/escargot.pc.in ${CMAKE_BINARY_DIR}/escargot.pc @ONLY)
