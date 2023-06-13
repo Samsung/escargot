@@ -1760,8 +1760,23 @@ NEVER_INLINE void InterpreterSlowPath::resolveNameAddress(ExecutionState& state,
     while (env) {
         auto result = env->record()->hasBinding(state, code->m_name);
         if (result.m_index != SIZE_MAX) {
-            registerFile[code->m_registerIndex] = Value(count);
-            return;
+            // NOTE checking unscopables on hasBinding is impossible.
+            // because storeByNameWithAddress needs to call hasBinding also.
+            // If envRec.[[IsWithEnvironment]] is false, return true. skipped
+            // ObjectEnvironmentRecord is created only for with statement, so `IsWithEnvironment` is always true.
+            bool foundUnscopables = false;
+            if (env->record()->isObjectEnvironmentRecord()) {
+                ObjectPropertyName propertyName(code->m_name);
+                auto obj = env->record()->asObjectEnvironmentRecord()->bindingObject();
+                Value unscopables = obj->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().unscopables)).value(state, obj);
+                if (UNLIKELY(unscopables.isObject() && unscopables.asObject()->get(state, propertyName).value(state, unscopables).toBoolean(state))) {
+                    foundUnscopables = true;
+                }
+            }
+            if (!foundUnscopables) {
+                registerFile[code->m_registerIndex] = Value(count);
+                return;
+            }
         }
         count++;
         env = env->outerEnvironment();
@@ -1778,7 +1793,11 @@ NEVER_INLINE void InterpreterSlowPath::storeByNameWithAddress(ExecutionState& st
         int64_t idx = 0;
         while (env) {
             if (idx == count) {
-                env->record()->setMutableBinding(state, code->m_name, value);
+                EnvironmentRecord::BindingSlot slot = env->record()->hasBinding(state, code->m_name);
+                if (slot.m_index == SIZE_MAX && state.inStrictMode()) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, code->m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+                }
+                env->record()->setMutableBindingByBindingSlot(state, slot, code->m_name, value);
                 return;
             }
             idx++;

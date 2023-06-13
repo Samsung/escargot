@@ -271,8 +271,12 @@ public:
         } else {
             size_t objectIndex = context->getLastRegisterIndex(1);
             size_t propertyIndex = context->getLastRegisterIndex();
-            size_t resultIndex = context->getRegister();
-            codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, resultIndex), context, this->m_loc.index);
+            size_t dstIndex = context->getRegister();
+            if (UNLIKELY(m_object->isSuperExpression())) {
+                codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this->m_loc.index);
+            } else {
+                codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this->m_loc.index);
+            }
         }
     }
 

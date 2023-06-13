@@ -52,13 +52,13 @@ public:
                 return;
             }
         }
-        size_t src = m_argument->getRegister(codeBlock, context);
-        m_argument->generateExpressionByteCode(codeBlock, context, src);
+        size_t resultIndex = context->getRegister();
+        m_argument->generateResolveAddressByteCode(codeBlock, context);
+        m_argument->generateReferenceResolvedAddressByteCode(codeBlock, context);
+        size_t argumentSrc = context->getLastRegisterIndex();
+        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), argumentSrc, resultIndex), context, this->m_loc.index);
         context->giveUpRegister();
-        size_t dst = m_argument->getRegister(codeBlock, context);
-        codeBlock->pushCode(Increment(ByteCodeLOC(m_loc.index), src, dst), context, this->m_loc.index);
-        m_argument->generateStoreByteCode(codeBlock, context, dst, true);
-        context->giveUpRegister();
+        m_argument->generateStoreByteCode(codeBlock, context, resultIndex, false);
     }
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override

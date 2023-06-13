@@ -272,16 +272,8 @@ public:
         ObjectPropertyName propertyName(name);
         auto result = m_bindingObject->hasProperty(state, propertyName);
         if (result) {
-            // If envRec.[[IsWithEnvironment]] is false, return true. skipped
-            // ObjectEnvironmentRecord is created only for with statement, so `IsWithEnvironment` is always true.
-            Value unscopables = m_bindingObject->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().unscopables)).value(state, m_bindingObject);
-            if (UNLIKELY(unscopables.isObject() && unscopables.asObject()->get(state, propertyName).value(state, unscopables).toBoolean(state))) {
-                return BindingSlot(this, SIZE_MAX, false);
-            }
-
             return BindingSlot(this, SIZE_MAX - 1, false);
         }
-
         return BindingSlot(this, SIZE_MAX, false);
     }
 
