@@ -338,8 +338,8 @@ VMInstance::~VMInstance()
     }
 
     clearCachesRelatedWithContext();
-#if defined(ENABLE_ICU) && !defined(OS_WINDOWS_UWP)
-    vzone_close(m_timezone);
+#if defined(ENABLE_ICU)
+    ucal_close(m_calendar);
 #endif
 
 #if defined(ENABLE_CODE_CACHE)
@@ -413,9 +413,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     memset(m_regexpOptionStringCache, 0, 64 * sizeof(ASCIIString*));
 
 #if defined(ENABLE_ICU)
-#if !defined(OS_WINDOWS_UWP)
-    m_timezone = nullptr;
-#endif
+    m_calendar = nullptr;
     if (timezone) {
         m_timezoneID = timezone;
     } else if (getenv("TZ")) {
@@ -571,14 +569,13 @@ static std::string findTimezone()
 #endif
 
 
-void VMInstance::ensureVZone()
+void VMInstance::ensureCalendar()
 {
     ensureTimezoneID();
-
-#if !defined(OS_WINDOWS_UWP)
     auto u16 = utf8StringToUTF16String(timezoneID().data(), timezoneID().size());
-    m_timezone = vzone_openID(u16.data(), u16.size());
-#endif
+    UErrorCode status = U_ZERO_ERROR;
+    m_calendar = ucal_open(u16.data(), u16.length(), "en", UCAL_DEFAULT, &status);
+    RELEASE_ASSERT(m_calendar);
 }
 
 void VMInstance::ensureTimezoneID()

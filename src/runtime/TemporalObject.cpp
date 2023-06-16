@@ -2533,7 +2533,17 @@ Value TemporalTimeZoneObject::builtinTimeZoneGetOffsetStringFor(ExecutionState& 
 Value TemporalTimeZoneObject::getIANATimeZoneOffsetNanoseconds(ExecutionState& state, const Value& epochNanoseconds, const std::string& timeZoneIdentifier)
 {
     auto u16 = utf8StringToUTF16String(timeZoneIdentifier.data(), timeZoneIdentifier.size());
-    return epochNanoseconds.asBigInt()->addition(state, new BigInt((int64_t)vzone_getRawOffset(vzone_openID(u16.data(), u16.size()))));
+    UErrorCode status = U_ZERO_ERROR;
+    UCalendar* cal = ucal_open(u16.data(), u16.length(), "en", UCAL_DEFAULT, &status);
+    int64_t offset = 0;
+    if (U_SUCCESS(status)) {
+        if (U_SUCCESS(status)) {
+            offset = ucal_get(cal, UCAL_ZONE_OFFSET, &status);
+        }
+        ucal_close(cal);
+    }
+
+    return epochNanoseconds.asBigInt()->addition(state, new BigInt(offset));
 }
 
 std::map<TemporalObject::DateTimeUnits, int> TemporalTimeZoneObject::getIANATimeZoneDateTimeParts(ExecutionState& state, const Value& epochNanoseconds)

@@ -120,10 +120,12 @@
 #define ucal_openTimeZoneIDEnumeration RuntimeICUBinder::ICU::instance().ucal_openTimeZoneIDEnumeration
 #define ucal_openTimeZones RuntimeICUBinder::ICU::instance().ucal_openTimeZones
 #define ucal_getCanonicalTimeZoneID RuntimeICUBinder::ICU::instance().ucal_getCanonicalTimeZoneID
+#define ucal_get RuntimeICUBinder::ICU::instance().ucal_get
 #define ucal_getType RuntimeICUBinder::ICU::instance().ucal_getType
 #define ucal_getAttribute RuntimeICUBinder::ICU::instance().ucal_getAttribute
 #define ucal_getDayOfWeekType RuntimeICUBinder::ICU::instance().ucal_getDayOfWeekType
 #define ucal_setGregorianChange RuntimeICUBinder::ICU::instance().ucal_setGregorianChange
+#define ucal_setMillis RuntimeICUBinder::ICU::instance().ucal_setMillis
 
 #define udatpg_close RuntimeICUBinder::ICU::instance().udatpg_close
 #define udatpg_open RuntimeICUBinder::ICU::instance().udatpg_open
