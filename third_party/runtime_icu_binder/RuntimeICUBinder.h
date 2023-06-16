@@ -132,6 +132,7 @@ namespace RuntimeICUBinder {
     F(ucal_openTimeZoneIDEnumeration, UEnumeration* (*)(USystemTimeZoneType zoneType, const char* region, const int32_t* rawOffset, UErrorCode* ec), UEnumeration*)                            \
     F(ucal_openTimeZones, UEnumeration* (*)(UErrorCode * ec), UEnumeration*)                                                                                                                   \
     F(ucal_getCanonicalTimeZoneID, int32_t (*)(const UChar* id, int32_t len, UChar* result, int32_t resultCapacity, UBool* isSystemID, UErrorCode* status), int32_t)                           \
+    F(ucal_get, int32_t (*)(const UCalendar* cal, UCalendarDateFields field, UErrorCode* status), int32_t)                                                                                     \
     F(ucal_getType, const char* (*)(const UCalendar* cal, UErrorCode* status), const char*)                                                                                                    \
     F(ucal_getAttribute, int32_t (*)(const UCalendar* cal, UCalendarAttribute attr), int32_t)                                                                                                  \
     F(ucal_getDayOfWeekType, UCalendarWeekdayType (*)(const UCalendar* cal, UCalendarDaysOfWeek dayOfWeek, UErrorCode* status), UCalendarWeekdayType)                                          \
@@ -199,6 +200,7 @@ namespace RuntimeICUBinder {
     F(unumsys_close, void (*)(UNumberingSystem*), void)                                                                                                              \
     F(ucal_close, void (*)(UCalendar * cal), void)                                                                                                                   \
     F(ucal_setGregorianChange, void (*)(UCalendar * cal, UDate date, UErrorCode * pErrorCode), void)                                                                 \
+    F(ucal_setMillis, void (*)(UCalendar * cal, UDate date, UErrorCode*  status), void)                                                                              \
     F(udatpg_close, void (*)(UDateTimePatternGenerator * zone), void)                                                                                                \
     F(unum_close, void (*)(UNumberFormat*), void)                                                                                                                    \
     F(unum_setTextAttribute, void (*)(UNumberFormat * fmt, UNumberFormatTextAttribute tag, const UChar* newValue, int32_t newValueLength, UErrorCode* status), void) \

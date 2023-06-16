@@ -123,15 +123,13 @@ public:
         return m_locale;
     }
 
-#if !defined(OS_WINDOWS_UWP)
-    VZone* vzone()
+    UCalendar* calendar()
     {
-        if (m_timezone == nullptr) {
-            ensureVZone();
+        if (m_calendar == nullptr) {
+            ensureCalendar();
         }
-        return m_timezone;
+        return m_calendar;
     }
-#endif
 
     const std::string& timezoneID()
     {
@@ -462,12 +460,13 @@ private:
 // date object data
 #ifdef ENABLE_ICU
     std::string m_locale;
+    UCalendar* m_calendar;
 #if !defined(OS_WINDOWS_UWP)
     VZone* m_timezone;
 #endif
     std::string m_timezoneID;
     void ensureTimezoneID();
-    void ensureVZone();
+    void ensureCalendar();
 #endif
     void ensureTzname();
     std::string m_tzname[2];

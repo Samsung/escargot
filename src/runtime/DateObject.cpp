@@ -275,13 +275,15 @@ static int equivalentYearForDST(int year)
 time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
 {
 #if defined(ENABLE_ICU)
-    UErrorCode succ = U_ZERO_ERROR;
+    UErrorCode status = U_ZERO_ERROR;
 #endif
     int32_t stdOffset = 0, dstOffset = 0;
 
 // roughly check range before calling yearFromTime function
-#if defined(ENABLE_ICU) && !defined(OS_WINDOWS_UWP)
-    stdOffset = vzone_getRawOffset(state.context()->vmInstance()->vzone());
+#if defined(ENABLE_ICU)
+    auto cal = state.context()->vmInstance()->calendar();
+    ucal_setMillis(cal, t, &status);
+    stdOffset = ucal_get(cal, UCAL_ZONE_OFFSET, &status);
 #else
     stdOffset = 0;
 #endif
@@ -300,15 +302,17 @@ time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
     time64_t msBetweenYears = (realYear != equivalentYear) ? (timeFromYear(equivalentYear) - timeFromYear(realYear)) : 0;
 
     t += msBetweenYears;
-#if defined(ENABLE_ICU) && !defined(OS_WINDOWS_UWP)
-    vzone_getOffset3(state.context()->vmInstance()->vzone(), t, true, stdOffset, dstOffset, succ);
+#if defined(ENABLE_ICU)
+    ucal_setMillis(cal, t, &status);
+    stdOffset = ucal_get(cal, UCAL_ZONE_OFFSET, &status);
+    dstOffset = ucal_get(cal, UCAL_DST_OFFSET, &status);
 #else
     dstOffset = 0;
 #endif
     t -= msBetweenYears;
 #if defined(ENABLE_ICU)
     // range check should be completed by caller function
-    if (!U_FAILURE(succ)) {
+    if (!U_FAILURE(status)) {
         return t - (stdOffset + dstOffset);
     }
     return TIME64NAN;
@@ -1241,9 +1245,12 @@ void DateObject::resolveCache(ExecutionState& state)
     t += msBetweenYears;
 
     int32_t stdOffset = 0, dstOffset = 0;
-#if defined(ENABLE_ICU) && !defined(OS_WINDOWS_UWP)
-    UErrorCode succ = U_ZERO_ERROR;
-    vzone_getOffset3(state.context()->vmInstance()->vzone(), t, true, stdOffset, dstOffset, succ);
+#if defined(ENABLE_ICU)
+    UErrorCode status = U_ZERO_ERROR;
+    auto cal = state.context()->vmInstance()->calendar();
+    ucal_setMillis(cal, t, &status);
+    stdOffset = ucal_get(cal, UCAL_ZONE_OFFSET, &status);
+    dstOffset = ucal_get(cal, UCAL_DST_OFFSET, &status);
 #endif
 
     m_cachedLocal.isdst = dstOffset == 0 ? 0 : 1;

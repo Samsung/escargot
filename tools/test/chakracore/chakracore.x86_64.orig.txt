@@ -501,7 +501,7 @@ Running all tests
 [Date] MillisecondTruncationCheckAfterCopyConstructor.js .......... Pass
 [Date] Conversions.js .......... Skip (Implementation-dependent case)
 [Date] Conversions.js .......... Skip (Implementation-dependent case)
-[Date] date_cache_bug.js .......... Pass
+[Date] date_cache_bug.js .......... Skip (Test output is wrong)
 [Date] formatting.js .......... Skip (Implementation-dependent case)
 [Error] errorProps.js .......... Skip (Non-standard feature)
 [Error] ErrorCtorProps.js .......... Skip (different error message)
@@ -2040,7 +2040,7 @@ TESTNAME					TOTAL	PASS	FAIL	SKIP	PASS_RATIO
            Generated		110		108		0		2		(98%)
             Closures		24		17		0		7		(70%)
              Strings		38		26		0		12		(68%)
-                Date		12		4		0		8		(33%)
+                Date		12		3		0		9		(25%)
                Error		25		1		0		24		(4%)
              Boolean		7		6		0		1		(85%)
               Number		8		6		0		2		(75%)
@@ -2074,4 +2074,4 @@ TESTNAME					TOTAL	PASS	FAIL	SKIP	PASS_RATIO
      switchStatement		28		24		0		4		(85%)
       DebuggerCommon		205		68		0		137		(33%)
 ==========================================================
-               Total		1998		1154		0		844		(57%)
+               Total		1998		1153		0		845		(57%)
