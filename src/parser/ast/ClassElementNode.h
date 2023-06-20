@@ -27,7 +27,7 @@ namespace Escargot {
 
 class ClassElementNode : public Node {
 public:
-    enum Kind {
+    enum Kind ENSURE_ENUM_UNSIGNED {
         None,
         Get,
         Set,

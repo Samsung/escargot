@@ -36,7 +36,7 @@ jobs:
         brew install cmake ninja pkg-config icu4c
     - name: Build x64
       env:
-        BUILD_OPTIONS: -DESCARGOT_ARCH=x64 -DESCARGOT_HOST=darwin -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_ARCH=x64 -DESCARGOT_HOST=darwin -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
         cmake -H. -Bout/mac/x64 $BUILD_OPTIONS
@@ -44,17 +44,33 @@ jobs:
         ./tools/run-tests.py --engine="./out/mac/x64/escargot" new-es
 
   build-on-windows:
-    runs-on: windows-2019
+    runs-on: windows-2022
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: true
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
+      with:
+        detached: true
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
+      with:
+        sdk-version: 20348
+    - uses: ilammy/msvc-dev-cmd@v1.12.1
+      with:
+        arch: x86
+        sdk: "10.0.20348.0"
+    - uses: lukka/get-cmake@latest
     - name: Build Win32 Release
       run: |
-        cd build/windows/escargot
-        msbuild escargot.sln /p:configuration=release /p:platform=win32
+        (new-object System.Net.WebClient).DownloadFile('https://github.com/abbodi1406/vcredist/releases/download/v0.73.0/VisualCppRedist_AIO_x86_x64.exe','VisualCppRedist_AIO_x86_x64.exe')
+        .\VisualCppRedist_AIO_x86_x64.exe /y
+        CMake -G "Visual Studio 16 2019" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -Bout/win32_release_ninja/ -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
+        cd out/win32_release_ninja
+        ninja
+        copy ..\..\test\octane\*.js
+        .\escargot.exe run.js
 
   build-test-on-android:
     runs-on: macos-12
@@ -122,13 +138,13 @@ jobs:
         patch -p0 < wabt_patch
     - name: Build x86
       env:
-        BUILD_OPTIONS: -DESCARGOT_ARCH=x86 -DESCARGOT_HOST=linux -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_ARCH=x86 -DESCARGOT_HOST=linux -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON  -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         CC=clang CXX=clang++ cmake -H. -Bout/clang/x86 $BUILD_OPTIONS
         ninja -Cout/clang/x86
     - name: Build x64
       env:
-        BUILD_OPTIONS: -DESCARGOT_ARCH=x64 -DESCARGOT_HOST=linux -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_ARCH=x64 -DESCARGOT_HOST=linux -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         CC=clang CXX=clang++ cmake -H. -Bout/clang/x64 $BUILD_OPTIONS
         ninja -Cout/clang/x64
@@ -157,7 +173,7 @@ jobs:
           ln -s /usr/bin/clang-12 /usr/bin/clang
           ln -s /usr/bin/clang++-12 /usr/bin/clang++
         run: |
-          CC=clang CXX=clang++ cmake -H. -Bout/release -DESCARGOT_ARCH=arm -DESCARGOT_HOST=linux -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
+          CC=clang CXX=clang++ cmake -H. -Bout/release -DESCARGOT_ARCH=arm -DESCARGOT_HOST=linux -DESCARGOT_MODE=release -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
           ninja -Cout/release
           python3 ./tools/run-tests.py --engine="./out/release/escargot" new-es
 
@@ -184,7 +200,7 @@ jobs:
           ln -s /usr/bin/clang-12 /usr/bin/clang
           ln -s /usr/bin/clang++-12 /usr/bin/clang++
         run: |
-          CC=clang CXX=clang++ cmake -H. -Bout/release -DESCARGOT_ARCH=aarch64 -DESCARGOT_HOST=linux -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
+          CC=clang CXX=clang++ cmake -H. -Bout/release -DESCARGOT_ARCH=aarch64 -DESCARGOT_HOST=linux -DESCARGOT_MODE=release -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
           ninja -Cout/release
           python3 ./tools/run-tests.py --engine="./out/release/escargot" new-es
 
@@ -197,20 +213,18 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: true
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '2.7'
     - name: Install Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y ninja-build gcc-multilib g++-multilib
+        sudo apt-get install -y ninja-build gcc-multilib g++-multilib python2
+        sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
     - name: Install ICU
       run: |
         wget http://mirrors.kernel.org/ubuntu/pool/main/i/icu/libicu-dev_70.1-2ubuntu1_i386.deb
         dpkg -X libicu-dev_70.1-2ubuntu1_i386.deb $GITHUB_WORKSPACE/icu32
     - name: Build x86
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu32/usr/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu"
@@ -226,29 +240,24 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        tc: ['new-es octane', 'v8 chakracore spidermonkey']
+        tc: ['new-es octane v8', 'chakracore spidermonkey']
         build_opt: ['', '-DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON', '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_USE_CUSTOM_LOGGING=ON']
         exclude:
-          # exclude spidermonkey on threading-enabled build (TODO)
-          - tc: 'v8 chakracore spidermonkey'
-            build_opt: '-DESCARGOT_THREADING=ON'
-          # exclue octane due to low performance incurred by SMALL_CONFIG
-          - tc: 'new-es octane'
+          # exclude octane, v8 due to low performance incurred by SMALL_CONFIG
+          - tc: 'new-es octane v8'
             build_opt: '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_USE_CUSTOM_LOGGING=ON'
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: true
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '2.7'
     - name: Install Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y ninja-build libicu-dev
+        sudo apt-get install -y ninja-build libicu-dev python2
+        sudo update-alternatives --install /usr/bin/python python /usr/bin/python2 1
     - name: Build x64
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         cmake -H. -Bout/release/x64 $BUILD_OPTIONS ${{ matrix.build_opt }}
         ninja -Cout/release/x64
@@ -280,8 +289,8 @@ jobs:
         dpkg -X libicu-dev_70.1-2ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Build x86/x64
       env:
-        BUILD_OPTIONS_X86: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=shell_test -GNinja
-        BUILD_OPTIONS_X64: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS_X86: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=shell -GNinja
+        BUILD_OPTIONS_X64: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu32/usr/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu"
@@ -310,7 +319,7 @@ jobs:
         sudo apt-get install -y ninja-build
     - name: Build
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_DEBUGGER=1 -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_DEBUGGER=1 -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         cmake -H. -Bout/debugger $BUILD_OPTIONS
         ninja -Cout/debugger
@@ -361,7 +370,7 @@ jobs:
         dpkg -X libicu-dev_70.1-2ubuntu1_amd64.deb $GITHUB_WORKSPACE/icu64
     - name: Build x86
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_CODE_CACHE=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_CODE_CACHE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu32/usr/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu"
@@ -370,7 +379,7 @@ jobs:
         ninja -Cout/codecache/x86
     - name: Build x64
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_CODE_CACHE=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_CODE_CACHE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/usr/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu"
@@ -422,13 +431,13 @@ jobs:
         patch -p0 < wabt_patch
     - name: Build x86
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         cmake -H. -Bout/wasm/x86 $BUILD_OPTIONS
         ninja -Cout/wasm/x86
     - name: Build x64
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_OUTPUT=shell_test -GNinja
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         cmake -H. -Bout/wasm/x64 $BUILD_OPTIONS
         ninja -Cout/wasm/x64

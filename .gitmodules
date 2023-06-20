@@ -2,10 +2,6 @@
     path = third_party/GCutil
     url = https://github.com/Samsung/gcutil.git
     ignore = untracked
-[submodule "third_party/windows/icu"]
-    path = third_party/windows/icu
-    url = https://github.com/Samsung/icu.git
-    ignore = untracked
 [submodule "test/vendortest"]
     path = test/vendortest
     url = https://github.com/Samsung/js_vendor_tc.git

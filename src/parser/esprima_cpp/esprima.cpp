@@ -211,8 +211,7 @@ public:
         if (stackRemain >= STACK_LIMIT_FROM_BASE) {
             stackRemain = STACK_LIMIT_FROM_BASE;
         }
-        volatile int sp;
-        volatile size_t currentStackBase = (size_t)&sp;
+        size_t currentStackBase = reinterpret_cast<size_t>(currentStackPointer());
 #ifdef STACK_GROWS_DOWN
         this->stackLimit = currentStackBase - stackRemain;
 #else
@@ -933,8 +932,7 @@ public:
 
     void checkRecursiveLimit()
     {
-        volatile int sp;
-        size_t currentStackBase = (size_t)&sp;
+        size_t currentStackBase = reinterpret_cast<size_t>(currentStackPointer());
 #ifdef STACK_GROWS_DOWN
         if (UNLIKELY(currentStackBase < stackLimit)) {
 #else

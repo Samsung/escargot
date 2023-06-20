@@ -555,7 +555,7 @@ public:
     {
     }
 
-    Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::ParserContext* parserContext, StringView code, bool isModule, size_t startLine = 0, size_t startColumn = 0);
+    Scanner(::Escargot::Context* escargotContext, ::Escargot::esprima::ParserContext* parserContext, const StringView& code, bool isModule, size_t startLine = 0, size_t startColumn = 0);
 
     // Scanner always allocated on the stack
     MAKE_STACK_ALLOCATED();

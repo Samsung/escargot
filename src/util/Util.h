@@ -20,6 +20,10 @@
 #ifndef __EscargotUtil__
 #define __EscargotUtil__
 
+#if defined(COMPILER_MSVC)
+#include <intrin.h> // for _AddressOfReturnAddress
+#endif
+
 namespace Escargot {
 
 #if defined(COMPILER_GCC)
@@ -54,8 +58,7 @@ inline void* currentStackPointer()
 #elif defined(COMPILER_MSVC)
 inline void* currentStackPointer()
 {
-    volatile int temp;
-    return (void*)&temp;
+    return _AddressOfReturnAddress();
 }
 #else
 #error

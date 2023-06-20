@@ -97,7 +97,6 @@ void BigIntData::init(const char* buf, size_t length, int radix)
     }
     memcpy(newBuf, buf, length);
     newBuf[length] = 0;
-    bf_t a;
     const char* testEnd = nullptr;
     int ret = bf_atof(&m_data, newBuf, &testEnd, radix == 10 ? 0 : radix, BF_PREC_INF, BF_RNDZ | BF_ATOF_BIN_OCT);
     if (ret) {
