@@ -45,63 +45,8 @@
 
 #if defined(__ANDROID__)
 #include <sys/time.h>
-#elif defined(_WIN32)
-// https : // gist.github.com/ugovaretto/5875385
-#include < time.h >
-#include < windows.h >
-
-#if defined(_MSC_VER) || defined(_MSC_EXTENSIONS)
-#define DELTA_EPOCH_IN_MICROSECS 11644473600000000Ui64
-#else
-#define DELTA_EPOCH_IN_MICROSECS 11644473600000000ULL
-#endif
-
-struct timezone {
-    int tz_minuteswest; /* minutes W of Greenwich */
-    int tz_dsttime; /* type of dst correction */
-};
-
-#if !defined(_WINSOCKAPI_)
-struct timeval {
-    long tv_sec;
-    long tv_usec;
-};
-#endif
-
-int gettimeofday(struct timeval *tv, struct timezone *tz)
-{
-    FILETIME ft;
-    unsigned __int64 tmpres = 0;
-    static MAY_THREAD_LOCAL int tzflag = 0;
-
-    if (NULL != tv) {
-        GetSystemTimeAsFileTime(&ft);
-
-        tmpres |= ft.dwHighDateTime;
-        tmpres <<= 32;
-        tmpres |= ft.dwLowDateTime;
-
-        tmpres /= 10; /*convert into microseconds*/
-        /*converting file time to unix epoch*/
-        tmpres -= DELTA_EPOCH_IN_MICROSECS;
-        tv->tv_sec = (long)(tmpres / 1000000UL);
-        tv->tv_usec = (long)(tmpres % 1000000UL);
-    }
-
-    if (NULL != tz) {
-        if (!tzflag) {
-#if !defined(OS_WINDOWS_UWP)
-            _tzset();
-#endif
-            tzflag++;
-        }
-        tz->tz_minuteswest = _timezone / 60;
-        tz->tz_dsttime = _daylight;
-    }
-
-    return 0;
-}
-
+#elif defined(_WINDOWS)
+#include <time.h>
 #else
 #include <sys/timeb.h>
 #include <sys/time.h>
@@ -123,23 +68,23 @@ uint64_t fastTickCount()
 
 uint64_t tickCount()
 {
-    struct timeval gettick;
-    gettimeofday(&gettick, NULL);
-    return (uint64_t)gettick.tv_sec * 1000UL + gettick.tv_usec / 1000UL;
+    std::chrono::system_clock::duration d = std::chrono::system_clock::now().time_since_epoch();
+    std::chrono::seconds s = std::chrono::duration_cast<std::chrono::seconds>(d);
+    return (uint64_t)s.count() * 1000UL + std::chrono::duration_cast<std::chrono::microseconds>(d - s).count() / 1000UL;
 }
 
 uint64_t longTickCount()
 {
-    struct timeval gettick;
-    gettimeofday(&gettick, NULL);
-    return (uint64_t)gettick.tv_sec * 1000000UL + gettick.tv_usec;
+    std::chrono::system_clock::duration d = std::chrono::system_clock::now().time_since_epoch();
+    std::chrono::seconds s = std::chrono::duration_cast<std::chrono::seconds>(d);
+    return (uint64_t)s.count() * 1000000UL + std::chrono::duration_cast<std::chrono::microseconds>(d - s).count();
 }
 
 uint64_t timestamp()
 {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (uint64_t)tv.tv_sec * 1000UL + tv.tv_usec / 1000UL;
+    std::chrono::system_clock::duration d = std::chrono::system_clock::now().time_since_epoch();
+    std::chrono::seconds s = std::chrono::duration_cast<std::chrono::seconds>(d);
+    return (uint64_t)s.count() * 1000UL + std::chrono::duration_cast<std::chrono::microseconds>(d - s).count() / 1000UL;
 }
 
 ProfilerTimer::~ProfilerTimer()

@@ -22,6 +22,7 @@
 #include <thread>
 #include <mutex>
 #include <sstream>
+#include <chrono>
 
 #if defined(_MSC_VER)
 #include <stdlib.h>
@@ -42,7 +43,7 @@
 #include <dlfcn.h>
 #endif
 
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(_WINDOWS)
 #include <signal.h>
 #include <execinfo.h>
 
@@ -157,7 +158,7 @@ void printEveryReachableGCObjects()
             size_t* totalSize = (size_t*)cd;
             *totalSize += size;
             printf("@@@ kind %d pointer %p size %d\n", (int)kind, ptr, (int)size);
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && !defined(_WINDOWS)
             GC_print_backtrace(ptr);
 #endif
         },
@@ -524,7 +525,7 @@ static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisVa
                 }
             }
 
-            usleep(10 * 1000);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
         context.release();
@@ -588,7 +589,7 @@ static ValueRef* builtin262AgentBroadcast(ExecutionStateRef* state, ValueRef* th
             break;
         }
 
-        usleep(10 * 1000); // sleep 10ms
+        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // sleep 10ms
     }
 
 
@@ -638,15 +639,15 @@ static ValueRef* builtin262AgentGetReport(ExecutionStateRef* state, ValueRef* th
 
 static ValueRef* builtin262AgentMonotonicNow(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return ValueRef::create((uint64_t)tv.tv_sec * 1000UL + tv.tv_usec / 1000UL);
+    std::chrono::system_clock::duration d = std::chrono::system_clock::now().time_since_epoch();
+    std::chrono::seconds s = std::chrono::duration_cast<std::chrono::seconds>(d);
+    return ValueRef::create((uint64_t)s.count() * 1000UL + std::chrono::duration_cast<std::chrono::microseconds>(d - s).count() / 1000UL);
 }
 
 static ValueRef* builtin262AgentSleep(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall)
 {
     double m = argv[0]->toNumber(state);
-    usleep(m * 1000.0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(m)));
     return ValueRef::createUndefined();
 }
 
@@ -1048,14 +1049,21 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
     return context;
 }
 
+#if defined(_WINDOWS)
+#include <windows.h> // for SetConsoleOutputCP
+#endif
+
 int main(int argc, char* argv[])
 {
+#if defined(_WINDOWS)
+    SetConsoleOutputCP(65001);
+#endif
 #ifndef NDEBUG
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
 #endif
 
-#if defined(ESCARGOT_ENABLE_TEST) && !defined(__APPLE__)
+#if defined(ESCARGOT_ENABLE_TEST) && !defined(__APPLE__) && !defined(_WINDOWS)
     struct sigaction sa;
     sa.sa_handler = (void (*)(int))btSighandler;
     sigemptyset(&sa.sa_mask);
@@ -1214,7 +1222,7 @@ int main(int argc, char* argv[])
             break;
         }
 
-        usleep(10 * 1000);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     for (auto& i : workerThreads) {

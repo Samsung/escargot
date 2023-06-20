@@ -1,7 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(WIN32) || defined(WIN64)
+#define popen _popen
+#define pclose _pclose
+#define WEXITSTATUS(x) (x)
+#else
 #include <unistd.h>
+#endif
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
@@ -31,7 +37,7 @@ std::vector<TestData> g_testDatas;
 std::atomic<int> g_index;
 std::atomic<int> g_passCount;
 std::atomic<int> g_skipCount;
-std::string g_skipPattern;
+std::vector<std::string> g_skipPattern;
 std::string g_env;
 bool g_treatGlobalTostringAsObject;
 TestKind g_testKind;
@@ -127,6 +133,11 @@ int main(int argc, char* argv[])
                         g_env = argv[++i];
                         continue;
                     }
+                } else if (strcmp(argv[i], "--skip") == 0) {
+                    if (argc > i) {
+                        g_skipPattern.push_back(argv[++i]);
+                        continue;
+                    }
                 } else if (strcmp(argv[i], "--treat-global-tostring-as-object") == 0) {
                     g_treatGlobalTostringAsObject = true;
                     continue;
@@ -143,9 +154,11 @@ int main(int argc, char* argv[])
         return -1;
     }
 
+#if !defined(WIN32) && !defined(WIN64)
     if (g_testKind == TestKind::Test262) {
         g_env = "TZ=US/Pacific " + g_env;
     }
+#endif
 
     int caseNum = 0;
     if (g_testKind == TestKind::Test262) {
@@ -236,7 +249,15 @@ int main(int argc, char* argv[])
 
                 std::string info = data.fullPath.size() ? data.fullPath : commandline;
 
-                if (g_skipPattern.size() && data.fullPath.find(g_skipPattern) != std::string::npos) {
+                bool skip = false;
+                for (const auto& skipPattern : g_skipPattern) {
+                    if (data.fullPath.find(skipPattern) != std::string::npos) {
+                        skip = true;
+                        break;
+                    }
+                }
+
+                if (skip) {
                     g_skipCount++;
                     printf("SKIP [%d] %s\n", g_index++, info.data());
                     continue;

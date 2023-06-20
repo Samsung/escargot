@@ -114,6 +114,21 @@ struct StringBufferAccessData {
 #endif
     }
 
+    StringBufferAccessData(const StringBufferAccessData& src)
+        : has8BitContent(src.has8BitContent)
+        , length(src.length)
+        , buffer(src.buffer)
+        , extraData(src.extraData)
+    {
+#if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_RELOADABLE_STRING)
+        if (extraData) {
+            // increase refCount in CompressibleString or ReloadableString
+            (*reinterpret_cast<size_t*>(extraData))++;
+        }
+#endif
+    }
+
+
     ~StringBufferAccessData()
     {
 #if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_RELOADABLE_STRING)

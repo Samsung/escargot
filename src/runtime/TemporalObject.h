@@ -1,4 +1,4 @@
-#if defined(ESCARGOT_ENABLE_TEMPORAL)
+#if defined(ENABLE_TEMPORAL)
 /*
  * Copyright (c) 2022-present Samsung Electronics Co., Ltd
  *

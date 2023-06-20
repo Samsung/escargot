@@ -1,16 +1,67 @@
 # default set of each flag
-SET (ESCARGOT_CXXFLAGS -fno-rtti) # build escargot without rtti
-SET (ESCARGOT_CXXFLAGS_DEBUG -O0)
-SET (ESCARGOT_CXXFLAGS_RELEASE -O2)
+SET (ESCARGOT_CXXFLAGS)
+SET (ESCARGOT_CXXFLAGS_DEBUG)
+SET (ESCARGOT_CXXFLAGS_RELEASE)
 SET (ESCARGOT_LDFLAGS)
 SET (ESCARGOT_DEFINITIONS)
-SET (ESCARGOT_THIRDPARTY_CFLAGS -fdata-sections -ffunction-sections -fno-omit-frame-pointer)
+SET (ESCARGOT_THIRDPARTY_CFLAGS)
 
 SET (ESCARGOT_BUILD_32BIT OFF)
 SET (ESCARGOT_BUILD_64BIT OFF)
 SET (ESCARGOT_BUILD_64BIT_LARGE OFF)
 
+# Default options per compiler
+IF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
+    SET (ESCARGOT_CXXFLAGS
+        ${ESCARGOT_CXXFLAGS}
+        -std=c++11 -g3
+        -fno-rtti
+        -fno-math-errno
+        -fdata-sections -ffunction-sections
+        -fno-omit-frame-pointer
+        -fvisibility=hidden
+        -frounding-math -fsignaling-nans
+        -Wno-unused-parameter
+        -Wno-type-limits -Wno-unused-result -Wno-unused-variable -Wno-invalid-offsetof
+        -Wno-unused-but-set-variable -Wno-unused-but-set-parameter
+        -Wno-deprecated-declarations -Wno-unused-function
+    )
+    IF (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9)
+        SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-attributes -Wno-class-memaccess -Wno-deprecated-copy -Wno-cast-function-type -Wno-stringop-truncation -Wno-pessimizing-move -Wno-mismatched-new-delete)
+    endif()
+    SET (ESCARGOT_CXXFLAGS_DEBUG -O0 -Wall -Wextra -Werror)
+    SET (ESCARGOT_CXXFLAGS_RELEASE -O2 -fno-stack-protector -fno-omit-frame-pointer)
+    SET (ESCARGOT_THIRDPARTY_CFLAGS -w -g3 -fdata-sections -ffunction-sections -fno-omit-frame-pointer -fvisibility=hidden)
+ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+    SET (ESCARGOT_CXXFLAGS
+        ${ESCARGOT_CXXFLAGS}
+        -std=c++11 -g3
+        -fno-rtti
+        -fno-math-errno
+        -fdata-sections -ffunction-sections
+        -fno-omit-frame-pointer
+        -fvisibility=hidden
+        -fno-fast-math -fno-unsafe-math-optimizations -fdenormal-fp-math=ieee
+        -Wno-type-limits -Wno-unused-result -Wno-unused-variable -Wno-invalid-offsetof -Wno-unused-function
+        -Wno-deprecated-declarations -Wno-unsupported-floating-point-opt -Wno-parentheses-equality -Wno-dynamic-class-memaccess -Wno-deprecated-register
+        -Wno-expansion-to-defined -Wno-return-type -Wno-overloaded-virtual -Wno-unused-private-field -Wno-deprecated-copy -Wno-atomic-alignment
+        -Wno-ambiguous-reversed-operator -Wno-deprecated-enum-enum-conversion -Wno-deprecated-enum-float-conversion -Wno-braced-scalar-init -Wno-unused-parameter
+    )
+    SET (ESCARGOT_CXXFLAGS_DEBUG -O0 -Wall -Wextra -Werror)
+    SET (ESCARGOT_CXXFLAGS_RELEASE -O2 -fno-stack-protector -fno-omit-frame-pointer)
+    SET (ESCARGOT_THIRDPARTY_CFLAGS -w -g3 -fdata-sections -ffunction-sections -fno-omit-frame-pointer -fvisibility=hidden)
+ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
+    SET (CMAKE_CXX_STANDARD 11)
+    SET (ESCARGOT_CXXFLAGS /fp:strict /Zc:__cplusplus /source-charset:utf-8 /D_CRT_SECURE_NO_WARNINGS /DGC_NOT_DLL /wd4244 /wd4267 /wd4805 /wd4018 /wd4172)
+    SET (ESCARGOT_CXXFLAGS_RELEASE /O2 /Oy-)
+    SET (ESCARGOT_THIRDPARTY_CFLAGS /D_CRT_SECURE_NO_WARNINGS /DGC_NOT_DLL /Oy- /wd4146)
+ELSE()
+    MESSAGE (FATAL_ERROR ${CMAKE_CXX_COMPILER_ID} " is Unsupported Compiler")
+ENDIF()
+
+# Default options per host
 IF (${ESCARGOT_HOST} STREQUAL "linux")
+    FIND_PACKAGE (PkgConfig REQUIRED)
     IF (ESCARGOT_THREADING)
         SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} atomic)
     ENDIF()
@@ -31,6 +82,7 @@ IF (${ESCARGOT_HOST} STREQUAL "linux")
         MESSAGE (FATAL_ERROR ${ESCARGOT_ARCH} " is unsupported")
     ENDIF()
 ELSEIF (${ESCARGOT_HOST} STREQUAL "tizen_obs")
+    FIND_PACKAGE (PkgConfig REQUIRED)
     # default set of LDFLAGS
     SET (ESCARGOT_LDFLAGS -lpthread -lrt -Wl,--gc-sections)
     IF (ESCARGOT_THREADING)
@@ -54,6 +106,7 @@ ELSEIF (${ESCARGOT_HOST} STREQUAL "tizen_obs")
         MESSAGE (FATAL_ERROR ${ESCARGOT_ARCH} " is unsupported")
     ENDIF()
 ELSEIF (${ESCARGOT_HOST} STREQUAL "android")
+    FIND_PACKAGE (PkgConfig REQUIRED)
     IF (ESCARGOT_THREADING)
         SET (ESCARGOT_LIBRARIES ${ESCARGOT_LIBRARIES} atomic)
     ENDIF()
@@ -77,10 +130,28 @@ ELSEIF (${ESCARGOT_HOST} STREQUAL "android")
         SET (ESCARGOT_THIRDPARTY_CFLAGS ${ESCARGOT_THIRDPARTY_CFLAGS} -UKEEP_BACK_PTRS -USAVE_CALL_COUNT -UDBG_HDRS_ALL)
     ENDIF()
 ELSEIF (${ESCARGOT_HOST} STREQUAL "darwin" AND ${ESCARGOT_ARCH} STREQUAL "x64")
+    FIND_PACKAGE (PkgConfig REQUIRED)
     SET (ESCARGOT_LDFLAGS -lpthread -Wl,-dead_strip)
     SET (ESCARGOT_BUILD_64BIT_LARGE ON)
     # bdwgc mac cannot support pthread_getattr_np
     SET (ESCARGOT_THIRDPARTY_CFLAGS ${ESCARGOT_THIRDPARTY_CFLAGS} -UHAVE_PTHREAD_GETATTR_NP)
+ELSEIF (${ESCARGOT_HOST} STREQUAL "windows")
+    SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} icu.lib)
+    SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -DSTACK_LIMIT_FROM_BASE=1048576) # in windows, default stack limit is 1MB
+    IF ((${ESCARGOT_ARCH} STREQUAL "x64") OR (${ESCARGOT_ARCH} STREQUAL "x86_64"))
+        SET (ESCARGOT_BUILD_64BIT ON)
+        SET (ESCARGOT_BUILD_64BIT_LARGE ON)
+    ELSEIF ((${ESCARGOT_ARCH} STREQUAL "x86") OR (${ESCARGOT_ARCH} STREQUAL "i686"))
+        SET (ESCARGOT_BUILD_32BIT ON)
+    ELSEIF (${ESCARGOT_ARCH} STREQUAL "arm")
+        SET (ESCARGOT_BUILD_32BIT ON)
+    ELSEIF (${ESCARGOT_ARCH} STREQUAL "aarch64" OR (${ESCARGOT_ARCH} STREQUAL "arm64"))
+        SET (ESCARGOT_BUILD_64BIT ON)
+        SET (ESCARGOT_BUILD_64BIT_LARGE ON)
+    ELSE()
+        MESSAGE (FATAL_ERROR ${ESCARGOT_ARCH} " is unsupported")
+    ENDIF()
+
 ELSE()
     MESSAGE (FATAL_ERROR ${ESCARGOT_HOST} " with " ${ESCARGOT_ARCH} " is unsupported")
 ENDIF()

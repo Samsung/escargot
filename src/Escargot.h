@@ -44,6 +44,7 @@
 #include <vector>
 #include <random>
 #include <queue>
+#include <chrono>
 
 /* COMPILER() - the compiler being used to build the project */
 // Outdated syntax: use defined()
@@ -278,7 +279,7 @@ typedef unsigned char LChar;
 #include "ICUPolyfill.h"
 #else
 
-#if defined(OS_WINDOWS_UWP)
+#if defined(OS_WINDOWS)
 #include <icu.h>
 #else
 #include <unicode/locid.h>
@@ -345,14 +346,6 @@ typedef int32_t UChar32;
 #define U16_LENGTH(c) ((uint32_t)(c) <= 0xffff ? 1 : 2)
 #define U_IS_BMP(c) ((uint32_t)(c) <= 0xffff)
 #define UCHAR_MAX_VALUE 0x10ffff
-#endif
-
-#if defined(ENABLE_INTL) && !defined(OS_WINDOWS_UWP)
-#define ENABLE_INTL_DISPLAYNAMES
-#define ENABLE_INTL_NUMBERFORMAT
-#define ENABLE_INTL_PLURALRULES
-#define ENABLE_INTL_RELATIVETIMEFORMAT
-#define ENABLE_INTL_LISTFORMAT
 #endif
 
 #ifndef TRUE

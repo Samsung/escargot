@@ -538,7 +538,7 @@ static std::string findTimezone()
 {
     return RuntimeICUBinder::ICU::findSystemTimezoneName();
 }
-#elif defined(OS_WINDOWS_UWP)
+#elif defined(OS_WINDOWS)
 static std::string findTimezone()
 {
     DYNAMIC_TIME_ZONE_INFORMATION tz;

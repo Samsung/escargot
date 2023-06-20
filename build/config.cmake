@@ -49,30 +49,7 @@ SEPARATE_ARGUMENTS(CFLAGS_FROM_ENV)
 
 SET (ESCARGOT_CXXFLAGS
     ${CXXFLAGS_FROM_ENV}
-    ${ESCARGOT_CXXFLAGS}
-    -std=c++11 -g3
-    -fno-math-errno
-    -fdata-sections -ffunction-sections
-    -fno-omit-frame-pointer
-    -fvisibility=hidden
-    -Wno-unused-parameter
-    -Wno-type-limits -Wno-unused-result -Wno-unused-variable -Wno-invalid-offsetof
-    -Wno-deprecated-declarations
-)
-
-IF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -frounding-math -fsignaling-nans -Wno-unused-but-set-variable -Wno-unused-but-set-parameter)
-    IF (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9)
-        SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-attributes -Wno-class-memaccess -Wno-deprecated-copy -Wno-cast-function-type -Wno-stringop-truncation -Wno-pessimizing-move -Wno-mismatched-new-delete)
-    endif()
-ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-    SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -fno-fast-math -fno-unsafe-math-optimizations -fdenormal-fp-math=ieee)
-    SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-unsupported-floating-point-opt -Wno-parentheses-equality -Wno-dynamic-class-memaccess -Wno-deprecated-register
-            -Wno-expansion-to-defined -Wno-return-type -Wno-overloaded-virtual -Wno-unused-private-field -Wno-deprecated-copy -Wno-atomic-alignment
-            -Wno-ambiguous-reversed-operator -Wno-deprecated-enum-enum-conversion -Wno-deprecated-enum-float-conversion -Wno-braced-scalar-init)
-ELSE()
-    MESSAGE (FATAL_ERROR ${CMAKE_CXX_COMPILER_ID} " is Unsupported Compiler")
-ENDIF()
+    ${ESCARGOT_CXXFLAGS})
 
 SET (LDFLAGS_FROM_ENV $ENV{LDFLAGS})
 SEPARATE_ARGUMENTS(LDFLAGS_FROM_ENV)
@@ -104,13 +81,20 @@ ENDIF()
 #######################################################
 # FLAGS FOR ADDITIONAL FUNCTION
 #######################################################
-FIND_PACKAGE (PkgConfig REQUIRED)
 IF (ESCARGOT_LIBICU_SUPPORT)
     IF (ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN)
         SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_ICU -DENABLE_INTL -DENABLE_RUNTIME_ICU_BINDER)
+        SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_INTL_DISPLAYNAMES -DENABLE_INTL_NUMBERFORMAT -DENABLE_INTL_PLURALRULES)
+        SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_INTL_RELATIVETIMEFORMAT -DENABLE_INTL_LISTFORMAT)
     ELSE()
-        PKG_CHECK_MODULES (ICUI18N REQUIRED icu-i18n)
-        PKG_CHECK_MODULES (ICUUC REQUIRED icu-uc)
+        IF (NOT ${ESCARGOT_HOST} STREQUAL "windows")
+            # windows icu cannot support these feature yet.(~10.0.18362)
+            SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_INTL_DISPLAYNAMES -DENABLE_INTL_NUMBERFORMAT -DENABLE_INTL_PLURALRULES)
+            SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_INTL_RELATIVETIMEFORMAT -DENABLE_INTL_LISTFORMAT)
+
+            PKG_CHECK_MODULES (ICUI18N REQUIRED icu-i18n)
+            PKG_CHECK_MODULES (ICUUC REQUIRED icu-uc)
+        ENDIF()
 
         SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_ICU -DENABLE_INTL)
 
@@ -162,15 +146,21 @@ IF (ESCARGOT_TCO)
     SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_TCO)
 ENDIF()
 
+IF (ESCARGOT_TEMPORAL)
+    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DENABLE_TEMPORAL)
+ENDIF()
+
+IF (ESCARGOT_TEST)
+    SET (ESCARGOT_DEFINITIONS ${ESCARGOT_DEFINITIONS} -DESCARGOT_ENABLE_TEST)
+ENDIF()
+
 #######################################################
 # FLAGS FOR $(MODE) : debug/release
 #######################################################
 # DEBUG FLAGS
-SET (ESCARGOT_CXXFLAGS_DEBUG -Wall -Wextra -Werror ${ESCARGOT_CXXFLAGS_DEBUG})
 SET (ESCARGOT_DEFINITIONS_DEBUG -D_GLIBCXX_DEBUG -DGC_DEBUG)
 
 # RELEASE FLAGS
-SET (ESCARGOT_CXXFLAGS_RELEASE -fno-stack-protector ${ESCARGOT_CXXFLAGS_RELEASE})
 SET (ESCARGOT_DEFINITIONS_RELEASE -DNDEBUG)
 
 # SHARED_LIB FLAGS
@@ -182,11 +172,6 @@ SET (ESCARGOT_CXXFLAGS_STATICLIB -fPIC -DESCARGOT_EXPORT=)
 
 # SHELL FLAGS
 SET (ESCARGOT_CXXFLAGS_SHELL -DESCARGOT_EXPORT=)
-
-#######################################################
-# FLAGS FOR TEST
-#######################################################
-SET (ESCARGOT_DEFINITIONS_TEST -DESCARGOT_ENABLE_TEST)
 
 #######################################################
 # FLAGS FOR MEMORY PROFILING

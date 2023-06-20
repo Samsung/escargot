@@ -461,9 +461,6 @@ private:
 #ifdef ENABLE_ICU
     std::string m_locale;
     UCalendar* m_calendar;
-#if !defined(OS_WINDOWS_UWP)
-    VZone* m_timezone;
-#endif
     std::string m_timezoneID;
     void ensureTimezoneID();
     void ensureCalendar();

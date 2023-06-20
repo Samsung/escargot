@@ -48,7 +48,7 @@ class RegExpObject : public DerivedObject {
     void initRegExpObject(ExecutionState& state, bool hasLastIndex = true);
 
 public:
-    enum Option {
+    enum Option ENSURE_ENUM_UNSIGNED {
         None = 0 << 0,
         Global = 1 << 0,
         IgnoreCase = 1 << 1,

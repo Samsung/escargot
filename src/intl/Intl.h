@@ -45,7 +45,7 @@ public:
     enum OptionValueType {
         StringValue,
         BooleanValue,
-#if defined(ESCARGOT_ENABLE_TEMPORAL)
+#if defined(ENABLE_TEMPORAL)
         NumberValue
 #endif
     };

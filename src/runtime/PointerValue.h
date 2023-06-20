@@ -70,7 +70,7 @@ class GeneratorObject;
 class AsyncGeneratorObject;
 class AsyncFromSyncIteratorObject;
 class GlobalObjectProxyObject;
-#if defined(ESCARGOT_ENABLE_TEMPORAL)
+#if defined(ENABLE_TEMPORAL)
 class TemporalObject;
 class TemporalPlainDateObject;
 class TemporalZonedDateTimeObject;
@@ -341,7 +341,7 @@ public:
         return false;
     }
 
-#if defined(ESCARGOT_ENABLE_TEMPORAL)
+#if defined(ENABLE_TEMPORAL)
     virtual bool isTemporalObject() const
     {
         return false;
@@ -653,7 +653,7 @@ public:
         return (FunctionObject*)this;
     }
 
-#if defined(ESCARGOT_ENABLE_TEMPORAL)
+#if defined(ENABLE_TEMPORAL)
     TemporalObject* asTemporalObject()
     {
         ASSERT(isTemporalObject());

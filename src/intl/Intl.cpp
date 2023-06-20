@@ -2262,7 +2262,7 @@ Value Intl::getOption(ExecutionState& state, Object* options, Value property, In
             value = Value(value.toString(state));
         }
         // https://tc39.es/proposal-temporal/#sec-getoption
-#if defined(ESCARGOT_ENABLE_TEMPORAL)
+#if defined(ENABLE_TEMPORAL)
         if (type == Intl::OptionValueType::NumberValue) {
             value = Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state));
             if (std::isnan(value.asNumber())) {

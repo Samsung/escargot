@@ -27,7 +27,7 @@
 #include "runtime/ArrayObject.h"
 
 namespace Escargot {
-#if defined(ESCARGOT_ENABLE_TEMPORAL)
+#if defined(ENABLE_TEMPORAL)
 
 #define CHECK_TEMPORAL_OBJECT_HAS_YEAR_AND_MONTH(temporalDateLike) \
     !(temporalDateLike.isObject() && (temporalDateLike.asObject()->isTemporalPlainDateObject() || temporalDateLike.asObject()->isTemporalPlainDateTimeObject() || temporalDateLike.asObject()->isTemporalPlainYearMonthObject()))
