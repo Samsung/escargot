@@ -35,6 +35,15 @@
 
 #define LIMB_BITS (1 << LIMB_LOG2_BITS)
 
+#if defined(_MSC_VER) && LIMB_BITS == 64
+// use 32-bit mode for msvc
+// msvc could not support __int128
+#undef LIMB_LOG2_BITS
+#undef LIMB_BITS
+#define LIMB_LOG2_BITS 5
+#define LIMB_BITS 32
+#endif
+
 #if LIMB_BITS == 64
 typedef __int128 int128_t;
 typedef unsigned __int128 uint128_t;

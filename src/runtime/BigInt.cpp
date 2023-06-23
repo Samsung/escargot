@@ -472,7 +472,7 @@ BigInt* BigInt::leftShift(ExecutionState& state, BigInt* src) const
     bf_init(ThreadLocal::bfContext(), &r);
 
     slimb_t v2;
-#if defined(ESCARGOT_32)
+#if defined(ESCARGOT_32) || defined(COMPILER_MSVC)
     bf_get_int32(&v2, src->bf(), 0);
     if (v2 == std::numeric_limits<int32_t>::min()) {
         v2 = std::numeric_limits<int32_t>::min() + 1;
@@ -502,7 +502,7 @@ BigInt* BigInt::rightShift(ExecutionState& state, BigInt* src) const
     bf_init(ThreadLocal::bfContext(), &r);
 
     slimb_t v2;
-#if defined(ESCARGOT_32)
+#if defined(ESCARGOT_32) || defined(COMPILER_MSVC)
     bf_get_int32(&v2, src->bf(), 0);
     if (v2 == std::numeric_limits<int32_t>::min()) {
         v2 = std::numeric_limits<int32_t>::min() + 1;
