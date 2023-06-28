@@ -74,7 +74,7 @@ static bool isValidTagInBCP47ButInvalidOnUTS35(const std::string& s)
 static std::string grandfatheredLangTag(const std::string& locale)
 {
     // grandfathered = irregular / regular
-    std::unordered_map<std::string, std::string> tagMap;
+    HashMap<std::string, std::string> tagMap;
     // Irregular.
     tagMap["en-gb-oed"] = "en-GB-oed";
     tagMap["i-ami"] = "ami";

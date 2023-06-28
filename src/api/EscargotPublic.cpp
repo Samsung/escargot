@@ -459,7 +459,7 @@ bool Memory::removeGCEventListener(GCEventType type, OnGCEventListener l, void* 
 }
 
 // I store ref count as EncodedValue. this can prevent what bdwgc can see ref count as address (EncodedValue store integer value as odd)
-using PersistentValueRefMapImpl = std::unordered_map<ValueRef*, EncodedValue, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<ValueRef* const, EncodedValue>>>;
+using PersistentValueRefMapImpl = HashMap<ValueRef*, EncodedValue, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<ValueRef* const, EncodedValue>>>;
 
 PersistentRefHolder<PersistentValueRefMap> PersistentValueRefMap::create()
 {
@@ -479,8 +479,8 @@ uint32_t PersistentValueRefMap::add(ValueRef* ptr)
         self->insert(std::make_pair(ptr, EncodedValue(1)));
         return 1;
     } else {
-        iter->second = EncodedValue(iter->second.asUInt32() + 1);
-        return iter->second.asUInt32();
+        iter.value() = EncodedValue(iter.value().asUInt32() + 1);
+        return iter.value().asUInt32();
     }
 }
 
@@ -496,12 +496,12 @@ uint32_t PersistentValueRefMap::remove(ValueRef* ptr)
     if (iter == self->end()) {
         return 0;
     } else {
-        if (iter->second.asUInt32() == 1) {
+        if (iter.value().asUInt32() == 1) {
             self->erase(iter);
             return 0;
         } else {
-            iter->second = EncodedValue(iter->second.asUInt32() - 1);
-            return iter->second.asUInt32();
+            iter.value() = EncodedValue(iter.value().asUInt32() - 1);
+            return iter.value().asUInt32();
         }
     }
 }

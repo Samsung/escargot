@@ -257,7 +257,7 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
     auto cache = state.context()->regexpCache();
     auto it = cache->find(RegExpCacheKey(source, option));
     if (it != cache->end()) {
-        return it->second;
+        return it.value();
     } else {
         const char* yarrError = nullptr;
         JSC::Yarr::YarrPattern* yarrPattern = nullptr;
@@ -268,7 +268,8 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
         } catch (const std::bad_alloc& e) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "got too complicated RegExp pattern to process");
         }
-        return cache->insert(std::make_pair(RegExpCacheKey(source, option), RegExpCacheEntry(yarrError, yarrPattern))).first->second;
+        auto iter = cache->insert(std::make_pair(RegExpCacheKey(source, option), RegExpCacheEntry(yarrError, yarrPattern))).first;
+        return iter.value();
     }
 }
 

@@ -174,7 +174,7 @@ struct OpcodeTable {
 
     void* m_addressTable[OpcodeKindEnd];
 #if defined(ENABLE_CODE_CACHE)
-    std::unordered_map<void*, size_t, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<void* const, size_t>>> m_opcodeMap;
+    HashMap<void*, size_t, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<void* const, size_t>>> m_opcodeMap;
 #endif
 };
 
@@ -3017,7 +3017,7 @@ typedef Vector<String*, GCUtil::gc_malloc_allocator<String*>> ByteCodeStringLite
 typedef Vector<void*, GCUtil::gc_malloc_allocator<void*>> ByteCodeOtherLiteralData;
 
 typedef std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>> ByteCodeLOCData;
-typedef std::unordered_map<ByteCodeBlock*, ByteCodeLOCData*, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<ByteCodeBlock* const, ByteCodeLOCData*>>> ByteCodeLOCDataMap;
+typedef HashMap<ByteCodeBlock*, ByteCodeLOCData*, std::hash<void*>, std::equal_to<void*>, std::allocator<std::pair<ByteCodeBlock* const, ByteCodeLOCData*>>> ByteCodeLOCDataMap;
 
 class ByteCodeBlock : public gc {
 public:
