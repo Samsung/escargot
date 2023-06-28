@@ -38,8 +38,8 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
+#include "robin_vector.h"
 #include "robin_growth_policy.h"
 
 namespace tsl {
@@ -201,7 +201,7 @@ class bucket_entry : public bucket_entry_hash<StoreHash> {
 
   /**
    * Never really used, but still necessary as we must call resize on an empty
-   * `std::vector<bucket_entry>`. and we need to support move-only types. See
+   * `robin_vector<bucket_entry>`. and we need to support move-only types. See
    * robin_hash constructor for details.
    */
   bucket_entry(bucket_entry&& other) noexcept(
@@ -436,7 +436,7 @@ class robin_hash : private Hash, private KeyEqual, private GrowthPolicy {
 
   using buckets_allocator = typename std::allocator_traits<
       allocator_type>::template rebind_alloc<bucket_entry>;
-  using buckets_container_type = std::vector<bucket_entry, buckets_allocator>;
+  using buckets_container_type = robin_vector<bucket_entry, buckets_allocator>;
 
  public:
   /**
@@ -569,7 +569,7 @@ class robin_hash : private Hash, private KeyEqual, private GrowthPolicy {
   }
 #else
   /**
-   * C++11 doesn't support the creation of a std::vector with a custom allocator
+   * C++11 doesn't support the creation of a robin_vector with a custom allocator
    * and 'count' default-inserted elements. The needed contructor `explicit
    * vector(size_type count, const Allocator& alloc = Allocator());` is only
    * available in C++14 and later. We thus must resize after using the
