@@ -27,7 +27,7 @@
 
 namespace Escargot {
 
-typedef std::unordered_set<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_allocator<String*> > AtomicStringMap;
+typedef HashSet<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_allocator<String*>> AtomicStringMap;
 
 class AtomicString : public gc {
     friend class StaticStrings;
@@ -140,8 +140,8 @@ inline bool operator!=(const AtomicString& a, const AtomicString& b)
     return !operator==(a, b);
 }
 
-typedef Vector<AtomicString, GCUtil::gc_malloc_atomic_allocator<AtomicString> > AtomicStringVector;
-typedef TightVector<AtomicString, GCUtil::gc_malloc_atomic_allocator<AtomicString> > AtomicStringTightVector;
+typedef Vector<AtomicString, GCUtil::gc_malloc_atomic_allocator<AtomicString>> AtomicStringVector;
+typedef TightVector<AtomicString, GCUtil::gc_malloc_atomic_allocator<AtomicString>> AtomicStringTightVector;
 
 template <>
 class Optional<AtomicString> {

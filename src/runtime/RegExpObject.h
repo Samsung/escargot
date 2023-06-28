@@ -59,7 +59,7 @@ public:
     };
 
     struct RegExpCacheKey {
-        RegExpCacheKey(const String* body, Option option)
+        RegExpCacheKey(String* body, Option option)
             : m_body(body)
             , m_multiline(option & RegExpObject::Option::MultiLine)
             , m_ignoreCase(option & RegExpObject::Option::IgnoreCase)
@@ -70,9 +70,9 @@ public:
         {
             return (m_body == otherKey.m_body) && (m_multiline == otherKey.m_multiline) && (m_ignoreCase == otherKey.m_ignoreCase);
         }
-        const String* m_body;
-        const bool m_multiline : 1;
-        const bool m_ignoreCase : 1;
+        String* m_body;
+        bool m_multiline : 1;
+        bool m_ignoreCase : 1;
     };
 
     struct RegExpCacheEntry {
@@ -229,9 +229,9 @@ private:
     String* m_string;
 };
 
-typedef std::unordered_map<RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry,
-                           std::hash<RegExpObject::RegExpCacheKey>, std::equal_to<RegExpObject::RegExpCacheKey>,
-                           GCUtil::gc_malloc_allocator<std::pair<const RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry>>>
+typedef HashMap<RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry,
+                std::hash<RegExpObject::RegExpCacheKey>, std::equal_to<RegExpObject::RegExpCacheKey>,
+                GCUtil::gc_malloc_allocator<std::pair<const RegExpObject::RegExpCacheKey, RegExpObject::RegExpCacheEntry>>>
     RegExpCacheMap;
 
 

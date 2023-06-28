@@ -549,6 +549,23 @@ typedef uint16_t LexicalBlockIndex;
 #define REGEXP_CACHE_SIZE_MAX 64
 #endif
 
+#include <tsl/robin_set.h>
+template <class Key, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>,
+          class Allocator = std::allocator<Key>,
+          bool StoreHash = false,
+          class GrowthPolicy = tsl::rh::power_of_two_growth_policy<2>>
+using HashSet = tsl::robin_set<Key, Hash, KeyEqual, Allocator, StoreHash, GrowthPolicy>;
+
+#include <tsl/robin_map.h>
+template <class Key, class T, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>,
+          class Allocator = std::allocator<std::pair<Key, T>>,
+          bool StoreHash = false,
+          class GrowthPolicy = tsl::rh::power_of_two_growth_policy<2>>
+using HashMap = tsl::robin_map<Key, T, Hash, KeyEqual, Allocator, StoreHash, GrowthPolicy>;
+
+
 #include "EscargotInfo.h"
 #include "heap/Heap.h"
 #include "util/Util.h"

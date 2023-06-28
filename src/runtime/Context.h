@@ -72,8 +72,8 @@ struct GlobalVariableAccessCacheItem : public gc {
     void* operator new[](size_t size) = delete;
 };
 
-typedef std::unordered_map<AtomicString, GlobalVariableAccessCacheItem*, std::hash<AtomicString>, std::equal_to<AtomicString>,
-                           GCUtil::gc_malloc_allocator<std::pair<AtomicString const, GlobalVariableAccessCacheItem*>>>
+typedef HashMap<AtomicString, GlobalVariableAccessCacheItem*, std::hash<AtomicString>, std::equal_to<AtomicString>,
+                GCUtil::gc_malloc_allocator<std::pair<AtomicString const, GlobalVariableAccessCacheItem*>>>
     GlobalVariableAccessCache;
 
 typedef Vector<std::pair<FunctionTemplate*, FunctionObject*>, GCUtil::gc_malloc_allocator<std::pair<FunctionTemplate*, FunctionObject*>>>

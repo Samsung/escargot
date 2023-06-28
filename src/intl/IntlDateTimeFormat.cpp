@@ -383,7 +383,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     if (!hour12.isUndefined() || !hourCycle.isUndefinedOrNull()) {
         auto iter = r.find("locale");
         String* locale = iter->second;
-        iter->second = Intl::canonicalizeLanguageTag(locale->toNonGCUTF8StringData(), "hc").canonicalizedTag.value();
+        iter.value() = Intl::canonicalizeLanguageTag(locale->toNonGCUTF8StringData(), "hc").canonicalizedTag.value();
     }
 
     // Set dateTimeFormat.[f[Locale]] to r.[[locale]].
