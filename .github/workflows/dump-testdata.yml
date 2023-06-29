@@ -1,0 +1,37 @@
+name: Dump testdata
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    # trigger on every monday, wednesday and friday
+    - cron: '30 22 * * 1,3,5'
+jobs:
+  dump-test262:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Install Packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build gcc-multilib g++-multilib zip pypy libicu-dev
+    - name: Build x64
+      env:
+        GC_FREE_SPACE_DIVISOR: 1
+        BUILD_OPTIONS_X64: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_THREADING=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+      run: |
+        cmake -H. -Bout/debug/x64 $BUILD_OPTIONS_X64
+        ninja -Cout/debug/x64
+    - name: Dump test262
+      run: |
+        tools/run-tests.py --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debug/x64/escargot" test262-dump || echo command failed $?
+        zip -r test262_dump.zip ./test/test262/test262_data
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        key: test262_dump
+        path: test262_dump.zip
