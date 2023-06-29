@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2011 by Google, Inc.  All rights reserved.
 # This code is governed by the BSD license found in the LICENSE file.
@@ -81,7 +81,7 @@ def yamlAttrParser(testRecord, attrs, name):
     parsed = yamlLoad(body)
 
     if (parsed is None):
-        print "Failed to parse yaml in name %s"%(name)
+        print("Failed to parse yaml in name %s"%(name))
         return
 
     for key in parsed:
@@ -101,7 +101,7 @@ def parseTestRecord(src, name):
     # we need to skip hashbang before copyright comment
     if len(src) > 1 and (src[0] == '#' or src[0] == '\\'):
       src = src[src.find("// Copyright"):]
-    elif src[:25].rfind("#!") is not -1:
+    elif src[:25].rfind("#!") != -1:
       src = src[src.find("// Copyright"):]
 
     match = matchParts(src, name)

@@ -43,45 +43,6 @@ jobs:
         ninja -Cout/mac/x64
         ./tools/run-tests.py --engine="./out/mac/x64/escargot" new-es
 
-  build-on-windows:
-    runs-on: windows-2022
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-    - uses: lukka/get-cmake@latest
-    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
-      with:
-        sdk-version: 20348
-    - uses: ilammy/msvc-dev-cmd@v1.12.1
-      with:
-        arch: x86
-        sdk: "10.0.20348.0"
-    - name: Install msvc redist package
-      run: |
-        (new-object System.Net.WebClient).DownloadFile('https://github.com/abbodi1406/vcredist/releases/download/v0.73.0/VisualCppRedist_AIO_x86_x64.exe','VisualCppRedist_AIO_x86_x64.exe')
-        .\VisualCppRedist_AIO_x86_x64.exe /y
-    - name: Copy octane
-      run: |
-        copy test\octane\*.js
-        dir
-    - name: Build Win32 Release
-      run: |
-        CMake -G "Visual Studio 16 2019" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -Bout/win32_release_ninja/ -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
-        CMake --build out/win32_release_ninja/ --config Release
-        .\out\win32_release_ninja\escargot.exe run.js
-    - uses: ilammy/msvc-dev-cmd@v1.12.1
-      with:
-        arch: x64
-        sdk: "10.0.20348.0"
-    - name: Build Win64 Release
-      run: |
-        CMake -G "Visual Studio 16 2019" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=x64 -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -Bout/win64_release_ninja/ -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
-        CMake --build out/win64_release_ninja/ --config Release
-        .\out\win64_release_ninja\escargot.exe run.js
-    - if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 15
   build-test-on-android:
     runs-on: macos-12
     strategy:
@@ -214,6 +175,57 @@ jobs:
           ninja -Cout/release
           python3 ./tools/run-tests.py --engine="./out/release/escargot" new-es
 
+  test-on-windows-x86-x64:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        arch: [x86, x64]
+    steps:
+    - name: Set git cllf config
+      run: |
+        git config --global core.autocrlf input
+        git config --global core.eol lf
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - uses: szenius/set-timezone@v1.2
+      with:
+        timezoneWindows: "Pacific Standard Time"
+    - uses: lukka/get-cmake@latest
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
+      with:
+        sdk-version: 20348
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install msvc redist package
+      run: |
+        (new-object System.Net.WebClient).DownloadFile('https://github.com/abbodi1406/vcredist/releases/download/v0.73.0/VisualCppRedist_AIO_x86_x64.exe','VisualCppRedist_AIO_x86_x64.exe')
+        .\VisualCppRedist_AIO_x86_x64.exe /y
+    - uses: ilammy/msvc-dev-cmd@v1.12.1
+      with:
+        arch: ${{ matrix.arch }}
+        sdk: "10.0.20348.0"
+    - name: Build ${{ matrix.arch }} Release
+      run: |
+        CMake -G "Visual Studio 16 2019" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DESCARGOT_ARCH=${{ matrix.arch }} -DESCARGOT_MODE=release -Bout/ -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
+        CMake --build out/ --config Release
+    # windows internal ICU doesn't support Temporal and intl402 well
+    # github action windows runner only have 2 CPUs. that's why I disable Atomics(timeout occured with some tests)
+    - name: Run test262
+      run: |
+        set GC_FREE_SPACE_DIVISOR=1
+        pip install chardet
+        python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --extra-arg="--skip Temporal --skip intl402 --skip Atomics"
+      shell: cmd
+    - name: Run octane
+      run: |
+        copy test\octane\*.js
+        dir
+        .\out\escargot.exe run.js
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
   build-test-on-x86-release:
     runs-on: ubuntu-latest
     strategy:

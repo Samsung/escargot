@@ -1000,7 +1000,7 @@ template <typename ResultType, typename ResultBinder>
 static ResultType objectOwnPropertyKeys(ExecutionState& state, Object* self)
 {
     // TODO turn-on gc if replace std::multiset to another gc-well-supported type
-    GC_disable();
+    GCDisabler disableGC;
     // https://www.ecma-international.org/ecma-262/6.0/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
     struct Properties {
         std::multiset<IndexItem, CompareIndexItem, GCUtil::gc_malloc_allocator<IndexItem>> indexes;
@@ -1029,7 +1029,6 @@ static ResultType objectOwnPropertyKeys(ExecutionState& state, Object* self)
             return true;
         },
         &properties, false);
-    GC_enable();
 
     ResultType result(properties.indexes.size() + properties.strings.size() + properties.symbols.size());
 

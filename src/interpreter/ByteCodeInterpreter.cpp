@@ -2988,9 +2988,13 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
     char* codeBuffer = byteCodeBlock->m_code.data();
     TryOperation* code = (TryOperation*)programCounter;
 
-    bool inPauserScope = state->inPauserScope();
-    bool inPauserResumeProcess = code->m_isTryResumeProcess || code->m_isCatchResumeProcess || code->m_isFinallyResumeProcess;
-    bool shouldUseHeapAllocatedState = inPauserScope && !inPauserResumeProcess;
+    const bool inPauserScope = state->inPauserScope();
+    const bool inPauserResumeProcess = code->m_isTryResumeProcess || code->m_isCatchResumeProcess || code->m_isFinallyResumeProcess;
+    // NOTE in msvc 2019, taking value of isTryResumeProcess is required by compiler bug
+    // the value of `code` is changed if programCounter is changed in release mode :(
+    const bool isTryResumeProcess = code->m_isTryResumeProcess;
+
+    const bool shouldUseHeapAllocatedState = inPauserScope && !inPauserResumeProcess;
     ExecutionState* newState;
 
     if (UNLIKELY(shouldUseHeapAllocatedState)) {
@@ -3025,11 +3029,11 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             if (newState->inExecutionStopState()) {
                 return Value();
             }
-            if (UNLIKELY(code->m_isTryResumeProcess && newState->parent()->inExecutionStopState())) {
+            if (UNLIKELY(isTryResumeProcess && newState->parent()->inExecutionStopState())) {
                 return Value();
             }
             clearStack<512>();
-            if (UNLIKELY(code->m_isTryResumeProcess)) {
+            if (UNLIKELY(isTryResumeProcess)) {
 #ifdef ESCARGOT_DEBUGGER
                 Debugger::updateStopState(state->context()->debugger(), newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);
 #endif /* ESCARGOT_DEBUGGER */

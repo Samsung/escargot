@@ -119,6 +119,19 @@ private:
     const char* m_msg;
 };
 
+class GCDisabler {
+public:
+    GCDisabler()
+    {
+        GC_disable();
+    }
+    ~GCDisabler()
+    {
+        GC_enable();
+    }
+};
+
+
 namespace detail {
 
 template <typename T, typename Comparator>

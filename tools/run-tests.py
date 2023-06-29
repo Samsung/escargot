@@ -102,7 +102,7 @@ def readfile(filename):
 
 
 @runner('sunspider')
-def run_sunspider(engine, arch):
+def run_sunspider(engine, arch, extra_arg):
     run([join('.', 'sunspider'),
         '--shell', engine,
         '--suite', 'sunspider-1.0.2'],
@@ -110,12 +110,12 @@ def run_sunspider(engine, arch):
 
 
 @runner('sunspider-js', default=True)
-def run_sunspider_js(engine, arch):
+def run_sunspider_js(engine, arch, extra_arg):
     run([engine] + sorted(glob(join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'SunSpider', 'tests', 'sunspider-1.0.2', '*.js'))))
 
 
 @runner('octane', default=True)
-def run_octane(engine, arch):
+def run_octane(engine, arch, extra_arg):
     max_retry_count = 5
     try_count = 0
     last_error = None
@@ -149,7 +149,7 @@ def run_octane(engine, arch):
 
 
 @runner('octane-loading', default=True)
-def run_octane_loading(engine, arch):
+def run_octane_loading(engine, arch, extra_arg):
     OCTANE_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'octane')
     OCTANE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'octane')
     copy(join(OCTANE_OVERRIDE_DIR, 'runLoading.js'), join(OCTANE_DIR, 'runLoading.js'))
@@ -159,7 +159,7 @@ def run_octane_loading(engine, arch):
 
 
 @runner('modifiedVendorTest', default=True)
-def run_internal_test(engine, arch):
+def run_internal_test(engine, arch, extra_arg):
     INTERNAL_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'ModifiedVendorTest')
     INTERNAL_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'ModifiedVendorTest')
 
@@ -169,9 +169,7 @@ def run_internal_test(engine, arch):
     run(['python', 'driver.py', engine, 'internal-test-cases.txt'],
         cwd=INTERNAL_DIR)
 
-
-@runner('test262', default=True)
-def run_test262(engine, arch):
+def copy_test262_files():
     TEST262_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'test262')
     TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
 
@@ -182,9 +180,16 @@ def run_test262(engine, arch):
     copy(join(TEST262_OVERRIDE_DIR, 'parseTestRecord.py'), join(TEST262_DIR, 'tools', 'packaging', 'parseTestRecord.py'))
     copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py')) # for parallel running (we should re-implement this for es6 suite)
 
-    stdout = run(['pypy', join('tools', 'packaging', 'test262.py'),
+@runner('test262', default=True)
+def run_test262(engine, arch, extra_arg):
+    copy_test262_files()
+    TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
+    args = ['python3', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
-         '--summary'],
+         '--summary']
+    if len(extra_arg):
+        args.extend(extra_arg.split(" "))
+    stdout = run(args,
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
         stdout=PIPE)
@@ -194,20 +199,19 @@ def run_test262(engine, arch):
         raise Exception('test262 failed')
     print('test262: All tests passed')
 
-@runner('test262-strict', default=True)
-def run_test262_strict(engine, arch):
-    TEST262_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'test262')
+@runner('test262-strict', default=False)
+def run_test262_strict(engine, arch, extra_arg):
+    copy_test262_files()
     TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
-
-    copy(join(TEST262_OVERRIDE_DIR, 'excludelist.orig.xml'), join(TEST262_DIR, 'excludelist.xml'))
-    copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py')) # for parallel running (we should re-implement this for es6 suite)
-
     out = open('test262-strict_out', 'w')
 
-    run(['pypy', join('tools', 'packaging', 'test262.py'),
+    args = ['python3', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
          '--full-summary',
          '--strict_only'],
+    if len(extra_arg):
+        args.extend(extra_arg.split(" "))
+    run(args,
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
         stdout=out,
@@ -225,20 +229,19 @@ def run_test262_strict(engine, arch):
         print('test262-strict: All tests passed')
 
 
-@runner('test262-nonstrict', default=True)
-def run_test262_nonstrict(engine, arch):
-    TEST262_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'test262')
+@runner('test262-nonstrict', default=False)
+def run_test262_nonstrict(engine, arch, extra_arg):
+    copy_test262_files()
     TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
-
-    copy(join(TEST262_OVERRIDE_DIR, 'excludelist.orig.xml'), join(TEST262_DIR, 'excludelist.xml'))
-    copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py')) # for parallel running (we should re-implement this for es6 suite)
-
     out = open('test262-nonstrict_out', 'w')
 
-    run(['pypy', join('tools', 'packaging', 'test262.py'),
+    args = ['python3', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
-         '--full-summary',
+        '--full-summary',
          '--non_strict_only'],
+    if len(extra_arg):
+        args.extend(extra_arg.split(" "))
+    run(args,
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
         stdout=out,
@@ -261,20 +264,16 @@ def compile_test_data_runner():
         stdout=PIPE)
 
 @runner('test262-dump', default=False)
-def run_test262_dump(engine, arch):
-    TEST262_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'test262')
+def run_test262_dump(engine, arch, extra_arg):
+    copy_test262_files()
     TEST262_DIR = join(PROJECT_SOURCE_DIR, 'test', 'test262')
 
-    copy(join(TEST262_OVERRIDE_DIR, 'excludelist.orig.xml'), join(TEST262_DIR, 'excludelist.xml'))
-    copy(join(TEST262_OVERRIDE_DIR, 'cth.js'), join(TEST262_DIR, 'harness', 'cth.js'))
-    copy(join(TEST262_OVERRIDE_DIR, 'testIntl.js'), join(TEST262_DIR, 'harness', 'testIntl.js'))
-
-    copy(join(TEST262_OVERRIDE_DIR, 'parseTestRecord.py'), join(TEST262_DIR, 'tools', 'packaging', 'parseTestRecord.py'))
-    copy(join(TEST262_OVERRIDE_DIR, 'test262.py'), join(TEST262_DIR, 'tools', 'packaging', 'test262.py')) # for parallel running (we should re-implement this for es6 suite)
-
-    stdout = run(['pypy', join('tools', 'packaging', 'test262.py'),
+    args = ['python3', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
-         '--summary'],
+         '--summary']
+    if len(extra_arg):
+        args.extend(extra_arg.split(" "))
+    stdout = run(args,
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific', 'ESCARGOT_DUMP262DATA': '1'},
         stdout=PIPE)
@@ -285,7 +284,7 @@ def run_test262_dump(engine, arch):
     print('test262: All tests passed and dumped')
 
 @runner('test262-dump-run', default=False)
-def run_test262_dump_run(engine, arch):
+def run_test262_dump_run(engine, arch, extra_arg):
     compile_test_data_runner()
 
     stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
@@ -300,7 +299,7 @@ def run_test262_dump_run(engine, arch):
     print('test262-dump-passed')
 
 @runner('spidermonkey', default=True)
-def run_spidermonkey(engine, arch):
+def run_spidermonkey(engine, arch, extra_arg):
     SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'spidermonkey')
     SPIDERMONKEY_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'SpiderMonkey')
 
@@ -329,7 +328,7 @@ def run_spidermonkey(engine, arch):
         raise Exception('failure files differ')
 
 @runner('spidermonkey-dump', default=False)
-def run_spidermonkey_dump(engine, arch):
+def run_spidermonkey_dump(engine, arch, extra_arg):
     SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'spidermonkey')
     SPIDERMONKEY_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'SpiderMonkey')
 
@@ -358,7 +357,7 @@ def run_spidermonkey_dump(engine, arch):
             output.write("\n")
 
 @runner('spidermonkey-dump-run', default=False)
-def run_spidermonkey_dump_run(engine, arch):
+def run_spidermonkey_dump_run(engine, arch, extra_arg):
     compile_test_data_runner()
 
     SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'spidermonkey')
@@ -375,7 +374,7 @@ def run_spidermonkey_dump_run(engine, arch):
 
 
 @runner('jsc-stress', default=True)
-def run_jsc_stress(engine, arch):
+def run_jsc_stress(engine, arch, extra_arg):
     JSC_DIR = join('test', 'vendortest', 'driver')
 
     run([join(JSC_DIR, 'driver.py'),
@@ -386,7 +385,7 @@ def run_jsc_stress(engine, arch):
         env={'PYTHONPATH': '.'})
 
 @runner('jsc-stress-dump', default=False)
-def run_jsc_stress_dump(engine, arch):
+def run_jsc_stress_dump(engine, arch, extra_arg):
     JSC_DIR = join('test', 'vendortest', 'driver')
 
     log_path = join(JSC_DIR, 'jsc.stress.%s.gen.txt' % arch)
@@ -404,7 +403,7 @@ def run_jsc_stress_dump(engine, arch):
                 output.write("\n")
 
 @runner('jsc-stress-dump-run', default=False)
-def run_jsc_stress_dump_run(engine, arch):
+def run_jsc_stress_dump_run(engine, arch, extra_arg):
     JSC_DIR = join('test', 'vendortest', 'driver')
     data_path = join(JSC_DIR, 'jsc.stress.%s.data.txt' % arch)
 
@@ -439,7 +438,7 @@ def _run_regression_tests(engine, assert_js, files, is_fail):
 
 
 @runner('regression-tests', default=True)
-def run_regression_tests(engine, arch):
+def run_regression_tests(engine, arch, extra_arg):
     REGRESSION_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'regression-tests')
     REGRESSION_XFAIL_DIR = join(REGRESSION_DIR, 'xfail')
     REGRESSION_ASSERT_JS = join(REGRESSION_DIR, 'assert.js')
@@ -485,42 +484,42 @@ def _run_jetstream(engine, target_test):
 
 
 @runner('jetstream-only-simple-parallel-1')
-def run_jetstream_only_simple_parallel_1(engine, arch):
+def run_jetstream_only_simple_parallel_1(engine, arch, extra_arg):
     _run_jetstream(engine, 'simple-1')
 
 
 @runner('jetstream-only-simple-parallel-2')
-def run_jetstream_only_simple_parallel_2(engine, arch):
+def run_jetstream_only_simple_parallel_2(engine, arch, extra_arg):
     _run_jetstream(engine, 'simple-2')
 
 
 @runner('jetstream-only-simple-parallel-3')
-def run_jetstream_only_simple_parallel_3(engine, arch):
+def run_jetstream_only_simple_parallel_3(engine, arch, extra_arg):
     _run_jetstream(engine, 'simple-3')
 
 
 @runner('jetstream-only-simple', default=True)
-def run_jetstream_only_simple(engine, arch):
+def run_jetstream_only_simple(engine, arch, extra_arg):
     _run_jetstream(engine, 'simple')
 
 
 @runner('jetstream-only-cdjs', default=True)
-def run_jetstream_only_cdjs(engine, arch):
+def run_jetstream_only_cdjs(engine, arch, extra_arg):
     _run_jetstream(engine, 'cdjs')
 
 
 @runner('jetstream-only-sunspider')
-def run_jetstream_only_sunspider(engine, arch):
+def run_jetstream_only_sunspider(engine, arch, extra_arg):
     _run_jetstream(engine, 'sunspider')
 
 
 @runner('jetstream-only-octane')
-def run_jetstream_only_octane(engine, arch):
+def run_jetstream_only_octane(engine, arch, extra_arg):
     _run_jetstream(engine, 'octane')
 
 
 @runner('chakracore', default=True)
-def run_chakracore(engine, arch):
+def run_chakracore(engine, arch, extra_arg):
     CHAKRACORE_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'chakracore')
     CHAKRACORE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'ChakraCore')
 
@@ -545,7 +544,7 @@ def run_chakracore(engine, arch):
          join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'driver', 'chakracore.%s.gen.txt' % arch)])
 
 @runner('chakracore-dump', default=False)
-def run_chakracore_dump(engine, arch):
+def run_chakracore_dump(engine, arch, extra_arg):
     CHAKRACORE_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'chakracore')
     CHAKRACORE_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'ChakraCore')
 
@@ -578,7 +577,7 @@ def run_chakracore_dump(engine, arch):
                 output.write(baseline)
 
 @runner('chakracore-dump-run', default=False)
-def run_chakracore_dump_run(engine, arch):
+def run_chakracore_dump_run(engine, arch, extra_arg):
     compile_test_data_runner()
 
     CHAKRACORE_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'chakracore')
@@ -596,7 +595,7 @@ def run_chakracore_dump_run(engine, arch):
     print('chakracore-dump-passed')
 
 @runner('v8', default=True)
-def run_v8(engine, arch):
+def run_v8(engine, arch, extra_arg):
     V8_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'v8')
     V8_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'v8')
 
@@ -644,7 +643,7 @@ def run_v8(engine, arch):
 
 
 @runner('v8-dump', default=False)
-def run_v8_dump(engine, arch):
+def run_v8_dump(engine, arch, extra_arg):
     stdout = run_v8(engine, arch)
     stdout = stdout.decode("utf-8").split("\n")
 
@@ -674,7 +673,7 @@ def run_v8_dump(engine, arch):
                     print("SKIP " + casename)
 
 @runner('v8-dump-run', default=False)
-def run_v8_dump_run(engine, arch):
+def run_v8_dump_run(engine, arch, extra_arg):
     compile_test_data_runner()
 
     TOOL_V8_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'v8')
@@ -690,7 +689,7 @@ def run_v8_dump_run(engine, arch):
     print('v8-dump-passed')
 
 @runner('new-es', default=True)
-def run_new_es(engine, arch):
+def run_new_es(engine, arch, extra_arg):
     NEW_ES_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'new-es')
     NEW_ES_ASSERT_JS = join(NEW_ES_DIR, 'assert.js')
 
@@ -718,7 +717,7 @@ def run_new_es(engine, arch):
         raise Exception('new-es tests failed')
 
 @runner('intl', default=True)
-def run_intl(engine, arch):
+def run_intl(engine, arch, extra_arg):
     INTL_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'intl')
     INTL_ASSERT_JS = join(INTL_DIR, 'assert.js')
 
@@ -741,7 +740,7 @@ def run_intl(engine, arch):
         raise Exception('Intl tests failed')
 
 @runner('escargot-test-dump', default=False)
-def run_escargot_test_dump(engine, arch):
+def run_escargot_test_dump(engine, arch, extra_arg):
     NEW_ES_DIR = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'new-es')
     NEW_ES_ASSERT_JS = join(NEW_ES_DIR, 'assert.js')
 
@@ -786,7 +785,7 @@ def run_escargot_test_dump(engine, arch):
             output.write("\n")
 
 @runner('escargot-test-dump-run', default=False)
-def run_escargot_test_dump_run(engine, arch):
+def run_escargot_test_dump_run(engine, arch, extra_arg):
     compile_test_data_runner()
 
     stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
@@ -801,7 +800,7 @@ def run_escargot_test_dump_run(engine, arch):
     print('escargot-dump-passed')
 
 @runner('wasm-js', default=False)
-def run_wasm_js(engine, arch):
+def run_wasm_js(engine, arch, extra_arg):
     WASM_TEST_ROOT = join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'wasm-js')
     WASM_TEST_DIR = join(WASM_TEST_ROOT, 'tests')
     WASM_TEST_MJS = join(WASM_TEST_ROOT, 'mjsunit.js')
@@ -864,7 +863,7 @@ def run_wasm_js(engine, arch):
         raise Exception('new-es tests failed')
 
 @runner('cctest', default=False)
-def run_cctest(engine, arch):
+def run_cctest(engine, arch, extra_arg):
     proc = Popen([engine], stdout=PIPE)
     out, _ = proc.communicate()
 
@@ -875,7 +874,7 @@ def run_cctest(engine, arch):
         raise Exception('Not all tests succeeded')
 
 @runner('debugger-server-source', default=True)
-def run_escargot_debugger(engine, arch):
+def run_escargot_debugger(engine, arch, extra_arg):
     ESCARGOT_DEBUGGER_TEST_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'tests')
     ESCARGOT_DEBUGGER_CLIENT = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger.py')
     ESCARGOT_DEBUGGER_TESTER = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger_tester.sh')
@@ -897,7 +896,7 @@ def run_escargot_debugger(engine, arch):
         raise Exception('Escargot-Debugger-Server-Source tests failed')
 
 @runner('debugger-client-source', default=True)
-def run_escargot_debugger2(engine, arch):
+def run_escargot_debugger2(engine, arch, extra_arg):
     ESCARGOT_DEBUGGER_TEST_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'tests')
     ESCARGOT_DEBUGGER_CLIENT = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger.py')
     ESCARGOT_DEBUGGER_TESTER = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger_tester.sh')
@@ -919,13 +918,13 @@ def run_escargot_debugger2(engine, arch):
         raise Exception('Escargot-Debugger-Client-Source tests failed')
 
 @runner('dump-all', default=False)
-def run_dump_all(engine, arch):
+def run_dump_all(engine, arch, extra_arg):
     for test in RUNNERS:
         if test.endswith("-dump"):
             RUNNERS[test](engine, arch)
 
 @runner('dump-run-all', default=False)
-def run_dump_run_all(engine, arch):
+def run_dump_run_all(engine, arch, extra_arg):
     for test in RUNNERS:
         if test.endswith("-dump-run"):
             RUNNERS[test](engine, arch)
@@ -936,6 +935,8 @@ def main():
                         help='path to the engine to be tested (default: %(default)s)')
     parser.add_argument('--arch', metavar='NAME', choices=['x86', 'x86_64'], default='x86_64',
                         help='architecture the engine was built for (%(choices)s; default: %(default)s)')
+    parser.add_argument('--extra-arg', default='',
+                        help='extra argument variable to drivers')
     parser.add_argument('suite', metavar='SUITE', nargs='*', default=sorted(DEFAULT_RUNNERS),
                         help='test suite to run (%s; default: %s)' % (', '.join(sorted(RUNNERS.keys())), ' '.join(sorted(DEFAULT_RUNNERS))))
     args = parser.parse_args()
@@ -949,7 +950,7 @@ def main():
     for suite in args.suite:
         print(COLOR_PURPLE + 'running test suite: ' + suite + COLOR_RESET)
         try:
-            RUNNERS[suite](args.engine, args.arch)
+            RUNNERS[suite](args.engine, args.arch, args.extra_arg)
             success += [suite]
         except Exception as e:
             print('\n'.join(COLOR_YELLOW + line + COLOR_RESET for line in traceback.format_exc().splitlines()))
