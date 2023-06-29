@@ -726,7 +726,14 @@ public:
     virtual void didLoadModule(ContextRef* relatedContext, OptionalRef<ScriptRef> referrer, ScriptRef* loadedModule) override
     {
         std::string path;
-        if (referrer && loadedModule->src()->length() && loadedModule->src()->charAt(0) != '/') {
+        bool isAbs = false;
+        if (loadedModule->src()->length() && loadedModule->src()->charAt(0) == '/') {
+            isAbs = true;
+        } else if (loadedModule->src()->length() > 3 && loadedModule->src()->charAt(1) == ':' && loadedModule->src()->charAt(2) == '\\') {
+            isAbs = true;
+        }
+
+        if (referrer && loadedModule->src()->length() && !isAbs) {
             path = absolutePath(referrer->src()->toStdUTF8String(), loadedModule->src()->toStdUTF8String());
         } else {
             path = absolutePath(loadedModule->src()->toStdUTF8String());
