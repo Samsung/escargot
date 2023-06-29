@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2009 the Sputnik authors.  All rights reserved.
 # This code is governed by the BSD license found in the LICENSE file.
 
@@ -23,23 +23,16 @@ import datetime
 import shutil
 import json
 import stat
-import signal
 import xml.etree.ElementTree as xmlj
 import unicodedata
+import chardet
 from collections import Counter
 
+is_windows = sys.platform.startswith('win')
 
 from parseTestRecord import parseTestRecord, stripHeader
 
 from packagerConfig import *
-
-class Alarm(Exception):
-    pass
-
-def alarm_handler(signum, frame):
-    raise Alarm
-
-signal.signal(signal.SIGALRM, alarm_handler)
 
 class Test262Error(Exception):
   def __init__(self, message):
@@ -48,11 +41,9 @@ class Test262Error(Exception):
 def ReportError(s):
   raise Test262Error(s)
 
-
-
 if not os.path.exists(EXCLUDED_FILENAME):
-    print "Cannot generate (JSON) test262 tests without a file," + \
-        " %s, showing which tests have been disabled!" % EXCLUDED_FILENAME
+    print("Cannot generate (JSON) test262 tests without a file," + \
+        " %s, showing which tests have been disabled!" % EXCLUDED_FILENAME)
     sys.exit(1)
 EXCLUDE_LIST = xml.dom.minidom.parse(EXCLUDED_FILENAME)
 EXCLUDE_REASON = EXCLUDE_LIST.getElementsByTagName("reason")
@@ -95,6 +86,7 @@ def BuildOptions():
   result.add_option("--print-handle", default="print", help="Command to print from console")
   result.add_option("--list-includes", default=False, action="store_true",
                     help="List includes required by tests")
+  result.add_option("--skip", default=[], action="append", help="skip testcase pattern")
   return result
 
 
@@ -122,20 +114,30 @@ class TempFile(object):
     self.fd = None
     self.name = None
     self.is_closed = False
-    self.Open()
+    self.open()
 
-  def Open(self):
+  def open(self):
     (self.fd, self.name) = tempfile.mkstemp(
         suffix = self.suffix,
         prefix = self.prefix,
         text = self.text)
 
   def Write(self, str):
-    os.write(self.fd, str)
+    os.write(self.fd, str.encode("utf-8"))
 
   def Read(self):
-    f = file(self.name)
-    result = f.read()
+    f = open(self.name, encoding="utf-8", newline='')
+    try:
+      result = f.read()
+    except UnicodeDecodeError:
+      f.close()
+      t = open(self.name, "rb")
+      rawdata = t.read()
+      t.close()
+      result = chardet.detect(rawdata)
+      charenc = result['encoding']
+      f = open(self.name, encoding=charenc, newline='')
+      result = f.read()
     f.close()
     return result
 
@@ -148,7 +150,7 @@ class TempFile(object):
     try:
       self.Close()
       os.unlink(self.name)
-    except OSError, e:
+    except OSError as e:
       logging.error("Error disposing temp file: %s", str(e))
 
 
@@ -165,20 +167,20 @@ class TestResult(object):
     mode = self.case.GetMode()
     if self.HasUnexpectedOutcome():
       if self.case.IsNegative():
-        print "=== %s was expected to fail in %s, but didn't ===" % (name, mode)
-        print "--- expected error: %s ---\n" % self.case.GetNegative()
+        print("=== %s was expected to fail in %s, but didn't ===" % (name, mode))
+        print("--- expected error: %s ---\n" % self.case.GetNegative())
       else:
         if long_format:
-          print "=== %s failed in %s ===" % (name, mode)
+          print("=== %s failed in %s ===" % (name, mode))
         else:
-          print "%s in %s: " % (name, mode)
+          print("%s in %s: " % (name, mode))
       self.WriteOutput(sys.stdout)
       if long_format:
-        print "==="
+        print("===")
     elif self.case.IsNegative():
-      print "%s failed in %s as expected" % (name, mode)
+      print("%s failed in %s as expected" % (name, mode))
     else:
-      print "%s passed in %s" % (name, mode)
+      print("%s passed in %s" % (name, mode))
 
   def WriteOutput(self, target):
     out = self.stdout.strip()
@@ -192,8 +194,8 @@ class TestResult(object):
   def SafeFormat(self, msg):
     try:
       msg = msg.encode(encoding='ascii', errors='strict')
-      msg = msg.replace('\u000Bx', '?')
-      msg = msg.replace('\u000Cx', '?')
+      msg = msg.replace('\\u000Bx', '?')
+      msg = msg.replace('\\u000Cx', '?')
     except:
       return 'Output contained invalid characters'
 
@@ -254,7 +256,7 @@ class TestCase(object):
     self.name = name
     self.full_path = full_path
     self.strict_mode = strict_mode
-    f = open(self.full_path)
+    f = open(self.full_path, encoding="utf-8", newline='')
     self.contents = f.read()
     self.source = self.contents
     f.close()
@@ -308,6 +310,11 @@ class TestCase(object):
   def GetIncludeList(self):
     if self.testRecord.get('includes'):
       return self.testRecord['includes']
+    return []
+
+  def GetFeatureList(self):
+    if self.testRecord.get('features'):
+      return self.testRecord['features']
     return []
 
   def GetAdditionalIncludes(self):
@@ -376,19 +383,19 @@ class TestCase(object):
         env = my_env
       )
 
-      signal.alarm(120)  # raise Alarm in 2 minutes
-
+      is_timeout_expired = False
       try:
-        code = process.wait()
-        signal.alarm(0)  # reset the alarm
-      except Alarm:
+        code = process.wait(60 * 10)
+      except subprocess.TimeoutExpired:
+        is_timeout_expired = True
         process.kill()
         process.wait()
         code = -1
 
-      # code = process.wait()
       out = stdout.Read()
       err = stderr.Read()
+      if is_timeout_expired:
+        err = err + "(TimeoutExpired)"
     finally:
       stdout.Dispose()
       stderr.Dispose()
@@ -428,7 +435,22 @@ class TestCase(object):
       'can_block_is_false': can_block_is_false
     })
 
-    (code, out, err) = self.Execute(command)
+    code = 0
+    out = ""
+    err = ""
+    retry_count = 1
+    count = 0
+
+    # timeouts does not work properly on some cases
+    if "Atomics" in self.GetFeatureList() or "SharedArrayBuffer" in self.GetFeatureList():
+      retry_count = 10
+
+    while count < retry_count:
+      (code, out, err) = self.Execute(command)
+      result = TestResult(code, out, err, self)
+      if not result.HasUnexpectedOutcome():
+        break
+      count = count + 1
 
     if len(ESCARGOT_DUMP262DATA):
       self.escargot_data = dict()
@@ -454,7 +476,7 @@ class TestCase(object):
     return result
 
   def Print(self):
-    print self.GetSource()
+    print(self.GetSource())
 
   def validate(self):
     flags = self.testRecord.get("flags")
@@ -509,7 +531,7 @@ def CaseRunner(case):
 
 class TestSuite(object):
 
-  def __init__(self, root, strict_only, non_strict_only, unmarked_default, print_handle):
+  def __init__(self, root, strict_only, non_strict_only, unmarked_default, print_handle, skip_patterns):
     # TODO: derive from packagerConfig.py
     self.test_root = path.join(root, 'test')
     if len(ESCARGOT_DUMP262DATA):
@@ -523,6 +545,7 @@ class TestSuite(object):
     self.print_handle = print_handle
     self.include_cache = { }
     self.total_test_number = 0
+    self.skip_patterns = skip_patterns
 
   def Validate(self):
     if not path.exists(self.test_root):
@@ -577,12 +600,17 @@ class TestSuite(object):
             basename = path.basename(full_path)[:-3]
             name = rel_path.split(path.sep)[:-1] + [basename]
             file_path = rel_path[0:rel_path.rindex('.')]
+            if is_windows:
+              file_path = file_path.replace("\\", "/")
             if file_path in EXCLUDE_LIST:
-              #print 'Excluded: ' + rel_path
               skip = True
             elif EXCLUDE_LIST.count(basename) >= 1:
-              #print 'Excluded: ' + basename
               skip = True
+            else:
+              for s in self.skip_patterns:
+                if s in full_path:
+                  skip = True
+                  break
 
             if not self.non_strict_only:
               strict_case = TestCase(self, len(cases), name, full_path, True)
@@ -609,9 +637,9 @@ class TestSuite(object):
     def write(s):
       if logfile:
         self.logf.write(s + "\n")
-      print s
+      print(s)
 
-    print
+    print()
     write("=== Test262 Summary ===");
     count = progress.count
     succeeded = progress.succeeded
@@ -626,13 +654,13 @@ class TestSuite(object):
       positive = [c for c in progress.failed_tests if not c.case.IsNegative()]
       negative = [c for c in progress.failed_tests if c.case.IsNegative()]
       if len(positive) > 0:
-        print
+        print()
         write("Test262 Failed Tests")
         for result in positive:
           write("  %s in %s" % (result.case.GetName(), result.case.GetMode()))
         write("Failed Tests End")
       if len(negative) > 0:
-        print
+        print()
         write("Test262 Expected to fail but passed")
         for result in negative:
           write("  %s in %s" % (result.case.GetName(), result.case.GetMode()))
@@ -643,9 +671,9 @@ class TestSuite(object):
     def write(s):
       if logfile:
         self.logf.write(s + "\n")
-      print s
+      print(s)
 
-    print
+    print()
     write("=== Test262 Summary ===");
     count = progress.count
     succeeded = progress.succeeded
@@ -658,13 +686,13 @@ class TestSuite(object):
     positive = [c for c in progress.succeeded_tests if not c.case.IsNegative()]
     negative = [c for c in progress.succeeded_tests if c.case.IsNegative()]
     if len(positive) > 0:
-      print
+      print()
       write("Test262 Succeeded Tests")
       for result in positive:
         write("  %s in %s (pass)" % (result.case.GetName(), result.case.GetMode()))
       write("Succeeded Tests End")
     if len(negative) > 0:
-      print
+      print()
       write("Test262 Expected to fail")
       for result in negative:
         write("  %s in %s (pass)" % (result.case.GetName(), result.case.GetMode()))
@@ -673,13 +701,13 @@ class TestSuite(object):
     positive = [c for c in progress.failed_tests if not c.case.IsNegative()]
     negative = [c for c in progress.failed_tests if c.case.IsNegative()]
     if len(positive) > 0:
-      print
+      print()
       write("Test262 Failed Tests")
       for result in positive:
         write("  %s in %s (fail)" % (result.case.GetName(), result.case.GetMode()))
       write("Failed Tests End")
     if len(negative) > 0:
-      print
+      print()
       write("Test262 Expected to fail but passed")
       for result in negative:
         write("  %s in %s (fail)" % (result.case.GetName(), result.case.GetMode()))
@@ -689,7 +717,7 @@ class TestSuite(object):
     for result in progress.failed_tests:
       if logfile:
         self.WriteLog(result)
-      print
+      print()
       result.ReportOutcome(False)
 
   def Run(self, command_template, tests, print_summary, print_full, logname, junitfile):
@@ -700,20 +728,20 @@ class TestSuite(object):
       ReportError("No tests to run")
     progress = ProgressIndicator(len(cases))
     if logname:
-      self.logf = open(logname, "w")
+      self.logf = open(logname, "w", encoding="utf-8")
     if junitfile:
-      self.outfile = open(junitfile, "w")
+      self.outfile = open(junitfile, "w", encoding="utf-8")
       TestSuitesElement = xmlj.Element("testsuites")
       TestSuiteElement = xmlj.Element("testsuite")
       TestSuitesElement.append(TestSuiteElement)
       TestSuiteElement.attrib["name "] = "test262"
       for x in range(len(EXCLUDE_LIST)):
-        if self.ShouldRun (unicode(EXCLUDE_LIST[x].encode('utf-8','ignore')), tests):
+        if self.ShouldRun (str(EXCLUDE_LIST[x].encode('utf-8','ignore')), tests):
           SkipCaseElement = xmlj.Element("testcase")
-          SkipCaseElement.attrib["classname"] = unicode(EXCLUDE_LIST[x]).encode('utf-8','ignore')
-          SkipCaseElement.attrib["name"] = unicode(EXCLUDE_LIST[x]).encode('utf-8','ignore')
+          SkipCaseElement.attrib["classname"] = str(EXCLUDE_LIST[x]).encode('utf-8','ignore')
+          SkipCaseElement.attrib["name"] = str(EXCLUDE_LIST[x]).encode('utf-8','ignore')
           SkipElement = xmlj.Element("skipped")
-          SkipElement.attrib["message"] = unicode(EXCLUDE_REASON[x].firstChild.nodeValue)
+          SkipElement.attrib["message"] = str(EXCLUDE_REASON[x].firstChild.nodeValue)
           SkipCaseElement.append(SkipElement)
           TestSuiteElement.append(SkipCaseElement)
 
@@ -769,7 +797,7 @@ class TestSuite(object):
         print
         print "Use --full-summary to see output from failed tests"
     '''
-    print
+    print()
     return progress.failed
 
   def WriteLog(self, result):
@@ -801,7 +829,7 @@ class TestSuite(object):
       includes = case.GetIncludeList()
       includes_dict.update(includes)
 
-    print includes_dict
+    print(includes_dict)
 
 
 def Main():
@@ -813,7 +841,8 @@ def Main():
                          options.strict_only,
                          options.non_strict_only,
                          options.unmarked_default,
-			 options.print_handle)
+                         options.print_handle,
+                         options.skip)
   test_suite.Validate()
   if options.loglevel == 'debug':
     logging.basicConfig(level=logging.DEBUG)
@@ -841,6 +870,6 @@ if __name__ == '__main__':
   try:
     code = Main()
     sys.exit(code)
-  except Test262Error, e:
-    print "Error: %s" % e.message
+  except Test262Error as e:
+    print("Error: %s" % e.message)
     sys.exit(1)

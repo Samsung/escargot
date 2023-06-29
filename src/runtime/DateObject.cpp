@@ -1317,6 +1317,7 @@ String* DateObject::toTimeString(ExecutionState& state)
         snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin));
         StringBuilder sb;
         sb.appendString(buffer);
+        sb.appendChar(' ');
         sb.appendChar('(');
         sb.appendString(String::fromUTF8(timeZoneName.data(), timeZoneName.length()));
         sb.appendChar(')');

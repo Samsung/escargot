@@ -43,7 +43,7 @@ class robin_vector {
                 return 0;
             }
             size_t base = log2l(newSize);
-            size_t capacity = 1 << (base + 1);
+            size_t capacity = size_t(1) << (base + 1);
             return capacity;
         }
     };

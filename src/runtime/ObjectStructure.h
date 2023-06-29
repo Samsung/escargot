@@ -264,7 +264,7 @@ private:
             return 1;
         }
         size_t base = FAST_LOG2_UINT(newSize);
-        return 1 << (base + 1);
+        return size_t(1) << (base + 1);
     }
 
     ObjectStructureItemTightVector m_properties;

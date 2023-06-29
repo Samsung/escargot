@@ -53,7 +53,7 @@ struct ComputeReservedCapacityFunctionWithLog2 {
             return 0;
         }
         size_t base = FAST_LOG2_UINT(newSize);
-        size_t capacity = 1 << (base + 1);
+        size_t capacity = size_t(1) << (base + 1);
         if (glowFactor > 100) {
             return capacity * glowFactor / 100.f;
         }

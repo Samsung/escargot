@@ -31,8 +31,9 @@ class SpinLock {
 
 public:
     SpinLock()
-        : m_locked(ATOMIC_FLAG_INIT)
+        : m_locked()
     {
+        m_locked.clear();
     }
 
     void lock()
