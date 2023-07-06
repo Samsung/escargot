@@ -226,6 +226,44 @@ jobs:
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 15
+
+  build-on-windows-x64-uwp-x86-shared:
+    runs-on: windows-2022
+    steps:
+    - name: Set git cllf config
+      run: |
+        git config --global core.autocrlf input
+        git config --global core.eol lf
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - uses: lukka/get-cmake@latest
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
+      with:
+        sdk-version: 20348
+    - uses: ilammy/msvc-dev-cmd@v1.12.1
+      with:
+        arch: x64
+        sdk: "10.0.20348.0"
+        uwp: true
+    - name: Build x64 UWP Release
+      run: |
+        CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=x64 -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -Bout/win64_release_uwp/ -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_TEST=ON
+        cmake --build out\win64_release_uwp --config Release
+      shell: cmd
+    - uses: ilammy/msvc-dev-cmd@v1.12.1
+      with:
+        arch: x86
+        sdk: "10.0.20348.0"
+    - name: Build x86 DLL Release
+      run: |
+        CMake -G "Visual Studio 16 2019" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -Bout/win32_release_shared/ -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shared_lib -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
+        CMake --build out/win32_release_shared --config Release
+      shell: cmd
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
+
   build-test-on-x86-release:
     runs-on: ubuntu-latest
     strategy:
