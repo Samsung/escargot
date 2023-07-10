@@ -596,7 +596,7 @@ protected:
     }
 };
 
-#if defined(NDEBUG) && defined(ESCARGOT_32) && !defined(COMPILER_MSVC)
+#if defined(NDEBUG) && defined(ESCARGOT_32) && !defined(OS_WINDOWS)
 COMPILE_ASSERT(sizeof(String) == sizeof(size_t) * 4, "");
 #endif
 

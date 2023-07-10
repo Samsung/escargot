@@ -197,7 +197,7 @@ struct ByteCodeLOC {
     }
 };
 
-#if defined(NDEBUG) && defined(ESCARGOT_32) && !defined(COMPILER_MSVC)
+#if defined(NDEBUG) && defined(ESCARGOT_32) && !defined(OS_WINDOWS)
 #define BYTECODE_SIZE_CHECK_IN_32BIT(codeName, size) COMPILE_ASSERT(sizeof(codeName) == size, "");
 #else
 #define BYTECODE_SIZE_CHECK_IN_32BIT(CodeName, Size)
@@ -1247,7 +1247,7 @@ public:
 
     static constexpr size_t inlineCacheProtoTraverseMaxCount = 12;
 
-    enum GetInlineCacheMode {
+    enum GetInlineCacheMode ENSURE_ENUM_UNSIGNED {
         None,
         Simple,
         Complex

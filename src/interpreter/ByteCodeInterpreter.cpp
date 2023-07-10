@@ -51,7 +51,7 @@
 #include "parser/ScriptParser.h"
 #include "CheckedArithmetic.h"
 
-#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
+#if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER) && !defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
 extern char FillOpcodeTableAsmLbl[];
 const void* FillOpcodeTableAddress[] = { &FillOpcodeTableAsmLbl[0] };
 #endif
@@ -1654,7 +1654,11 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             __attribute__((cold));
 #endif
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER)
+
+#if !defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
             asm volatile("FillOpcodeTableAsmLbl:");
+#endif
+
 #if defined(ENABLE_CODE_CACHE)
 #define REGISTER_TABLE(opcode)                                          \
     g_opcodeTable.m_addressTable[opcode##Opcode] = &&opcode##OpcodeLbl; \

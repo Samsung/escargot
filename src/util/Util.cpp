@@ -43,9 +43,9 @@
 #include "Vector.h"
 #include "Util.h"
 
-#if defined(__ANDROID__)
+#if defined(OS_ANDROID)
 #include <sys/time.h>
-#elif defined(_WINDOWS)
+#elif defined(OS_WINDOWS)
 #include <time.h>
 #else
 #include <sys/timeb.h>

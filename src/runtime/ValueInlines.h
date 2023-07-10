@@ -751,7 +751,8 @@ inline bool Value::isCallable() const
 // https://www.ecma-international.org/ecma-262/6.0/#sec-tonumber
 inline double Value::toNumber(ExecutionState& state) const
 {
-#ifdef ESCARGOT_64
+// there is optimizer bug on clang-cl with below block
+#if defined(ESCARGOT_64) && !defined(COMPILER_CLANG_CL)
     auto n = u.asInt64 & TagTypeNumber;
     if (LIKELY(n)) {
         if (n == TagTypeNumber) {
