@@ -174,6 +174,61 @@ jobs:
           CC=clang CXX=clang++ cmake -H. -Bout/release -DESCARGOT_ARCH=aarch64 -DESCARGOT_HOST=linux -DESCARGOT_MODE=release -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
           ninja -Cout/release
           python3 ./tools/run-tests.py --engine="./out/release/escargot" new-es
+  test-on-windows-clang-cl:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        # clang-cl with cannot generate c++ exception code well
+        # if clang-cl bug fixed, we can add x64
+        arch: [
+          {cpu: "x86", flag: "-m32"}
+          # , {cpu: "x64", flag: ""}
+          ]
+    steps:
+    - name: Set git cllf config
+      run: |
+        git config --global core.autocrlf input
+        git config --global core.eol lf
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - uses: szenius/set-timezone@v1.2
+      with:
+        timezoneWindows: "Pacific Standard Time"
+    - uses: lukka/get-cmake@latest
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
+      with:
+        sdk-version: 20348
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install msvc redist package
+      run: |
+        (new-object System.Net.WebClient).DownloadFile('https://github.com/abbodi1406/vcredist/releases/download/v0.73.0/VisualCppRedist_AIO_x86_x64.exe','VisualCppRedist_AIO_x86_x64.exe')
+        .\VisualCppRedist_AIO_x86_x64.exe /y
+    - uses: ilammy/msvc-dev-cmd@v1.12.1
+      with:
+        arch: ${{ matrix.arch.cpu }}
+        sdk: "10.0.20348.0"
+    - name: Build ${{ matrix.arch.cpu }} Release
+      run: |
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch.cpu }} -DESCARGOT_ARCH=${{ matrix.arch.cpu }} -DESCARGOT_MODE=release -Bout/ -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=NO -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=release -DCMAKE_C_FLAGS="${{ matrix.arch.flag }}" -DCMAKE_CXX_FLAGS="${{ matrix.arch.flag }}"
+        CMake --build out/ --config Release
+    - name: Run octane
+      run: |
+        copy test\octane\*.js
+        dir
+        .\out\escargot.exe run.js
+    # clang-cl with cannot generate c++ exception code well. if clang-cl bug fixed, we can enable test262
+    # - name: Run test262
+    #   run: |
+    #     set GC_FREE_SPACE_DIVISOR=1
+    #     pip install chardet
+    #     python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --extra-arg="--skip Temporal --skip intl402 --skip Atomics"
+    #   shell: cmd
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
 
   test-on-windows-x86-x64:
     runs-on: windows-2022
@@ -208,7 +263,7 @@ jobs:
         sdk: "10.0.20348.0"
     - name: Build ${{ matrix.arch }} Release
       run: |
-        CMake -G "Visual Studio 16 2019" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DESCARGOT_ARCH=${{ matrix.arch }} -DESCARGOT_MODE=release -Bout/ -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DESCARGOT_ARCH=${{ matrix.arch }} -DESCARGOT_MODE=release -Bout/ -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
         CMake --build out/ --config Release
     # windows internal ICU doesn't support Temporal and intl402 well
     # github action windows runner only have 2 CPUs. that's why I disable Atomics(timeout occured with some tests)
@@ -257,7 +312,7 @@ jobs:
         sdk: "10.0.20348.0"
     - name: Build x86 DLL Release
       run: |
-        CMake -G "Visual Studio 16 2019" -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -Bout/win32_release_shared/ -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shared_lib -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=release -Bout/win32_release_shared/ -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shared_lib -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
         CMake --build out/win32_release_shared --config Release
       shell: cmd
     - if: ${{ failure() }}

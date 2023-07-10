@@ -52,6 +52,10 @@
 
 #if defined(__clang__)
 #define COMPILER_CLANG 1
+// clang-cl defines _MSC_VER and __clang__ both
+#if defined(_MSC_VER)
+#define COMPILER_CLANG_CL 1
+#endif
 #elif defined(_MSC_VER)
 #define COMPILER_MSVC 1
 #elif (__GNUC__)
@@ -158,11 +162,6 @@
 #endif
 #endif
 
-#if defined(COMPILER_MSVC)
-#define strncasecmp _strnicmp
-#define strcasecmp _stricmp
-#endif
-
 #ifndef ATTRIBUTE_NO_SANITIZE_ADDRESS
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define ATTRIBUTE_NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address))
@@ -217,6 +216,12 @@
 #define NOMINMAX
 #endif
 
+#if defined(OS_WINDOWS)
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#endif
+
+
 /*
 we need to mark enum as unsigned if needs.
 because processing enum in msvc is little different
@@ -226,7 +231,7 @@ struct Foo { Type type: 1; };
 Foo f; f.type = 1;
 if (f.type == Type::B) { puts("failed in msvc."); }
 */
-#if defined(COMPILER_MSVC)
+#if defined(OS_WINDOWS)
 #define ENSURE_ENUM_UNSIGNED : unsigned int
 #else
 #define ENSURE_ENUM_UNSIGNED
@@ -481,7 +486,7 @@ void customEscargotErrorLogger(const char* format, ...);
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
 #define ESCARGOT_COMPUTED_GOTO_INTERPRETER
 // some devices cannot support getting label address from outside well
-#if (defined(CPU_ARM64) || (defined(CPU_ARM32) && defined(COMPILER_CLANG))) || defined(OS_DARWIN) || defined(OS_ANDROID)
+#if (defined(CPU_ARM64) || (defined(CPU_ARM32) && defined(COMPILER_CLANG))) || defined(OS_DARWIN) || defined(OS_ANDROID) || defined(OS_WINDOWS)
 #define ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL
 #endif
 #endif

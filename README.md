@@ -48,7 +48,7 @@ cmake -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARG
 ninja
 ```
 
-## Build android version of Escargot
+## Build Android version
 
 ```sh
 git clone https://github.com/Samsung/escargot.git
@@ -63,12 +63,26 @@ cd build/android/
 ./gradlew bundleHostJar # bundle jar for host
 ```
 
+## Build Windows version
+
+Install VS2022 with cmake and ninja.
+Open [ x86 Native Tools Command Prompt for VS 2022 | x64 Native Tools Command Prompt for VS 2022 ]
+```sh
+git clone https://github.com/Samsung/escargot.git
+cd escargot
+git submodule update --init third_party
+
+CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=[ Windows | WindowsStore ] -DCMAKE_SYSTEM_VERSION:STRING="10.0"  -DCMAKE_SYSTEM_PROCESSOR=[ x86 | x64 ] -DCMAKE_GENERATOR_PLATFORM=[ Win32 | x64 ],version=10.0.18362.0 -DESCARGOT_ARCH=[ x86 | x64 ] -DESCARGOT_MODE=release -Bout -DESCARGOT_HOST=windows -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_THREADING=ON
+cd out
+msbuild ESCARGOT.sln /property:Configuration=Release /p:platform=[ Win32 | x64 ]
+```
+
 #### Build options
 
 The following build options are supported when generating ninja rules using cmake.
 
-* -DESCARGOT_HOST=[ linux | tizen_obs | darwin | android ]<br>
-  Compile Escargot for Linux, Tizen, or macOS platform
+* -DESCARGOT_HOST=[ linux | tizen_obs | darwin | android | windows ]<br>
+  Compile Escargot for Linux, Tizen, macOS, or Windows platform
 * -DESCARGOT_ARCH=[ x64 | x86 | arm | i686 | aarch64 ]<br>
   Compile Escargot for each architecture
 * -DESCARGOT_MODE=[ debug | release ]<br>
@@ -77,6 +91,14 @@ The following build options are supported when generating ninja rules using cmak
   Define target output type
 * -DESCARGOT_LIBICU_SUPPORT=[ ON | OFF ]<br>
   Enable libicu library if set ON. (Optional, default = ON)
+* -DESCARGOT_THREADING=[ ON | OFF ]<br>
+  Enable Threading support. (Optional, default = OFF)
+* -DESCARGOT_CODE_CACHE=[ ON | OFF ]<br>
+  Enable Code cache support. (Optional, default = OFF)
+* -DESCARGOT_WASM=[ ON | OFF ]<br>
+  Enable WASM support. (Optional, default = OFF)
+* -DESCARGOT_SMALL_CONFIG=[ ON | OFF ]<br>
+  Enable Options for small devices. (Optional, default = OFF)
 
 ## Testing
 

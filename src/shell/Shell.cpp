@@ -43,7 +43,7 @@
 #include <dlfcn.h>
 #endif
 
-#if !defined(__APPLE__) && !defined(_WINDOWS)
+#if !defined(__APPLE__) && !defined(_WINDOWS) && !defined(_WIN32) && !defined(_WIN64)
 #include <signal.h>
 #include <execinfo.h>
 
@@ -873,6 +873,11 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
     return result;
 }
 
+// making this function with lambda causes "cannot compile this forwarded non-trivially copyable parameter yet" on Windows/ClangCL
+static void globalObjectProxyCallback(ExecutionStateRef* state, GlobalObjectProxyObjectRef* proxy, GlobalObjectRef* targetGlobalObject, GlobalObjectProxyObjectRef::AccessOperationType operationType, OptionalRef<AtomicStringRef> nonIndexedStringPropertyNameIfExists)
+{
+    // TODO check security
+}
 
 PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, bool isMainThread)
 {
@@ -881,11 +886,8 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
     Evaluator::execute(context, [](ExecutionStateRef* state, bool isMainThread) -> ValueRef* {
         ContextRef* context = state->context();
 
-        GlobalObjectProxyObjectRef* proxy = GlobalObjectProxyObjectRef::create(state, state->context()->globalObject(), [](ExecutionStateRef* state, GlobalObjectProxyObjectRef* proxy, GlobalObjectRef* targetGlobalObject, GlobalObjectProxyObjectRef::AccessOperationType operationType, OptionalRef<AtomicStringRef> nonIndexedStringPropertyNameIfExists) {
-            // TODO check security
-        });
+        GlobalObjectProxyObjectRef* proxy = GlobalObjectProxyObjectRef::create(state, state->context()->globalObject(), globalObjectProxyCallback);
         context->setGlobalObjectProxy(proxy);
-
 
         {
             FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(context, "print"), builtinPrint, 1, true, false);
@@ -1056,13 +1058,13 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
     return context;
 }
 
-#if defined(_WINDOWS)
+#if defined(_WINDOWS) || defined(_WIN32) || defined(_WIN64)
 #include <windows.h> // for SetConsoleOutputCP
 #endif
 
 int main(int argc, char* argv[])
 {
-#if defined(_WINDOWS)
+#if defined(_WINDOWS) || defined(_WIN32) || defined(_WIN64)
     SetConsoleOutputCP(65001);
 #endif
 #ifndef NDEBUG
@@ -1070,7 +1072,7 @@ int main(int argc, char* argv[])
     setbuf(stderr, NULL);
 #endif
 
-#if defined(ESCARGOT_ENABLE_TEST) && !defined(__APPLE__) && !defined(_WINDOWS)
+#if defined(ESCARGOT_ENABLE_TEST) && !defined(__APPLE__) && !defined(_WINDOWS) && !defined(_WIN32) && !defined(_WIN64)
     struct sigaction sa;
     sa.sa_handler = (void (*)(int))btSighandler;
     sigemptyset(&sa.sa_mask);

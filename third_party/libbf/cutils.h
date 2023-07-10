@@ -119,7 +119,7 @@ static inline int64_t min_int64(int64_t a, int64_t b)
         return b;
 }
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 #include <intrin.h>
 static inline int __builtin_ctz(unsigned x)
 {

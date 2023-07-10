@@ -205,20 +205,24 @@ private:
     PlatformRef* m_platform;
 };
 
+// making this function with lambda causes "cannot compile this forwarded non-trivially copyable parameter yet" on Windows/ClangCL
+static ValueRef* notifyHostImportModuleDynamicallyInnerExecute(ExecutionStateRef* state, PlatformRef::LoadModuleResult loadModuleResult, Script::ModuleData::ModulePromiseObject* promise)
+{
+    if (loadModuleResult.script) {
+        if (loadModuleResult.script.value()->isExecuted()) {
+            if (loadModuleResult.script.value()->wasThereErrorOnModuleEvaluation()) {
+                state->throwException(loadModuleResult.script.value()->moduleEvaluationError());
+            }
+        }
+    } else {
+        state->throwException(ErrorObjectRef::create(state, loadModuleResult.errorCode, loadModuleResult.errorMessage));
+    }
+    return ValueRef::createUndefined();
+}
+
 void PlatformRef::notifyHostImportModuleDynamicallyResult(ContextRef* relatedContext, ScriptRef* referrer, StringRef* src, PromiseObjectRef* promise, LoadModuleResult loadModuleResult)
 {
-    auto result = Evaluator::execute(relatedContext, [](ExecutionStateRef* state, LoadModuleResult loadModuleResult, Script::ModuleData::ModulePromiseObject* promise) -> ValueRef* {
-        if (loadModuleResult.script) {
-            if (loadModuleResult.script.value()->isExecuted()) {
-                if (loadModuleResult.script.value()->wasThereErrorOnModuleEvaluation()) {
-                    state->throwException(loadModuleResult.script.value()->moduleEvaluationError());
-                }
-            }
-        } else {
-            state->throwException(ErrorObjectRef::create(state, loadModuleResult.errorCode, loadModuleResult.errorMessage));
-        }
-        return ValueRef::createUndefined();
-    },
+    auto result = Evaluator::execute(relatedContext, notifyHostImportModuleDynamicallyInnerExecute,
                                      loadModuleResult, (Script::ModuleData::ModulePromiseObject*)promise);
 
     Script::ModuleData::ModulePromiseObject* mp = (Script::ModuleData::ModulePromiseObject*)promise;
