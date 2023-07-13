@@ -181,15 +181,42 @@ struct TypedArrayHelper {
     }
     ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 static Float64Adaptor::Type readFloat64(uint8_t* rawBytes)
     {
+#if defined(CPU_ARM32)
+        uint64_t result;
+        uint32_t* bufferAs32 = reinterpret_cast<uint32_t*>(rawBytes);
+        uint32_t* resultAs32 = reinterpret_cast<uint32_t*>(&result);
+        resultAs32[0] = bufferAs32[0];
+        resultAs32[1] = bufferAs32[1];
+        return bitwise_cast<Float64Adaptor::Type>(result);
+#else
         return bitwise_cast<Float64Adaptor::Type>(*reinterpret_cast<uint64_t*>(rawBytes));
+#endif
     }
     ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 static BigInt64Adaptor::Type readInt64(uint8_t* rawBytes)
     {
+#if defined(CPU_ARM32)
+        BigInt64Adaptor::Type result;
+        uint32_t* bufferAs32 = reinterpret_cast<uint32_t*>(rawBytes);
+        uint32_t* resultAs32 = reinterpret_cast<uint32_t*>(&result);
+        resultAs32[0] = bufferAs32[0];
+        resultAs32[1] = bufferAs32[1];
+        return result;
+#else
         return *reinterpret_cast<BigInt64Adaptor::Type*>(rawBytes);
+#endif
     }
     ATTRIBUTE_NO_OPTIMIZE_IF_ARM32 static BigUint64Adaptor::Type readUint64(uint8_t* rawBytes)
     {
+#if defined(CPU_ARM32)
+        BigUint64Adaptor::Type result;
+        uint32_t* bufferAs32 = reinterpret_cast<uint32_t*>(rawBytes);
+        uint32_t* resultAs32 = reinterpret_cast<uint32_t*>(&result);
+        resultAs32[0] = bufferAs32[0];
+        resultAs32[1] = bufferAs32[1];
+        return result;
+#else
         return *reinterpret_cast<BigUint64Adaptor::Type*>(rawBytes);
+#endif
     }
 
     static Value rawBytesToNumber(ExecutionState& state, TypedArrayType type, uint8_t* rawBytes)
