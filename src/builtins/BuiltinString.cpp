@@ -836,7 +836,7 @@ static Value builtinStringCharAt(ExecutionState& state, Value thisValue, size_t 
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, charAt);
 
-    int64_t position = 0;
+    double position = 0;
     if (argc > 0) {
         position = argv[0].toInteger(state);
     }
