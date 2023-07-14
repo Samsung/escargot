@@ -47,6 +47,7 @@ class robin_vector {
             return capacity;
         }
     };
+
 public:
     robin_vector()
         : m_buffer(nullptr)
@@ -386,7 +387,7 @@ protected:
     void deallocateBuffer(T* buffer, size_t size, size_t capacity)
     {
         if (buffer) {
-            for (size_t i = 0; i < size; i ++) {
+            for (size_t i = 0; i < size; i++) {
                 buffer[i].~T();
             }
             Allocator().deallocate(buffer, capacity);
