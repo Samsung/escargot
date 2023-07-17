@@ -1,0 +1,68 @@
+def isPr() {
+    env.CHANGE_ID != null
+}
+    node {
+        try {
+            stage("Get source") {
+                def url = 'https://github.com/Samsung/escargot.git'
+
+                if (isPr()) {
+                    def refspec = "+refs/pull/${env.CHANGE_ID}/head:refs/remotes/origin/PR-${env.CHANGE_ID} +refs/heads/master:refs/remotes/origin/master"
+                    def extensions = [[$class: 'PreBuildMerge', options: [mergeRemote: "refs/remotes/origin", mergeTarget: "PR-${env.CHANGE_ID}"]]]
+                    checkout([
+                        $class: 'GitSCM',
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions: extensions,
+                        submoduleCfg: [],
+                        userRemoteConfigs: [[
+                            refspec: refspec,
+                            url: url
+                        ]]
+                    ])
+                } else {
+                    def refspec = "+refs/heads/master:refs/remotes/origin/master"
+                    def extensions = []
+                    checkout([
+                        $class: 'GitSCM',
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions: [[$class: 'WipeWorkspace']],
+                        submoduleCfg: [],
+                        userRemoteConfigs: [[
+                            refspec: refspec,
+                            url: url
+                        ]]
+                    ])
+                }
+            }
+
+            stage('Submodule update') {
+                sh 'git submodule update --init test third_party/GCutil'
+            }
+
+            stage('Prepare build') {
+                sh cmake -H./ -Bout -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja'
+            }
+
+            stage('Build') {
+                sh cmake --build ./out/
+            }
+
+            stage('Running test') {
+                timeout(30) {
+                    parallel (
+                        'new-es v8 spidermonkey chakracore' : {
+                            sh 'tools/run-tests.py --engine="${WORKSPACE}/out/escargot" new-es v8 spidermonkey chakracore'
+                        },
+                        'test262' : {
+                            sh 'GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --engine="${WORKSPACE}/out/escargot" test262'
+                        },
+                    )
+                }
+            }
+
+        } catch (e) {
+            throw e
+        } finally {
+            cleanWs()
+        }
+    }
