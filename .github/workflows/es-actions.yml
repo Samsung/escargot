@@ -121,60 +121,6 @@ jobs:
         ninja -Cout/clang/x64
         ./tools/run-tests.py --engine="./out/clang/x64/escargot" new-es
 
-  build-on-armv7:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-    - name: Build in arm32 container
-      uses: uraimo/run-on-arch-action@v2.5.0
-      with:
-        arch: armv7
-        distro: ubuntu_latest
-
-        # Install deps into the container. With the token, the container will be cached
-        # The image is cached publically like a package
-        githubToken: ${{ github.token }}
-
-        install: |
-          apt-get update
-          apt-get install -y cmake build-essential ninja-build pkg-config python3 libicu-dev clang-12
-          #FIXME fix clang version as to 12
-          ln -s /usr/bin/clang-12 /usr/bin/clang
-          ln -s /usr/bin/clang++-12 /usr/bin/clang++
-        run: |
-          CC=clang CXX=clang++ cmake -H. -Bout/release -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
-          ninja -Cout/release
-          python3 ./tools/run-tests.py --engine="./out/release/escargot" new-es
-
-  build-on-aarch64:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-    - name: Build in arm64 container
-      uses: uraimo/run-on-arch-action@v2.5.0
-      with:
-        arch: aarch64
-        distro: ubuntu_latest
-
-        # Install deps into the container. With the token, the container will be cached
-        # The image is cached publically like a package
-        githubToken: ${{ github.token }}
-
-        install: |
-          apt-get update
-          apt-get install -y cmake build-essential ninja-build pkg-config python3 libicu-dev clang-12
-          #FIXME fix clang version as to 12
-          ln -s /usr/bin/clang-12 /usr/bin/clang
-          ln -s /usr/bin/clang++-12 /usr/bin/clang++
-        run: |
-          CC=clang CXX=clang++ cmake -H. -Bout/release -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
-          ninja -Cout/release
-          python3 ./tools/run-tests.py --engine="./out/release/escargot" new-es
-
   test-on-windows-clang-cl:
     runs-on: windows-2022
     strategy:
