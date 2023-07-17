@@ -269,8 +269,14 @@ static bool isInfinity(String* str, unsigned p, unsigned length)
         && str->charAt(p + 7) == 'y';
 }
 
+// there is optimizer bug on arm64-gcc :(
+#if defined(CPU_ARM64) && defined(COMPILER_GCC)
+#define ATTRIBUTE_NO_OPTIMIZE_IF_ARM64_GCC ATTRIBUTE_NO_OPTIMIZE
+#else
+#define ATTRIBUTE_NO_OPTIMIZE_IF_ARM64_GCC
+#endif
 
-static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+ATTRIBUTE_NO_OPTIMIZE_IF_ARM64_GCC static Value builtinParseInt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value ret;
 
