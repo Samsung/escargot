@@ -1957,6 +1957,17 @@ ObjectRef* ObjectRef::create(ExecutionStateRef* state)
 #endif
 }
 
+ObjectRef* ObjectRef::create(ExecutionStateRef* state, ObjectRef* proto)
+{
+#if defined(ESCARGOT_SMALL_CONFIG)
+    auto obj = new Object(*toImpl(state), toImpl(proto));
+    obj->markThisObjectDontNeedStructureTransitionTable();
+    return toRef(obj);
+#else
+    return toRef(new Object(*toImpl(state), toImpl(proto)));
+#endif
+}
+
 
 // can not redefine or delete virtual property
 class ExposableObject : public DerivedObject {
@@ -2658,6 +2669,16 @@ public:
     FunctionObjectRef::NativeFunctionPointer m_publicFn;
 };
 
+class CallPublicFunctionWithNewTargetData : public gc {
+public:
+    CallPublicFunctionWithNewTargetData(FunctionObjectRef::NativeFunctionWithNewTargetPointer publicFn)
+        : m_publicFn(publicFn)
+    {
+    }
+
+    FunctionObjectRef::NativeFunctionWithNewTargetPointer m_publicFn;
+};
+
 static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, Optional<Object*> newTarget)
 {
     ExtendedNativeFunctionObject* func = state.resolveCallee()->asExtendedNativeFunctionObject();
@@ -2669,6 +2690,24 @@ static Value publicFunctionBridge(ExecutionState& state, Value thisValue, size_t
     }
 
     return toImpl(code->m_publicFn(toRef(&state), toRef(thisValue), calledArgc, newArgv, newTarget.hasValue()));
+}
+
+static Value publicFunctionBridgeWithNewTarget(ExecutionState& state, Value thisValue, size_t calledArgc, Value* calledArgv, Optional<Object*> newTarget)
+{
+    ExtendedNativeFunctionObject* func = state.resolveCallee()->asExtendedNativeFunctionObject();
+    CallPublicFunctionWithNewTargetData* code = func->internalSlotAsPointer<CallPublicFunctionWithNewTargetData>(FunctionObjectRef::BuiltinFunctionSlot::PublicFunctionIndex);
+
+    ValueRef** newArgv = ALLOCA(sizeof(ValueRef*) * calledArgc, ValueRef*);
+    for (size_t i = 0; i < calledArgc; i++) {
+        newArgv[i] = toRef(calledArgv[i]);
+    }
+
+    OptionalRef<ObjectRef> newTargetRef;
+    if (newTarget) {
+        newTargetRef = toRef(newTarget.value());
+    }
+
+    return toImpl(code->m_publicFn(toRef(&state), toRef(thisValue), calledArgc, newArgv, newTargetRef));
 }
 
 typedef void (*SecurityCheckCallback)(ExecutionStateRef* state, GlobalObjectProxyObjectRef* proxy, GlobalObjectRef* targetGlobalObject);
@@ -2693,16 +2732,28 @@ static FunctionObjectRef* createFunction(ExecutionStateRef* state, FunctionObjec
     int flags = 0;
     flags |= info.m_isStrict ? NativeFunctionInfo::Strict : 0;
     flags |= info.m_isConstructor ? NativeFunctionInfo::Constructor : 0;
-    NativeFunctionInfo nativeInfo(toImpl(info.m_name), publicFunctionBridge, info.m_argumentCount, flags);
+    NativeFunctionInfo nativeInfo(toImpl(info.m_name), nullptr, info.m_argumentCount, flags);
+
+    if (info.m_hasWithNewTargetCallback) {
+        nativeInfo.m_nativeFunction = publicFunctionBridgeWithNewTarget;
+    } else {
+        nativeInfo.m_nativeFunction = publicFunctionBridge;
+    }
 
     ExtendedNativeFunctionObject* func;
-    if (isBuiltin)
+    if (isBuiltin) {
         func = new ExtendedNativeFunctionObjectImpl<1>(*toImpl(state), nativeInfo, NativeFunctionObject::__ForBuiltinConstructor__);
-    else
+    } else {
         func = new ExtendedNativeFunctionObjectImpl<1>(*toImpl(state), nativeInfo);
+    }
 
-    CallPublicFunctionData* data = new CallPublicFunctionData(info.m_nativeFunction);
-    func->setInternalSlotAsPointer(FunctionObjectRef::BuiltinFunctionSlot::PublicFunctionIndex, data);
+    if (info.m_hasWithNewTargetCallback) {
+        CallPublicFunctionWithNewTargetData* data = new CallPublicFunctionWithNewTargetData(info.m_nativeFunctionWithNewTarget);
+        func->setInternalSlotAsPointer(FunctionObjectRef::BuiltinFunctionSlot::PublicFunctionIndex, data);
+    } else {
+        CallPublicFunctionData* data = new CallPublicFunctionData(info.m_nativeFunction);
+        func->setInternalSlotAsPointer(FunctionObjectRef::BuiltinFunctionSlot::PublicFunctionIndex, data);
+    }
 
     return toRef(func);
 }

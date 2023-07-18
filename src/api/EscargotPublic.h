@@ -1276,6 +1276,7 @@ typedef bool (*ExposableObjectDeleteOwnPropertyCallback)(ExecutionStateRef* stat
 class ESCARGOT_EXPORT ObjectRef : public PointerValueRef {
 public:
     static ObjectRef* create(ExecutionStateRef* state);
+    static ObjectRef* create(ExecutionStateRef* state, ObjectRef* proto);
     // can not redefine or delete virtual property
     // virtual property does not follow every rule of ECMAScript
     static ObjectRef* createExposableObject(ExecutionStateRef* state,
@@ -1495,7 +1496,10 @@ class ESCARGOT_EXPORT FunctionObjectRef : public ObjectRef {
 public:
     // if newTarget is present, that means constructor call
     // in constructor call, function must return newly created object && thisValue is always undefined
-    typedef ValueRef* (*NativeFunctionPointer)(ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructorCall);
+    typedef ValueRef* (*NativeFunctionPointer)(ExecutionStateRef* state, ValueRef* thisValue,
+                                               size_t argc, ValueRef** argv, bool isConstructorCall);
+    typedef ValueRef* (*NativeFunctionWithNewTargetPointer)(ExecutionStateRef* state, ValueRef* thisValue,
+                                                            size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget);
 
     enum BuiltinFunctionSlot : size_t {
         PublicFunctionIndex = 0,
@@ -1504,15 +1508,30 @@ public:
     struct ESCARGOT_EXPORT NativeFunctionInfo {
         bool m_isStrict;
         bool m_isConstructor;
+        bool m_hasWithNewTargetCallback;
         AtomicStringRef* m_name;
         NativeFunctionPointer m_nativeFunction;
+        NativeFunctionWithNewTargetPointer m_nativeFunctionWithNewTarget;
         size_t m_argumentCount;
 
         NativeFunctionInfo(AtomicStringRef* name, NativeFunctionPointer fn, size_t argc, bool isStrict = true, bool isConstructor = true)
             : m_isStrict(isStrict)
             , m_isConstructor(isConstructor)
+            , m_hasWithNewTargetCallback(false)
             , m_name(name)
             , m_nativeFunction(fn)
+            , m_nativeFunctionWithNewTarget(nullptr)
+            , m_argumentCount(argc)
+        {
+        }
+
+        NativeFunctionInfo(AtomicStringRef* name, NativeFunctionWithNewTargetPointer fn, size_t argc, bool isStrict = true, bool isConstructor = true)
+            : m_isStrict(isStrict)
+            , m_isConstructor(isConstructor)
+            , m_hasWithNewTargetCallback(true)
+            , m_name(name)
+            , m_nativeFunction(nullptr)
+            , m_nativeFunctionWithNewTarget(fn)
             , m_argumentCount(argc)
         {
         }
