@@ -648,6 +648,27 @@ TEST(Object, ConstructorName)
                        testObj);
 }
 
+TEST(FunctionObject, Consturct)
+{
+    FunctionObjectRef* fn = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+                                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(g_context.get(), "test"),
+                                                                                         [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
+                                                                                             EXPECT_TRUE(newTarget.hasValue());
+                                                                                             ObjectRef* obj = ObjectRef::create(state, newTarget->asFunctionObject()->getFunctionPrototype(state)->asObject());
+                                                                                             return obj;
+                                                                                         },
+                                                                                         0, true, true);
+                                return FunctionObjectRef::create(state, nativeFunctionInfo);
+                            })
+                                .result->asFunctionObject();
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* fn) -> ValueRef* {
+        ObjectRef* obj = fn->construct(state, 0, nullptr)->asObject();
+        EXPECT_TRUE(obj->instanceOf(state, fn));
+    },
+                       fn);
+}
+
 TEST(ObjectTemplate, Basic1)
 {
     ObjectTemplateRef* tpl = ObjectTemplateRef::create();
