@@ -39,17 +39,48 @@ node {
             sh 'git submodule update --init test third_party/GCutil'
         }
 
-        stage('Prepare build') {
-            sh 'cmake -H./ -Bout -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja'
+        def arm32RemoteInfo = [:]
+        arm32RemoteInfo.name = 'arm32-docker'
+        arm32RemoteInfo.host = 'localhost'
+        arm32RemoteInfo.port = 11111
+        arm32RemoteInfo.allowAnyHosts = true
+        withCredentials([usernamePassword(credentialsId: 'arm32docker', passwordVariable: 'passwordVariable', usernameVariable: 'usernameVariable')]) {
+            arm32RemoteInfo.user = usernameVariable
+            arm32RemoteInfo.password = passwordVariable
+        }
+        stage('prepare arm32 workspace') {
+            sshCommand remote: arm32RemoteInfo, command: "rm -rf escargot escargot.zip"
+            sshCommand remote: arm32RemoteInfo, command: "pwd"
+            sh "zip -r escargot.zip ./*"
+            sshPut remote: arm32RemoteInfo, from: "escargot.zip", into: "./"
+            sshCommand remote: arm32RemoteInfo, command: "unzip escargot.zip -d escargot"
         }
 
-        stage('Build') {
+        stage('Build arm32') {
+            sshCommand remote: arm32RemoteInfo, command: "\
+            cd escargot;\
+            cmake -H./ -Bout -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm32 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja;\
+            cmake --build ./out/;\
+            "
+        }
+
+        stage('Build aarch64') {
+            sh 'cmake -H./ -Bout -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja'
             sh 'cmake --build ./out/'
         }
 
         stage('Running test') {
-            timeout(30) {
-                sh '#!/bin/bash\nGC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --engine="${WORKSPACE}/out/escargot" --extra-arg="--skip intl402" new-es v8 spidermonkey chakracore test262'
+            timeout(60) {
+                parallel (
+                    'arm32' : {
+                        sshCommand remote: arm32RemoteInfo, command: "\
+                        cd escargot;\
+                        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --engine='/root/escargot/out/escargot' --extra-arg='--skip intl402' new-es v8 spidermonkey chakracore test262"
+                    },
+                    'aarch64' : {
+                        sh '#!/bin/bash\nGC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --engine="${WORKSPACE}/out/escargot" --extra-arg="--skip intl402" new-es v8 spidermonkey chakracore test262'
+                    },
+                )
             }
         }
     } catch (e) {

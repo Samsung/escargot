@@ -75,6 +75,8 @@ run_tcs () {
 			if [[ $RT_TZSET != "" ]]; then
 				RT_CMD="env TZ=US/Pacific $RT_CMD";
 			fi
+			# we should remove GC large alloc warning. it can affect output
+			RT_CMD="env GC_LARGE_ALLOC_WARN_INTERVAL=32767 $RT_CMD"
 #			$($RT_CMD > $RT_TEMP_OUTPUT_FILE 2>> $LOG_FILE) &
 			$RT_CMD &> $RT_TEMP_OUTPUT_FILE &
 			PID=$!
@@ -297,6 +299,9 @@ main() {
 	done
 	echo "==========================================================" | tee -a $LOG_FILE
 	print_count "Total" $TOTAL_COUNT $TOTAL_PASS $TOTAL_FAIL $TOTAL_SKIP
+    if [[ $TOTAL_FAIL != 0 ]]; then
+        cat $LOG_FILE
+    fi
 }
 
 main $(pwd)/$1 $2
