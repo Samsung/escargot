@@ -108,16 +108,24 @@ ObjectStructure* ObjectStructureWithoutTransition::addProperty(const ObjectStruc
     bool nameIsSymbol = m_hasSymbolPropertyName ? true : name.isSymbol();
     bool hasNonAtomicName = m_hasNonAtomicPropertyName ? true : !name.hasAtomicString();
     bool hasEnumerableProperty = m_hasEnumerableProperty ? true : desc.isEnumerable();
-    ObjectStructure* newStructure;
-    m_properties->push_back(newItem);
 
-    if (m_properties->size() + 1 > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
-        newStructure = new ObjectStructureWithMap(m_properties, ObjectStructureWithMap::createPropertyNameMap(m_properties), nameIsIndexString, nameIsSymbol, hasEnumerableProperty);
+    ObjectStructure* newStructure;
+    ObjectStructureItemVector* propertiesForNewStructure;
+    if (m_isReferencedByInlineCache) {
+        propertiesForNewStructure = new ObjectStructureItemVector(*m_properties, newItem);
     } else {
-        newStructure = new ObjectStructureWithoutTransition(m_properties, nameIsIndexString, nameIsSymbol, hasNonAtomicName, hasEnumerableProperty);
+        m_properties->push_back(newItem);
+        propertiesForNewStructure = m_properties;
+        m_properties = nullptr;
     }
 
-    m_properties = nullptr;
+
+    if (propertiesForNewStructure->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
+        newStructure = new ObjectStructureWithMap(propertiesForNewStructure, ObjectStructureWithMap::createPropertyNameMap(propertiesForNewStructure), nameIsIndexString, nameIsSymbol, hasEnumerableProperty);
+    } else {
+        newStructure = new ObjectStructureWithoutTransition(propertiesForNewStructure, nameIsIndexString, nameIsSymbol, hasNonAtomicName, hasEnumerableProperty);
+    }
+
     return newStructure;
 }
 
@@ -145,16 +153,23 @@ ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
     }
 
     auto newStructure = new ObjectStructureWithoutTransition(newProperties, hasIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
-    m_properties = nullptr;
+    if (!m_isReferencedByInlineCache) {
+        m_properties = nullptr;
+    }
     return newStructure;
 }
 
 ObjectStructure* ObjectStructureWithoutTransition::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
 {
-    m_properties->at(idx).m_descriptor = newDesc;
-    auto newStructure = new ObjectStructureWithoutTransition(m_properties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
-    m_properties = nullptr;
-    return newStructure;
+    ObjectStructureItemVector* newProperties = m_properties;
+
+    if (m_isReferencedByInlineCache) {
+        newProperties = new ObjectStructureItemVector(*m_properties);
+    } else {
+        m_properties = nullptr;
+    }
+    newProperties->at(idx).m_descriptor = newDesc;
+    return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
 }
 
 ObjectStructure* ObjectStructureWithoutTransition::convertToNonTransitionStructure()
@@ -381,11 +396,20 @@ ObjectStructure* ObjectStructureWithMap::addProperty(const ObjectStructureProper
     bool hasSymbol = m_hasSymbolPropertyName ? true : name.isSymbol();
     bool hasEnumerableProperty = m_hasEnumerableProperty ? true : desc.isEnumerable();
 
-    m_propertyNameMap->insert(std::make_pair(name, m_properties->size()));
-    m_properties->push_back(newItem);
-    ObjectStructure* newStructure = new ObjectStructureWithMap(m_properties, m_propertyNameMap, nameIsIndexString, hasSymbol, hasEnumerableProperty);
-    m_properties = nullptr;
-    m_propertyNameMap = nullptr;
+    ObjectStructureItemVector* newProperties = m_properties;
+    PropertyNameMap* newPropertyNameMap = m_propertyNameMap;
+
+    if (m_isReferencedByInlineCache) {
+        newProperties = new ObjectStructureItemVector(*m_properties);
+        newPropertyNameMap = new (GC) PropertyNameMap(*m_propertyNameMap);
+    } else {
+        m_properties = nullptr;
+        m_propertyNameMap = nullptr;
+    }
+
+    newPropertyNameMap->insert(std::make_pair(name, newProperties->size()));
+    newProperties->push_back(newItem);
+    ObjectStructure* newStructure = new ObjectStructureWithMap(newProperties, newPropertyNameMap, nameIsIndexString, hasSymbol, hasEnumerableProperty);
     return newStructure;
 }
 
@@ -412,8 +436,10 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
         newIdx++;
     }
 
-    m_properties = nullptr;
-    m_propertyNameMap = nullptr;
+    if (!m_isReferencedByInlineCache) {
+        m_properties = nullptr;
+        m_propertyNameMap = nullptr;
+    }
     if (newProperties->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
         return new ObjectStructureWithMap(newProperties, ObjectStructureWithMap::createPropertyNameMap(newProperties), hasIndexString, hasSymbol, hasEnumerableProperty);
     } else {
@@ -423,11 +449,19 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
 
 ObjectStructure* ObjectStructureWithMap::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
 {
-    m_properties->at(idx).m_descriptor = newDesc;
-    ObjectStructure* newStructure = new ObjectStructureWithMap(m_properties, m_propertyNameMap, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasEnumerableProperty);
-    m_properties = nullptr;
-    m_propertyNameMap = nullptr;
-    return newStructure;
+    ObjectStructureItemVector* newProperties = m_properties;
+    PropertyNameMap* newPropertyNameMap = m_propertyNameMap;
+
+    if (m_isReferencedByInlineCache) {
+        newProperties = new ObjectStructureItemVector(*m_properties);
+        newPropertyNameMap = new (GC) PropertyNameMap(*m_propertyNameMap);
+    } else {
+        m_properties = nullptr;
+        m_propertyNameMap = nullptr;
+    }
+
+    newProperties->at(idx).m_descriptor = newDesc;
+    return new ObjectStructureWithMap(newProperties, newPropertyNameMap, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasEnumerableProperty);
 }
 
 ObjectStructure* ObjectStructureWithMap::convertToNonTransitionStructure()
