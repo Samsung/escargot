@@ -2410,6 +2410,7 @@ NEVER_INLINE void InterpreterSlowPath::getObjectPrecomputedCaseOperation(Executi
 
     while (true) {
         auto s = obj->structure();
+        s->markReferencedByInlineCache();
         cachedhiddenClassChain.push_back(s);
         auto result = s->findProperty(propertyName);
 
@@ -4139,6 +4140,8 @@ NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyWithNameOperation(
                     byteCodeBlock->m_otherLiteralData.push_back(newStructure);
                     code->m_inlineCachedStructureBefore = oldStructure;
                     code->m_inlineCachedStructureAfter = newStructure;
+                    oldStructure->markReferencedByInlineCache();
+                    newStructure->markReferencedByInlineCache();
                 } else {
                     // failed to cache
                 }

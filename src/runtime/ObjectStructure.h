@@ -148,6 +148,11 @@ public:
     virtual ObjectStructure* convertToNonTransitionStructure() = 0;
     virtual bool inTransitionMode() = 0;
 
+    void markReferencedByInlineCache()
+    {
+        m_isReferencedByInlineCache = true;
+    }
+
     bool hasIndexPropertyName() const
     {
         return m_hasIndexPropertyName;
@@ -163,6 +168,11 @@ public:
         return m_hasEnumerableProperty;
     }
 
+    bool isReferencedByInlineCache() const
+    {
+        return m_isReferencedByInlineCache;
+    }
+
 protected:
     ObjectStructure(bool hasIndexPropertyName,
                     bool hasSymbolPropertyName, bool hasEnumerableProperty)
@@ -171,6 +181,7 @@ protected:
         , m_hasSymbolPropertyName(hasSymbolPropertyName)
         , m_hasNonAtomicPropertyName(false)
         , m_hasEnumerableProperty(hasEnumerableProperty)
+        , m_isReferencedByInlineCache(false)
         , m_transitionTableVectorBufferSize(0)
         , m_transitionTableVectorBufferCapacity(0)
     {
@@ -183,6 +194,7 @@ protected:
         , m_hasSymbolPropertyName(hasSymbolPropertyName)
         , m_hasNonAtomicPropertyName(hasNonAtomicPropertyName)
         , m_hasEnumerableProperty(hasEnumerableProperty)
+        , m_isReferencedByInlineCache(false)
         , m_transitionTableVectorBufferSize(0)
         , m_transitionTableVectorBufferCapacity(0)
     {
@@ -195,6 +207,7 @@ protected:
     bool m_hasSymbolPropertyName : 1;
     bool m_hasNonAtomicPropertyName : 1;
     bool m_hasEnumerableProperty : 1;
+    bool m_isReferencedByInlineCache : 1;
     uint8_t m_transitionTableVectorBufferSize : 8;
     uint8_t m_transitionTableVectorBufferCapacity : 8;
 };
