@@ -245,6 +245,9 @@ CXXFLAGS+=' -fno-lto '
 %ifarch x86_64
 %define tizen_arch x86_64
 %endif
+%ifarch riscv64
+%define tizen_arch riscv64
+%endif
 
 %if "%{rpm}" == "wearable"
 CFLAGS+=' -Os '
@@ -252,18 +255,23 @@ CXXFLAGS+=' -Os '
 %endif
 
 %if "%{?enable_test}" == "1"
-CFLAGS+=' -DESCARGOT_ENABLE_TEST -DESCARGOT_ENABLE_TEMPORAL '
-CXXFLAGS+=' -DESCARGOT_ENABLE_TEST -DESCARGOT_ENABLE_TEMPORAL '
-%endif
-
 cmake CMakeLists.txt -H./ -Bbuild/out_tizen_%{rpm} -DLIBDIR=%{_libdir} -DINCLUDEDIR=%{_includedir} -DTIZEN_MAJOR_VERSION='%{tizen_version_major}' \
 -DESCARGOT_ARCH='%{tizen_arch}' -DESCARGOT_WASM='%{enable_wasm}' -DESCARGOT_DEBUGGER='%{enable_debugger}' \
--DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_MODE=release -DESCARGOT_HOST=tizen_obs -DESCARGOT_OUTPUT=shared_lib -G Ninja
-pushd build/out_tizen_%{rpm}
-ninja -v
-popd
+-DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_MODE=release -DESCARGOT_HOST=tizen -DESCARGOT_OUTPUT=shared_lib -DESCARGOT_TEST=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -G Ninja
+%else
+cmake CMakeLists.txt -H./ -Bbuild/out_tizen_%{rpm} -DLIBDIR=%{_libdir} -DINCLUDEDIR=%{_includedir} -DTIZEN_MAJOR_VERSION='%{tizen_version_major}' \
+-DESCARGOT_ARCH='%{tizen_arch}' -DESCARGOT_WASM='%{enable_wasm}' -DESCARGOT_DEBUGGER='%{enable_debugger}' \
+-DESCARGOT_THREADING=ON -DESCARGOT_MODE=release -DESCARGOT_HOST=tizen -DESCARGOT_OUTPUT=shared_lib -G Ninja
+%endif
+
+cmake --build build/out_tizen_%{rpm}
 
 %if "%{?enable_shell}" == "1"
+
+%if "%{?enable_test}" == "1"
+CXXFLAGS+=' -DESCARGOT_ENABLE_TEST '
+%endif
+
 g++ src/shell/Shell.cpp -std=c++11 -Lbuild/out_tizen_%{rpm} -Isrc/ -Ithird_party/GCutil -Ithird_party/GCutil/bdwgc/include -o build/out_tizen_%{rpm}/escargot -O2 -DNDEBUG -Wl,-rpath=\$ORIGIN ${CXXFLAGS} -lescargot -lpthread
 g++ tools/test/test-data-runner/test-data-runner.cpp -o build/out_tizen_%{rpm}/test-data-runner -std=c++11 ${CXXFLAGS} -lpthread
 %endif
