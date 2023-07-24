@@ -249,6 +249,12 @@ if (f.type == Type::B) { puts("failed in msvc."); }
 #elif defined(__aarch64__)
 #define CPU_ARM64
 
+#elif defined(__riscv) && defined(__riscv_xlen) && __riscv_xlen == 32
+#define CPU_RISCV32
+
+#elif defined(__riscv) && defined(__riscv_xlen) && __riscv_xlen == 64
+#define CPU_RISCV64
+
 #else
 #error "Could't find cpu arch."
 #endif
