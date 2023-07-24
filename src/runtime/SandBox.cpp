@@ -289,7 +289,7 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
     return false;
 }
 
-void SandBox::throwException(ExecutionState& state, Value exception)
+void SandBox::throwException(ExecutionState& state, const Value& exception)
 {
     m_stackTraceDataVector.clear();
     createStackTrace(m_stackTraceDataVector, state);

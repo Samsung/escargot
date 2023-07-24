@@ -125,11 +125,6 @@ public:
         return GetBindingValueResult();
     }
 
-    virtual Value getBindingValue(ExecutionState& state, const size_t idx)
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
     virtual bool deleteBinding(ExecutionState& state, const AtomicString& name)
     {
         RELEASE_ASSERT_NOT_REACHED();
@@ -1230,7 +1225,6 @@ public:
     virtual void setMutableBindingByIndex(ExecutionState& state, const size_t i, const Value& v) override;
     virtual void initializeBindingByIndex(ExecutionState& state, const size_t idx, const Value& v) override;
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override;
-    virtual Value getBindingValue(ExecutionState& state, const size_t i) override;
     virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v) override;
     virtual Value getHeapValueByIndex(ExecutionState& state, const size_t idx) override;
     Script* script()

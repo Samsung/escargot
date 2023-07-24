@@ -103,7 +103,7 @@ OpcodeTable::OpcodeTable()
 class InterpreterSlowPath {
 public:
     static Value loadByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool throwException = true);
-    static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException = true);
+    static EnvironmentRecord* getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue);
     static void storeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, const Value& value);
     static void initializeByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, bool isLexicallyDeclaredName, const Value& value);
     static void resolveNameAddress(ExecutionState& state, ResolveNameAddress* code, Value* registerFile);
@@ -1682,7 +1682,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
     return Value();
 }
 
-NEVER_INLINE EnvironmentRecord* InterpreterSlowPath::getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue, bool throwException)
+NEVER_INLINE EnvironmentRecord* InterpreterSlowPath::getBindedEnvironmentRecordByName(ExecutionState& state, LexicalEnvironment* env, const AtomicString& name, Value& bindedValue)
 {
     while (env) {
         EnvironmentRecord::GetBindingValueResult result = env->record()->getBindingValue(state, name);
@@ -1693,9 +1693,7 @@ NEVER_INLINE EnvironmentRecord* InterpreterSlowPath::getBindedEnvironmentRecordB
         env = env->outerEnvironment();
     }
 
-    if (throwException)
-        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
-
+    ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
     return NULL;
 }
 
@@ -3675,9 +3673,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         Object* receiverObj = NULL;
         Value callee;
         EnvironmentRecord* bindedRecord = getBindedEnvironmentRecordByName(state, state.lexicalEnvironment(), calleeName, callee);
-        if (!bindedRecord) {
-            callee = Value();
-        }
+        ASSERT(!!bindedRecord);
 
         if (bindedRecord && bindedRecord->isObjectEnvironmentRecord()) {
             receiverObj = bindedRecord->asObjectEnvironmentRecord()->bindingObject();

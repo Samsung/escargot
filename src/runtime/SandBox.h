@@ -85,7 +85,7 @@ public:
 
     static bool createStackTrace(StackTraceDataVector& stackTraceDataVector, ExecutionState& state, bool stopAtPause = false);
 
-    void throwException(ExecutionState& state, Value exception);
+    void throwException(ExecutionState& state, const Value& exception);
     void rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, const StackTraceDataVector& stackTraceDataVector);
 
     StackTraceDataVector& stackTraceDataVector()
