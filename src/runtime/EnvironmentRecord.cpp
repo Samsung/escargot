@@ -536,16 +536,6 @@ EnvironmentRecord::GetBindingValueResult ModuleEnvironmentRecord::getBindingValu
     return GetBindingValueResult();
 }
 
-Value ModuleEnvironmentRecord::getBindingValue(ExecutionState& state, const size_t i)
-{
-    if (m_moduleBindings[i].m_targetRecord) {
-        return m_moduleBindings[i].m_targetRecord->getBindingValue(state, m_moduleBindings[i].m_targetBindingName).m_value;
-    } else {
-        readCheck(state, i);
-        return m_moduleBindings[i].m_value;
-    }
-}
-
 void ModuleEnvironmentRecord::setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v)
 {
     writeCheck(state, idx);

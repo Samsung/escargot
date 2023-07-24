@@ -40,19 +40,19 @@ class NativeFunctionObject;
 typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
 
 struct ExecutionStateRareData : public gc {
-    ControlFlowRecordVector* m_controlFlowRecord;
-    ExecutionState* m_parent;
     CodeBlock* m_codeBlock;
+    ControlFlowRecordVector* m_controlFlowRecord;
     ExecutionPauser* m_pauseSource;
+    ExecutionState* m_parent;
     size_t m_programCounterWhenItStoppedByYield;
 
     ExecutionStateRareData()
+        : m_codeBlock(nullptr)
+        , m_controlFlowRecord(nullptr)
+        , m_pauseSource(nullptr)
+        , m_parent(nullptr)
+        , m_programCounterWhenItStoppedByYield(SIZE_MAX)
     {
-        m_codeBlock = nullptr;
-        m_controlFlowRecord = nullptr;
-        m_pauseSource = nullptr;
-        m_parent = nullptr;
-        m_programCounterWhenItStoppedByYield = SIZE_MAX;
     }
 };
 
