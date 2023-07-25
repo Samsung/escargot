@@ -257,6 +257,17 @@ public:
     }
 
     static void throwError(size_t index, size_t line, size_t col, String* description, ErrorCode code);
+
+    static MAY_THREAD_LOCAL esprima::Error* g_parserError;
+    static bool hasError()
+    {
+        return !!g_parserError;
+    }
+    static void resetError()
+    {
+        ASSERT(hasError());
+        g_parserError = nullptr;
+    }
 };
 
 class Messages {

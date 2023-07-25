@@ -30,6 +30,9 @@ using namespace Escargot::EscargotLexer;
 
 namespace Escargot {
 
+// global parser error holder
+MAY_THREAD_LOCAL esprima::Error* ErrorHandler::g_parserError;
+
 #define IDENT_RANGE_LONG 200
 
 /* The largest code-point that an UTF16 surrogate pair can represent is 0x10ffff,
@@ -479,7 +482,9 @@ void ErrorHandler::throwError(size_t index, size_t line, size_t col, String* des
     error->description = description;
     error->errorCode = code;
 
-    throw error;
+    ASSERT(!ErrorHandler::g_parserError);
+    ErrorHandler::g_parserError = error;
+    // throw error;
 };
 
 ParserStringView Scanner::SmallScannerResult::relatedSource(const ParserStringView& source) const

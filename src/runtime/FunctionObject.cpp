@@ -196,6 +196,7 @@ static String* createFunctionSource(ExecutionState& state, AtomicString function
         body.appendString("\n}");
         String* bodyStr = body.finalize(&state);
 
+        /*
 #if defined(ESCARGOT_ENABLE_TEST)
         // simple syntax check for dynamic generated function except internal source
         // to check rare erratic formats e.g. Function('){ function foo(', '}')
@@ -219,6 +220,7 @@ static String* createFunctionSource(ExecutionState& state, AtomicString function
             }
         }
 #endif
+*/
 
         src.appendString(parameterStr);
         src.appendString(bodyStr);

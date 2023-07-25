@@ -304,11 +304,14 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
     // Parsing
     Node* ast = nullptr;
     if (codeBlock->isGlobalCodeBlock() || codeBlock->isEvalCode()) {
-        ast = esprima::parseProgram(context, codeBlock->src(), esprima::generateClassInfoFrom(context, codeBlock->parent()),
-                                    codeBlock->script()->isModule(), codeBlock->isStrict(), codeBlock->inWith(), SIZE_MAX, false, false, false, true);
+        auto parseResult = esprima::parseProgram(context, codeBlock->src(), esprima::generateClassInfoFrom(context, codeBlock->parent()),
+                                                 codeBlock->script()->isModule(), codeBlock->isStrict(), codeBlock->inWith(), SIZE_MAX, false, false, false, true);
+        ast = parseResult.first;
     } else {
-        ast = esprima::parseSingleFunction(context, codeBlock, SIZE_MAX);
+        auto parseResult = esprima::parseSingleFunction(context, codeBlock, SIZE_MAX);
+        ast = parseResult.first;
     }
+    ASSERT(!!ast);
 
     // Generate ByteCode
     // ByteCodeBlock is temporally allocated on the stack

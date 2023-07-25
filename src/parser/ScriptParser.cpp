@@ -362,11 +362,32 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
     Script* script = nullptr;
 
     // Parsing
-    try {
+    {
         ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock);
 
-        programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo,
-                                            isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP, allowNewTarget, allowArguments);
+        auto parseResult = esprima::parseProgram(m_context, sourceView, outerClassInfo,
+                                                 isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP, allowNewTarget, allowArguments);
+
+        if (UNLIKELY(!!parseResult.second)) {
+            esprima::Error* orgError = parseResult.second;
+            // parsing exception
+            // reset ASTAllocator
+            m_context->astAllocator().reset();
+            GC_enable();
+#if defined(ENABLE_CODE_CACHE)
+            if (cacheable) {
+                deleteCodeBlockCacheInfo();
+            }
+#endif
+            ScriptParser::InitializeScriptResult result;
+            result.parseErrorCode = orgError->errorCode;
+            result.parseErrorMessage = orgError->message;
+            delete orgError;
+            return result;
+        }
+
+        programNode = parseResult.first;
+        ASSERT(!!programNode);
 
         script = new Script(srcName, source, programNode->moduleData(), !parentCodeBlock, originLineOffset);
         if (parentCodeBlock) {
@@ -386,21 +407,6 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
         }
 
         generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
-    } catch (esprima::Error* orgError) {
-        // reset ASTAllocator
-        m_context->astAllocator().reset();
-        GC_enable();
-#if defined(ENABLE_CODE_CACHE)
-        if (cacheable) {
-            deleteCodeBlockCacheInfo();
-        }
-#endif
-
-        ScriptParser::InitializeScriptResult result;
-        result.parseErrorCode = orgError->errorCode;
-        result.parseErrorMessage = orgError->message;
-        delete orgError;
-        return result;
     }
 
     // dump Code Block
@@ -474,17 +480,23 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     FunctionNode* functionNode;
 
     // Parsing
-    try {
-        functionNode = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
-    } catch (esprima::Error* orgError) {
-        // reset ASTAllocator
-        m_context->astAllocator().reset();
-        GC_enable();
+    {
+        auto parseResult = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
 
-        auto str = orgError->message->toUTF8StringData();
-        delete orgError;
-        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, str.data());
-        RELEASE_ASSERT_NOT_REACHED();
+        if (UNLIKELY(!!parseResult.second)) {
+            esprima::Error* orgError = parseResult.second;
+            // reset ASTAllocator
+            m_context->astAllocator().reset();
+            GC_enable();
+
+            auto str = orgError->message->toUTF8StringData();
+            delete orgError;
+            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, str.data());
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+
+        functionNode = parseResult.first;
+        ASSERT(!!functionNode);
     }
 
     // Generate ByteCode
