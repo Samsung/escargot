@@ -190,7 +190,9 @@ public:
 
     void appendString(String* str)
     {
-        appendPiece(str, 0, str->length());
+        if (!!str) {
+            appendPiece(str, 0, str->length());
+        }
     }
 
     void appendSubString(String* str, size_t s, size_t e)

@@ -35,16 +35,17 @@ static Value builtinBigIntConstructor(ExecutionState& state, Value thisValue, si
 {
     // If NewTarget is not undefined, throw a TypeError exception.
     if (newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "illegal constructor BigInt");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "illegal constructor BigInt");
     }
     // Let prim be ? ToPrimitive(value, hint Number).
     Value prim = argv[0].toPrimitive(state, Value::PreferNumber);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // If Type(prim) is Number, return ? NumberToBigInt(prim).
     if (prim.isNumber()) {
         // NumberToBigInt(prim)
         // If IsInteger(number) is false, throw a RangeError exception.
         if (!prim.isInteger(state)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "The value you input to BigInt constructor is not integer");
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, "The value you input to BigInt constructor is not integer");
         }
         double numValue = prim.asNumber();
         if ((numValue > (double)std::numeric_limits<int64_t>::max()) || (numValue < (double)std::numeric_limits<int64_t>::min())) {
@@ -61,7 +62,9 @@ static Value builtinBigIntConstructor(ExecutionState& state, Value thisValue, si
         return new BigInt((int64_t)numValue);
     } else {
         // Otherwise, return ? ToBigInt(value).
-        return argv[0].toBigInt(state);
+        BigInt* result = argv[0].toBigInt(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        return result;
     }
 }
 
@@ -69,11 +72,13 @@ static Value builtinBigIntAsUintN(ExecutionState& state, Value thisValue, size_t
 {
     // Let bits be ? ToIndex(bits).
     auto bits = argv[0].toIndex(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (bits == Value::InvalidIndexValue) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::CanNotConvertValueToIndex);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, ErrorObject::Messages::CanNotConvertValueToIndex);
     }
     // Let bigint be ? ToBigInt(bigint).
     BigInt* bigint = argv[1].toBigInt(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Return a BigInt representing bigint modulo 2bits.
     bf_t mask, r;
     bf_init(ThreadLocal::bfContext(), &mask);
@@ -91,11 +96,13 @@ static Value builtinBigIntAsIntN(ExecutionState& state, Value thisValue, size_t 
 {
     // Let bits be ? ToIndex(bits).
     auto bits = argv[0].toIndex(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (bits == Value::InvalidIndexValue) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::CanNotConvertValueToIndex);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, ErrorObject::Messages::CanNotConvertValueToIndex);
     }
     // Let bigint be ? ToBigInt(bigint).
     BigInt* bigint = argv[1].toBigInt(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Return a BigInt representing bigint modulo 2bits.
     bf_t mask, r;
     bf_init(ThreadLocal::bfContext(), &mask);
@@ -124,18 +131,18 @@ static Value builtinBigIntAsIntN(ExecutionState& state, Value thisValue, size_t 
 // Assert: Type(value.[[BigIntData]]) is BigInt.
 // Return value.[[BigIntData]].
 // Throw a TypeError exception.
-#define RESOLVE_THIS_BINDING_TO_BIGINT(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                         \
-    BigInt* NAME = nullptr;                                                                                                                                                                                                                                \
-    if (thisValue.isObject()) {                                                                                                                                                                                                                            \
-        if (!thisValue.asObject()->isBigIntObject()) {                                                                                                                                                                                                     \
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-        }                                                                                                                                                                                                                                                  \
-        NAME = thisValue.asObject()->asBigIntObject()->primitiveValue();                                                                                                                                                                                   \
-    } else if (thisValue.isBigInt()) {                                                                                                                                                                                                                     \
-        NAME = thisValue.asBigInt();                                                                                                                                                                                                                       \
-    } else {                                                                                                                                                                                                                                               \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);     \
-        return Value();                                                                                                                                                                                                                                    \
+#define RESOLVE_THIS_BINDING_TO_BIGINT(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                           \
+    BigInt* NAME = nullptr;                                                                                                                                                                                                                                  \
+    if (thisValue.isObject()) {                                                                                                                                                                                                                              \
+        if (!thisValue.asObject()->isBigIntObject()) {                                                                                                                                                                                                       \
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+        }                                                                                                                                                                                                                                                    \
+        NAME = thisValue.asObject()->asBigIntObject()->primitiveValue();                                                                                                                                                                                     \
+    } else if (thisValue.isBigInt()) {                                                                                                                                                                                                                       \
+        NAME = thisValue.asBigInt();                                                                                                                                                                                                                         \
+    } else {                                                                                                                                                                                                                                                 \
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);     \
+        return Value();                                                                                                                                                                                                                                      \
     }
 
 static Value builtinBigIntToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -146,7 +153,7 @@ static Value builtinBigIntToString(ExecutionState& state, Value thisValue, size_
     if (argc > 0 && !argv[0].isUndefined()) {
         radix = argv[0].toInteger(state);
         if (radix < 2 || radix > 36) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_RadixInvalidRange);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, state.context()->staticStrings().Number.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_RadixInvalidRange);
         }
     }
 
@@ -175,12 +182,15 @@ static Value builtinBigIntToLocaleString(ExecutionState& state, Value thisValue,
     ObjectGetResult toStrFuncGetResult = state.context()->globalObject()->bigIntProxyObject()->get(state, ObjectPropertyName(state.context()->staticStrings().toString));
     if (toStrFuncGetResult.hasValue()) {
         Value toStrFunc = toStrFuncGetResult.value(state, thisObject);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (toStrFunc.isCallable()) {
             // toLocaleString() ignores the first argument, unlike toString()
-            return Object::call(state, toStrFunc, thisObject, 0, argv);
+            Value result = Object::call(state, toStrFunc, thisObject, 0, argv);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
+            return result;
         }
     }
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().BigInt.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
+    THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().BigInt.string(), true, state.context()->staticStrings().toLocaleString.string(), ErrorObject::Messages::GlobalObject_ToLocaleStringNotCallable);
     RELEASE_ASSERT_NOT_REACHED();
     return Value();
 #endif

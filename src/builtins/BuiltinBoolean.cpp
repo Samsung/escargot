@@ -34,6 +34,7 @@ static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, s
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
             return constructorRealm->globalObject()->booleanPrototype();
         });
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         BooleanObject* boolObj = new BooleanObject(state, proto, primitiveVal);
         return boolObj;
     }
@@ -46,7 +47,7 @@ static Value builtinBooleanValueOf(ExecutionState& state, Value thisValue, size_
     } else if (thisValue.isObject() && thisValue.asObject()->isBooleanObject()) {
         return Value(thisValue.asPointerValue()->asBooleanObject()->primitiveValue());
     }
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotBoolean);
+    THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotBoolean);
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -57,7 +58,7 @@ static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size
     } else if (thisValue.isObject() && thisValue.asObject()->isBooleanObject()) {
         return Value(thisValue.asPointerValue()->asBooleanObject()->primitiveValue()).toString(state);
     }
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotBoolean);
+    THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotBoolean);
     RELEASE_ASSERT_NOT_REACHED();
 }
 

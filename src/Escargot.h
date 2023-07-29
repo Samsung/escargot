@@ -528,14 +528,14 @@ typedef uint16_t LexicalBlockIndex;
 #endif
 
 #ifdef STACK_GROWS_DOWN
-#define CHECK_STACK_OVERFLOW(state)                                                                       \
-    if (UNLIKELY(state.stackLimit() > (size_t)currentStackPointer())) {                                   \
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded"); \
+#define CHECK_STACK_OVERFLOW(state)                                                                         \
+    if (UNLIKELY(state.stackLimit() > (size_t)currentStackPointer())) {                                     \
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, "Maximum call stack size exceeded"); \
     }
 #else
-#define CHECK_STACK_OVERFLOW(state)                                                                       \
-    if (UNLIKELY(state.stackLimit() < (size_t)currentStackPointer())) {                                   \
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded"); \
+#define CHECK_STACK_OVERFLOW(state)                                                                         \
+    if (UNLIKELY(state.stackLimit() < (size_t)currentStackPointer())) {                                     \
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, "Maximum call stack size exceeded"); \
     }
 #endif
 
@@ -559,6 +559,9 @@ typedef uint16_t LexicalBlockIndex;
 #ifndef REGEXP_CACHE_SIZE_MAX
 #define REGEXP_CACHE_SIZE_MAX 64
 #endif
+
+// represent that a function could throw an exception
+#define MAY_EXCEPTION
 
 #include <tsl/robin_set.h>
 template <class Key, class Hash = std::hash<Key>,

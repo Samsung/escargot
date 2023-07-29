@@ -77,7 +77,8 @@ inline ToType bitwise_cast(FromType from)
 #define ValueTrue (TagBitTypeOther | (1 << TagTypeShift))
 #define ValueNull (TagBitTypeOther | (2 << TagTypeShift))
 #define ValueUndefined (TagBitTypeOther | (3 << TagTypeShift))
-#define ValueLast ValueUndefined
+#define ValueException (TagBitTypeOther | (4 << TagTypeShift))
+#define ValueLast ValueException
 
 // This special value is never visible to JavaScript code. Empty represents
 // Array holes, and uninitialized Values, and maps to NULL pointer.
@@ -109,7 +110,8 @@ public:
     enum : uint32_t { BooleanTrueTag = ~ValueTrue };
     enum : uint32_t { NullTag = ~ValueNull };
     enum : uint32_t { UndefinedTag = ~ValueUndefined };
-    enum : uint32_t { LowestTag = UndefinedTag };
+    enum : uint32_t { ExceptionTag = ~ValueException };
+    enum : uint32_t { LowestTag = ExceptionTag };
 
     // Any value which last bit is not set
     enum { Int32Tag = 0xfffffffe - 0 };
@@ -128,6 +130,7 @@ public:
     enum ForceUninitializedTag { ForceUninitialized };
     enum FromPayloadTag { FromPayload };
     enum FromTagTag { FromTag };
+    enum ExceptionInitTag { Exception };
 
     Value();
     explicit Value(ForceUninitializedTag);
@@ -137,6 +140,7 @@ public:
     explicit Value(TrueInitTag);
     explicit Value(FalseInitTag);
     explicit Value(FromPayloadTag, intptr_t ptr);
+    explicit Value(ExceptionInitTag);
 #ifdef ESCARGOT_64
     explicit Value(PointerValue* ptr);
     Value(const PointerValue* ptr);
@@ -227,6 +231,7 @@ public:
     bool isObject() const;
     bool isCallable() const;
     bool isConstructor() const;
+    bool isException() const;
 
     enum PrimitiveTypeHint { PreferString,
                              PreferNumber,

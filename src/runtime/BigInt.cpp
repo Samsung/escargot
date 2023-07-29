@@ -246,8 +246,7 @@ void BigInt::throwBFException(ExecutionState& state, int status)
     } else {
         message = ErrorObject::Messages::Overflow;
     }
-    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, message);
-    return;
+    THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::RangeError, message);
 }
 
 String* BigInt::toString(int radix)

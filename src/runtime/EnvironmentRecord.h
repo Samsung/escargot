@@ -251,8 +251,14 @@ public:
             // we check conditions same as hasBinding for performance reason
             // directly call getBindingValue instead of checking the result of hasBinding in advance
             Value unscopables = m_bindingObject->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().unscopables)).value(state, m_bindingObject);
-            if (UNLIKELY(unscopables.isObject() && unscopables.asObject()->get(state, propertyName).value(state, unscopables).toBoolean(state))) {
+            if (UNLIKELY(state.hasPendingException())) {
                 return GetBindingValueResult();
+            }
+            if (UNLIKELY(unscopables.isObject())) {
+                Value obj = unscopables.asObject()->get(state, propertyName).value(state, unscopables);
+                if (state.hasPendingException() || obj.toBoolean(state)) {
+                    return GetBindingValueResult();
+                }
             }
 
             return GetBindingValueResult(result.value(state, propertyName, m_bindingObject));
@@ -440,6 +446,7 @@ public:
     virtual void setHeapValueByIndex(ExecutionState& state, const size_t idx, const Value& v) override
     {
         if (UNLIKELY(m_heapStorage[idx].isEmpty())) {
+            // ignore exception
             throwReferenceError(state, idx);
         }
         m_heapStorage[idx] = v;
@@ -473,6 +480,7 @@ public:
         // TDZ check only (every indexed const variables are checked on bytecode generation time)
         if (UNLIKELY(m_heapStorage[slot.m_index].isEmpty())) {
             throwReferenceError(state, slot.m_index);
+            RETURN_IF_PENDING_EXCEPTION
         }
         m_heapStorage[slot.m_index] = v;
     }
@@ -481,6 +489,7 @@ public:
     {
         if (UNLIKELY(m_heapStorage[idx].isEmpty())) {
             throwReferenceError(state, idx);
+            RETURN_IF_PENDING_EXCEPTION
         }
         m_heapStorage[idx] = v;
     }
@@ -495,6 +504,7 @@ public:
         auto v = m_heapStorage[idx];
         if (UNLIKELY(v.isEmpty())) {
             throwReferenceError(state, idx);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
         return v;
     }
@@ -506,7 +516,7 @@ public:
         for (size_t i = 0; i < v.size(); i++) {
             if (!v[i].m_needToAllocateOnStack) {
                 if (cnt == idx) {
-                    ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, v[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                    THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::ReferenceError, v[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
                 }
                 cnt++;
             }
@@ -676,7 +686,7 @@ struct FunctionEnvironmentRecordPiece<true, false> {
     void bindThisValue(ExecutionState& state, const Value& thisValue)
     {
         if (!m_thisValue.isEmpty()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, ErrorObject::Messages::Initialized_This_Binding);
+            THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::ReferenceError, ErrorObject::Messages::Initialized_This_Binding);
         }
 
         m_thisValue = thisValue;
@@ -685,7 +695,7 @@ struct FunctionEnvironmentRecordPiece<true, false> {
     Value getThisBinding(ExecutionState& state)
     {
         if (m_thisValue.isEmpty()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, ErrorObject::Messages::UnInitialized_This_Binding);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::ReferenceError, ErrorObject::Messages::UnInitialized_This_Binding);
         }
         return m_thisValue;
     }
@@ -746,7 +756,7 @@ struct FunctionEnvironmentRecordPiece<true, true> {
     void bindThisValue(ExecutionState& state, const Value& thisValue)
     {
         if (!m_thisValue.isEmpty()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, ErrorObject::Messages::Initialized_This_Binding);
+            THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::ReferenceError, ErrorObject::Messages::Initialized_This_Binding);
         }
 
         m_thisValue = thisValue;
@@ -755,7 +765,7 @@ struct FunctionEnvironmentRecordPiece<true, true> {
     Value getThisBinding(ExecutionState& state)
     {
         if (m_thisValue.isEmpty()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, ErrorObject::Messages::UnInitialized_This_Binding);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::ReferenceError, ErrorObject::Messages::UnInitialized_This_Binding);
         }
         return m_thisValue;
     }
@@ -1257,6 +1267,7 @@ protected:
     void readCheck(ExecutionState& state, const size_t i)
     {
         if (UNLIKELY(m_moduleBindings[i].m_value.isEmpty())) {
+            // ignore exception
             ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, m_moduleBindings[i].m_localName.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
         }
     }
@@ -1264,10 +1275,12 @@ protected:
     void writeCheck(ExecutionState& state, const size_t i)
     {
         if (UNLIKELY(!m_moduleBindings[i].m_isMutable)) {
+            // ignore exception
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, m_moduleBindings[i].m_localName);
         }
 
         if (UNLIKELY(!m_moduleBindings[i].m_isVarDeclaration && m_moduleBindings[i].m_value.isEmpty())) {
+            // ignore exception
             ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, m_moduleBindings[i].m_localName.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
         }
     }

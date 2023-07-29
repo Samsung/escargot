@@ -72,7 +72,7 @@ String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState*
     }
 
     if (state && UNLIKELY((llen + rlen) > STRING_MAXIMUM_LENGTH)) {
-        ErrorObject::throwBuiltinError(*state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
+        THROW_BUILTIN_ERROR_RETURN_NULL(*state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
     }
 
     bool l8bit = lstr->has8BitContent();

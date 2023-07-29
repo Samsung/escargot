@@ -3086,7 +3086,7 @@ void ExecutionStateRef::throwException(ValueRef* value)
 void ExecutionStateRef::checkStackOverflow()
 {
     ExecutionState& imp = *toImpl(this);
-    CHECK_STACK_OVERFLOW(imp);
+    // CHECK_STACK_OVERFLOW(imp);
 }
 
 GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTrace()
@@ -3199,6 +3199,11 @@ bool ValueRef::isNull()
 bool ValueRef::isUndefined()
 {
     return toImpl(this).isUndefined();
+}
+
+bool ValueRef::isException()
+{
+    return toImpl(this).isException();
 }
 
 bool ValueRef::isPointerValue()
@@ -3393,6 +3398,12 @@ ValueRef* ValueRef::createNull()
 ValueRef* ValueRef::createUndefined()
 {
     return reinterpret_cast<ValueRef*>(EncodedValue(Value(Value::Undefined))
+                                           .payload());
+}
+
+ValueRef* ValueRef::createException()
+{
+    return reinterpret_cast<ValueRef*>(EncodedValue(Value(Value::Exception))
                                            .payload());
 }
 

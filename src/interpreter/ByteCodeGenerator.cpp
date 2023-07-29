@@ -340,11 +340,7 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
     ctx.m_breakpointContext = &breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */
 
-    try {
-        ast->generateStatementByteCode(&block, &ctx);
-    } catch (...) {
-        // ignore error
-    }
+    ast->generateStatementByteCode(&block, &ctx);
 
     // reset ASTAllocator
     context->astAllocator().reset();

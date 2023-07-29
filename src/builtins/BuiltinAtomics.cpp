@@ -48,14 +48,15 @@ enum class AtomicBinaryOps : uint8_t {
 static ArrayBuffer* validateIntegerTypedArray(ExecutionState& state, Value typedArray, bool waitable = false)
 {
     ArrayBuffer* buffer = TypedArrayObject::validateTypedArray(state, typedArray);
+    RETURN_NULL_IF_PENDING_EXCEPTION
     TypedArrayObject* TA = typedArray.asObject()->asTypedArrayObject();
 
     if (waitable) {
         if ((TA->typedArrayType() != TypedArrayType::Int32) && (TA->typedArrayType() != TypedArrayType::BigInt64)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+            THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
         }
     } else if ((TA->typedArrayType() == TypedArrayType::Uint8Clamped) || (TA->typedArrayType() == TypedArrayType::Float32) || (TA->typedArrayType() == TypedArrayType::Float64)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     return buffer;
@@ -66,7 +67,7 @@ static size_t validateAtomicAccess(ExecutionState& state, TypedArrayObject* type
     uint64_t accessIndex = index.toIndex(state);
     size_t length = typedArray->arrayLength();
     if (UNLIKELY(accessIndex == Value::InvalidIndexValue || accessIndex >= (uint64_t)length)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_RangeError);
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_RangeError);
     }
 
     ASSERT(accessIndex < std::numeric_limits<size_t>::max());
@@ -166,6 +167,7 @@ static Value getModifySetValueInBuffer(ExecutionState& state, ArrayBuffer* buffe
 static Value atomicReadModifyWrite(ExecutionState& state, Value typedArray, Value index, Value value, AtomicBinaryOps op)
 {
     ArrayBuffer* buffer = validateIntegerTypedArray(state, typedArray);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject* TA = typedArray.asObject()->asTypedArrayObject();
     size_t indexedPosition = validateAtomicAccess(state, TA, index);
     TypedArrayType type = TA->typedArrayType();
@@ -173,6 +175,7 @@ static Value atomicReadModifyWrite(ExecutionState& state, Value typedArray, Valu
     Value v;
     if (type == TypedArrayType::BigInt64 || type == TypedArrayType::BigUint64) {
         v = value.toBigInt(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     } else {
         v = Value(Value::DoubleToIntConvertibleTestNeeds, value.toInteger(state));
     }
@@ -202,15 +205,19 @@ void atomicCompareExchange(uint8_t* rawStart, uint8_t* expectedBytes, uint8_t* r
 static Value builtinAtomicsCompareExchange(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ArrayBuffer* buffer = validateIntegerTypedArray(state, argv[0]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject* TA = argv[0].asObject()->asTypedArrayObject();
     size_t indexedPosition = validateAtomicAccess(state, TA, argv[1]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayType type = TA->typedArrayType();
 
     Value expected;
     Value replacement;
     if (type == TypedArrayType::BigInt64 || type == TypedArrayType::BigUint64) {
         expected = argv[2].toBigInt(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         replacement = argv[3].toBigInt(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     } else {
         expected = Value(Value::DoubleToIntConvertibleTestNeeds, argv[2].toInteger(state));
         replacement = Value(Value::DoubleToIntConvertibleTestNeeds, argv[3].toInteger(state));
@@ -283,8 +290,10 @@ static Value builtinAtomicsExchange(ExecutionState& state, Value thisValue, size
 static Value builtinAtomicsLoad(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ArrayBuffer* buffer = validateIntegerTypedArray(state, argv[0]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject* TA = argv[0].asObject()->asTypedArrayObject();
     size_t indexedPosition = validateAtomicAccess(state, TA, argv[1]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayType type = TA->typedArrayType();
 
     return buffer->getValueFromBuffer(state, indexedPosition, type);
@@ -298,14 +307,17 @@ static Value builtinAtomicsOr(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinAtomicsStore(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ArrayBuffer* buffer = validateIntegerTypedArray(state, argv[0]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject* TA = argv[0].asObject()->asTypedArrayObject();
     size_t indexedPosition = validateAtomicAccess(state, TA, argv[1]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayType type = TA->typedArrayType();
 
     Value value = argv[2];
     Value v;
     if (type == TypedArrayType::BigInt64 || type == TypedArrayType::BigUint64) {
         v = value.toBigInt(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     } else {
         v = Value(Value::DoubleToIntConvertibleTestNeeds, value.toInteger(state));
     }
@@ -329,19 +341,22 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
     // https://tc39.es/proposal-atomics-wait-async/#sec-dowait
     // Let buffer be ? ValidateSharedIntegerTypedArray(typedArray, true).
     ArrayBuffer* buffer = validateIntegerTypedArray(state, typedArrayValue, true);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject* typedArray = typedArrayValue.asObject()->asTypedArrayObject();
     if (!buffer->isSharedArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "This function expects SharedArrayBuffer");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "This function expects SharedArrayBuffer");
     }
 
     // Let i be ? ValidateAtomicAccess(typedArray, index).
     size_t i = validateAtomicAccess(state, typedArray, index);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Let arrayTypeName be typedArray.[[TypedArrayName]].
     auto arrayTypeName = typedArray->typedArrayType();
     // If arrayTypeName is "BigInt64Array", let v be ? ToBigInt64(value).
     Value v;
     if (arrayTypeName == TypedArrayType::BigInt64) {
         v = value.toBigInt(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     } else {
         // Otherwise, let v be ? ToInt32(value).
         v = Value(value.toInt32(state));
@@ -363,7 +378,7 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
         // Let B be AgentCanSuspend().
         // If B is false, throw a TypeError exception.
         if (!Global::platform()->canBlockExecution(state.context())) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot suspend this thread");
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "Cannot suspend this thread");
         }
     }
     // Let block be buffer.[[ArrayBufferData]].
@@ -381,6 +396,7 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
     if (isAsync) {
         // Set promiseCapability to ! NewPromiseCapability(%Promise%).
         promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+        ASSERT(!state.hasPendingException());
         // Set resultObject to ! OrdinaryObjectCreate(%Object.prototype%).
         resultObject = new Object(state);
     }
@@ -404,6 +420,7 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
         resultObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().async), ObjectPropertyDescriptor(Value(false), ObjectPropertyDescriptor::PresentAttribute::AllPresent));
         // Perform ! CreateDataPropertyOrThrow(resultObject, "value", "not-equal").
         resultObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().value), ObjectPropertyDescriptor(state.context()->staticStrings().lazyNotEqual().string(), ObjectPropertyDescriptor::PresentAttribute::AllPresent));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // Return resultObject.
         return Value(resultObject.value());
     }
@@ -416,6 +433,7 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
         resultObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().async), ObjectPropertyDescriptor(Value(false), ObjectPropertyDescriptor::PresentAttribute::AllPresent));
         // Perform ! CreateDataPropertyOrThrow(resultObject, "value", "timed-out").
         resultObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().value), ObjectPropertyDescriptor(state.context()->staticStrings().lazyTimedOut().string(), ObjectPropertyDescriptor::PresentAttribute::AllPresent));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // Return resultObject.
         return Value(resultObject.value());
     }
@@ -476,6 +494,7 @@ static Value doWait(ExecutionState& state, bool isAsync, const Value& typedArray
 
         resultObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().async), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::PresentAttribute::AllPresent));
         resultObject->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().value), ObjectPropertyDescriptor(promiseCapability.m_promise, ObjectPropertyDescriptor::PresentAttribute::AllPresent));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         return Value(resultObject.value());
     } else {
         bool notified = true;
@@ -512,9 +531,11 @@ static Value builtinAtomicsNotify(ExecutionState& state, Value thisValue, size_t
     // Atomics.notify ( typedArray, index, count )
     // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray, true).
     ArrayBuffer* buffer = validateIntegerTypedArray(state, argv[0], true);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject* typedArray = argv[0].asObject()->asTypedArrayObject();
     // 2. Let indexedPosition be ? ValidateAtomicAccess(typedArray, index).
     size_t indexedPosition = validateAtomicAccess(state, typedArray, argv[1]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     double c;
     // 3. If count is undefined, let c be +∞.
     if (argv[2].isUndefined()) {

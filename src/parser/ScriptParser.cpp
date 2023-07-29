@@ -52,7 +52,7 @@ ScriptParser::InitializeScriptResult::InitializeScriptResult()
 Script* ScriptParser::InitializeScriptResult::scriptThrowsExceptionIfParseError(ExecutionState& state)
 {
     if (!script) {
-        ErrorObject::throwBuiltinError(state, parseErrorCode, parseErrorMessage->toUTF8StringData().data());
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, parseErrorCode, parseErrorMessage->toUTF8StringData().data());
     }
 
     return script.value();
@@ -484,6 +484,7 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
         auto parseResult = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
 
         if (UNLIKELY(!!parseResult.second)) {
+            RELEASE_ASSERT_NOT_REACHED();
             esprima::Error* orgError = parseResult.second;
             // reset ASTAllocator
             m_context->astAllocator().reset();
@@ -491,6 +492,7 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
 
             auto str = orgError->message->toUTF8StringData();
             delete orgError;
+            // ignore exception
             ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, str.data());
             RELEASE_ASSERT_NOT_REACHED();
         }
@@ -503,9 +505,11 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
     try {
         codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, functionNode);
     } catch (const char* message) {
+        RELEASE_ASSERT_NOT_REACHED();
         // reset ASTAllocator
         m_context->astAllocator().reset();
         GC_enable();
+        // ignore exception
         ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, message);
         RELEASE_ASSERT_NOT_REACHED();
     }

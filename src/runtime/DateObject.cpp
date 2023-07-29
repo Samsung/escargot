@@ -208,10 +208,12 @@ void DateObject::setTimeValue(time64_t t)
 void DateObject::setTimeValue(ExecutionState& state, const Value& v)
 {
     Value pv = v.toPrimitive(state);
+    RETURN_IF_PENDING_EXCEPTION
     if (pv.isNumber()) {
         setTimeValue(DateObject::timeClip(state, pv.asNumber()));
     } else {
         String* istr = v.toString(state);
+        RETURN_IF_PENDING_EXCEPTION
         setTimeValue(parseStringToDate(state, istr));
     }
 }
@@ -1355,7 +1357,7 @@ String* DateObject::toISOString(ExecutionState& state)
         }
         return new ASCIIString(buffer);
     } else {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), ErrorObject::Messages::GlobalObject_InvalidDate);
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::RangeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), ErrorObject::Messages::GlobalObject_InvalidDate);
     }
     RELEASE_ASSERT_NOT_REACHED();
 }

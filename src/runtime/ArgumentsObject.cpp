@@ -42,9 +42,11 @@ static void ArgumentsObjectNativeSetter(ExecutionState& state, Object* self, con
     ASSERT(!info.m_needToAllocateOnStack);
     if (info.m_indexForIndexedStorage == SIZE_MAX) {
         targetRecord->setMutableBinding(state, name, setterInputData);
+        ASSERT(!state.hasPendingException());
         return;
     }
     targetRecord->setHeapValueByIndex(state, info.m_indexForIndexedStorage, setterInputData);
+    ASSERT(!state.hasPendingException());
 }
 
 ArgumentsObject::ArgumentsObject(ExecutionState& state, Object* proto, ScriptFunctionObject* sourceFunctionObject, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, bool isMapped)

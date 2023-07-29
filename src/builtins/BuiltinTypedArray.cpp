@@ -28,23 +28,27 @@
 
 namespace Escargot {
 
-#define RESOLVE_THIS_BINDING_TO_TYPEDARRAY(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                 \
-    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject())) {                                                                                                                                                              \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                  \
+#define RESOLVE_THIS_BINDING_TO_TYPEDARRAY(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                   \
+    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject())) {                                                                                                                                                                \
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                    \
     TypedArrayObject* NAME = thisValue.asPointerValue()->asTypedArrayObject();
 
 
 // https://www.ecma-international.org/ecma-262/10.0/#typedarray-create
 static Object* createTypedArray(ExecutionState& state, const Value& constructor, size_t argc, Value* argv)
 {
-    Object* newTypedArray = Object::construct(state, constructor, argc, argv).toObject(state);
+    Value newTypedArrayValue = Object::construct(state, constructor, argc, argv);
+    RETURN_NULL_IF_PENDING_EXCEPTION
+    Object* newTypedArray = newTypedArrayValue.toObject(state);
+    RETURN_NULL_IF_PENDING_EXCEPTION
     TypedArrayObject::validateTypedArray(state, newTypedArray);
+    RETURN_NULL_IF_PENDING_EXCEPTION
 
     if (argc == 1 && argv[0].isNumber()) {
         double arrayLength = newTypedArray->asTypedArrayObject()->arrayLength();
         if (arrayLength < argv[0].asNumber()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "invalid TypedArray length");
+            THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, "invalid TypedArray length");
         }
     }
 
@@ -89,17 +93,20 @@ static Value TypedArraySpeciesCreate(ExecutionState& state, TypedArrayObject* ex
     Value defaultConstructor = getDefaultTypedArrayConstructor(state, exemplar->typedArrayType());
     // Let C be SpeciesConstructor(O, defaultConstructor).
     Value C = exemplar->speciesConstructor(state, defaultConstructor);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     Value A = Object::construct(state, C, argc, argumentList);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject::validateTypedArray(state, A);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (argc == 1 && argumentList[0].isNumber() && A.asObject()->asTypedArrayObject()->arrayLength() < argumentList->toNumber(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
     return A;
 }
 
 static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
+    THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
     return Value();
 }
 
@@ -110,7 +117,7 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
     Value source = argv[0];
 
     if (!C.isConstructor()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotConstructor);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotConstructor);
     }
 
     Value mapfn;
@@ -125,17 +132,20 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
     bool mapping = false;
     if (!mapfn.isUndefined()) {
         if (!mapfn.isCallable()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "mapfn is not callable");
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "mapfn is not callable");
         }
         mapping = true;
     }
 
     Value usingIterator = Object::getMethod(state, source, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (!usingIterator.isUndefined()) {
         ValueVectorWithInlineStorage values = IteratorObject::iterableToList(state, source, usingIterator);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         size_t len = values.size();
         Value arg[1] = { Value(len) };
         Object* targetObj = createTypedArray(state, C, 1, arg);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
 
         size_t k = 0;
         while (k < len) {
@@ -143,8 +153,10 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
             if (mapping) {
                 Value args[2] = { values[k], Value(k) };
                 mappedValue = Object::call(state, mapfn, T, 2, args);
+                RETURN_VALUE_IF_PENDING_EXCEPTION
             }
             targetObj->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             k++;
         }
 
@@ -152,22 +164,28 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
     }
 
     Object* arrayLike = source.toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     size_t len = arrayLike->length(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     Value arg[1] = { Value(len) };
     Object* targetObj = createTypedArray(state, C, 1, arg);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     size_t k = 0;
     while (k < len) {
         Value kValue = arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         Value mappedValue = kValue;
         if (mapping) {
             // Let mappedValue be Call(mapfn, T, «kValue, k»).
             Value args[2] = { kValue, Value(k) };
             mappedValue = Object::call(state, mapfn, T, 2, args);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
         // Let setStatus be Set(targetObj, Pk, mappedValue, true).
         targetObj->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         k++;
     }
 
@@ -180,16 +198,18 @@ static Value builtinTypedArrayOf(ExecutionState& state, Value thisValue, size_t 
     size_t len = argc;
     Value C = thisValue;
     if (!C.isConstructor()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotConstructor);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotConstructor);
     }
 
     Value arg[1] = { Value(len) };
     Object* newObj = createTypedArray(state, C, 1, arg);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     size_t k = 0;
     while (k < len) {
         Value kValue = argv[k];
         newObj->setIndexedPropertyThrowsException(state, Value(k), kValue);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         k++;
     }
     return newObj;
@@ -236,6 +256,7 @@ static void initializeTypedArrayFromTypedArray(ExecutionState& state, TypedArray
 {
     ArrayBuffer* srcData = srcArray->buffer();
     srcData->throwTypeErrorIfDetached(state);
+    RETURN_IF_PENDING_EXCEPTION
 
     size_t elementLength = srcArray->arrayLength();
     size_t srcElementSize = srcArray->elementSize();
@@ -245,23 +266,29 @@ static void initializeTypedArrayFromTypedArray(ExecutionState& state, TypedArray
 
     Value bufferConstructor;
 #if defined(ENABLE_THREADING)
-    if (srcData->isSharedArrayBufferObject())
+    if (srcData->isSharedArrayBufferObject()) {
         // Let bufferConstructor be %ArrayBuffer%.
         bufferConstructor = state.context()->globalObject()->arrayBuffer();
-    else
+    } else {
 #endif
         // Let bufferConstructor be ? SpeciesConstructor(srcData, %ArrayBuffer%).
         bufferConstructor = srcData->speciesConstructor(state, state.context()->globalObject()->arrayBuffer());
+        RETURN_IF_PENDING_EXCEPTION
+    }
+
 
     ArrayBufferObject* data = nullptr;
     if (obj->typedArrayType() == srcArray->typedArrayType()) {
         // Let data be ? CloneArrayBuffer(srcData, srcByteOffset, byteLength, bufferConstructor).
         data = ArrayBufferObject::cloneArrayBuffer(state, srcData, srcByteOffset, byteLength, bufferConstructor.asObject());
+        RETURN_IF_PENDING_EXCEPTION
     } else {
         // Let data be AllocateArrayBuffer(bufferConstructor, byteLength).
         data = ArrayBufferObject::allocateArrayBuffer(state, bufferConstructor.asObject(), byteLength);
+        RETURN_IF_PENDING_EXCEPTION
         // If IsDetachedBuffer(srcData) is true, throw a TypeError exception.
         srcData->throwTypeErrorIfDetached(state);
+        RETURN_IF_PENDING_EXCEPTION
 
         // Let srcByteIndex be srcByteOffset.
         size_t srcByteIndex = srcByteOffset;
@@ -294,31 +321,34 @@ static void initializeTypedArrayFromArrayBuffer(ExecutionState& state, TypedArra
 {
     size_t elementSize = obj->elementSize();
     uint64_t offset = byteOffset.toIndex(state);
+    RETURN_IF_PENDING_EXCEPTION
     if (offset == Value::InvalidIndexValue || offset % elementSize != 0) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+        THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
     }
 
     uint64_t newLength = 0;
     if (!length.isUndefined()) {
         newLength = length.toIndex(state);
+        RETURN_IF_PENDING_EXCEPTION
         if (newLength == Value::InvalidIndexValue) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+            THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
     }
 
     buffer->throwTypeErrorIfDetached(state);
+    RETURN_IF_PENDING_EXCEPTION
     size_t bufferByteLength = buffer->byteLength();
 
     size_t newByteLength = 0;
     if (length.isUndefined()) {
         if ((bufferByteLength % elementSize != 0) || (bufferByteLength < offset)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+            THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
         newByteLength = bufferByteLength - offset;
     } else {
         newByteLength = newLength * elementSize;
         if (offset + newByteLength > bufferByteLength) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+            THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
     }
 
@@ -333,12 +363,14 @@ static void initializeTypedArrayFromList(ExecutionState& state, TypedArrayObject
     uint64_t elementSize = obj->elementSize();
     uint64_t byteLength = static_cast<uint64_t>(len) * elementSize;
     ArrayBufferObject* buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), byteLength);
+    RETURN_IF_PENDING_EXCEPTION
     obj->setBuffer(buffer, 0, byteLength, len);
 
     size_t k = 0;
     while (k < len) {
         // Perform ? Set(O, Pk, kValue, true).
         obj->setIndexedPropertyThrowsException(state, Value(k), values[k]);
+        RETURN_IF_PENDING_EXCEPTION
         k++;
     }
 }
@@ -346,17 +378,22 @@ static void initializeTypedArrayFromList(ExecutionState& state, TypedArrayObject
 static void initializeTypedArrayFromArrayLike(ExecutionState& state, TypedArrayObject* obj, Object* arrayLike)
 {
     size_t len = arrayLike->length(state);
+    RETURN_IF_PENDING_EXCEPTION
 
     // Perform ? AllocateTypedArrayBuffer(O, len).
     size_t elementSize = obj->elementSize();
     uint64_t byteLength = static_cast<uint64_t>(len) * elementSize;
     ArrayBufferObject* buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), byteLength);
+    RETURN_IF_PENDING_EXCEPTION
     obj->setBuffer(buffer, 0, byteLength, len);
 
     size_t k = 0;
     while (k < len) {
         // Perform ? Set(O, Pk, kValue, true).
-        obj->setIndexedPropertyThrowsException(state, Value(k), arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike));
+        Value val = arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike);
+        RETURN_IF_PENDING_EXCEPTION
+        obj->setIndexedPropertyThrowsException(state, Value(k), val);
+        RETURN_IF_PENDING_EXCEPTION
         k++;
     }
 }
@@ -366,7 +403,7 @@ static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue
 {
     // if NewTarget is undefined, throw a TypeError
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     if (argc == 0) {
@@ -377,16 +414,18 @@ static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue
     const Value& firstArg = argv[0];
     if (!firstArg.isObject()) {
         uint64_t elemlen = firstArg.toIndex(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (elemlen == Value::InvalidIndexValue) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
-            return Value();
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
         }
         return TA::allocateTypedArray(state, newTarget.value(), elemlen);
     }
 
     ASSERT(firstArg.isObject());
     Object* argObj = firstArg.asObject();
-    TypedArrayObject* obj = TA::allocateTypedArray(state, newTarget.value());
+    Value objValue = TA::allocateTypedArray(state, newTarget.value());
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    TypedArrayObject* obj = objValue.asPointerValue()->asTypedArrayObject();
 
     if (argObj->isTypedArrayObject()) {
         initializeTypedArrayFromTypedArray(state, obj, argObj->asTypedArrayObject());
@@ -396,14 +435,17 @@ static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue
         initializeTypedArrayFromArrayBuffer(state, obj, argObj->asArrayBuffer(), byteOffset, length);
     } else {
         Value usingIterator = Object::getMethod(state, argObj, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (!usingIterator.isUndefined()) {
             ValueVectorWithInlineStorage values = IteratorObject::iterableToList(state, argObj, usingIterator);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             initializeTypedArrayFromList(state, obj, values);
         } else {
             initializeTypedArrayFromArrayLike(state, obj, argObj);
         }
     }
 
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return obj;
 }
 
@@ -412,6 +454,7 @@ static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue,
 {
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, thisValue);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
@@ -440,6 +483,7 @@ static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue,
         ArrayBuffer* buffer = O->buffer();
         // If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
         buffer->throwTypeErrorIfDetached(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // Let typedArrayName be the String value of O.[[TypedArrayName]].
         // Let elementSize be the Number value of the Element Size value specified in Table 59 for typedArrayName.
         size_t elementSize = O->elementSize();
@@ -491,6 +535,7 @@ static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, si
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, indexOf);
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
@@ -536,6 +581,7 @@ static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, si
         if (kPresent.hasValue()) {
             // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
             Value elementK = kPresent.value(state, O);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
 
             // Let same be the result of applying the Strict Equality Comparison Algorithm to searchElement and elementK.
             if (elementK.equalsTo(state, argv[0])) {
@@ -557,6 +603,7 @@ static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, lastIndexOf);
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
@@ -598,6 +645,7 @@ static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue
         if (kPresent.hasValue()) {
             // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
             Value elementK = kPresent.value(state, O);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
 
             // Let same be the result of applying the Strict Equality Comparison Algorithm to searchElement and elementK.
             if (elementK.equalsTo(state, argv[0])) {
@@ -623,6 +671,7 @@ static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, s
     // Let O be ? ToObject(this value).
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, includes);
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     size_t len = O->asTypedArrayObject()->arrayLength();
 
@@ -658,6 +707,7 @@ static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, s
     while (k < len) {
         // Let elementK be the result of ? Get(O, ! ToString(k)).
         Value elementK = O->getIndexedProperty(state, Value(k)).value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // If SameValueZero(searchElement, elementK) is true, return true.
         if (elementK.equalsToByTheSameValueZeroAlgorithm(state, searchElement)) {
             return Value(true);
@@ -675,7 +725,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
 {
     const StaticStrings* strings = &state.context()->staticStrings();
     if (!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
     }
 
     TypedArrayObject* target = thisValue.asObject()->asTypedArrayObject();
@@ -685,7 +735,7 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
         targetOffset = argv[1].toInteger(state);
     }
     if (targetOffset < 0) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->TypedArray.string(), true, strings->set.string(), "Start offset is negative");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, strings->TypedArray.string(), true, strings->set.string(), "Start offset is negative");
     }
 
     auto typedArrayType = target->typedArrayType();
@@ -693,16 +743,19 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
 
     ArrayBuffer* targetBuffer = target->buffer();
     targetBuffer->throwTypeErrorIfDetached(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     size_t targetLength = target->arrayLength();
     size_t targetElementSize = target->elementSize();
     size_t targetByteOffset = target->byteOffset();
 
     Object* src = argv[0].toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (!src->isTypedArrayObject()) {
         // 22.2.3.23.1%TypedArray%.prototype.set ( array [ , offset ] )
         size_t srcLength = src->length(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (srcLength + targetOffset > targetLength) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
         }
 
         size_t targetByteIndex = targetOffset * targetElementSize + targetByteOffset;
@@ -710,12 +763,15 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
         size_t limit = targetByteIndex + targetElementSize * srcLength;
         while (targetByteIndex < limit) {
             Value value = src->get(state, ObjectPropertyName(state, Value(k))).value(state, src);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             if (UNLIKELY(isBigIntArray)) {
                 value = value.toBigInt(state);
             } else {
                 value = Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state));
             }
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             targetBuffer->throwTypeErrorIfDetached(state);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
 
             // Perform SetValueInBuffer(targetBuffer, targetByteIndex, targetType, value, true, "Unordered").
             targetBuffer->setValueInBuffer(state, targetByteIndex, target->typedArrayType(), value);
@@ -732,26 +788,28 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
     TypedArrayObject* srcTypedArray = src->asTypedArrayObject();
     ArrayBuffer* srcBuffer = srcTypedArray->buffer();
     srcBuffer->throwTypeErrorIfDetached(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     size_t srcElementSize = srcTypedArray->elementSize();
     size_t srcLength = srcTypedArray->arrayLength();
     size_t srcByteOffset = srcTypedArray->byteOffset();
 
     if (srcLength + targetOffset > targetLength) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
 
     // If one of srcType and targetType contains the substring "Big" and the other does not, throw a TypeError exception.
     auto srcTypedArrayType = srcTypedArray->typedArrayType();
     bool isSrcBigIntArray = srcTypedArrayType == TypedArrayType::BigInt64 || srcTypedArrayType == TypedArrayType::BigUint64;
     if (isBigIntArray != isSrcBigIntArray) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->TypedArray.string(), true, strings->set.string(), "Cannot mix BigIntArray with other Array");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, strings->TypedArray.string(), true, strings->set.string(), "Cannot mix BigIntArray with other Array");
     }
 
     size_t srcByteIndex = srcByteOffset;
     if (srcBuffer == targetBuffer) {
         size_t srcByteLength = srcTypedArray->byteLength();
         srcBuffer = ArrayBufferObject::cloneArrayBuffer(state, targetBuffer, srcByteOffset, srcByteLength, state.context()->globalObject()->arrayBuffer());
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         srcByteIndex = 0;
     }
 
@@ -787,6 +845,7 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, some);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Array.prototype.some as defined in 22.1.3.23 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -796,8 +855,8 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true,
-                                       state.context()->staticStrings().some.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true,
+                                         state.context()->staticStrings().some.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     Value T;
@@ -814,9 +873,11 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
         ObjectGetResult kResult = O->getIndexedProperty(state, Value(k));
         // Let kValue be the result of calling the [[Get]] internal method of O with argument ToString(k).
         Value kValue = kResult.value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
         Value args[] = { kValue, Value(k), O };
         Value testResult = Object::call(state, callbackfn, T, 3, args);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
 
         // If ToBoolean(testResult) is true, return true.
         if (testResult.toBoolean(state)) {
@@ -836,13 +897,14 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, sort);
     // Let buffer be TypedArrayObject::validateTypedArray(obj).
     ArrayBuffer* buffer = TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
     int64_t len = O->asTypedArrayObject()->arrayLength();
 
     Value cmpfn = argv[0];
     if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotCallable);
     }
     bool defaultSort = (argc == 0) || cmpfn.isUndefined();
 
@@ -853,6 +915,8 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
             Value args[] = { x, y };
             double v = Object::call(state, cmpfn, Value(), 2, args).toNumber(state);
             buffer->throwTypeErrorIfDetached(state);
+            // FIXME THROW
+            ASSERT(!state.hasPendingException());
             if (std::isnan(v)) {
                 return false;
             }
@@ -928,6 +992,7 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, every);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Array.prototype.every as defined in 22.1.3.5 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -937,8 +1002,8 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true,
-                                       state.context()->staticStrings().every.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true,
+                                         state.context()->staticStrings().every.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // If thisArg was supplied, let T be thisArg; else let T be undefined.
@@ -953,9 +1018,11 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
         ObjectGetResult value = O->getIndexedProperty(state, Value(k));
         // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
         Value kValue = value.value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
         Value args[] = { kValue, Value(k), O };
         Value testResult = Object::call(state, callbackfn, T, 3, args);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
 
         if (!testResult.toBoolean(state)) {
             return Value(false);
@@ -972,6 +1039,7 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
 {
     // Perform ? TypedArrayObject::validateTypedArray(O).
     TypedArrayObject::validateTypedArray(state, thisValue);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
@@ -986,7 +1054,9 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
         // Otherwise, let value be ? ToNumber(value).
         // Set value to ? ToNumber(value).
         value = Value(Value::DoubleToIntConvertibleTestNeeds, argv[0].toNumber(state));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     }
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Let relativeStart be ? ToInteger(start).
     double relativeStart = 0;
     if (argc > 1) {
@@ -1004,10 +1074,12 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
 
     // If IsDetachedBuffer(O.[[ViewedArrayBuffer]]) is true, throw a TypeError exception.
     O->buffer()->throwTypeErrorIfDetached(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Repeat, while k < final
     while (k < fin) {
         O->setIndexedPropertyThrowsException(state, Value(k), value);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         k++;
     }
     // return O.
@@ -1019,6 +1091,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
 {
     // Perform ? TypedArrayObject::validateTypedArray(O).
     TypedArrayObject::validateTypedArray(state, thisValue);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
@@ -1027,7 +1100,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().filter.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().filter.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // If thisArg was supplied, let T be thisArg; else let T be undefined.
@@ -1045,8 +1118,11 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     // Repeat, while k < len
     while (k < len) {
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         Value args[] = { kValue, Value(k), O };
-        bool selected = Object::call(state, callbackfn, T, 3, args).toBoolean(state);
+        Value val = Object::call(state, callbackfn, T, 3, args);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        bool selected = val.toBoolean(state);
         if (selected) {
             kept.push_back(kValue);
             captured++;
@@ -1057,12 +1133,14 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     // Let A be ? TypedArraySpeciesCreate(O, « captured »).
     Value arg[1] = { Value(captured) };
     Value A = TypedArraySpeciesCreate(state, O, 1, arg);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let n be 0.
     // For each element e of kept
     for (size_t n = 0; n < kept.size(); n++) {
         // Let status be Set(A, ToString(n), e, true ).
         A.asObject()->setIndexedPropertyThrowsException(state, Value(n), kept[n]);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     }
     // Return A.
     return A;
@@ -1076,6 +1154,7 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, find);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Array.prototype.find as defined in 22.1.3.8 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1084,7 +1163,7 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     if (!predicate.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().find.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().find.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // Let k be 0.
@@ -1093,9 +1172,12 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
     while (k < len) {
         // Let kValue be Get(O, Pk).
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // Let testResult be ToBoolean(Call(predicate, thisArg, «kValue, k, O»)).
         Value args[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean(state);
+        Value res = Object::call(state, predicate, thisArg, 3, args);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        bool testResult = res.toBoolean(state);
         // If testResult is true, return kValue.
         if (testResult) {
             return kValue;
@@ -1115,6 +1197,7 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, findIndex);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Array.prototype.findIndex as defined in 22.1.3.9 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1123,7 +1206,7 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     if (!predicate.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findIndex.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findIndex.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // Let k be 0.
@@ -1132,9 +1215,12 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
     while (k < len) {
         // Let kValue be ? Get(O, Pk).
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // Let testResult be ToBoolean(? Call(predicate, thisArg, « kValue, k, O »)).
         Value args[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean(state);
+        Value res = Object::call(state, predicate, thisArg, 3, args);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        bool testResult = res.toBoolean(state);
         // If testResult is true, return k.
         if (testResult) {
             return Value(k);
@@ -1154,13 +1240,14 @@ static Value builtinTypedArrayFindLast(ExecutionState& state, Value thisValue, s
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, find);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let len be O.[[ArrayLength]].
     int64_t len = static_cast<int64_t>(O->asTypedArrayObject()->arrayLength());
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     if (!predicate.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findLast.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findLast.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // Let k be len - 1.
@@ -1170,9 +1257,12 @@ static Value builtinTypedArrayFindLast(ExecutionState& state, Value thisValue, s
     while (k >= 0) {
         // Let kValue be Get(O, Pk).
         kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // Let testResult be ToBoolean(Call(predicate, thisArg, «kValue, k, O»)).
         Value args[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean(state);
+        Value res = Object::call(state, predicate, thisArg, 3, args);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        bool testResult = res.toBoolean(state);
         // If testResult is true, return kValue.
         if (testResult) {
             return kValue;
@@ -1192,13 +1282,14 @@ static Value builtinTypedArrayFindLastIndex(ExecutionState& state, Value thisVal
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, findIndex);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let len be O.[[ArrayLength]].
     int64_t len = static_cast<int64_t>(O->asTypedArrayObject()->arrayLength());
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     if (!predicate.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findIndex.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().findIndex.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // Let k be len - 1.
@@ -1208,9 +1299,12 @@ static Value builtinTypedArrayFindLastIndex(ExecutionState& state, Value thisVal
     while (k >= 0) {
         // Let kValue be ? Get(O, Pk).
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // Let testResult be ToBoolean(? Call(predicate, thisArg, « kValue, k, O »)).
         Value args[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean(state);
+        Value res = Object::call(state, predicate, thisArg, 3, args);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        bool testResult = res.toBoolean(state);
         // If testResult is true, return k.
         if (testResult) {
             return Value(k);
@@ -1228,6 +1322,7 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, forEach);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Array.prototype.forEach as defined in 22.1.3.10 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1236,8 +1331,8 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
 
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true,
-                                       state.context()->staticStrings().forEach.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true,
+                                         state.context()->staticStrings().forEach.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // If thisArg was supplied, let T be thisArg; else let T be undefined.
@@ -1251,8 +1346,10 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
     while (k < len) {
         ObjectGetResult res = O->getIndexedProperty(state, Value(k));
         Value kValue = res.value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         Value args[] = { kValue, Value(k), O };
         Object::call(state, callbackfn, T, 3, args);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         k++;
     }
     // Return undefined.
@@ -1265,6 +1362,7 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, join);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Array.prototype.join as defined in 22.1.3.12 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1279,6 +1377,7 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
         sep = state.context()->staticStrings().asciiTable[(size_t)','].string();
     } else {
         sep = separator.toString(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     }
 
     if (!state.context()->toStringRecursionPreventer()->canInvokeToString(O) || len == 0) {
@@ -1288,24 +1387,28 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
 
     StringBuilder builder;
     Value elem = O->getIndexedProperty(state, Value(0)).value(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (elem.isUndefinedOrNull()) {
         elem = String::emptyString;
     }
     builder.appendString(elem.toString(state));
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     size_t curIndex = 1;
     while (curIndex < len) {
         if (sep->length() > 0) {
             if (static_cast<double>(builder.contentLength()) > static_cast<double>(lenMax - sep->length())) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
+                THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
             }
             builder.appendString(sep);
         }
         elem = O->getIndexedProperty(state, Value(curIndex)).value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (elem.isUndefinedOrNull()) {
             elem = String::emptyString;
         }
         builder.appendString(elem.toString(state));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         curIndex++;
     }
 
@@ -1317,6 +1420,7 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
 {
     // Perform ? TypedArrayObject::validateTypedArray(O).
     TypedArrayObject::validateTypedArray(state, thisValue);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
@@ -1325,7 +1429,7 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().map.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().map.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // If thisArg was supplied, let T be thisArg; else let T be undefined.
@@ -1337,15 +1441,19 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
     // Let A be ? TypedArraySpeciesCreate(O, « len »).
     Value arg[1] = { Value(len) };
     Value A = TypedArraySpeciesCreate(state, O, 1, arg);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let k be 0.
     size_t k = 0;
     // Repeat, while k < len
     while (k < len) {
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         Value args[] = { kValue, Value(k), O };
         Value mappedValue = Object::call(state, callbackfn, T, 3, args);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         A.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         k++;
     }
     // Return A.
@@ -1358,6 +1466,7 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reduce);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Array.prototype.reduce as defined in 22.1.3.18 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1366,11 +1475,11 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
 
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduce.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduce.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     if (len == 0 && argc < 2) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduce.string(), ErrorObject::Messages::GlobalObject_ReduceError);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduce.string(), ErrorObject::Messages::GlobalObject_ReduceError);
     }
 
     size_t k = 0; // 6
@@ -1380,13 +1489,16 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
     } else { // 8
         ObjectGetResult res = O->getIndexedProperty(state, Value(k));
         accumulator = res.value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         k++;
     }
     while (k < len) { // 9
         ObjectGetResult res = O->getIndexedProperty(state, Value(k));
         Value kValue = res.value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         Value args[] = { accumulator, kValue, Value(k), O };
         accumulator = Object::call(state, callbackfn, Value(), 4, args);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         k++;
     }
     return accumulator;
@@ -1398,6 +1510,7 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reduceRight);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Array.prototype.reduceRight as defined in 22.1.3.19 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1407,13 +1520,13 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true,
-                                       state.context()->staticStrings().reduceRight.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true,
+                                         state.context()->staticStrings().reduceRight.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
 
     // If len is 0 and initialValue is not present, throw a TypeError exception.
     if (len == 0 && argc < 2) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduceRight.string(), ErrorObject::Messages::GlobalObject_ReduceError);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), true, state.context()->staticStrings().reduceRight.string(), ErrorObject::Messages::GlobalObject_ReduceError);
     }
 
     // Let k be len-1.
@@ -1428,6 +1541,7 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
         // Else, initialValue is not present
         ObjectGetResult res = O->getIndexedProperty(state, Value(k));
         accumulator = res.value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         k--;
     }
 
@@ -1435,8 +1549,10 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
     while (k >= 0) {
         ObjectGetResult res = O->getIndexedProperty(state, Value(k));
         Value kValue = res.value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         Value args[] = { accumulator, kValue, Value(k), O };
         accumulator = Object::call(state, callbackfn, Value(), 4, args);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         k--;
     }
     // Return accumulator.
@@ -1449,6 +1565,7 @@ static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, si
     RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reverse);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, O);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Array.prototype.reverse as defined in 22.1.3.20 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1464,13 +1581,15 @@ static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, si
         RELEASE_ASSERT(upperResult.hasValue() && lowerResult.hasValue());
 
         Value upperValue = upperResult.value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         Value lowerValue = lowerResult.value(state, O);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
 
         if (!O->setIndexedProperty(state, Value(lower), upperValue)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
         }
         if (!O->setIndexedProperty(state, Value(upper), lowerValue)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
         }
 
         lower++;
@@ -1484,6 +1603,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
     // Let O be the this value.
     // Perform ? TypedArrayObject::validateTypedArray(O).
     TypedArrayObject::validateTypedArray(state, thisValue);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
@@ -1501,6 +1621,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
 
     Value arg[1] = { Value(count) };
     Value A = TypedArraySpeciesCreate(state, O, 1, arg);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     TypedArrayObject* target = A.asObject()->asTypedArrayObject();
 
     // If SameValue(srcType, targetType) is false, then
@@ -1508,8 +1629,11 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
         size_t n = 0;
         while (k < finalEnd) {
             O->buffer()->throwTypeErrorIfDetached(state);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             A.asObject()->setIndexedPropertyThrowsException(state, Value(n), kValue);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             k++;
             n++;
         }
@@ -1517,6 +1641,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
         // Else if count > 0,
         ArrayBuffer* srcBuffer = O->buffer();
         srcBuffer->throwTypeErrorIfDetached(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         ArrayBuffer* targetBuffer = target->buffer();
 
         size_t elementSize = O->elementSize();
@@ -1544,6 +1669,7 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
     RESOLVE_THIS_BINDING_TO_OBJECT(array, TypedArray, toLocaleString);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
     TypedArrayObject::validateTypedArray(state, array);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Array.prototype.toLocaleString as defined in 22.1.3.26 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
@@ -1576,11 +1702,15 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
         }
         // Let nextElement be ? Get(array, ! ToString(k)).
         Value nextElement = array->getIndexedProperty(state, Value(k)).value(state, array);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // If nextElement is not undefined or null, then
         ASSERT(!nextElement.isUndefinedOrNull());
         // Let S be ? ToString(? Invoke(nextElement, "toLocaleString")).
         Value func = nextElement.toObject(state)->get(state, state.context()->staticStrings().toLocaleString).value(state, nextElement);
-        String* S = Object::call(state, func, nextElement, 0, nullptr).toString(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        Value res = Object::call(state, func, nextElement, 0, nullptr);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        String* S = res.toString(state);
         // Set R to the string-concatenation of R and S.
         StringBuilder builder2;
         builder2.appendString(R);
@@ -1599,6 +1729,7 @@ static Value builtinTypedArrayKeys(ExecutionState& state, Value thisValue, size_
 {
     // Perform ? TypedArrayObject::validateTypedArray(O).
     TypedArrayObject::validateTypedArray(state, thisValue);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Return CreateArrayIterator(O, "key").
     return thisValue.asObject()->keys(state);
 }
@@ -1607,6 +1738,7 @@ static Value builtinTypedArrayValues(ExecutionState& state, Value thisValue, siz
 {
     // Perform ? TypedArrayObject::validateTypedArray(O).
     TypedArrayObject::validateTypedArray(state, thisValue);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return thisValue.asObject()->values(state);
 }
 
@@ -1614,6 +1746,7 @@ static Value builtinTypedArrayValues(ExecutionState& state, Value thisValue, siz
 static Value builtinTypedArrayEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     TypedArrayObject::validateTypedArray(state, thisValue);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return thisValue.asObject()->entries(state);
 }
 
@@ -1634,8 +1767,10 @@ static Value builtinTypedArrayToStringTagGetter(ExecutionState& state, Value thi
 static Value builtinTypedArrayAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     TypedArrayObject::validateTypedArray(state, thisValue);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     Object* obj = thisValue.asObject();
     size_t len = obj->length(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     double relativeStart = argv[0].toInteger(state);
     if (relativeStart < 0) {
         relativeStart = len + relativeStart;

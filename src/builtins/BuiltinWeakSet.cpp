@@ -31,13 +31,13 @@ namespace Escargot {
 static Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
-        return Value();
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->weakSetPrototype();
     });
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     WeakSetObject* weakSet = new WeakSetObject(state, proto);
 
@@ -49,25 +49,28 @@ static Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, s
         return weakSet;
     }
     Value add = weakSet->get(state, ObjectPropertyName(state.context()->staticStrings().add)).value(state, weakSet);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (!add.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
 
     auto iteratorRecord = IteratorObject::getIterator(state, iterable);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     while (true) {
         auto next = IteratorObject::iteratorStep(state, iteratorRecord);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (!next.hasValue()) {
             return weakSet;
         }
 
         Value nextValue = IteratorObject::iteratorValue(state, next.value());
+        RETURN_VALUE_IF_PENDING_EXCEPTION
 
-        try {
-            Value argv[1] = { nextValue };
-            Object::call(state, add, weakSet, 1, argv);
-        } catch (const Value& v) {
-            Value exceptionValue = v;
+        Value argv[1] = { nextValue };
+        Object::call(state, add, weakSet, 1, argv);
+        if (UNLIKELY(state.hasPendingException())) {
+            Value exceptionValue = state.detachPendingException();
             return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
         }
     }
@@ -75,17 +78,17 @@ static Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, s
     return weakSet;
 }
 
-#define RESOLVE_THIS_BINDING_TO_WEAKSET(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                    \
-    if (!thisValue.isObject() || !thisValue.asObject()->isWeakSetObject()) {                                                                                                                                                                           \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                  \
+#define RESOLVE_THIS_BINDING_TO_WEAKSET(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                      \
+    if (!thisValue.isObject() || !thisValue.asObject()->isWeakSetObject()) {                                                                                                                                                                             \
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                    \
     WeakSetObject* NAME = thisValue.asObject()->asWeakSetObject();
 
 static Value builtinWeakSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKSET(S, WeakSet, add);
     if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid value used as weak set key");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "Invalid value used as weak set key");
     }
 
     S->add(state, argv[0].asObject());

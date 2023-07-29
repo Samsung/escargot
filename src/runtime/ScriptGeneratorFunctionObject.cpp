@@ -77,8 +77,8 @@ Value ScriptGeneratorFunctionObject::construct(ExecutionState& state, const size
 {
     ExecutionState newState(m_codeBlock->context(), &state,
                             static_cast<LexicalEnvironment*>(nullptr), argc, argv, m_codeBlock->asInterpretedCodeBlock()->isStrict());
-    ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, "Generator cannot be invoked with 'new'");
-    ASSERT_NOT_REACHED();
-    return Value();
+    // set exception for upper state
+    state.setPendingException();
+    THROW_BUILTIN_ERROR_RETURN_VALUE(newState, ErrorCode::TypeError, "Generator cannot be invoked with 'new'");
 }
 } // namespace Escargot

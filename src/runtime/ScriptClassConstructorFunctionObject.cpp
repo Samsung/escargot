@@ -61,21 +61,24 @@ ScriptClassConstructorFunctionObject::ScriptClassConstructorFunctionObject(Execu
 Value ScriptClassConstructorFunctionObject::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
 {
     ExecutionState newState(m_codeBlock->context(), &state, static_cast<LexicalEnvironment*>(nullptr), argc, argv, m_codeBlock->asInterpretedCodeBlock()->isStrict());
-    ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, "Class constructor cannot be invoked without 'new'");
-    return Value();
+    // set exception for upper state
+    state.setPendingException();
+    THROW_BUILTIN_ERROR_RETURN_VALUE(newState, ErrorCode::TypeError, "Class constructor cannot be invoked without 'new'");
 }
 
 class ScriptClassConstructorFunctionObjectThisValueBinder {
 public:
-    Value operator()(ExecutionState& callerState, ExecutionState& calleeState, ScriptClassConstructorFunctionObject* self, const Value& thisArgument, bool isStrict)
+    Value operator()(ExecutionState& callerState, ExecutionState& state, ScriptClassConstructorFunctionObject* self, const Value& thisArgument, bool isStrict)
     {
         // Let envRec be localEnv’s EnvironmentRecord.
         // Assert: The next step never returns an abrupt completion because envRec.[[thisBindingStatus]] is not "uninitialized".
         // Return envRec.BindThisValue(thisValue).
         if (self->constructorKind() == ScriptFunctionObject::ConstructorKind::Base) {
-            FunctionEnvironmentRecord* r = calleeState.lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-            r->bindThisValue(calleeState, thisArgument);
-            r->functionObject()->asScriptClassConstructorFunctionObject()->initInstanceFieldMembers(calleeState, thisArgument.asObject());
+            FunctionEnvironmentRecord* r = state.lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+            r->bindThisValue(state, thisArgument);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
+            r->functionObject()->asScriptClassConstructorFunctionObject()->initInstanceFieldMembers(state, thisArgument.asObject());
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
 
         return thisArgument;
@@ -96,6 +99,10 @@ public:
     {
         // Let result be OrdinaryCallEvaluateBody(F, argumentsList).
         const Value& result = interpreterReturnValue;
+        if (UNLIKELY(result.isException())) {
+            return interpreterReturnValue;
+        }
+
         // If result.[[type]] is return, then
         // If Type(result.[[value]]) is Object, return NormalCompletion(result.[[value]]).
         if (result.isObject()) {
@@ -107,7 +114,7 @@ public:
         }
         // If result.[[value]] is not undefined, throw a TypeError exception.
         if (!result.isUndefined()) {
-            ErrorObject::throwBuiltinError(callerState, ErrorCode::TypeError, ErrorObject::Messages::InvalidDerivedConstructorReturnValue);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(callerState, ErrorCode::TypeError, ErrorObject::Messages::InvalidDerivedConstructorReturnValue);
         }
         // Else, ReturnIfAbrupt(result).
         // Return envRec.GetThisBinding().
@@ -129,6 +136,7 @@ Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, con
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {
             return constructorRealm->globalObject()->objectPrototype();
         });
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // Set the [[Prototype]] internal slot of obj to proto.
         thisArgument = new Object(state, proto);
         // ReturnIfAbrupt(thisArgument).
@@ -171,6 +179,7 @@ void ScriptClassConstructorFunctionObject::initInstanceFieldMembers(ExecutionSta
         } else {
             ASSERT(kind == ScriptClassConstructorFunctionObject::NotPrivate || kind == ScriptClassConstructorFunctionObject::PrivateFieldValue);
         }
+        RETURN_IF_PENDING_EXCEPTION
     }
 
     // phase 2
@@ -184,6 +193,7 @@ void ScriptClassConstructorFunctionObject::initInstanceFieldMembers(ExecutionSta
         case ScriptClassConstructorFunctionObject::PrivateFieldValue:
             if (!value.isUndefined()) {
                 value = value.asPointerValue()->asScriptVirtualArrowFunctionObject()->call(state, Value(instance), homeObject);
+                RETURN_IF_PENDING_EXCEPTION
             }
             break;
         default:
@@ -192,11 +202,13 @@ void ScriptClassConstructorFunctionObject::initInstanceFieldMembers(ExecutionSta
 
         if (kind == ScriptClassConstructorFunctionObject::NotPrivate) {
             instance->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, name), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
+            ASSERT(!state.hasPendingException());
         } else if (kind == ScriptClassConstructorFunctionObject::PrivateFieldValue) {
             instance->addPrivateField(state, privateContextObject, AtomicString(state, name.asString()), value);
         } else {
             ASSERT(kind == ScriptClassConstructorFunctionObject::PrivateFieldMethod || kind == ScriptClassConstructorFunctionObject::PrivateFieldGetter || kind == ScriptClassConstructorFunctionObject::PrivateFieldSetter);
         }
+        RETURN_IF_PENDING_EXCEPTION
     }
 }
 

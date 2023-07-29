@@ -93,6 +93,7 @@ struct BigIntegralArrayAdaptor {
     static Type toNative(ExecutionState& state, const Value& val)
     {
         auto n = val.toBigInt(state);
+        RETURN_ZERO_IF_PENDING_EXCEPTION
         if (std::is_same<Type, uint64_t>::value) {
             return n->toUint64();
         } else {

@@ -110,6 +110,7 @@ static String* createFunctionSource(ExecutionState& state, AtomicString function
 
     String* parameterStr = parameters.finalize(&state);
     String* originBodyStr = bodyValue.toString(state);
+    RETURN_NULL_IF_PENDING_EXCEPTION
     String* scriptSource = nullptr;
 
 #if defined(ENABLE_RELOADABLE_STRING)
@@ -233,6 +234,9 @@ static String* createFunctionSource(ExecutionState& state, AtomicString function
 FunctionObject::FunctionSource FunctionObject::createDynamicFunctionScript(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyValue, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource, String* sourceName)
 {
     String* scriptSource = createFunctionSource(state, functionName, argCount, argArray, bodyValue, useStrict, isGenerator, isAsync, isInternalSource);
+    if (UNLIKELY(state.hasPendingException())) {
+        return FunctionObject::FunctionSource();
+    }
 
     ScriptParser parser(state.context());
     String* srcName = sourceName;
@@ -246,6 +250,9 @@ FunctionObject::FunctionSource FunctionObject::createDynamicFunctionScript(Execu
     }
 
     Script* script = parser.initializeScript(nullptr, 0, scriptSource, srcName, nullptr, false, false, false, false, false, allowSuperCall, false, true, false).scriptThrowsExceptionIfParseError(state);
+    if (UNLIKELY(state.hasPendingException())) {
+        return FunctionObject::FunctionSource();
+    }
 
     InterpretedCodeBlock* cb = script->topCodeBlock()->childBlockAt(0);
     // mark it as dynamic code

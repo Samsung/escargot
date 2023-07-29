@@ -31,19 +31,23 @@ typedef VectorWithInlineStorage<48, std::pair<ObjectPropertyName, ObjectStructur
 
 static Value builtinObject__proto__Getter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return thisValue.toObject(state)->getPrototype(state);
+    Object* obj = thisValue.toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    return obj->getPrototype(state);
 }
 
 static Value builtinObject__proto__Setter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value value = argv[0];
     Object* thisObject = thisValue.toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Setting __proto__ to a non-object, non-null value is ignored
     if (!value.isObject() && !value.isNull()) {
         return Value();
     }
     if (!thisObject->setPrototype(state, value)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "can't set prototype of this object");
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "can't set prototype of this object");
     }
     return Value();
 }
@@ -56,6 +60,7 @@ static Value builtinObjectConstructor(ExecutionState& state, Value thisValue, si
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
             return constructorRealm->globalObject()->objectPrototype();
         });
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         return new Object(state, proto);
     }
 
@@ -82,7 +87,8 @@ static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisVal
     }
     Object* o = argv[0].asObject();
     if (!o->preventExtensions(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().preventExtensions.string(), "PreventExtensions is false");
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().preventExtensions.string(), "PreventExtensions is false");
     }
     return o;
 }
@@ -98,11 +104,14 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
     }
 
     Object* thisObject = thisValue.toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // check isArray first
     bool isArray = thisObject->isArray(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     Value toStringTag = thisObject->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag)).value(state, thisObject);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (toStringTag.isString()) {
         String* tag = toStringTag.asString();
         auto bad = tag->bufferAccessData();
@@ -159,13 +168,18 @@ static Value builtinObjectToString(ExecutionState& state, Value thisValue, size_
 static Value builtinObjectHasOwn(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Object* obj = argv[0].toObject(state);
-    return Value(obj->hasOwnProperty(state, ObjectPropertyName(state, argv[1])));
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    ObjectPropertyName key = ObjectPropertyName(state, argv[1]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    return Value(obj->hasOwnProperty(state, key));
 }
 
 static Value builtinObjectHasOwnProperty(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ObjectPropertyName key(state, argv[0]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     Object* obj = thisValue.toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return Value(obj->hasOwnProperty(state, key));
 }
 
@@ -174,12 +188,13 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
     const StaticStrings* strings = &state.context()->staticStrings();
 
     if (!object.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Object.string(), false, strings->defineProperty.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotObject);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, strings->Object.string(), false, strings->defineProperty.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotObject);
     }
 
     Object* O = object.asObject();
     // Let props be ? ToObject(Properties).
     Object* props = properties.toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let keys be ? props.[[OwnPropertyKeys]]().
     Object::OwnPropertyKeyVector keys = props->ownPropertyKeys(state);
@@ -189,17 +204,20 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
     for (size_t i = 0; i < keys.size(); i++) {
         // Let propDesc be ? props.[[GetOwnProperty]](nextKey).
         ObjectPropertyName nextKey(state, keys[i]);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         ObjectGetResult propDesc = props->getOwnProperty(state, nextKey);
         // If propDesc is not undefined and propDesc.[[Enumerable]] is true, then
         if (propDesc.hasValue() && propDesc.isEnumerable()) {
             // Let descObj be ? Get(props, nextKey).
             Value descVal = propDesc.value(state, props);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             if (!descVal.isObject()) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), ErrorObject::Messages::GlobalObject_DescriptorNotObject);
+                THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), ErrorObject::Messages::GlobalObject_DescriptorNotObject);
             }
 
             // Let desc be ? ToPropertyDescriptor(descObj).
             ObjectPropertyDescriptor desc(state, descVal.asObject());
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             // Append the pair (a two element List) consisting of nextKey and desc to the end of descriptors.
             descriptors.push_back(std::make_pair(nextKey, desc));
         }
@@ -211,6 +229,7 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
         // Let desc be the second element of pair.
         // Perform ? DefinePropertyOrThrow(O, P, desc).
         O->defineOwnPropertyThrowsException(state, it.first, it.second);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     }
 
     return O;
@@ -219,13 +238,14 @@ static Value objectDefineProperties(ExecutionState& state, Value object, Value p
 static Value builtinObjectCreate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isObject() && !argv[0].isNull())
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().create.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotObjectAndNotNull);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().create.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotObjectAndNotNull);
     Object* obj;
     if (argv[0].isNull()) {
         obj = new Object(state, Object::PrototypeIsNull);
     } else {
         obj = new Object(state);
         obj->setPrototype(state, argv[0]);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     }
 
     if (!argv[1].isUndefined())
@@ -243,21 +263,24 @@ static Value builtinObjectDefineProperty(ExecutionState& state, Value thisValue,
     // Object.defineProperty ( O, P, Attributes )
     // If Type(O) is not Object, throw a TypeError exception.
     if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotObject);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().defineProperty.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotObject);
     }
     Object* O = argv[0].asObject();
 
     // Let key be ToPropertyKey(P).
     ObjectPropertyName key = ObjectPropertyName(state, argv[1]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let desc be ToPropertyDescriptor(Attributes).
     if (!argv[2].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Property description must be an object");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "Property description must be an object");
     }
 
     ObjectPropertyDescriptor desc(state, argv[2].asObject());
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     O->defineOwnPropertyThrowsException(state, key, desc);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return O;
 }
 
@@ -277,6 +300,7 @@ static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, 
     while (true) {
         // Let V be the value of the [[Prototype]] internal property of V.
         V = V.toObject(state)->getPrototype(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // if V is null, return false
         if (!V.isObject())
             return Value(false);
@@ -291,6 +315,7 @@ static Value builtinObjectPropertyIsEnumerable(ExecutionState& state, Value this
 {
     // Let P be toPropertyKey(V).
     ObjectPropertyName P(state, argv[0]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let O be the result of calling ToObject passing the this value as the argument.
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, propertyIsEnumerable);
@@ -313,12 +338,15 @@ static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue,
     // Return ? Invoke(O, "toString").
     RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, toLocaleString);
     Value toString = O->get(state, ObjectPropertyName(state.context()->staticStrings().toString)).value(state, thisValue);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return Object::call(state, toString, thisValue, 0, nullptr);
 }
 
 static Value builtinObjectGetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return argv[0].toObject(state)->getPrototype(state);
+    Object* obj = argv[0].toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    return obj->getPrototype(state);
 }
 
 static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -331,13 +359,13 @@ static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue,
     // 1. Let O be RequireObjectCoercible(O).
     // 2. ReturnIfAbrupt(O).
     if (object.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "");
         return Value();
     }
 
     // 3. If Type(proto) is neither Object nor Null, throw a TypeError exception.
     if (!proto.isObject() && !proto.isNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "");
         return Value();
     }
 
@@ -348,11 +376,13 @@ static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue,
 
     // 5. Let status be O.[[SetPrototypeOf]](proto).
     Object* obj = object.toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     bool status = obj->setPrototype(state, proto);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // 7. If status is false, throw a TypeError exception.
     if (!status) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "can't set prototype of this object");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "can't set prototype of this object");
         return Value();
     }
 
@@ -371,7 +401,8 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
     // Let status be ? SetIntegrityLevel(O, frozen).
     // If status is false, throw a TypeError exception.
     if (!Object::setIntegrityLevel(state, O, false)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().freeze.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().freeze.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // Return O.
@@ -381,41 +412,55 @@ static Value builtinObjectFreeze(ExecutionState& state, Value thisValue, size_t 
 static Value builtinObjectFromEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (argv[0].isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().fromEntries.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().fromEntries.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
     Value iterable = argv[0];
     Object* obj = new Object(state);
 
     auto iteratorRecord = IteratorObject::getIterator(state, iterable);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     while (true) {
-        auto next = IteratorObject::iteratorStep(state, iteratorRecord);
-        if (!next.hasValue()) {
-            return obj;
-        }
+        {
+            auto next = IteratorObject::iteratorStep(state, iteratorRecord);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
+            if (!next.hasValue()) {
+                return obj;
+            }
 
-        Value nextItem = IteratorObject::iteratorValue(state, next.value());
-        if (!nextItem.isObject()) {
-            ErrorObject* errorobj = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("TypeError"));
-            return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);
-        }
+            Value nextItem = IteratorObject::iteratorValue(state, next.value());
+            RETURN_VALUE_IF_PENDING_EXCEPTION
+            if (!nextItem.isObject()) {
+                ErrorObject* errorobj = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("TypeError"));
+                return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);
+            }
 
-        try {
             // Let k be Get(nextItem, "0").
             // If k is an abrupt completion, return ? IteratorClose(iter, k).
             Value k = nextItem.asObject()->getIndexedProperty(state, Value(0)).value(state, nextItem);
+            if (state.hasPendingException())
+                goto IfAbrupt;
             // Let v be Get(nextItem, "1").
             // If v is an abrupt completion, return ? IteratorClose(iter, v).
             Value v = nextItem.asObject()->getIndexedProperty(state, Value(1)).value(state, nextItem);
+            if (state.hasPendingException())
+                goto IfAbrupt;
 
             ObjectPropertyName key(state, k);
+            if (state.hasPendingException())
+                goto IfAbrupt;
             obj->defineOwnPropertyThrowsException(state, key,
                                                   ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
-        } catch (const Value& v) {
-            // we should save thrown value bdwgc cannot track thrown value
-            Value exceptionValue = v;
-            // If status is an abrupt completion, return ? IteratorClose(iteratorRecord, status).
-            return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
+            if (state.hasPendingException())
+                goto IfAbrupt;
+            continue;
         }
+
+    IfAbrupt : {
+        ASSERT(state.hasPendingException());
+        Value exceptionValue = state.detachPendingException();
+        // If status is an abrupt completion, return ? IteratorClose(iteratorRecord, status).
+        return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
+    }
     }
 
     return obj;
@@ -426,23 +471,29 @@ static Value builtinObjectGetOwnPropertyDescriptor(ExecutionState& state, Value 
 {
     // Let obj be ToObject(O).
     Object* O = argv[0].toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let desc be ? obj.[[GetOwnProperty]](key).
     // Return FromPropertyDescriptor(desc).
-    return O->getOwnPropertyDescriptor(state, ObjectPropertyName(state, argv[1]));
+    ObjectPropertyName key = ObjectPropertyName(state, argv[1]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    return O->getOwnPropertyDescriptor(state, key);
 }
 
 // https://262.ecma-international.org/#sec-object.getownpropertydescriptors
 static Value builtinObjectGetOwnPropertyDescriptors(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Object* obj = argv[0].toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     auto ownKeys = obj->ownPropertyKeys(state);
     Object* descriptors = new Object(state);
 
     for (uint64_t i = 0; i < ownKeys.size(); i++) {
-        Value descriptor = obj->getOwnPropertyDescriptor(state, ObjectPropertyName(state, ownKeys[i]));
+        ObjectPropertyName key = ObjectPropertyName(state, ownKeys[i]);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        Value descriptor = obj->getOwnPropertyDescriptor(state, key);
         if (!descriptor.isUndefined()) {
-            descriptors->defineOwnProperty(state, ObjectPropertyName(state, ownKeys[i]), ObjectPropertyDescriptor(descriptor, ObjectPropertyDescriptor::AllPresent));
+            descriptors->defineOwnProperty(state, key, ObjectPropertyDescriptor(descriptor, ObjectPropertyDescriptor::AllPresent));
         }
     }
     return descriptors;
@@ -490,6 +541,7 @@ static Value builtinObjectGetOwnPropertyNames(ExecutionState& state, Value thisV
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-object.getownpropertynames
     Object* O = argv[0].toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return getOwnPropertyKeys(state, O, GetOwnPropertyKeysType::String);
 }
 
@@ -497,6 +549,7 @@ static Value builtinObjectGetOwnPropertySymbols(ExecutionState& state, Value thi
 {
     // https://www.ecma-international.org/ecma-262/6.0/#sec-object.getownpropertysymbols
     Object* O = argv[0].toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return getOwnPropertyKeys(state, O, GetOwnPropertyKeysType::Symbol);
 }
 
@@ -539,7 +592,8 @@ static Value builtinObjectSeal(ExecutionState& state, Value thisValue, size_t ar
     // Let status be ? SetIntegrityLevel(O, sealed).
     // If status is false, throw a TypeError exception.
     if (!Object::setIntegrityLevel(state, O, true)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().seal.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // Return O.
@@ -551,6 +605,7 @@ static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t 
     // Object.assign ( target, ...sources )
     // Let to be ? ToObject(target).
     Object* to = argv[0].toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // If only one argument was passed, return to.
     if (argc == 1) {
         return to;
@@ -565,6 +620,7 @@ static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t 
         if (!nextSource.isUndefinedOrNull()) {
             // Let from be ! ToObject(nextSource).
             from = nextSource.toObject(state);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             // Let keys be ? from.[[OwnPropertyKeys]]().
             keys = from->ownPropertyKeys(state);
         }
@@ -572,19 +628,23 @@ static Value builtinObjectAssign(ExecutionState& state, Value thisValue, size_t 
         // For each element nextKey of keys in List order, do
         for (size_t i = 0; i < keys.size(); i++) {
             Value nextKey = keys[i];
+            ObjectPropertyName key = ObjectPropertyName(state, nextKey);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             // Let desc be ? from.[[GetOwnProperty]](nextKey).
-            auto desc = from->getOwnProperty(state, ObjectPropertyName(state, nextKey));
+            auto desc = from->getOwnProperty(state, key);
             // If desc is not undefined and desc.[[Enumerable]] is true, then
             if (desc.hasValue() && desc.isEnumerable()) {
                 // Let propValue be ? Get(from, nextKey).
                 Value propValue;
                 if (from->isProxyObject()) {
-                    propValue = from->get(state, ObjectPropertyName(state, Value(nextKey))).value(state, from);
+                    propValue = from->get(state, key).value(state, from);
                 } else {
                     propValue = desc.value(state, from);
                 }
+                RETURN_VALUE_IF_PENDING_EXCEPTION
                 // Perform ? Set(to, nextKey, propValue, true).
-                to->setThrowsException(state, ObjectPropertyName(state, nextKey), propValue, to);
+                to->setThrowsException(state, key, propValue, to);
+                RETURN_VALUE_IF_PENDING_EXCEPTION
             }
         }
     }
@@ -605,6 +665,7 @@ static Value builtinObjectKeys(ExecutionState& state, Value thisValue, size_t ar
 
     // Let obj be ? ToObject(O).
     Object* obj = argv[0].toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Let nameList be ? EnumerableOwnProperties(obj, "key").
     auto nameList = Object::enumerableOwnProperties(state, obj, EnumerableOwnPropertiesType::Key);
     // Return CreateArrayFromList(nameList).
@@ -617,6 +678,7 @@ static Value builtinObjectValues(ExecutionState& state, Value thisValue, size_t 
 
     // Let obj be ? ToObject(O).
     Object* obj = argv[0].toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Let nameList be ? EnumerableOwnProperties(obj, "value").
     auto nameList = Object::enumerableOwnProperties(state, obj, EnumerableOwnPropertiesType::Value);
     // Return CreateArrayFromList(nameList).
@@ -629,6 +691,7 @@ static Value builtinObjectEntries(ExecutionState& state, Value thisValue, size_t
 
     // Let obj be ? ToObject(O).
     Object* obj = argv[0].toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Let nameList be ? EnumerableOwnProperties(obj, "key+value").
     auto nameList = Object::enumerableOwnProperties(state, obj, EnumerableOwnPropertiesType::KeyAndValue);
     // Return CreateArrayFromList(nameList).
@@ -640,21 +703,24 @@ static Value builtinDefineGetter(ExecutionState& state, Value thisValue, size_t 
 {
     // Let O be ? ToObject(this value).
     Object* O = thisValue.toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // If IsCallable(getter) is false, throw a TypeError exception.
     if (!argv[1].isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, String::emptyString, true, state.context()->staticStrings().__defineGetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, String::emptyString, true, state.context()->staticStrings().__defineGetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
     // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
     ObjectPropertyDescriptor desc(JSGetterSetter(argv[1].asObject(), Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
 
     // Let key be ? ToPropertyKey(P).
     ObjectPropertyName key(state, argv[0]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
 // Perform ? DefinePropertyOrThrow(O, key, desc).
 #if defined(ENABLE_V8_LIKE_DEFINE_LOOKUP_GETTER_SETTER)
     O->defineOwnProperty(state, key, desc);
 #else
     O->defineOwnPropertyThrowsException(state, key, desc);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 #endif
 
     // Return undefined.
@@ -666,21 +732,24 @@ static Value builtinDefineSetter(ExecutionState& state, Value thisValue, size_t 
 {
     // Let O be ? ToObject(this value).
     Object* O = thisValue.toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // If IsCallable(getter) is false, throw a TypeError exception.
     if (!argv[1].isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, String::emptyString, true, state.context()->staticStrings().__defineSetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, String::emptyString, true, state.context()->staticStrings().__defineSetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
     // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
     ObjectPropertyDescriptor desc(JSGetterSetter(Value(Value::EmptyValue), argv[1].asObject()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
 
     // Let key be ? ToPropertyKey(P).
     ObjectPropertyName key(state, argv[0]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
 // Perform ? DefinePropertyOrThrow(O, key, desc).
 #if defined(ENABLE_V8_LIKE_DEFINE_LOOKUP_GETTER_SETTER)
     O->defineOwnProperty(state, key, desc);
 #else
     O->defineOwnPropertyThrowsException(state, key, desc);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 #endif
 
     // Return undefined.
@@ -692,8 +761,10 @@ static Value builtinLookupGetter(ExecutionState& state, Value thisValue, size_t 
 {
     // Let O be ? ToObject(this value).
     Object* O = thisValue.toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Let key be ? ToPropertyKey(P).
     ObjectPropertyName key(state, argv[0]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Repeat,
     while (O) {
@@ -721,8 +792,10 @@ static Value builtinLookupSetter(ExecutionState& state, Value thisValue, size_t 
 {
     // Let O be ? ToObject(this value).
     Object* O = thisValue.toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Let key be ? ToPropertyKey(P).
     ObjectPropertyName key(state, argv[0]);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Repeat,
     while (O) {

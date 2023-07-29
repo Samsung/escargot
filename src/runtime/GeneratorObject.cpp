@@ -53,17 +53,17 @@ void* GeneratorObject::operator new(size_t size)
 GeneratorObject* GeneratorObject::generatorValidate(ExecutionState& state, const Value& generator)
 {
     if (!generator.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
     if (!generator.asObject()->isGeneratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Generator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, state.context()->staticStrings().Generator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     GeneratorObject* gen = generator.asObject()->asGeneratorObject();
 
     if (gen->generatorState() == GeneratorObject::GeneratorState::Executing) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Generator is already running");
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, "Generator is already running");
     }
 
     return gen;
@@ -73,6 +73,7 @@ GeneratorObject* GeneratorObject::generatorValidate(ExecutionState& state, const
 Value GeneratorObject::generatorResume(ExecutionState& state, const Value& generator, const Value& value)
 {
     GeneratorObject* gen = generatorValidate(state, generator);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     if (gen->m_generatorState >= GeneratorObject::GeneratorState::CompletedReturn) {
         return IteratorObject::createIterResultObject(state, Value(), true);
@@ -88,6 +89,7 @@ Value GeneratorObject::generatorResume(ExecutionState& state, const Value& gener
 Value GeneratorObject::generatorResumeAbrupt(ExecutionState& state, const Value& generator, const Value& value, GeneratorObject::GeneratorAbruptType type)
 {
     GeneratorObject* gen = generatorValidate(state, generator);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     if (gen->m_generatorState == GeneratorObject::GeneratorState::SuspendedStart) {
         gen->m_generatorState = GeneratorObject::GeneratorState::CompletedReturn;
@@ -97,7 +99,7 @@ Value GeneratorObject::generatorResumeAbrupt(ExecutionState& state, const Value&
         if (type == GeneratorObject::GeneratorAbruptType::Return) {
             return IteratorObject::createIterResultObject(state, value, true);
         }
-        state.throwException(value);
+        THROW_EXCEPTION_RETURN_VALUE(state, value);
     }
 
     ASSERT(gen->generatorState() == GeneratorObject::GeneratorState::SuspendedYield);

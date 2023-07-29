@@ -178,13 +178,10 @@ void FinalizationRegistryObject::finalizer(Object* self, void* data)
         }
 
         if (!wasCallbackDeleted) {
-            try {
-                ExecutionState tempState(item->source->m_realm);
-                Value argv = item->heldValue;
-                Object::call(tempState, item->source->m_cleanupCallback.value(), Value(), 1, &argv);
-            } catch (const Value& v) {
-                // do nothing
-            }
+            ExecutionState tempState(item->source->m_realm);
+            Value argv = item->heldValue;
+            Object::call(tempState, item->source->m_cleanupCallback.value(), Value(), 1, &argv);
+            ASSERT(!tempState.hasPendingException());
         }
     }
 

@@ -53,17 +53,17 @@ Value ScriptVirtualArrowFunctionObject::call(ExecutionState& state, const Value&
 {
     ExecutionState newState(m_codeBlock->context(), &state,
                             static_cast<LexicalEnvironment*>(nullptr), argc, argv, m_codeBlock->asInterpretedCodeBlock()->isStrict());
-    ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, "This function cannot be invoked");
-    ASSERT_NOT_REACHED();
-    return Value();
+    // set exception for upper state
+    state.setPendingException();
+    THROW_BUILTIN_ERROR_RETURN_VALUE(newState, ErrorCode::TypeError, "This function cannot be invoked");
 }
 
 Value ScriptVirtualArrowFunctionObject::construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget)
 {
     ExecutionState newState(m_codeBlock->context(), &state,
                             static_cast<LexicalEnvironment*>(nullptr), argc, argv, m_codeBlock->asInterpretedCodeBlock()->isStrict());
-    ErrorObject::throwBuiltinError(newState, ErrorCode::TypeError, "This function cannot be invoked");
-    ASSERT_NOT_REACHED();
-    return Value();
+    // set exception for upper state
+    state.setPendingException();
+    THROW_BUILTIN_ERROR_RETURN_VALUE(newState, ErrorCode::TypeError, "This function cannot be invoked");
 }
 } // namespace Escargot

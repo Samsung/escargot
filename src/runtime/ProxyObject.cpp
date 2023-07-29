@@ -52,8 +52,7 @@ void* ProxyObject::operator new(size_t size)
 Context* ProxyObject::getFunctionRealm(ExecutionState& state)
 {
     if (m_handler == nullptr) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return nullptr;
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, state.context()->staticStrings().Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
     }
 
     return m_target->getFunctionRealm(state);
@@ -67,12 +66,12 @@ ProxyObject* ProxyObject::createProxy(ExecutionState& state, const Value& target
 
     // If Type(target) is not Object, throw a TypeError exception.
     if (!target.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'target\' argument of Proxy must be an object");
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'target\' argument of Proxy must be an object");
     }
 
     // If Type(handler) is not Object, throw a TypeError exception.
     if (!handler.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'handler\' argument of Proxy must be an object");
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: \'handler\' argument of Proxy must be an object");
     }
 
     // Let P be ! MakeBasicObject(« [[ProxyHandler]], [[ProxyTarget]] »).
@@ -105,8 +104,7 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     auto strings = &state.context()->staticStrings();
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return false;
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
     }
 
     // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -122,6 +120,7 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     // 7. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->defineProperty.string()));
+    RETURN_ZERO_IF_PENDING_EXCEPTION
 
     // 8. If trap is undefined, then
     // a. Return target.[[DefineOwnProperty]](P, Desc).
@@ -132,9 +131,10 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     // 9. Let descObj be FromPropertyDescriptor(Desc).
     // 10. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target, P, descObj»)).
     // 11. ReturnIfAbrupt(booleanTrapResult).
-    bool booleanTrapResult;
     Value arguments[] = { target, P.toPropertyKeyValue(), Value(ObjectPropertyDescriptor::fromObjectPropertyDescriptor(state, desc)) };
-    booleanTrapResult = Object::call(state, trap, handler, 3, arguments).toBoolean(state);
+    Value trapResult = Object::call(state, trap, handler, 3, arguments);
+    RETURN_ZERO_IF_PENDING_EXCEPTION
+    bool booleanTrapResult = trapResult.toBoolean(state);
 
     // 12. If booleanTrapResult is false, return false.
     if (!booleanTrapResult) {
@@ -160,21 +160,18 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     // b. If settingConfigFalse is true, throw a TypeError exception.
     if (!targetDesc.hasValue()) {
         if (!extensibleTarget || settingConfigFalse) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-            return false;
+            THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
         }
     } else {
         // 20. Else targetDesc is not undefined,
         // a. If IsCompatiblePropertyDescriptor(extensibleTarget, Desc , targetDesc) is false, throw a TypeError exception.
         // b. If settingConfigFalse is true and targetDesc.[[Configurable]] is true, throw a TypeError exception.
         if (!Object::isCompatiblePropertyDescriptor(state, extensibleTarget, desc, targetDesc) || (settingConfigFalse && targetDesc.isConfigurable())) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-            return false;
+            THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
         }
         if (targetDesc.isDataProperty() && !targetDesc.isConfigurable() && targetDesc.isWritable()) {
             if (desc.isWritablePresent() && !desc.isWritable()) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-                return false;
+                THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
             }
         }
     }
@@ -187,8 +184,7 @@ bool ProxyObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
     auto strings = &state.context()->staticStrings();
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return false;
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
     }
 
     // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -204,6 +200,7 @@ bool ProxyObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
     // 7. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->deleteProperty.string()));
+    RETURN_ZERO_IF_PENDING_EXCEPTION
 
     // 8. If trap is undefined, then
     // a. Return target.[[Delete]](P).
@@ -213,9 +210,10 @@ bool ProxyObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
 
     // 9. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target, P»)).
     // 10. ReturnIfAbrupt(booleanTrapResult).
-    bool booleanTrapResult;
     Value arguments[] = { target, P.toPropertyKeyValue() };
-    booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean(state);
+    Value trapResult = Object::call(state, trap, handler, 2, arguments);
+    RETURN_ZERO_IF_PENDING_EXCEPTION
+    bool booleanTrapResult = trapResult.toBoolean(state);
 
     // 11. If booleanTrapResult is false, return false.
     if (!booleanTrapResult) {
@@ -232,12 +230,10 @@ bool ProxyObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
 
     // 15. If targetDesc.[[Configurable]] is false, throw a TypeError exception.
     if (!targetDesc.isConfigurable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-        return false;
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
     }
     if (!target.asObject()->isExtensible(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-        return false;
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
     }
     return true;
 }
@@ -247,6 +243,7 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
     auto strings = &state.context()->staticStrings();
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
+        // return exception done!
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
         return ObjectGetResult();
     }
@@ -264,6 +261,9 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
     // 7. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->getOwnPropertyDescriptor.string()));
+    if (UNLIKELY(state.hasPendingException())) {
+        return ObjectGetResult();
+    }
 
     // 8. If trap is undefined, then
     // a. Return target.[[GetOwnProperty]](P).
@@ -276,9 +276,13 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
     Value trapResultObj;
     Value arguments[] = { target, P.toPropertyKeyValue() };
     trapResultObj = Object::call(state, trap, handler, 2, arguments);
+    if (UNLIKELY(state.hasPendingException())) {
+        return ObjectGetResult();
+    }
 
     // 11. If Type(trapResultObj) is neither Object nor Undefined, throw a TypeError exception.
     if (!trapResultObj.isObject() && !trapResultObj.isUndefined()) {
+        // return exception done!
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
         return ObjectGetResult();
     }
@@ -294,6 +298,7 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
         }
         // b. If targetDesc.[[Configurable]] is false, throw a TypeError exception.
         if (!targetDesc.isConfigurable()) {
+            // return exception done!
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
             return ObjectGetResult();
         }
@@ -303,6 +308,7 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
         bool extensibleTarget = target.asObject()->isExtensible(state);
         // f. If extensibleTarget is false, throw a TypeError exception.
         if (!extensibleTarget) {
+            // return exception done!
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
             return ObjectGetResult();
         }
@@ -319,17 +325,23 @@ ObjectGetResult ProxyObject::getOwnProperty(ExecutionState& state, const ObjectP
     // 20. Let valid be IsCompatiblePropertyDescriptor (extensibleTarget, resultDesc, targetDesc).
     // 21. If valid is false, throw a TypeError exception.
     if (!Object::isCompatiblePropertyDescriptor(state, target.asObject()->isExtensible(state), resultDesc, targetDesc)) {
+        // return exception done!
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Proxy::getOwnPropertyDescriptor error");
+        return ObjectGetResult();
     }
     // 22. If resultDesc.[[Configurable]] is false, then
     if (!resultDesc.isConfigurable()) {
         // a. If targetDesc is undefined or targetDesc.[[Configurable]] is true, then
         if (!targetDesc.hasValue() || targetDesc.isConfigurable()) {
             // i. Throw a TypeError exception.
+            // return exception done!
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Proxy::getOwnPropertyDescriptor error");
+            return ObjectGetResult();
         }
         if (resultDesc.isWritablePresent() && !resultDesc.isWritable() && targetDesc.isWritable()) {
+            // return exception done!
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Proxy::getOwnPropertyDescriptor error");
+            return ObjectGetResult();
         }
     }
 
@@ -345,8 +357,7 @@ bool ProxyObject::preventExtensions(ExecutionState& state)
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return false;
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
     }
 
     // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -362,6 +373,7 @@ bool ProxyObject::preventExtensions(ExecutionState& state)
     // 6. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->preventExtensions.string()));
+    RETURN_ZERO_IF_PENDING_EXCEPTION
 
     // 7. If trap is undefined, then
     // a. Return target.[[PreventExtensions]]().
@@ -371,9 +383,10 @@ bool ProxyObject::preventExtensions(ExecutionState& state)
 
     // 8. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target»)).
     // 9. ReturnIfAbrupt(booleanTrapResult).
-    bool booleanTrapResult;
     Value arguments[] = { target };
-    booleanTrapResult = Object::call(state, trap, handler, 1, arguments).toBoolean(state);
+    Value trapResult = Object::call(state, trap, handler, 1, arguments);
+    RETURN_ZERO_IF_PENDING_EXCEPTION
+    bool booleanTrapResult = trapResult.toBoolean(state);
 
     // 10. If booleanTrapResult is true, then
     if (booleanTrapResult) {
@@ -381,8 +394,7 @@ bool ProxyObject::preventExtensions(ExecutionState& state)
         bool targetIsExtensible = target.asObject()->isExtensible(state);
         // c. If targetIsExtensible is true, throw a TypeError exception.
         if (targetIsExtensible) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-            return false;
+            THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
         }
     }
 
@@ -392,12 +404,13 @@ bool ProxyObject::preventExtensions(ExecutionState& state)
 
 ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const ObjectPropertyName& propertyName)
 {
-    CHECK_STACK_OVERFLOW(state);
+    //CHECK_STACK_OVERFLOW(state);
 
     auto strings = &state.context()->staticStrings();
 
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
+        // return exception done!
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
         return ObjectHasPropertyResult();
     }
@@ -415,6 +428,9 @@ ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const Ob
     // 7. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->has.string()));
+    if (UNLIKELY(state.hasPendingException())) {
+        return ObjectHasPropertyResult();
+    }
 
     // 8. If trap is undefined, then
     // a. Return target.[[HasProperty]](P).
@@ -433,9 +449,12 @@ ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const Ob
 
     // 9. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target, P»)).
     // 10. ReturnIfAbrupt(booleanTrapResult).
-    bool booleanTrapResult;
     Value arguments[] = { target, propertyName.toPropertyKeyValue() };
-    booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean(state);
+    Value trapResult = Object::call(state, trap, handler, 2, arguments);
+    if (UNLIKELY(state.hasPendingException())) {
+        return ObjectGetResult();
+    }
+    bool booleanTrapResult = trapResult.toBoolean(state);
 
     // 11. If booleanTrapResult is false, then
     if (!booleanTrapResult) {
@@ -445,6 +464,7 @@ ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const Ob
         if (targetDesc.hasValue()) {
             // i. If targetDesc.[[Configurable]] is false, throw a TypeError exception.
             if (!targetDesc.isConfigurable()) {
+                // return exception done!
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
                 return ObjectGetResult();
             }
@@ -452,6 +472,7 @@ ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const Ob
             bool extensibleTarget = target.asObject()->isExtensible(state);
             // iv. If extensibleTarget is false, throw a TypeError exception.
             if (!extensibleTarget) {
+                // return exception done!
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
                 return ObjectGetResult();
             }
@@ -477,6 +498,7 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
     // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
+        // return exception done!
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
         return OwnPropertyKeyVector();
     }
@@ -492,6 +514,9 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
     // 6. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->ownKeys));
+    if (UNLIKELY(state.hasPendingException())) {
+        return OwnPropertyKeyVector();
+    }
 
     // 7. If trap is undefined, then
     //  a. Return target.[[OwnPropertyKeys]]().
@@ -505,13 +530,22 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
     Value trapResultArray;
     Value arguments[] = { target };
     trapResultArray = Object::call(state, trap, handler, 1, arguments);
+    if (UNLIKELY(state.hasPendingException())) {
+        return OwnPropertyKeyVector();
+    }
+
     auto trapResult = Object::createListFromArrayLike(state, trapResultArray, (static_cast<uint8_t>(ElementTypes::String) | static_cast<uint8_t>(ElementTypes::Symbol)));
+    if (UNLIKELY(state.hasPendingException())) {
+        return OwnPropertyKeyVector();
+    }
 
     // If trapResult contains any duplicate entries, throw a TypeError exception
     for (size_t i = 0; i < trapResult.size(); i++) {
         for (size_t j = i + 1; j < trapResult.size(); j++) {
             if (trapResult[i].equalsTo(state, trapResult[j])) {
+                // return exception done!
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s Contains duplacted entries.");
+                return OwnPropertyKeyVector();
             }
         }
     }
@@ -576,6 +610,7 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
         }
         if (!found) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: the key of targetNonconfigurableKeys is not an element of uncheckedResultKeys.");
+            return OwnPropertyKeyVector();
         }
     }
 
@@ -599,11 +634,13 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
         }
         if (!found) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: the key of targetConfigurableKeys is not an element of uncheckedResultKeys.");
+            return OwnPropertyKeyVector();
         }
     }
     // 24. If uncheckedResultKeys is not empty, throw a TypeError exception.
     if (uncheckedResultKeys.size()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: uncheckedResultKeys is not empty");
+        return OwnPropertyKeyVector();
     }
 
     // 25. Return trapResult.
@@ -612,13 +649,12 @@ Object::OwnPropertyKeyVector ProxyObject::ownPropertyKeys(ExecutionState& state)
 
 bool ProxyObject::isExtensible(ExecutionState& state)
 {
-    CHECK_STACK_OVERFLOW(state);
+    //CHECK_STACK_OVERFLOW(state);
 
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return false;
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
     }
 
     // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -634,6 +670,7 @@ bool ProxyObject::isExtensible(ExecutionState& state)
     // 6. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->isExtensible.string()));
+    RETURN_ZERO_IF_PENDING_EXCEPTION
 
     // 7. If trap is undefined, then
     // a. Return target.[[IsExtensible]]().
@@ -643,17 +680,17 @@ bool ProxyObject::isExtensible(ExecutionState& state)
 
     // 8. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target»)).
     // 9. ReturnIfAbrupt(booleanTrapResult).
-    bool booleanTrapResult;
     Value arguments[] = { target };
-    booleanTrapResult = Object::call(state, trap, handler, 1, arguments).toBoolean(state);
+    Value trapResult = Object::call(state, trap, handler, 1, arguments);
+    RETURN_ZERO_IF_PENDING_EXCEPTION
+    bool booleanTrapResult = trapResult.toBoolean(state);
 
     // 10. Let targetResult be target.[[IsExtensible]]().
     bool targetResult = target.asObject()->isExtensible(state);
 
     // 12. If SameValue(booleanTrapResult, targetResult) is false, throw a TypeError exception.
     if (targetResult != booleanTrapResult) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-        return false;
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
     }
     // 13. Return booleanTrapResult.
     return booleanTrapResult;
@@ -669,7 +706,7 @@ void ProxyObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionS
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-object-internal-methods-and-internal-slots-setprototypeof-v
 bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
 {
-    CHECK_STACK_OVERFLOW(state);
+    //CHECK_STACK_OVERFLOW(state);
 
     auto strings = &state.context()->staticStrings();
     // 1. Assert: Either Type(V) is Object or Type(V) is Null.
@@ -677,8 +714,7 @@ bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
 
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return false;
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
     }
 
     // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -694,6 +730,7 @@ bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
     // 7. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->setPrototypeOf.string()));
+    RETURN_ZERO_IF_PENDING_EXCEPTION
 
     // 8. If trap is undefined, then
     // a. Return target.[[SetPrototypeOf]](V).
@@ -703,9 +740,10 @@ bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
 
     // 9. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target, V»)).
     // 10. ReturnIfAbrupt(booleanTrapResult).
-    bool booleanTrapResult;
     Value arguments[] = { target, value };
-    booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean(state);
+    Value trapResult = Object::call(state, trap, handler, 2, arguments);
+    RETURN_ZERO_IF_PENDING_EXCEPTION
+    bool booleanTrapResult = trapResult.toBoolean(state);
 
     // For ES2018 compatibility 9.5.2.9
     if (!booleanTrapResult) {
@@ -722,11 +760,11 @@ bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
 
     // 14. Let targetProto be target.[[GetPrototypeOf]]().
     Value targetProto = target.asObject()->getPrototype(state);
+    RETURN_ZERO_IF_PENDING_EXCEPTION
 
     // 16. If booleanTrapResult is true and SameValue(V, targetProto) is false, throw a TypeError exception.
     if (booleanTrapResult && value != targetProto) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-        return false;
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
     }
 
     // 17. Return booleanTrapResult.
@@ -740,6 +778,7 @@ Object* ProxyObject::getPrototypeObject(ExecutionState& state)
     }
 
     Value result = getPrototype(state);
+    RETURN_NULL_IF_PENDING_EXCEPTION
     if (result.isObject()) {
         return result.asObject();
     }
@@ -753,8 +792,7 @@ Value ProxyObject::getPrototype(ExecutionState& state)
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return Value();
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
     }
 
     // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -770,6 +808,7 @@ Value ProxyObject::getPrototype(ExecutionState& state)
     // 6. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->getPrototypeOf.string()));
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // 7. If trap is undefined, then
     // a. Return target.[[GetPrototypeOf]]().
@@ -782,11 +821,11 @@ Value ProxyObject::getPrototype(ExecutionState& state)
     Value handlerProto;
     Value arguments[] = { target };
     handlerProto = Object::call(state, trap, handler, 1, arguments);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // 10. If Type(handlerProto) is neither Object nor Null, throw a TypeError exception.
     if (!handlerProto.isObject() && !handlerProto.isNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-        return Value();
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
     }
 
     // 11. Let extensibleTarget be IsExtensible(target).
@@ -799,11 +838,11 @@ Value ProxyObject::getPrototype(ExecutionState& state)
 
     // 14. Let targetProto be target.[[GetPrototypeOf]]().
     Value targetProto = target.asObject()->getPrototype(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // 16. If SameValue(handlerProto, targetProto) is false, throw a TypeError exception.
     if (handlerProto != targetProto) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
-        return Value();
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error");
     }
 
     // 17. Return handlerProto.
@@ -813,7 +852,7 @@ Value ProxyObject::getPrototype(ExecutionState& state)
 // https://www.ecma-international.org/ecma-262/6.0/index.html#sec-proxy-object-internal-methods-and-internal-slots-get-p-receiver
 ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& receiver)
 {
-    CHECK_STACK_OVERFLOW(state);
+    //CHECK_STACK_OVERFLOW(state);
 
     auto strings = &state.context()->staticStrings();
     // 3. If handler is null, throw a TypeError exception.
@@ -835,6 +874,9 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
     // 7. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->get.string()));
+    if (UNLIKELY(state.hasPendingException())) {
+        return ObjectGetResult();
+    }
 
     // 8. If trap is undefined, then
     // a. Return target.[[Get]](P, Receiver).
@@ -847,6 +889,9 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
     Value trapResult;
     Value arguments[] = { target, propertyName.toPropertyKeyValue(), Value(this) };
     trapResult = Object::call(state, trap, handler, 3, arguments);
+    if (UNLIKELY(state.hasPendingException())) {
+        return ObjectGetResult();
+    }
 
     // 11. Let targetDesc be target.[[GetOwnProperty]](P).
     ObjectGetResult targetDesc = target.asObject()->getOwnProperty(state, propertyName);
@@ -878,13 +923,12 @@ ObjectGetResult ProxyObject::get(ExecutionState& state, const ObjectPropertyName
 // https://www.ecma-international.org/ecma-262/6.0/index.html#sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver
 bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& v, const Value& receiver)
 {
-    CHECK_STACK_OVERFLOW(state);
+    //CHECK_STACK_OVERFLOW(state);
 
     auto strings = &state.context()->staticStrings();
     // 3. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error.");
-        return false;
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error.");
     }
 
     // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -900,6 +944,7 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
     // 7. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->set.string()));
+    RETURN_ZERO_IF_PENDING_EXCEPTION
 
     // 8. If trap is undefined, then
     // a. Return target.[[Set]](P, V, Receiver).
@@ -909,9 +954,10 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
 
     // 9. Let booleanTrapResult be ToBoolean(Call(trap, handler, «target, P, V, Receiver»)).
     // 10. ReturnIfAbrupt(booleanTrapResult).
-    bool booleanTrapResult;
     Value arguments[] = { target, propertyName.toPropertyKeyValue(), v, receiver };
-    booleanTrapResult = Object::call(state, trap, handler, 4, arguments).toBoolean(state);
+    Value trapResult = Object::call(state, trap, handler, 4, arguments);
+    RETURN_ZERO_IF_PENDING_EXCEPTION
+    bool booleanTrapResult = trapResult.toBoolean(state);
 
     // 11. If booleanTrapResult is false, return false.
     if (!booleanTrapResult) {
@@ -927,16 +973,14 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
         if (targetDesc.isDataProperty() && !targetDesc.isConfigurable() && !targetDesc.isWritable()) {
             // i. If SameValue(V, targetDesc.[[Value]]) is false, throw a TypeError exception.
             if (v != targetDesc.value(state, target)) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error.");
-                return false;
+                THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error.");
             }
         }
         // b. TODO If IsAccessorDescriptor(targetDesc) and targetDesc.[[Configurable]] is false, then
         if (!targetDesc.isDataProperty() && !targetDesc.isConfigurable()) {
             // i. If targetDesc.[[Set]] is undefined, throw a TypeError exception.
             if ((!targetDesc.jsGetterSetter()->hasSetter() || targetDesc.jsGetterSetter()->setter().isUndefined())) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error.");
-                return false;
+                THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy Type Error.");
             }
         }
     }
@@ -949,14 +993,13 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
 Value ProxyObject::call(ExecutionState& state, const Value& receiver, const size_t argc, Value* argv)
 {
     if (UNLIKELY(!m_isCallable)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
 
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return Value();
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
     }
 
     // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -972,6 +1015,7 @@ Value ProxyObject::call(ExecutionState& state, const Value& receiver, const size
     // 6. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->apply.string()));
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // 7. If trap is undefined, then
     // a. Return Call(target, thisArgument, argumentsList).
@@ -993,8 +1037,7 @@ Value ProxyObject::construct(ExecutionState& state, const size_t argc, Value* ar
     auto strings = &state.context()->staticStrings();
     // 2. If handler is null, throw a TypeError exception.
     if (this->handler() == nullptr) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
-        return Value();
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: Proxy handler should not be null.");
     }
 
     // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -1010,13 +1053,14 @@ Value ProxyObject::construct(ExecutionState& state, const size_t argc, Value* ar
     // 6. ReturnIfAbrupt(trap).
     Value trap;
     trap = Object::getMethod(state, handler, ObjectPropertyName(state, strings->construct.string()));
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // 7. If trap is undefined, then
     // a. Assert: target has a [[Construct]] internal method.
     // b. Return Construct(target, argumentsList, newTarget).
     if (trap.isUndefined()) {
         ASSERT(target.isConstructor());
-        return Object::construct(state, target, argc, argv, newTarget).toObject(state);
+        return Object::construct(state, target, argc, argv, newTarget);
     }
 
     // 8. Let argArray be CreateArrayFromList(argumentsList).
@@ -1025,11 +1069,11 @@ Value ProxyObject::construct(ExecutionState& state, const size_t argc, Value* ar
     // 9. Let newObj be Call(trap, handler, «target, argArray, newTarget »).
     Value arguments[] = { target, Value(argArray), Value(newTarget) };
     Value newObj = Object::call(state, trap, handler, 3, arguments);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // 11. If Type(newObj) is not Object, throw a TypeError exception.
     if (!newObj.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: The result of [[Construct]] must be an Object.");
-        return Value();
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: The result of [[Construct]] must be an Object.");
     }
 
     // 12. Return newObj.

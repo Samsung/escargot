@@ -80,7 +80,7 @@ public:
         }
     };
 
-    SandBoxResult run(const std::function<Value()>& scriptRunner); // for capsule script executing with try-catch
+    SandBoxResult run(const std::function<Value()>& scriptRunner, ExecutionState& state); // for capsule script executing with try-catch
     SandBoxResult run(Value (*runner)(ExecutionState&, void*), void* data);
 
     static bool createStackTrace(StackTraceDataVector& stackTraceDataVector, ExecutionState& state, bool stopAtPause = false);
@@ -96,6 +96,11 @@ public:
     Context* context()
     {
         return m_context;
+    }
+
+    Value exception()
+    {
+        return m_exception;
     }
 
 protected:

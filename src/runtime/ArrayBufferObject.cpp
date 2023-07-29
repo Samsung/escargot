@@ -33,9 +33,10 @@ ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state,
     Object* proto = Object::getPrototypeFromConstructor(state, constructor, [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->arrayBufferPrototype();
     });
+    RETURN_NULL_IF_PENDING_EXCEPTION
 
     if (UNLIKELY(byteLength >= ArrayBuffer::maxArrayBufferSize)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
     }
 
     ArrayBufferObject* obj = new ArrayBufferObject(state, proto);
@@ -44,7 +45,7 @@ ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state,
         ASSERT(byteLength <= maxByteLength.value());
         uint64_t maxLength = maxByteLength.value();
         if (UNLIKELY(maxLength >= ArrayBuffer::maxArrayBufferSize)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+            THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
         }
 
         // allocate default resizable non-shared BackingStore
@@ -63,7 +64,9 @@ ArrayBufferObject* ArrayBufferObject::cloneArrayBuffer(ExecutionState& state, Ar
     ASSERT(constructor->isConstructor());
 
     ArrayBufferObject* targetBuffer = ArrayBufferObject::allocateArrayBuffer(state, constructor, srcLength);
+    RETURN_NULL_IF_PENDING_EXCEPTION
     srcBuffer->throwTypeErrorIfDetached(state);
+    RETURN_NULL_IF_PENDING_EXCEPTION
 
     targetBuffer->fillData(srcBuffer->data() + srcByteOffset, srcLength);
 

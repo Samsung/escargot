@@ -150,13 +150,15 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, Option op
     m_source = escapeSlashInPattern(m_source);
 
     auto entry = getCacheEntryAndCompileIfNeeded(state, m_source, this->option());
+    RETURN_IF_PENDING_EXCEPTION
     if (entry.m_yarrError) {
         m_source = previousSource;
         setOptionValueForGC(previousOptions);
-        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, entry.m_yarrError);
+        THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::SyntaxError, entry.m_yarrError);
     }
 
     setLastIndex(state, Value(0));
+    RETURN_IF_PENDING_EXCEPTION
     m_yarrPattern = entry.m_yarrPattern;
     m_bytecodePattern = entry.m_bytecodePattern;
 }
@@ -164,7 +166,9 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, Option op
 void RegExpObject::init(ExecutionState& state, String* source, String* option)
 {
     Option optionVals = parseOption(state, option);
+    RETURN_IF_PENDING_EXCEPTION
     internalInit(state, source, optionVals);
+    RETURN_IF_PENDING_EXCEPTION
     m_optionString = option;
 }
 
@@ -204,33 +208,51 @@ RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, String* op
     for (size_t i = 0; i < bufferAccessData.length; i++) {
         switch (bufferAccessData.charAt(i)) {
         case 'g':
-            if (tempOption & Option::Global)
+            if (tempOption & Option::Global) {
+                // Return Exception Done!
                 ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'g' flags");
+                break;
+            }
             tempOption = (Option)(tempOption | Option::Global);
             break;
         case 'i':
-            if (tempOption & Option::IgnoreCase)
+            if (tempOption & Option::IgnoreCase) {
+                // Return Exception Done!
                 ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'i' flags");
+                break;
+            }
             tempOption = (Option)(tempOption | Option::IgnoreCase);
             break;
         case 'm':
-            if (tempOption & Option::MultiLine)
+            if (tempOption & Option::MultiLine) {
+                // Return Exception Done!
                 ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'm' flags");
+                break;
+            }
             tempOption = (Option)(tempOption | Option::MultiLine);
             break;
         case 'u':
-            if (tempOption & Option::Unicode)
+            if (tempOption & Option::Unicode) {
+                // Return Exception Done!
                 ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'u' flags");
+                break;
+            }
             tempOption = (Option)(tempOption | Option::Unicode);
             break;
         case 'y':
-            if (tempOption & Option::Sticky)
+            if (tempOption & Option::Sticky) {
+                // Return Exception Done!
                 ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'y' flags");
+                break;
+            }
             tempOption = (Option)(tempOption | Option::Sticky);
             break;
         case 's':
-            if (tempOption & Option::DotAll)
+            if (tempOption & Option::DotAll) {
+                // Return Exception Done!
                 ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 's' flags");
+                break;
+            }
             tempOption = (Option)(tempOption | Option::DotAll);
             break;
         default:
@@ -266,7 +288,10 @@ RegExpObject::RegExpCacheEntry& RegExpObject::getCacheEntryAndCompileIfNeeded(Ex
             yarrPattern = JSC::Yarr::YarrPattern::createYarrPattern(source, (JSC::Yarr::RegExpFlags)option, errorCode);
             yarrError = JSC::Yarr::errorMessage(errorCode);
         } catch (const std::bad_alloc& e) {
+            // Return Exception Done!
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "got too complicated RegExp pattern to process");
+            auto iter = cache->insert(std::make_pair(RegExpCacheKey(source, option), RegExpCacheEntry())).first;
+            return iter.value();
         }
         auto iter = cache->insert(std::make_pair(RegExpCacheKey(source, option), RegExpCacheEntry(yarrError, yarrPattern))).first;
         return iter.value();
@@ -291,6 +316,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
 
     if (!m_bytecodePattern) {
         RegExpCacheEntry& entry = getCacheEntryAndCompileIfNeeded(state, m_source, option());
+        RETURN_ZERO_IF_PENDING_EXCEPTION
         if (entry.m_yarrError) {
             matchResult.m_subPatternNum = 0;
             return false;
@@ -356,6 +382,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
                 // outputBuf[1] should be set to lastIndex
                 if (isGlobal || isSticky) {
                     setLastIndex(state, Value(outputBuf[1]));
+                    RETURN_ZERO_IF_PENDING_EXCEPTION
                 }
                 if (!lastParenInvalid && subPatternNum) {
                     legacyFeatures.lastParen = StringView(str, outputBuf[maxMatchedIndex * 2], outputBuf[maxMatchedIndex * 2 + 1]);
@@ -402,6 +429,7 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
 
     if (!gotResult && ((option() & (RegExpObject::Option::Global | RegExpObject::Option::Sticky)))) {
         setLastIndex(state, Value(0));
+        RETURN_ZERO_IF_PENDING_EXCEPTION
     }
 
     return matchResult.m_matchResults.size();
@@ -417,11 +445,12 @@ void RegExpObject::createRegexMatchResult(ExecutionState& state, String* str, Re
     do {
         const size_t maximumReasonableMatchSize = 1000000000;
         if (len > maximumReasonableMatchSize) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum Reasonable match size exceeded.");
+            THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::RangeError, "Maximum Reasonable match size exceeded.");
         }
 
         if (lastIndex().toIndex(state) == previousLastIndex) {
             setLastIndex(state, Value(previousLastIndex++));
+            RETURN_IF_PENDING_EXCEPTION
         } else {
             previousLastIndex = lastIndex().toIndex(state);
         }
@@ -485,6 +514,7 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
             state.context()->regexpLegacyFeatures().invalidate();
         }
     }
+    ASSERT(!state.hasPendingException());
     return arr;
 }
 
@@ -502,6 +532,7 @@ void RegExpObject::pushBackToRegExpMatchedArray(ExecutionState& state, ArrayObje
             }
             if (index == limit)
                 return;
+            RETURN_IF_PENDING_EXCEPTION
         }
     }
 }

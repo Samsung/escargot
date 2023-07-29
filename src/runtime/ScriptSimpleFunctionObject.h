@@ -96,13 +96,17 @@ protected:
             }
         }
 
-        if (shouldClearStack) {
-            const Value returnValue = Interpreter::interpret(&newState, blk, programStart, registerFile);
-            clearStack<512>();
-            return returnValue;
-        } else {
-            return Interpreter::interpret(&newState, blk, programStart, registerFile);
+        const Value returnValue = Interpreter::interpret(&newState, blk, programStart, registerFile);
+        // check Exception
+        if (UNLIKELY(newState.hasPendingException())) {
+            ASSERT(returnValue.isException());
+            state.setPendingException();
         }
+
+        if (shouldClearStack) {
+            clearStack<512>();
+        }
+        return returnValue;
     }
 
     virtual Value construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget) override
@@ -119,6 +123,7 @@ protected:
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {
             return constructorRealm->globalObject()->objectPrototype();
         });
+        RETURN_VALUE_IF_PENDING_EXCEPTION
 
         // Set the [[Prototype]] internal slot of obj to proto.
         Object* thisArgument = new Object(state, proto);
@@ -162,6 +167,11 @@ protected:
         record.setNewTarget(newTarget);
 
         const Value returnValue = Interpreter::interpret(&newState, blk, reinterpret_cast<const size_t>(blk->m_code.data()), registerFile);
+        // check Exception
+        if (UNLIKELY(newState.hasPendingException())) {
+            ASSERT(returnValue.isException());
+            state.setPendingException();
+        }
         if (shouldClearStack) {
             clearStack<512>();
         }

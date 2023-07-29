@@ -164,8 +164,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
             Value checkMSG = state.context()->securityPolicyCheckCallback()(state, true);
             if (!checkMSG.isEmpty()) {
                 ASSERT(checkMSG.isString());
-                ErrorObject::throwBuiltinError(state, ErrorCode::EvalError, checkMSG.asString());
-                return Value();
+                THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::EvalError, checkMSG.asString());
             }
         }
         ScriptParser parser(state.context());
@@ -180,9 +179,16 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 #endif
 
         Script* script = parser.initializeScript(nullptr, 0, arg.asString(), state.context()->staticStrings().lazyEvalCode().string(), nullptr, false, true, false, false, strictFromOutside, false, false, false, true, stackRemainApprox).scriptThrowsExceptionIfParseError(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // In case of indirect call, use global execution context
         ExecutionState stateForNewGlobal(m_context);
-        return script->execute(stateForNewGlobal, true, script->topCodeBlock()->isStrict());
+        Value result = script->execute(stateForNewGlobal, true, script->topCodeBlock()->isStrict());
+        // check exception
+        if (UNLIKELY(result.isException())) {
+            ASSERT(stateForNewGlobal.hasPendingException());
+            state.setPendingException();
+        }
+        return result;
     }
     return arg;
 }
@@ -195,8 +201,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
             Value checkMSG = state.context()->securityPolicyCheckCallback()(state, true);
             if (!checkMSG.isEmpty()) {
                 ASSERT(checkMSG.isString());
-                ErrorObject::throwBuiltinError(state, ErrorCode::EvalError, checkMSG.asString());
-                return Value();
+                THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::EvalError, checkMSG.asString());
             }
         }
         ScriptParser parser(state.context());
@@ -232,6 +237,7 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
                                                  false, true, isRunningEvalOnFunction, inWithOperation, strictFromOutside, parentCodeBlock->allowSuperCall(),
                                                  parentCodeBlock->allowSuperProperty(), allowNewTarget, true, stackRemainApprox)
                              .scriptThrowsExceptionIfParseError(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         return script->executeLocal(state, thisValue, parentCodeBlock, script->topCodeBlock()->isStrict(), isRunningEvalOnFunction);
     }
     return arg;
@@ -283,6 +289,7 @@ ATTRIBUTE_NO_OPTIMIZE_IF_ARM64_GCC static Value builtinParseInt(ExecutionState& 
     // 1. Let inputString be ToString(string).
     Value input = argv[0];
     String* s = input.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // 2. Let S be a newly created substring of inputString consisting of the first character that is not a StrWhiteSpaceChar
     //    and all characters following that character. (In other words, remove leading white space.)
@@ -363,6 +370,7 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
     // 1. Let inputString be ToString(string).
     Value input = argv[0];
     String* s = input.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     size_t strLen = s->length();
 
     if (strLen == 1) {
@@ -424,6 +432,7 @@ static Value builtinParseFloat(ExecutionState& state, Value thisValue, size_t ar
 static Value builtinIsFinite(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double num = argv[0].toNumber(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (std::isnan(num) || num == std::numeric_limits<double>::infinity() || num == -std::numeric_limits<double>::infinity())
         return Value(Value::False);
     else
@@ -433,6 +442,7 @@ static Value builtinIsFinite(ExecutionState& state, Value thisValue, size_t argc
 static Value builtinIsNaN(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double num = argv[0].toNumber(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (std::isnan(num)) {
         return Value(Value::True);
     }
@@ -490,6 +500,10 @@ inline static bool codeUnitToHexaDecimal(String* str, size_t start, unsigned cha
 
 static Value decode(ExecutionState& state, String* uriString, bool noComponent, String* funcName)
 {
+    if (!uriString) {
+        ASSERT(state.hasPendingException());
+        return Value(Value::Exception);
+    }
     String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
     StringBuilder unescaped;
     size_t strLen = uriString->length();
@@ -500,15 +514,17 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
             unescaped.appendChar(t);
         } else {
             size_t start = i;
-            if (i + 2 >= strLen)
-                ErrorObject::throwBuiltinError(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+            if (i + 2 >= strLen) {
+                THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+            }
             char16_t next = uriString->charAt(i + 1);
             char16_t nextnext = uriString->charAt(i + 2);
 
             // char to hex
             unsigned char b = 0;
-            if (!twocharToHexaDecimal(next, nextnext, &b))
-                ErrorObject::throwBuiltinError(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+            if (!twocharToHexaDecimal(next, nextnext, &b)) {
+                THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+            }
             i += 2;
 
             // most significant bit in b is 0
@@ -533,15 +549,16 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
                     n++;
                 }
                 if (n == 1 || n == 5 || (i + (3 * (n - 1)) >= strLen)) {
-                    ErrorObject::throwBuiltinError(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+                    THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
                 }
                 unsigned char octets[4];
                 octets[0] = b;
 
                 int j = 1;
                 while (j < n) {
-                    if (!codeUnitToHexaDecimal(uriString, ++i, &b)) // "%XY" type
-                        ErrorObject::throwBuiltinError(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+                    if (!codeUnitToHexaDecimal(uriString, ++i, &b)) { // "%XY" type
+                        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+                    }
                     i += 2;
                     octets[j] = b;
                     j++;
@@ -551,17 +568,17 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
                 if (n == 2) {
                     v = (octets[0] & 0x1F) << 6 | (octets[1] & 0x3F);
                     if ((octets[0] == 0xC0) || (octets[0] == 0xC1)) {
-                        ErrorObject::throwBuiltinError(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+                        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
                     }
                 } else if (n == 3) {
                     v = (octets[0] & 0x0F) << 12 | (octets[1] & 0x3F) << 6 | (octets[2] & 0x3F);
                     if ((0xD800 <= v && v <= 0xDFFF) || ((octets[0] == 0xE0) && ((octets[1] < 0xA0) || (octets[1] > 0xBF)))) {
-                        ErrorObject::throwBuiltinError(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+                        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
                     }
                 } else if (n == 4) {
                     v = (octets[0] & 0x07) << 18 | (octets[1] & 0x3F) << 12 | (octets[2] & 0x3F) << 6 | (octets[3] & 0x3F);
                     if ((octets[0] == 0xF0) && ((octets[1] < 0x90) || (octets[1] > 0xBF))) {
-                        ErrorObject::throwBuiltinError(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+                        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
                     }
                 }
                 if (v >= 0x10000) {
@@ -610,6 +627,10 @@ static inline bool convertAndAppendCodeUnit(URIBuilderString* escaped, char16_t 
 
 static Value encode(ExecutionState& state, String* uriString, bool noComponent, String* funcName)
 {
+    if (!uriString) {
+        ASSERT(state.hasPendingException());
+        return Value(Value::Exception);
+    }
     String* globalObjectString = state.context()->staticStrings().GlobalObject.string();
     auto bad = uriString->bufferAccessData();
 
@@ -640,10 +661,10 @@ static Value encode(ExecutionState& state, String* uriString, bool noComponent, 
                 convertAndAppendCodeUnit(&escaped, 0x0080 + (index & 0x003F));
                 i++;
             } else {
-                ErrorObject::throwBuiltinError(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+                THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
             }
         } else if (0xDC00 <= t && t <= 0xDFFF) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::URIError, globalObjectString, false, funcName, ErrorObject::Messages::GlobalObject_MalformedURI);
         } else {
             RELEASE_ASSERT_NOT_REACHED();
         }
@@ -703,6 +724,7 @@ void char2hex4digit(char16_t dec, URIBuilderString& result)
 static Value builtinEscape(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     String* str = argv[0].toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     auto bad = str->bufferAccessData();
     size_t length = bad.length;
     URIBuilderString R;
@@ -732,7 +754,7 @@ static Value builtinEscape(ExecutionState& state, Value thisValue, size_t argc, 
         }
 
         if (UNLIKELY(len > STRING_MAXIMUM_LENGTH)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
         }
     }
 
@@ -764,6 +786,7 @@ char16_t hex2char(char16_t first, char16_t second)
 static Value builtinUnescape(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     String* str = argv[0].toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     size_t length = str->length();
     UTF16StringDataNonGCStd R;
     bool unescapeValue = false;
@@ -850,7 +873,7 @@ static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t
 static Value builtinGenericIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isGenericIteratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, String::fromASCII("Iterator"), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, String::fromASCII("Iterator"), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
 
     IteratorObject* iter = thisValue.asObject()->asIteratorObject();
@@ -934,24 +957,24 @@ void GlobalObject::installOthers(ExecutionState& state)
     m_asyncIteratorPrototype = new PrototypeObject(state);
     m_asyncIteratorPrototype->setGlobalIntrinsicObject(state, true);
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-asynciteratorprototype-asynciterator
-    m_asyncIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().asyncIterator),
-                                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.asyncIterator]")), builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
-                                                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_asyncIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().asyncIterator),
+                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.asyncIterator]")), builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
+                                                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_iteratorPrototype = new PrototypeObject(state);
     m_iteratorPrototype->setGlobalIntrinsicObject(state, true);
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-%iteratorprototype%-@@iterator
-    m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
-                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
-                                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(state, String::fromASCII("[Symbol.iterator]")), builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
+                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_genericIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_genericIteratorPrototype->setGlobalIntrinsicObject(state, true);
 
-    m_genericIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().next),
-                                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinGenericIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
-    m_genericIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                                                 ObjectPropertyDescriptor(Value(String::fromASCII("Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_genericIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinGenericIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_genericIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                        ObjectPropertyDescriptor(Value(String::fromASCII("Iterator")), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
 #if defined(ESCARGOT_ENABLE_TEST)
     AtomicString isFunctionAllocatedOnStackFunctionName(state, "isFunctionAllocatedOnStack");

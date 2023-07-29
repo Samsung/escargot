@@ -918,6 +918,9 @@ public:
     void defineOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc)
     {
         if (!defineOwnProperty(state, P, desc)) {
+            if (UNLIKELY(state.hasPendingException())) {
+                return;
+            }
             throwCannotDefineError(state, P.toObjectStructurePropertyName(state));
         }
     }
@@ -925,6 +928,9 @@ public:
     void deleteOwnPropertyThrowsException(ExecutionState& state, const ObjectPropertyName& P)
     {
         if (!deleteOwnProperty(state, P)) {
+            if (UNLIKELY(state.hasPendingException())) {
+                return;
+            }
             throwCannotDefineError(state, P.toObjectStructurePropertyName(state));
         }
     }
@@ -942,6 +948,9 @@ public:
     void setIndexedPropertyThrowsException(ExecutionState& state, const Value& property, const Value& value)
     {
         if (!setIndexedProperty(state, property, value, this)) {
+            if (UNLIKELY(state.hasPendingException())) {
+                return;
+            }
             throwCannotDefineError(state, ObjectStructurePropertyName(state, property.toString(state)));
         }
     }

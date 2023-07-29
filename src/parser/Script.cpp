@@ -337,7 +337,7 @@ static void testDeclareGlobalFunctions(ExecutionState& state, InterpretedCodeBlo
             auto c = childrenVector[i];
             if (c->isFunctionDeclaration() && c->lexicalBlockIndexFunctionLocatedIn() == 0) {
                 if (!canDeclareGlobalFunction(state, globalObject, c->functionName())) {
-                    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Identifier '%s' has already been declared", c->functionName());
+                    THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::TypeError, "Identifier '%s' has already been declared", c->functionName());
                 }
             }
         }
@@ -402,6 +402,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     }
 
     testDeclareGlobalFunctions(state, m_topCodeBlock, context()->globalObject());
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     const InterpretedCodeBlock::IdentifierInfoVector& identifierVector = m_topCodeBlock->identifierInfos();
     size_t identifierVectorLen = identifierVector.size();
@@ -416,7 +417,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
                 InterpretedCodeBlock* child = childrenVector[i];
                 if (child->isFunctionDeclaration()) {
                     if (child->lexicalBlockIndexFunctionLocatedIn() == 0 && !state.context()->globalObject()->defineOwnProperty(state, child->functionName(), ObjectPropertyDescriptor(Value(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent)))) {
-                        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Identifier '%s' has already been declared", child->functionName());
+                        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::SyntaxError, "Identifier '%s' has already been declared", child->functionName());
                     }
                 }
             }
@@ -430,7 +431,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
             // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
             for (size_t j = 0; j < identifierVectorLen; j++) {
                 if (identifierVector[j].m_isVarDeclaration && identifierVector[j].m_name == globalDeclarativeRecord->at(i).m_name) {
-                    ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, globalDeclarativeRecord->at(i).m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+                    THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::SyntaxError, globalDeclarativeRecord->at(i).m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
                 }
             }
         }
@@ -440,7 +441,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
             // If hasRestrictedGlobal is true, throw a SyntaxError exception.
             auto desc = context()->globalObject()->getOwnProperty(state, globalLexicalVector[i].m_name);
             if (desc.hasValue() && !desc.isConfigurable()) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, globalLexicalVector[i].m_name.string(), false, String::emptyString, "redeclaration of non-configurable global property %s");
+                THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::SyntaxError, globalLexicalVector[i].m_name.string(), false, String::emptyString, "redeclaration of non-configurable global property %s");
             }
         }
     }
@@ -450,6 +451,10 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
 
         for (size_t i = 0; i < globalLexicalVectorLen; i++) {
             codeExecutionState->lexicalEnvironment()->record()->createBinding(*codeExecutionState, globalLexicalVector[i].m_name, false, globalLexicalVector[i].m_isMutable, false);
+            if (UNLIKELY(codeExecutionState->hasPendingException())) {
+                state.setPendingException();
+                return Value(Value::Exception);
+            }
         }
 
         for (size_t i = 0; i < identifierVectorLen; i++) {
@@ -457,6 +462,10 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
             // Step 2. If code is eval code, then let configurableBindings be true.
             if (identifierVector[i].m_isVarDeclaration) {
                 globalVariableRecord->createBinding(*codeExecutionState, identifierVector[i].m_name, isExecuteOnEvalFunction, identifierVector[i].m_isMutable, true, m_topCodeBlock);
+                if (UNLIKELY(codeExecutionState->hasPendingException())) {
+                    state.setPendingException();
+                    return Value(Value::Exception);
+                }
             }
         }
     }
@@ -502,7 +511,14 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         auto ep = new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->byteCodeBlock());
         newState->setPauseSource(ep);
         ep->m_promiseCapability = PromiseObject::newPromiseCapability(*newState, newState->context()->globalObject()->promise());
+        ASSERT(!newState->hasPendingException());
         resultValue = ExecutionPauser::start(*newState, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async);
+    }
+
+    // check Exception
+    if (UNLIKELY(resultValue.isException())) {
+        ASSERT(newState->hasPendingException() || codeExecutionState->hasPendingException());
+        state.setPendingException();
     }
 
     return resultValue;
@@ -549,7 +565,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
                 if (vec[i].m_isVarDeclaration) {
                     auto slot = e->record()->hasBinding(state, vec[i].m_name);
                     if (slot.m_isLexicallyDeclared && slot.m_index != SIZE_MAX) {
-                        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, vec[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+                        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::SyntaxError, vec[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
                     }
                 }
             }
@@ -567,11 +583,13 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
 
     if (recordToAddVariable->isGlobalEnvironmentRecord()) {
         testDeclareGlobalFunctions(state, m_topCodeBlock, context()->globalObject());
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     }
 
     for (size_t i = 0; i < vecLen; i++) {
         if (vec[i].m_isVarDeclaration) {
             recordToAddVariable->createBinding(state, vec[i].m_name, inStrict ? false : true, true, true, m_topCodeBlock);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
     }
 
@@ -621,6 +639,12 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
 
     newState.ensureRareData()->m_codeBlock = m_topCodeBlock;
     Value resultValue = Interpreter::interpret(&newState, byteCodeBlock, reinterpret_cast<size_t>(byteCodeBlock->m_code.data()), registerFile);
+    // check Exception
+    if (UNLIKELY(resultValue.isException())) {
+        ASSERT(newState.hasPendingException());
+        state.setPendingException();
+    }
+
     clearStack<512>();
 
     return resultValue;
@@ -792,6 +816,7 @@ Script::ModuleExecutionResult Script::moduleEvaluation(ExecutionState& state)
 
     // Let capability be ! NewPromiseCapability(%Promise%).
     auto capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+    ASSERT(!state.hasPendingException());
     // Set module.[[TopLevelCapability]] to capability.
     md->m_topLevelCapability = capability;
 
@@ -1267,6 +1292,7 @@ void Script::moduleExecuteAsyncModule(ExecutionState& state)
     md->m_asyncEvaluating = true;
     // Let capability be ! NewPromiseCapability(%Promise%).
     auto capability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+    ASSERT(!state.hasPendingException());
     // Let stepsFulfilled be the steps of a CallAsyncModuleFulfilled function as specified below.
     // Let onFulfilled be CreateBuiltinFunction(stepsFulfilled, « [[Module]] »).
     // Set onFulfilled.[[Module]] to module.

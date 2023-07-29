@@ -106,23 +106,22 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
 SandBox::SandBoxResult SandBox::run(Value (*scriptRunner)(ExecutionState&, void*), void* data)
 {
     SandBox::SandBoxResult result;
-    try {
-        ExecutionState state(m_context);
-        result.result = scriptRunner(state, data);
-    } catch (const Value& err) {
-        processCatch(err, result);
+    ExecutionState state(m_context);
+    result.result = scriptRunner(state, data);
+    if (UNLIKELY(state.hasPendingException())) {
+        ASSERT(result.result.isException());
+        processCatch(state.detachPendingException(), result);
     }
     return result;
 }
 
-SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
+SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner, ExecutionState& state)
 {
     SandBox::SandBoxResult result;
-
-    try {
-        result.result = scriptRunner();
-    } catch (const Value& err) {
-        processCatch(err, result);
+    result.result = scriptRunner();
+    if (UNLIKELY(state.hasPendingException())) {
+        ASSERT(result.result.isException());
+        processCatch(state.detachPendingException(), result);
     }
     return result;
 }
@@ -297,7 +296,8 @@ void SandBox::throwException(ExecutionState& state, const Value& exception)
     // We MUST save thrown exception Value.
     // because bdwgc cannot track `thrown value`(may turned off by GC_DONT_REGISTER_MAIN_STATIC_DATA)
     m_exception = exception;
-    throw exception;
+    // pending throw an exception
+    // throw exception;
 }
 
 void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, StackTraceDataVector&& stackTraceDataVector)
@@ -309,13 +309,14 @@ void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exce
     // We MUST save thrown exception Value.
     // because bdwgc cannot track `thrown value`(may turned off by GC_DONT_REGISTER_MAIN_STATIC_DATA)
     m_exception = exception;
-    throw exception;
+    // pending throw an exception
+    // throw exception;
 }
 
 static Value builtinErrorObjectStackInfo(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!(LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isErrorObject()))) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get Error.prototype.stack called on incompatible receiver");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "get Error.prototype.stack called on incompatible receiver");
     }
 
     ErrorObject* obj = thisValue.asObject()->asErrorObject();
@@ -353,20 +354,18 @@ void ErrorObject::StackTraceData::buildStackTrace(Context* context, StringBuilde
 {
     if (exception.isObject()) {
         ExecutionState state(context);
-        try {
-            auto getResult = exception.asObject()->get(state, state.context()->staticStrings().name);
-            if (getResult.hasValue()) {
-                builder.appendString(getResult.value(state, exception.asObject()).toString(state));
-                builder.appendString(": ");
-            }
-            getResult = exception.asObject()->get(state, state.context()->staticStrings().message);
-            if (getResult.hasValue()) {
-                builder.appendString(getResult.value(state, exception.asObject()).toString(state));
-                builder.appendChar('\n');
-            }
-        } catch (const Value& v) {
-            // ignore exception
+        auto getResult = exception.asObject()->get(state, state.context()->staticStrings().name);
+        if (getResult.hasValue()) {
+            builder.appendString(getResult.value(state, exception.asObject()).toString(state));
+            builder.appendString(": ");
         }
+        getResult = exception.asObject()->get(state, state.context()->staticStrings().message);
+        if (getResult.hasValue()) {
+            builder.appendString(getResult.value(state, exception.asObject()).toString(state));
+            builder.appendChar('\n');
+        }
+        // ignore exception
+        ASSERT(!state.hasPendingException());
     }
 
     ByteCodeLOCDataMap locMap;

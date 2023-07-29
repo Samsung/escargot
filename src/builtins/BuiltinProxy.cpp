@@ -33,14 +33,16 @@ static Value builtinProxyConstructor(ExecutionState& state, Value thisValue, siz
     auto strings = &state.context()->staticStrings();
 
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: calling a builtin Proxy constructor without new is forbidden");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: calling a builtin Proxy constructor without new is forbidden");
         return Value();
     }
 
     Value target = argv[0];
     Value handler = argv[1];
 
-    return ProxyObject::createProxy(state, target, handler);
+    ProxyObject* result = ProxyObject::createProxy(state, target, handler);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    return result;
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-proxy-revocation-functions
@@ -84,6 +86,7 @@ static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_
 
     // 1. Let p be ProxyCreate(target, handler).
     Value proxy = ProxyObject::createProxy(state, target, handler);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // 3. Let revoker be a new built-in function object as defined in 26.2.2.1.1.
     // 4. Set the [[RevocableProxy]] internal slot of revoker to p.
@@ -96,10 +99,12 @@ static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_
     // 6. Perform CreateDataProperty(result, "proxy", p).
     result->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->proxy),
                                              ObjectPropertyDescriptor(proxy, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // 7. Perform CreateDataProperty(result, "revoke", revoker).
     result->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->revoke),
                                              ObjectPropertyDescriptor(revoker, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // 8. Return result.
     return result;

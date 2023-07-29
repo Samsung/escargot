@@ -403,6 +403,7 @@ static ValueRef* builtinAddPromiseReactions(ExecutionStateRef* state, ValueRef* 
         promise->then(state, argv[1], argv[2]);
     } else {
         state->throwException(TypeErrorObjectRef::create(state, StringRef::emptyString()));
+        return ValueRef::createException();
     }
     return ValueRef::createUndefined();
 }

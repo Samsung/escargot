@@ -123,6 +123,7 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
         ArrayObject* arr = new ArrayObject(state, value.Size(), false);
         for (size_t i = 0; i < value.Size(); i++) {
             arr->defineOwnIndexedPropertyWithoutExpanding(state, i, parseJSONWorker<CharType, JSONCharType>(state, value[i]));
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
         return arr;
     } else if (value.IsObject()) {
@@ -133,9 +134,12 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
         auto iter = value.MemberBegin();
         while (iter != value.MemberEnd()) {
             Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             ASSERT(propertyName.isString());
+            Value val = parseJSONWorker<CharType, JSONCharType>(state, iter->value);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             obj->defineOwnProperty(state, ObjectPropertyName(AtomicString(state, propertyName.toString(state))),
-                                   ObjectPropertyDescriptor(parseJSONWorker<CharType, JSONCharType>(state, iter->value), ObjectPropertyDescriptor::AllPresent));
+                                   ObjectPropertyDescriptor(val, ObjectPropertyDescriptor::AllPresent));
             iter++;
         }
         return obj;
@@ -153,7 +157,7 @@ static Value parseJSON(ExecutionState& state, const CharType* data, size_t lengt
     JSONStringStream<JSONCharType> stringStream(data, length);
     jsonDocument.ParseStream(stringStream);
     if (jsonDocument.HasParseError()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, strings->JSON.string(), true, strings->parse.string(), rapidjson::GetParseError_En(jsonDocument.GetParseError()));
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::SyntaxError, strings->JSON.string(), true, strings->parse.string(), rapidjson::GetParseError_En(jsonDocument.GetParseError()));
     }
 
     return parseJSONWorker<CharType, JSONCharType>(state, jsonDocument);
@@ -188,6 +192,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
 
     // 1, 2, 3
     String* JText = text.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     Value unfiltered;
 
     if (JText->has8BitContent()) {
@@ -202,6 +207,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
     } else {
         unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, JText->characters16(), JText->length());
     }
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // 4
     if (reviver.isCallable()) {
@@ -212,12 +218,16 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
         Walk = [&](Value holder, const ObjectPropertyName& name) -> Value {
             Value val = holder.asPointerValue()->asObject()->get(state, name).value(state, holder);
             if (val.isObject()) {
-                if (val.asObject()->isArray(state)) {
+                bool isArray = val.asObject()->isArray(state);
+                RETURN_VALUE_IF_PENDING_EXCEPTION
+                if (isArray) {
                     Object* object = val.asObject();
                     uint32_t i = 0;
                     uint32_t len = object->length(state);
+                    RETURN_VALUE_IF_PENDING_EXCEPTION
                     while (i < len) {
                         Value newElement = Walk(val, ObjectPropertyName(state, Value(i).toString(state)));
+                        RETURN_VALUE_IF_PENDING_EXCEPTION
                         if (newElement.isUndefined()) {
                             object->deleteOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)));
                         } else {
@@ -231,6 +241,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
                     uint32_t len = arrObject->arrayLength();
                     while (i < len) {
                         Value newElement = Walk(val, ObjectPropertyName(state, Value(i).toString(state)));
+                        RETURN_VALUE_IF_PENDING_EXCEPTION
                         if (newElement.isUndefined()) {
                             arrObject->deleteOwnProperty(state, ObjectPropertyName(state, Value(i).toString(state)));
                         } else {
@@ -261,6 +272,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
 
                     for (auto& key : keys) {
                         Value newElement = Walk(val, key);
+                        RETURN_VALUE_IF_PENDING_EXCEPTION
                         if (newElement.isUndefined()) {
                             object->deleteOwnProperty(state, key);
                         } else {
@@ -326,20 +338,26 @@ static bool builtinJSONStringifyStr(ExecutionState& state, Value key, Object* ho
         Value toJson = Object::getV(state, value, ObjectPropertyName(state, strings->toJSON));
         if (toJson.isCallable()) {
             Value arguments[] = { key.toString(state) };
+            RETURN_ZERO_IF_PENDING_EXCEPTION
             value = Object::call(state, toJson, value, 1, arguments);
+            RETURN_ZERO_IF_PENDING_EXCEPTION
         }
     }
 
     if (!replacerFunc.isUndefined()) {
         Value arguments[] = { key.toString(state), value };
+        RETURN_ZERO_IF_PENDING_EXCEPTION
         value = Object::call(state, replacerFunc, holder, 2, arguments);
+        RETURN_ZERO_IF_PENDING_EXCEPTION
     }
 
     if (value.isObject()) {
         if (value.asObject()->isNumberObject()) {
             value = Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state));
+            RETURN_ZERO_IF_PENDING_EXCEPTION
         } else if (value.asObject()->isStringObject()) {
             value = Value(value.toString(state));
+            RETURN_ZERO_IF_PENDING_EXCEPTION
         } else if (value.asObject()->isBooleanObject()) {
             value = Value(value.asObject()->asBooleanObject()->primitiveValue());
         } else if (value.asObject()->isBigIntObject()) {
@@ -360,6 +378,7 @@ static bool builtinJSONStringifyStr(ExecutionState& state, Value key, Object* ho
     }
     if (value.isNumber()) {
         double d = value.toNumber(state);
+        RETURN_ZERO_IF_PENDING_EXCEPTION
         if (std::isfinite(d)) {
             product.appendString(value.toString(state));
             return true;
@@ -368,12 +387,15 @@ static bool builtinJSONStringifyStr(ExecutionState& state, Value key, Object* ho
         return true;
     }
     if (value.isBigInt()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Could not serialize a BigInt");
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, "Could not serialize a BigInt");
     }
     if (value.isObject() && !value.isCallable()) {
-        if (value.asObject()->isArray(state)) {
+        bool isArray = value.asObject()->isArray(state);
+        RETURN_ZERO_IF_PENDING_EXCEPTION
+        if (isArray) {
             builtinJSONStringifyJA(state, value.asObject(), strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList, product);
         } else {
+            RETURN_ZERO_IF_PENDING_EXCEPTION
             builtinJSONStringifyJO(state, value.asObject(), strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList, product);
         }
         return true;
@@ -392,7 +414,7 @@ static void builtinJSONStringifyJA(ExecutionState& state, Object* obj,
     for (size_t i = 0; i < stack.size(); i++) {
         Value& v = stack[i];
         if (v == Value(obj)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
+            THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
         }
     }
     // 2
@@ -407,10 +429,11 @@ static void builtinJSONStringifyJA(ExecutionState& state, Object* obj,
 
     // 6, 7
     uint32_t len = obj->length(state);
+    RETURN_IF_PENDING_EXCEPTION
 
     // Each array element requires at least 1 character for the value, and 1 character for the separator
     if (len / 2 > STRING_MAXIMUM_LENGTH) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
+        THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::RangeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JAError);
     }
 
     // 8 ~ 9
@@ -436,6 +459,7 @@ static void builtinJSONStringifyJA(ExecutionState& state, Object* obj,
         }
 
         bool strP = builtinJSONStringifyStr(state, Value(index), obj, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList, product);
+        RETURN_IF_PENDING_EXCEPTION
         if (!strP) {
             product.appendString(strings->null.string());
         }
@@ -463,7 +487,7 @@ static void builtinJSONStringifyJO(ExecutionState& state, Object* value,
     // 1
     for (size_t i = 0; i < stack.size(); i++) {
         if (stack[i] == value) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JOError);
+            THROW_BUILTIN_ERROR_RETURN(state, ErrorCode::TypeError, strings->JSON.string(), false, strings->stringify.string(), ErrorObject::Messages::GlobalObject_JOError);
         }
     }
     // 2
@@ -492,6 +516,7 @@ static void builtinJSONStringifyJO(ExecutionState& state, Object* value,
     LargeStringBuilder subProduct;
     for (size_t i = 0; i < len; i++) {
         auto strP = builtinJSONStringifyStr(state, k[i], value, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList, subProduct);
+        RETURN_IF_PENDING_EXCEPTION
         if (strP) {
             if (first) {
                 if (gap->length()) {
@@ -509,6 +534,7 @@ static void builtinJSONStringifyJO(ExecutionState& state, Object* value,
             }
 
             builtinJSONStringifyQuote(state, k[i], product);
+            RETURN_IF_PENDING_EXCEPTION
             product.appendChar(':');
             if (gap->length() != 0) {
                 product.appendChar(' ');
@@ -606,6 +632,7 @@ static void builtinJSONStringifyQuote(ExecutionState& state, String* value, Larg
 static void builtinJSONStringifyQuote(ExecutionState& state, Value value, LargeStringBuilder& product)
 {
     String* str = value.toString(state);
+    RETURN_IF_PENDING_EXCEPTION
     builtinJSONStringifyQuote(state, str, product);
 }
 
@@ -643,26 +670,34 @@ Value JSON::stringify(ExecutionState& state, Value value, Value replacer, Value 
                 Value property = arrObject->get(state, ObjectPropertyName(state, Value(indexes[i]))).value(state, arrObject);
                 builtinJSONArrayReplacerHelper(state, propertyList, property);
             }
-        } else if (replacer.asObject()->isArray(state)) {
-            propertyListTouched = true;
-            Object* replacerObj = replacer.asObject();
-            uint64_t len = replacerObj->length(state);
-            uint64_t k = 0;
+        } else {
+            bool isArray = replacer.asObject()->isArray(state);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
+            if (isArray) {
+                propertyListTouched = true;
+                Object* replacerObj = replacer.asObject();
+                uint64_t len = replacerObj->length(state);
+                RETURN_VALUE_IF_PENDING_EXCEPTION
+                uint64_t k = 0;
 
-            while (k < len) {
-                Value v = replacerObj->getIndexedProperty(state, Value(k)).value(state, replacerObj);
-                builtinJSONArrayReplacerHelper(state, propertyList, v);
-                k++;
+                while (k < len) {
+                    Value v = replacerObj->getIndexedProperty(state, Value(k)).value(state, replacerObj);
+                    builtinJSONArrayReplacerHelper(state, propertyList, v);
+                    k++;
+                }
             }
         }
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     }
 
     // 5
     if (space.isObject()) {
         if (space.isPointerValue() && space.asPointerValue()->isNumberObject()) {
             space = Value(Value::DoubleToIntConvertibleTestNeeds, space.toNumber(state));
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         } else if (space.isPointerValue() && space.asPointerValue()->isStringObject()) {
             space = space.toString(state);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
     }
 
@@ -692,6 +727,7 @@ Value JSON::stringify(ExecutionState& state, Value value, Value replacer, Value 
     wrapper->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
     LargeStringBuilder product;
     auto ret = builtinJSONStringifyStr(state, String::emptyString, wrapper, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList, product);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (ret) {
         return product.finalize(&state);
     }

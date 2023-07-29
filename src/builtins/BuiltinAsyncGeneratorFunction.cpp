@@ -32,6 +32,7 @@ static Value builtinAsyncGeneratorFunction(ExecutionState& state, Value thisValu
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
     auto functionSource = FunctionObject::createDynamicFunctionScript(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, true, true, false);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
     if (!newTarget.hasValue()) {
@@ -40,6 +41,7 @@ static Value builtinAsyncGeneratorFunction(ExecutionState& state, Value thisValu
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->asyncGenerator();
     });
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     return new ScriptAsyncGeneratorFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment);
 }

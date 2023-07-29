@@ -216,15 +216,13 @@ struct ByteCodeGenerateContext {
 
     size_t getRegister()
     {
-        if (UNLIKELY(m_baseRegisterCount >= REGULAR_REGISTER_LIMIT)) {
-            throw "register limit exceed while generate byte code";
-        }
+        ASSERT(m_baseRegisterCount < REGULAR_REGISTER_LIMIT);
 #ifdef STACK_GROWS_DOWN
         if (UNLIKELY(m_stackLimit > (size_t)currentStackPointer())) {
 #else
         if (UNLIKELY(m_stackLimit < (size_t)currentStackPointer())) {
 #endif
-            throw "native stack limit exceed while generate byte code";
+            ASSERT_NOT_REACHED();
         }
 
         m_registerStack->push_back(m_baseRegisterCount);

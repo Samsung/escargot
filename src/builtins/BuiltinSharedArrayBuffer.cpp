@@ -32,12 +32,13 @@ namespace Escargot {
 static Value builtinSharedArrayBufferConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     uint64_t byteLength = argv[0].toIndex(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (byteLength == Value::InvalidIndexValue) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
     }
 
     Optional<uint64_t> maxByteLength;
@@ -45,22 +46,26 @@ static Value builtinSharedArrayBufferConstructor(ExecutionState& state, Value th
     if (UNLIKELY((argc > 1) && argv[1].isObject())) {
         Object* options = argv[1].asObject();
         Value maxLengthValue = options->get(state, ObjectPropertyName(state.context()->staticStrings().maxByteLength)).value(state, options);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (!maxLengthValue.isUndefined()) {
             maxByteLength = maxLengthValue.toIndex(state);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             if (UNLIKELY((maxByteLength.value() == Value::InvalidIndexValue) || (byteLength > maxByteLength.value()))) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+                THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
             }
         }
     }
 
-    return SharedArrayBufferObject::allocateSharedArrayBuffer(state, newTarget.value(), byteLength, maxByteLength);
+    SharedArrayBufferObject* result = SharedArrayBufferObject::allocateSharedArrayBuffer(state, newTarget.value(), byteLength, maxByteLength);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    return result;
 }
 
-#define RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                          \
-    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isSharedArrayBufferObject())) {                                                                                                                                                       \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                  \
-                                                                                                                                                                                                                                                       \
+#define RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                            \
+    if (UNLIKELY(!thisValue.isObject() || !thisValue.asObject()->isSharedArrayBufferObject())) {                                                                                                                                                         \
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                    \
+                                                                                                                                                                                                                                                         \
     SharedArrayBufferObject* NAME = thisValue.asObject()->asSharedArrayBufferObject();
 
 // https://262.ecma-international.org/#sec-get-sharedarraybuffer.prototype.bytelength
@@ -92,14 +97,14 @@ static Value builtinSharedArrayBufferGrow(ExecutionState& state, Value thisValue
     RESOLVE_THIS_BINDING_TO_SHAREDARRAYBUFFER(O, SharedArrayBuffer, grow);
 
     if (!O->isResizableArrayBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().grow.string(), "SharedArrayBuffer is not a growable buffer");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().grow.string(), "SharedArrayBuffer is not a growable buffer");
     }
 
     // Let newByteLength to ? ToIntegerOrInfinity(newLength).
     auto newByteLength = argv[0].toInteger(state);
 
     if ((newByteLength < O->byteLength()) || (newByteLength > O->maxByteLength())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().grow.string(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().grow.string(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
     }
 
     O->backingStore()->resize(static_cast<size_t>(newByteLength));
@@ -119,15 +124,17 @@ static Value builtinSharedArrayBufferSlice(ExecutionState& state, Value thisValu
     size_t newLen = std::max((int)final_ - (int)first, 0);
 
     Value constructor = O->speciesConstructor(state, state.context()->globalObject()->sharedArrayBuffer());
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     Value arguments[] = { Value(newLen) };
-    Object* newValue = Object::construct(state, constructor, 1, arguments).toObject(state);
-    if (!newValue->isSharedArrayBufferObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor SharedArrayBuffer is not valid SharedArrayBuffer");
+    Value newValue = Object::construct(state, constructor, 1, arguments);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    if (!newValue.toObject(state)->isSharedArrayBufferObject()) {
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor SharedArrayBuffer is not valid SharedArrayBuffer");
     }
 
-    SharedArrayBufferObject* newBuffer = newValue->asSharedArrayBufferObject();
+    SharedArrayBufferObject* newBuffer = newValue.toObject(state)->asSharedArrayBufferObject();
     if ((newBuffer->data() == O->data()) || (newBuffer->byteLength() < newLen)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor SharedArrayBuffer is not valid SharedArrayBuffer");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().SharedArrayBuffer.string(), true, state.context()->staticStrings().slice.string(), "%s: return value of constructor SharedArrayBuffer is not valid SharedArrayBuffer");
     }
 
     newBuffer->fillData(O->data() + first, newLen);

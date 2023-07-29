@@ -939,12 +939,14 @@ public:
     }
     static ValueRef* createNull();
     static ValueRef* createUndefined();
+    static ValueRef* createException();
 
     bool isStoredInHeap();
     bool isBoolean();
     bool isNumber();
     bool isNull();
     bool isUndefined();
+    bool isException();
     bool isInt32();
     bool isUInt32();
     bool isDouble();

@@ -53,10 +53,8 @@ String* Value::toStringWithoutException(ExecutionState& ec) const
         return asString();
     }
 
-    String* result;
-    try {
-        result = toStringSlowCase(ec);
-    } catch (const Value&) {
+    String* result = toStringSlowCase(ec);
+    if (ec.hasPendingException()) {
         result = String::fromASCII("Error while converting to string, but do not throw an exception");
     }
     return result;
@@ -66,6 +64,7 @@ Value Value::toPropertyKey(ExecutionState& state) const
 {
     // Let key be ? ToPrimitive(argument, hint String).
     Value key = toPrimitive(state, Value::PreferString);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // If Type(key) is Symbol, then
     if (key.isSymbol()) {
         // Return key.
@@ -110,12 +109,15 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
         else
             return ec.context()->staticStrings().stringFalse.string();
     } else if (isSymbol()) {
-        ErrorObject::throwBuiltinError(ec, ErrorCode::TypeError, "Cannot convert a Symbol value to a string");
-        ASSERT_NOT_REACHED();
+        THROW_BUILTIN_ERROR_RETURN_NULL(ec, ErrorCode::TypeError, "Cannot convert a Symbol value to a string");
     } else if (isBigInt()) {
         return asBigInt()->toString();
     } else {
-        return toPrimitive(ec, PreferString).toString(ec);
+        Value prim = toPrimitive(ec, PreferString);
+        if (UNLIKELY(ec.hasPendingException())) {
+            return nullptr;
+        }
+        return prim.toString(ec);
     }
     return nullptr;
 }
@@ -134,10 +136,10 @@ Object* Value::toObjectSlowCase(ExecutionState& state) const // $7.1.13 ToObject
     } else if (isBigInt()) {
         object = new BigIntObject(state, asBigInt());
     } else if (isNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NullToObject);
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, ErrorObject::Messages::NullToObject);
     } else {
         ASSERT(isUndefined());
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::UndefinedToObject);
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, ErrorObject::Messages::UndefinedToObject);
     }
     return object;
 }
@@ -147,6 +149,7 @@ BigInt* Value::toBigInt(ExecutionState& state) const
 {
     // Let prim be ? ToPrimitive(argument, hint Number).
     Value prim = toPrimitive(state, Value::PreferNumber);
+    RETURN_NULL_IF_PENDING_EXCEPTION
     if (prim.isBigInt()) {
         return prim.asBigInt();
     } else if (prim.isBoolean()) {
@@ -158,18 +161,18 @@ BigInt* Value::toBigInt(ExecutionState& state) const
         auto b = BigInt::parseString(prim.asString()->trim());
         if (!b) {
             b = BigInt::parseString(prim.asString()->trim());
-            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Cannot parse String as BigInt");
+            THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::SyntaxError, "Cannot parse String as BigInt");
         }
         return b.value();
     } else if (prim.isUndefined()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot convert undefined to BigInt");
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, "Cannot convert undefined to BigInt");
     } else if (prim.isNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot convert null to BigInt");
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, "Cannot convert null to BigInt");
     } else if (prim.isNumber()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot convert number to BigInt");
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, "Cannot convert number to BigInt");
     } else {
         ASSERT(prim.isSymbol());
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot convert Symbol to BigInt");
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, "Cannot convert Symbol to BigInt");
     }
     ASSERT_NOT_REACHED();
     return nullptr;
@@ -205,23 +208,26 @@ Value Value::ordinaryToPrimitive(ExecutionState& state, PrimitiveTypeHint prefer
     // Let result be Call(method, O).
     // If Type(result) is not Object, return result.
     Value method1 = input->get(state, ObjectPropertyName(methodName1)).value(state, input);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (method1.isCallable()) {
         Value result = Object::call(state, method1, input, 0, nullptr);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (!result.isObject()) {
             return result;
         }
     }
     Value method2 = input->get(state, ObjectPropertyName(methodName2)).value(state, input);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (method2.isCallable()) {
         Value result = Object::call(state, method2, input, 0, nullptr);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (!result.isObject()) {
             return result;
         }
     }
 
     // Throw a TypeError exception.
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::ObjectToPrimitiveValue);
-    RELEASE_ASSERT_NOT_REACHED();
+    THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::ObjectToPrimitiveValue);
 }
 
 // https://www.ecma-international.org/ecma-262/6.0/#sec-toprimitive
@@ -243,6 +249,7 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
 
     // Let exoticToPrim be GetMethod(input, @@toPrimitive).
     Value exoticToPrim = Object::getMethod(state, input, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toPrimitive));
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // If exoticToPrim is not undefined, then
     if (!exoticToPrim.isUndefined()) {
         Value hint;
@@ -255,12 +262,13 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
         }
         // Let result be Call(exoticToPrim, input, «hint»).
         Value result = Object::call(state, exoticToPrim, input, 1, &hint);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // If Type(result) is not Object, return result.
         if (!result.isObject()) {
             return result;
         }
         // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::ObjectToPrimitiveValue);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::ObjectToPrimitiveValue);
     }
     // If hint is "default", let hint be "number".
     if (preferredType == PreferDefault) {
@@ -365,10 +373,14 @@ bool Value::abstractEqualsToSlowCase(ExecutionState& state, const Value& val) co
             return abstractEqualsTo(state, Value(Value::DoubleToIntConvertibleTestNeeds, val.toNumber(state)));
         } else if ((selfIsString || selfIsNumber || isSymbol() || selfIsBigInt) && (valIsPointerValue && val.asPointerValue()->isObject())) {
             // If Type(x) is either String, Number, BigInt, or Symbol and Type(y) is Object, return the result of the comparison x == ? ToPrimitive(y).
-            return abstractEqualsTo(state, val.toPrimitive(state));
+            bool result = abstractEqualsTo(state, val.toPrimitive(state));
+            RETURN_ZERO_IF_PENDING_EXCEPTION
+            return result;
         } else if ((selfIsPointerValue && asPointerValue()->isObject() && !selfIsString) && (valIsString || valIsNumber || val.isSymbol() || valIsBigInt)) {
             // If Type(x) is Object and Type(y) is either String, Number, or Symbol, then
-            return toPrimitive(state).abstractEqualsTo(state, val);
+            bool result = toPrimitive(state).abstractEqualsTo(state, val);
+            RETURN_ZERO_IF_PENDING_EXCEPTION
+            return result;
         } else if (UNLIKELY((selfIsBigInt && valIsNumber) || (selfIsNumber && valIsBigInt))) {
             // If Type(x) is BigInt and Type(y) is Number, or if Type(x) is Number and Type(y) is BigInt, then
             // If x or y are any of NaN, +∞, or -∞, return false.
@@ -566,7 +578,7 @@ bool Value::instanceOf(ExecutionState& state, const Value& other) const
 {
     // If Type(C) is not Object, throw a TypeError exception.
     if (!other.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::InstanceOf_NotFunction);
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, ErrorObject::Messages::InstanceOf_NotFunction);
     }
     Object* C = other.asObject();
 
@@ -579,16 +591,19 @@ bool Value::instanceOf(ExecutionState& state, const Value& other) const
 
     // Let instOfHandler be GetMethod(C,@@hasInstance).
     Value instOfHandler = Object::getMethod(state, other, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().hasInstance));
+    RETURN_ZERO_IF_PENDING_EXCEPTION
     // If instOfHandler is not undefined, then
     if (!instOfHandler.isUndefined()) {
         // Return ToBoolean(Call(instOfHandler, C, «O»)).
         Value arg[1] = { *this };
-        return Object::call(state, instOfHandler, Value(C), 1, arg).toBoolean(state);
+        Value res = Object::call(state, instOfHandler, Value(C), 1, arg);
+        RETURN_ZERO_IF_PENDING_EXCEPTION
+        return res.toBoolean(state);
     }
 
     // If IsCallable(C) is false, throw a TypeError exception.
     if (!C->isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::InstanceOf_NotFunction);
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, ErrorObject::Messages::InstanceOf_NotFunction);
     }
     // Return OrdinaryHasInstance(C, O).
     return C->hasInstance(state, *this);
@@ -601,7 +616,7 @@ double Value::toNumberSlowCase(ExecutionState& state) const
     PointerValue* o = asPointerValue();
 
     if (UNLIKELY(o->isBigInt())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Could not convert BigInt to number");
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, "Could not convert BigInt to number");
     }
 
     bool isString = o->isString();
@@ -777,12 +792,13 @@ double Value::toNumberSlowCase(ExecutionState& state) const
         }
         return val;
     } else if (isSymbol()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot convert a Symbol value to a number");
-        ASSERT_NOT_REACHED();
+        THROW_BUILTIN_ERROR_RETURN_ZERO(state, ErrorCode::TypeError, "Cannot convert a Symbol value to a number");
     } else {
         // Let primValue be ToPrimitive(argument, hint Number).
         // Return ToNumber(primValue).
-        return toPrimitive(state, PreferNumber).toNumber(state);
+        Value prim = toPrimitive(state, PreferNumber);
+        RETURN_ZERO_IF_PENDING_EXCEPTION
+        return prim.toNumber(state);
     }
     return 0;
 }
@@ -791,6 +807,10 @@ std::pair<Value, bool> Value::toNumericSlowCase(ExecutionState& state) const
 {
     // Let primValue be ? ToPrimitive(value, hint Number).
     auto primValue = toPrimitive(state, PrimitiveTypeHint::PreferNumber);
+    // return exception
+    if (UNLIKELY(state.hasPendingException())) {
+        return std::make_pair(Value(Value::Exception), false);
+    }
     // If Type(primValue) is BigInt, return primValue.
     if (UNLIKELY(primValue.isBigInt())) {
         return std::make_pair(primValue, true);
@@ -851,7 +871,11 @@ uint32_t Value::tryToUseAsIndex32SlowCase(ExecutionState& ec) const
     if (isSymbol()) {
         return Value::InvalidIndex32Value;
     }
-    return toString(ec)->tryToUseAsIndex32();
+    String* str = toString(ec);
+    if (UNLIKELY(ec.hasPendingException())) {
+        return 0;
+    }
+    return str->tryToUseAsIndex32();
 }
 
 #if defined(ESCARGOT_ENABLE_TEST)

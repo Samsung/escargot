@@ -88,16 +88,17 @@ SharedArrayBufferObject* SharedArrayBufferObject::allocateSharedArrayBuffer(Exec
     Object* proto = Object::getPrototypeFromConstructor(state, constructor, [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->sharedArrayBufferPrototype();
     });
+    RETURN_NULL_IF_PENDING_EXCEPTION
 
     if (UNLIKELY(byteLength >= ArrayBuffer::maxArrayBufferSize)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
     }
 
     if (UNLIKELY(maxByteLength.hasValue())) {
         ASSERT(byteLength <= maxByteLength.value());
         uint64_t maxLength = maxByteLength.value();
         if (UNLIKELY(maxLength >= ArrayBuffer::maxArrayBufferSize)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+            THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
         }
 
         return new SharedArrayBufferObject(state, proto, byteLength, maxLength);

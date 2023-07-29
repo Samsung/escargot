@@ -139,6 +139,7 @@ void TypedArrayObject::sort(ExecutionState& state, int64_t length, const std::fu
 
         for (int64_t i = 0; i < length; i++) {
             integerIndexedElementSet(state, i, tempBuffer[i]);
+            ASSERT(!state.hasPendingException());
         }
         GC_FREE(tempBuffer);
 
@@ -149,17 +150,18 @@ void TypedArrayObject::sort(ExecutionState& state, int64_t length, const std::fu
 ArrayBuffer* TypedArrayObject::validateTypedArray(ExecutionState& state, const Value& O)
 {
     if (!O.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
 
     Object* thisObject = O.asObject();
     if (!thisObject->isTypedArrayObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
     }
 
     auto wrapper = thisObject->asTypedArrayObject();
     ArrayBuffer* buffer = wrapper->buffer();
     buffer->throwTypeErrorIfDetached(state);
+    RETURN_ZERO_IF_PENDING_EXCEPTION
     return buffer;
 }
 
@@ -188,6 +190,7 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
         // Otherwise, let numValue be ? ToNumber(value).
         numValue = Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state));
     }
+    RETURN_ZERO_IF_PENDING_EXCEPTION
 
     if (buffer()->isDetachedBuffer() || !Value(Value::DoubleToIntConvertibleTestNeeds, index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
         return false;
@@ -200,17 +203,19 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
 }
 
 #define DECLARE_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                         \
-    TypedArrayObject* TYPE##ArrayObject::allocateTypedArray(ExecutionState& state, Object* newTarget, size_t length)                            \
+    Value TYPE##ArrayObject::allocateTypedArray(ExecutionState& state, Object* newTarget, size_t length)                                        \
     {                                                                                                                                           \
         ASSERT(!!newTarget);                                                                                                                    \
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* { \
             return constructorRealm->globalObject()->type##ArrayPrototype();                                                                    \
         });                                                                                                                                     \
+        RETURN_VALUE_IF_PENDING_EXCEPTION                                                                                                       \
         TypedArrayObject* obj = new TYPE##ArrayObject(state, proto);                                                                            \
         if (length == std::numeric_limits<size_t>::max()) {                                                                                     \
             obj->setBuffer(nullptr, 0, 0, 0);                                                                                                   \
         } else {                                                                                                                                \
             auto buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), length * siz);          \
+            RETURN_VALUE_IF_PENDING_EXCEPTION                                                                                                   \
             obj->setBuffer(buffer, 0, length* siz, length);                                                                                     \
         }                                                                                                                                       \
         return obj;                                                                                                                             \
@@ -260,6 +265,7 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
     {                                                                                                                                           \
         typedef typename TYPE##Adaptor::Type Type;                                                                                              \
         Type littleEndianVal = TYPE##Adaptor::toNative(state, val);                                                                             \
+        RETURN_IF_PENDING_EXCEPTION                                                                                                             \
         ASSERT(byteLength());                                                                                                                   \
         size_t elementSize = siz;                                                                                                               \
         ASSERT(byteindex + elementSize <= byteLength());                                                                                        \
@@ -304,6 +310,7 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
         if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength() && !buffer()->isDetachedBuffer())) {                      \
             size_t indexedPosition = property.asUInt32() * siz;                                                                                 \
             setDirectValueInBuffer(state, indexedPosition, value);                                                                              \
+            RETURN_ZERO_IF_PENDING_EXCEPTION                                                                                                    \
             return true;                                                                                                                        \
         }                                                                                                                                       \
         return set(state, ObjectPropertyName(state, property), value, receiver);                                                                \

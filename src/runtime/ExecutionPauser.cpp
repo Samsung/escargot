@@ -140,7 +140,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
 
     const size_t programStart = reinterpret_cast<size_t>(self->m_byteCodeBlock->m_code.data());
     Value result;
-    try {
+    {
         ExecutionState* es;
         size_t startPos = self->m_byteCodePosition;
         if (startPos == SIZE_MAX) {
@@ -184,6 +184,13 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
 #endif /* ESCARGOT_DEBUGGER */
 
         result = Interpreter::interpret(es, self->m_byteCodeBlock, startPos, self->m_registerFile);
+        // check exception
+        if (UNLIKELY(result.isException())) {
+            ASSERT(es->hasPendingException());
+            es->unsetPendingException();
+            state.setPendingException();
+            goto IfAbrupt;
+        }
 
 #ifdef ESCARGOT_DEBUGGER
         if (activeSavedStackTraceExecutionState != ESCARGOT_DEBUGGER_NO_STACK_TRACE_RESTORE) {
@@ -224,35 +231,17 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             } else if (from == StartFrom::AsyncGenerator) {
                 source->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
                 result = AsyncGeneratorObject::asyncGeneratorResolve(state, source->asAsyncGeneratorObject(), result, true);
+                if (UNLIKELY(state.hasPendingException()))
+                    goto IfAbrupt;
             } else {
                 ASSERT(from == StartFrom::Async);
                 Value argv = result;
                 Object::call(state, self->m_promiseCapability.m_resolveFunction, Value(), 1, &argv);
+                if (UNLIKELY(state.hasPendingException()))
+                    goto IfAbrupt;
                 result = self->m_promiseCapability.m_promise;
             }
             self->release();
-        }
-    } catch (const Value& thrownValue) {
-        auto promiseCapability = self->m_promiseCapability;
-        self->release();
-        if (from == StartFrom::Generator) {
-            ASSERT(from == StartFrom::Generator);
-            source->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::CompletedThrow;
-            throw thrownValue;
-        } else if (from == StartFrom::AsyncGenerator) {
-            if (source->asAsyncGeneratorObject()->m_asyncGeneratorState == AsyncGeneratorObject::SuspendedStart) {
-                throw thrownValue;
-            } else {
-                source->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
-                result = AsyncGeneratorObject::asyncGeneratorReject(state, source->asAsyncGeneratorObject(), thrownValue);
-            }
-        } else {
-            // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
-            ASSERT(from == StartFrom::Async);
-            Value argv = thrownValue;
-            Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
-            // Return Completion { [[Type]]: return, [[Value]]: promiseCapability.[[Promise]], [[Target]]: empty }.
-            result = promiseCapability.m_promise;
         }
     }
 
@@ -261,6 +250,33 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
     }
 
     return result;
+
+IfAbrupt : {
+    ASSERT(state.hasPendingException());
+    auto promiseCapability = self->m_promiseCapability;
+    self->release();
+    if (from == StartFrom::Generator) {
+        ASSERT(from == StartFrom::Generator);
+        source->asGeneratorObject()->m_generatorState = GeneratorObject::GeneratorState::CompletedThrow;
+        return Value(Value::Exception);
+    } else if (from == StartFrom::AsyncGenerator) {
+        if (source->asAsyncGeneratorObject()->m_asyncGeneratorState == AsyncGeneratorObject::SuspendedStart) {
+            return Value(Value::Exception);
+        } else {
+            Value thrownValue = state.detachPendingException();
+            source->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::Completed;
+            return AsyncGeneratorObject::asyncGeneratorReject(state, source->asAsyncGeneratorObject(), thrownValue);
+        }
+    } else {
+        // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-async-functions-abstract-operations-async-function-start
+        ASSERT(from == StartFrom::Async);
+        Value argv = state.detachPendingException();
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        // Return Completion { [[Type]]: return, [[Value]]: promiseCapability.[[Promise]], [[Target]]: empty }.
+        return promiseCapability.m_promise;
+    }
+}
 }
 
 void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex, ByteCodeRegisterIndex dstStateRegisterIndex, PauseReason reason)
@@ -290,6 +306,7 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
         } else if (isAsyncGenerator) {
             pauser->asAsyncGeneratorObject()->m_asyncGeneratorState = AsyncGeneratorObject::AsyncGeneratorState::SuspendedYield;
             returnValue = AsyncGeneratorObject::asyncGeneratorResolve(state, pauser->asAsyncGeneratorObject(), returnValue, false);
+            RETURN_IF_PENDING_EXCEPTION
         }
     } else {
         ASSERT(reason == PauseReason::Await || reason == PauseReason::GeneratorsInitialize);

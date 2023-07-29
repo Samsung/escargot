@@ -100,39 +100,39 @@ protected:
     inline bool integerIndexedElementSet(ExecutionState& state, double index, const Value& value);
 };
 
-#define DECLARE_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                            \
-    class TYPE##ArrayObject : public TypedArrayObject {                                                                                            \
-    public:                                                                                                                                        \
-        explicit TYPE##ArrayObject(ExecutionState& state)                                                                                          \
-            : TYPE##ArrayObject(state, state.context()->globalObject()->type##ArrayPrototype())                                                    \
-        {                                                                                                                                          \
-        }                                                                                                                                          \
-        explicit TYPE##ArrayObject(ExecutionState& state, Object* proto)                                                                           \
-            : TypedArrayObject(state, proto)                                                                                                       \
-        {                                                                                                                                          \
-        }                                                                                                                                          \
-        static TypedArrayObject* allocateTypedArray(ExecutionState& state, Object* newTarget, size_t length = std::numeric_limits<size_t>::max()); \
-        virtual TypedArrayType typedArrayType() override                                                                                           \
-        {                                                                                                                                          \
-            return TypedArrayType::TYPE;                                                                                                           \
-        }                                                                                                                                          \
-        virtual String* typedArrayName(ExecutionState& state) override                                                                             \
-        {                                                                                                                                          \
-            return state.context()->staticStrings().TYPE##Array.string();                                                                          \
-        }                                                                                                                                          \
-        virtual size_t elementSize() override                                                                                                      \
-        {                                                                                                                                          \
-            return siz;                                                                                                                            \
-        }                                                                                                                                          \
-        virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver) override;                  \
-        virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver) override;         \
-        virtual Value getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver) override;                       \
-                                                                                                                                                   \
-    private:                                                                                                                                       \
-        template <const bool isLittleEndian = true>                                                                                                \
-        inline Value getDirectValueFromBuffer(ExecutionState& state, size_t byteindex);                                                            \
-        template <const bool isLittleEndian = true>                                                                                                \
-        inline void setDirectValueInBuffer(ExecutionState& state, size_t byteindex, const Value& val);                                             \
+#define DECLARE_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                    \
+    class TYPE##ArrayObject : public TypedArrayObject {                                                                                    \
+    public:                                                                                                                                \
+        explicit TYPE##ArrayObject(ExecutionState& state)                                                                                  \
+            : TYPE##ArrayObject(state, state.context()->globalObject()->type##ArrayPrototype())                                            \
+        {                                                                                                                                  \
+        }                                                                                                                                  \
+        explicit TYPE##ArrayObject(ExecutionState& state, Object* proto)                                                                   \
+            : TypedArrayObject(state, proto)                                                                                               \
+        {                                                                                                                                  \
+        }                                                                                                                                  \
+        static Value allocateTypedArray(ExecutionState& state, Object* newTarget, size_t length = std::numeric_limits<size_t>::max());     \
+        virtual TypedArrayType typedArrayType() override                                                                                   \
+        {                                                                                                                                  \
+            return TypedArrayType::TYPE;                                                                                                   \
+        }                                                                                                                                  \
+        virtual String* typedArrayName(ExecutionState& state) override                                                                     \
+        {                                                                                                                                  \
+            return state.context()->staticStrings().TYPE##Array.string();                                                                  \
+        }                                                                                                                                  \
+        virtual size_t elementSize() override                                                                                              \
+        {                                                                                                                                  \
+            return siz;                                                                                                                    \
+        }                                                                                                                                  \
+        virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver) override;          \
+        virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver) override; \
+        virtual Value getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver) override;               \
+                                                                                                                                           \
+    private:                                                                                                                               \
+        template <const bool isLittleEndian = true>                                                                                        \
+        inline Value getDirectValueFromBuffer(ExecutionState& state, size_t byteindex);                                                    \
+        template <const bool isLittleEndian = true>                                                                                        \
+        inline void setDirectValueInBuffer(ExecutionState& state, size_t byteindex, const Value& val);                                     \
     };
 
 FOR_EACH_TYPEDARRAY_TYPES(DECLARE_TYPEDARRAY)

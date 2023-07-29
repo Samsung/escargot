@@ -30,13 +30,13 @@ namespace Escargot {
 static Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
-        return Value();
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->weakMapPrototype();
     });
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     WeakMapObject* weakMap = new WeakMapObject(state, proto);
 
@@ -46,40 +46,54 @@ static Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, s
 
     Value iterable = argv[0];
     Value add = weakMap->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, weakMap);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (!add.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
 
     auto iteratorRecord = IteratorObject::getIterator(state, iterable);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     while (true) {
-        auto next = IteratorObject::iteratorStep(state, iteratorRecord);
-        if (!next.hasValue()) {
-            return weakMap;
-        }
+        {
+            auto next = IteratorObject::iteratorStep(state, iteratorRecord);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
+            if (!next.hasValue()) {
+                return weakMap;
+            }
 
-        Value nextItem = IteratorObject::iteratorValue(state, next.value());
-        if (!nextItem.isObject()) {
-            ErrorObject* error = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("TypeError"));
-            return IteratorObject::iteratorClose(state, iteratorRecord, error, true);
-        }
+            Value nextItem = IteratorObject::iteratorValue(state, next.value());
+            RETURN_VALUE_IF_PENDING_EXCEPTION
+            if (!nextItem.isObject()) {
+                ErrorObject* error = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("TypeError"));
+                return IteratorObject::iteratorClose(state, iteratorRecord, error, true);
+            }
 
-        try {
             Value k = nextItem.asObject()->getIndexedProperty(state, Value(0)).value(state, nextItem);
+            if (UNLIKELY(state.hasPendingException()))
+                goto IfAbrupt;
             Value v = nextItem.asObject()->getIndexedProperty(state, Value(1)).value(state, nextItem);
+            if (UNLIKELY(state.hasPendingException()))
+                goto IfAbrupt;
             Value argv[2] = { k, v };
             Object::call(state, add, weakMap, 2, argv);
-        } catch (const Value& v) {
-            Value exception = v;
-            return IteratorObject::iteratorClose(state, iteratorRecord, exception, true);
+            if (UNLIKELY(state.hasPendingException()))
+                goto IfAbrupt;
+            continue;
         }
+
+    IfAbrupt : {
+        ASSERT(state.hasPendingException());
+        Value exception = state.detachPendingException();
+        return IteratorObject::iteratorClose(state, iteratorRecord, exception, true);
+    }
     }
     return weakMap;
 }
 
-#define RESOLVE_THIS_BINDING_TO_WEAKMAP(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                    \
-    if (!thisValue.isObject() || !thisValue.asObject()->isWeakMapObject()) {                                                                                                                                                                           \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                  \
+#define RESOLVE_THIS_BINDING_TO_WEAKMAP(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                      \
+    if (!thisValue.isObject() || !thisValue.asObject()->isWeakMapObject()) {                                                                                                                                                                             \
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                    \
     WeakMapObject* NAME = thisValue.asObject()->asWeakMapObject();
 
 static Value builtinWeakMapDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -116,7 +130,7 @@ static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t ar
 {
     RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, set);
     if (!argv[0].isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid value used as weak map key");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "Invalid value used as weak map key");
     }
 
     M->set(state, argv[0].asObject(), argv[1]);

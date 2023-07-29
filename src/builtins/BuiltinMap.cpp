@@ -30,8 +30,7 @@ namespace Escargot {
 static Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
-        return Value();
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
     }
 
     // Let map be ? OrdinaryCreateFromConstructor(NewTarget, "%MapPrototype%", « [[MapData]] »).
@@ -39,6 +38,7 @@ static Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->mapPrototype();
     });
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     MapObject* map = new MapObject(state, proto);
 
     // If iterable is not present, or is either undefined or null, return map.
@@ -50,51 +50,65 @@ static Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_
 
     // Let adder be ? Get(map, "set").
     Value adder = map->Object::get(state, ObjectPropertyName(state.context()->staticStrings().set)).value(state, map);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // If IsCallable(adder) is false, throw a TypeError exception.
     if (!adder.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
     }
 
     // Let iteratorRecord be ? GetIterator(iterable).
     auto iteratorRecord = IteratorObject::getIterator(state, iterable);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     while (true) {
-        auto next = IteratorObject::iteratorStep(state, iteratorRecord);
-        if (!next.hasValue()) {
-            return map;
-        }
+        {
+            auto next = IteratorObject::iteratorStep(state, iteratorRecord);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
+            if (!next.hasValue()) {
+                return map;
+            }
 
-        Value nextItem = IteratorObject::iteratorValue(state, next.value());
-        if (!nextItem.isObject()) {
-            ErrorObject* errorobj = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("TypeError"));
-            return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);
-        }
+            Value nextItem = IteratorObject::iteratorValue(state, next.value());
+            RETURN_VALUE_IF_PENDING_EXCEPTION
+            if (!nextItem.isObject()) {
+                ErrorObject* errorobj = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("TypeError"));
+                return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);
+            }
 
-        try {
             // Let k be Get(nextItem, "0").
             // If k is an abrupt completion, return ? IteratorClose(iter, k).
             Value k = nextItem.asObject()->getIndexedProperty(state, Value(0)).value(state, nextItem);
+            if (state.hasPendingException())
+                goto IfAbrupt;
             // Let v be Get(nextItem, "1").
             // If v is an abrupt completion, return ? IteratorClose(iter, v).
             Value v = nextItem.asObject()->getIndexedProperty(state, Value(1)).value(state, nextItem);
+            if (state.hasPendingException())
+                goto IfAbrupt;
 
             // Let status be Call(adder, map, « k.[[Value]], v.[[Value]] »).
             Value argv[2] = { k, v };
             Object::call(state, adder, map, 2, argv);
-        } catch (const Value& v) {
-            // we should save thrown value bdwgc cannot track thrown value
-            Value exceptionValue = v;
-            // If status is an abrupt completion, return ? IteratorClose(iteratorRecord, status).
-            return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
+            if (state.hasPendingException())
+                goto IfAbrupt;
+            continue;
         }
+
+    IfAbrupt : {
+        ASSERT(state.hasPendingException());
+        // we should save thrown value bdwgc cannot track thrown value
+        Value exceptionValue = state.detachPendingException();
+        // If status is an abrupt completion, return ? IteratorClose(iteratorRecord, status).
+        return IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
+    }
     }
 
     return map;
 }
 
-#define RESOLVE_THIS_BINDING_TO_MAP(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                        \
-    if (!thisValue.isObject() || !thisValue.asObject()->isMapObject()) {                                                                                                                                                                               \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                  \
+#define RESOLVE_THIS_BINDING_TO_MAP(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                          \
+    if (!thisValue.isObject() || !thisValue.asObject()->isMapObject()) {                                                                                                                                                                                 \
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                    \
     MapObject* NAME = thisValue.asObject()->asMapObject();
 
 static Value builtinMapClear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -139,7 +153,7 @@ static Value builtinMapForEach(ExecutionState& state, Value thisValue, size_t ar
     Value callbackfn = argv[0];
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     if (!callbackfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Map.string(), true, state.context()->staticStrings().forEach.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Map.string(), true, state.context()->staticStrings().forEach.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
     // If thisArg was supplied, let T be thisArg; else let T be undefined.
     Value T;
@@ -155,6 +169,7 @@ static Value builtinMapForEach(ExecutionState& state, Value thisValue, size_t ar
             // Perform ? Call(callbackfn, T, « e.[[Value]], e.[[Key]], M »).
             Value argv[3] = { Value(entries[i].second), Value(entries[i].first), Value(M) };
             Object::call(state, callbackfn, T, 3, argv);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
     }
 
@@ -188,7 +203,7 @@ static Value builtinMapSizeGetter(ExecutionState& state, Value thisValue, size_t
 static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isMapIteratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().MapIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().MapIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
     MapIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asMapIteratorObject();
     return iter->next(state);

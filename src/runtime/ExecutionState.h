@@ -20,6 +20,24 @@
 #ifndef __EscargotExecutionState__
 #define __EscargotExecutionState__
 
+#define THROW_EXCEPTION_RETURN_VALUE(state, e) \
+    do {                                       \
+        state.throwException(e);               \
+        return Value(Value::Exception);        \
+    } while (false)
+
+#define THROW_EXCEPTION_RETURN_NULL(state, e) \
+    do {                                      \
+        state.throwException(e);              \
+        return nullptr;                       \
+    } while (false)
+
+#define THROW_EXCEPTION_RETURN(state, e) \
+    do {                                 \
+        state.throwException(e);         \
+        return;                          \
+    } while (false)
+
 #include "util/Vector.h"
 
 namespace Escargot {
@@ -81,6 +99,7 @@ public:
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
+        , m_hasPendingException(false)
 #if defined(ENABLE_TCO)
         , m_initTCO(false)
 #endif
@@ -94,7 +113,7 @@ public:
         , m_lexicalEnvironment(nullptr)
         , m_stackLimit(stackLimit)
         , m_programCounter(nullptr)
-        , m_parent(0)
+        , m_parent(nullptr)
         , m_hasRareData(false)
         , m_inStrictMode(false)
         , m_isNativeFunctionObjectExecutionContext(false)
@@ -102,6 +121,7 @@ public:
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
+        , m_hasPendingException(false)
 #if defined(ENABLE_TCO)
         , m_initTCO(false)
 #endif
@@ -123,6 +143,7 @@ public:
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
+        , m_hasPendingException(false)
 #if defined(ENABLE_TCO)
         , m_initTCO(false)
 #endif
@@ -144,6 +165,7 @@ public:
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
+        , m_hasPendingException(false)
 #if defined(ENABLE_TCO)
         , m_initTCO(false)
 #endif
@@ -168,6 +190,7 @@ public:
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
+        , m_hasPendingException(false)
 #if defined(ENABLE_TCO)
         , m_initTCO(false)
 #endif
@@ -268,6 +291,24 @@ public:
         return m_onFinally;
     }
 
+    bool hasPendingException() const
+    {
+        return m_hasPendingException;
+    }
+
+    void setPendingException()
+    {
+        ASSERT(!m_hasPendingException);
+        m_hasPendingException = true;
+    }
+
+    void unsetPendingException()
+    {
+        m_hasPendingException = false;
+    }
+
+    Value detachPendingException();
+
 #if defined(ENABLE_TCO)
     bool initTCO() const
     {
@@ -361,6 +402,7 @@ private:
     bool m_onTry : 1;
     bool m_onCatch : 1;
     bool m_onFinally : 1;
+    bool m_hasPendingException : 1;
 #if defined(ENABLE_TCO)
     bool m_initTCO : 1;
 #endif

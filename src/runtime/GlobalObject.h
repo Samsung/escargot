@@ -28,17 +28,18 @@ namespace Escargot {
 
 class FunctionObject;
 
-#define RESOLVE_THIS_BINDING_TO_OBJECT(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                            \
-    if (thisValue.isUndefinedOrNull()) {                                                                                                                                                                                                      \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull); \
-    }                                                                                                                                                                                                                                         \
+#define RESOLVE_THIS_BINDING_TO_OBJECT(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                              \
+    if (thisValue.isUndefinedOrNull()) {                                                                                                                                                                                                        \
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull); \
+    }                                                                                                                                                                                                                                           \
     Object* NAME = thisValue.toObject(state);
 
-#define RESOLVE_THIS_BINDING_TO_STRING(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                            \
-    if (thisValue.isUndefinedOrNull()) {                                                                                                                                                                                                      \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull); \
-    }                                                                                                                                                                                                                                         \
-    String* NAME = thisValue.toString(state);
+#define RESOLVE_THIS_BINDING_TO_STRING(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                              \
+    if (thisValue.isUndefinedOrNull()) {                                                                                                                                                                                                        \
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull); \
+    }                                                                                                                                                                                                                                           \
+    String* NAME = thisValue.toString(state);                                                                                                                                                                                                   \
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
 
 #define GLOBALOBJECT_BUILTIN_ARRAYBUFFER(F, objName) \

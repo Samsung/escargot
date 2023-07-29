@@ -22,6 +22,50 @@
 
 #include "runtime/Object.h"
 
+#define THROW_BUILTIN_ERROR_RETURN_VALUE(...)        \
+    do {                                             \
+        ErrorObject::throwBuiltinError(__VA_ARGS__); \
+        return Value(Value::Exception);              \
+    } while (false);
+
+#define THROW_BUILTIN_ERROR_RETURN_NULL(...)         \
+    do {                                             \
+        ErrorObject::throwBuiltinError(__VA_ARGS__); \
+        return nullptr;                              \
+    } while (false);
+
+#define THROW_BUILTIN_ERROR_RETURN_ZERO(...)         \
+    do {                                             \
+        ErrorObject::throwBuiltinError(__VA_ARGS__); \
+        return 0;                                    \
+    } while (false);
+
+#define THROW_BUILTIN_ERROR_RETURN(...)              \
+    do {                                             \
+        ErrorObject::throwBuiltinError(__VA_ARGS__); \
+        return;                                      \
+    } while (false);
+
+#define RETURN_VALUE_IF_PENDING_EXCEPTION        \
+    if (UNLIKELY(state.hasPendingException())) { \
+        return Value(Value::Exception);          \
+    }
+
+#define RETURN_NULL_IF_PENDING_EXCEPTION         \
+    if (UNLIKELY(state.hasPendingException())) { \
+        return nullptr;                          \
+    }
+
+#define RETURN_ZERO_IF_PENDING_EXCEPTION         \
+    if (UNLIKELY(state.hasPendingException())) { \
+        return 0;                                \
+    }
+
+#define RETURN_IF_PENDING_EXCEPTION              \
+    if (UNLIKELY(state.hasPendingException())) { \
+        return;                                  \
+    }
+
 namespace Escargot {
 
 class ByteCodeBlock;

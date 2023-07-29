@@ -124,6 +124,7 @@ void EnumerateObjectWithDestruction::fillRestElement(ExecutionState& state, Obje
             // check unmarked key and put rest properties
             if (!key.isEmpty()) {
                 value = m_object->getIndexedProperty(state, key).value(state, m_object);
+                RETURN_IF_PENDING_EXCEPTION
                 result->setIndexedProperty(state, key, value);
             }
         }
@@ -225,7 +226,8 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
 
         // v8 throw exception when there is too many things on prototype chain
         if (UNLIKELY(m_hiddenClassChain.size() > 1024 * 128)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
+            RELEASE_ASSERT_NOT_REACHED();
+            //ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded");
         }
     }
 

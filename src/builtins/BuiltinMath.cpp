@@ -43,8 +43,10 @@ static Value builtinMathMax(ExecutionState& state, Value thisValue, size_t argc,
     }
 
     double maxValue = argv[0].toNumber(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     for (unsigned i = 1; i < argc; i++) {
         double value = argv[i].toNumber(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (std::isnan(value))
             is_NaN = true;
         if (value > maxValue || (!value && !maxValue && !std::signbit(value)))
@@ -64,8 +66,10 @@ static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc,
 
     bool hasNaN = false;
     double minValue = argv[0].toNumber(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     for (unsigned i = 1; i < argc; i++) {
         double value = argv[i].toNumber(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (std::isnan(value)) {
             hasNaN = true;
         }
@@ -82,6 +86,7 @@ static Value builtinMathMin(ExecutionState& state, Value thisValue, size_t argc,
 static Value builtinMathRound(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (x == static_cast<int64_t>(x)) {
         return Value(Value::DoubleToIntConvertibleTestNeeds, x);
     }
@@ -150,7 +155,9 @@ static Value builtinMathAtan(ExecutionState& state, Value thisValue, size_t argc
 static Value builtinMathAtan2(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double y = argv[0].toNumber(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     double x = argv[1].toNumber(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::atan2(y, x));
 }
 
@@ -181,6 +188,7 @@ static Value builtinMathTrunc(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinMathSign(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (std::isnan(x))
         return Value(Value::NanInit);
     else if (x == 0.0) {
@@ -204,7 +212,9 @@ static Value builtinMathSqrt(ExecutionState& state, Value thisValue, size_t argc
 static Value builtinMathPow(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double x = argv[0].toNumber(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     double y = argv[1].toNumber(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (UNLIKELY(std::isnan(y)))
         return Value(Value::NanInit);
     if (UNLIKELY(std::abs(x) == 1 && std::isinf(y)))
@@ -327,6 +337,7 @@ static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t arg
     bool has_inf = false;
     for (unsigned i = 0; i < argc; i++) {
         double value = argv[i].toNumber(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (std::isinf(value)) {
             has_inf = true;
         } else if (std::isnan(value)) {
@@ -351,6 +362,7 @@ static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t arg
     double compensation = 0;
     for (unsigned i = 0; i < argc; i++) {
         double value = argv[i].toNumber(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         double scaledArgument = value / maxValue;
         double summand = scaledArgument * scaledArgument - compensation;
         double preliminary = sum + summand;

@@ -40,7 +40,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
         Value checkMSG = state.context()->securityPolicyCheckCallback()(state, false);
         if (!checkMSG.isEmpty()) {
             ASSERT(checkMSG.isString());
-            ErrorObject::throwBuiltinError(state, ErrorCode::EvalError, checkMSG.asString());
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::EvalError, checkMSG.asString());
             return Value();
         }
     }
@@ -48,6 +48,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
     Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
     auto functionSource = FunctionObject::createDynamicFunctionScript(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false, false, false);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
     if (!newTarget.hasValue()) {
@@ -56,6 +57,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->functionPrototype();
     });
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     ScriptFunctionObject* result = new ScriptFunctionObject(state, proto, functionSource.codeBlock, functionSource.outerEnvironment, true, false);
 
@@ -100,14 +102,14 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
         }
     }
 
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
+    THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
     return Value();
 }
 
 static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
     }
     Value thisArg = argv[0];
     Value argArray = argv[1];
@@ -118,6 +120,7 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
         // TODO
     } else {
         argList = Object::createListFromArrayLike(state, argArray);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         arrlen = argList.size();
         arguments = argList.data();
     }
@@ -128,7 +131,7 @@ static Value builtinFunctionApply(ExecutionState& state, Value thisValue, size_t
 static Value builtinFunctionCall(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().apply.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
     }
     Value thisArg = argv[0];
     size_t arrlen = argc > 0 ? argc - 1 : 0;
@@ -145,7 +148,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
 {
     // If IsCallable(Target) is false, throw a TypeError exception.
     if (!thisValue.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().bind.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Function.string(), true, state.context()->staticStrings().bind.string(), ErrorObject::Messages::GlobalObject_ThisNotFunctionObject);
     }
 
     // Let Target be the this value.
@@ -164,6 +167,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     if (targetHasLength) {
         // Let targetLen be Get(Target, "length").
         Value targetLen = target->get(state, ObjectPropertyName(state.context()->staticStrings().length)).value(state, target);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // If Type(targetLen) is not Number, let L be 0.
         // Else Let targetLen be ToInteger(targetLen).
         // Let L be the larger of 0 and the result of targetLen minus the number of elements of args.
@@ -177,6 +181,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
 
     // Let targetName be Get(Target, "name").
     Value targetName = target->get(state, ObjectPropertyName(state.context()->staticStrings().name)).value(state, target);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // If Type(targetName) is not String, let targetName be the empty string.
     if (!targetName.isString()) {
         targetName = String::emptyString;
@@ -200,7 +205,9 @@ static Value builtinFunctionHasInstanceOf(ExecutionState& state, Value thisValue
     if (!thisValue.isObject()) {
         return Value(false);
     }
-    return Value(thisValue.asObject()->hasInstance(state, argv[0]));
+    Value result = Value(thisValue.asObject()->hasInstance(state, argv[0]));
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    return result;
 }
 
 static Value builtinCallerAndArgumentsGetterSetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -232,7 +239,7 @@ static Value builtinCallerAndArgumentsGetterSetter(ExecutionState& state, Value 
     }
 
     if (needThrow) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "'caller' and 'arguments' restrict properties may not be accessed on strict mode functions or the arguments objects for calls to them");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "'caller' and 'arguments' restrict properties may not be accessed on strict mode functions or the arguments objects for calls to them");
     }
 
     bool inStrict = false;

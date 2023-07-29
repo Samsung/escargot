@@ -33,7 +33,7 @@ ExecutionState::ExecutionState()
     , m_lexicalEnvironment(nullptr)
     , m_stackLimit(0)
     , m_programCounter(nullptr)
-    , m_parent(0)
+    , m_parent(nullptr)
     , m_hasRareData(false)
     , m_inStrictMode(false)
     , m_isNativeFunctionObjectExecutionContext(false)
@@ -41,6 +41,7 @@ ExecutionState::ExecutionState()
     , m_onTry(false)
     , m_onCatch(false)
     , m_onFinally(false)
+    , m_hasPendingException(false)
 #if defined(ENABLE_TCO)
     , m_initTCO(false)
 #endif
@@ -62,7 +63,7 @@ ExecutionState::ExecutionState(Context* context)
     , m_lexicalEnvironment(nullptr)
     , m_stackLimit(context->vmInstance()->stackLimit())
     , m_programCounter(nullptr)
-    , m_parent(0)
+    , m_parent(nullptr)
     , m_hasRareData(false)
     , m_inStrictMode(false)
     , m_isNativeFunctionObjectExecutionContext(false)
@@ -70,6 +71,7 @@ ExecutionState::ExecutionState(Context* context)
     , m_onTry(false)
     , m_onCatch(false)
     , m_onFinally(false)
+    , m_hasPendingException(false)
 #if defined(ENABLE_TCO)
     , m_initTCO(false)
 #endif
@@ -81,7 +83,17 @@ ExecutionState::ExecutionState(Context* context)
 
 void ExecutionState::throwException(const Value& e)
 {
+    // should not have unhandled exception
+    ASSERT(!m_hasPendingException);
+    m_hasPendingException = true;
     context()->throwException(*this, e);
+}
+
+Value ExecutionState::detachPendingException()
+{
+    ASSERT(m_hasPendingException);
+    m_hasPendingException = false;
+    return context()->vmInstance()->currentSandBox()->exception();
 }
 
 ExecutionStateRareData* ExecutionState::ensureRareData()
@@ -196,8 +208,7 @@ Object* ExecutionState::findPrivateMemberContextObject()
 {
     auto o = mostNearestHomeObject();
     if (!o) {
-        ErrorObject::throwBuiltinError(*this, ErrorCode::TypeError, "Cannot read/write private member here");
-        return nullptr;
+        THROW_BUILTIN_ERROR_RETURN_NULL(*this, ErrorCode::TypeError, "Cannot read/write private member here");
     }
     return convertHomeObjectIntoPrivateMemberContextObject(o.value());
 }
@@ -237,7 +248,9 @@ Value ExecutionState::thisValue()
                 auto fnRecord = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
                 ScriptFunctionObject* f = fnRecord->functionObject();
                 if (f->codeBlock()->isInterpretedCodeBlock() && f->codeBlock()->asInterpretedCodeBlock()->needsToLoadThisBindingFromEnvironment()) {
-                    return fnRecord->getThisBinding(*this);
+                    Value result = fnRecord->getThisBinding(*this);
+                    ASSERT(!this->hasPendingException());
+                    return result;
                 } else {
                     return f;
                 }
@@ -264,7 +277,7 @@ Value ExecutionState::makeSuperPropertyReference()
 
     // If env.HasSuperBinding() is false, throw a ReferenceError exception.
     if (!env->hasSuperBinding()) {
-        ErrorObject::throwBuiltinError(*this, ErrorCode::ReferenceError, ErrorObject::Messages::No_Super_Binding);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(*this, ErrorCode::ReferenceError, ErrorObject::Messages::No_Super_Binding);
     }
 
     // Let actualThis be env.GetThisBinding().
@@ -297,7 +310,7 @@ Value ExecutionState::getSuperConstructor()
 
     // If IsConstructor(superConstructor) is false, throw a TypeError exception.
     if (!superConstructor.isConstructor()) {
-        ErrorObject::throwBuiltinError(*this, ErrorCode::TypeError, ErrorObject::Messages::No_Super_Binding);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(*this, ErrorCode::TypeError, ErrorObject::Messages::No_Super_Binding);
     }
 
     // Return superConstructor.

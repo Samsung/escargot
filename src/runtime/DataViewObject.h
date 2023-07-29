@@ -49,19 +49,20 @@ public:
     {
         double numberIndex = index.toIndex(state);
         if (numberIndex == Value::InvalidIndexValue) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
 
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
         ArrayBuffer* buffer = this->buffer();
         buffer->throwTypeErrorIfDetached(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
 
         size_t viewOffset = byteOffset();
         size_t viewSize = byteLength();
         size_t elementSize = TypedArrayHelper::elementSize(type);
 
         if (numberIndex + elementSize > viewSize) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
         }
 
         size_t bufferIndex = numberIndex + viewOffset;
@@ -73,22 +74,24 @@ public:
     {
         double numberIndex = index.toIndex(state);
         if (numberIndex == Value::InvalidIndexValue) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
 
         auto numericValue = val.toNumeric(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         UNUSED_VARIABLE(numericValue);
 
         bool isLittleEndian = _isLittleEndian.toBoolean(state);
         ArrayBuffer* buffer = this->buffer();
         buffer->throwTypeErrorIfDetached(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
 
         size_t viewOffset = byteOffset();
         size_t viewSize = byteLength();
         size_t elementSize = TypedArrayHelper::elementSize(type);
 
         if (numberIndex + elementSize > viewSize) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_RangeError);
         }
 
         size_t bufferIndex = numberIndex + viewOffset;

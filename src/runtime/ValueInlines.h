@@ -84,6 +84,12 @@ inline Value::Value(EmptyValueInitTag)
     u.asBits.payload = 0;
 }
 
+inline Value::Value(ExceptionInitTag)
+{
+    u.asBits.tag = ExceptionTag;
+    u.asBits.payload = 0;
+}
+
 inline Value::Value(TrueInitTag)
 {
     u.asBits.tag = BooleanTrueTag;
@@ -239,6 +245,11 @@ inline bool Value::isEmpty() const
     return tag() == EmptyValueTag;
 }
 
+inline bool Value::isException() const
+{
+    return tag() == ExceptionTag;
+}
+
 ALWAYS_INLINE bool Value::isNumber() const
 {
     return isInt32() || isDouble();
@@ -373,6 +384,11 @@ inline Value::Value(EmptyValueInitTag)
     u.asInt64 = ValueEmpty;
 }
 
+inline Value::Value(ExceptionInitTag)
+{
+    u.asInt64 = ValueException;
+}
+
 inline Value::Value(TrueInitTag)
 {
     u.asInt64 = ValueTrue;
@@ -469,6 +485,11 @@ inline double Value::asDouble() const
 inline bool Value::isEmpty() const
 {
     return u.asInt64 == ValueEmpty;
+}
+
+inline bool Value::isException() const
+{
+    return u.asInt64 == ValueException;
 }
 
 ALWAYS_INLINE bool Value::isNumber() const
@@ -887,6 +908,9 @@ inline Value::ValueIndex Value::toIndex(ExecutionState& ec) const
     }
 
     auto integerIndex = toInteger(ec);
+    if (UNLIKELY(ec.hasPendingException())) {
+        return 0;
+    }
     Value::ValueIndex index = Value(Value::DoubleToIntConvertibleTestNeeds, integerIndex).toLength(ec);
     if (UNLIKELY(integerIndex < 0 || integerIndex != index)) {
         return Value::InvalidIndexValue;
@@ -938,6 +962,9 @@ inline double Value::toInteger(ExecutionState& state) const
     }
 
     double d = toNumber(state);
+    if (UNLIKELY(state.hasPendingException())) {
+        return 0;
+    }
     if (std::isnan(d) || d == 0) {
         return 0;
     }

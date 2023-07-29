@@ -77,6 +77,7 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
             return constructorRealm->globalObject()->datePrototype();
         });
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         DateObject* thisObject = new DateObject(state, proto);
 
         if (argc == 0) {
@@ -92,12 +93,15 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
             } else {
                 // Let v be ToPrimitive(value).
                 v = v.toPrimitive(state);
+                RETURN_VALUE_IF_PENDING_EXCEPTION
                 // If Type(v) is String, then
                 if (v.isString()) {
                     thisObject->setTimeValue(state, v);
+                    RETURN_VALUE_IF_PENDING_EXCEPTION
                 } else {
                     // Let tv be ToNumber(v).
                     double V = v.toNumber(state);
+                    RETURN_VALUE_IF_PENDING_EXCEPTION
                     thisObject->setTimeValue(DateObject::timeClip(state, V));
                 }
             }
@@ -109,6 +113,7 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
             argc = (argc > 7) ? 7 : argc; // trim arguments so that they don't corrupt stack
             for (size_t i = 0; i < argc; i++) {
                 args[i] = argv[i].toNumber(state);
+                RETURN_VALUE_IF_PENDING_EXCEPTION
             }
             double year = args[0];
             double month = args[1];
@@ -138,9 +143,11 @@ static Value builtinDateNow(ExecutionState& state, Value thisValue, size_t argc,
 static Value builtinDateParse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value str = argv[0].toPrimitive(state, Value::PreferString);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (str.isString()) {
         DateObject d(state);
         d.setTimeValue(state, str);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         return Value(Value::DoubleToIntConvertibleTestNeeds, d.primitiveValue());
     }
     return Value(Value::NanInit);
@@ -153,6 +160,7 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
     argc = (argc > 7) ? 7 : argc; // trim arguments so that they don't corrupt stack
     for (size_t i = 0; i < argc; i++) {
         args[i] = argv[i].toNumber(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     }
     double year = args[0];
     double month = args[1];
@@ -178,10 +186,10 @@ static Value builtinDateUTC(ExecutionState& state, Value thisValue, size_t argc,
     return Value(Value::DoubleToIntConvertibleTestNeeds, d.primitiveValue());
 }
 
-#define RESOLVE_THIS_BINDING_TO_DATE(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                            \
-    if (!thisValue.isObject() || !thisValue.asObject()->isDateObject()) {                                                                                                                                                                   \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_ThisNotDateObject); \
-    }                                                                                                                                                                                                                                       \
+#define RESOLVE_THIS_BINDING_TO_DATE(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                              \
+    if (!thisValue.isObject() || !thisValue.asObject()->isDateObject()) {                                                                                                                                                                     \
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_ThisNotDateObject); \
+    }                                                                                                                                                                                                                                         \
     DateObject* NAME = thisValue.asObject()->asDateObject();
 
 static Value builtinDateGetTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -281,11 +289,13 @@ static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t ar
     RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toJSON);
 
     Value tv = Value(thisObject).toPrimitive(state, Value::PreferNumber);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (tv.isNumber() && (std::isnan(tv.asNumber()) || std::isinf(tv.asNumber()))) {
         return Value(Value::Null);
     }
 
     Value isoFunc = thisObject->get(state, ObjectPropertyName(state.context()->staticStrings().toISOString)).value(state, thisObject);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return Object::call(state, isoFunc, thisObject, 0, nullptr);
 }
 
@@ -375,6 +385,7 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     if (UNLIKELY(!isInValidRange(year, month, date, hour, minute, second, millisecond))) {
         d->setTimeValueAsNaN();
     } else if (d->isValid()) {
@@ -396,7 +407,10 @@ static Value builtinDateSetTime(ExecutionState& state, Value thisValue, size_t a
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, setTime);
     if (argc > 0) {
-        thisObject->setTimeValue(DateObject::timeClip(state, argv[0].toNumber(state)));
+        double num = argv[0].toNumber(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        thisObject->setTimeValue(DateObject::timeClip(state, num));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         return Value(Value::DoubleToIntConvertibleTestNeeds, thisObject->primitiveValue());
     } else {
         thisObject->setTimeValueAsNaN();
@@ -435,6 +449,7 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
 
     // Let y be ToNumber(year).
     y = argv[0].toNumber(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // If y is NaN, set the [[DateValue]] internal slot of this Date object to NaN and return NaN.
     if (std::isnan(y)) {
         d->setTimeValueAsNaN();
@@ -479,8 +494,8 @@ static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size
     Value O = thisValue;
     // If Type(O) is not Object, throw a TypeError exception.
     if (!O.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Date.string(), true,
-                                       state.context()->staticStrings().toPrimitive.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Date.string(), true,
+                                         state.context()->staticStrings().toPrimitive.string(), ErrorObject::Messages::GlobalObject_ThisNotObject);
     }
     bool tryFirstIsString = false;
     // If hint is the String value "string" or the String value "default", then
@@ -493,8 +508,8 @@ static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size
         tryFirstIsString = false;
     } else {
         // Else, throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Date.string(), true,
-                                       state.context()->staticStrings().toPrimitive.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().Date.string(), true,
+                                         state.context()->staticStrings().toPrimitive.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
     // Return ? OrdinaryToPrimitive(O, tryFirst).
     if (tryFirstIsString) {

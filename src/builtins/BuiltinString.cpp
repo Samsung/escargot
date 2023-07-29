@@ -46,6 +46,7 @@ static Value builtinStringConstructor(ExecutionState& state, Value thisValue, si
             return value.asSymbol()->symbolDescriptiveString();
         } else {
             s = value.toString(state);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
     }
     if (!newTarget.hasValue()) {
@@ -56,6 +57,7 @@ static Value builtinStringConstructor(ExecutionState& state, Value thisValue, si
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->stringPrototype();
     });
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return new StringObject(state, proto, s);
 }
 
@@ -68,7 +70,7 @@ static Value builtinStringToString(ExecutionState& state, Value thisValue, size_
     if (thisValue.isString())
         return thisValue.toString(state);
 
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotString);
+    THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().toString.string(), ErrorObject::Messages::GlobalObject_ThisNotString);
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -76,6 +78,7 @@ static Value builtinStringIndexOf(ExecutionState& state, Value thisValue, size_t
 {
     RESOLVE_THIS_BINDING_TO_STRING(str, String, indexOf);
     String* searchStr = argv[0].toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     Value val;
     if (argc > 1) {
@@ -108,10 +111,12 @@ static Value builtinStringLastIndexOf(ExecutionState& state, Value thisValue, si
     // Let S be ToString(O).
     RESOLVE_THIS_BINDING_TO_STRING(S, String, lastIndexOf);
     String* searchStr = argv[0].toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     double numPos;
     if (argc > 1) {
         numPos = argv[1].toNumber(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     } else {
         numPos = Value().toNumber(state);
     }
@@ -137,6 +142,7 @@ static Value builtinStringLocaleCompare(ExecutionState& state, Value thisValue, 
     RESOLVE_THIS_BINDING_TO_STRING(S, String, localeCompare);
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
     String* That = argv[0].toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     Value locales, options;
 
     if (argc >= 2) {
@@ -151,6 +157,7 @@ static Value builtinStringLocaleCompare(ExecutionState& state, Value thisValue, 
     return Value(IntlCollator::compare(state, collator, S, That));
 #else
     String* That = argv[0].toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return Value(stringCompare(*S, *That));
 #endif
 }
@@ -163,8 +170,10 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
     } else {
         size_t len = str->length();
         double doubleStart = argv[0].toNumber(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         Value end = argv[1];
         double doubleEnd = (argc < 2 || end.isUndefined()) ? len : end.toNumber(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         doubleStart = (std::isnan(doubleStart)) ? 0 : doubleStart;
         doubleEnd = (std::isnan(doubleEnd)) ? 0 : doubleEnd;
 
@@ -184,12 +193,13 @@ static Value builtinStringSubstring(ExecutionState& state, Value thisValue, size
 static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
 
     Value regexp = argv[0];
     if (!regexp.isUndefinedOrNull()) {
         Value matcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (!matcher.isUndefined()) {
             Value args[1] = { thisValue };
             return Object::call(state, matcher, regexp, 1, args);
@@ -197,8 +207,12 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
     }
 
     String* S = thisValue.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     RegExpObject* rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     Value func = rx->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match)).value(state, rx);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     Value args[1] = { Value(S) };
     return Object::call(state, func, rx, 1, args);
 }
@@ -206,28 +220,34 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
 static Value builtinStringMatchAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
 
     Value regexp = argv[0];
     if (!regexp.isUndefinedOrNull()) {
         if (regexp.isObject() && regexp.asObject()->isRegExpObject()) {
             String* flags = regexp.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, regexp).toString(state);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             if (flags->find("g") == SIZE_MAX) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+                THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().match.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
             }
         }
         Value matcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().matchAll));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (!matcher.isUndefined()) {
             Value args[1] = { thisValue };
             return Object::call(state, matcher, regexp, 1, args);
         }
     }
     String* S = thisValue.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     StringBuilder builder;
     builder.appendChar('g');
     RegExpObject* rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), builder.finalize());
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     Value func = rx->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().matchAll)).value(state, rx);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     Value args[1] = { Value(S) };
     return Object::call(state, func, rx, 1, args);
 }
@@ -250,6 +270,7 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
     NormalizationForm form = NFC;
     if (LIKELY(!argument.isUndefined())) {
         String* formString = argument.toString(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (formString->equals("NFC")) {
             form = NFC;
         } else if (formString->equals("NFD")) {
@@ -259,7 +280,7 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
         } else if (formString->equals("NFKD")) {
             form = NFKD;
         } else {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid normalization form");
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, "invalid normalization form");
             return Value();
         }
     }
@@ -287,14 +308,14 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
         break;
     }
     if (!normalizer || U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "normalization fails");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "normalization fails");
         return Value();
     }
     int32_t normalizedStringLength = unorm2_normalize(normalizer, (const UChar*)utf16Str.data(), utf16Str.length(), nullptr, 0, &status);
 
     if (U_FAILURE(status) && status != U_BUFFER_OVERFLOW_ERROR) {
         // when normalize fails.
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "normalization fails");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "normalization fails");
         return Value();
     }
     UTF16StringData ret;
@@ -303,7 +324,7 @@ static Value builtinStringNormalize(ExecutionState& state, Value thisValue, size
     unorm2_normalize(normalizer, (const UChar*)utf16Str.data(), utf16Str.length(), (UChar*)ret.data(), normalizedStringLength, &status);
 
     if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "normalization fails");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "normalization fails");
         return Value();
     }
     return new UTF16String(std::move(ret));
@@ -318,7 +339,7 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
     double count = argument.toInteger(state);
     double newStringLength = str->length() * count;
     if (count < 0 || count == std::numeric_limits<double>::infinity() || newStringLength > STRING_MAXIMUM_LENGTH) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid count number of String repeat method");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, "invalid count number of String repeat method");
     }
 
     if (newStringLength == 0) {
@@ -423,7 +444,7 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
 static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replace.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
 
     Value searchValue = argv[0];
@@ -434,6 +455,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     bool canUseFastPath = searchValue.isString() || (isSearchValueRegExp && searchValue.asPointerValue()->asRegExpObject()->yarrPatern()->m_captureGroupNames.size() == 0);
     if (!searchValue.isUndefinedOrNull()) {
         Value replacer = Object::getMethod(state, searchValue, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().replace));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (canUseFastPath && isSearchValueRegExp && replacer.isPointerValue() && replacer.asPointerValue() == state.context()->globalObject()->regexpReplaceMethod()) {
             auto exec = searchValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().exec));
             if (!exec.hasValue() || exec.value(state, searchValue) != state.context()->globalObject()->regexpExecMethod()) {
@@ -451,7 +473,9 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     }
 
     String* string = thisValue.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     String* searchString = searchValue.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     bool functionalReplace = replaceValue.isCallable();
 
     if (canUseFastPath) {
@@ -471,6 +495,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
                     regexp->createRegexMatchResult(state, string, result);
                 }
             }
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         } else {
             size_t idx = string->find(searchString);
             if (idx != (size_t)-1) {
@@ -486,6 +511,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
         // NOTE: replaceValue.toString should be called after searchValue.toString
         if (!functionalReplace) {
             replaceString = replaceValue.toString(state);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
 
         // If no occurrences of searchString were found, return string.
@@ -516,7 +542,10 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
                 arguments[subLen] = Value((int)result.m_matchResults[i][0].m_start);
                 arguments[subLen + 1] = string;
                 // 21.1.3.14 (11) it should be called with this as undefined
-                String* res = Object::call(state, callee, Value(), subLen + 2, arguments).toString(state);
+                Value val = Object::call(state, callee, Value(), subLen + 2, arguments);
+                RETURN_VALUE_IF_PENDING_EXCEPTION
+                String* res = val.toString(state);
+                RETURN_VALUE_IF_PENDING_EXCEPTION
                 builer.appendSubString(res, 0, res->length());
 
                 if (i < matchCount - 1) {
@@ -531,6 +560,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
     } else {
         if (!functionalReplace) {
             replaceValue = replaceValue.toString(state);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
         size_t pos = string->find(searchString, 0);
         String* matched = searchString;
@@ -543,10 +573,13 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
         if (functionalReplace) {
             Value parameters[3] = { Value(matched), Value(pos), Value(string) };
             Value replValue = Object::call(state, replaceValue, Value(), 3, parameters);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             replStr = replValue.toString(state);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         } else {
             StringVector captures;
             replStr = String::getSubstitution(state, matched, string, pos, captures, Value(), replaceValue.toString(state));
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
         size_t tailpos = pos + matched->length();
         StringBuilder builder;
@@ -561,7 +594,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
 static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replaceAll.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().object.string(), true, state.context()->staticStrings().replaceAll.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
     Value searchValue = argv[0];
     Value replaceValue = argv[1];
@@ -570,12 +603,14 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
         // If isRegExp is true, then
         if (searchValue.isObject() && searchValue.asObject()->isRegExp(state)) {
             Value flags = searchValue.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, searchValue);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             if (flags.isUndefinedOrNull() || !flags.toString(state)->contains("g")) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().replaceAll.string(), true, state.context()->staticStrings().replaceAll.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+                THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().replaceAll.string(), true, state.context()->staticStrings().replaceAll.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
             }
         }
         // Let replacer be ? GetMethod(searchValue, @@replace).
         Value replacer = Object::getMethod(state, searchValue, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().replace));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (!replacer.isUndefined()) {
             Value args[2] = { thisValue, replaceValue };
             // Return ? Call(replacer, searchValue, « O, replaceValue »).
@@ -584,12 +619,15 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
     }
 
     String* string = thisValue.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     String* searchString = searchValue.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     bool functionalReplace = replaceValue.isCallable();
     // If functionalReplace is false, then
     if (!functionalReplace) {
         replaceValue = replaceValue.toString(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     }
 
     size_t searchLength = searchString->length();
@@ -614,7 +652,10 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
         // If functionalReplace is true, then
         if (functionalReplace) {
             Value args[3] = { searchString, Value(p), string };
-            replacement = Object::call(state, replaceValue, Value(), 3, args).toString(state);
+            Value rep = Object::call(state, replaceValue, Value(), 3, args);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
+            replacement = rep.toString(state);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         } else {
             StringVector captures;
             replacement = String::getSubstitution(state, searchString, string, p, captures, Value(), replaceValue.asString());
@@ -632,12 +673,13 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
 static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().search.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().search.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
 
     Value regexp = argv[0];
     if (!regexp.isUndefinedOrNull()) {
         Value searcher = Object::getMethod(state, regexp, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         if (!searcher.isUndefined()) {
             Value args[1] = { thisValue };
             return Object::call(state, searcher, regexp, 1, args);
@@ -645,8 +687,12 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
     }
 
     String* string = thisValue.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     RegExpObject* rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     Value func = rx->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search)).value(state, rx);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     Value args[1] = { Value(string) };
     return Object::call(state, func, rx, 1, args);
 }
@@ -654,7 +700,7 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
 static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().split.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, state.context()->staticStrings().split.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
 
     Value separator = argv[0];
@@ -665,6 +711,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     if (!separator.isUndefinedOrNull()) {
         // Let splitter be GetMethod(separator, @@split).
         Value splitter = Object::getMethod(state, separator, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().split));
+        RETURN_VALUE_IF_PENDING_EXCEPTION
 
         // --- Optmize path
         // if splitter is builtin RegExp.prototype.split and separator is RegExpObject
@@ -680,6 +727,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
 
     // Let S be ? ToString(O).
     String* S = thisValue.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Let A be ! ArrayCreate(0).
     ArrayObject* A = new ArrayObject(state);
     // Let lengthA = 0.
@@ -695,6 +743,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
         P = separator.asPointerValue()->asRegExpObject();
     } else {
         P = separator.toString(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     }
 
     // If lim = 0, return A.
@@ -723,6 +772,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
         if (P->isRegExpObject()) {
             RegexMatchResult result;
             ret = P->asRegExpObject()->matchNonGlobally(state, S, result, false, 0);
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         } else {
             Value z = splitMatchUsingStr(S, 0, P->asString());
             if (z.isBoolean()) {
@@ -763,6 +813,7 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
                     return A;
                 q = p;
             }
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
     } else {
         String* R = P->asString();
@@ -870,10 +921,11 @@ static Value builtinStringFromCodePoint(ExecutionState& state, Value thisValue, 
     for (size_t nextIndex = 0; nextIndex < argc; nextIndex++) {
         Value next = argv[nextIndex];
         double nextCP = next.toNumber(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         double toIntegerNexCP = next.toInteger(state);
 
         if (nextCP != toIntegerNexCP || nextCP < 0 || nextCP > 0x10FFFF) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid code point");
+            THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::RangeError, "invalid code point");
         }
 
         uint32_t cp = (uint32_t)nextCP;
@@ -897,6 +949,7 @@ static Value builtinStringConcat(ExecutionState& state, Value thisValue, size_t 
     RESOLVE_THIS_BINDING_TO_STRING(str, String, concat);
     for (size_t i = 0; i < argc; i++) {
         String* appendStr = argv[i].toString(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         str = RopeString::createRopeString(str, appendStr, &state);
     }
     return Value(str);
@@ -1155,7 +1208,7 @@ static Value builtinStringValueOf(ExecutionState& state, Value thisValue, size_t
     } else if (thisValue.isObject() && thisValue.asObject()->isStringObject()) {
         return Value(thisValue.asPointerValue()->asStringObject()->primitiveValue());
     }
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotString);
+    THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotString);
     RELEASE_ASSERT_NOT_REACHED();
 }
 
@@ -1169,10 +1222,11 @@ static Value builtinStringStartsWith(ExecutionState& state, Value thisValue, siz
     // If isRegExp is true, throw a TypeError exception.
 
     if (searchString.isObject() && searchString.asObject()->isRegExp(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't use RegExp with startsWith");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "can't use RegExp with startsWith");
     }
     // Let searchStr be ? ToString(searchString).
     String* searchStr = searchString.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Let pos be ? ToInteger(position). (If position is undefined, this step produces the value 0.)
     double pos = 0;
     if (argc >= 2) {
@@ -1212,13 +1266,14 @@ static Value builtinStringEndsWith(ExecutionState& state, Value thisValue, size_
     // Let isRegExp be ? IsRegExp(searchString).
     // If isRegExp is true, throw a TypeError exception.
     if (searchString.isObject() && searchString.asObject()->isRegExp(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't use RegExp with endsWith");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "can't use RegExp with endsWith");
     }
     // Let len be the number of elements in S.
     double len = S->length();
 
     // Let searchStr be ? ToString(searchString).
     String* searchStr = searchString.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // If endPosition is undefined, let pos be len, else let pos be ? ToInteger(endPosition).
     double pos = 0;
     if (argc >= 2 && !argv[1].isUndefined()) {
@@ -1266,8 +1321,10 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
     Object* cooked = argTemplate.toObject(state);
     // Let raw be ? ToObject(? Get(cooked, "raw")).
     Object* raw = cooked->get(state, ObjectPropertyName(state.context()->staticStrings().raw)).value(state, cooked).toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Let literalSegments be ? ToLength(? Get(raw, "length")).
     double literalSegments = raw->length(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // If literalSegments ≤ 0, return the empty string.
     if (literalSegments <= 0) {
         return String::emptyString;
@@ -1281,6 +1338,7 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
         // Let nextKey be ! ToString(nextIndex).
         // Let nextSeg be ? ToString(? Get(raw, nextKey)).
         String* nextSeg = raw->get(state, ObjectPropertyName(state, Value(nextIndex))).value(state, raw).toString(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // Append in order the code unit elements of nextSeg to the end of stringElements.
         for (size_t i = 0; i < nextSeg->length(); i++) {
             stringElements.appendChar(nextSeg->charAt(i));
@@ -1300,6 +1358,7 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
         }
         // Let nextSub be ? ToString(next).
         String* nextSub = next.toString(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
         // Append in order the code unit elements of nextSub to the end of stringElements.
         stringElements.appendString(nextSub);
         // Let nextIndex be nextIndex + 1.
@@ -1327,6 +1386,7 @@ static Value stringPad(ExecutionState& state, String* S, size_t argc, Value* arg
     String* filler;
     if (argc >= 2 && (!argv[1].isUndefined())) {
         filler = argv[1].toString(state);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
     } else {
         filler = state.context()->staticStrings().asciiTable[0x20].string();
     }
@@ -1388,9 +1448,10 @@ static String* createHTML(ExecutionState& state, Value string, String* tag, Stri
     // Let S be ToString(str).
     // ReturnIfAbrupt(S).
     if (string.isUndefinedOrNull()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, methodName.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
+        THROW_BUILTIN_ERROR_RETURN_NULL(state, ErrorCode::TypeError, state.context()->staticStrings().String.string(), true, methodName.string(), ErrorObject::Messages::GlobalObject_ThisUndefinedOrNull);
     }
     String* S = string.toString(state);
+    RETURN_NULL_IF_PENDING_EXCEPTION
 
     // Let p1 be the String value that is the concatenation of "<" and tag.
     StringBuilder sb;
@@ -1401,6 +1462,7 @@ static String* createHTML(ExecutionState& state, Value string, String* tag, Stri
     if (attribute->length()) {
         // Let V be ToString(value).
         String* V = value.toString(state);
+        RETURN_NULL_IF_PENDING_EXCEPTION
         // ReturnIfAbrupt(V).
         // Let escapedV be the String value that is the same as V except that each occurrence of the code unit 0x0022 (QUOTATION MARK) in V has been replaced with the six code unit sequence "&quot;".
         StringBuilder sb;
@@ -1489,7 +1551,10 @@ static Value builtinStringAt(ExecutionState& state, Value thisValue, size_t argc
 #define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, P0, P1, P2)                                                                    \
     static Value builtinString##fnName(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
     {                                                                                                                                 \
-        return createHTML(state, thisValue, P0, P1, P2, state.context()->staticStrings().fnName);                                     \
+        Value result = createHTML(state, thisValue, P0, P1, P2, state.context()->staticStrings().fnName);                             \
+        RETURN_VALUE_IF_PENDING_EXCEPTION                                                                                             \
+        RETURN_VALUE_IF_PENDING_EXCEPTION                                                                                             \
+        return result;                                                                                                                \
     }
 
 // String.prototype.anchor (name)
@@ -1543,11 +1608,12 @@ static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_
     // If isRegExp is true, throw a TypeError exception.
     Value searchString = argv[0];
     if (searchString.isObject() && searchString.asObject()->isRegExp(state)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't use RegExp with includes");
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, "can't use RegExp with includes");
     }
 
     // Let searchStr be ? ToString(searchString).
     String* searchStr = searchString.toString(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
 
     // Let pos be ? ToInteger(position). (If position is undefined, this step produces the value 0.)
     double pos = 0;
@@ -1572,7 +1638,7 @@ static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_
 static Value builtinStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isStringIteratorObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().StringIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+        THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().StringIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
     }
     StringIteratorObject* iter = thisValue.asObject()->asIteratorObject()->asStringIteratorObject();
     return iter->next(state);
