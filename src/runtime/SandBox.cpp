@@ -300,7 +300,7 @@ void SandBox::throwException(ExecutionState& state, const Value& exception)
     throw exception;
 }
 
-void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, const StackTraceDataVector& stackTraceDataVector)
+void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, StackTraceDataVector&& stackTraceDataVector)
 {
     m_stackTraceDataVector = stackTraceDataVector;
     // update stack trace data if needs
@@ -353,8 +353,7 @@ void ErrorObject::StackTraceData::buildStackTrace(Context* context, StringBuilde
 {
     if (exception.isObject()) {
         ExecutionState state(context);
-        SandBox sb(context);
-        sb.run([&]() -> Value {
+        try {
             auto getResult = exception.asObject()->get(state, state.context()->staticStrings().name);
             if (getResult.hasValue()) {
                 builder.appendString(getResult.value(state, exception.asObject()).toString(state));
@@ -365,8 +364,9 @@ void ErrorObject::StackTraceData::buildStackTrace(Context* context, StringBuilde
                 builder.appendString(getResult.value(state, exception.asObject()).toString(state));
                 builder.appendChar('\n');
             }
-            return Value();
-        });
+        } catch (const Value& v) {
+            // ignore exception
+        }
     }
 
     ByteCodeLOCDataMap locMap;

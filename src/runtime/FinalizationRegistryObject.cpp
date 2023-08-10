@@ -178,18 +178,13 @@ void FinalizationRegistryObject::finalizer(Object* self, void* data)
         }
 
         if (!wasCallbackDeleted) {
-            SandBox sb(item->source->m_realm);
-            struct ExecutionData {
-                FinalizationRegistryObjectItem* item;
-            } ed;
-            ed.item = item;
-            sb.run([](ExecutionState& state, void* data) -> Value {
-                ExecutionData* ed = (ExecutionData*)data;
-                Value argv = ed->item->heldValue;
-                Object::call(state, ed->item->source->m_cleanupCallback.value(), Value(), 1, &argv);
-                return Value();
-            },
-                   &ed);
+            try {
+                ExecutionState tempState(item->source->m_realm);
+                Value argv = item->heldValue;
+                Object::call(tempState, item->source->m_cleanupCallback.value(), Value(), 1, &argv);
+            } catch (const Value& v) {
+                // do nothing
+            }
         }
     }
 

@@ -161,8 +161,7 @@ static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size
 
     // Read the imports of module with imports importObject, and let imports be the result. If this operation throws an exception, catch it, reject promise with the exception, and return promise.
     own wasm_extern_vec_t imports;
-    SandBox sb(state.context());
-    auto readImportsResult = sb.run([&]() -> Value {
+    try {
         Value moduleValue = firstArg;
         if (!moduleValue.isObject() || !moduleValue.asObject()->isWASMModuleObject()) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::WASM_InstantiateModuleError);
@@ -175,23 +174,20 @@ static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size
         // Read the imports of module with imports importObject, and let imports be the result.
         wasm_extern_vec_new_empty(&imports);
         WASMOperations::readImportsOfModule(state, module, importObj, &imports);
-
-        return Value();
-    });
-
-    if (!readImportsResult.error.isEmpty()) {
+    } catch (const Value& v) {
         // If this operation throws an exception, catch it, reject promise with the exception.
-        Value reason[] = { readImportsResult.error };
-        Object::call(state, capability.m_rejectFunction, Value(), 1, reason);
-    } else {
-        // Note) pass imports data and its size into ExtendedNativeFunctionObjectImpl and delete imports vector inside ExtendedNativeFunctionObjectImpl call
-        auto moduleInstantiator = new ExtendedNativeFunctionObjectImpl<2>(state, NativeFunctionInfo(AtomicString(), WASMOperations::instantiateCoreModule, 1, NativeFunctionInfo::Strict));
-        moduleInstantiator->setInternalSlot(0, Value(imports.size));
-        moduleInstantiator->setInternalSlotAsPointer(1, imports.data);
-
-        Job* job = new PromiseReactionJob(state.context(), PromiseReaction(moduleInstantiator, capability), firstArg);
-        state.context()->vmInstance()->enqueueJob(job);
+        Value reason = v;
+        Object::call(state, capability.m_rejectFunction, Value(), 1, &reason);
+        return capability.m_promise;
     }
+
+    // Note) pass imports data and its size into ExtendedNativeFunctionObjectImpl and delete imports vector inside ExtendedNativeFunctionObjectImpl call
+    auto moduleInstantiator = new ExtendedNativeFunctionObjectImpl<2>(state, NativeFunctionInfo(AtomicString(), WASMOperations::instantiateCoreModule, 1, NativeFunctionInfo::Strict));
+    moduleInstantiator->setInternalSlot(0, Value(imports.size));
+    moduleInstantiator->setInternalSlotAsPointer(1, imports.data);
+
+    Job* job = new PromiseReactionJob(state.context(), PromiseReaction(moduleInstantiator, capability), firstArg);
+    state.context()->vmInstance()->enqueueJob(job);
 
     return capability.m_promise;
 }
