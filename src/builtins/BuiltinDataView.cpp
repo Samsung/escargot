@@ -42,6 +42,7 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
 {
     if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
     }
     if (!(argv[0].isObject() && argv[0].asPointerValue()->isArrayBuffer())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotArrayBufferObject);

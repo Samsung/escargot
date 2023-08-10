@@ -30,6 +30,7 @@ static Value builtinWeakRefConstructor(ExecutionState& state, Value thisValue, s
 {
     if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
     }
     if (argc == 0 || !argv[0].isObject()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "target is not object");

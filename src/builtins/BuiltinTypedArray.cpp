@@ -379,6 +379,7 @@ static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue
         uint64_t elemlen = firstArg.toIndex(state);
         if (elemlen == Value::InvalidIndexValue) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+            return Value();
         }
         return TA::allocateTypedArray(state, newTarget.value(), elemlen);
     }

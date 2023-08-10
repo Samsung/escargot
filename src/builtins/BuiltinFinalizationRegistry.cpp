@@ -36,6 +36,7 @@ static Value builtinFinalizationRegistryConstructor(ExecutionState& state, Value
 {
     if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
     }
     if (argc == 0 || !argv[0].isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "cleanup Callback is not callable");

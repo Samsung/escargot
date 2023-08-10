@@ -3004,7 +3004,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("end(return with r[%u])", m_registerIndex);
+        printf("end(return with r%u)", m_registerIndex);
     }
 #endif
 };

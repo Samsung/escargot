@@ -146,8 +146,7 @@ Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, con
     // Return envRec.GetThisBinding().
     // -> perform at ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct
     return FunctionObjectProcessCallGenerator::processCall<ScriptClassConstructorFunctionObject, true, true, true, ScriptClassConstructorFunctionObjectThisValueBinder,
-                                                           ScriptClassConstructorFunctionObjectNewTargetBinderWithConstruct, ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct>(state, this, thisArgument, argc, argv, newTarget)
-        .asObject();
+                                                           ScriptClassConstructorFunctionObjectNewTargetBinderWithConstruct, ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct>(state, this, thisArgument, argc, argv, newTarget);
 }
 
 void ScriptClassConstructorFunctionObject::initInstanceFieldMembers(ExecutionState& state, Object* instance)

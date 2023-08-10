@@ -197,6 +197,7 @@ Object* ExecutionState::findPrivateMemberContextObject()
     auto o = mostNearestHomeObject();
     if (!o) {
         ErrorObject::throwBuiltinError(*this, ErrorCode::TypeError, "Cannot read/write private member here");
+        return nullptr;
     }
     return convertHomeObjectIntoPrivateMemberContextObject(o.value());
 }
