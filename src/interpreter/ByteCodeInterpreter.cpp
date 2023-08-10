@@ -3083,7 +3083,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                         return Value();
                     }
                 } catch (const Value& val) {
-                    stackTraceDataVector = newState->context()->vmInstance()->currentSandBox()->stackTraceDataVector();
+                    stackTraceDataVector = std::move(newState->context()->vmInstance()->currentSandBox()->stackTraceDataVector());
                     newState->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
                 }
             }
@@ -3156,7 +3156,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 return Value(Value::EmptyValue);
             }
         } else if (record->reason() == ControlFlowRecord::NeedsThrow) {
-            state->context()->vmInstance()->currentSandBox()->rethrowPreviouslyCaughtException(*state, record->value(), stackTraceDataVector);
+            state->context()->vmInstance()->currentSandBox()->rethrowPreviouslyCaughtException(*state, record->value(), std::move(stackTraceDataVector));
             ASSERT_NOT_REACHED();
             // never get here. but I add return statement for removing compile warning
             return Value(Value::EmptyValue);

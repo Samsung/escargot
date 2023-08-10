@@ -449,6 +449,7 @@ static Value builtinIntlPluralRulesConstructor(ExecutionState& state, Value this
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
     }
 
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
@@ -570,6 +571,7 @@ static Value builtinIntlLocaleConstructor(ExecutionState& state, Value thisValue
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
     }
 
     Value tagValue = argv[0];
@@ -908,6 +910,7 @@ static Value builtinIntlRelativeTimeFormatConstructor(ExecutionState& state, Val
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
     }
 
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
@@ -1002,6 +1005,7 @@ static Value builtinIntlDisplayNamesConstructor(ExecutionState& state, Value thi
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
     }
 
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* realm) -> Object* {
@@ -1046,6 +1050,7 @@ static Value builtinIntlListFormatConstructor(ExecutionState& state, Value thisV
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
     }
 
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* realm) -> Object* {

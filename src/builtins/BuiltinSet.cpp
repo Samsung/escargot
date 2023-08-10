@@ -32,6 +32,7 @@ static Value builtinSetConstructor(ExecutionState& state, Value thisValue, size_
     // If NewTarget is undefined, throw a TypeError exception.
     if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
     }
 
     // Let set be ? OrdinaryCreateFromConstructor(NewTarget, "%SetPrototype%", « [[SetData]] »).

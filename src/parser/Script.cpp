@@ -85,6 +85,7 @@ Script* Script::loadModuleFromScript(ExecutionState& state, ModuleRequest& reque
     Platform::LoadModuleResult result = Global::platform()->onLoadModule(context(), this, request.m_specifier, request.m_type);
     if (!result.script) {
         ErrorObject::throwBuiltinError(state, (ErrorCode)result.errorCode, result.errorMessage->toNonGCUTF8StringData().data());
+        return nullptr;
     }
     if (!result.script->moduleData()->m_didCallLoadedCallback) {
         Global::platform()->didLoadModule(context(), this, result.script.value());
