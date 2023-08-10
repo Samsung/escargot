@@ -37,6 +37,7 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
     auto strings = &state.context()->staticStrings();
     if (!newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Promise.string(), false, String::emptyString, "%s: Promise constructor should be called with new Promise()");
+        return Value();
     }
 
     Value executor = argv[0];
@@ -59,15 +60,12 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
         state.context()->vmInstance()->triggerPromiseHook(state, VMInstance::PromiseHookType::Init, promise, (argc > 1) ? argv[1] : Value());
     }
 
-    SandBox sb(state.context());
-    auto res = sb.run([&]() -> Value {
+    try {
         Value arguments[] = { capability.m_resolveFunction, capability.m_rejectFunction };
         Object::call(state, executor, Value(), 2, arguments);
-        return Value();
-    });
-    if (!res.error.isEmpty()) {
-        Value arguments[] = { res.error };
-        Object::call(state, capability.m_rejectFunction, Value(), 1, arguments);
+    } catch (const Value& v) {
+        Value thrownValue = v;
+        Object::call(state, capability.m_rejectFunction, Value(), 1, &thrownValue);
     }
 
     return promise;
@@ -567,6 +565,7 @@ static Value builtinPromiseAllSettled(ExecutionState& state, Value thisValue, si
             try {
                 result = IteratorObject::iteratorClose(state, iteratorRecord, exceptionValue, true);
             } catch (const Value& v) {
+                exceptionValue = v;
                 // IfAbruptRejectPromise(result, promiseCapability).
                 // If value is an abrupt completion,
                 // Perform ? Call(capability.[[Reject]], undefined, « value.[[Value]] »).
@@ -609,7 +608,7 @@ static Value performPromiseAny(ExecutionState& state, IteratorRecord* iteratorRe
             next = IteratorObject::iteratorStep(state, iteratorRecord);
         } catch (const Value& v) {
             iteratorRecord->m_done = true;
-            throw v;
+            state.throwException(v);
         }
 
         // If next is false, then
@@ -627,7 +626,7 @@ static Value performPromiseAny(ExecutionState& state, IteratorRecord* iteratorRe
                                                         ObjectPropertyDescriptor(Object::createArrayFromList(state, *errors),
                                                                                  (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
                 // Return ThrowCompletion(error).
-                throw Value(error);
+                state.throwException(error);
             }
             // Return resultCapability.[[Promise]].
             return resultCapability.m_promise;
@@ -641,7 +640,7 @@ static Value performPromiseAny(ExecutionState& state, IteratorRecord* iteratorRe
             // If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
             iteratorRecord->m_done = true;
             // ReturnIfAbrupt(nextValue).
-            throw v;
+            state.throwException(v);
         }
         // Append undefined to errors.
         errors->pushBack(Value());

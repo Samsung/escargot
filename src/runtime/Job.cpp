@@ -64,26 +64,25 @@ SandBox::SandBoxResult PromiseReactionJob::run()
             return Object::call(state, m_reaction.m_capability.m_rejectFunction, Value(), 1, value);
         }
 
-        SandBox sb(state.context());
-        auto res = sb.run([&]() -> Value {
-            Value arguments[] = { m_argument };
-            Value res = Object::call(state, m_reaction.m_handler, Value(), 1, arguments);
+        Value res;
+        try {
+            Value argument = m_argument;
+            res = Object::call(state, m_reaction.m_handler, Value(), 1, &argument);
             // m_reaction.m_capability can be null when there was no result capability when promise.then()
-            if (m_reaction.m_capability.m_promise == nullptr) {
-                return Value();
+            if (m_reaction.m_capability.m_promise != nullptr) {
+                Value value[] = { res };
+                Object::call(state, m_reaction.m_capability.m_resolveFunction, Value(), 1, value);
             }
-            Value value[] = { res };
-            return Object::call(state, m_reaction.m_capability.m_resolveFunction, Value(), 1, value);
-        });
-        if (!res.error.isEmpty()) {
+        } catch (const Value& v) {
+            Value reason = v;
             if (m_reaction.m_capability.m_rejectFunction) {
-                Value reason[] = { res.error };
-                return Object::call(state, m_reaction.m_capability.m_rejectFunction, Value(), 1, reason);
+                return Object::call(state, m_reaction.m_capability.m_rejectFunction, Value(), 1, &reason);
             } else {
-                state.throwException(res.error);
+                state.throwException(reason);
             }
         }
-        return res.result;
+
+        return res;
     });
 
 #ifdef ESCARGOT_DEBUGGER
@@ -110,16 +109,16 @@ SandBox::SandBoxResult PromiseResolveThenableJob::run()
         auto strings = &state.context()->staticStrings();
         PromiseReaction::Capability capability = m_promise->createResolvingFunctions(state);
 
-        SandBox sb(state.context());
-        auto res = sb.run([&]() -> Value {
+        Value result;
+        try {
             Value arguments[] = { capability.m_resolveFunction, capability.m_rejectFunction };
-            return Object::call(state, m_then, m_thenable, 2, arguments);
-        });
-        if (!res.error.isEmpty()) {
-            Value reason[] = { res.error };
-            return Object::call(state, capability.m_rejectFunction, Value(), 1, reason);
+            result = Object::call(state, m_then, m_thenable, 2, arguments);
+        } catch (const Value& v) {
+            Value reason = v;
+            return Object::call(state, capability.m_rejectFunction, Value(), 1, &reason);
         }
-        return res.result;
+
+        return result;
     });
 }
 

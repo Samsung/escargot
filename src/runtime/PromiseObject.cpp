@@ -319,15 +319,14 @@ static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, siz
     }
     Object* resolution = resolutionValue.asObject();
 
-    SandBox sb(state.context());
-    auto res = sb.run([&]() -> Value {
-        return resolution->get(state, strings->then).value(state, resolution);
-    });
-    if (!res.error.isEmpty()) {
-        promise->reject(state, res.error);
+    Value then;
+    try {
+        then = resolution->get(state, strings->then).value(state, resolution);
+    } catch (const Value& v) {
+        Value reason = v;
+        promise->reject(state, reason);
         return Value();
     }
-    Value then = res.result;
 
     if (then.isCallable()) {
         state.context()->vmInstance()->enqueueJob(new PromiseResolveThenableJob(state.context(), promise, resolution, then.asObject()));
