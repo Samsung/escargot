@@ -1732,6 +1732,11 @@ ContextRef* ExecutionStateRef::context()
     return toRef(toImpl(this)->context());
 }
 
+bool ExecutionStateRef::hasPendingException()
+{
+    return toImpl(this)->hasPendingException();
+}
+
 AtomicStringRef* AtomicStringRef::create(ContextRef* c, const char* src, size_t len)
 {
     AtomicString a(toImpl(c), src, len);

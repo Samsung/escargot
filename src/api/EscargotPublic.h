@@ -635,6 +635,8 @@ public:
     void throwException(ValueRef* value);
     void checkStackOverflow();
 
+    bool hasPendingException();
+
     GCManagedVector<Evaluator::StackTraceData> computeStackTrace();
 
     ContextRef* context();

@@ -310,6 +310,7 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
         snprintf(msg, sizeof(msg), "GlobalObject.%s: cannot open file %s", builtinName, fileName);
         if (state) {
             state->throwException(URIErrorObjectRef::create(state.get(), StringRef::createFromUTF8(msg, strnlen(msg, sizeof msg))));
+            return nullptr;
         } else {
             puts(msg);
         }
@@ -323,6 +324,9 @@ static ValueRef* builtinLoad(ExecutionStateRef* state, ValueRef* thisValue, size
         auto f = argv[0]->toString(state)->toStdUTF8String();
         const char* fileName = f.data();
         StringRef* src = builtinHelperFileRead(state, fileName, "load").value();
+        if (state->hasPendingException()) {
+            return ValueRef::createException();
+        }
         bool isModule = stringEndsWith(f, "mjs");
 
         auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state), isModule).fetchScriptThrowsExceptionIfParseError(state);
@@ -338,6 +342,9 @@ static ValueRef* builtinRead(ExecutionStateRef* state, ValueRef* thisValue, size
         auto f = argv[0]->toString(state)->toStdUTF8String();
         const char* fileName = f.data();
         StringRef* src = builtinHelperFileRead(state, fileName, "read").value();
+        if (state->hasPendingException()) {
+            return ValueRef::createException();
+        }
         return src;
     } else {
         return StringRef::emptyString();
@@ -352,6 +359,9 @@ static ValueRef* builtinRun(ExecutionStateRef* state, ValueRef* thisValue, size_
         auto f = argv[0]->toString(state)->toStdUTF8String();
         const char* fileName = f.data();
         StringRef* src = builtinHelperFileRead(state, fileName, "run").value();
+        if (state->hasPendingException()) {
+            return ValueRef::createException();
+        }
         bool isModule = stringEndsWith(f, "mjs");
         auto script = state->context()->scriptParser()->initializeScript(src, argv[0]->toString(state), isModule).fetchScriptThrowsExceptionIfParseError(state);
         script->execute(state);
