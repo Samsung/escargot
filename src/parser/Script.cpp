@@ -953,11 +953,8 @@ Script::ModuleExecutionResult Script::innerModuleEvaluation(ExecutionState& stat
         ModuleEnvironmentRecord* moduleRecord = md->m_moduleRecord;
         moduleRecord->createBinding(state, state.context()->staticStrings().stringStarDefaultStar, false, false, false);
 
-        try {
-            moduleRecord->initializeBinding(state, state.context()->staticStrings().stringStarDefaultStar, JSON::parse(state, sourceCode(), Value()));
-        } catch (const Value& e) {
-            md->m_evaluationError = EncodedValue(e);
-        }
+        // ignore exception
+        moduleRecord->initializeBinding(state, state.context()->staticStrings().stringStarDefaultStar, JSON::parse(state, sourceCode(), Value()));
 
     } else if (md->m_pendingAsyncDependencies.hasValue() && md->m_pendingAsyncDependencies.value() > 0) {
         // If module.[[PendingAsyncDependencies]] > 0, set module.[[AsyncEvaluating]] to true.
@@ -1139,13 +1136,8 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
     bool gotException = false;
 
     if (LIKELY(!m_topCodeBlock->isAsync())) {
-        try {
-            Interpreter::interpret(newState, byteCodeBlock, reinterpret_cast<size_t>(byteCodeBlock->m_code.data()), registerFile);
-        } catch (const Value& e) {
-            resultValue = e;
-            gotException = true;
-        }
-
+        // ignore exception
+        Interpreter::interpret(newState, byteCodeBlock, reinterpret_cast<size_t>(byteCodeBlock->m_code.data()), registerFile);
         clearStack<512>();
 
         // we give up program bytecodeblock after first excution for reducing memory usage

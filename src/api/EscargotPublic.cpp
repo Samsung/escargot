@@ -1236,21 +1236,15 @@ StringRef* DebuggerOperationsRef::BreakpointOperations::eval(StringRef* sourceCo
 
     debugger->setStopState(ESCARGOT_DEBUGGER_IN_EVAL_MODE);
 
-    try {
-        Value asValue(toImpl(sourceCode));
-        Value evalResult(Value::ForceUninitialized);
-        evalResult = state->context()->globalObject()->evalLocal(*state, asValue, state->thisValue(), reinterpret_cast<ByteCodeBlock*>(weakCodeRef())->m_codeBlock, true);
+    Value asValue(toImpl(sourceCode));
+    Value evalResult(Value::ForceUninitialized);
+    evalResult = state->context()->globalObject()->evalLocal(*state, asValue, state->thisValue(), reinterpret_cast<ByteCodeBlock*>(weakCodeRef())->m_codeBlock, true);
 
-        if (evalResult.isObject()) {
-            result = nullptr;
-            objectIndex = putObject(toRef(evalResult.asObject()));
-        } else {
-            result = evalResult.toStringWithoutException(*state);
-        }
-    } catch (const Value& val) {
-        result = val.toStringWithoutException(*state);
-
-        isError = true;
+    if (evalResult.isObject()) {
+        result = nullptr;
+        objectIndex = putObject(toRef(evalResult.asObject()));
+    } else {
+        result = evalResult.toStringWithoutException(*state);
     }
 
     debugger->setStopState(ESCARGOT_DEBUGGER_IN_WAIT_MODE);
@@ -1364,13 +1358,9 @@ static void fillObjectProperties(ExecutionState* state, Object* object, Object::
 
         result[start + i].key = toRef(keys[i].toStringWithoutException(*state));
 
-        try {
-            ObjectGetResult value = object->getOwnProperty(*state, propertyName);
+        ObjectGetResult value = object->getOwnProperty(*state, propertyName);
 
-            result[start + i].value = toRef(value.value(*state, Value(object)));
-        } catch (const Value& val) {
-            // The value field is optional, and not filled on error.
-        }
+        result[start + i].value = toRef(value.value(*state, Value(object)));
     }
 }
 
@@ -1385,14 +1375,10 @@ static void fillRecordProperties(ExecutionState* state, EnvironmentRecord* recor
 
         result[i].key = toRef(name.string());
 
-        try {
-            EnvironmentRecord::GetBindingValueResult value = record->getBindingValue(*state, name);
-            ASSERT(value.m_hasBindingValue);
+        EnvironmentRecord::GetBindingValueResult value = record->getBindingValue(*state, name);
+        ASSERT(value.m_hasBindingValue);
 
-            result[i].value = toRef(value.m_value);
-        } catch (const Value& val) {
-            // The value field is optional, and not filled on error.
-        }
+        result[i].value = toRef(value.m_value);
     }
 }
 
@@ -1407,14 +1393,10 @@ static void fillRecordProperties(ExecutionState* state, ModuleEnvironmentRecord*
 
         result[i].key = toRef(name.string());
 
-        try {
-            EnvironmentRecord::GetBindingValueResult value = record->getBindingValue(*state, name);
-            ASSERT(value.m_hasBindingValue);
+        EnvironmentRecord::GetBindingValueResult value = record->getBindingValue(*state, name);
+        ASSERT(value.m_hasBindingValue);
 
-            result[i].value = toRef(value.m_value);
-        } catch (const Value& val) {
-            // The value field is optional, and not filled on error.
-        }
+        result[i].value = toRef(value.m_value);
     }
 }
 
