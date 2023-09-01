@@ -49,6 +49,7 @@
 #include "Value.h"
 
 #include "parser/Lexer.h"
+#include "runtime/ErrorObject.h"
 
 #include "fast-dtoa.h"
 #include "bignum-dtoa.h"
@@ -1128,6 +1129,7 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
                 if (ValidNamedCapturedGroup && namedCaptureObj) {
                     String* groupName = replacement->substring((i + 2), (namedCaptureEnd));
                     Value capture = namedCaptureObj->get(state, ObjectPropertyName(state, groupName)).value(state, Value(0));
+                    RETURN_NULL_IF_PENDING_EXCEPTION
                     if (!capture.isUndefined()) {
                         builder.appendString(capture.toString(state));
                     }

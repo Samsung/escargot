@@ -143,6 +143,7 @@ public:
     {
         if (UNLIKELY(m_hasNonWritableLastIndexRegExpObject && (option() & (Option::Sticky | Option::Global)))) {
             Object::throwCannotWriteError(state, ObjectStructurePropertyName(state, String::fromASCII("lastIndex")));
+            return;
         }
         m_lastIndex = v;
     }

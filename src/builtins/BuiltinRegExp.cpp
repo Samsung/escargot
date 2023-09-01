@@ -232,6 +232,7 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
             } else {
                 retVal->init(state, patternRegExp->source());
             }
+            RETURN_VALUE_IF_PENDING_EXCEPTION
             return retVal;
         }
     }
@@ -242,6 +243,7 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
     String* flags_str = argv[1].isUndefined() ? String::emptyString : argv[1].toString(state);
     RETURN_VALUE_IF_PENDING_EXCEPTION
     retVal->init(state, pattern_str, flags_str);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     return retVal;
 }
 static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -563,6 +565,7 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
             replacement = res.toString(state);
         } else {
             replacement = String::getSubstitution(state, matched, str, position, captures, namedCaptures, replaceValue.toString(state));
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
         RETURN_VALUE_IF_PENDING_EXCEPTION
         if (position >= nextSourcePosition) {

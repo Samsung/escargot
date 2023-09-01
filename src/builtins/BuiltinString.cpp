@@ -604,8 +604,14 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
         if (searchValue.isObject() && searchValue.asObject()->isRegExp(state)) {
             Value flags = searchValue.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, searchValue);
             RETURN_VALUE_IF_PENDING_EXCEPTION
-            if (flags.isUndefinedOrNull() || !flags.toString(state)->contains("g")) {
+            if (flags.isUndefinedOrNull()) {
                 THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().replaceAll.string(), true, state.context()->staticStrings().replaceAll.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+            } else {
+                String* flagsStr = flags.toString(state);
+                RETURN_VALUE_IF_PENDING_EXCEPTION
+                if (!flagsStr->contains("g")) {
+                    THROW_BUILTIN_ERROR_RETURN_VALUE(state, ErrorCode::TypeError, state.context()->staticStrings().replaceAll.string(), true, state.context()->staticStrings().replaceAll.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+                }
             }
         }
         // Let replacer be ? GetMethod(searchValue, @@replace).
@@ -659,6 +665,7 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
         } else {
             StringVector captures;
             replacement = String::getSubstitution(state, searchString, string, p, captures, Value(), replaceValue.asString());
+            RETURN_VALUE_IF_PENDING_EXCEPTION
         }
         builder.appendString(replacement);
         endOfLastMatch = p + searchLength;
@@ -689,7 +696,6 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
     String* string = thisValue.toString(state);
     RETURN_VALUE_IF_PENDING_EXCEPTION
     RegExpObject* rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
-    RETURN_VALUE_IF_PENDING_EXCEPTION
     RETURN_VALUE_IF_PENDING_EXCEPTION
     Value func = rx->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search)).value(state, rx);
     RETURN_VALUE_IF_PENDING_EXCEPTION
@@ -1319,8 +1325,11 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
 
     // Let cooked be ? ToObject(template).
     Object* cooked = argTemplate.toObject(state);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
     // Let raw be ? ToObject(? Get(cooked, "raw")).
-    Object* raw = cooked->get(state, ObjectPropertyName(state.context()->staticStrings().raw)).value(state, cooked).toObject(state);
+    Value rawValue = cooked->get(state, ObjectPropertyName(state.context()->staticStrings().raw)).value(state, cooked);
+    RETURN_VALUE_IF_PENDING_EXCEPTION
+    Object* raw = rawValue.toObject(state);
     RETURN_VALUE_IF_PENDING_EXCEPTION
     // Let literalSegments be ? ToLength(? Get(raw, "length")).
     double literalSegments = raw->length(state);
@@ -1337,7 +1346,9 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
     while (true) {
         // Let nextKey be ! ToString(nextIndex).
         // Let nextSeg be ? ToString(? Get(raw, nextKey)).
-        String* nextSeg = raw->get(state, ObjectPropertyName(state, Value(nextIndex))).value(state, raw).toString(state);
+        Value nextSegValue = raw->get(state, ObjectPropertyName(state, Value(nextIndex))).value(state, raw);
+        RETURN_VALUE_IF_PENDING_EXCEPTION
+        String* nextSeg = nextSegValue.toString(state);
         RETURN_VALUE_IF_PENDING_EXCEPTION
         // Append in order the code unit elements of nextSeg to the end of stringElements.
         for (size_t i = 0; i < nextSeg->length(); i++) {
