@@ -3326,6 +3326,9 @@ public:
                     this->validateParam(list, *token, exprNode->asIdentifier()->name());
                     list.params.push_back(builder.convertToParameterSyntaxNode(exprNode));
                     this->currentScopeContext->m_isAsync = isAsync;
+                    if (isAsync) {
+                        this->context->await = true;
+                    }
                 } else {
                     this->scanner->index = startMarker.index;
                     this->scanner->lineNumber = startMarker.lineNumber;
