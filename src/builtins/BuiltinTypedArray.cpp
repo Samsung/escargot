@@ -485,6 +485,98 @@ static Value builtinTypedArrayCopyWithin(ExecutionState& state, Value thisValue,
     return O;
 }
 
+template <const bool isForward>
+static Value fastTypedArrayIndexSearch(TypedArrayObject* arr, size_t k, size_t len, const Value& value)
+{
+    auto type = arr->typedArrayType();
+    if (type == TypedArrayType::BigInt64 || type == TypedArrayType::BigUint64) {
+        if (!value.isBigInt()) {
+            return Value(-1);
+        }
+    } else if (UNLIKELY(!value.isNumber())) {
+        return Value(-1);
+    }
+
+    uint8_t* buffer = arr->rawBuffer();
+    auto elementSize = arr->elementSize();
+    int64_t byteK = static_cast<int64_t>(k * elementSize);
+    int64_t byteLength = static_cast<int64_t>(len * elementSize);
+
+    auto compFn = [](int64_t byteK, int64_t byteLength) -> bool {
+        if (isForward) {
+            return byteK < byteLength;
+        } else {
+            return byteK >= 0;
+        }
+    };
+
+    auto updateFn = [](int64_t& byteK, const int diff) {
+        if (isForward) {
+            byteK += diff;
+        } else {
+            byteK -= diff;
+        }
+    };
+
+    if (!isForward && byteK >= byteLength) {
+        return Value(-1);
+    }
+
+    if (type == TypedArrayType::BigInt64 || type == TypedArrayType::BigUint64) {
+        uint64_t argv0ToUint64 = type == TypedArrayType::BigInt64 ? bitwise_cast<uint64_t>(value.asBigInt()->toInt64()) : value.asBigInt()->toUint64();
+        while (compFn(byteK, byteLength)) {
+            if (*reinterpret_cast<uint64_t*>(&buffer[byteK]) == argv0ToUint64) {
+                return Value(byteK / elementSize);
+            }
+            updateFn(byteK, 8);
+        }
+    } else if (type == TypedArrayType::Float32) {
+        double num = value.asNumber();
+        if (std::isnan(num)) {
+            return Value(-1);
+        }
+        while (compFn(byteK, byteLength)) {
+            double c = *reinterpret_cast<float*>(&buffer[byteK]);
+            if (c == num) {
+                return Value(byteK / elementSize);
+            }
+            updateFn(byteK, 4);
+        }
+    } else if (type == TypedArrayType::Float64) {
+        double num = value.asNumber();
+        if (std::isnan(num)) {
+            return Value(-1);
+        }
+        while (compFn(byteK, byteLength)) {
+            const double& c = *reinterpret_cast<double*>(&buffer[byteK]);
+            if (c == num) {
+                return Value(byteK / elementSize);
+            }
+            updateFn(byteK, 8);
+        }
+    } else {
+        int32_t argv0ToUint32;
+        if (value.isDouble()) {
+            if (value.asDouble() == -0.0) {
+                argv0ToUint32 = 0;
+            } else {
+                return Value(-1);
+            }
+        } else {
+            argv0ToUint32 = value.asInt32();
+        }
+
+        while (compFn(byteK, byteLength)) {
+            if (memcmp(&buffer[byteK], &argv0ToUint32, elementSize) == 0) {
+                return Value(byteK / elementSize);
+            }
+            updateFn(byteK, elementSize);
+        }
+    }
+
+    return Value(-1);
+}
+
 static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // NOTE: Same algorithm as Array.prototype.indexOf
@@ -527,28 +619,9 @@ static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, si
         }
     }
     size_t k = (size_t)doubleK;
-
-    // Repeat, while k<len
-    while (k < len) {
-        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
-        ObjectGetResult kPresent = O->getIndexedProperty(state, Value(k));
-        // If kPresent is true, then
-        if (kPresent.hasValue()) {
-            // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
-            Value elementK = kPresent.value(state, O);
-
-            // Let same be the result of applying the Strict Equality Comparison Algorithm to searchElement and elementK.
-            if (elementK.equalsTo(state, argv[0])) {
-                // If same is true, return k.
-                return Value(k);
-            }
-        }
-        // Increase k by 1.
-        k++;
-    }
-
-    // Return -1.
-    return Value(-1);
+    // Reloading `len` because second argument can affect arrayLength
+    len = std::min((size_t)O->asTypedArrayObject()->arrayLength(), len);
+    return fastTypedArrayIndexSearch<true>(O->asTypedArrayObject(), k, len, argv[0]);
 }
 
 static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -589,33 +662,9 @@ static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue
         return Value(-1);
     }
     int64_t k = (int64_t)doubleK;
-
-    // Repeat, while k≥ 0
-    while (k >= 0) {
-        // Let kPresent be the result of calling the [[HasProperty]] internal method of O with argument ToString(k).
-        ObjectGetResult kPresent = O->getIndexedProperty(state, Value(k));
-        // If kPresent is true, then
-        if (kPresent.hasValue()) {
-            // Let elementK be the result of calling the [[Get]] internal method of O with the argument ToString(k).
-            Value elementK = kPresent.value(state, O);
-
-            // Let same be the result of applying the Strict Equality Comparison Algorithm to searchElement and elementK.
-            if (elementK.equalsTo(state, argv[0])) {
-                // If same is true, return k.
-                return Value(k);
-            }
-        } else {
-            int64_t result;
-            Object::nextIndexBackward(state, O, k, -1, result);
-            k = result;
-            continue;
-        }
-        // Decrease k by 1.
-        k--;
-    }
-
-    // Return -1.
-    return Value(-1);
+    // Reloading `len` because second argument can affect arrayLength
+    len = std::min((size_t)O->asTypedArrayObject()->arrayLength(), len);
+    return fastTypedArrayIndexSearch<false>(O->asTypedArrayObject(), k, len, argv[0]);
 }
 
 static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -759,14 +808,8 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
     size_t limit = targetByteIndex + targetElementSize * srcLength;
 
     if (srcTypedArray->typedArrayType() == target->typedArrayType()) {
-        while (targetByteIndex < limit) {
-            // Let value be GetValueFromBuffer(srcBuffer, srcByteIndex, "Uint8", true, "Unordered").
-            Value value = srcBuffer->getValueFromBuffer(state, srcByteIndex, TypedArrayType::Uint8);
-            // Perform SetValueInBuffer(targetBuffer, targetByteIndex, "Uint8", value, true, "Unordered").
-            targetBuffer->setValueInBuffer(state, targetByteIndex, TypedArrayType::Uint8, value);
-            srcByteIndex++;
-            targetByteIndex++;
-        }
+        memmove(targetBuffer->data() + targetByteIndex,
+                srcBuffer->data() + srcByteIndex, limit - targetByteIndex);
     } else {
         while (targetByteIndex < limit) {
             // Let value be GetValueFromBuffer(srcBuffer, srcByteIndex, srcType, true, "Unordered").
