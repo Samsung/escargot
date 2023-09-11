@@ -3016,37 +3016,37 @@ public:
             case LogicalAnd:
                 return 3;
             case BitwiseOr:
-                return 3;
-            case BitwiseXor:
                 return 4;
-            case BitwiseAnd:
+            case BitwiseXor:
                 return 5;
+            case BitwiseAnd:
+                return 6;
             case Equal:
-                return 6;
+                return 7;
             case NotEqual:
-                return 6;
+                return 7;
             case StrictEqual:
-                return 6;
+                return 7;
             case NotStrictEqual:
-                return 6;
+                return 7;
             case RightInequality:
-                return 7;
+                return 8;
             case LeftInequality:
-                return 7;
+                return 8;
             case RightInequalityEqual:
-                return 7;
+                return 8;
             case LeftInequalityEqual:
-                return 7;
+                return 8;
             case LeftShift:
-                return 8;
+                return 9;
             case RightShift:
-                return 8;
+                return 9;
             case UnsignedRightShift:
-                return 8;
+                return 9;
             case Plus:
-                return 9;
+                return 10;
             case Minus:
-                return 9;
+                return 10;
             case Multiply:
                 return 11;
             case Divide:
@@ -3058,9 +3058,9 @@ public:
             }
         } else if (token->type == Token::KeywordToken) {
             if (token->valueKeywordKind == InKeyword) {
-                return this->context->allowIn ? 7 : 0;
+                return this->context->allowIn ? 8 : 0;
             } else if (token->valueKeywordKind == InstanceofKeyword) {
-                return 7;
+                return 8;
             }
         } else {
             return 0;
