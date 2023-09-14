@@ -17,11 +17,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ninja-build
-    - name: Patch WABT
-      working-directory: ./third_party/wasm/wabt
-      run: |
-        cp ../../../tools/test/wasm-js/wabt_patch .
-        patch -p0 < wabt_patch
     - name: Download Coverity Tool
       env:
         TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
