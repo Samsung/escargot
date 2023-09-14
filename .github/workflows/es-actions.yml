@@ -36,12 +36,15 @@ jobs:
         brew install cmake ninja pkg-config icu4c
     - name: Build x64
       env:
-        BUILD_OPTIONS: -DESCARGOT_MODE=debug -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+        BUILD_OPTIONS: -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
-        cmake -H. -Bout/mac/x64 $BUILD_OPTIONS
-        ninja -Cout/mac/x64
-        ./tools/run-tests.py --engine="./out/mac/x64/escargot" new-es
+        cmake -H. -Bout/debug/ -DESCARGOT_MODE=debug $BUILD_OPTIONS
+        ninja -Cout/debug/
+        ./tools/run-tests.py --engine="./out/debug/escargot" new-es
+        cmake -H. -Bout/release/ -DESCARGOT_MODE=release $BUILD_OPTIONS
+        ninja -Cout/release/
+        cp test/octane/*.js .
+        ./out/release/escargot run.js
 
   build-test-on-android:
     runs-on: macos-12
