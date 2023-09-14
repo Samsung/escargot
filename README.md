@@ -28,23 +28,13 @@ sudo apt-get install libicu-dev:i386
 brew install autoconf automake cmake icu4c libtool ninja pkg-config
 ```
 
-Note: For later build steps (cmake, pkg-config) to find ICU libraries, you may
-need to set the `PKG_CONFIG_PATH` environment variable, as instructed by brew.
-E.g.:
-
-```sh
-export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig"
-# ESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN should be `OFF` to link icu lib in static
-cmake -DESCARGOT_HOST=darwin -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_OUTPUT=shell -GNinja
-```
-
 ## Build Escargot
 
 ```sh
 git clone https://github.com/Samsung/escargot.git
 cd escargot
 git submodule update --init third_party
-cmake -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
+cmake -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
 ninja
 ```
 

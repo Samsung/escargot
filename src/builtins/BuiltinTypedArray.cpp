@@ -495,6 +495,8 @@ static Value fastTypedArrayIndexSearch(TypedArrayObject* arr, size_t k, size_t l
         }
     } else if (UNLIKELY(!value.isNumber())) {
         return Value(-1);
+    } else if (UNLIKELY(arr->rawBuffer() == nullptr)) {
+        return Value(-1);
     }
 
     uint8_t* buffer = arr->rawBuffer();
