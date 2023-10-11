@@ -44,11 +44,6 @@ public class EscargotTest {
         VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
         Context context = Context.create(vmInstance);
 
-        // dump build config
-        Evaluator.evalScript(context, "'" + BuildConfig.BUILD_TYPE + "'", null, true);
-        Evaluator.evalScript(context, "'" + BuildConfig.LIBRARY_PACKAGE_NAME + "'", null, true);
-        Evaluator.evalScript(context, "'" + BuildConfig.DEBUG + "'", null, true);
-
         // test writable of /tmp/
         Optional<String> s = Escargot.copyStreamAsTempFile(new ByteArrayInputStream("asdf".getBytes()), "test", ".txt", false);
         assertTrue(s.isPresent());
@@ -1096,7 +1091,135 @@ public class EscargotTest {
         vmInstance.executeEveryPendingJobIfExists();
         assertTrue(context.getGlobalObject().get(context, JavaScriptValue.create("thenCalled")).get().asBoolean());
         assertFalse(vmInstance.hasPendingJob());
+
         printPositiveTC("promiseTest 2");
+        JavaScriptPromiseObject po = JavaScriptPromiseObject.create(context);
+        assertTrue(po.isPromiseObject());
+        assertTrue(po.state() == JavaScriptPromiseObject.PromiseState.Pending);
+        assertTrue(po.promiseResult().isUndefined());
+        assertFalse(po.isArrayObject());
+
+        printPositiveTC("promiseTest 3");
+        class TestCallback extends JavaScriptJavaCallbackFunctionObject.Callback {
+            public boolean called = false;
+            @Override
+            public Optional<JavaScriptValue> callback(JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                called = true;
+                assertTrue(arguments[0].asInt32() == 123);
+                return Optional.of(JavaScriptValue.create("asdf"));
+            }
+        }
+        TestCallback cb = new TestCallback();
+        assertFalse(cb.called);
+        assertTrue(po.state() == JavaScriptPromiseObject.PromiseState.Pending);
+        JavaScriptObject newPromise = po.then(context, JavaScriptJavaCallbackFunctionObject.create(context, "asdf", 1, false, cb)).get().asScriptPromiseObject();
+        assertTrue(newPromise.isPromiseObject());
+        po.fulfill(context, JavaScriptValue.create(123));
+        assertFalse(cb.called);
+        vmInstance.executeEveryPendingJobIfExists();
+        assertTrue(cb.called);
+        assertTrue(po.state() == JavaScriptPromiseObject.PromiseState.FulFilled);
+
+        printPositiveTC("promiseTest 4");
+        po = JavaScriptPromiseObject.create(context);
+        System.out.println(po.state().toString());
+        assertTrue(po.state() == JavaScriptPromiseObject.PromiseState.Pending);
+        cb = new TestCallback();
+        assertFalse(cb.called);
+        newPromise = po.catchOperation(context, JavaScriptJavaCallbackFunctionObject.create(context, "asdf", 1, false, cb)).get().asScriptPromiseObject();
+        assertTrue(newPromise.isPromiseObject());
+        po.reject(context, JavaScriptValue.create(123));
+        assertFalse(cb.called);
+        vmInstance.executeEveryPendingJobIfExists();
+        assertTrue(cb.called);
+        assertTrue(po.state() == JavaScriptPromiseObject.PromiseState.Rejected);
+
+        {
+            JavaScriptPromiseObject finalPo = po;
+            Context finalContext = context;
+            JavaScriptObject finalCb = JavaScriptJavaCallbackFunctionObject.create(finalContext, "asdf", 1, false, cb);
+            printNegativeTC("promiseTest 5");
+            assertThrows(NullPointerException.class, () -> {
+                finalPo.fulfill(null, finalCb);
+            });
+            assertThrows(NullPointerException.class, () -> {
+                finalPo.fulfill(finalContext, null);
+            });
+
+            printNegativeTC("promiseTest 6");
+            assertThrows(NullPointerException.class, () -> {
+                finalPo.reject(null, finalCb);
+            });
+            assertThrows(NullPointerException.class, () -> {
+                finalPo.reject(finalContext, null);
+            });
+
+            printNegativeTC("promiseTest 7");
+            assertThrows(NullPointerException.class, () -> {
+                finalPo.then(null, finalCb);
+            });
+            assertThrows(NullPointerException.class, () -> {
+                finalPo.then(finalContext, null);
+            });
+
+            assertThrows(NullPointerException.class, () -> {
+                finalPo.then(null, finalCb, finalCb);
+            });
+            assertThrows(NullPointerException.class, () -> {
+                finalPo.then(finalContext, null, finalCb);
+            });
+            assertThrows(NullPointerException.class, () -> {
+                finalPo.then(finalContext, finalCb, null);
+            });
+
+            printNegativeTC("promiseTest 7");
+            assertThrows(NullPointerException.class, () -> {
+                finalPo.catchOperation(null, finalCb);
+            });
+            assertThrows(NullPointerException.class, () -> {
+                finalPo.catchOperation(finalContext, null);
+            });
+        }
+
+        printPositiveTC("promiseTest 8");
+        po = JavaScriptPromiseObject.create(context);
+        System.out.println(po.state().toString());
+        assertTrue(po.state() == JavaScriptPromiseObject.PromiseState.Pending);
+        cb = new TestCallback();
+        TestCallback cb2 = new TestCallback();
+        assertFalse(cb.called);
+        assertFalse(cb2.called);
+        newPromise = po.then(context, JavaScriptJavaCallbackFunctionObject.create(context, "asdf", 1, false, cb)
+                , JavaScriptJavaCallbackFunctionObject.create(context, "asdf", 1, false, cb2)).get().asScriptPromiseObject();
+        assertTrue(newPromise.isPromiseObject());
+        po.fulfill(context, JavaScriptValue.create(123));
+        assertFalse(cb.called);
+        assertFalse(cb2.called);
+        vmInstance.executeEveryPendingJobIfExists();
+        assertTrue(cb.called);
+        assertFalse(cb2.called);
+        assertTrue(po.state() == JavaScriptPromiseObject.PromiseState.FulFilled);
+
+        printPositiveTC("promiseTest 9");
+        po = JavaScriptPromiseObject.create(context);
+        assertFalse(po.hasHandler());
+        System.out.println(po.state().toString());
+        assertTrue(po.state() == JavaScriptPromiseObject.PromiseState.Pending);
+        cb = new TestCallback();
+        cb2 = new TestCallback();
+        assertFalse(cb.called);
+        assertFalse(cb2.called);
+        newPromise = po.then(context, JavaScriptJavaCallbackFunctionObject.create(context, "asdf", 1, false, cb)
+                , JavaScriptJavaCallbackFunctionObject.create(context, "asdf", 1, false, cb2)).get().asScriptPromiseObject();
+        assertTrue(po.hasHandler());
+        assertTrue(newPromise.isPromiseObject());
+        po.reject(context, JavaScriptValue.create(123));
+        assertFalse(cb.called);
+        assertFalse(cb2.called);
+        vmInstance.executeEveryPendingJobIfExists();
+        assertFalse(cb.called);
+        assertTrue(cb2.called);
+        assertTrue(po.state() == JavaScriptPromiseObject.PromiseState.Rejected);
 
         context = null;
         vmInstance = null;

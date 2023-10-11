@@ -57,6 +57,15 @@ using namespace Escargot;
         return 0;                                                                                    \
     }
 
+#define THROW_NPE_RETURN_VOID(param, paramType)                                                      \
+    if (env->ExceptionCheck()) {                                                                     \
+        return;                                                                                      \
+    }                                                                                                \
+    if (!param) {                                                                                    \
+        env->ThrowNew(env->FindClass("java/lang/NullPointerException"), paramType" cannot be null"); \
+        return;                                                                                      \
+    }
+
 static JavaVM* g_jvm;
 static size_t g_nonPointerValueLast = reinterpret_cast<size_t>(ValueRef::createUndefined());
 static jobject createJavaObjectFromValue(JNIEnv* env, ValueRef* value);
@@ -954,6 +963,8 @@ static jobject createJavaObjectFromValue(JNIEnv* env, ValueRef* value)
                 return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptJavaCallbackFunctionObject", value);
             }
             return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptFunctionObject", value);
+        } else if (value->isPromiseObject()) {
+            return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptPromiseObject", value);
         } else {
             return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptObject", value);
         }
@@ -1069,6 +1080,13 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_isFunctionObject(JNIEnv* env, jobj
 
 extern "C"
 JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_isPromiseObject(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isPromiseObject();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_asBoolean(JNIEnv* env, jobject thiz)
 {
     return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asBoolean();
@@ -1126,6 +1144,13 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptArrayObject(JNIEnv* env, j
 extern "C"
 JNIEXPORT jobject JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptFunctionObject(JNIEnv* env, jobject thiz)
+{
+    return thiz;
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptPromiseObject(JNIEnv* env, jobject thiz)
 {
     return thiz;
 }
@@ -1686,6 +1711,158 @@ Java_com_samsung_lwe_escargot_JavaScriptArrayObject_length(JNIEnv* env, jobject 
     }, thisValueRef, &length);
 
     return length;
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_create(JNIEnv* env, jclass clazz,
+                                                             jobject context)
+{
+    THROW_NPE_RETURN_NULL(context, "Context");
+
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state) -> ValueRef* {
+        return PromiseObjectRef::create(state);
+    });
+
+    assert(evaluatorResult.isSuccessful());
+    return createJavaObjectFromValue(env, evaluatorResult.result->asPromiseObject());
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_state(JNIEnv* env, jobject thiz)
+{
+    PromiseObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asPromiseObject();
+
+    jclass enumClass = env->FindClass(
+            "com/samsung/lwe/escargot/JavaScriptPromiseObject$PromiseState");
+    jfieldID enumFieldID;
+    PromiseObjectRef::PromiseState state = thisValueRef->state();
+    if (state == PromiseObjectRef::Pending) {
+        enumFieldID = env->GetStaticFieldID(enumClass, "Pending",
+                                            "Lcom/samsung/lwe/escargot/JavaScriptPromiseObject$PromiseState;");
+    } else if (state == PromiseObjectRef::FulFilled) {
+        enumFieldID = env->GetStaticFieldID(enumClass, "FulFilled",
+                                            "Lcom/samsung/lwe/escargot/JavaScriptPromiseObject$PromiseState;");
+    } else {
+        enumFieldID = env->GetStaticFieldID(enumClass, "Rejected",
+                                            "Lcom/samsung/lwe/escargot/JavaScriptPromiseObject$PromiseState;");
+    }
+    return env->GetStaticObjectField(enumClass, enumFieldID);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_promiseResult(JNIEnv* env, jobject thiz)
+{
+    PromiseObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asPromiseObject();
+    return createJavaObjectFromValue(env, thisValueRef->promiseResult());
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_then__Lcom_samsung_lwe_escargot_Context_2Lcom_samsung_lwe_escargot_JavaScriptValue_2(
+        JNIEnv* env, jobject thiz, jobject context, jobject handler)
+{
+    THROW_NPE_RETURN_NULL(context, "Context");
+    THROW_NPE_RETURN_NULL(handler, "JavaScriptValue");
+    PromiseObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asPromiseObject();
+    ValueRef* handlerRef = unwrapValueRefFromValue(env, env->GetObjectClass(handler), handler);
+
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* handlerRef) -> ValueRef* {
+        return promiseObject->then(state, handlerRef);
+    }, thisValueRef, handlerRef);
+
+    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                 evaluatorResult);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_then__Lcom_samsung_lwe_escargot_Context_2Lcom_samsung_lwe_escargot_JavaScriptValue_2Lcom_samsung_lwe_escargot_JavaScriptValue_2(
+        JNIEnv* env, jobject thiz, jobject context, jobject onFulfilled, jobject onRejected)
+{
+    THROW_NPE_RETURN_NULL(context, "Context");
+    THROW_NPE_RETURN_NULL(onFulfilled, "JavaScriptValue");
+    THROW_NPE_RETURN_NULL(onRejected, "JavaScriptValue");
+
+    PromiseObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asPromiseObject();
+    ValueRef* onFulfilledRef = unwrapValueRefFromValue(env, env->GetObjectClass(onFulfilled), onFulfilled);
+    ValueRef* onRejectedRef = unwrapValueRefFromValue(env, env->GetObjectClass(onRejected), onRejected);
+
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* onFulfilledRef, ValueRef* onRejectedRef) -> ValueRef* {
+        return promiseObject->then(state, onFulfilledRef, onRejectedRef);
+    }, thisValueRef, onFulfilledRef, onRejectedRef);
+
+    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                 evaluatorResult);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_catchOperation(JNIEnv* env, jobject thiz,
+                                                                     jobject context,
+                                                                     jobject handler)
+{
+    THROW_NPE_RETURN_NULL(context, "Context");
+    THROW_NPE_RETURN_NULL(handler, "JavaScriptValue");
+    PromiseObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asPromiseObject();
+    ValueRef* handlerRef = unwrapValueRefFromValue(env, env->GetObjectClass(handler), handler);
+
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* handlerRef) -> ValueRef* {
+        return promiseObject->catchOperation(state, handlerRef);
+    }, thisValueRef, handlerRef);
+
+    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                 evaluatorResult);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_fulfill(JNIEnv* env, jobject thiz,
+                                                              jobject context, jobject value)
+{
+    THROW_NPE_RETURN_VOID(context, "Context");
+    THROW_NPE_RETURN_VOID(value, "JavaScriptValue");
+    PromiseObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asPromiseObject();
+    ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
+
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* valueRef) -> ValueRef* {
+        promiseObject->fulfill(state, valueRef);
+        return ValueRef::createUndefined();
+    }, thisValueRef, valueRef);
+    assert(evaluatorResult.isSuccessful());
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_reject(JNIEnv* env, jobject thiz,
+                                                             jobject context, jobject reason)
+{
+    THROW_NPE_RETURN_VOID(context, "Context");
+    THROW_NPE_RETURN_VOID(reason, "JavaScriptValue");
+    PromiseObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asPromiseObject();
+    ValueRef* reasonRef = unwrapValueRefFromValue(env, env->GetObjectClass(reason), reason);
+
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* reasonRef) -> ValueRef* {
+        promiseObject->reject(state, reasonRef);
+        return ValueRef::createUndefined();
+    }, thisValueRef, reasonRef);
+    assert(evaluatorResult.isSuccessful());
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_hasHandler(JNIEnv* env, jobject thiz)
+{
+    PromiseObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asPromiseObject();
+    return thisValueRef->hasResolveHandlers() || thisValueRef->hasRejectHandlers();
 }
 
 extern "C"
