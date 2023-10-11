@@ -1843,8 +1843,9 @@ public:
     ValueRef* promiseResult();
 
     ObjectRef* then(ExecutionStateRef* state, ValueRef* handler);
-    ObjectRef* catchOperation(ExecutionStateRef* state, ValueRef* handler);
     ObjectRef* then(ExecutionStateRef* state, ValueRef* onFulfilled, ValueRef* onRejected);
+    ObjectRef* catchOperation(ExecutionStateRef* state, ValueRef* handler);
+
     void fulfill(ExecutionStateRef* state, ValueRef* value);
     void reject(ExecutionStateRef* state, ValueRef* reason);
 
