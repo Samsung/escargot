@@ -1692,6 +1692,7 @@ public:
         Sticky = 1 << 3,
         Unicode = 1 << 4,
         DotAll = 1 << 5,
+        HasIndices = 1 << 6,
     };
 
     struct ESCARGOT_EXPORT RegexMatchResult {
