@@ -619,6 +619,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
         }
     }
 
+    // add CodeBlock to be used in exception handling process
     newState.ensureRareData()->m_codeBlock = m_topCodeBlock;
     Value resultValue = Interpreter::interpret(&newState, byteCodeBlock, reinterpret_cast<size_t>(byteCodeBlock->m_code.data()), registerFile);
     clearStack<512>();

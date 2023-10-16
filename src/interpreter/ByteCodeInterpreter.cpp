@@ -3041,6 +3041,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 Debugger::updateStopState(state->context()->debugger(), newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);
 #endif /* ESCARGOT_DEBUGGER */
                 state = newState->parent();
+                state->m_programCounter = &programCounter;
                 code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
                 newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
                 newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
@@ -3051,6 +3052,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 Debugger::updateStopState(state->context()->debugger(), newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);
 #endif /* ESCARGOT_DEBUGGER */
                 state = newState->parent();
+                state->m_programCounter = &programCounter;
                 code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
                 newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
                 newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
@@ -3098,9 +3100,11 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 return Value();
             }
             state = newState->parent();
+            state->m_programCounter = &programCounter;
             code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
         } catch (const Value& val) {
             state = newState->parent();
+            state->m_programCounter = &programCounter;
             code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
             state->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, val);
         }
@@ -3115,6 +3119,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             return Value();
         }
         state = newState->parent();
+        state->m_programCounter = &programCounter;
         code = (TryOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
     } else if (code->m_hasFinalizer) {
         if (UNLIKELY(code->m_isTryResumeProcess || code->m_isCatchResumeProcess)) {
@@ -3122,6 +3127,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             Debugger::updateStopState(state->context()->debugger(), newState, ESCARGOT_DEBUGGER_ALWAYS_STOP);
 #endif /* ESCARGOT_DEBUGGER */
             state = newState->parent();
+            state->m_programCounter = &programCounter;
             code = (TryOperation*)(codeBuffer + newState->rareData()->m_programCounterWhenItStoppedByYield);
             newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
             newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
@@ -3156,6 +3162,9 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 return Value(Value::EmptyValue);
             }
         } else if (record->reason() == ControlFlowRecord::NeedsThrow) {
+            if (UNLIKELY(inPauserResumeProcess)) {
+                state->m_programCounter = nullptr;
+            }
             state->context()->vmInstance()->currentSandBox()->rethrowPreviouslyCaughtException(*state, record->value(), std::move(stackTraceDataVector));
             ASSERT_NOT_REACHED();
             // never get here. but I add return statement for removing compile warning
@@ -3441,6 +3450,7 @@ NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& 
 
     if (UNLIKELY(!inWithStatement)) {
         state = newState->parent();
+        state->m_programCounter = &programCounter;
         code = (OpenLexicalEnvironment*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
     }
 
@@ -3564,6 +3574,7 @@ NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, B
 
     if (UNLIKELY(inPauserResumeProcess)) {
         state = newState->parent();
+        state->m_programCounter = &programCounter;
         code = (BlockOperation*)(byteCodeBlock->m_code.data() + newState->rareData()->m_programCounterWhenItStoppedByYield);
     }
 
@@ -4029,7 +4040,9 @@ NEVER_INLINE Value InterpreterSlowPath::executionResumeOperation(ExecutionState*
         tmpTreePointerSave->ensureRareData()->m_programCounterWhenItStoppedByYield = codePos;
     }
 
+    // sync ExecutionState
     state = data->m_executionState;
+    state->m_programCounter = &programCounter;
 
     // update program counter
     programCounter = data->m_byteCodePosition + (size_t)byteCodeBlock->m_code.data();
