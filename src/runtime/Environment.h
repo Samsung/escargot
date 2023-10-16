@@ -44,6 +44,7 @@ public:
         , m_isAllocatedOnHeap(isAllocatedOnHeap)
 #endif
     {
+        ASSERT(!!record);
 #ifndef NDEBUG
         if (m_isAllocatedOnHeap && m_outerEnvironment) {
             ASSERT(m_outerEnvironment->m_isAllocatedOnHeap);

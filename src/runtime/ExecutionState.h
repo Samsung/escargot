@@ -29,7 +29,7 @@ class ControlFlowRecord;
 class LexicalEnvironment;
 class EnvironmentRecord;
 class Value;
-class CodeBlock;
+class InterpretedCodeBlock;
 class ExecutionPauser;
 class Object;
 class Script;
@@ -40,7 +40,7 @@ class NativeFunctionObject;
 typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
 
 struct ExecutionStateRareData : public gc {
-    CodeBlock* m_codeBlock;
+    InterpretedCodeBlock* m_codeBlock; // for local eval code
     ControlFlowRecordVector* m_controlFlowRecord;
     ExecutionPauser* m_pauseSource;
     ExecutionState* m_parent;
@@ -302,7 +302,7 @@ public:
         return codeBlock() != nullptr;
     }
 
-    CodeBlock* codeBlock()
+    InterpretedCodeBlock* codeBlock()
     {
         if (hasRareData()) {
             return rareData()->m_codeBlock;

@@ -131,7 +131,7 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
 {
     UNUSED_VARIABLE(stopAtPause);
 
-    ExecutionState* pstate = &state;
+    ExecutionState* curState = &state;
 #ifdef ESCARGOT_DEBUGGER
     uint32_t executionStateDepthIndex = 0;
     ExecutionState* activeSavedStackTraceExecutionState = nullptr;
@@ -141,146 +141,159 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
     }
 #endif /* ESCARGOT_DEBUGGER */
 
-    std::vector<ExecutionState*> stateStack;
+    while (curState) {
+        ExecutionState* pState = curState;
 
-    while (pstate) {
-        FunctionObject* callee = pstate->resolveCallee();
-        ExecutionState* es = pstate;
-
-        while (es) {
-            if (!es->lexicalEnvironment() || !es->lexicalEnvironment()->record()) {
+        while (pState) {
+            if (!pState->lexicalEnvironment()) {
+                // has no lexical scope like native function
                 break;
             }
-            if (es->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
-                break;
-            } else if (es->lexicalEnvironment()->record()->isDeclarativeEnvironmentRecord() && es->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                break;
-            } else if (es->lexicalEnvironment()->record()->isModuleEnvironmentRecord()) {
-                break;
+
+            if (pState->lexicalEnvironment()) {
+                LexicalEnvironment* env = pState->lexicalEnvironment();
+                EnvironmentRecord* record = env->record();
+                ASSERT(!!record);
+
+                if (pState->parent() && pState->parent()->lexicalEnvironment() == env) {
+                    // check if state is on the same lexical scope of the parent state e.g. try-catch-finally block
+                    // if so, move upward
+                    pState = pState->parent();
+                    continue;
+                }
+
+                if (pState->isLocalEvalCode()) {
+                    // check eval scope first
+                    break;
+                }
+
+                if (record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
+                    // function scope
+                    break;
+                } else if (record->isGlobalEnvironmentRecord()) {
+                    // global scope
+                    break;
+                } else if (record->isModuleEnvironmentRecord()) {
+                    // module scope
+                    break;
+                }
             }
-            es = es->parent();
+
+            pState = pState->parent();
         }
 
-        if (!es) {
+        if (!pState) {
             break;
         }
 
-        bool alreadyExists = false;
 
-        for (size_t i = 0; i < stateStack.size(); i++) {
-            if (stateStack[i] == es || stateStack[i]->lexicalEnvironment() == es->lexicalEnvironment()) {
-                alreadyExists = true;
-                break;
-            }
-        }
+        if (pState->isLocalEvalCode()) {
+            // for eval code case
+            ASSERT(pState->codeBlock());
+            InterpretedCodeBlock* cb = pState->codeBlock();
+            ByteCodeBlock* b = cb->byteCodeBlock();
 
-        if (!alreadyExists) {
-            if (pstate->codeBlock() && pstate->codeBlock()->isInterpretedCodeBlock()) {
-                // for eval code case
-                CodeBlock* cb = pstate->codeBlock();
-                ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
-                ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
-                if (pstate->m_programCounter != nullptr) {
-                    loc.byteCodePosition = *pstate->m_programCounter - (size_t)b->m_code.data();
+            ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+            if (curState->m_programCounter != nullptr) {
+                if ((*curState->m_programCounter >= (size_t)b->m_code.data()) && (*curState->m_programCounter < (size_t)b->m_code.data() + b->m_code.size())) {
+                    loc.byteCodePosition = *curState->m_programCounter - (size_t)b->m_code.data();
                     loc.actualCodeBlock = b;
                 }
-                SandBox::StackTraceData data;
-                data.loc = loc;
-                data.srcName = cb->asInterpretedCodeBlock()->script()->srcName();
-                data.sourceCode = cb->asInterpretedCodeBlock()->script()->sourceCode();
-                data.isEval = true;
-                data.isFunction = false;
-                data.isAssociatedWithJavaScriptCode = true;
-                data.isConstructor = false;
-#ifdef ESCARGOT_DEBUGGER
-                data.executionStateDepth = executionStateDepthIndex;
-#endif /* ESCARGOT_DEBUGGER */
-
-                stateStack.push_back(es);
-                stackTraceDataVector.pushBack(data);
-            } else if (!callee && es && es->lexicalEnvironment()) {
-                // can be null on module outer env
-                InterpretedCodeBlock* cb = nullptr;
-                if (es->lexicalEnvironment()->record()->isGlobalEnvironmentRecord()) {
-                    cb = es->lexicalEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
-                } else {
-                    ASSERT(es->lexicalEnvironment()->record()->isModuleEnvironmentRecord());
-                    cb = es->lexicalEnvironment()->outerEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
-                }
-                if (cb) {
-                    ByteCodeBlock* b = cb->byteCodeBlock();
-                    ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
-                    ASSERT(!pstate->isNativeFunctionObjectExecutionContext());
-                    if (pstate->m_programCounter != nullptr) {
-                        loc.byteCodePosition = *pstate->m_programCounter - (size_t)b->m_code.data();
-                        loc.actualCodeBlock = b;
-                    }
-                    SandBox::StackTraceData data;
-                    data.loc = loc;
-                    data.srcName = cb->script()->srcName();
-                    data.sourceCode = cb->script()->sourceCode();
-                    data.isEval = true;
-                    data.isFunction = false;
-                    data.isAssociatedWithJavaScriptCode = true;
-                    data.isConstructor = false;
-#ifdef ESCARGOT_DEBUGGER
-                    data.executionStateDepth = executionStateDepthIndex;
-#endif /* ESCARGOT_DEBUGGER */
-
-                    stateStack.push_back(es);
-                    stackTraceDataVector.pushBack(data);
-                }
-            } else if (callee) {
-                CodeBlock* cb = callee->codeBlock();
-                ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
-                if (cb->isInterpretedCodeBlock()) {
-                    ByteCodeBlock* b = cb->asInterpretedCodeBlock()->byteCodeBlock();
-                    ASSERT(!pstate->isNativeFunctionObjectExecutionContext());
-                    if (pstate->m_programCounter != nullptr) {
-                        loc.byteCodePosition = *pstate->m_programCounter - (size_t)b->m_code.data();
-                        loc.actualCodeBlock = b;
-                    }
-                }
-
-                SandBox::StackTraceData data;
-                data.loc = loc;
-
-                if (cb->isInterpretedCodeBlock() && cb->asInterpretedCodeBlock()->script()) {
-                    data.srcName = cb->asInterpretedCodeBlock()->script()->srcName();
-                    data.sourceCode = cb->asInterpretedCodeBlock()->script()->sourceCode();
-                } else {
-                    StringBuilder builder;
-                    builder.appendString("function ");
-                    builder.appendString(cb->functionName().string());
-                    builder.appendString("() { ");
-                    builder.appendString("[native function]");
-                    builder.appendString(" } ");
-                    data.srcName = builder.finalize();
-                    data.sourceCode = String::emptyString;
-                }
-
-                data.functionName = cb->functionName().string();
-                data.isEval = false;
-                data.isFunction = true;
-                data.callee = callee;
-                data.isAssociatedWithJavaScriptCode = cb->isInterpretedCodeBlock();
-                data.isConstructor = callee->isConstructor();
-#ifdef ESCARGOT_DEBUGGER
-                data.executionStateDepth = executionStateDepthIndex;
-#endif /* ESCARGOT_DEBUGGER */
-
-                stateStack.push_back(es);
-                stackTraceDataVector.pushBack(data);
             }
+            SandBox::StackTraceData data;
+            data.loc = loc;
+            data.srcName = cb->script()->srcName();
+            data.sourceCode = cb->script()->sourceCode();
+            data.isEval = true;
+            data.isFunction = false;
+            data.isAssociatedWithJavaScriptCode = true;
+            data.isConstructor = false;
+#ifdef ESCARGOT_DEBUGGER
+            data.executionStateDepth = executionStateDepthIndex;
+#endif /* ESCARGOT_DEBUGGER */
+
+            stackTraceDataVector.pushBack(data);
+        } else if (pState->lexicalEnvironment()) {
+            // can be null on module outer env
+            LexicalEnvironment* env = pState->lexicalEnvironment();
+            EnvironmentRecord* record = env->record();
+
+            InterpretedCodeBlock* cb = nullptr;
+            bool isFunction = false;
+
+            if (record->isGlobalEnvironmentRecord()) {
+                cb = pState->lexicalEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
+            } else if (record->isModuleEnvironmentRecord()) {
+                cb = pState->lexicalEnvironment()->outerEnvironment()->record()->asGlobalEnvironmentRecord()->globalCodeBlock();
+            } else {
+                ASSERT(record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
+                isFunction = true;
+                cb = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->codeBlock()->asInterpretedCodeBlock();
+            }
+
+            ASSERT(!!cb);
+            ByteCodeBlock* b = cb->byteCodeBlock();
+            ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+            ASSERT(!curState->isNativeFunctionObjectExecutionContext());
+            if (curState->m_programCounter != nullptr) {
+                if ((*curState->m_programCounter >= (size_t)b->m_code.data()) && (*curState->m_programCounter < (size_t)b->m_code.data() + b->m_code.size())) {
+                    loc.byteCodePosition = *curState->m_programCounter - (size_t)b->m_code.data();
+                    loc.actualCodeBlock = b;
+                }
+            }
+            SandBox::StackTraceData data;
+            data.loc = loc;
+            data.srcName = cb->script()->srcName();
+            data.sourceCode = cb->script()->sourceCode();
+
+            data.functionName = cb->functionName().string();
+            data.isEval = false;
+            data.isFunction = isFunction;
+            data.callee = isFunction ? record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject() : nullptr;
+            data.isAssociatedWithJavaScriptCode = true;
+            data.isConstructor = isFunction ? record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isConstructor() : false;
+#ifdef ESCARGOT_DEBUGGER
+            data.executionStateDepth = executionStateDepthIndex;
+#endif /* ESCARGOT_DEBUGGER */
+
+            stackTraceDataVector.pushBack(data);
+        } else if (pState->isNativeFunctionObjectExecutionContext()) {
+            // find the CodeBlock of the same lexical scope
+            ASSERT(!!pState->m_calledNativeFunctionObject);
+            NativeCodeBlock* cb = pState->m_calledNativeFunctionObject->codeBlock()->asNativeCodeBlock();
+            ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
+            SandBox::StackTraceData data;
+            data.loc = loc;
+
+            StringBuilder builder;
+            builder.appendString("function ");
+            builder.appendString(cb->functionName().string());
+            builder.appendString("() { ");
+            builder.appendString("[native function]");
+            builder.appendString(" } ");
+            data.srcName = builder.finalize();
+            data.sourceCode = String::emptyString;
+
+            data.functionName = cb->functionName().string();
+            data.isEval = false;
+            data.isFunction = true;
+            data.callee = pState->m_calledNativeFunctionObject;
+            data.isAssociatedWithJavaScriptCode = cb->isInterpretedCodeBlock();
+            data.isConstructor = cb->isNativeConstructor();
+#ifdef ESCARGOT_DEBUGGER
+            data.executionStateDepth = executionStateDepthIndex;
+#endif /* ESCARGOT_DEBUGGER */
+
+            stackTraceDataVector.pushBack(data);
         }
 
 #ifdef ESCARGOT_DEBUGGER
-        if (pstate == activeSavedStackTraceExecutionState) {
+        if (curState == activeSavedStackTraceExecutionState) {
             return true;
         }
 #endif /* ESCARGOT_DEBUGGER */
 
-        pstate = pstate->parent();
+        curState = pState->parent();
 #ifdef ESCARGOT_DEBUGGER
         executionStateDepthIndex++;
 #endif /* ESCARGOT_DEBUGGER */
