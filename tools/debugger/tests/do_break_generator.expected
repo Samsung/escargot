@@ -7,12 +7,14 @@ Breakpoint 1 at tools/debugger/tests/do_break_generator.js:21 (in f1() at line:2
 Stopped at breakpoint:1 tools/debugger/tests/do_break_generator.js:21 (in f1() at line:20, col:1)
 (escargot-debugger) bt
 tools/debugger/tests/do_break_generator.js:21:5 [depth:0] (in f1)
+tools/debugger/tests/do_break_generator.js:33:11 [depth:1] (in g)
 tools/debugger/tests/do_break_generator.js:39:1 [depth:3]
 (escargot-debugger) c
 Stopped at breakpoint:1 tools/debugger/tests/do_break_generator.js:21 (in f1() at line:20, col:1)
 (escargot-debugger) bt
 tools/debugger/tests/do_break_generator.js:21:5 [depth:0] (in f1)
 tools/debugger/tests/do_break_generator.js:25:12 [depth:1] (in f2)
+tools/debugger/tests/do_break_generator.js:34:11 [depth:2] (in g)
 tools/debugger/tests/do_break_generator.js:42:3 [depth:4] (in h)
 tools/debugger/tests/do_break_generator.js:44:1 [depth:5]
 (escargot-debugger) c
@@ -21,6 +23,7 @@ Stopped at breakpoint:1 tools/debugger/tests/do_break_generator.js:21 (in f1() a
 tools/debugger/tests/do_break_generator.js:21:5 [depth:0] (in f1)
 tools/debugger/tests/do_break_generator.js:25:12 [depth:1] (in f2)
 tools/debugger/tests/do_break_generator.js:29:12 [depth:2] (in f3)
+tools/debugger/tests/do_break_generator.js:35:11 [depth:3] (in g)
 tools/debugger/tests/do_break_generator.js:46:1 [depth:5]
 (escargot-debugger) c
 Connection closed.
