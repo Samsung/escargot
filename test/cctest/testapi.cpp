@@ -2673,7 +2673,7 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
         EXPECT_EQ(stackTrace[1].weakCodeRef, codeRefs[0]);
         EXPECT_EQ(stackTrace[1].line, 8);
         EXPECT_EQ(stackTrace[1].column, 1);
-        EXPECT_EQ(stackTrace[1].depth, 2);
+        EXPECT_EQ(stackTrace[1].depth, 1);
 
         return DebuggerOperationsRef::Continue;
     }

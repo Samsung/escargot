@@ -15,17 +15,23 @@ Breakpoint 3 at tools/debugger/tests/do_break_async.js:22 (in f() at line:20, co
 (escargot-debugger) c
 Stopped at breakpoint:1 tools/debugger/tests/do_break_async.js:40 (in j() at line:38, col:1)
 (escargot-debugger) bt
+tools/debugger/tests/do_break_async.js:40:5 [depth:0] (in j)
 tools/debugger/tests/do_break_async.js:43:1
 (escargot-debugger) c
 Stopped at breakpoint:2 tools/debugger/tests/do_break_async.js:31 (in h() at line:29, col:1)
 (escargot-debugger) bt
+tools/debugger/tests/do_break_async.js:31:5 [depth:0] (in h)
 tools/debugger/tests/do_break_async.js:35:5 (in i)
+tools/debugger/tests/do_break_async.js:40:5 (in j)
 tools/debugger/tests/do_break_async.js:43:1
 (escargot-debugger) c
 Stopped at breakpoint:3 tools/debugger/tests/do_break_async.js:22 (in f() at line:20, col:1)
 (escargot-debugger) bt
+tools/debugger/tests/do_break_async.js:22:5 [depth:0] (in f)
 tools/debugger/tests/do_break_async.js:26:5 (in g)
+tools/debugger/tests/do_break_async.js:31:5 (in h)
 tools/debugger/tests/do_break_async.js:35:5 (in i)
+tools/debugger/tests/do_break_async.js:40:5 (in j)
 tools/debugger/tests/do_break_async.js:43:1
 (escargot-debugger) c
 Connection closed.
