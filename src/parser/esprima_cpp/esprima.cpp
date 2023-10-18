@@ -4874,7 +4874,7 @@ public:
     template <class ASTBuilder>
     ASTNode parseDebuggerStatement(ASTBuilder& builder)
     {
-        ESCARGOT_LOG_ERROR("debugger keyword is not supported yet");
+        // ESCARGOT_LOG_ERROR("debugger keyword is not supported yet");
         MetaNode node = this->createNode();
         this->expectKeyword(KeywordKind::DebuggerKeyword);
         this->consumeSemicolon();
