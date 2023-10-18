@@ -5,7 +5,7 @@ project(escargot-jni)
 option(UNDER_NDK "Build under the Android NDK" ON)
 option(ENABLE_SHELL "Enable shell" OFF)
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fexceptions")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fexceptions -Wno-conversion-null")
 
 if (NOT UNDER_NDK)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -g3")

@@ -2802,6 +2802,11 @@ FunctionObjectRef* FunctionObjectRef::create(ExecutionStateRef* stateRef, String
     return toRef(result);
 }
 
+ContextRef* FunctionObjectRef::context()
+{
+    return toRef(toImpl(this)->codeBlock()->context());
+}
+
 ValueRef* FunctionObjectRef::getFunctionPrototype(ExecutionStateRef* state)
 {
     FunctionObject* o = toImpl(this);

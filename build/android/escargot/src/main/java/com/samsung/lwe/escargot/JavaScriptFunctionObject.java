@@ -5,4 +5,5 @@ public class JavaScriptFunctionObject extends JavaScriptObject {
     {
         super(nativePointer);
     }
+    public native Context context();
 }

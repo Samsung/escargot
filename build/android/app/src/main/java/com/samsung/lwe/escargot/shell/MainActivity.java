@@ -82,9 +82,9 @@ public class MainActivity extends AppCompatActivity {
 
             {
                 Context finalContext = context;
-                context.getGlobalObject().set(context, JavaScriptValue.create("print"), JavaScriptJavaCallbackFunctionObject.create(context, "print", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                context.getGlobalObject().set(context, JavaScriptString.create("print"), JavaScriptJavaCallbackFunctionObject.create(context, "print", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
                     @Override
-                    public Optional<JavaScriptValue> callback(JavaScriptValue javaScriptValue, JavaScriptValue[] javaScriptValues) {
+                    public Optional<JavaScriptValue> callback(Context context, JavaScriptValue javaScriptValue, JavaScriptValue[] javaScriptValues) {
                         StringBuffer sb = new StringBuffer();
                         sb.append(str);
                         sb.append('\n');
@@ -118,9 +118,9 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }));
 
-                context.getGlobalObject().set(context, JavaScriptValue.create("load"), JavaScriptJavaCallbackFunctionObject.create(context, "run", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                context.getGlobalObject().set(context, JavaScriptString.create("load"), JavaScriptJavaCallbackFunctionObject.create(context, "run", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
                     @Override
-                    public Optional<JavaScriptValue> callback(JavaScriptValue javaScriptValue, JavaScriptValue[] javaScriptValues) {
+                    public Optional<JavaScriptValue> callback(Context context, JavaScriptValue javaScriptValue, JavaScriptValue[] javaScriptValues) {
                         Optional<JavaScriptString> s = javaScriptValues[0].toString(finalContext);
                         if (s.isPresent()) {
                             try {
@@ -137,9 +137,9 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }));
 
-                context.getGlobalObject().set(context, JavaScriptValue.create("run"), JavaScriptJavaCallbackFunctionObject.create(context, "run", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                context.getGlobalObject().set(context, JavaScriptString.create("run"), JavaScriptJavaCallbackFunctionObject.create(context, "run", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
                     @Override
-                    public Optional<JavaScriptValue> callback(JavaScriptValue javaScriptValue, JavaScriptValue[] javaScriptValues) {
+                    public Optional<JavaScriptValue> callback(Context context, JavaScriptValue javaScriptValue, JavaScriptValue[] javaScriptValues) {
                         long sm = System.currentTimeMillis();
                         Optional<JavaScriptString> s = javaScriptValues[0].toString(finalContext);
                         if (s.isPresent()) {
@@ -149,16 +149,16 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }));
 
-                context.getGlobalObject().set(context, JavaScriptValue.create("read"), JavaScriptJavaCallbackFunctionObject.create(context, "read", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                context.getGlobalObject().set(context, JavaScriptString.create("read"), JavaScriptJavaCallbackFunctionObject.create(context, "read", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
                     @Override
-                    public Optional<JavaScriptValue> callback(JavaScriptValue javaScriptValue, JavaScriptValue[] javaScriptValues) {
+                    public Optional<JavaScriptValue> callback(Context context, JavaScriptValue javaScriptValue, JavaScriptValue[] javaScriptValues) {
                         Optional<JavaScriptString> s = javaScriptValues[0].toString(finalContext);
                         if (s.isPresent()) {
                             FileReader in = null;
                             try {
                                 byte[] chars = Files.readAllBytes(Paths.get(s.get().toJavaString()));
                                 String fileContent = new String(chars);
-                                return Optional.of(JavaScriptValue.create(fileContent));
+                                return Optional.of(JavaScriptString.create(fileContent));
                             }
                             catch (Exception ex) {
                                 return Optional.empty();

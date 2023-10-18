@@ -11,11 +11,12 @@ public class JavaScriptJavaCallbackFunctionObject extends JavaScriptFunctionObje
     public abstract static class Callback {
         /**
          *
+         * @param context
          * @param receiverValue
          * @param arguments
          * @return
          */
-        public abstract Optional<JavaScriptValue> callback(JavaScriptValue receiverValue, JavaScriptValue arguments[]);
+        public abstract Optional<JavaScriptValue> callback(Context context, JavaScriptValue receiverValue, JavaScriptValue arguments[]);
     }
 
     /**
