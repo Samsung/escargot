@@ -9,10 +9,11 @@ final public class Bridge {
 
     public abstract static class Adapter {
         /**
+         * @param context Context from callee
          * @param data the data parameter contains value when call this function from JavaScript
          * @return if want to return data to JavaScript callback, you can return value from this callback.
          */
-        public abstract Optional<JavaScriptValue> callback(Optional<JavaScriptValue> data);
+        public abstract Optional<JavaScriptValue> callback(Context context, Optional<JavaScriptValue> data);
     }
 
     /**

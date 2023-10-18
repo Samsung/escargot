@@ -5,5 +5,6 @@ public class JavaScriptString extends JavaScriptValue {
     {
         super(nativePointer, true);
     }
+    native static public JavaScriptString create(String value);
     native public String toJavaString();
 }

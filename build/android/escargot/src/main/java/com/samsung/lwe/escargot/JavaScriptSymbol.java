@@ -7,6 +7,8 @@ public class JavaScriptSymbol extends JavaScriptValue {
     {
         super(nativePointer, true);
     }
+
+    native static public JavaScriptSymbol create(Optional<JavaScriptString> value);
     native public Optional<JavaScriptString> description();
     native public JavaScriptString symbolDescriptiveString();
 

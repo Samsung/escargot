@@ -1544,6 +1544,9 @@ public:
     static FunctionObjectRef* create(ExecutionStateRef* state, AtomicStringRef* functionName, size_t argumentCount, ValueRef** argumentNameArray, ValueRef* body);
     static FunctionObjectRef* create(ExecutionStateRef* state, StringRef* sourceName, AtomicStringRef* functionName, size_t argumentCount, ValueRef** argumentNameArray, ValueRef* body);
 
+    // returns associate context
+    ContextRef* context();
+
     // get prototype property of constructible function(not [[prototype]])
     // this property is used for new object construction. see https://www.ecma-international.org/ecma-262/6.0/#sec-ordinarycreatefromconstructor
     ValueRef* getFunctionPrototype(ExecutionStateRef* state);

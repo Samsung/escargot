@@ -18,8 +18,6 @@ public class JavaScriptValue extends NativePointerHolder {
     native static public JavaScriptValue create(boolean value);
     native static public JavaScriptValue create(int value);
     native static public JavaScriptValue create(double value);
-    native static public JavaScriptString create(String value);
-    native static public JavaScriptSymbol create(Optional<JavaScriptString> value);
 
     native public boolean isUndefined();
     native public boolean isNull();
@@ -38,9 +36,6 @@ public class JavaScriptValue extends NativePointerHolder {
     native public boolean isFunctionObject();
     native public boolean isPromiseObject();
 
-    // as{ .. } methods don't check type is correct
-    // if you want to use these as{ .. } methods
-    // you must check type before use!
     native public boolean asBoolean();
     native public int asInt32();
     native public double asNumber();
