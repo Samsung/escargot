@@ -3,6 +3,9 @@ CMAKE_MINIMUM_REQUIRED (VERSION 2.8.12 FATAL_ERROR)
 #######################################################
 # CONFIGURATION
 #######################################################
+SET (ESCARGOT_LIBRARIES)
+SET (ESCARGOT_INCDIRS)
+
 # CONFIGURE ESCARGOT VERSION
 FIND_PACKAGE(Git)
 IF (GIT_FOUND)
@@ -17,7 +20,8 @@ IF ((NOT DEFINED ESCARGOT_BUILD_VERSION) OR (ESCARGOT_BUILD_VERSION STREQUAL "")
     FILE (STRINGS "${PROJECT_SOURCE_DIR}/RELEASE_VERSION" ESCARGOT_BUILD_VERSION)
 ENDIF()
 MESSAGE(STATUS "Escargot Build Version: ${ESCARGOT_BUILD_VERSION}")
-CONFIGURE_FILE (${PROJECT_SOURCE_DIR}/src/EscargotInfo.h.in ${PROJECT_SOURCE_DIR}/src/EscargotInfo.h @ONLY)
+CONFIGURE_FILE (${PROJECT_SOURCE_DIR}/src/EscargotInfo.h.in ${CMAKE_BINARY_DIR}/escargot_generated/EscargotInfo.h @ONLY)
+SET (ESCARGOT_INCDIRS ${ESCARGOT_INCDIRS} ${CMAKE_BINARY_DIR}/escargot_generated)
 
 #######################################################
 # PATH
@@ -29,8 +33,6 @@ SET (GCUTIL_ROOT ${ESCARGOT_THIRD_PARTY_ROOT}/GCutil)
 #######################################################
 # FLAGS FOR TARGET
 #######################################################
-SET (ESCARGOT_LIBRARIES)
-SET (ESCARGOT_INCDIRS)
 INCLUDE (${ESCARGOT_ROOT}/build/target.cmake)
 
 #######################################################
