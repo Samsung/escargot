@@ -42,17 +42,55 @@ public:
             context->m_canSkipCopyToRegister = false;
         }
 
-        m_left->generateExpressionByteCode(codeBlock, context, dstRegister);
+        if (UNLIKELY(m_left->isLiteral())) {
+            ExecutionState stateForTest(codeBlock->m_codeBlock->context());
+            bool boolVal = m_left->asLiteral()->value().toBoolean(stateForTest);
+            if (boolVal) {
+                m_left->generateExpressionByteCode(codeBlock, context, dstRegister);
+            } else {
+                m_right->generateExpressionByteCode(codeBlock, context, dstRegister);
+            }
+        } else {
+            m_left->generateExpressionByteCode(codeBlock, context, dstRegister);
+            codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), dstRegister), context, this->m_loc.index);
+            size_t pos = codeBlock->lastCodePosition<JumpIfTrue>();
 
-        codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), dstRegister), context, this->m_loc.index);
-        size_t pos = codeBlock->lastCodePosition<JumpIfTrue>();
-
-        m_right->generateExpressionByteCode(codeBlock, context, dstRegister);
-
-        codeBlock->peekCode<JumpIfTrue>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
+            m_right->generateExpressionByteCode(codeBlock, context, dstRegister);
+            codeBlock->peekCode<JumpIfTrue>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
+        }
 
         context->m_canSkipCopyToRegister = directBefore;
     }
+
+#if defined(ENABLE_TCO)
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCall) override
+    {
+        bool isSlow = !canUseDirectRegister(context, m_left, m_right);
+        bool directBefore = context->m_canSkipCopyToRegister;
+        if (isSlow) {
+            context->m_canSkipCopyToRegister = false;
+        }
+
+        if (UNLIKELY(m_left->isLiteral())) {
+            ExecutionState stateForTest(codeBlock->m_codeBlock->context());
+            bool boolVal = m_left->asLiteral()->value().toBoolean(stateForTest);
+            if (boolVal) {
+                m_left->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
+            } else {
+                m_right->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
+            }
+        } else {
+            m_left->generateExpressionByteCode(codeBlock, context, dstRegister);
+            codeBlock->pushCode<JumpIfTrue>(JumpIfTrue(ByteCodeLOC(m_loc.index), dstRegister), context, this->m_loc.index);
+            size_t pos = codeBlock->lastCodePosition<JumpIfTrue>();
+
+            m_right->generateExpressionByteCode(codeBlock, context, dstRegister);
+            codeBlock->peekCode<JumpIfTrue>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
+        }
+
+        context->m_canSkipCopyToRegister = directBefore;
+    }
+#endif
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
