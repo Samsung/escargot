@@ -39,3 +39,4 @@ cmake_install.cmake
 .vscode
 EscargotInfo.h
 escargot.pc
+escargot_generated/*
