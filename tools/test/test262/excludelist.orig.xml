@@ -5070,7 +5070,6 @@
     <test id="language/expressions/class/scope-name-lex-open-heritage"><reason>TODO</reason></test>
     <test id="language/expressions/coalesce/chainable-if-parenthesis-covered-logical-and"><reason>TODO</reason></test>
     <test id="language/expressions/coalesce/chainable-if-parenthesis-covered-logical-or"><reason>TODO</reason></test>
-    <test id="language/expressions/comma/tco-final"><reason>TODO</reason></test>
     <test id="language/expressions/compound-assignment/S11.13.2_A6.10_T1"><reason>TODO</reason></test>
     <test id="language/expressions/compound-assignment/S11.13.2_A6.11_T1"><reason>TODO</reason></test>
     <test id="language/expressions/compound-assignment/S11.13.2_A6.1_T1"><reason>TODO</reason></test>
@@ -5121,7 +5120,6 @@
     <test id="language/expressions/generators/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/generators/generator-created-after-decl-inst"><reason>TODO</reason></test>
     <test id="language/expressions/generators/yield-as-generator-expression-binding-identifier"><reason>TODO</reason></test>
-    <test id="language/expressions/logical-and/tco-right"><reason>TODO</reason></test>
     <test id="language/expressions/logical-assignment/lgcl-and-assignment-operator-namedevaluation-arrow-function"><reason>TODO</reason></test>
     <test id="language/expressions/logical-assignment/lgcl-and-assignment-operator-namedevaluation-class-expression"><reason>TODO</reason></test>
     <test id="language/expressions/logical-assignment/lgcl-and-assignment-operator-namedevaluation-function"><reason>TODO</reason></test>
@@ -5131,7 +5129,6 @@
     <test id="language/expressions/logical-assignment/lgcl-or-assignment-operator-namedevaluation-arrow-function"><reason>TODO</reason></test>
     <test id="language/expressions/logical-assignment/lgcl-or-assignment-operator-namedevaluation-class-expression"><reason>TODO</reason></test>
     <test id="language/expressions/logical-assignment/lgcl-or-assignment-operator-namedevaluation-function"><reason>TODO</reason></test>
-    <test id="language/expressions/logical-or/tco-right"><reason>TODO</reason></test>
     <test id="language/expressions/object/__proto__-permitted-dup-shorthand"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/object-rest-proxy-get-not-called-on-dontenum-keys"><reason>TODO</reason></test>
     <test id="language/expressions/object/dstr/object-rest-proxy-gopd-not-called-on-excluded-keys"><reason>TODO</reason></test>

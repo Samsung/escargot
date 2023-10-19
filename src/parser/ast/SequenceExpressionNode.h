@@ -35,16 +35,33 @@ public:
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
+        ASSERT(m_expressions.size());
         ByteCodeRegisterIndex r = 0;
-        for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.end(); expression = expression->next()) {
+        for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.back(); expression = expression->next()) {
             r = expression->astNode()->getRegister(codeBlock, context);
             expression->astNode()->generateExpressionByteCode(codeBlock, context, r);
             context->giveUpRegister();
         }
-        if (r != dstRegister) {
-            codeBlock->pushCode(Move(ByteCodeLOC(m_loc.index), r, dstRegister), context, this->m_loc.index);
-        }
+
+        // directly store the result of the last expression on to dstRegister
+        m_expressions.back()->astNode()->generateExpressionByteCode(codeBlock, context, dstRegister);
     }
+
+#if defined(ENABLE_TCO)
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCall) override
+    {
+        ASSERT(m_expressions.size());
+        ByteCodeRegisterIndex r = 0;
+        for (SentinelNode* expression = m_expressions.begin(); expression != m_expressions.back(); expression = expression->next()) {
+            r = expression->astNode()->getRegister(codeBlock, context);
+            expression->astNode()->generateExpressionByteCode(codeBlock, context, r);
+            context->giveUpRegister();
+        }
+
+        // directly store the result of the last expression on to dstRegister
+        m_expressions.back()->astNode()->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
+    }
+#endif
 
     virtual void iterateChildrenIdentifier(const std::function<void(AtomicString name, bool isAssignment)>& fn) override
     {
