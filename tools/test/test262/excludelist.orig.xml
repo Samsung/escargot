@@ -5166,8 +5166,6 @@
     <test id="language/expressions/prefix-increment/target-newtarget"><reason>TODO</reason></test>
     <test id="language/expressions/super/call-proto-not-ctor"><reason>TODO</reason></test>
     <test id="language/expressions/tagged-template/invalid-escape-sequences"><reason>TODO</reason></test>
-    <test id="language/expressions/tagged-template/tco-call"><reason>TODO</reason></test>
-    <test id="language/expressions/tagged-template/tco-member"><reason>TODO</reason></test>
     <test id="language/expressions/template-literal/invalid-legacy-octal-escape-sequence-8"><reason>TODO</reason></test>
     <test id="language/expressions/template-literal/invalid-legacy-octal-escape-sequence-9"><reason>TODO</reason></test>
     <test id="language/identifier-resolution/assign-to-global-undefined"><reason>TODO</reason></test>
@@ -5359,9 +5357,6 @@
     <test id="language/statements/try/completion-values"><reason>TODO</reason></test>
     <test id="language/statements/try/early-catch-function"><reason>TODO</reason></test>
     <test id="language/statements/try/early-catch-lex"><reason>TODO</reason></test>
-    <test id="language/statements/try/tco-catch"><reason>TODO</reason></test>
-    <test id="language/statements/try/tco-catch-finally"><reason>TODO</reason></test>
-    <test id="language/statements/try/tco-finally"><reason>TODO</reason></test>
     <test id="language/statements/with/unscopables-inc-dec"><reason>TODO</reason></test>
     <test id="staging/ArrayBuffer/resizable/access-out-of-bounds-typed-array"><reason>TODO</reason></test>
     <test id="staging/ArrayBuffer/resizable/array-fill-parameter-conversion-resizes"><reason>TODO</reason></test>

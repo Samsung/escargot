@@ -52,6 +52,9 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_isHeadOfMemberExpression(false)
     , m_forInOfVarBinding(false)
     , m_isLeftBindingAffectedByRightExpression(false)
+#if defined(ENABLE_TCO)
+    , m_tcoDisabled(false)
+#endif
     , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
     , m_lexicallyDeclaredNames(new std::vector<std::pair<size_t, AtomicString>>())
     , m_positionToContinue(0)
@@ -60,7 +63,9 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_lexicalBlockIndex(0)
     , m_classInfo()
     , m_numeralLiteralData(numeralLiteralData) // should be NumeralLiteralVector
+#if defined(ENABLE_TCO)
     , m_returnRegister(SIZE_MAX)
+#endif
 #ifdef ESCARGOT_DEBUGGER
     , m_breakpointContext(nullptr)
 #endif /* ESCARGOT_DEBUGGER */
@@ -613,6 +618,13 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            break;
+        }
+        case TailRecursionInTryOpcode: {
+            TailRecursionInTry* cd = (TailRecursionInTry*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_resultIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
 #endif

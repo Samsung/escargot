@@ -51,7 +51,19 @@ public:
             ByteCodeRegisterIndex index;
             if (m_argument) {
                 index = m_argument->getRegister(codeBlock, context);
+#if defined(ENABLE_TCO)
+                if (!context->m_tcoDisabled && (context->tryCatchWithBlockStatementCount() == 1) && ((context->m_recursiveStatementStack.back().first == ByteCodeGenerateContext::Catch) || (context->m_recursiveStatementStack.back().first == ByteCodeGenerateContext::Finally))) {
+                    // consider tail recursion (TCO) for catch, finally block within depth 1
+                    bool isTailCall = false;
+                    context->setReturnRegister(index);
+                    m_argument->generateTCOExpressionByteCode(codeBlock, context, index, isTailCall);
+                    context->setReturnRegister(SIZE_MAX);
+                } else {
+                    m_argument->generateExpressionByteCode(codeBlock, context, index);
+                }
+#else
                 m_argument->generateExpressionByteCode(codeBlock, context, index);
+#endif
                 codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), index), context, this->m_loc.index);
             } else {
                 index = context->getRegister();
@@ -64,27 +76,27 @@ public:
             size_t r;
             if (m_argument) {
                 r = m_argument->getRegister(codeBlock, context);
-                if (context->tryCatchWithBlockStatementCount() == 0) {
-                    // consider tail recursion (TCO)
-                    context->setReturnRegister(r);
+
 #if defined(ENABLE_TCO)
-                    m_argument->generateTCOExpressionByteCode(codeBlock, context, r, isTailCall);
+                // consider tail recursion (TCO)
+                ASSERT(!context->m_tcoDisabled);
+                context->setReturnRegister(r);
+                m_argument->generateTCOExpressionByteCode(codeBlock, context, r, isTailCall);
+                context->setReturnRegister(SIZE_MAX);
 #else
-                    m_argument->generateExpressionByteCode(codeBlock, context, r);
+                m_argument->generateExpressionByteCode(codeBlock, context, r);
 #endif
-                    context->setReturnRegister(SIZE_MAX);
-                } else {
-                    m_argument->generateExpressionByteCode(codeBlock, context, r);
-                }
             } else {
                 r = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), r, Value()), context, this->m_loc.index);
             }
 
-            if (!isTailCall || (m_argument->type() != CallExpression)) {
-                // skip End bytecode only if it directly returns the result of tail call
+#if defined(ENABLE_TCO)
+            if (!isTailCall || (m_argument->type() != CallExpression))
+            // skip End bytecode only if it directly returns the result of tail call
+#endif
                 codeBlock->pushCode(End(ByteCodeLOC(m_loc.index), r), context, this->m_loc.index);
-            }
+
             context->giveUpRegister();
         }
     }
