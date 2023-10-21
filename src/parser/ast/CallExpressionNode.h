@@ -417,10 +417,15 @@ public:
             if (dstRegister == context->m_returnRegister) {
                 // Try tail recursion optimization (TCO)
                 isTailCall = true;
-                if (context->m_codeBlock->isTailRecursionTarget()) {
-                    codeBlock->pushCode(TailRecursionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
+                bool isTailRecursion = context->m_codeBlock->isTailRecursionTarget();
+                if (UNLIKELY(context->tryCatchWithBlockStatementCount())) {
+                    codeBlock->pushCode(CallWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
                 } else {
-                    codeBlock->pushCode(CallReturnWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
+                    if (isTailRecursion) {
+                        codeBlock->pushCode(TailRecursionWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
+                    } else {
+                        codeBlock->pushCode(CallReturnWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
+                    }
                 }
             } else {
                 codeBlock->pushCode(CallWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
@@ -429,10 +434,19 @@ public:
             if (dstRegister == context->m_returnRegister) {
                 // Try tail recursion optimization (TCO)
                 isTailCall = true;
-                if (context->m_codeBlock->isTailRecursionTarget()) {
-                    codeBlock->pushCode(TailRecursion(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
+                bool isTailRecursion = context->m_codeBlock->isTailRecursionTarget();
+                if (UNLIKELY(context->tryCatchWithBlockStatementCount())) {
+                    if (isTailRecursion) {
+                        codeBlock->pushCode(TailRecursionInTry(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
+                    } else {
+                        codeBlock->pushCode(Call(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
+                    }
                 } else {
-                    codeBlock->pushCode(CallReturn(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
+                    if (isTailRecursion) {
+                        codeBlock->pushCode(TailRecursion(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
+                    } else {
+                        codeBlock->pushCode(CallReturn(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
+                    }
                 }
             } else {
                 codeBlock->pushCode(Call(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);

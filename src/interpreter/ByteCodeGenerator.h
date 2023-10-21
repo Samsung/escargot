@@ -88,6 +88,9 @@ struct ByteCodeGenerateContext {
         , m_isHeadOfMemberExpression(false)
         , m_forInOfVarBinding(contextBefore.m_forInOfVarBinding)
         , m_isLeftBindingAffectedByRightExpression(contextBefore.m_isLeftBindingAffectedByRightExpression)
+#if defined(ENABLE_TCO)
+        , m_tcoDisabled(contextBefore.m_tcoDisabled)
+#endif
         , m_registerStack(contextBefore.m_registerStack)
         , m_lexicallyDeclaredNames(contextBefore.m_lexicallyDeclaredNames)
         , m_positionToContinue(contextBefore.m_positionToContinue)
@@ -97,7 +100,9 @@ struct ByteCodeGenerateContext {
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
         , m_classInfo(contextBefore.m_classInfo)
         , m_numeralLiteralData(contextBefore.m_numeralLiteralData) // should be NumeralLiteralVector
+#if defined(ENABLE_TCO)
         , m_returnRegister(contextBefore.m_returnRegister)
+#endif
 #ifdef ESCARGOT_DEBUGGER
         , m_breakpointContext(contextBefore.m_breakpointContext)
 #endif /* ESCARGOT_DEBUGGER */
@@ -297,21 +302,13 @@ struct ByteCodeGenerateContext {
         return m_recursiveStatementStack.size();
     }
 
-    bool inTryStatement() const
-    {
-        for (size_t i = 0; i < m_recursiveStatementStack.size(); i++) {
-            if (m_recursiveStatementStack[i].first == Try) {
-                return true;
-            }
-        }
-        return false;
-    }
-
+#if defined(ENABLE_TCO)
     void setReturnRegister(size_t dstRegister)
     {
         ASSERT(m_returnRegister != dstRegister);
         m_returnRegister = dstRegister;
     }
+#endif
 
 #ifndef NDEBUG
     void checkAllDataUsed()
@@ -359,6 +356,9 @@ struct ByteCodeGenerateContext {
     bool m_isHeadOfMemberExpression : 1;
     bool m_forInOfVarBinding : 1;
     bool m_isLeftBindingAffectedByRightExpression : 1; // x = delete x; or x = eval("var x"), 1;
+#if defined(ENABLE_TCO)
+    bool m_tcoDisabled : 1; // disable tail call optimizaiton (TCO) for some conditions
+#endif
 
     std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_registerStack;
     std::shared_ptr<std::vector<std::pair<size_t, AtomicString>>> m_lexicallyDeclaredNames;
@@ -389,7 +389,10 @@ struct ByteCodeGenerateContext {
     std::map<size_t, size_t> m_complexCaseStatementPositions;
     void* m_numeralLiteralData; // should be NumeralLiteralVector
 
+#if defined(ENABLE_TCO)
     size_t m_returnRegister; // for tail call optimizaiton (TCO)
+#endif
+
 #ifdef ESCARGOT_DEBUGGER
     ByteCodeBreakpointContext* m_breakpointContext;
 #endif /* ESCARGOT_DEBUGGER */

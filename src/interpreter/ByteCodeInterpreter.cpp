@@ -1569,7 +1569,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
 
             // set programCounter
             programCounter = reinterpret_cast<size_t>(byteCodeBlock->m_code.data());
-            state->m_programCounter = &programCounter;
+            ASSERT(state->m_programCounter == &programCounter);
 
             NEXT_INSTRUCTION();
         }
@@ -1619,9 +1619,41 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
 
             // set programCounter
             programCounter = reinterpret_cast<size_t>(byteCodeBlock->m_code.data());
-            state->m_programCounter = &programCounter;
+            ASSERT(state->m_programCounter == &programCounter);
 
             NEXT_INSTRUCTION();
+        }
+
+        // TCO : tail recursion case in catch or finally block
+        DEFINE_OPCODE(TailRecursionInTry)
+            :
+        {
+            TailRecursionInTry* code = (TailRecursionInTry*)programCounter;
+            const Value& callee = registerFile[code->m_calleeIndex];
+
+            if (UNLIKELY((callee != Value(state->resolveCallee())) || (state->m_argc != code->m_argumentCount))) {
+                // goto slow path
+                code->changeOpcode(Opcode::CallOpcode);
+                if (UNLIKELY(!callee.isPointerValue())) {
+                    ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
+                }
+
+                // Return F.[[Call]](V, argumentsList).
+                registerFile[code->m_resultIndex] = callee.asPointerValue()->call(*state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
+
+                ADD_PROGRAM_COUNTER(Call);
+                NEXT_INSTRUCTION();
+            }
+
+            ASSERT(callee.isPointerValue() && callee.asPointerValue()->isScriptFunctionObject());
+            ASSERT(callee.asPointerValue()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
+            ASSERT(state->m_argc == code->m_argumentCount);
+            ASSERT((state->rareData() != nullptr) && state->rareData()->m_controlFlowRecord && state->rareData()->m_controlFlowRecord->size());
+
+            // postpone recursion call
+            // because we need to close the current interpreter routine which is called inside try operation
+            state->rareData()->m_controlFlowRecord->back() = new ControlFlowRecord(ControlFlowRecord::NeedsRecursion, callee, code->m_argumentCount, code->m_argumentsStartIndex);
+            return Value(Value::EmptyValue);
         }
 #endif
 
@@ -3181,13 +3213,48 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             ASSERT_NOT_REACHED();
             // never get here. but I add return statement for removing compile warning
             return Value(Value::EmptyValue);
-        } else {
-            ASSERT(record->reason() == ControlFlowRecord::NeedsReturn);
+        } else if (record->reason() == ControlFlowRecord::NeedsReturn) {
             record->m_count--;
             if (record->count()) {
                 state->rareData()->m_controlFlowRecord->back() = record;
             }
             return record->value();
+        } else {
+#if defined(ENABLE_TCO)
+            // NeedsRecursion should be allocated in one of catch or finally block
+            ASSERT(record->reason() == ControlFlowRecord::NeedsRecursion);
+            ASSERT(!inPauserScope && !inPauserResumeProcess);
+            ASSERT(code->m_hasCatch || code->m_hasFinalizer);
+            ASSERT(record->m_value == state->resolveCallee());
+
+            Value callee = record->m_value;
+            size_t argCount = record->m_count;
+            size_t argStartIndex = record->m_outerLimitCount;
+            if (argCount) {
+                // At the start of tail call, we need to allocate a buffer for arguments
+                // because recursive tail call reuses this buffer
+                if (UNLIKELY(!state->initTCO())) {
+                    Value* newArgs = (Value*)GC_MALLOC(sizeof(Value) * argCount);
+                    state->setTCOArguments(newArgs);
+                }
+
+                // its safe to overwrite arguments because old arguments are no longer necessary
+                for (size_t i = 0; i < state->m_argc; i++) {
+                    state->m_argv[i] = registerFile[argStartIndex + i];
+                }
+            }
+
+            // set this value
+            registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] = state->inStrictMode() ? Value() : state->context()->globalObjectProxy();
+
+            // set programCounter
+            programCounter = reinterpret_cast<size_t>(byteCodeBlock->m_code.data());
+            ASSERT(state->m_programCounter == &programCounter);
+
+            return Value(Value::EmptyValue);
+#else
+                RELEASE_ASSERT_NOT_REACHED();
+#endif
         }
     } else {
         programCounter = jumpTo(codeBuffer, code->m_finallyEndPosition);

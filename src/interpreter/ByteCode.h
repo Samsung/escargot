@@ -140,6 +140,7 @@ struct GlobalVariableAccessCacheItem;
 #define FOR_EACH_BYTECODE_TCO_OP(F) \
     F(CallReturn)                   \
     F(TailRecursion)                \
+    F(TailRecursionInTry)           \
     F(CallReturnWithReceiver)       \
     F(TailRecursionWithReceiver)
 #else
@@ -1685,6 +1686,9 @@ public:
         NeedsReturn,
         NeedsJump,
         NeedsThrow,
+#if defined(ENABLE_TCO)
+        NeedsRecursion,
+#endif
     };
 
     ControlFlowRecord(const ControlFlowReason& reason, const Value& value, size_t count = 0, size_t outerLimitCount = SIZE_MAX)
@@ -1748,6 +1752,7 @@ private:
     union {
         Value m_value;
         size_t m_wordValue;
+        size_t m_calleeIndex;
     };
     // m_count is for saving tryStatementScopeCount of the context which contains
     // the occurrence(departure point) of this controlflow (e.g. break;)
@@ -2056,6 +2061,33 @@ public:
 #endif
 };
 
+class TailRecursionInTry : public ByteCode {
+public:
+    TailRecursionInTry(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t resultIndex, const size_t argumentCount)
+        : ByteCode(Opcode::TailRecursionInTryOpcode, loc)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_resultIndex(resultIndex)
+        , m_argumentCount(argumentCount)
+    {
+    }
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    ByteCodeRegisterIndex m_resultIndex;
+    uint16_t m_argumentCount;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        if (m_argumentCount) {
+            printf("tail recursion call in try r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        } else {
+            printf("tail recursion call in try r%u()", m_calleeIndex);
+        }
+    }
+#endif
+};
+
 class CallReturnWithReceiver : public ByteCode {
 public:
     CallReturnWithReceiver(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
@@ -2114,6 +2146,7 @@ public:
 
 COMPILE_ASSERT(sizeof(CallReturn) == sizeof(TailRecursion), "");
 COMPILE_ASSERT(sizeof(CallReturnWithReceiver) == sizeof(TailRecursionWithReceiver), "");
+COMPILE_ASSERT(sizeof(Call) == sizeof(TailRecursionInTry), "");
 #endif
 
 class CallComplexCase : public ByteCode {

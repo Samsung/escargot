@@ -52,6 +52,13 @@ public:
         return m_convertedExpression->generateExpressionByteCode(codeBlock, context, dstRegister);
     }
 
+#if defined(ENABLE_TCO)
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCall) override
+    {
+        return m_convertedExpression->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
+    }
+#endif
+
     virtual void iterateChildren(const std::function<void(Node* node)>& fn) override
     {
         fn(this);

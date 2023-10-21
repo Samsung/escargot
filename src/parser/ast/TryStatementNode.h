@@ -58,12 +58,18 @@ public:
         ctx.tryCatchBodyPos = codeBlock->lastCodePosition<CloseLexicalEnvironment>();
     }
 
-    static void generateTryHandlerStatementStartByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx, CatchClauseNode *handler)
+    static void generateTryHandlerStatementStartByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx, CatchClauseNode *handler, bool hasFinalizer)
     {
         context->m_recursiveStatementStack.pop_back();
         context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Catch, ctx.tryStartPosition));
         codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_hasCatch = true;
         codeBlock->peekCode<TryOperation>(ctx.tryStartPosition)->m_catchPosition = codeBlock->currentCodeSize();
+
+#if defined(ENABLE_TCO)
+        // if try statement has a finally block, TCO should be disabled for this catch block
+        bool beforeTCODisabled = context->m_tcoDisabled;
+        context->m_tcoDisabled |= hasFinalizer;
+#endif
 
         // catch paramter block
         size_t lexicalBlockIndexBefore = context->m_lexicalBlockIndex;
@@ -116,6 +122,9 @@ public:
         codeBlock->pushCode(CloseLexicalEnvironment(ByteCodeLOC(self->loc().index)), context, self->m_loc.index);
         context->m_recursiveStatementStack.pop_back();
         context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Try, ctx.tryStartPosition));
+#if defined(ENABLE_TCO)
+        context->m_tcoDisabled = beforeTCODisabled;
+#endif
     }
 
     static void generateTryFinalizerStatementStartByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx, bool hasFinalizer)
@@ -159,7 +168,7 @@ public:
         generateTryStatementBodyEndByteCode(codeBlock, context, this, ctx);
 
         if (m_handler) {
-            generateTryHandlerStatementStartByteCode(codeBlock, context, this, ctx, m_handler);
+            generateTryHandlerStatementStartByteCode(codeBlock, context, this, ctx, m_handler, m_finalizer != nullptr);
         }
 
         generateTryFinalizerStatementStartByteCode(codeBlock, context, this, ctx, m_finalizer != nullptr);
