@@ -329,7 +329,11 @@ bool ExecutionState::inPauserScope()
             auto env = state->lexicalEnvironment();
             auto record = env->record();
             if (record->isGlobalEnvironmentRecord() || record->isModuleEnvironmentRecord()) {
-                return state->hasRareData() && state->rareData()->m_pauseSource;
+                // class variable initializer can call {GlobalEnvironment, ModuleEnvironment}
+                // so we should check above of {GlobalEnvironment, ModuleEnvironment}
+                if (state->hasRareData() && state->rareData()->m_pauseSource) {
+                    return true;
+                }
             } else if (record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
                 return record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isScriptGeneratorFunctionObject()
                     || record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isScriptAsyncFunctionObject()

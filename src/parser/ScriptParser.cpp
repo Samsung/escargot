@@ -419,6 +419,12 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
     if (LIKELY(needByteCodeGeneration)) {
         try {
 #if defined(ENABLE_CODE_CACHE)
+            // give up if there is top-level-await
+            if (topCodeBlock->isAsync()) {
+                cacheable = false;
+                deleteCodeBlockCacheInfo();
+            }
+
             // Store cache
             if (cacheable) {
                 codeCache->prepareCacheWriting(srcHash);
