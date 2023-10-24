@@ -317,15 +317,23 @@ void ByteCodeBlock::finalizeLexicalBlock(ByteCodeGenerateContext* context, const
 
 void ByteCodeBlock::pushPauseStatementExtraData(ByteCodeGenerateContext* context)
 {
-    auto iter = context->m_recursiveStatementStack.begin();
-    while (iter != context->m_recursiveStatementStack.end()) {
-        size_t pos = m_code.size();
-        m_code.resizeWithUninitializedValues(pos + sizeof(ByteCodeGenerateContext::RecursiveStatementKind));
-        new (m_code.data() + pos) size_t(iter->first);
-        pos = m_code.size();
-        m_code.resizeWithUninitializedValues(pos + sizeof(size_t));
-        new (m_code.data() + pos) size_t(iter->second);
-        iter++;
+    if (context->m_recursiveStatementStack.size()) {
+        size_t startSize = m_code.size();
+        size_t tailDataLength = context->m_recursiveStatementStack.size() * (sizeof(ByteCodeGenerateContext::RecursiveStatementKind) + sizeof(size_t));
+        m_code.resizeWithUninitializedValues(startSize + tailDataLength);
+
+        auto* codeAddr = m_code.data();
+        auto iter = context->m_recursiveStatementStack.begin();
+        size_t pos = startSize;
+        while (iter != context->m_recursiveStatementStack.end()) {
+            new (codeAddr + pos) size_t(iter->first);
+            pos += sizeof(ByteCodeGenerateContext::RecursiveStatementKind);
+            new (codeAddr + pos) size_t(iter->second);
+            pos += sizeof(size_t);
+            iter++;
+        }
+
+        ASSERT(tailDataLength == (pos - startSize));
     }
 }
 

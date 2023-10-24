@@ -613,6 +613,18 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 break;
             }
             case GetObjectPreComputedCaseSimpleInlineCacheOpcode:
+            case ExecutionPauseOpcode: {
+                // add tail data length
+                ExecutionPause* bc = static_cast<ExecutionPause*>(currentCode);
+                if (bc->m_reason == ExecutionPause::Reason::Yield) {
+                    code += bc->m_yieldData.m_tailDataLength;
+                } else if (bc->m_reason == ExecutionPause::Reason::Await) {
+                    code += bc->m_awaitData.m_tailDataLength;
+                } else if (bc->m_reason == ExecutionPause::Reason::GeneratorsInitialize) {
+                    code += bc->m_asyncGeneratorInitializeData.m_tailDataLength;
+                }
+                break;
+            }
             case ExecutionResumeOpcode:
                 RELEASE_ASSERT_NOT_REACHED();
                 break;
