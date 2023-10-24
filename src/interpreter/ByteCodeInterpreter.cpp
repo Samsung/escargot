@@ -544,7 +544,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             UnaryNot* code = (UnaryNot*)programCounter;
             const Value& val = registerFile[code->m_srcIndex];
-            registerFile[code->m_dstIndex] = Value(!val.toBoolean(*state));
+            registerFile[code->m_dstIndex] = Value(!val.toBoolean());
             ADD_PROGRAM_COUNTER(UnaryNot);
             NEXT_INSTRUCTION();
         }
@@ -692,7 +692,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             JumpIfTrue* code = (JumpIfTrue*)programCounter;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
-            if (registerFile[code->m_registerIndex].toBoolean(*state)) {
+            if (registerFile[code->m_registerIndex].toBoolean()) {
                 programCounter = code->m_jumpPosition;
             } else {
                 ADD_PROGRAM_COUNTER(JumpIfTrue);
@@ -720,7 +720,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             JumpIfFalse* code = (JumpIfFalse*)programCounter;
             ASSERT(code->m_jumpPosition != SIZE_MAX);
-            if (!registerFile[code->m_registerIndex].toBoolean(*state)) {
+            if (!registerFile[code->m_registerIndex].toBoolean()) {
                 programCounter = code->m_jumpPosition;
             } else {
                 ADD_PROGRAM_COUNTER(JumpIfFalse);
@@ -1771,7 +1771,7 @@ NEVER_INLINE void InterpreterSlowPath::resolveNameAddress(ExecutionState& state,
                 ObjectPropertyName propertyName(code->m_name);
                 auto obj = env->record()->asObjectEnvironmentRecord()->bindingObject();
                 Value unscopables = obj->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().unscopables)).value(state, obj);
-                if (UNLIKELY(unscopables.isObject() && unscopables.asObject()->get(state, propertyName).value(state, unscopables).toBoolean(state))) {
+                if (UNLIKELY(unscopables.isObject() && unscopables.asObject()->get(state, propertyName).value(state, unscopables).toBoolean())) {
                     foundUnscopables = true;
                 }
             }
@@ -4516,7 +4516,7 @@ NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, 
                 registerFile[code->m_iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex].asPointerValue()->asIteratorRecord()->m_done);
         } else {
             registerFile[code->m_iteratorTestDoneData.m_dstRegisterIndex] = Value(
-                registerFile[code->m_iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex].asObject()->get(state, state.context()->staticStrings().done).value(state, registerFile[code->m_iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex]).toBoolean(state));
+                registerFile[code->m_iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex].asObject()->get(state, state.context()->staticStrings().done).value(state, registerFile[code->m_iteratorTestDoneData.m_iteratorRecordOrObjectRegisterIndex]).toBoolean());
         }
         ADD_PROGRAM_COUNTER(IteratorOperation);
     } else if (code->m_operation == IteratorOperation::Operation::IteratorNext) {

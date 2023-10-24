@@ -799,7 +799,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     wasm_mutability_t mut = WASM_CONST;
     {
         auto mutValue = wasmGetValueFromObjectProperty(state, desc, strings->stringMutable, AtomicString()).second;
-        mut = mutValue.toBoolean(state) ? WASM_VAR : WASM_CONST;
+        mut = mutValue.toBoolean() ? WASM_VAR : WASM_CONST;
     }
 
     // check and get 'value' property from the first argument

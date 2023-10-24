@@ -848,7 +848,7 @@ inline bool Value::equalsTo(ExecutionState& state, const Value& val) const
     }
 }
 
-inline bool Value::toBoolean(ExecutionState& ec) const // $7.1.2 ToBoolean
+inline bool Value::toBoolean() const // $7.1.2 ToBoolean
 {
     if (isBoolean())
         return asBoolean();
@@ -856,7 +856,7 @@ inline bool Value::toBoolean(ExecutionState& ec) const // $7.1.2 ToBoolean
     if (isInt32())
         return asInt32();
 
-    return toBooleanSlowCase(ec);
+    return toBooleanSlowCase();
 }
 
 inline int32_t Value::toInt32(ExecutionState& state) const // $7.1.5 ToInt3

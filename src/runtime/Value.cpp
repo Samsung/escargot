@@ -126,7 +126,7 @@ Object* Value::toObjectSlowCase(ExecutionState& state) const // $7.1.13 ToObject
     if (isNumber()) {
         object = new NumberObject(state, toNumber(state));
     } else if (isBoolean()) {
-        object = new BooleanObject(state, toBoolean(state));
+        object = new BooleanObject(state, toBoolean());
     } else if (isString()) {
         object = new StringObject(state, toString(state));
     } else if (isSymbol()) {
@@ -270,7 +270,7 @@ Value Value::toPrimitiveSlowCase(ExecutionState& state, PrimitiveTypeHint prefer
     return ordinaryToPrimitive(state, preferredType);
 }
 
-bool Value::toBooleanSlowCase(ExecutionState& ec) const
+bool Value::toBooleanSlowCase() const
 {
     if (isDouble()) {
         double d = asDouble();
@@ -583,7 +583,7 @@ bool Value::instanceOf(ExecutionState& state, const Value& other) const
     if (!instOfHandler.isUndefined()) {
         // Return ToBoolean(Call(instOfHandler, C, «O»)).
         Value arg[1] = { *this };
-        return Object::call(state, instOfHandler, Value(C), 1, arg).toBoolean(state);
+        return Object::call(state, instOfHandler, Value(C), 1, arg).toBoolean();
     }
 
     // If IsCallable(C) is false, throw a TypeError exception.

@@ -987,7 +987,7 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
             Value args[] = { kValue, Value(k), O };
             Value testResult = Object::call(state, callbackfn, T, 3, args);
 
-            if (!testResult.toBoolean(state)) {
+            if (!testResult.toBoolean()) {
                 return Value(false);
             }
 
@@ -1079,7 +1079,7 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
             Value selected = Object::call(state, callbackfn, T, 3, v);
 
             // If ToBoolean(selected) is true, then
-            if (selected.toBoolean(state)) {
+            if (selected.toBoolean()) {
                 // Let status be CreateDataPropertyOrThrow (A, ToString(to), kValue).
                 ASSERT(A != nullptr);
                 A->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(to)), ObjectPropertyDescriptor(kValue, ObjectPropertyDescriptor::AllPresent));
@@ -1188,7 +1188,7 @@ static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t arg
             Value argv[] = { kValue, Value(k), O };
             Value testResult = Object::call(state, callbackfn, T, 3, argv);
             // If ToBoolean(testResult) is true, return true.
-            if (testResult.toBoolean(state)) {
+            if (testResult.toBoolean()) {
                 return Value(true);
             }
         } else {
@@ -1699,7 +1699,7 @@ static Value builtinArrayFind(ExecutionState& state, Value thisValue, size_t arg
         Value kValue = O->get(state, ObjectPropertyName(state, Value(k))).value(state, O);
         // Let testResult be ToBoolean(? Call(predicate, thisArg, « kValue, k, O »)).
         Value v[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, argv[0], thisArg, 3, v).toBoolean(state);
+        bool testResult = Object::call(state, argv[0], thisArg, 3, v).toBoolean();
         // If testResult is true, return kValue.
         if (testResult) {
             return kValue;
@@ -1734,7 +1734,7 @@ static Value builtinArrayFindIndex(ExecutionState& state, Value thisValue, size_
         Value kValue = O->get(state, ObjectPropertyName(state, Value(k))).value(state, O);
         // Let testResult be ToBoolean(? Call(predicate, thisArg, « kValue, k, O »)).
         Value v[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, argv[0], thisArg, 3, v).toBoolean(state);
+        bool testResult = Object::call(state, argv[0], thisArg, 3, v).toBoolean();
         // If testResult is true, return k.
         if (testResult) {
             return Value(k);
@@ -1874,7 +1874,7 @@ static Value builtinArrayFindLast(ExecutionState& state, Value thisValue, size_t
         Value predicateArgv[] = {
             kValue, Value(k), Value(O)
         };
-        bool testResult = Object::call(state, predicate, thisArg, 3, predicateArgv).toBoolean(state);
+        bool testResult = Object::call(state, predicate, thisArg, 3, predicateArgv).toBoolean();
         // d. If testResult is true, return kValue.
         if (testResult) {
             return kValue;
@@ -1910,7 +1910,7 @@ static Value builtinArrayFindLastIndex(ExecutionState& state, Value thisValue, s
         Value predicateArgv[] = {
             kValue, Value(k), Value(O)
         };
-        bool testResult = Object::call(state, predicate, thisArg, 3, predicateArgv).toBoolean(state);
+        bool testResult = Object::call(state, predicate, thisArg, 3, predicateArgv).toBoolean();
         // d. If testResult is true, return kValue.
         if (testResult) {
             return Value(k);

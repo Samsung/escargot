@@ -233,7 +233,7 @@ public:
                              PreferDefault };
     Value toPrimitive(ExecutionState& ec, PrimitiveTypeHint = PreferDefault) const; // $7.1.1 ToPrimitive
     Value ordinaryToPrimitive(ExecutionState& state, PrimitiveTypeHint preferredType) const;
-    inline bool toBoolean(ExecutionState& ec) const; // $7.1.2 ToBoolean
+    inline bool toBoolean() const; // $7.1.2 ToBoolean
     double toNumber(ExecutionState& ec) const; // $7.1.3 ToNumber
     std::pair<Value, bool> /* <Value, isBigInt> */
     toNumeric(ExecutionState& ec) const; // https://www.ecma-international.org/ecma-262/#sec-tonumeric
@@ -309,7 +309,7 @@ private:
     String* toStringSlowCase(ExecutionState& ec) const; // $7.1.12 ToString
     Object* toObjectSlowCase(ExecutionState& ec) const; // $7.1.13 ToObject
     Value toPrimitiveSlowCase(ExecutionState& ec, PrimitiveTypeHint) const; // $7.1.1 ToPrimitive
-    bool toBooleanSlowCase(ExecutionState& ec) const; // $7.1.2 ToBoolean
+    bool toBooleanSlowCase() const; // $7.1.2 ToBoolean
     int32_t toInt32SlowCase(ExecutionState& ec) const; // $7.1.5 ToInt32
     ValueIndex tryToUseAsIndexSlowCase(ExecutionState& ec) const;
     uint32_t tryToUseAsIndex32SlowCase(ExecutionState& ec) const;

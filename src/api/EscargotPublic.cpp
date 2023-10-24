@@ -3403,7 +3403,8 @@ ValueRef* ValueRef::createUndefined()
 
 bool ValueRef::toBoolean(ExecutionStateRef* es)
 {
-    return toImpl(this).toBoolean(*toImpl(es));
+    UNUSED_PARAMETER(es);
+    return toImpl(this).toBoolean();
 }
 
 double ValueRef::toNumber(ExecutionStateRef* es)
@@ -3699,7 +3700,7 @@ BooleanObjectRef* BooleanObjectRef::create(ExecutionStateRef* state)
 
 void BooleanObjectRef::setPrimitiveValue(ExecutionStateRef* state, ValueRef* str)
 {
-    toImpl(this)->setPrimitiveValue(*toImpl(state), toImpl(str).toBoolean(*toImpl(state)));
+    toImpl(this)->setPrimitiveValue(*toImpl(state), toImpl(str).toBoolean());
 }
 
 bool BooleanObjectRef::primitiveValue()

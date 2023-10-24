@@ -571,32 +571,32 @@ String* RegExpObject::computeRegExpOptionString(ExecutionState& state, Object* o
             cacheIndex |= 1 << 5;
         }
     } else {
-        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, obj).toBoolean(state)) {
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, obj).toBoolean()) {
             flags[flagsIdx++] = 'g';
             cacheIndex |= 1 << 0;
         }
 
-        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().ignoreCase)).value(state, obj).toBoolean(state)) {
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().ignoreCase)).value(state, obj).toBoolean()) {
             flags[flagsIdx++] = 'i';
             cacheIndex |= 1 << 1;
         }
 
-        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().multiline)).value(state, obj).toBoolean(state)) {
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().multiline)).value(state, obj).toBoolean()) {
             flags[flagsIdx++] = 'm';
             cacheIndex |= 1 << 2;
         }
 
-        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().dotAll)).value(state, obj).toBoolean(state)) {
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().dotAll)).value(state, obj).toBoolean()) {
             flags[flagsIdx++] = 's';
             cacheIndex |= 1 << 3;
         }
 
-        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, obj).toBoolean(state)) {
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, obj).toBoolean()) {
             flags[flagsIdx++] = 'u';
             cacheIndex |= 1 << 4;
         }
 
-        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().sticky)).value(state, obj).toBoolean(state)) {
+        if (obj->get(state, ObjectPropertyName(state, state.context()->staticStrings().sticky)).value(state, obj).toBoolean()) {
             flags[flagsIdx++] = 'y';
             cacheIndex |= 1 << 5;
         }

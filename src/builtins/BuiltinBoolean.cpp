@@ -27,7 +27,7 @@ namespace Escargot {
 
 static Value builtinBooleanConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    bool primitiveVal = argv[0].toBoolean(state);
+    bool primitiveVal = argv[0].toBoolean();
     if (!newTarget.hasValue()) {
         return Value(primitiveVal);
     } else {

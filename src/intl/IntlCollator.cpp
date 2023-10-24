@@ -139,8 +139,8 @@ IntlCollator::CollatorResolvedOptions IntlCollator::resolvedOptions(ExecutionSta
     opt.sensitivity = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazySensitivity())).value(state, internalSlot).toString(state);
     opt.usage = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyUsage())).value(state, internalSlot).toString(state);
     opt.collation = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().collation)).value(state, internalSlot).toString(state);
-    opt.numeric = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().numeric)).value(state, internalSlot).toBoolean(state);
-    opt.ignorePunctuation = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyIgnorePunctuation())).value(state, internalSlot).toBoolean(state);
+    opt.numeric = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().numeric)).value(state, internalSlot).toBoolean();
+    opt.ignorePunctuation = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyIgnorePunctuation())).value(state, internalSlot).toBoolean();
     opt.caseFirst = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().caseFirst)).value(state, internalSlot).toString(state);
     return opt;
 }

@@ -406,9 +406,9 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
     if (!functionalReplace) {
         replaceValue = replaceValue.toString(state);
     }
-    bool global = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, rx).toBoolean(state);
+    bool global = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, rx).toBoolean();
     if (global) {
-        fullUnicode = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, rx).toBoolean(state);
+        fullUnicode = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, rx).toBoolean();
         rx.asObject()->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex), Value(0), rx);
     }
     ValueVectorWithInlineStorage results;
@@ -509,13 +509,13 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
     ASSERT(str != nullptr);
 
     //21.2.5.6.8
-    bool global = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, rx).toBoolean(state);
+    bool global = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().global)).value(state, rx).toBoolean();
 
     if (!global) {
         return regExpExec(state, rx.asObject(), str);
     }
 
-    bool fullUnicode = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, rx).toBoolean(state);
+    bool fullUnicode = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().unicode)).value(state, rx).toBoolean();
     rx.asObject()->setThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex), Value(0), rx);
     ArrayObject* A = new ArrayObject(state);
     size_t n = 0;
