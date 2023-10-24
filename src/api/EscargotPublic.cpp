@@ -2310,6 +2310,11 @@ void ObjectRef::setIsHTMLDDA()
 {
     toImpl(this)->setIsHTMLDDA();
 }
+#else
+void ObjectRef::setIsHTMLDDA()
+{
+    // do nothing
+}
 #endif
 
 void ObjectRef::removeFromHiddenClassChain()
@@ -3067,6 +3072,7 @@ GlobalObjectRef* ExecutionStateRef::resolveCallerLexicalGlobalObject()
     return toRef(ctx->globalObject());
 }
 
+#if defined(ESCARGOT_ENABLE_TEST)
 bool ExecutionStateRef::onTry()
 {
     return toImpl(this)->onTry();
@@ -3081,6 +3087,12 @@ bool ExecutionStateRef::onFinally()
 {
     return toImpl(this)->onFinally();
 }
+#else
+// these three functions are used only for test purpose
+bool ExecutionStateRef::onTry() { return false; }
+bool ExecutionStateRef::onCatch() { return false; }
+bool ExecutionStateRef::onFinally() { return false; }
+#endif
 
 void ExecutionStateRef::throwException(ValueRef* value)
 {

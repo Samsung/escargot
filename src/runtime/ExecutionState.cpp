@@ -38,9 +38,11 @@ ExecutionState::ExecutionState()
     , m_inStrictMode(false)
     , m_isNativeFunctionObjectExecutionContext(false)
     , m_inExecutionStopState(false)
+#if defined(ESCARGOT_ENABLE_TEST)
     , m_onTry(false)
     , m_onCatch(false)
     , m_onFinally(false)
+#endif
 #if defined(ENABLE_TCO)
     , m_initTCO(false)
 #endif
@@ -67,9 +69,11 @@ ExecutionState::ExecutionState(Context* context)
     , m_inStrictMode(false)
     , m_isNativeFunctionObjectExecutionContext(false)
     , m_inExecutionStopState(false)
+#if defined(ESCARGOT_ENABLE_TEST)
     , m_onTry(false)
     , m_onCatch(false)
     , m_onFinally(false)
+#endif
 #if defined(ENABLE_TCO)
     , m_initTCO(false)
 #endif
