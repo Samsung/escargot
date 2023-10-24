@@ -53,8 +53,7 @@ public:
 
         size_t whileStart = codeBlock->currentCodeSize();
         size_t testPos = SIZE_MAX;
-        ExecutionState stateForTest(codeBlock->m_codeBlock->context());
-        if (m_test->isLiteral() && m_test->asLiteral()->value().toBoolean(stateForTest)) {
+        if (m_test->isLiteral() && m_test->asLiteral()->value().toBoolean()) {
             // skip generate code
         } else {
             if (m_test->isRelationOperation()) {

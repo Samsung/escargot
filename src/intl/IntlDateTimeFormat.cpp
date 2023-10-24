@@ -550,7 +550,7 @@ String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& s
     String* hour = ret = opt.at("hour");
     Value hr12Value = hour12;
     bool isHour12Undefined = hr12Value.isUndefined();
-    bool hr12 = hr12Value.toBoolean(state);
+    bool hr12 = hr12Value.toBoolean();
 
     if (isHour12Undefined) {
         if (ret->equals("2-digit"))

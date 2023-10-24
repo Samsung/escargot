@@ -2255,7 +2255,7 @@ Value Intl::getOption(ExecutionState& state, Object* options, Value property, In
         // Assert: type is "boolean" or "string".
         // If type is "boolean", then let value be ToBoolean(value).
         if (type == Intl::OptionValueType::BooleanValue) {
-            value = Value(value.toBoolean(state));
+            value = Value(value.toBoolean());
         }
         // If type is "string", then let value be ToString(value).
         if (type == Intl::OptionValueType::StringValue) {

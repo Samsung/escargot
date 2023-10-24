@@ -52,7 +52,7 @@ public:
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
 
-        bool isLittleEndian = _isLittleEndian.toBoolean(state);
+        bool isLittleEndian = _isLittleEndian.toBoolean();
         ArrayBuffer* buffer = this->buffer();
         buffer->throwTypeErrorIfDetached(state);
 
@@ -79,7 +79,7 @@ public:
         auto numericValue = val.toNumeric(state);
         UNUSED_VARIABLE(numericValue);
 
-        bool isLittleEndian = _isLittleEndian.toBoolean(state);
+        bool isLittleEndian = _isLittleEndian.toBoolean();
         ArrayBuffer* buffer = this->buffer();
         buffer->throwTypeErrorIfDetached(state);
 

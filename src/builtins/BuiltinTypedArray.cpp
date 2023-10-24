@@ -864,7 +864,7 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
         Value testResult = Object::call(state, callbackfn, T, 3, args);
 
         // If ToBoolean(testResult) is true, return true.
-        if (testResult.toBoolean(state)) {
+        if (testResult.toBoolean()) {
             return Value(true);
         }
 
@@ -1002,7 +1002,7 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
         Value args[] = { kValue, Value(k), O };
         Value testResult = Object::call(state, callbackfn, T, 3, args);
 
-        if (!testResult.toBoolean(state)) {
+        if (!testResult.toBoolean()) {
             return Value(false);
         }
 
@@ -1091,7 +1091,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     while (k < len) {
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         Value args[] = { kValue, Value(k), O };
-        bool selected = Object::call(state, callbackfn, T, 3, args).toBoolean(state);
+        bool selected = Object::call(state, callbackfn, T, 3, args).toBoolean();
         if (selected) {
             kept.push_back(kValue);
             captured++;
@@ -1140,7 +1140,7 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         // Let testResult be ToBoolean(Call(predicate, thisArg, «kValue, k, O»)).
         Value args[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean(state);
+        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean();
         // If testResult is true, return kValue.
         if (testResult) {
             return kValue;
@@ -1179,7 +1179,7 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         // Let testResult be ToBoolean(? Call(predicate, thisArg, « kValue, k, O »)).
         Value args[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean(state);
+        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean();
         // If testResult is true, return k.
         if (testResult) {
             return Value(k);
@@ -1217,7 +1217,7 @@ static Value builtinTypedArrayFindLast(ExecutionState& state, Value thisValue, s
         kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         // Let testResult be ToBoolean(Call(predicate, thisArg, «kValue, k, O»)).
         Value args[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean(state);
+        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean();
         // If testResult is true, return kValue.
         if (testResult) {
             return kValue;
@@ -1255,7 +1255,7 @@ static Value builtinTypedArrayFindLastIndex(ExecutionState& state, Value thisVal
         Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         // Let testResult be ToBoolean(? Call(predicate, thisArg, « kValue, k, O »)).
         Value args[] = { kValue, Value(k), O };
-        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean(state);
+        bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean();
         // If testResult is true, return k.
         if (testResult) {
             return Value(k);

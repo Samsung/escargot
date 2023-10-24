@@ -117,7 +117,7 @@ Object* IteratorObject::iteratorNext(ExecutionState& state, IteratorRecord* iter
 bool IteratorObject::iteratorComplete(ExecutionState& state, Object* iterResult)
 {
     Value result = iterResult->get(state, ObjectPropertyName(state.context()->staticStrings().done)).value(state, iterResult);
-    return result.toBoolean(state);
+    return result.toBoolean();
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-iteratorvalue

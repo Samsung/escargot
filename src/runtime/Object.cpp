@@ -218,10 +218,10 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
     const StaticStrings* strings = &state.context()->staticStrings();
     auto desc = obj->get(state, ObjectPropertyName(strings->enumerable));
     if (desc.hasValue())
-        setEnumerable(desc.value(state, obj).toBoolean(state));
+        setEnumerable(desc.value(state, obj).toBoolean());
     desc = obj->get(state, ObjectPropertyName(strings->configurable));
     if (desc.hasValue())
-        setConfigurable(desc.value(state, obj).toBoolean(state));
+        setConfigurable(desc.value(state, obj).toBoolean());
 
     bool hasValue = false;
     desc = obj->get(state, ObjectPropertyName(strings->value));
@@ -233,7 +233,7 @@ ObjectPropertyDescriptor::ObjectPropertyDescriptor(ExecutionState& state, Object
     bool hasWritable = false;
     desc = obj->get(state, ObjectPropertyName(strings->writable));
     if (desc.hasValue()) {
-        setWritable(desc.value(state, obj).toBoolean(state));
+        setWritable(desc.value(state, obj).toBoolean());
         hasWritable = true;
     }
 
@@ -522,7 +522,7 @@ bool Object::isConcatSpreadable(ExecutionState& state)
     Value spreadable = get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().isConcatSpreadable)).value(state, this);
     // If spreadable is not undefined, return ToBoolean(spreadable).
     if (!spreadable.isUndefined()) {
-        return spreadable.toBoolean(state);
+        return spreadable.toBoolean();
     }
     // Return IsArray(O).
     return isArray(state);
@@ -2120,7 +2120,7 @@ bool Object::isRegExp(ExecutionState& state)
 {
     Value symbol = get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match)).value(state, this);
     if (!symbol.isUndefined()) {
-        return symbol.toBoolean(state);
+        return symbol.toBoolean();
     }
     return isRegExpObject();
 }

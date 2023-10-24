@@ -251,7 +251,7 @@ public:
             // we check conditions same as hasBinding for performance reason
             // directly call getBindingValue instead of checking the result of hasBinding in advance
             Value unscopables = m_bindingObject->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().unscopables)).value(state, m_bindingObject);
-            if (UNLIKELY(unscopables.isObject() && unscopables.asObject()->get(state, propertyName).value(state, unscopables).toBoolean(state))) {
+            if (UNLIKELY(unscopables.isObject() && unscopables.asObject()->get(state, propertyName).value(state, unscopables).toBoolean())) {
                 return GetBindingValueResult();
             }
 

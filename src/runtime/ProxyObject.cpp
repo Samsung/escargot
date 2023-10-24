@@ -134,7 +134,7 @@ bool ProxyObject::defineOwnProperty(ExecutionState& state, const ObjectPropertyN
     // 11. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target, P.toPropertyKeyValue(), Value(ObjectPropertyDescriptor::fromObjectPropertyDescriptor(state, desc)) };
-    booleanTrapResult = Object::call(state, trap, handler, 3, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 3, arguments).toBoolean();
 
     // 12. If booleanTrapResult is false, return false.
     if (!booleanTrapResult) {
@@ -215,7 +215,7 @@ bool ProxyObject::deleteOwnProperty(ExecutionState& state, const ObjectPropertyN
     // 10. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target, P.toPropertyKeyValue() };
-    booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean();
 
     // 11. If booleanTrapResult is false, return false.
     if (!booleanTrapResult) {
@@ -373,7 +373,7 @@ bool ProxyObject::preventExtensions(ExecutionState& state)
     // 9. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target };
-    booleanTrapResult = Object::call(state, trap, handler, 1, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 1, arguments).toBoolean();
 
     // 10. If booleanTrapResult is true, then
     if (booleanTrapResult) {
@@ -435,7 +435,7 @@ ObjectHasPropertyResult ProxyObject::hasProperty(ExecutionState& state, const Ob
     // 10. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target, propertyName.toPropertyKeyValue() };
-    booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean();
 
     // 11. If booleanTrapResult is false, then
     if (!booleanTrapResult) {
@@ -645,7 +645,7 @@ bool ProxyObject::isExtensible(ExecutionState& state)
     // 9. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target };
-    booleanTrapResult = Object::call(state, trap, handler, 1, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 1, arguments).toBoolean();
 
     // 10. Let targetResult be target.[[IsExtensible]]().
     bool targetResult = target.asObject()->isExtensible(state);
@@ -705,7 +705,7 @@ bool ProxyObject::setPrototype(ExecutionState& state, const Value& value)
     // 10. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target, value };
-    booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 2, arguments).toBoolean();
 
     // For ES2018 compatibility 9.5.2.9
     if (!booleanTrapResult) {
@@ -911,7 +911,7 @@ bool ProxyObject::set(ExecutionState& state, const ObjectPropertyName& propertyN
     // 10. ReturnIfAbrupt(booleanTrapResult).
     bool booleanTrapResult;
     Value arguments[] = { target, propertyName.toPropertyKeyValue(), v, receiver };
-    booleanTrapResult = Object::call(state, trap, handler, 4, arguments).toBoolean(state);
+    booleanTrapResult = Object::call(state, trap, handler, 4, arguments).toBoolean();
 
     // 11. If booleanTrapResult is false, return false.
     if (!booleanTrapResult) {

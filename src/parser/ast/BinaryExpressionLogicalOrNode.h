@@ -43,8 +43,7 @@ public:
         }
 
         if (UNLIKELY(m_left->isLiteral())) {
-            ExecutionState stateForTest(codeBlock->m_codeBlock->context());
-            bool boolVal = m_left->asLiteral()->value().toBoolean(stateForTest);
+            bool boolVal = m_left->asLiteral()->value().toBoolean();
             if (boolVal) {
                 m_left->generateExpressionByteCode(codeBlock, context, dstRegister);
             } else {
@@ -72,8 +71,7 @@ public:
         }
 
         if (UNLIKELY(m_left->isLiteral())) {
-            ExecutionState stateForTest(codeBlock->m_codeBlock->context());
-            bool boolVal = m_left->asLiteral()->value().toBoolean(stateForTest);
+            bool boolVal = m_left->asLiteral()->value().toBoolean();
             if (boolVal) {
                 m_left->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
             } else {
