@@ -628,6 +628,7 @@ public:
     GCManagedVector<FunctionObjectRef*> resolveCallstack(); // resolve list of callee
     GlobalObjectRef* resolveCallerLexicalGlobalObject(); // resolve caller's lexical global object
 
+    // these 3 functions are used only for test purpose
     bool onTry();
     bool onCatch();
     bool onFinally();
@@ -1396,9 +1397,8 @@ public:
 
     void* extraData();
     void setExtraData(void* e);
-#if defined(ESCARGOT_ENABLE_TEST)
+    // this function is used only for test purpose
     void setIsHTMLDDA();
-#endif
 
     void removeFromHiddenClassChain();
 

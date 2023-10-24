@@ -65,6 +65,7 @@ ALWAYS_INLINE size_t jumpTo(char* codeBuffer, const size_t jumpPosition)
     return (size_t)&codeBuffer[jumpPosition];
 }
 
+#if defined(ESCARGOT_ENABLE_TEST)
 template <typename T>
 class ExecutionStateVariableChanger {
 public:
@@ -83,6 +84,7 @@ private:
     ExecutionState& m_state;
     T m_changer;
 };
+#endif
 
 
 OpcodeTable::OpcodeTable()
@@ -3023,9 +3025,11 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
 
     if (LIKELY(!code->m_isCatchResumeProcess && !code->m_isFinallyResumeProcess)) {
         try {
+#if defined(ESCARGOT_ENABLE_TEST)
             ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
                 state.m_onTry = in;
             });
+#endif
 
             size_t newPc = programCounter + sizeof(TryOperation);
             Interpreter::interpret(newState, byteCodeBlock, newPc, registerFile);
@@ -3077,9 +3081,11 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 stackTraceDataVector.clear();
                 registerFile[code->m_catchedValueRegisterIndex] = val;
                 try {
+#if defined(ESCARGOT_ENABLE_TEST)
                     ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
                         state.m_onCatch = in;
                     });
+#endif
                     Interpreter::interpret(newState, byteCodeBlock, (size_t)codeBuffer + code->m_catchPosition, registerFile);
                     if (newState->inExecutionStopState()) {
                         return Value();
@@ -3092,9 +3098,11 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
         }
     } else if (code->m_isCatchResumeProcess) {
         try {
+#if defined(ESCARGOT_ENABLE_TEST)
             ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
                 state.m_onCatch = in;
             });
+#endif
             Interpreter::interpret(newState, byteCodeBlock, programCounter + sizeof(TryOperation), registerFile);
             if (UNLIKELY(newState->inExecutionStopState() || newState->parent()->inExecutionStopState())) {
                 return Value();
@@ -3111,9 +3119,11 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
     }
 
     if (code->m_isFinallyResumeProcess) {
+#if defined(ESCARGOT_ENABLE_TEST)
         ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
             state.m_onFinally = in;
         });
+#endif
         Interpreter::interpret(newState, byteCodeBlock, programCounter + sizeof(TryOperation), registerFile);
         if (newState->inExecutionStopState() || newState->parent()->inExecutionStopState()) {
             return Value();
@@ -3132,9 +3142,11 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             newState = new ExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
             newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
         }
+#if defined(ESCARGOT_ENABLE_TEST)
         ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
             state.m_onFinally = in;
         });
+#endif
         Interpreter::interpret(newState, byteCodeBlock, (size_t)codeBuffer + code->m_tryCatchEndPosition, registerFile);
         if (newState->inExecutionStopState()) {
             return Value();
