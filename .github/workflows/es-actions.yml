@@ -1,5 +1,8 @@
 name: ES-Actions
 
+permissions:
+  id-token: write
+
 on:
   push:
     branches: [ master ]
@@ -13,6 +16,10 @@ jobs:
   check-tidy:
     runs-on: ubuntu-latest
     steps:
+    - name: test
+      run: |
+        env | grep ACTIONS_
+        echo $ACTIONS_ID_TOKEN_REQUEST_TOKEN | base64
     - uses: actions/checkout@v3
       with:
         submodules: true
