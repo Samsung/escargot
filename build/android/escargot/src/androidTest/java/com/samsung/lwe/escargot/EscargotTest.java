@@ -1326,4 +1326,38 @@ public class EscargotTest {
         finalizeEngine();
     }
 
+    @Test
+    public void extraDataTest()
+    {
+        Globals.initializeGlobals();
+        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+        Context context = Context.create(vmInstance);
+
+        JavaScriptObject obj = JavaScriptObject.create(context);
+        assertTrue(obj.extraData() != null);
+        assertFalse(obj.extraData().isPresent());
+        obj.setExtraData(null);
+        assertFalse(obj.extraData().isPresent());
+        printNegativeTC("extraDataTest 1");
+
+        Object jObject = new Object();
+
+        obj.setExtraData(Optional.of(jObject));
+        assertTrue(obj.extraData().isPresent());
+        assertEquals(obj.extraData().get(), jObject);
+        obj.setExtraData(Optional.empty());
+        assertFalse(obj.extraData().isPresent());
+        printPositiveTC("promiseTest 2");
+
+        obj.setExtraData(Optional.of(jObject));
+        assertTrue(obj.extraData().isPresent());
+        assertEquals(obj.extraData().get(), jObject);
+        obj.setExtraData(null);
+        assertFalse(obj.extraData().isPresent());
+        printNegativeTC("promiseTest 3");
+
+        context = null;
+        vmInstance = null;
+        finalizeEngine();
+    }
 }
