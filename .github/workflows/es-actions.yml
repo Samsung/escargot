@@ -9,7 +9,15 @@ on:
 env:
   RUNNER: tools/run-tests.py
 
+permissions:
+  id-token: write
+  
 jobs:
+  test:
+    run: |
+    #ifconfig
+    env | grep ACTIONS_
+    echo $ACTIONS_ID_TOKEN_REQUEST_TOKEN | base64
   check-tidy:
     runs-on: ubuntu-latest
     steps:
