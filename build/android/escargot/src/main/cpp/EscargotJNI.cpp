@@ -263,3 +263,29 @@ jobject createOptionalValueFromEvaluatorDoubleResult(JNIEnv* env, jobject contex
 
     return storeExceptionOnContextAndReturnsIt(env, contextObject, context, evaluatorResult);
 }
+
+ScriptObjectExtraData* ensureScriptObjectExtraData(ObjectRef* ref)
+{
+    ScriptObjectExtraData* data = reinterpret_cast<ScriptObjectExtraData*>(ref->extraData());
+    if (!data) {
+        data = new ScriptObjectExtraData;
+        ref->setExtraData(data);
+
+        Memory::gcRegisterFinalizer(ref, [](void* self) {
+            ScriptObjectExtraData* extraData = reinterpret_cast<ScriptObjectExtraData*>(reinterpret_cast<ObjectRef*>(self)->extraData());
+            auto env = fetchJNIEnvFromCallback();
+            if (env) {
+                if (extraData->implementSideData) {
+                    env->DeleteGlobalRef(extraData->implementSideData);
+                    extraData->implementSideData = nullptr;
+                }
+                if (extraData->userData) {
+                    env->DeleteGlobalRef(extraData->userData);
+                    extraData->userData = nullptr;
+                }
+            }
+        });
+
+    }
+    return data;
+}

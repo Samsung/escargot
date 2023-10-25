@@ -54,4 +54,17 @@ public class JavaScriptObject extends JavaScriptValue {
      * @return JavaScriptValue or Optional.empty if there was a exception while executing getOwnProperty function
      */
     public native Optional<JavaScriptValue> getOwnProperty(Context context, JavaScriptValue propertyName);
+
+    /**
+     * store Java Object in JavaScriptObject
+     * @param object
+     */
+    public native void setExtraData(Optional<Object> object);
+
+    /**
+     * returns stored Java object in JavaScriptObject
+     * this function returns `Optional with Object` or `empty Optional`
+     * @return
+     */
+    public native Optional<Object> extraData();
 }

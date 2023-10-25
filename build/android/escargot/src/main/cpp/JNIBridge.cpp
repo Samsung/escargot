@@ -65,7 +65,9 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
                                                         ValueRef** argv,
                                                         bool isConstructorCall) -> ValueRef* {
                                                          FunctionObjectRef* callee = state->resolveCallee().get();
-                                                         jobject jo = static_cast<jobject>(reinterpret_cast<FunctionObjectRef*>(callee)->extraData());
+
+                                                         jobject jo = ensureScriptObjectExtraData(
+                                                                 reinterpret_cast<FunctionObjectRef*>(callee))->implementSideData;
                                                          auto env = fetchJNIEnvFromCallback();
                                                          if (!env) {
                                                              // give up
@@ -141,14 +143,7 @@ Java_com_samsung_lwe_escargot_Bridge_register(JNIEnv* env, jclass clazz, jobject
 
     if (evalResult.isSuccessful()) {
         FunctionObjectRef* callback = evalResult.result->asFunctionObject();
-        callback->setExtraData(adapter);
-        Memory::gcRegisterFinalizer(callback, [](void* self) {
-            jobject jo = static_cast<jobject>(reinterpret_cast<FunctionObjectRef*>(self)->extraData());
-            auto env = fetchJNIEnvFromCallback();
-            if (env) {
-                env->DeleteGlobalRef(jo);
-            }
-        });
+        ensureScriptObjectExtraData(callback)->implementSideData = adapter;
     } else {
         env->DeleteGlobalRef(adapter);
     }

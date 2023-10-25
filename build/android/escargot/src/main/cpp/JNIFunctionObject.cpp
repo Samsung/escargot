@@ -57,7 +57,7 @@ Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv
                 }
 
                 env->PushLocalFrame(32);
-                jobject callback = reinterpret_cast<jobject>(state->resolveCallee()->extraData());
+                jobject callback = ensureScriptObjectExtraData(state->resolveCallee().get())->implementSideData;
                 auto callbackMethodId = env->GetMethodID(env->GetObjectClass(callback), "callback",
                                                          "(Lcom/samsung/lwe/escargot/Context;Lcom/samsung/lwe/escargot/JavaScriptValue;[Lcom/samsung/lwe/escargot/JavaScriptValue;)Ljava/util/Optional;");
 
@@ -107,14 +107,6 @@ Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv
 
     callback = env->NewGlobalRef(callback);
     FunctionObjectRef* fn = evaluatorResult.result->asFunctionObject();
-    fn->setExtraData(callback);
-    Memory::gcRegisterFinalizer(fn, [](void* self) {
-        jobject jo = static_cast<jobject>(reinterpret_cast<FunctionObjectRef*>(self)->extraData());
-        auto env = fetchJNIEnvFromCallback();
-        if (env) {
-            env->DeleteGlobalRef(jo);
-        }
-    });
-
+    ensureScriptObjectExtraData(fn)->implementSideData = callback;
     return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptJavaCallbackFunctionObject", fn);
 }

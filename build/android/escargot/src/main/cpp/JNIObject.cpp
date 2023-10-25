@@ -126,3 +126,48 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_getOwnProperty(JNIEnv* env, jobje
     return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
                                                                  evaluatorResult);
 }
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptObject_setExtraData(JNIEnv* env, jobject thiz,
+                                                            jobject object)
+{
+    ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
+    jobject extraData = nullptr;
+
+    if (object) {
+        auto classOptional = env->GetObjectClass(object);
+        auto methodIsPresent = env->GetMethodID(classOptional, "isPresent", "()Z");
+        if (env->CallBooleanMethod(object, methodIsPresent)) {
+            auto methodGet = env->GetMethodID(classOptional, "get", "()Ljava/lang/Object;");
+            jboolean isSucceed;
+            extraData = env->CallObjectMethod(object, methodGet);
+            extraData = env->NewGlobalRef(extraData);
+        }
+    }
+
+    ensureScriptObjectExtraData(thisValueRef)->userData = extraData;
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptObject_extraData(JNIEnv* env, jobject thiz)
+{
+    ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
+    jobject extraData = nullptr;
+    if (thisValueRef->extraData()) {
+        extraData = ensureScriptObjectExtraData(thisValueRef)->userData;
+    }
+
+    jclass optionalClazz = env->FindClass("java/util/Optional");
+    if (extraData) {
+        return env->CallStaticObjectMethod(optionalClazz,
+                                           env->GetStaticMethodID(optionalClazz, "of",
+                                                                  "(Ljava/lang/Object;)Ljava/util/Optional;"),
+                                           extraData);
+    } else {
+        return env->CallStaticObjectMethod(optionalClazz,
+                                           env->GetStaticMethodID(optionalClazz, "empty",
+                                                                  "()Ljava/util/Optional;"));
+    }
+}

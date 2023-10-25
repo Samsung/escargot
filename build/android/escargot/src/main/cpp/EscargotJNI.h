@@ -99,6 +99,24 @@ jobject createOptionalValueFromEvaluatorBooleanResult(JNIEnv* env, jobject conte
 jobject createOptionalValueFromEvaluatorIntegerResult(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult);
 jobject createOptionalValueFromEvaluatorDoubleResult(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult);
 
+struct ScriptObjectExtraData {
+    jobject userData;
+    jobject implementSideData;
+
+    ScriptObjectExtraData()
+        : userData(nullptr)
+        , implementSideData(nullptr)
+    {
+    }
+
+    void* operator new(size_t t)
+    {
+        return Memory::gcMallocAtomic(sizeof(ScriptObjectExtraData));
+    }
+};
+
+ScriptObjectExtraData* ensureScriptObjectExtraData(ObjectRef* ref);
+
 template<typename T>
 jobject nativeOptionalValueIntoJavaOptionalValue(JNIEnv* env, OptionalRef<T> ref)
 {
