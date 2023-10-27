@@ -7,6 +7,8 @@ import static org.junit.Assert.assertTrue;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import com.samsung.lwe.escargot.util.MultiThreadExecutor;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -1506,6 +1508,184 @@ public class EscargotTest {
         assertTrue(thenCalled.size() == 1);
 
         printPositiveTC("promiseBuiltinTest 1");
+        context = null;
+        vmInstance = null;
+        finalizeEngine();
+    }
+
+    @Test
+    public void multiThreadExecutorTest() throws InterruptedException {
+        Globals.initializeGlobals();
+        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+        Context context = Context.create(vmInstance);
+
+        MultiThreadExecutor executor = new MultiThreadExecutor(vmInstance);
+        int count = 100;
+        JavaScriptArrayObject arr = JavaScriptArrayObject.create(context);
+        for (int i = 0; i < count; i ++) {
+            final Integer idx = i;
+            MultiThreadExecutor.ExecutorInstance instance = executor.startWorker(context, new MultiThreadExecutor.Executor() {
+                @Override
+                public MultiThreadExecutor.ResultBuilderContext run() {
+                    // System.out.println("worker executed on worker thread!");
+                    try {
+                        Thread.sleep((long) (Math.abs(Math.random()) * 1000));
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new MultiThreadExecutor.ResultBuilderContext(true, new String("asdf" + idx));
+                }
+            }, new MultiThreadExecutor.ResultBuilder() {
+                @Override
+                public JavaScriptValue build(Context scriptContext, MultiThreadExecutor.ResultBuilderContext builderContext) {
+                    // System.out.println("worker result built on JavaScript thread!");
+                    return JavaScriptString.create((String)builderContext.data());
+                }
+            });
+            arr.set(context, JavaScriptValue.create(i), instance.promise());
+        }
+
+        // add another dummy task for test
+        for (int i = 0; i < count; i ++) {
+            final Integer idx = i;
+            MultiThreadExecutor.ExecutorInstance instance = executor.startWorker(context, new MultiThreadExecutor.Executor() {
+                @Override
+                public MultiThreadExecutor.ResultBuilderContext run() {
+                    // System.out.println("worker executed on worker thread!");
+                    try {
+                        Thread.sleep((long) (Math.abs(Math.random()) * 1000));
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new MultiThreadExecutor.ResultBuilderContext(true, new String("asdf" + idx));
+                }
+            }, new MultiThreadExecutor.ResultBuilder() {
+                @Override
+                public JavaScriptValue build(Context scriptContext, MultiThreadExecutor.ResultBuilderContext builderContext) {
+                    // System.out.println("worker result built on JavaScript thread!");
+                    return JavaScriptString.create((String)builderContext.data());
+                }
+            });
+        }
+
+        ArrayList<Object> thenCalled = new ArrayList<>();
+        context.getGlobalObject().promiseAll(context, arr).get().asScriptPromiseObject().then(context,
+                JavaScriptJavaCallbackFunctionObject.create(context, "", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                    @Override
+                    public Optional<JavaScriptValue> callback(Context context, JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                        thenCalled.add(new Object());
+                        assertTrue(arguments[0].asScriptArrayObject().length(context) == count);
+                        for (int i = 0; i < count; i ++) {
+                            JavaScriptValue v = arguments[0].asScriptArrayObject().get(context, JavaScriptValue.create(i)).get();
+                            assertEquals(v.asScriptString().toJavaString(), "asdf" + i);
+                        }
+                        return Optional.empty();
+                    }
+                }));
+
+        while (executor.hasPendingEventOrWorker()) {
+            executor.pumpEventsFromThreadIfNeeds();
+        }
+
+        assertTrue(thenCalled.size() == 1);
+        printPositiveTC("MultiThreadExecutor 1");
+
+        arr = JavaScriptArrayObject.create(context);
+        for (int i = 0; i < count; i ++) {
+            final Integer idx = i;
+            MultiThreadExecutor.ExecutorInstance instance = executor.startWorker(context, new MultiThreadExecutor.Executor() {
+                @Override
+                public MultiThreadExecutor.ResultBuilderContext run() {
+                    // System.out.println("worker executed on worker thread!");
+                    try {
+                        Thread.sleep((long) (Math.abs(Math.random()) * 1000));
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new MultiThreadExecutor.ResultBuilderContext(idx % 2 == 0, new String("asdf" + idx));
+                }
+            }, new MultiThreadExecutor.ResultBuilder() {
+                @Override
+                public JavaScriptValue build(Context scriptContext, MultiThreadExecutor.ResultBuilderContext builderContext) {
+                    // System.out.println("worker result built on JavaScript thread!");
+                    return JavaScriptString.create((String)builderContext.data());
+                }
+            });
+            arr.set(context, JavaScriptValue.create(i), instance.promise());
+        }
+
+        thenCalled.clear();
+        context.getGlobalObject().promiseAllSettled(context, arr).get().asScriptPromiseObject().then(context,
+                JavaScriptJavaCallbackFunctionObject.create(context, "", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                    @Override
+                    public Optional<JavaScriptValue> callback(Context context, JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                        thenCalled.add(new Object());
+                        assertTrue(arguments[0].asScriptArrayObject().length(context) == count);
+                        for (int i = 0; i < count; i ++) {
+                            JavaScriptValue v = arguments[0].asScriptArrayObject().get(context, JavaScriptValue.create(i)).get();
+                            String s = (i % 2 == 0) ? "fulfilled" : "rejected";
+                            assertEquals(s, v.asScriptObject().get(context, JavaScriptString.create("status")).get().asScriptString().toJavaString());
+                            System.out.println(context.getGlobalObject().jsonStringify(context, v).get().toJavaString());
+
+                            if ((i % 2 == 0)) {
+                                v = v.asScriptObject().get(context, JavaScriptString.create("value")).get();
+                            } else {
+                                v = v.asScriptObject().get(context, JavaScriptString.create("reason")).get();
+                            }
+                            assertEquals(v.asScriptString().toJavaString(), "asdf" + i);
+                        }
+                        return Optional.empty();
+                    }
+                }));
+
+        while (executor.hasPendingEventOrWorker()) {
+            executor.pumpEventsFromThreadIfNeeds();
+        }
+
+
+        Context finalContext = context;
+        MultiThreadExecutor.ExecutorInstance instance = executor.startWorker(context, new MultiThreadExecutor.Executor() {
+            @Override
+            public MultiThreadExecutor.ResultBuilderContext run() {
+                // System.out.println("worker executed on worker thread!");
+                assertThrows(RuntimeException.class, () -> {
+                    executor.pumpEventsFromThreadIfNeeds();
+                });
+                printNegativeTC("MultiThreadExecutor 2");
+                return new MultiThreadExecutor.ResultBuilderContext(true, new String("asdf"));
+            }
+        }, new MultiThreadExecutor.ResultBuilder() {
+            @Override
+            public JavaScriptValue build(Context scriptContext, MultiThreadExecutor.ResultBuilderContext builderContext) {
+                // System.out.println("worker result built on JavaScript thread!");
+                return JavaScriptString.create((String)builderContext.data());
+            }
+        });
+
+
+        Thread r = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                assertThrows(RuntimeException.class, () -> {
+                    executor.startWorker(finalContext, new MultiThreadExecutor.Executor() {
+                        @Override
+                        public MultiThreadExecutor.ResultBuilderContext run() {
+                            return null;
+                        }
+                    }, new MultiThreadExecutor.ResultBuilder() {
+                        @Override
+                        public JavaScriptValue build(Context scriptContext, MultiThreadExecutor.ResultBuilderContext builderContext) {
+                            return null;
+                        }
+                    });
+                });
+                printNegativeTC("MultiThreadExecutor 3");
+            }
+        });
+
+        r.start();
+        r.join();
+
         context = null;
         vmInstance = null;
         finalizeEngine();
