@@ -58,3 +58,80 @@ Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_jsonParse(JNIEnv* env, jobj
     return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
                                                                  evaluatorResult);
 }
+
+static jobject callPromiseBuiltinFunction(JNIEnv* env, jobject thiz, jobject context, jobject iterable,
+                                          ValueRef* (*closure)(ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* iterableValueRef))
+{
+    THROW_NPE_RETURN_NULL(context, "Context");
+    THROW_NPE_RETURN_NULL(iterable, "JavaScriptValue");
+
+    auto globalObjectRef = getPersistentPointerFromJava<GlobalObjectRef>(env, env->GetObjectClass(context), thiz);
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    ValueRef* iterableValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(iterable), iterable);
+
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), closure, globalObjectRef->get(), iterableValueRef);
+
+    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
+                                                                 evaluatorResult);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_promiseAll(JNIEnv* env, jobject thiz,
+                                                                jobject context, jobject iterable)
+{
+    return callPromiseBuiltinFunction(env, thiz, context, iterable, [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* iterableValueRef) -> ValueRef* {
+        return globalObject->promiseAll()->call(state, globalObject->promise(), 1, &iterableValueRef);
+    });
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_promiseAllSettled(JNIEnv* env, jobject thiz,
+                                                                       jobject context,
+                                                                       jobject iterable)
+{
+    return callPromiseBuiltinFunction(env, thiz, context, iterable, [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* iterableValueRef) -> ValueRef* {
+        return globalObject->promiseAllSettled()->call(state, globalObject->promise(), 1, &iterableValueRef);
+    });
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_promiseAny(JNIEnv* env, jobject thiz,
+                                                                jobject context, jobject iterable)
+{
+    return callPromiseBuiltinFunction(env, thiz, context, iterable, [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* iterableValueRef) -> ValueRef* {
+        return globalObject->promiseAny()->call(state, globalObject->promise(), 1, &iterableValueRef);
+    });
+}
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_promiseRace(JNIEnv* env, jobject thiz,
+                                                                 jobject context, jobject iterable)
+{
+    return callPromiseBuiltinFunction(env, thiz, context, iterable, [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* iterableValueRef) -> ValueRef* {
+        return globalObject->promiseRace()->call(state, globalObject->promise(), 1, &iterableValueRef);
+    });
+}
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_promiseReject(JNIEnv* env, jobject thiz,
+                                                                   jobject context,
+                                                                   jobject iterable)
+{
+    return callPromiseBuiltinFunction(env, thiz, context, iterable, [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* iterableValueRef) -> ValueRef* {
+        return globalObject->promiseReject()->call(state, globalObject->promise(), 1, &iterableValueRef);
+    });
+}
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_promiseResolve(JNIEnv* env, jobject thiz,
+                                                                    jobject context,
+                                                                    jobject iterable)
+{
+    return callPromiseBuiltinFunction(env, thiz, context, iterable, [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* iterableValueRef) -> ValueRef* {
+        return globalObject->promiseResolve()->call(state, globalObject->promise(), 1,
+                                                    &iterableValueRef);
+    });
+}

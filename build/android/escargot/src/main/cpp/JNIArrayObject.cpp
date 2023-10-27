@@ -52,3 +52,23 @@ Java_com_samsung_lwe_escargot_JavaScriptArrayObject_length(JNIEnv* env, jobject 
 
     return length;
 }
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptArrayObject_setLength(JNIEnv* env, jobject thiz,
+                                                              jobject context, jlong newLength)
+{
+    THROW_NPE_RETURN_VOID(context, "Context");
+
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    ArrayObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asArrayObject();
+
+    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ArrayObjectRef* thisValueRef, jlong pLength) -> ValueRef* {
+        if (pLength >= 0) {
+            thisValueRef->setLength(state, static_cast<uint64_t>(pLength));
+        } else {
+            thisValueRef->set(state, AtomicStringRef::create(state->context(), "length")->string(), ValueRef::create(pLength));
+        }
+        return ValueRef::createUndefined();
+    }, thisValueRef, newLength);
+}

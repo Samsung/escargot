@@ -774,20 +774,24 @@ void GlobalObject::installPromise(ExecutionState& state)
                                                 ObjectPropertyDescriptor(Value(state.context()->staticStrings().Promise.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $25.4.4.1 Promise.all(iterable);
+    m_promiseAll = new NativeFunctionObject(state, NativeFunctionInfo(strings->all, builtinPromiseAll, 1, NativeFunctionInfo::Strict));
     m_promise->directDefineOwnProperty(state, ObjectPropertyName(strings->all),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->all, builtinPromiseAll, 1, NativeFunctionInfo::Strict)),
+                                       ObjectPropertyDescriptor(m_promiseAll,
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $25.4.4.3 Promise.race(iterable)
+    m_promiseRace = new NativeFunctionObject(state, NativeFunctionInfo(strings->race, builtinPromiseRace, 1, NativeFunctionInfo::Strict));
     m_promise->directDefineOwnProperty(state, ObjectPropertyName(strings->race),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->race, builtinPromiseRace, 1, NativeFunctionInfo::Strict)),
+                                       ObjectPropertyDescriptor(m_promiseRace,
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $25.4.4.4 Promise.reject(r)
+    m_promiseReject = new NativeFunctionObject(state, NativeFunctionInfo(strings->reject, builtinPromiseReject, 1, NativeFunctionInfo::Strict));
     m_promise->directDefineOwnProperty(state, ObjectPropertyName(strings->reject),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->reject, builtinPromiseReject, 1, NativeFunctionInfo::Strict)),
+                                       ObjectPropertyDescriptor(m_promiseReject,
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $25.4.4.5 Promise.resolve(r)
+    m_promiseResolve = new NativeFunctionObject(state, NativeFunctionInfo(strings->resolve, builtinPromiseResolve, 1, NativeFunctionInfo::Strict));
     m_promise->directDefineOwnProperty(state, ObjectPropertyName(strings->resolve),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolve, builtinPromiseResolve, 1, NativeFunctionInfo::Strict)),
+                                       ObjectPropertyDescriptor(m_promiseResolve,
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // $25.4.5.1 Promise.prototype.catch(onRejected)
     m_promisePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->stringCatch),
@@ -805,12 +809,14 @@ void GlobalObject::installPromise(ExecutionState& state)
     m_promise->setFunctionPrototype(state, m_promisePrototype);
 
     // Promise.allSettled ( iterable )
+    m_promiseAllSettled = new NativeFunctionObject(state, NativeFunctionInfo(strings->allSettled, builtinPromiseAllSettled, 1, NativeFunctionInfo::Strict));
     m_promise->directDefineOwnProperty(state, ObjectPropertyName(strings->allSettled),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->allSettled, builtinPromiseAllSettled, 1, NativeFunctionInfo::Strict)),
+                                       ObjectPropertyDescriptor(m_promiseAllSettled,
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // Promise.any ( iterable )
+    m_promiseAny = new NativeFunctionObject(state, NativeFunctionInfo(strings->any, builtinPromiseAny, 1, NativeFunctionInfo::Strict));
     m_promise->directDefineOwnProperty(state, ObjectPropertyName(strings->any),
-                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->any, builtinPromiseAny, 1, NativeFunctionInfo::Strict)),
+                                       ObjectPropertyDescriptor(m_promiseAny,
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
