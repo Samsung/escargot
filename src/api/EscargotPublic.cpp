@@ -2280,6 +2280,12 @@ uint64_t ObjectRef::length(ExecutionStateRef* state)
     return toImpl(this)->length(*toImpl(state));
 }
 
+void ObjectRef::setLength(ExecutionStateRef* pState, uint64_t newLength)
+{
+    auto& state = *toImpl(pState);
+    toImpl(this)->set(state, state.context()->staticStrings().length, Value(newLength), toImpl(this));
+}
+
 bool ObjectRef::isExtensible(ExecutionStateRef* state)
 {
     return toImpl(this)->isExtensible(*toImpl(state));
@@ -2523,10 +2529,39 @@ FunctionObjectRef* GlobalObjectRef::jsonParse()
     return toRef(toImpl(this)->jsonParse());
 }
 
-
 FunctionObjectRef* GlobalObjectRef::promise()
 {
     return toRef(toImpl(this)->promise());
+}
+
+FunctionObjectRef* GlobalObjectRef::promiseAll()
+{
+    return toRef(toImpl(this)->promiseAll());
+}
+
+FunctionObjectRef* GlobalObjectRef::promiseAllSettled()
+{
+    return toRef(toImpl(this)->promiseAllSettled());
+}
+
+FunctionObjectRef* GlobalObjectRef::promiseAny()
+{
+    return toRef(toImpl(this)->promiseAny());
+}
+
+FunctionObjectRef* GlobalObjectRef::promiseRace()
+{
+    return toRef(toImpl(this)->promiseRace());
+}
+
+FunctionObjectRef* GlobalObjectRef::promiseReject()
+{
+    return toRef(toImpl(this)->promiseReject());
+}
+
+FunctionObjectRef* GlobalObjectRef::promiseResolve()
+{
+    return toRef(toImpl(this)->promiseResolve());
 }
 
 ObjectRef* GlobalObjectRef::promisePrototype()

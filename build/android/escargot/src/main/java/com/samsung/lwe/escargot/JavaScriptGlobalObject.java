@@ -22,4 +22,52 @@ public class JavaScriptGlobalObject extends JavaScriptObject {
      * @return
      */
     public native Optional<JavaScriptValue> jsonParse(Context context, JavaScriptValue input);
+
+    /**
+     *
+     * @param context
+     * @param iterable
+     * @return
+     */
+    public native Optional<JavaScriptValue> promiseAll(Context context, JavaScriptValue iterable);
+
+    /**
+     *
+     * @param context
+     * @param iterable
+     * @return
+     */
+    public native Optional<JavaScriptValue> promiseAllSettled(Context context, JavaScriptValue iterable);
+
+    /**
+     *
+     * @param context
+     * @param iterable
+     * @return
+     */
+    public native Optional<JavaScriptValue> promiseAny(Context context, JavaScriptValue iterable);
+
+    /**
+     *
+     * @param context
+     * @param iterable
+     * @return
+     */
+    public native Optional<JavaScriptValue> promiseRace(Context context, JavaScriptValue iterable);
+
+    /**
+     *
+     * @param context
+     * @param iterable
+     * @return
+     */
+    public native Optional<JavaScriptValue> promiseReject(Context context, JavaScriptValue iterable);
+
+    /**
+     *
+     * @param context
+     * @param iterable
+     * @return
+     */
+    public native Optional<JavaScriptValue> promiseResolve(Context context, JavaScriptValue iterable);
 }

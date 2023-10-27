@@ -1390,6 +1390,7 @@ public:
     // get `length` property like ToLength(Get(obj, "length"))
     // it returns 0 for exceptional cases (e.g. undefined, nan)
     uint64_t length(ExecutionStateRef* state);
+    void setLength(ExecutionStateRef* state, uint64_t newLength);
 
     bool isExtensible(ExecutionStateRef* state);
     bool preventExtensions(ExecutionStateRef* state);
@@ -1447,6 +1448,12 @@ public:
     FunctionObjectRef* jsonParse();
 
     FunctionObjectRef* promise();
+    FunctionObjectRef* promiseAll();
+    FunctionObjectRef* promiseAllSettled();
+    FunctionObjectRef* promiseAny();
+    FunctionObjectRef* promiseRace();
+    FunctionObjectRef* promiseReject();
+    FunctionObjectRef* promiseResolve();
     ObjectRef* promisePrototype();
 
     FunctionObjectRef* arrayBuffer();

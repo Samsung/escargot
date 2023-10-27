@@ -178,9 +178,16 @@ class FunctionObject;
     F(iteratorPrototype, Object, objName)       \
     F(genericIteratorPrototype, Object, objName)
 
-#define GLOBALOBJECT_BUILTIN_PROMISE(F, objName) \
-    F(promise, FunctionObject, objName)          \
-    F(promisePrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_PROMISE(F, objName)  \
+    F(promise, FunctionObject, objName)           \
+    F(promisePrototype, Object, objName)          \
+    F(promiseAll, FunctionObject, objName)        \
+    F(promiseAllSettled, FunctionObject, objName) \
+    F(promiseAny, FunctionObject, objName)        \
+    F(promiseRace, FunctionObject, objName)       \
+    F(promiseReject, FunctionObject, objName)     \
+    F(promiseResolve, FunctionObject, objName)
+
 #define GLOBALOBJECT_BUILTIN_PROXY(F, objName) \
     F(proxy, FunctionObject, objName)
 #define GLOBALOBJECT_BUILTIN_REFLECT(F, objName) \

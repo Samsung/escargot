@@ -783,6 +783,15 @@ public class EscargotTest {
         });
         printNegativeTC("array null test 2");
 
+        JavaScriptArrayObject arr2 = JavaScriptArrayObject.create(context, new JavaScriptValue[]{
+            JavaScriptValue.create(123),
+            JavaScriptString.create("456")
+        }).get();
+        assertTrue(arr2.length(context) == 2);
+        assertTrue(arr2.get(context, JavaScriptValue.create(0)).get().toNumber(context).get().doubleValue() == 123);
+        assertTrue(arr2.get(context, JavaScriptValue.create(1)).get().toNumber(context).get().doubleValue() == 456);
+        printPositiveTC("array test 3");
+
         context = null;
         finalizeEngine();
     }
@@ -1356,6 +1365,147 @@ public class EscargotTest {
         assertFalse(obj.extraData().isPresent());
         printNegativeTC("promiseTest 3");
 
+        context = null;
+        vmInstance = null;
+        finalizeEngine();
+    }
+
+    @Test
+    public void promiseBuiltinTest()
+    {
+        Globals.initializeGlobals();
+        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+        Context context = Context.create(vmInstance);
+        /*
+        const promise1 = Promise.resolve(3);
+        const promise2 = 42;
+        const promise3 = new Promise((resolve, reject) => {
+                resolve("foo")
+            });
+
+        Promise.all([promise1, promise2, promise3]).then((values) => {
+                    console.log(values);
+        });
+        // Expected output: Array [3, 42, "foo"]
+        */
+        ArrayList<Object> thenCalled = new ArrayList<>();
+        JavaScriptPromiseObject promise3 = JavaScriptPromiseObject.create(context);
+        context.getGlobalObject().promiseAll(
+                context,
+                JavaScriptArrayObject.create(context, new JavaScriptValue[] {
+                        context.getGlobalObject().promiseResolve(context, JavaScriptValue.create(3)).get(),
+                        JavaScriptValue.create(42),
+                        promise3
+                }).get()
+        ).get().asScriptPromiseObject().then(context, JavaScriptJavaCallbackFunctionObject.create(context,
+                "", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                    @Override
+                    public Optional<JavaScriptValue> callback(Context context, JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                        thenCalled.add(new Object());
+                        assertTrue(arguments[0].asScriptArrayObject().length(context) == 3);
+                        assertTrue(arguments[0].asScriptArrayObject().get(context, JavaScriptValue.create(0)).get().asInt32() == 3);
+                        assertTrue(arguments[0].asScriptArrayObject().get(context, JavaScriptValue.create(1)).get().asInt32() == 42);
+                        assertTrue(arguments[0].asScriptArrayObject().get(context, JavaScriptValue.create(2)).get().asScriptString().toJavaString().equals("foo"));
+                        return Optional.empty();
+                    }
+                }));
+
+        promise3.fulfill(context, JavaScriptString.create("foo"));
+
+        vmInstance.executeEveryPendingJobIfExists();
+
+        assertTrue(thenCalled.size() == 1);
+
+        /*
+        const promise1 = Promise.resolve(3);
+        const promise2 = Promise.resolve(0);
+        const promises = [promise1, promise2];
+
+                Promise.allSettled(promises).then((results) => results.forEach((result) => console.log(result.status)));
+
+        // Expected output:
+        // "fulfilled"
+        // "rejected"
+        */
+        thenCalled.clear();
+        context.getGlobalObject().promiseAllSettled(
+                context,
+                JavaScriptArrayObject.create(context, new JavaScriptValue[] {
+                        context.getGlobalObject().promiseResolve(context, JavaScriptValue.create(3)).get(),
+                        context.getGlobalObject().promiseReject(context, JavaScriptValue.create(0)).get(),
+                }).get()
+        ).get().asScriptPromiseObject().then(context, JavaScriptJavaCallbackFunctionObject.create(context,
+                "", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                    @Override
+                    public Optional<JavaScriptValue> callback(Context context, JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                        thenCalled.add(new Object());
+                        JavaScriptArrayObject arr = arguments[0].asScriptArrayObject();
+                        assertTrue(arr.length(context) == 2);
+                        assertEquals(arr.get(context, JavaScriptValue.create(0)).get().asScriptObject().get(context, JavaScriptString.create("status")).get().asScriptString().toJavaString(), "fulfilled");
+                        assertEquals(arr.get(context, JavaScriptValue.create(1)).get().asScriptObject().get(context, JavaScriptString.create("status")).get().asScriptString().toJavaString(), "rejected");
+                        return Optional.empty();
+                    }
+                }));
+
+        vmInstance.executeEveryPendingJobIfExists();
+        assertTrue(thenCalled.size() == 1);
+
+        /*
+            const promise1 = Promise.reject(0);
+            const promise2 = new Promise(function(resolve) {resolve("foo")});
+            const promise3 = new Promise(function(resolve) {
+
+            });
+
+            const promises = [promise1, promise2, promise3];
+            Promise.any(promises).then((value) => console.log(value));
+         */
+        thenCalled.clear();
+        context.getGlobalObject().promiseAny(
+                context,
+                JavaScriptArrayObject.create(context, new JavaScriptValue[] {
+                        context.getGlobalObject().promiseReject(context, JavaScriptValue.create(0)).get(),
+                        context.getGlobalObject().promiseResolve(context, JavaScriptString.create("foo")).get(),
+                        JavaScriptPromiseObject.create(context),
+                }).get()
+        ).get().asScriptPromiseObject().then(context, JavaScriptJavaCallbackFunctionObject.create(context,
+                "", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                    @Override
+                    public Optional<JavaScriptValue> callback(Context context, JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                        thenCalled.add(new Object());
+                        assertEquals("foo", arguments[0].asScriptString().toJavaString());
+                        return Optional.empty();
+                    }
+                }));
+
+        vmInstance.executeEveryPendingJobIfExists();
+        assertTrue(thenCalled.size() == 1);
+
+        thenCalled.clear();
+        JavaScriptPromiseObject promise1 = JavaScriptPromiseObject.create(context);
+        JavaScriptPromiseObject promise2 = JavaScriptPromiseObject.create(context);
+        context.getGlobalObject().promiseRace(
+                context,
+                JavaScriptArrayObject.create(context, new JavaScriptValue[] {
+                        promise1, promise2
+                }).get()
+        ).get().asScriptPromiseObject().then(context, JavaScriptJavaCallbackFunctionObject.create(context,
+                "", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+                    @Override
+                    public Optional<JavaScriptValue> callback(Context context, JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                        thenCalled.add(new Object());
+                        assertEquals("foo", arguments[0].asScriptString().toJavaString());
+                        return Optional.empty();
+                    }
+                }));
+
+        promise2.fulfill(context, JavaScriptString.create("foo"));
+        promise1.fulfill(context, JavaScriptString.create("bar"));
+
+        vmInstance.executeEveryPendingJobIfExists();
+        assertTrue(thenCalled.size() == 1);
+
+        printPositiveTC("promiseBuiltinTest 1");
         context = null;
         vmInstance = null;
         finalizeEngine();
