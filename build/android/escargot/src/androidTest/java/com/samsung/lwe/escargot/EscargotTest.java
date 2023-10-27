@@ -12,9 +12,14 @@ import com.samsung.lwe.escargot.util.MultiThreadExecutor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Optional;
 
@@ -1690,4 +1695,87 @@ public class EscargotTest {
         vmInstance = null;
         finalizeEngine();
     }
+
+    public void multiThreadExecutorExample() {
+        Globals.initializeGlobals();
+        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+        Context context = Context.create(vmInstance);
+
+        context.getGlobalObject().set(context, JavaScriptString.create("print"), JavaScriptJavaCallbackFunctionObject.create(context, "", 1, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+            @Override
+            public Optional<JavaScriptValue> callback(Context context, JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                System.out.println(arguments[0].toString(context).get().toJavaString());
+                return Optional.empty();
+            }
+        }));
+
+        MultiThreadExecutor executor = new MultiThreadExecutor(vmInstance);
+        Bridge.register(context, "HTTP", "get", new Bridge.Adapter() {
+            @Override
+            public Optional<JavaScriptValue> callback(Context context, Optional<JavaScriptValue> data) {
+                String url = "";
+                if (data.isPresent()) {
+                    Optional<JavaScriptString> mayBeString = data.get().toString(context);
+                    if (mayBeString.isPresent()) {
+                        url = mayBeString.get().toJavaString();
+                    }
+                }
+                final String finalURL = url;
+                MultiThreadExecutor.ExecutorInstance instance = executor.startWorker(context, new MultiThreadExecutor.Executor() {
+                    @Override
+                    public MultiThreadExecutor.ResultBuilderContext run() {
+                        try {
+                            HttpURLConnection connection = (HttpURLConnection)new URL(finalURL).openConnection();
+                            connection.setRequestMethod("GET");
+                            int responseCode = connection.getResponseCode();
+                            if (responseCode == HttpURLConnection.HTTP_OK) { // success
+                                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                                String inputLine;
+                                StringBuffer response = new StringBuffer();
+
+                                while ((inputLine = in.readLine()) != null) {
+                                    response.append(inputLine);
+                                }
+                                in.close();
+
+                                return new MultiThreadExecutor.ResultBuilderContext(true, response.toString());
+                            } else {
+                                return new MultiThreadExecutor.ResultBuilderContext(false, "error HTTP return code:" + responseCode);
+                            }
+                        } catch (IOException e) {
+                            return new MultiThreadExecutor.ResultBuilderContext(false, e.toString());
+                        }
+                    }
+                }, new MultiThreadExecutor.ResultBuilder() {
+                    @Override
+                    public JavaScriptValue build(Context scriptContext, MultiThreadExecutor.ResultBuilderContext builderContext) {
+                        return JavaScriptString.create((String)builderContext.data());
+                    }
+                });
+                return Optional.of(instance.promise());
+            }
+        });
+
+        Evaluator.evalScript(context, "" +
+                "let promise1 = HTTP.get('https://httpbin.org/get');" +
+                "let promise2 = HTTP.get('http://google.com');" +
+                "Promise.allSettled([promise1, promise2]).then(function(v) {" +
+                "print(JSON.stringify(v));" +
+                "print('http all end!');" +
+                "});", "", false);
+
+        while (executor.hasPendingEventOrWorker()) {
+            executor.pumpEventsFromThreadIfNeeds();
+            try {
+                Thread.sleep(25);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        context = null;
+        vmInstance = null;
+        finalizeEngine();
+    }
+
 }
