@@ -367,6 +367,60 @@ jobs:
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/debug/x86/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/debug/x64/escargot" modifiedVendorTest regression-tests new-es intl sunspider-js
 
+  build-test-on-self-hosted-linux:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Build
+      env:
+        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+      run: |
+        LDFLAGS=" -L/usr/icu32/lib/ -Wl,-rpath=/usr/icu32/lib/" PKG_CONFIG_PATH="/usr/icu32/lib/pkgconfig/" cmake -H./ -Bbuild/out_linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu32/lib/ -Wl,-rpath=/usr/icu32/lib/" PKG_CONFIG_PATH="/usr/icu32/lib/pkgconfig/" cmake -H./ -Bbuild/out_linux_release -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
+        gcc -shared -m32 -fPIC -o backtrace-hooking-32.so tools/test/test262/backtrace-hooking.c
+        LDFLAGS=" -L/usr/icu64/lib/ -Wl,-rpath=/usr/icu64/lib/" PKG_CONFIG_PATH="/usr/icu64/lib/pkgconfig/" cmake -H./ -Bbuild/out_linux64 -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu64/lib/ -Wl,-rpath=/usr/icu64/lib/" PKG_CONFIG_PATH="/usr/icu64/lib/pkgconfig/" cmake -H./ -Bbuild/out_linux64_release -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release $BUILD_OPTIONS
+        cmake --build build/out_linux/
+        cmake --build build/out_linux64/
+        cmake --build build/out_linux_release/
+        cmake --build build/out_linux64_release/
+    - name: Test
+      run: |
+        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release/escargot" test262
+        GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${{ github.workspace }}/backtrace-hooking-32.so tools/run-tests.py --arch=x86 --engine="${{ github.workspace }}/build/out_linux/escargot" test262
+        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release/escargot" test262
+        python tools/kangax/run-kangax.py --engine="${{ github.workspace }}/build/out_linux64/escargot"
+
+  build-test-on-self-hosted-arm-linux:
+    runs-on: [self-hosted, linux, arm]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Build
+      run: |
+        cmake -H./ -Bout -DCMAKE_C_COMPILER=gcc-11 -DCMAKE_CXX_COMPILER=g++-11 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm32 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+        cmake --build ./out/
+    - name: Test
+      run: |
+        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --engine="${{ github.workspace }}/out/escargot" --extra-arg="--skip intl402" new-es v8 spidermonkey chakracore test262
+
+  build-test-on-self-hosted-arm64-linux:
+    runs-on: [self-hosted, linux, arm64]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Build
+      run: |
+        cmake -H./ -Bout -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+        cmake --build ./out/
+    - name: Test
+      run: |
+        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --engine="${{ github.workspace }}/out/escargot" --extra-arg="--skip intl402" test262 chakracore spidermonkey v8 new-es
+
   build-test-debugger:
     runs-on: ubuntu-latest
     steps:
