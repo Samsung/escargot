@@ -224,7 +224,9 @@ public class MultiThreadExecutor {
             }
         }
 
-        m_vmInstance.executeEveryPendingJobIfExists();
+        if (executePendingJavaScriptJobs) {
+            m_vmInstance.executeEveryPendingJobIfExists();
+        }
     }
 
     /**

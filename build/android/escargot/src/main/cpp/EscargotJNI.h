@@ -91,6 +91,7 @@ OptionalRef<JNIEnv> fetchJNIEnvFromCallback();
 
 std::string fetchStringFromJavaOptionalString(JNIEnv *env, jobject optional);
 StringRef* createJSStringFromJava(JNIEnv* env, jstring str);
+std::string createStringFromJava(JNIEnv* env, jstring str);
 jstring createJavaStringFromJS(JNIEnv* env, StringRef* string);
 void throwJavaRuntimeException(ExecutionStateRef* state);
 jobject storeExceptionOnContextAndReturnsIt(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult);

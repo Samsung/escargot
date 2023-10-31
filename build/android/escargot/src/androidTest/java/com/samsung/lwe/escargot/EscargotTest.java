@@ -528,6 +528,7 @@ public class EscargotTest {
             new TestSet(JavaScriptObject.create(context), new String[]{"asScriptObject"}),
             new TestSet(JavaScriptArrayObject.create(context), new String[]{"asScriptObject", "asScriptArrayObject"}),
             new TestSet(JavaScriptPromiseObject.create(context), new String[]{"asScriptObject", "asScriptPromiseObject"}),
+            new TestSet(JavaScriptErrorObject.create(context, JavaScriptErrorObject.ErrorKind.EvalError, "asdf"), new String[]{"asScriptObject", "asScriptErrorObject"}),
             new TestSet(JavaScriptJavaCallbackFunctionObject.create(context, "", 0, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
                 @Override
                 public Optional<JavaScriptValue> callback(Context context, JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
@@ -1046,6 +1047,7 @@ public class EscargotTest {
                                 return Optional.of(JavaScriptValue.create(arguments.length));
                             }
                         });
+        callbackFunctionObject.setExtraData(Optional.of(new Object()));
 
         context.getGlobalObject().set(context, JavaScriptString.create("asdf"), callbackFunctionObject);
 
@@ -1082,6 +1084,7 @@ public class EscargotTest {
                                 return Optional.of(JavaScriptValue.create(sum));
                             }
                         });
+        callbackFunctionObject.setExtraData(Optional.of(new Object()));
         context.getGlobalObject().set(context, JavaScriptString.create("asdf"), callbackFunctionObject);
 
         ret = Evaluator.evalScript(context, "asdf(1, 2, 3, 4)", "test.js", false);
@@ -1778,4 +1781,26 @@ public class EscargotTest {
         finalizeEngine();
     }
 
+    @Test
+    public void errorObjectTest()
+    {
+        Globals.initializeGlobals();
+        VMInstance vmInstance = VMInstance.create(Optional.of("en-US"), Optional.of("Asia/Seoul"));
+        Context context = Context.create(vmInstance);
+
+        JavaScriptErrorObject e = JavaScriptErrorObject.create(context, JavaScriptErrorObject.ErrorKind.None, "test");
+        assertTrue(e.isErrorObject());
+        assertTrue(e.toString(context).get().toJavaString().equals("Error: test"));
+
+        JavaScriptErrorObject.ErrorKind[] kinds = JavaScriptErrorObject.ErrorKind.values();
+        for (int i = 1 /* skip None */; i < kinds.length; i ++) {
+            e = JavaScriptErrorObject.create(context, kinds[i], "test" + i);
+            assertTrue(e.isErrorObject());
+            assertTrue(e.toString(context).get().toJavaString().equals(kinds[i].name() + ": test" + i));
+        }
+
+        context = null;
+        vmInstance = null;
+        finalizeEngine();
+    }
 }
