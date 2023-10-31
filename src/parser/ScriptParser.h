@@ -34,6 +34,10 @@ class Node;
 
 enum class ErrorCode : uint8_t;
 
+namespace esprima {
+    class Error;
+};
+
 #if defined(ENABLE_CODE_CACHE)
 struct CodeBlockCacheInfo;
 #endif
@@ -71,7 +75,7 @@ public:
 private:
     InterpretedCodeBlock* generateCodeBlockTreeFromAST(Context* ctx, StringView source, Script* script, ProgramNode* program, bool isEvalCode, bool isEvalCodeInFunction);
     InterpretedCodeBlock* generateCodeBlockTreeFromASTWalker(Context* ctx, StringView source, Script* script, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentCodeBlock, bool isEvalCode, bool isEvalCodeInFunction);
-    void generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb);
+    esprima::Error* generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb);
 #ifndef NDEBUG
     void dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock);
 #endif

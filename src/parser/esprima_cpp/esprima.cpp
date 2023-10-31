@@ -2229,7 +2229,8 @@ public:
         tm->valueRaw = token->valueTemplate->valueRaw;
         tm->tail = token->valueTemplate->tail;
         if (!isTaggedTemplate && token->valueTemplate->error) {
-            throw token->valueTemplate->error.value();
+            ErrorHandler::g_parserError = token->valueTemplate->error.value();
+            return nullptr;
         }
         return tm;
     }
@@ -2250,7 +2251,8 @@ public:
         tm->valueRaw = token->valueTemplate->valueRaw;
         tm->tail = token->valueTemplate->tail;
         if (!isTaggedTemplate && token->valueTemplate->error) {
-            throw token->valueTemplate->error.value();
+            ErrorHandler::g_parserError = token->valueTemplate->error.value();
+            return nullptr;
         }
         return tm;
     }

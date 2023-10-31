@@ -118,7 +118,8 @@ Value Script::moduleInstantiate(ExecutionState& state)
 
     auto result = moduleLinking(state);
     if (result.gotException) {
-        throw result.value;
+        state.throwException(result.value);
+        return Value(Value::Exception);
     }
     return result.value;
 }
@@ -129,7 +130,8 @@ Value Script::moduleEvaluate(ExecutionState& state)
 
     auto result = moduleEvaluation(state);
     if (result.gotException) {
-        throw result.value;
+        state.throwException(result.value);
+        return Value(Value::Exception);
     }
     return result.value;
 }
@@ -363,11 +365,13 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         // https://www.ecma-international.org/ecma-262/#sec-toplevelmoduleevaluationjob
         auto result = moduleLinking(state);
         if (result.gotException) {
-            throw result.value;
+            state.throwException(result.value);
+            return Value(Value::Exception);
         }
         result = moduleEvaluation(state);
         if (result.gotException) {
-            throw result.value;
+            state.throwException(result.value);
+            return Value(Value::Exception);
         }
         return result.value;
     }

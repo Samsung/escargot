@@ -258,13 +258,16 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromAST(Context* ctx, S
     return generateCodeBlockTreeFromASTWalker(ctx, source, script, program->scopeContext(), nullptr, isEvalCode, isEvalCodeInFunction);
 }
 
-void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb)
+esprima::Error* ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCodeBlock* cb)
 {
     if (cb->hasChildren()) {
         InterpretedCodeBlockVector& childrenVector = cb->children();
         for (size_t i = 0; i < childrenVector.size(); i++) {
             InterpretedCodeBlock* child = childrenVector[i];
-            generateCodeBlockTreeFromASTWalkerPostProcess(child);
+            auto error = generateCodeBlockTreeFromASTWalkerPostProcess(child);
+            if (error != nullptr) {
+                return error;
+            }
         }
     }
 
@@ -275,8 +278,10 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
         err->lineNumber = cb->m_functionStart.line;
         err->column = cb->m_functionStart.column;
         err->index = cb->m_functionStart.index;
-        throw *err;
+        return err;
     }
+
+    return nullptr;
 }
 
 #if defined(ENABLE_CODE_CACHE)
@@ -406,7 +411,14 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
             topCodeBlock = generateCodeBlockTreeFromAST(m_context, sourceView, script, programNode, isEvalMode, isEvalCodeInFunction);
         }
 
-        generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
+        auto error = generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
+        if (error != nullptr) {
+            ScriptParser::InitializeScriptResult result;
+            result.parseErrorCode = error->errorCode;
+            result.parseErrorMessage = error->message;
+            delete error;
+            return result;
+        }
     }
 
     // dump Code Block
@@ -585,8 +597,14 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
         topCodeBlock = generateCodeBlockTreeFromAST(m_context, sourceView, script, programNode, isEvalMode, isEvalCodeInFunction);
     }
 
-    generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
-
+    auto error = generateCodeBlockTreeFromASTWalkerPostProcess(topCodeBlock);
+    if (error != nullptr) {
+        ScriptParser::InitializeScriptResult result;
+        result.parseErrorCode = error->errorCode;
+        result.parseErrorMessage = error->message;
+        delete error;
+        return result;
+    }
 
     // dump Code Block
 #ifndef NDEBUG
