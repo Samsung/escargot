@@ -67,11 +67,16 @@ jobject createJavaObjectFromValue(JNIEnv* env, ValueRef* value)
             return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptGlobalObject", value);
         } else if (value->isFunctionObject()) {
             if (value->asFunctionObject()->extraData()) {
-                return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptJavaCallbackFunctionObject", value);
+                ScriptObjectExtraData* data = reinterpret_cast<ScriptObjectExtraData*>(value->asFunctionObject()->extraData());
+                if (data->implementSideData) {
+                    return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptJavaCallbackFunctionObject", value);
+                }
             }
             return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptFunctionObject", value);
         } else if (value->isPromiseObject()) {
             return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptPromiseObject", value);
+        } else if (value->isErrorObject()) {
+            return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptErrorObject", value);
         } else {
             return createJavaValueObject(env, "com/samsung/lwe/escargot/JavaScriptObject", value);
         }
@@ -153,6 +158,18 @@ StringRef* createJSStringFromJava(JNIEnv* env, jstring str)
     StringRef* code = StringRef::createFromUTF8(cString, env->GetStringUTFLength(str));
     env->ReleaseStringUTFChars(str, cString);
     return code;
+}
+
+std::string createStringFromJava(JNIEnv* env, jstring str)
+{
+    if (!str) {
+        return std::string();
+    }
+    jboolean isSucceed;
+    const char* cString = env->GetStringUTFChars(str, &isSucceed);
+    std::string ret = std::string(cString, env->GetStringUTFLength(str));
+    env->ReleaseStringUTFChars(str, cString);
+    return ret;
 }
 
 jstring createJavaStringFromJS(JNIEnv* env, StringRef* string)

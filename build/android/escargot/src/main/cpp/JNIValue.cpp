@@ -168,6 +168,13 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_isPromiseObject(JNIEnv* env, jobje
 
 extern "C"
 JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_isErrorObject(JNIEnv* env, jobject thiz)
+{
+    return unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->isErrorObject();
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
 Java_com_samsung_lwe_escargot_JavaScriptValue_asBoolean(JNIEnv* env, jobject thiz)
 {
     ValueRef* ref = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
@@ -253,6 +260,15 @@ Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptPromiseObject(JNIEnv* env,
 {
     ValueRef* ref = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
     THROW_CAST_EXCEPTION_IF_NEEDS(env, ref, PromiseObject);
+    return thiz;
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptValue_asScriptErrorObject(JNIEnv* env, jobject thiz)
+{
+    ValueRef* ref = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz);
+    THROW_CAST_EXCEPTION_IF_NEEDS(env, ref, ErrorObject);
     return thiz;
 }
 

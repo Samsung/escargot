@@ -35,6 +35,7 @@ public class JavaScriptValue extends NativePointerHolder {
     native public boolean isArrayObject();
     native public boolean isFunctionObject();
     native public boolean isPromiseObject();
+    native public boolean isErrorObject();
 
     native public boolean asBoolean();
     native public int asInt32();
@@ -46,6 +47,7 @@ public class JavaScriptValue extends NativePointerHolder {
     native public JavaScriptArrayObject asScriptArrayObject();
     native public JavaScriptFunctionObject asScriptFunctionObject();
     native public JavaScriptPromiseObject asScriptPromiseObject();
+    native public JavaScriptErrorObject asScriptErrorObject();
 
     native public Optional<JavaScriptString> toString(Context context);
     native public Optional<Boolean> toBoolean(Context context);
