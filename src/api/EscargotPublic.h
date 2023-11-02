@@ -875,7 +875,8 @@ public:
     // this setter try to update `globalThis` value on GlobalObject
     void setGlobalObjectProxy(ObjectRef* newGlobalObjectProxy);
 
-    void throwException(ValueRef* exceptionValue); // if you use this function without Evaluator, your program will crash :(
+    bool canThrowException();
+    void throwException(ValueRef* exceptionValue);
 
     bool initDebugger(DebuggerOperationsRef::DebuggerClient* debuggerClient);
     // available options(separator is ';')

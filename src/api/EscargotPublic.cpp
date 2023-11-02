@@ -2917,6 +2917,11 @@ VMInstanceRef* ContextRef::vmInstance()
     return toRef(ctx->vmInstance());
 }
 
+bool ContextRef::canThrowException()
+{
+    return toImpl(this)->canThrowException();
+}
+
 void ContextRef::throwException(ValueRef* exceptionValue)
 {
     ExecutionState s(toImpl(this));

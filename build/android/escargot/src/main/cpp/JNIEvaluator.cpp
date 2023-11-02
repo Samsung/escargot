@@ -113,16 +113,5 @@ Java_com_samsung_lwe_escargot_Evaluator_evalScript(JNIEnv* env, jclass clazz, jo
     Evaluator::EvaluatorResult result = evalScript(ptr->get(), createJSStringFromJava(env, source),
                                                    createJSStringFromJava(env, sourceFileName), shouldPrintScriptResult,
                                                    shouldExecutePendingJobsAtEnd, false);
-    if (env->ExceptionCheck()) {
-        return nullptr;
-    }
-    jclass optionalClazz = env->FindClass("java/util/Optional");
-    if (result.isSuccessful()) {
-        return env->CallStaticObjectMethod(optionalClazz,
-                                           env->GetStaticMethodID(optionalClazz, "of",
-                                                                  "(Ljava/lang/Object;)Ljava/util/Optional;"),
-                                           createJavaObjectFromValue(env, result.result));
-    }
-    return env->CallStaticObjectMethod(optionalClazz, env->GetStaticMethodID(optionalClazz, "empty",
-                                                                             "()Ljava/util/Optional;"));
+    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, ptr->get(), result);
 }
