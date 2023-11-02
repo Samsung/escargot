@@ -255,6 +255,7 @@ public:
         return m_toStringRecursionPreventer;
     }
 
+    bool canThrowException();
     void throwException(ExecutionState& state, const Value& exception);
 
     // this is not compatible with ECMAScript

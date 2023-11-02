@@ -94,6 +94,7 @@ StringRef* createJSStringFromJava(JNIEnv* env, jstring str);
 std::string createStringFromJava(JNIEnv* env, jstring str);
 jstring createJavaStringFromJS(JNIEnv* env, StringRef* string);
 void throwJavaRuntimeException(ExecutionStateRef* state);
+OptionalRef<ValueRef> extractExceptionFromEnv(JNIEnv* env);
 jobject storeExceptionOnContextAndReturnsIt(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult);
 jobject createOptionalValueFromEvaluatorJavaScriptValueResult(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult);
 jobject createOptionalValueFromEvaluatorBooleanResult(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult);

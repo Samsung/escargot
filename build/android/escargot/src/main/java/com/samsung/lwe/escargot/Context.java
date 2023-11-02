@@ -19,6 +19,7 @@ public class Context extends NativePointerHolder {
         return lastThrownException;
     }
     public native JavaScriptGlobalObject getGlobalObject();
+    public native boolean throwException(JavaScriptValue exception);
 
     protected Optional<JavaScriptValue> m_lastThrownException = Optional.empty();
 }

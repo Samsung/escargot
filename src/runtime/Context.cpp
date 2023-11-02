@@ -113,6 +113,11 @@ Context::Context(VMInstance* instance)
 #endif
 }
 
+bool Context::canThrowException()
+{
+    return vmInstance()->currentSandBox();
+}
+
 void Context::throwException(ExecutionState& state, const Value& exception)
 {
     if (LIKELY(vmInstance()->currentSandBox() != nullptr)) {

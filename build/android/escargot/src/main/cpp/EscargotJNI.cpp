@@ -190,18 +190,59 @@ void throwJavaRuntimeException(ExecutionStateRef* state)
     state->throwException(ErrorObjectRef::create(state, ErrorObjectRef::None, StringRef::createFromASCII("Java runtime exception")));
 }
 
-jobject storeExceptionOnContextAndReturnsIt(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult)
+bool hasJavaScriptRuntimeExceptionOnEnv(JNIEnv* env)
 {
     if (env->ExceptionCheck()) {
+        jthrowable exception = env->ExceptionOccurred();
+        env->ExceptionClear();
+        bool ret = env->IsInstanceOf(exception, env->FindClass("com/samsung/lwe/escargot/internal/JavaScriptRuntimeException"));
+        env->Throw(exception);
+        return ret;
+    }
+    return false;
+}
+
+OptionalRef<ValueRef> extractExceptionFromEnv(JNIEnv* env)
+{
+    if (env->ExceptionCheck()) {
+        jthrowable exception = env->ExceptionOccurred();
+        env->ExceptionClear();
+        bool ret = env->IsInstanceOf(exception, env->FindClass("com/samsung/lwe/escargot/internal/JavaScriptRuntimeException"));
+        if (ret) {
+            jclass clz = env->FindClass("com/samsung/lwe/escargot/internal/JavaScriptRuntimeException");
+            jobject jv = env->CallObjectMethod(exception, env->GetMethodID(clz, "exception", "()Lcom/samsung/lwe/escargot/JavaScriptValue;"));
+            ValueRef* v = unwrapValueRefFromValue(env, env->GetObjectClass(jv), jv);
+            return v;
+        } else {
+            env->Throw(exception);
+        }
+    }
+
+    return nullptr;
+}
+
+bool hasJavaExcpetion(JNIEnv* env)
+{
+    if (env->ExceptionCheck() && !hasJavaScriptRuntimeExceptionOnEnv(env)) {
+        return true;
+    }
+    return false;
+}
+
+jobject storeExceptionOnContextAndReturnsIt(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult)
+{
+    if (hasJavaExcpetion(env)) {
         return nullptr;
     }
+    auto exceptionOnEnv = extractExceptionFromEnv(env);
     jclass optionalClazz = env->FindClass("java/util/Optional");
     // store exception to context
     auto fieldId = env->GetFieldID(env->GetObjectClass(contextObject), "m_lastThrownException", "Ljava/util/Optional;");
+    ValueRef* exception = exceptionOnEnv ? exceptionOnEnv.get() : evaluatorResult.error.value();
     auto fieldValue = env->CallStaticObjectMethod(optionalClazz,
                                                   env->GetStaticMethodID(optionalClazz, "of",
                                                                          "(Ljava/lang/Object;)Ljava/util/Optional;"),
-                                                  createJavaObjectFromValue(env, evaluatorResult.error.value()));
+                                                  createJavaObjectFromValue(env, exception));
     env->SetObjectField(contextObject, fieldId, fieldValue);
 
     return env->CallStaticObjectMethod(optionalClazz, env->GetStaticMethodID(optionalClazz, "empty",
@@ -210,7 +251,7 @@ jobject storeExceptionOnContextAndReturnsIt(JNIEnv* env, jobject contextObject, 
 
 jobject createOptionalValueFromEvaluatorJavaScriptValueResult(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult)
 {
-    if (env->ExceptionCheck()) {
+    if (hasJavaExcpetion(env)) {
         return nullptr;
     }
     if (evaluatorResult.isSuccessful()) {
@@ -226,7 +267,7 @@ jobject createOptionalValueFromEvaluatorJavaScriptValueResult(JNIEnv* env, jobje
 
 jobject createOptionalValueFromEvaluatorBooleanResult(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult)
 {
-    if (env->ExceptionCheck()) {
+    if (hasJavaExcpetion(env)) {
         return nullptr;
     }
     if (evaluatorResult.isSuccessful()) {
@@ -245,7 +286,7 @@ jobject createOptionalValueFromEvaluatorBooleanResult(JNIEnv* env, jobject conte
 
 jobject createOptionalValueFromEvaluatorIntegerResult(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult)
 {
-    if (env->ExceptionCheck()) {
+    if (hasJavaExcpetion(env)) {
         return nullptr;
     }
     if (evaluatorResult.isSuccessful()) {
@@ -264,7 +305,7 @@ jobject createOptionalValueFromEvaluatorIntegerResult(JNIEnv* env, jobject conte
 
 jobject createOptionalValueFromEvaluatorDoubleResult(JNIEnv* env, jobject contextObject, ContextRef* context, Evaluator::EvaluatorResult& evaluatorResult)
 {
-    if (env->ExceptionCheck()) {
+    if (hasJavaExcpetion(env)) {
         return nullptr;
     }
     if (evaluatorResult.isSuccessful()) {

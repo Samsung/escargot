@@ -6,7 +6,7 @@ public class JavaScriptErrorObject extends JavaScriptObject {
         super(nativePointer);
     }
 
-    enum ErrorKind {
+    public enum ErrorKind {
         None,
         ReferenceError,
         TypeError,

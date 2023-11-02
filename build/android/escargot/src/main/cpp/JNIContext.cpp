@@ -38,3 +38,17 @@ Java_com_samsung_lwe_escargot_Context_getGlobalObject(JNIEnv* env, jobject thiz)
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(thiz), thiz);
     return createJavaObjectFromValue(env, contextRef->get()->globalObject());
 }
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_samsung_lwe_escargot_Context_throwException(JNIEnv* env, jobject thiz, jobject exception)
+{
+    THROW_NPE_RETURN_NULL(exception, "JavaScriptValue");
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(thiz), thiz);
+    if (contextRef->get()->canThrowException()) {
+        jclass clz = env->FindClass("com/samsung/lwe/escargot/internal/JavaScriptRuntimeException");
+        jobject obj = env->NewObject(clz, env->GetMethodID(clz, "<init>", "(Lcom/samsung/lwe/escargot/JavaScriptValue;)V"), exception);
+        env->Throw(static_cast<jthrowable>(obj));
+    }
+    return false;
+}

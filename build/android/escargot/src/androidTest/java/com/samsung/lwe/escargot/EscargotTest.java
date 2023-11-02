@@ -1060,7 +1060,7 @@ public class EscargotTest {
 
         assertFalse(context.exceptionWasThrown());
         Evaluator.evalScript(context, "new asdf()", "test.js", false);
-        assertFalse(context.lastThrownException().isPresent());
+        assertTrue(context.lastThrownException().isPresent());
 
         ret = Evaluator.evalScript(context, "asdf(1, 2, 3, 4)", "test.js", false);
         assertEquals(ret.get().asInt32(), 4);
@@ -1798,6 +1798,67 @@ public class EscargotTest {
             assertTrue(e.isErrorObject());
             assertTrue(e.toString(context).get().toJavaString().equals(kinds[i].name() + ": test" + i));
         }
+
+        // failed to throw exception
+        assertFalse(context.throwException(JavaScriptValue.create(123)));
+        assertFalse(context.exceptionWasThrown());
+
+        Bridge.register(context, "Native", "throwsException", new Bridge.Adapter() {
+            @Override
+            public Optional<JavaScriptValue> callback(Context context, Optional<JavaScriptValue> data) {
+                context.throwException(JavaScriptErrorObject.create(context, JavaScriptErrorObject.ErrorKind.None, "asdf"));
+                assertTrue(false);
+                return null;
+            }
+        });
+
+        // will fail
+        Optional<JavaScriptValue> ret = Evaluator.evalScript(context, "Native.throwsException()", "");
+        assertFalse(ret.isPresent());
+        assertTrue(context.exceptionWasThrown());
+        assertTrue(context.lastThrownException().get().isErrorObject());
+
+        JavaScriptFunctionObject fn =
+        context.getGlobalObject().get(context, JavaScriptString.create("Native"))
+                .get().asScriptObject().get(context, JavaScriptString.create("throwsException")).get().asScriptFunctionObject();
+        // will fail
+        ret = fn.call(context, context.getGlobalObject(), new JavaScriptValue[]{});
+        assertFalse(ret.isPresent());
+        assertTrue(context.exceptionWasThrown());
+        assertTrue(context.lastThrownException().get().isErrorObject());
+
+        Bridge.register(context, "Native", "throwsException", new Bridge.Adapter() {
+            @Override
+            public Optional<JavaScriptValue> callback(Context context, Optional<JavaScriptValue> data) {
+                JavaScriptErrorObject err = JavaScriptErrorObject.create(context, JavaScriptErrorObject.ErrorKind.None, "asdf");
+                err.setExtraData(Optional.of(new RuntimeException("asdf")));
+                context.throwException(err);
+                assertTrue(false);
+                return null;
+            }
+        });
+        Evaluator.evalScript(context, "Native.throwsException()", "");
+        ret = Evaluator.evalScript(context, "Native.throwsException()", "");
+        assertFalse(ret.isPresent());
+        assertTrue(context.exceptionWasThrown());
+        JavaScriptErrorObject err = context.lastThrownException().get().asScriptErrorObject();
+        assertTrue(err.extraData().get() instanceof RuntimeException);
+
+        ArrayList<Object> thenCalled = new ArrayList<>();
+        JavaScriptPromiseObject promise = JavaScriptPromiseObject.create(context);
+        promise.then(context, JavaScriptValue.createUndefined(), JavaScriptJavaCallbackFunctionObject.create(context, "", 0, false, new JavaScriptJavaCallbackFunctionObject.Callback() {
+            @Override
+            public Optional<JavaScriptValue> callback(Context context, JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                thenCalled.add(new Object());
+                assertTrue(arguments[0].isErrorObject());
+                assertTrue(arguments[0].toString(context).get().toJavaString().equals("Error: asdf"));
+                return Optional.empty();
+            }
+        }));
+        promise.reject(context, JavaScriptErrorObject.create(context, JavaScriptErrorObject.ErrorKind.None, "asdf"));
+        assertTrue(thenCalled.size() == 0);
+        vmInstance.executeEveryPendingJobIfExists();
+        assertTrue(thenCalled.size() == 1);
 
         context = null;
         vmInstance = null;
