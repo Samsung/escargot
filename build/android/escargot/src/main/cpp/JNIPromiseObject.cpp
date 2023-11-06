@@ -27,7 +27,7 @@ Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_create(JNIEnv* env, jclass
     THROW_NPE_RETURN_NULL(context, "Context");
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state) -> ValueRef* {
         return PromiseObjectRef::create(state);
     });
 
@@ -77,7 +77,7 @@ Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_then__Lcom_samsung_lwe_esc
     ValueRef* handlerRef = unwrapValueRefFromValue(env, env->GetObjectClass(handler), handler);
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* handlerRef) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* handlerRef) -> ValueRef* {
         return promiseObject->then(state, handlerRef);
     }, thisValueRef, handlerRef);
 
@@ -99,7 +99,7 @@ Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_then__Lcom_samsung_lwe_esc
     ValueRef* onRejectedRef = unwrapValueRefFromValue(env, env->GetObjectClass(onRejected), onRejected);
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* onFulfilledRef, ValueRef* onRejectedRef) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* onFulfilledRef, ValueRef* onRejectedRef) -> ValueRef* {
         return promiseObject->then(state, onFulfilledRef, onRejectedRef);
     }, thisValueRef, onFulfilledRef, onRejectedRef);
 
@@ -119,7 +119,7 @@ Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_catchOperation(JNIEnv* env
     ValueRef* handlerRef = unwrapValueRefFromValue(env, env->GetObjectClass(handler), handler);
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* handlerRef) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* handlerRef) -> ValueRef* {
         return promiseObject->catchOperation(state, handlerRef);
     }, thisValueRef, handlerRef);
 
@@ -138,7 +138,7 @@ Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_fulfill(JNIEnv* env, jobje
     ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* valueRef) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* valueRef) -> ValueRef* {
         promiseObject->fulfill(state, valueRef);
         return ValueRef::createUndefined();
     }, thisValueRef, valueRef);
@@ -156,7 +156,7 @@ Java_com_samsung_lwe_escargot_JavaScriptPromiseObject_reject(JNIEnv* env, jobjec
     ValueRef* reasonRef = unwrapValueRefFromValue(env, env->GetObjectClass(reason), reason);
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* reasonRef) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, PromiseObjectRef* promiseObject, ValueRef* reasonRef) -> ValueRef* {
         promiseObject->reject(state, reasonRef);
         return ValueRef::createUndefined();
     }, thisValueRef, reasonRef);

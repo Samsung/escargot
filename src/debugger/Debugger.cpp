@@ -434,7 +434,7 @@ error:
 
 void DebuggerRemote::getBacktrace(ExecutionState* state, uint32_t minDepth, uint32_t maxDepth, bool getTotal)
 {
-    SandBox::StackTraceDataVector stackTraceData;
+    StackTraceDataOnStackVector stackTraceData;
 
     bool hasSavedStackTrace = SandBox::createStackTrace(stackTraceData, *state, true);
 
@@ -1034,7 +1034,7 @@ void DebuggerRemote::waitForResolvingPendingBreakpoints()
 DebuggerRemote::SavedStackTraceDataVector* Debugger::saveStackTrace(ExecutionState& state)
 {
     SavedStackTraceDataVector* savedStackTrace = new SavedStackTraceDataVector();
-    SandBox::StackTraceDataVector stackTraceData;
+    StackTraceDataOnStackVector stackTraceData;
     ByteCodeLOCDataMap locMap;
     uint32_t counter = 0;
 

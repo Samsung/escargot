@@ -20,6 +20,7 @@
 
 JavaVM* g_jvm;
 size_t g_nonPointerValueLast = reinterpret_cast<size_t>(ValueRef::createUndefined());
+thread_local std::vector<ExecutionStateRef*> ExecutionStateRefTracker::g_lastExecutionStateVector;
 
 jobject createJavaValueObject(JNIEnv* env, jclass clazz, ValueRef* value)
 {

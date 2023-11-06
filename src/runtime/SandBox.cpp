@@ -62,7 +62,7 @@ void SandBox::processCatch(const Value& error, SandBoxResult& result)
     for (size_t i = 0; i < m_stackTraceDataVector.size(); i++) {
         if ((size_t)m_stackTraceDataVector[i].loc.index == SIZE_MAX && (size_t)m_stackTraceDataVector[i].loc.actualCodeBlock != SIZE_MAX) {
             // this means loc not computed yet.
-            StackTraceData traceData = m_stackTraceDataVector[i];
+            StackTraceDataOnStack traceData = m_stackTraceDataVector[i];
             ByteCodeBlock* block = traceData.loc.actualCodeBlock;
 
             ByteCodeLOCData* locData;
@@ -115,19 +115,19 @@ SandBox::SandBoxResult SandBox::run(Value (*scriptRunner)(ExecutionState&, void*
     return result;
 }
 
-SandBox::SandBoxResult SandBox::run(const std::function<Value()>& scriptRunner)
+SandBox::SandBoxResult SandBox::run(ExecutionState& parentState, Value (*runner)(ExecutionState&, void*), void* data)
 {
     SandBox::SandBoxResult result;
-
     try {
-        result.result = scriptRunner();
+        ExecutionState state(m_context, &parentState, reinterpret_cast<LexicalEnvironment*>(NULL), 0, nullptr, false);
+        result.result = runner(state, data);
     } catch (const Value& err) {
         processCatch(err, result);
     }
     return result;
 }
 
-bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, ExecutionState& state, bool stopAtPause)
+bool SandBox::createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector, ExecutionState& state, bool stopAtPause)
 {
     UNUSED_VARIABLE(stopAtPause);
 
@@ -200,7 +200,7 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
                     loc.actualCodeBlock = b;
                 }
             }
-            SandBox::StackTraceData data;
+            StackTraceDataOnStack data;
             data.loc = loc;
             data.srcName = cb->script()->srcName();
             data.sourceCode = cb->script()->sourceCode();
@@ -241,7 +241,7 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
                     loc.actualCodeBlock = b;
                 }
             }
-            SandBox::StackTraceData data;
+            StackTraceDataOnStack data;
             data.loc = loc;
             data.srcName = cb->script()->srcName();
             data.sourceCode = cb->script()->sourceCode();
@@ -262,7 +262,7 @@ bool SandBox::createStackTrace(StackTraceDataVector& stackTraceDataVector, Execu
             ASSERT(!!pState->m_calledNativeFunctionObject);
             NativeCodeBlock* cb = pState->m_calledNativeFunctionObject->codeBlock()->asNativeCodeBlock();
             ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);
-            SandBox::StackTraceData data;
+            StackTraceDataOnStack data;
             data.loc = loc;
 
             StringBuilder builder;
@@ -313,7 +313,7 @@ void SandBox::throwException(ExecutionState& state, const Value& exception)
     throw exception;
 }
 
-void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, StackTraceDataVector&& stackTraceDataVector)
+void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, StackTraceDataOnStackVector&& stackTraceDataVector)
 {
     m_stackTraceDataVector = stackTraceDataVector;
     // update stack trace data if needs
@@ -325,36 +325,26 @@ void SandBox::rethrowPreviouslyCaughtException(ExecutionState& state, Value exce
     throw exception;
 }
 
-static Value builtinErrorObjectStackInfo(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+StackTraceData* StackTraceData::create(SandBox* sandBox)
 {
-    if (!(LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isErrorObject()))) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get Error.prototype.stack called on incompatible receiver");
-    }
-
-    ErrorObject* obj = thisValue.asObject()->asErrorObject();
-    if (obj->stackTraceData() == nullptr) {
-        return String::emptyString;
-    }
-
-    auto stackTraceData = obj->stackTraceData();
-    StringBuilder builder;
-    stackTraceData->buildStackTrace(state.context(), builder);
-    return builder.finalize();
+    StackTraceData* data = create(sandBox->stackTraceDataVector());
+    data->exception = sandBox->exception();
+    return data;
 }
 
-ErrorObject::StackTraceData* ErrorObject::StackTraceData::create(SandBox* sandBox)
+StackTraceData* StackTraceData::create(StackTraceDataOnStackVector& stackData)
 {
-    ErrorObject::StackTraceData* data = new ErrorObject::StackTraceData();
-    data->gcValues.resizeWithUninitializedValues(sandBox->m_stackTraceDataVector.size());
-    data->nonGCValues.resizeWithUninitializedValues(sandBox->m_stackTraceDataVector.size());
-    data->exception = sandBox->m_exception;
+    StackTraceData* data = new StackTraceData();
+    data->gcValues.resizeWithUninitializedValues(stackData.size());
+    data->nonGCValues.resizeWithUninitializedValues(stackData.size());
+    data->exception = Value();
 
-    for (size_t i = 0; i < sandBox->m_stackTraceDataVector.size(); i++) {
-        if ((size_t)sandBox->m_stackTraceDataVector[i].loc.index == SIZE_MAX && (size_t)sandBox->m_stackTraceDataVector[i].loc.actualCodeBlock != SIZE_MAX) {
-            data->gcValues[i].byteCodeBlock = sandBox->m_stackTraceDataVector[i].loc.actualCodeBlock;
-            data->nonGCValues[i].byteCodePosition = sandBox->m_stackTraceDataVector[i].loc.byteCodePosition;
+    for (size_t i = 0; i < stackData.size(); i++) {
+        if ((size_t)stackData[i].loc.index == SIZE_MAX && (size_t)stackData[i].loc.actualCodeBlock != SIZE_MAX) {
+            data->gcValues[i].byteCodeBlock = stackData[i].loc.actualCodeBlock;
+            data->nonGCValues[i].byteCodePosition = stackData[i].loc.byteCodePosition;
         } else {
-            data->gcValues[i].infoString = sandBox->m_stackTraceDataVector[i].srcName;
+            data->gcValues[i].infoString = stackData[i].srcName;
             data->nonGCValues[i].byteCodePosition = SIZE_MAX;
         }
     }
@@ -362,7 +352,7 @@ ErrorObject::StackTraceData* ErrorObject::StackTraceData::create(SandBox* sandBo
     return data;
 }
 
-void ErrorObject::StackTraceData::buildStackTrace(Context* context, StringBuilder& builder)
+void StackTraceData::buildStackTrace(Context* context, StringBuilder& builder)
 {
     if (exception.isObject()) {
         ExecutionState state(context);
@@ -478,14 +468,7 @@ void SandBox::fillStackDataIntoErrorObject(const Value& e)
             return;
         }
 
-        ErrorObject::StackTraceData* data = ErrorObject::StackTraceData::create(this);
-        obj->setStackTraceData(data);
-
-        JSGetterSetter gs(
-            new NativeFunctionObject(state, NativeFunctionInfo(m_context->staticStrings().stack, builtinErrorObjectStackInfo, 0, NativeFunctionInfo::Strict)),
-            Value(Value::EmptyValue));
-        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        obj->defineOwnProperty(state, ObjectPropertyName(m_context->staticStrings().stack), desc);
+        obj->setStackTraceData(StackTraceData::create(this));
     }
 }
 } // namespace Escargot

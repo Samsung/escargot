@@ -53,11 +53,28 @@ Java_com_samsung_lwe_escargot_JavaScriptErrorObject_create(JNIEnv* env, jclass c
     StringRef* jsMessage = createJSStringFromJava(env, message);
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state,
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state,
                                                                     ErrorObjectRef::Code code, StringRef* jsMessage) -> ValueRef* {
         return ErrorObjectRef::create(state, code, jsMessage);
     }, code, jsMessage);
 
     assert(evaluatorResult.isSuccessful());
     return createJavaObjectFromValue(env, evaluatorResult.result->asErrorObject());
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptErrorObject_stack(JNIEnv* env, jobject thiz,
+                                                          jobject context)
+{
+    THROW_NPE_RETURN_NULL(context, "Context");
+
+    auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
+    ErrorObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asErrorObject();
+
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ErrorObjectRef* thisValueRef) -> ValueRef* {
+        return thisValueRef->getOwnProperty(state, StringRef::createFromASCII("stack"))->toString(state);
+    }, thisValueRef);
+
+    return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(), evaluatorResult);
 }

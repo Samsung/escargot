@@ -25,7 +25,7 @@
 namespace Escargot {
 
 class ByteCodeBlock;
-class SandBox;
+struct StackTraceData;
 
 enum class ErrorCode : uint8_t {
     None,
@@ -146,29 +146,6 @@ public:
 #endif
     };
 
-    struct StackTraceGCData {
-        union {
-            ByteCodeBlock* byteCodeBlock;
-            String* infoString;
-        };
-    };
-
-    struct StackTraceNonGCData {
-        size_t byteCodePosition;
-    };
-
-    struct StackTraceData : public gc {
-        TightVector<StackTraceGCData, GCUtil::gc_malloc_allocator<StackTraceGCData>> gcValues;
-        TightVector<StackTraceNonGCData, GCUtil::gc_malloc_atomic_allocator<StackTraceNonGCData>> nonGCValues;
-        Value exception;
-
-        void buildStackTrace(Context* context, StringBuilder& builder);
-        static StackTraceData* create(SandBox* sandBox);
-
-    private:
-        StackTraceData() {}
-    };
-
     static void throwBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString)
     {
         throwBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString);
@@ -184,24 +161,25 @@ public:
         throwBuiltinError(state, code, templateDataString, false, String::emptyString, templateString);
     }
 
-    static ErrorObject* createBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString)
+    static ErrorObject* createBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString, bool fillStackInfo = true)
     {
-        return createBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString);
+        return createBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString, fillStackInfo);
     }
 
-    static ErrorObject* createError(ExecutionState& state, ErrorCode code, String* errorMessage);
-    static ErrorObject* createBuiltinError(ExecutionState& state, ErrorCode code, String* objectName, bool prototype, String* functionName, const char* templateString);
+    static ErrorObject* createError(ExecutionState& state, ErrorCode code, String* errorMessage, bool fillStackInfo = true);
+    static ErrorObject* createBuiltinError(ExecutionState& state, ErrorCode code, String* objectName, bool prototype, String* functionName, const char* templateString, bool fillStackInfo = true);
     static void throwBuiltinError(ExecutionState& state, ErrorCode code, String* objectName, bool prototype, String* functionName, const char* templateString);
     static void throwBuiltinError(ExecutionState& state, ErrorCode code, String* errorMessage);
 
-    ErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+    ErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
+    void updateStackTraceData(ExecutionState& state);
 
     virtual bool isErrorObject() const
     {
         return true;
     }
 
-    StackTraceData* stackTraceData()
+    Optional<StackTraceData*> stackTraceData()
     {
         return m_stackTraceData;
     }
@@ -212,58 +190,58 @@ public:
     }
 
 private:
-    StackTraceData* m_stackTraceData;
+    Optional<StackTraceData*> m_stackTraceData;
 };
 
 class ReferenceErrorObject : public ErrorObject {
 public:
-    ReferenceErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+    ReferenceErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
 };
 
 class TypeErrorObject : public ErrorObject {
 public:
-    TypeErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+    TypeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
 };
 
 class SyntaxErrorObject : public ErrorObject {
 public:
-    SyntaxErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+    SyntaxErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
 };
 
 class RangeErrorObject : public ErrorObject {
 public:
-    RangeErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+    RangeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
 };
 
 class URIErrorObject : public ErrorObject {
 public:
-    URIErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+    URIErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
 };
 
 class EvalErrorObject : public ErrorObject {
 public:
-    EvalErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+    EvalErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
 };
 
 class AggregateErrorObject : public ErrorObject {
 public:
-    AggregateErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+    AggregateErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
 };
 
 #if defined(ENABLE_WASM)
 class WASMCompileErrorObject : public ErrorObject {
 public:
-    WASMCompileErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+    WASMCompileErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
 };
 
 class WASMLinkErrorObject : public ErrorObject {
 public:
-    WASMLinkErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+    WASMLinkErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
 };
 
 class WASMRuntimeErrorObject : public ErrorObject {
 public:
-    WASMRuntimeErrorObject(ExecutionState& state, Object* proto, String* errorMessage);
+    WASMRuntimeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
 };
 #endif
 } // namespace Escargot

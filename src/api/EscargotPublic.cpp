@@ -1085,6 +1085,29 @@ Evaluator::EvaluatorResult Evaluator::executeFunction(ContextRef* ctx, ValueRef*
     return toEvaluatorResultRef(result);
 }
 
+Evaluator::EvaluatorResult Evaluator::executeFunction(ExecutionStateRef* parentState, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData, void* passedData2), void* data, void* data2)
+{
+    SandBox sb(toImpl(parentState)->context());
+
+    struct DataSender {
+        void* fn;
+        void* data;
+        void* data2;
+    } sender;
+
+    sender.fn = (void*)runner;
+    sender.data = data;
+    sender.data2 = data2;
+
+    auto result = sb.run(*toImpl(parentState), [](ExecutionState& state, void* data) -> Value {
+        DataSender* sender = (DataSender*)data;
+        ValueRef* (*runner)(ExecutionStateRef * state, void* passedData, void* passedData2) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData, void* passedData2)) sender->fn;
+        return toImpl(runner(toRef(&state), sender->data, sender->data2));
+    },
+                         &sender);
+    return toEvaluatorResultRef(result);
+}
+
 COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::Init == (int)VMInstance::PromiseHookType::Init, "");
 COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::Resolve == (int)VMInstance::PromiseHookType::Resolve, "");
 COMPILE_ASSERT((int)VMInstanceRef::PromiseHookType::Before == (int)VMInstance::PromiseHookType::Before, "");
@@ -1260,7 +1283,7 @@ StringRef* DebuggerOperationsRef::BreakpointOperations::eval(StringRef* sourceCo
 void DebuggerOperationsRef::BreakpointOperations::getStackTrace(DebuggerOperationsRef::DebuggerStackTraceDataVector& outStackTrace)
 {
     ExecutionState* state = toImpl(m_executionState);
-    SandBox::StackTraceDataVector stackTraceDataVector;
+    StackTraceDataOnStackVector stackTraceDataVector;
 
     bool hasSavedStackTrace = SandBox::createStackTrace(stackTraceDataVector, *state, true);
     ByteCodeLOCDataMap locMap;
@@ -3150,7 +3173,7 @@ GCManagedVector<Evaluator::StackTraceData> ExecutionStateRef::computeStackTrace(
 {
     ExecutionState* state = toImpl(this);
 
-    SandBox::StackTraceDataVector stackTraceDataVector;
+    StackTraceDataOnStackVector stackTraceDataVector;
     SandBox::createStackTrace(stackTraceDataVector, *state);
 
     GCManagedVector<Evaluator::StackTraceData> result(stackTraceDataVector.size());
@@ -3623,6 +3646,11 @@ COMPILE_ASSERT((int)ErrorCode::EvalError == (int)ErrorObjectRef::Code::EvalError
 ErrorObjectRef* ErrorObjectRef::create(ExecutionStateRef* state, ErrorObjectRef::Code code, StringRef* errorMessage)
 {
     return toRef(ErrorObject::createError(*toImpl(state), (ErrorCode)code, toImpl(errorMessage)));
+}
+
+void ErrorObjectRef::updateStackTraceData(ExecutionStateRef* state)
+{
+    toImpl(this)->updateStackTraceData(*toImpl(state));
 }
 
 ReferenceErrorObjectRef* ReferenceErrorObjectRef::create(ExecutionStateRef* state, StringRef* errorMessage)

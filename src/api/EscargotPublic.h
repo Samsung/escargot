@@ -585,17 +585,25 @@ public:
         return executeImpl(ctx, Closure(closure), args...);
     }
 
+    template <typename... Args, typename F>
+    static EvaluatorResult execute(ExecutionStateRef* parent, F&& closure, Args... args)
+    {
+        typedef ValueRef* (*Closure)(ExecutionStateRef * state, Args...);
+        return executeImpl(parent, Closure(closure), args...);
+    }
+
     static EvaluatorResult executeFunction(ContextRef* ctx, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData), void* data);
     static EvaluatorResult executeFunction(ContextRef* ctx, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData, void* passedData2), void* data, void* data2);
+    static EvaluatorResult executeFunction(ExecutionStateRef* parent, ValueRef* (*runner)(ExecutionStateRef* state, void* passedData, void* passedData2), void* data, void* data2);
 
 private:
-    template <typename... Args>
-    static EvaluatorResult executeImpl(ContextRef* ctx, ValueRef* (*fn)(ExecutionStateRef* state, Args...), Args... args)
+    template <typename P, typename... Args>
+    static EvaluatorResult executeImpl(P* p, ValueRef* (*fn)(ExecutionStateRef* state, Args...), Args... args)
     {
         typedef ValueRef* (*Closure)(ExecutionStateRef * state, Args...);
         std::tuple<ExecutionStateRef*, Args...> tuple = std::tuple<ExecutionStateRef*, Args...>(nullptr, args...);
 
-        return executeFunction(ctx, [](ExecutionStateRef* state, void* tuplePtr, void* fnPtr) -> ValueRef* {
+        return executeFunction(p, [](ExecutionStateRef* state, void* tuplePtr, void* fnPtr) -> ValueRef* {
             std::tuple<ExecutionStateRef*, Args...>* tuple = (std::tuple<ExecutionStateRef*, Args...>*)tuplePtr;
             Closure fn = (Closure)fnPtr;
 
@@ -1606,6 +1614,7 @@ public:
         AggregateError,
     };
     static ErrorObjectRef* create(ExecutionStateRef* state, ErrorObjectRef::Code code, StringRef* errorMessage);
+    void updateStackTraceData(ExecutionStateRef* state); // update stacktrace data
 };
 
 class ESCARGOT_EXPORT ReferenceErrorObjectRef : public ErrorObjectRef {

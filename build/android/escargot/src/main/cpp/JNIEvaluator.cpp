@@ -61,21 +61,22 @@ static Evaluator::EvaluatorResult evalScript(ContextRef* context, StringRef* sou
         return evalResult;
     }
 
-    auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
+    auto evalResult = ScriptEvaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
                                              return script->execute(state);
                                          },
                                          scriptInitializeResult.script.get());
 
     if (!evalResult.isSuccessful()) {
-        LOGD("Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
-        for (size_t i = 0; i < evalResult.stackTrace.size(); i++) {
-            LOGD("%s (%d:%d)\n", evalResult.stackTrace[i].srcName->toStdUTF8String().data(), (int)evalResult.stackTrace[i].loc.line, (int)evalResult.stackTrace[i].loc.column);
+        if (shouldPrintScriptResult) {
+            LOGD("Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
+            for (size_t i = 0; i < evalResult.stackTrace.size(); i++) {
+                LOGD("%s (%d:%d)\n", evalResult.stackTrace[i].srcName->toStdUTF8String().data(), (int)evalResult.stackTrace[i].loc.line, (int)evalResult.stackTrace[i].loc.column);
+            }
         }
-        return evalResult;
-    }
-
-    if (shouldPrintScriptResult) {
-        LOGD("%s", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
+    } else {
+        if (shouldPrintScriptResult) {
+            LOGD("%s", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
+        }
     }
 
     if (shouldExecutePendingJobsAtEnd) {

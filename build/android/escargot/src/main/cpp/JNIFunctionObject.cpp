@@ -56,6 +56,7 @@ Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv
                     return ValueRef::createUndefined();
                 }
 
+                ExecutionStateRefTracker tracker(state);
                 env->PushLocalFrame(32);
                 jobject callback = ensureScriptObjectExtraData(state->resolveCallee().get())->implementSideData;
                 auto callbackMethodId = env->GetMethodID(env->GetObjectClass(callback), "callback",
@@ -98,7 +99,7 @@ Java_com_samsung_lwe_escargot_JavaScriptJavaCallbackFunctionObject_create(JNIEnv
             argumentCount,
             isConstructor);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(),
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(),
                                               [](ExecutionStateRef* state, FunctionObjectRef::NativeFunctionInfo info) -> ValueRef* {
                                                   return FunctionObjectRef::create(state, info);
                                               }, info);
