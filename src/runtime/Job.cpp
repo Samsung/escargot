@@ -51,39 +51,41 @@ SandBox::SandBoxResult PromiseReactionJob::run()
 
     // https://www.ecma-international.org/ecma-262/10.0/#sec-promisereactionjob
     SandBox sandbox(context);
-    SandBox::SandBoxResult result = sandbox.run([&]() -> Value {
+    SandBox::SandBoxResult result = sandbox.run(state, [](ExecutionState& state, void* data) -> Value {
+        PromiseReactionJob* self = reinterpret_cast<PromiseReactionJob*>(data);
         /* 25.4.2.1.4 Handler is "Identity" case */
-        if (m_reaction.m_handler == (Object*)1) {
-            Value value[] = { m_argument };
-            return Object::call(state, m_reaction.m_capability.m_resolveFunction, Value(), 1, value);
+        if (self->m_reaction.m_handler == (Object*)1) {
+            Value value[] = { self->m_argument };
+            return Object::call(state, self->m_reaction.m_capability.m_resolveFunction, Value(), 1, value);
         }
 
         /* 25.4.2.1.5 Handler is "Thrower" case */
-        if (m_reaction.m_handler == (Object*)2) {
-            Value value[] = { m_argument };
-            return Object::call(state, m_reaction.m_capability.m_rejectFunction, Value(), 1, value);
+        if (self->m_reaction.m_handler == (Object*)2) {
+            Value value[] = { self->m_argument };
+            return Object::call(state, self->m_reaction.m_capability.m_rejectFunction, Value(), 1, value);
         }
 
         Value res;
         try {
-            Value argument = m_argument;
-            res = Object::call(state, m_reaction.m_handler, Value(), 1, &argument);
+            Value argument = self->m_argument;
+            res = Object::call(state, self->m_reaction.m_handler, Value(), 1, &argument);
             // m_reaction.m_capability can be null when there was no result capability when promise.then()
-            if (m_reaction.m_capability.m_promise != nullptr) {
+            if (self->m_reaction.m_capability.m_promise != nullptr) {
                 Value value[] = { res };
-                Object::call(state, m_reaction.m_capability.m_resolveFunction, Value(), 1, value);
+                Object::call(state, self->m_reaction.m_capability.m_resolveFunction, Value(), 1, value);
             }
         } catch (const Value& v) {
             Value reason = v;
-            if (m_reaction.m_capability.m_rejectFunction) {
-                return Object::call(state, m_reaction.m_capability.m_rejectFunction, Value(), 1, &reason);
+            if (self->m_reaction.m_capability.m_rejectFunction) {
+                return Object::call(state, self->m_reaction.m_capability.m_rejectFunction, Value(), 1, &reason);
             } else {
                 state.throwException(reason);
             }
         }
 
         return res;
-    });
+    },
+                                                this);
 
 #ifdef ESCARGOT_DEBUGGER
     if (activeSavedStackTraceExecutionState != ESCARGOT_DEBUGGER_NO_STACK_TRACE_RESTORE) {
@@ -104,22 +106,23 @@ SandBox::SandBoxResult PromiseResolveThenableJob::run()
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-promiseresolvethenablejob
     SandBox sandbox(relatedContext());
-    ExecutionState state(relatedContext());
-    return sandbox.run([&]() -> Value {
+    return sandbox.run([](ExecutionState& state, void* data) -> Value {
+        PromiseResolveThenableJob* self = reinterpret_cast<PromiseResolveThenableJob*>(data);
         auto strings = &state.context()->staticStrings();
-        PromiseReaction::Capability capability = m_promise->createResolvingFunctions(state);
+        PromiseReaction::Capability capability = self->m_promise->createResolvingFunctions(state);
 
         Value result;
         try {
             Value arguments[] = { capability.m_resolveFunction, capability.m_rejectFunction };
-            result = Object::call(state, m_then, m_thenable, 2, arguments);
+            result = Object::call(state, self->m_then, self->m_thenable, 2, arguments);
         } catch (const Value& v) {
             Value reason = v;
             return Object::call(state, capability.m_rejectFunction, Value(), 1, &reason);
         }
 
         return result;
-    });
+    },
+                       this);
 }
 
 SandBox::SandBoxResult CleanupSomeJob::run()

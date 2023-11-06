@@ -3053,7 +3053,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
         newState->ensureRareData()->m_controlFlowRecord = state->rareData()->m_controlFlowRecord;
     }
 
-    SandBox::StackTraceDataVector stackTraceDataVector;
+    StackTraceDataOnStackVector stackTraceDataVector;
 
     if (LIKELY(!code->m_isCatchResumeProcess && !code->m_isFinallyResumeProcess)) {
         try {
@@ -3099,7 +3099,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
 #ifndef NDEBUG
             char* dumpErrorInTryCatch = getenv("DUMP_ERROR_IN_TRY_CATCH");
             if (dumpErrorInTryCatch && (strcmp(dumpErrorInTryCatch, "1") == 0)) {
-                ErrorObject::StackTraceData* data = ErrorObject::StackTraceData::create(newState->context()->vmInstance()->currentSandBox());
+                StackTraceData* data = StackTraceData::create(newState->context()->vmInstance()->currentSandBox());
                 StringBuilder builder;
                 builder.appendString("Caught error in try-catch block\n");
                 data->buildStackTrace(newState->context(), builder);

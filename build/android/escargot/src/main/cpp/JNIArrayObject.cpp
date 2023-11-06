@@ -27,7 +27,7 @@ Java_com_samsung_lwe_escargot_JavaScriptArrayObject_create(JNIEnv* env, jclass c
     THROW_NPE_RETURN_NULL(context, "Context");
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state) -> ValueRef* {
         return ArrayObjectRef::create(state);
     });
 
@@ -45,7 +45,7 @@ Java_com_samsung_lwe_escargot_JavaScriptArrayObject_length(JNIEnv* env, jobject 
     ArrayObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asArrayObject();
 
     int64_t length = 0;
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ArrayObjectRef* thisValueRef, int64_t* pLength) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ArrayObjectRef* thisValueRef, int64_t* pLength) -> ValueRef* {
         *pLength = static_cast<int64_t>(thisValueRef->length(state));
         return ValueRef::createUndefined();
     }, thisValueRef, &length);
@@ -63,7 +63,7 @@ Java_com_samsung_lwe_escargot_JavaScriptArrayObject_setLength(JNIEnv* env, jobje
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ArrayObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asArrayObject();
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ArrayObjectRef* thisValueRef, jlong pLength) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ArrayObjectRef* thisValueRef, jlong pLength) -> ValueRef* {
         if (pLength >= 0) {
             thisValueRef->setLength(state, static_cast<uint64_t>(pLength));
         } else {

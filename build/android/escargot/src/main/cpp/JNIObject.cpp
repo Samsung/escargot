@@ -26,7 +26,7 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_create(JNIEnv* env, jclass clazz,
     THROW_NPE_RETURN_NULL(context, "Context");
 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state) -> ValueRef* {
         return ObjectRef::create(state);
     });
 
@@ -46,7 +46,7 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_get(JNIEnv* env, jobject thiz, jo
     ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
     ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
         return thisValueRef->get(state, propertyNameValueRef);
     }, thisValueRef, propertyNameValueRef);
 
@@ -68,7 +68,7 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_set(JNIEnv* env, jobject thiz, jo
     ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
     ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef) -> ValueRef* {
         return ValueRef::create(thisValueRef->set(state, propertyNameValueRef, valueRef));
     }, thisValueRef, propertyNameValueRef, valueRef);
 
@@ -95,7 +95,7 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_defineDataProperty(JNIEnv* env, j
     ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
     ValueRef* valueRef = unwrapValueRefFromValue(env, env->GetObjectClass(value), value);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef,
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef, ValueRef* valueRef,
                                                                     jboolean isWritable,
                                                                     jboolean isEnumerable,
                                                                     jboolean isConfigurable) -> ValueRef* {
@@ -119,7 +119,7 @@ Java_com_samsung_lwe_escargot_JavaScriptObject_getOwnProperty(JNIEnv* env, jobje
     ObjectRef* thisValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asObject();
     ValueRef* propertyNameValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(propertyName), propertyName);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, ObjectRef* thisValueRef, ValueRef* propertyNameValueRef) -> ValueRef* {
         return thisValueRef->getOwnProperty(state, propertyNameValueRef);
     }, thisValueRef, propertyNameValueRef);
 

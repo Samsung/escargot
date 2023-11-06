@@ -26,6 +26,64 @@ namespace Escargot {
 
 struct ExtendedNodeLOC;
 
+struct StackTraceDataOnStack : public gc {
+    String* srcName;
+    String* sourceCode;
+    ExtendedNodeLOC loc;
+    String* functionName;
+
+#ifdef ESCARGOT_DEBUGGER
+    uint32_t executionStateDepth;
+#endif /* ESCARGOT_DEBUGGER */
+    Optional<FunctionObject*> callee;
+    bool isFunction;
+    bool isConstructor;
+    bool isAssociatedWithJavaScriptCode;
+    bool isEval;
+
+    StackTraceDataOnStack()
+        : srcName(String::emptyString)
+        , sourceCode(String::emptyString)
+        , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
+        , functionName(String::emptyString)
+#ifdef ESCARGOT_DEBUGGER
+        , executionStateDepth(0)
+#endif /* ESCARGOT_DEBUGGER */
+        , callee(nullptr)
+        , isFunction(false)
+        , isConstructor(false)
+        , isAssociatedWithJavaScriptCode(false)
+        , isEval(false)
+    {
+    }
+};
+
+typedef Vector<StackTraceDataOnStack, GCUtil::gc_malloc_allocator<StackTraceDataOnStack>> StackTraceDataOnStackVector;
+
+struct StackTraceGCData {
+    union {
+        ByteCodeBlock* byteCodeBlock;
+        String* infoString;
+    };
+};
+
+struct StackTraceNonGCData {
+    size_t byteCodePosition;
+};
+
+struct StackTraceData : public gc {
+    TightVector<StackTraceGCData, GCUtil::gc_malloc_allocator<StackTraceGCData>> gcValues;
+    TightVector<StackTraceNonGCData, GCUtil::gc_malloc_atomic_allocator<StackTraceNonGCData>> nonGCValues;
+    Value exception;
+
+    void buildStackTrace(Context* context, StringBuilder& builder);
+    static StackTraceData* create(SandBox* sandBox);
+    static StackTraceData* create(StackTraceDataOnStackVector& data);
+
+private:
+    StackTraceData() {}
+};
+
 class SandBox : public gc {
     friend class InterpreterSlowPath;
     friend class ErrorObject;
@@ -34,44 +92,10 @@ public:
     explicit SandBox(Context* s);
     ~SandBox();
 
-    struct StackTraceData : public gc {
-        String* srcName;
-        String* sourceCode;
-        ExtendedNodeLOC loc;
-        String* functionName;
-
-#ifdef ESCARGOT_DEBUGGER
-        uint32_t executionStateDepth;
-#endif /* ESCARGOT_DEBUGGER */
-        Optional<FunctionObject*> callee;
-        bool isFunction;
-        bool isConstructor;
-        bool isAssociatedWithJavaScriptCode;
-        bool isEval;
-
-        StackTraceData()
-            : srcName(String::emptyString)
-            , sourceCode(String::emptyString)
-            , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-            , functionName(String::emptyString)
-#ifdef ESCARGOT_DEBUGGER
-            , executionStateDepth(0)
-#endif /* ESCARGOT_DEBUGGER */
-            , callee(nullptr)
-            , isFunction(false)
-            , isConstructor(false)
-            , isAssociatedWithJavaScriptCode(false)
-            , isEval(false)
-        {
-        }
-    };
-
-    typedef Vector<StackTraceData, GCUtil::gc_malloc_allocator<StackTraceData>> StackTraceDataVector;
-
     struct SandBoxResult {
         Value result;
         Value error;
-        StackTraceDataVector stackTrace;
+        StackTraceDataOnStackVector stackTrace;
 
         SandBoxResult()
             : result(Value::EmptyValue)
@@ -80,20 +104,25 @@ public:
         }
     };
 
-    SandBoxResult run(const std::function<Value()>& scriptRunner); // for capsule script executing with try-catch
     SandBoxResult run(Value (*runner)(ExecutionState&, void*), void* data);
+    SandBoxResult run(ExecutionState& parentState, Value (*runner)(ExecutionState&, void*), void* data);
 
-    static bool createStackTrace(StackTraceDataVector& stackTraceDataVector, ExecutionState& state, bool stopAtPause = false);
+    static bool createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector, ExecutionState& state, bool stopAtPause = false);
 
     void throwException(ExecutionState& state, const Value& exception);
-    void rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, StackTraceDataVector&& stackTraceDataVector);
+    void rethrowPreviouslyCaughtException(ExecutionState& state, Value exception, StackTraceDataOnStackVector&& stackTraceDataVector);
 
-    StackTraceDataVector& stackTraceDataVector()
+    StackTraceDataOnStackVector& stackTraceDataVector()
     {
         return m_stackTraceDataVector;
     }
 
-    Context* context()
+    Value exception() const
+    {
+        return m_exception;
+    }
+
+    Context* context() const
     {
         return m_context;
     }
@@ -105,7 +134,7 @@ protected:
 private:
     Context* m_context;
     SandBox* m_oldSandBox;
-    StackTraceDataVector m_stackTraceDataVector;
+    StackTraceDataOnStackVector m_stackTraceDataVector;
     Value m_exception; // To avoid accidential GC of exception value
 };
 } // namespace Escargot

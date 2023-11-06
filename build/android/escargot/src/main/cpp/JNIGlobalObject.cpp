@@ -31,7 +31,7 @@ Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_jsonStringify(JNIEnv* env, 
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* inputValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(input), input);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* inputValueRef) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* inputValueRef) -> ValueRef* {
         return globalObject->jsonStringify()->call(state, globalObject->json(), 1, &inputValueRef);
     }, globalObjectRef->get(), inputValueRef);
 
@@ -51,7 +51,7 @@ Java_com_samsung_lwe_escargot_JavaScriptGlobalObject_jsonParse(JNIEnv* env, jobj
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* inputValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(input), input);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* inputValueRef) -> ValueRef* {
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), [](ExecutionStateRef* state, GlobalObjectRef* globalObject, ValueRef* inputValueRef) -> ValueRef* {
         return globalObject->jsonParse()->call(state, globalObject->json(), 1, &inputValueRef);
     }, globalObjectRef->get(), inputValueRef);
 
@@ -69,7 +69,7 @@ static jobject callPromiseBuiltinFunction(JNIEnv* env, jobject thiz, jobject con
     auto contextRef = getPersistentPointerFromJava<ContextRef>(env, env->GetObjectClass(context), context);
     ValueRef* iterableValueRef = unwrapValueRefFromValue(env, env->GetObjectClass(iterable), iterable);
 
-    auto evaluatorResult = Evaluator::execute(contextRef->get(), closure, globalObjectRef->get(), iterableValueRef);
+    auto evaluatorResult = ScriptEvaluator::execute(contextRef->get(), closure, globalObjectRef->get(), iterableValueRef);
 
     return createOptionalValueFromEvaluatorJavaScriptValueResult(env, context, contextRef->get(),
                                                                  evaluatorResult);

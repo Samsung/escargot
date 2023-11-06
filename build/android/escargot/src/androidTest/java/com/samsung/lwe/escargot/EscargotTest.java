@@ -1827,22 +1827,85 @@ public class EscargotTest {
         assertTrue(context.exceptionWasThrown());
         assertTrue(context.lastThrownException().get().isErrorObject());
 
-        Bridge.register(context, "Native", "throwsException", new Bridge.Adapter() {
+        Bridge.register(context, "Native", "empty", new Bridge.Adapter() {
             @Override
             public Optional<JavaScriptValue> callback(Context context, Optional<JavaScriptValue> data) {
                 JavaScriptErrorObject err = JavaScriptErrorObject.create(context, JavaScriptErrorObject.ErrorKind.None, "asdf");
+                Optional<JavaScriptString> stack = err.stack(context);
+                return Optional.of(stack.get());
+            }
+        });
+
+        ret = Evaluator.evalScript(context, "function foo() { return Native.empty() }\nfunction bar() { return foo() }\nbar();", "test.js");
+        assertTrue(ret.isPresent());
+        assertFalse(context.exceptionWasThrown());
+        assertEquals(ret.get().asScriptString().toJavaString(), "at function empty() { [native function] } \n" +
+                "at test.js:1:24\n" +
+                "function foo() { return Native.empty() }\n" +
+                "                        ^\n" +
+                "at test.js:2:24\n" +
+                "function bar() { return foo() }\n" +
+                "                        ^\n" +
+                "at test.js:3:1\n" +
+                "bar()\n" +
+                "^");
+
+        final JavaScriptErrorObject err = JavaScriptErrorObject.create(context, JavaScriptErrorObject.ErrorKind.None, "asdf");
+        assertEquals(err.stack(context).get().toJavaString(), "");
+        Bridge.register(context, "Native", "throwsException", new Bridge.Adapter() {
+            @Override
+            public Optional<JavaScriptValue> callback(Context context, Optional<JavaScriptValue> data) {
                 err.setExtraData(Optional.of(new RuntimeException("asdf")));
                 context.throwException(err);
                 assertTrue(false);
                 return null;
             }
         });
-        Evaluator.evalScript(context, "Native.throwsException()", "");
-        ret = Evaluator.evalScript(context, "Native.throwsException()", "");
+        ret = Evaluator.evalScript(context, "function foo() { Native.throwsException() }\nfunction bar() { foo() }\nbar();", "test.js");
         assertFalse(ret.isPresent());
         assertTrue(context.exceptionWasThrown());
-        JavaScriptErrorObject err = context.lastThrownException().get().asScriptErrorObject();
-        assertTrue(err.extraData().get() instanceof RuntimeException);
+        JavaScriptErrorObject errResult = context.lastThrownException().get().asScriptErrorObject();
+        assertTrue(errResult.extraData().get() instanceof RuntimeException);
+        assertEquals(errResult.stack(context).get().toJavaString(),
+                "at function throwsException() { [native function] } \n" +
+                        "at test.js:1:17\n" +
+                        "function foo() { Native.throwsException() }\n" +
+                        "                 ^\n" +
+                        "at test.js:2:17\n" +
+                        "function bar() { foo() }\n" +
+                        "                 ^\n" +
+                        "at test.js:3:1\n" +
+                        "bar()\n" +
+                        "^");
+
+        JavaScriptJavaCallbackFunctionObject callbackFunctionObject =
+                JavaScriptJavaCallbackFunctionObject.create(context,
+                        "fnname",
+                        0,
+                        false,
+                        new JavaScriptJavaCallbackFunctionObject.Callback() {
+                            @Override
+                            public Optional<JavaScriptValue> callback(Context context, JavaScriptValue receiverValue, JavaScriptValue[] arguments) {
+                                JavaScriptErrorObject err = JavaScriptErrorObject.create(context, JavaScriptErrorObject.ErrorKind.None, "asdf");
+                                Optional<JavaScriptString> stack = err.stack(context);
+                                return Optional.of(stack.get());
+                            }
+                        });
+        context.getGlobalObject().set(context, JavaScriptString.create("asdf"), callbackFunctionObject);
+        ret = Evaluator.evalScript(context, "function foo() { return asdf() }\nfunction bar() { return foo() }\nbar();", "test.js");
+        assertTrue(ret.isPresent());
+        assertFalse(context.exceptionWasThrown());
+
+        assertEquals(ret.get().asScriptString().toJavaString(), "at function fnname() { [native function] } \n" +
+                "at test.js:1:24\n" +
+                "function foo() { return asdf() }\n" +
+                "                        ^\n" +
+                "at test.js:2:24\n" +
+                "function bar() { return foo() }\n" +
+                "                        ^\n" +
+                "at test.js:3:1\n" +
+                "bar()\n" +
+                "^");
 
         ArrayList<Object> thenCalled = new ArrayList<>();
         JavaScriptPromiseObject promise = JavaScriptPromiseObject.create(context);
