@@ -55,6 +55,7 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
 #if defined(ENABLE_TCO)
     , m_tcoDisabled(false)
 #endif
+    , m_needsExtendedExecutionState(codeBlock->isAsync() || codeBlock->isGenerator())
     , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
     , m_lexicallyDeclaredNames(new std::vector<std::pair<size_t, AtomicString>>())
     , m_positionToContinue(0)
@@ -132,6 +133,7 @@ void ByteCodeGenerateContext::morphJumpPositionIntoComplexCase(ByteCodeBlock* cb
         m_byteCodeBlock->m_jumpFlowRecordData.pushBack(JumpFlowRecord((cb->peekCode<Jump>(codePos)->m_jumpPosition), iter->second, outerLimitCount));
         new (cb->m_code.data() + codePos) JumpComplexCase(index);
         m_complexCaseStatementPositions.erase(iter);
+        m_needsExtendedExecutionState = true;
     }
 }
 
@@ -280,6 +282,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
     }
 
     block->m_requiredTotalRegisterNumber = block->m_requiredOperandRegisterNumber + codeBlock->totalStackAllocatedVariableSize() + block->m_numeralLiteralData.size();
+    block->m_needsExtendedExectuionState = ctx.m_needsExtendedExecutionState;
 
 #if defined(ENABLE_CODE_CACHE)
     // cache bytecode right before relocation

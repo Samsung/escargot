@@ -376,9 +376,13 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
 
     ExecutionState* newState;
     if (LIKELY(!m_topCodeBlock->isAsync())) {
-        newState = new (alloca(sizeof(ExecutionState))) ExecutionState(context(), state.stackLimit());
+        if (byteCodeBlock->needsExtendedExecutionState()) {
+            newState = new (alloca(sizeof(ExtendedExecutionState))) ExtendedExecutionState(context(), state.stackLimit());
+        } else {
+            newState = new (alloca(sizeof(ExecutionState))) ExecutionState(context(), state.stackLimit());
+        }
     } else {
-        newState = new ExecutionState(context(), nullptr, nullptr, 0, nullptr, false, ExecutionState::ForPauser);
+        newState = new ExtendedExecutionState(context(), nullptr, nullptr, 0, nullptr, false, ExtendedExecutionState::ForPauser);
     }
     ExecutionState* codeExecutionState = newState;
 
@@ -392,7 +396,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         // NOTE: ES5 10.4.2.1 eval in strict mode
         // + Indirect eval code creates a new declarative environment for lexically-scoped declarations (let)
         EnvironmentRecord* newVariableRecord = new DeclarativeEnvironmentRecordNotIndexed(state, true);
-        ExecutionState* newVariableState = new ExecutionState(context());
+        ExecutionState* newVariableState = new ExtendedExecutionState(context());
         newVariableState->setLexicalEnvironment(new LexicalEnvironment(newVariableRecord, globalLexicalEnvironment), m_topCodeBlock->isStrict());
         newVariableState->setParent(newState);
         codeExecutionState = newVariableState;
@@ -502,7 +506,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
         auto ep = new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->byteCodeBlock());
         newState->setPauseSource(ep);
         ep->m_promiseCapability = PromiseObject::newPromiseCapability(*newState, newState->context()->globalObject()->promise());
-        resultValue = ExecutionPauser::start(*newState, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async);
+        resultValue = ExecutionPauser::start(*newState, newState->pauseSource().value(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async);
     }
 
     return resultValue;
@@ -576,7 +580,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     }
 
     LexicalEnvironment* newEnvironment = new LexicalEnvironment(record, state.lexicalEnvironment());
-    ExecutionState newState(&state, newEnvironment, m_topCodeBlock->isStrict());
+    ExtendedExecutionState newState(&state, newEnvironment, m_topCodeBlock->isStrict());
 
     const size_t literalStorageSize = byteCodeBlock->m_numeralLiteralData.size();
     const size_t registerFileSize = byteCodeBlock->m_requiredTotalRegisterNumber;
@@ -620,7 +624,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     }
 
     // add CodeBlock to be used in exception handling process
-    newState.ensureRareData()->m_codeBlock = m_topCodeBlock;
+    newState.rareData()->m_codeBlock = m_topCodeBlock;
     Value resultValue = Interpreter::interpret(&newState, byteCodeBlock, reinterpret_cast<size_t>(byteCodeBlock->m_code.data()), registerFile);
     clearStack<512>();
 
@@ -1083,9 +1087,13 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
 
     ExecutionState* newState;
     if (LIKELY(!m_topCodeBlock->isAsync())) {
-        newState = new (alloca(sizeof(ExecutionState))) ExecutionState(context(), state.stackLimit());
+        if (byteCodeBlock->needsExtendedExecutionState()) {
+            newState = new (alloca(sizeof(ExtendedExecutionState))) ExtendedExecutionState(context(), state.stackLimit());
+        } else {
+            newState = new (alloca(sizeof(ExecutionState))) ExecutionState(context(), state.stackLimit());
+        }
     } else {
-        newState = new ExecutionState(context(), nullptr, nullptr, 0, nullptr, false, ExecutionState::ForPauser);
+        newState = new ExtendedExecutionState(context(), nullptr, nullptr, 0, nullptr, false, ExtendedExecutionState::ForPauser);
     }
     newState->setLexicalEnvironment(new LexicalEnvironment(moduleData()->m_moduleRecord, globalLexicalEnv), true);
 
@@ -1132,7 +1140,7 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
         auto ep = new ExecutionPauser(state, fakeFunctionObject, newState, registerFile, m_topCodeBlock->byteCodeBlock());
         newState->setPauseSource(ep);
         ep->m_promiseCapability = capability.value();
-        resultValue = ExecutionPauser::start(*newState, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async);
+        resultValue = ExecutionPauser::start(*newState, newState->pauseSource().value(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async);
     }
 
     return ModuleExecutionResult(gotException, resultValue);

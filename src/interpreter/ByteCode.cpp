@@ -99,6 +99,7 @@ void SetGlobalVariable::dump()
 ByteCodeBlock::ByteCodeBlock()
     : m_shouldClearStack(false)
     , m_isOwnerMayFreed(false)
+    , m_needsExtendedExectuionState(false)
     , m_requiredOperandRegisterNumber(2)
     , m_requiredTotalRegisterNumber(0)
     , m_inlineCacheDataSize(0)
@@ -128,6 +129,7 @@ static void clearByteCodeBlock(ByteCodeBlock* self)
 ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     : m_shouldClearStack(false)
     , m_isOwnerMayFreed(false)
+    , m_needsExtendedExectuionState(false)
     , m_requiredOperandRegisterNumber(2)
     , m_requiredTotalRegisterNumber(0)
     , m_inlineCacheDataSize(0)
@@ -288,6 +290,7 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
         ctx.lexicalBlockSetupStartPosition = currentCodeSize();
         context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Block, ctx.lexicalBlockSetupStartPosition));
         this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), blockInfo), context, SIZE_MAX);
+        context->m_needsExtendedExecutionState = true;
     }
 
     if (initFunctionDeclarationInside) {

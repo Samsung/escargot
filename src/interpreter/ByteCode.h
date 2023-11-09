@@ -3154,12 +3154,18 @@ public:
         return siz;
     }
 
+    bool needsExtendedExecutionState() const
+    {
+        return m_needsExtendedExectuionState;
+    }
+
     ExtendedNodeLOC computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb, ByteCodeLOCData* locData);
     ExtendedNodeLOC computeNodeLOC(StringView src, ExtendedNodeLOC sourceElementStart, size_t index);
     void fillLOCData(Context* c, ByteCodeLOCData* locData);
 
     bool m_shouldClearStack : 1;
     bool m_isOwnerMayFreed : 1;
+    bool m_needsExtendedExectuionState : 1;
     // number of bytecode registers used for bytecode operation like adding...moving...
     ByteCodeRegisterIndex m_requiredOperandRegisterNumber : REGISTER_INDEX_IN_BIT;
     // precomputed value of total register number which is "m_requiredTotalRegisterNumber + stack allocated variables size"

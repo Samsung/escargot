@@ -140,7 +140,7 @@ public:
             Value* arguments = CustomAllocator<Value>().allocate(argc);
             memcpy(arguments, argv, sizeof(Value) * argc);
 
-            ExecutionState* newState = new ExecutionState(ctx, nullptr, lexEnv, argc, arguments, isStrict, ExecutionState::ForPauser);
+            ExecutionState* newState = new ExtendedExecutionState(ctx, nullptr, lexEnv, argc, arguments, isStrict, ExtendedExecutionState::ForPauser);
 
             // prepare receiver(this variable)
             // we should use newState because
@@ -175,13 +175,13 @@ public:
             if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value) {
                 GeneratorObject* gen = new GeneratorObject(state, proto, newState, registerFile, blk);
                 newState->setPauseSource(gen->executionPauser());
-                ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Generator);
+                ExecutionPauser::start(state, newState->pauseSource().value(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Generator);
                 generatorObject = gen;
             } else {
                 AsyncGeneratorObject* gen = new AsyncGeneratorObject(state, proto, newState, registerFile, blk);
                 newState->setPauseSource(gen->executionPauser());
                 newState->pauseSource()->m_promiseCapability = PromiseObject::newPromiseCapability(*newState, newState->context()->globalObject()->promise());
-                ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::AsyncGenerator);
+                ExecutionPauser::start(state, newState->pauseSource().value(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::AsyncGenerator);
                 generatorObject = gen;
             }
 
@@ -192,9 +192,11 @@ public:
         ExecutionState* newState;
 
         if (std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value) {
-            newState = new ExecutionState(ctx, nullptr, lexEnv, argc, argv, isStrict, ExecutionState::ForPauser);
+            newState = new ExtendedExecutionState(ctx, nullptr, lexEnv, argc, argv, isStrict, ExtendedExecutionState::ForPauser);
             newState->setPauseSource(new ExecutionPauser(state, self, newState, registerFile, blk));
             newState->pauseSource()->m_promiseCapability = PromiseObject::newPromiseCapability(*newState, newState->context()->globalObject()->promise());
+        } else if (blk->needsExtendedExecutionState()) {
+            newState = new (alloca(sizeof(ExtendedExecutionState))) ExtendedExecutionState(ctx, &state, lexEnv, argc, argv, isStrict);
         } else {
             newState = new (alloca(sizeof(ExecutionState))) ExecutionState(ctx, &state, lexEnv, argc, argv, isStrict);
         }
@@ -213,7 +215,7 @@ public:
         // run function
         ReturnValueBinder returnValueBinder;
         const Value returnValue = returnValueBinder(state, *newState, self,
-                                                    std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value ? ExecutionPauser::start(state, newState->pauseSource(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async)
+                                                    std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value ? ExecutionPauser::start(state, newState->pauseSource().value(), newState->pauseSource()->sourceObject(), Value(), false, false, ExecutionPauser::StartFrom::Async)
                                                                                                                        : Interpreter::interpret(newState, blk, reinterpret_cast<const size_t>(blk->m_code.data()), registerFile),
                                                     thisArgument, record);
 

@@ -181,7 +181,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
 
         Script* script = parser.initializeScript(nullptr, 0, arg.asString(), state.context()->staticStrings().lazyEvalCode().string(), nullptr, false, true, false, false, strictFromOutside, false, false, false, true, stackRemainApprox).scriptThrowsExceptionIfParseError(state);
         // In case of indirect call, use global execution context
-        ExecutionState stateForNewGlobal(m_context);
+        ExtendedExecutionState stateForNewGlobal(m_context);
         return script->execute(stateForNewGlobal, true, script->topCodeBlock()->isStrict());
     }
     return arg;

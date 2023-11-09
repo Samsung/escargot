@@ -170,7 +170,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
 #endif
                 );
             }
-            es = new ExecutionState(&state, env, false);
+            es = new ExtendedExecutionState(&state, env, false);
         }
 
 #ifdef ESCARGOT_DEBUGGER
@@ -271,8 +271,9 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
     ExecutionPauser* self;
     while (true) {
         originalState->m_inExecutionStopState = true;
-        self = originalState->pauseSource();
-        if (self) {
+        auto willSelf = originalState->pauseSource();
+        if (willSelf) {
+            self = willSelf.value();
             break;
         }
         originalState = originalState->parent();
@@ -298,7 +299,7 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
     }
 
     // we need to reset parent here beacuse asyncGeneratorResolve access parent
-    originalState->rareData()->m_parent = nullptr;
+    originalState->m_parent = nullptr;
     originalState->m_programCounter = nullptr;
 
     self->m_pausedCode.clear();

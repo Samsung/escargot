@@ -65,10 +65,12 @@ public:
                 m_argument->generateExpressionByteCode(codeBlock, context, index);
 #endif
                 codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), index), context, this->m_loc.index);
+                context->m_needsExtendedExecutionState = true;
             } else {
                 index = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), index, Value()), context, this->m_loc.index);
                 codeBlock->pushCode(ReturnFunctionSlowCase(ByteCodeLOC(m_loc.index), index), context, this->m_loc.index);
+                context->m_needsExtendedExecutionState = true;
             }
             context->giveUpRegister();
         } else {

@@ -47,6 +47,7 @@ public:
 
     static void generateTryStatementStartByteCode(ByteCodeBlock *codeBlock, ByteCodeGenerateContext *context, Node *self, TryStatementByteCodeContext &ctx)
     {
+        context->m_needsExtendedExecutionState = true;
         codeBlock->pushCode(TryOperation(ByteCodeLOC(self->loc().index)), context, self->m_loc.index);
         ctx.tryStartPosition = codeBlock->lastCodePosition<TryOperation>();
         context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Try, ctx.tryStartPosition));
