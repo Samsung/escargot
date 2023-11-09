@@ -253,12 +253,16 @@ public:
         return m_initTCO;
     }
 
+    void setInitTCO()
+    {
+        m_initTCO = true;
+    }
+
     void setTCOArguments(Value* argv)
     {
         // allocate a new argument buffer
         // because tail call reuses this buffer which can modify caller's register file
         ASSERT(!m_initTCO && !!argv);
-        m_initTCO = true;
         m_argv = argv;
     }
 #endif
