@@ -190,7 +190,7 @@ bool SandBox::createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector
         if (pState->isLocalEvalCode()) {
             // for eval code case
             ASSERT(pState->codeBlock());
-            InterpretedCodeBlock* cb = pState->codeBlock();
+            InterpretedCodeBlock* cb = pState->codeBlock().value();
             ByteCodeBlock* b = cb->byteCodeBlock();
 
             ExtendedNodeLOC loc(SIZE_MAX, SIZE_MAX, SIZE_MAX);

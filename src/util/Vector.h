@@ -724,6 +724,7 @@ public:
     }
 
     VectorWithInlineStorage(const VectorWithInlineStorage<InlineStorageSize, T, ExternalStorageAllocator>& src)
+        : VectorWithInlineStorage()
     {
         copy(src);
     }
@@ -886,7 +887,10 @@ public:
         }
     }
 
-    void* operator new(size_t size) = delete;
+    void* operator new(size_t size)
+    {
+        return GC_MALLOC(size);
+    }
     void* operator new[](size_t size) = delete;
 
 protected:
@@ -916,6 +920,7 @@ protected:
 
     void move(VectorWithInlineStorage<InlineStorageSize, T, ExternalStorageAllocator>&& src)
     {
+        clear();
         m_size = src.m_size;
         if (src.m_useExternalStorage) {
             m_externalStorage = std::move(src.m_externalStorage);

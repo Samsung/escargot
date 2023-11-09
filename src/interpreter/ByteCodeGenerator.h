@@ -91,6 +91,7 @@ struct ByteCodeGenerateContext {
 #if defined(ENABLE_TCO)
         , m_tcoDisabled(contextBefore.m_tcoDisabled)
 #endif
+        , m_needsExtendedExecutionState(contextBefore.m_needsExtendedExecutionState)
         , m_registerStack(contextBefore.m_registerStack)
         , m_lexicallyDeclaredNames(contextBefore.m_lexicallyDeclaredNames)
         , m_positionToContinue(contextBefore.m_positionToContinue)
@@ -124,6 +125,7 @@ struct ByteCodeGenerateContext {
         ctx.m_positionToContinue = m_positionToContinue;
         ctx.m_lexicalBlockIndex = m_lexicalBlockIndex;
         ctx.m_classInfo = m_classInfo;
+        ctx.m_needsExtendedExecutionState = ctx.m_needsExtendedExecutionState | m_needsExtendedExecutionState;
 
         m_breakStatementPositions.clear();
         m_continueStatementPositions.clear();
@@ -359,6 +361,7 @@ struct ByteCodeGenerateContext {
 #if defined(ENABLE_TCO)
     bool m_tcoDisabled : 1; // disable tail call optimizaiton (TCO) for some conditions
 #endif
+    bool m_needsExtendedExecutionState : 1;
 
     std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_registerStack;
     std::shared_ptr<std::vector<std::pair<size_t, AtomicString>>> m_lexicallyDeclaredNames;

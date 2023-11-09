@@ -88,17 +88,6 @@ void ExecutionState::throwException(const Value& e)
     context()->throwException(*this, e);
 }
 
-ExecutionStateRareData* ExecutionState::ensureRareData()
-{
-    if (!m_hasRareData) {
-        ExecutionState* p = parent();
-        m_rareData = new ExecutionStateRareData();
-        m_rareData->m_parent = p;
-        m_hasRareData = true;
-    }
-    return rareData();
-}
-
 FunctionObject* ExecutionState::resolveCallee()
 {
     ExecutionState* es = this;
@@ -314,7 +303,7 @@ ExecutionPauser* ExecutionState::executionPauser()
     while (true) {
         auto ps = p->pauseSource();
         if (ps) {
-            return ps;
+            return ps.value();
         }
         p = p->parent();
     }

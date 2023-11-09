@@ -64,6 +64,7 @@ public:
             context->giveUpRegister();
         }
         codeBlock->pushCode(OpenLexicalEnvironment(ByteCodeLOC(m_loc.index), OpenLexicalEnvironment::WithStatement, r), context, this->m_loc.index);
+        context->m_needsExtendedExecutionState = true;
         context->giveUpRegister();
 
         bool isWithScopeBefore = context->m_isWithScope;

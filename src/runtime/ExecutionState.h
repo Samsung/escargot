@@ -37,22 +37,38 @@ class GeneratorObject;
 class FunctionObject;
 class NativeFunctionObject;
 
-typedef Vector<ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
+typedef VectorWithInlineStorage<2, ControlFlowRecord*, GCUtil::gc_malloc_allocator<ControlFlowRecord*>> ControlFlowRecordVector;
 
 struct ExecutionStateRareData : public gc {
     InterpretedCodeBlock* m_codeBlock; // for local eval code
-    ControlFlowRecordVector* m_controlFlowRecord;
     ExecutionPauser* m_pauseSource;
-    ExecutionState* m_parent;
+    ControlFlowRecordVector* m_controlFlowRecordVector;
     size_t m_programCounterWhenItStoppedByYield;
 
     ExecutionStateRareData()
         : m_codeBlock(nullptr)
-        , m_controlFlowRecord(nullptr)
         , m_pauseSource(nullptr)
-        , m_parent(nullptr)
+        , m_controlFlowRecordVector(nullptr)
         , m_programCounterWhenItStoppedByYield(SIZE_MAX)
     {
+    }
+
+    ControlFlowRecordVector* ensureControlFlowRecordVector()
+    {
+        if (m_controlFlowRecordVector == nullptr) {
+            m_controlFlowRecordVector = new ControlFlowRecordVector;
+        }
+        return m_controlFlowRecordVector;
+    }
+
+    ControlFlowRecordVector* controlFlowRecordVector()
+    {
+        return m_controlFlowRecordVector;
+    }
+
+    void setControlFlowRecordVector(ControlFlowRecordVector* v)
+    {
+        m_controlFlowRecordVector = v;
     }
 };
 
@@ -96,7 +112,7 @@ public:
         , m_lexicalEnvironment(nullptr)
         , m_stackLimit(stackLimit)
         , m_programCounter(nullptr)
-        , m_parent(0)
+        , m_parent(nullptr)
         , m_hasRareData(false)
         , m_inStrictMode(false)
         , m_isNativeFunctionObjectExecutionContext(false)
@@ -160,32 +176,6 @@ public:
     {
     }
 
-    enum ForPauserType {
-        ForPauser
-    };
-    ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode, ForPauserType)
-        : m_context(context)
-        , m_lexicalEnvironment(lexicalEnvironment)
-        , m_stackLimit(0)
-        , m_programCounter(nullptr)
-        , m_parent(parent)
-        , m_hasRareData(false)
-        , m_inStrictMode(inStrictMode)
-        , m_isNativeFunctionObjectExecutionContext(false)
-        , m_inExecutionStopState(false)
-#if defined(ESCARGOT_ENABLE_TEST)
-        , m_onTry(false)
-        , m_onCatch(false)
-        , m_onFinally(false)
-#endif
-#if defined(ENABLE_TCO)
-        , m_initTCO(false)
-#endif
-        , m_argc(argc)
-        , m_argv(argv)
-    {
-    }
-
     Context* context()
     {
         return m_context;
@@ -209,8 +199,6 @@ public:
 
     void throwException(const Value& e);
 
-    ExecutionStateRareData* ensureRareData();
-
     bool hasRareData()
     {
         return m_hasRareData;
@@ -219,25 +207,22 @@ public:
     ExecutionStateRareData* rareData()
     {
         ASSERT(hasRareData());
-        return m_rareData;
+        return reinterpret_cast<ExecutionStateRareData*>(reinterpret_cast<uint8_t*>(this) + sizeof(ExecutionState));
     }
 
     ExecutionState* parent()
     {
-        if (!hasRareData()) {
-            return m_parent;
-        }
-        return rareData()->m_parent;
+        return m_parent;
     }
 
-    ExecutionPauser* pauseSource()
+    Optional<ExecutionPauser*> pauseSource()
     {
-        return rareData()->m_pauseSource;
+        return hasRareData() ? rareData()->m_pauseSource : nullptr;
     }
 
     void setPauseSource(ExecutionPauser* pauseSource)
     {
-        ensureRareData()->m_pauseSource = pauseSource;
+        rareData()->m_pauseSource = pauseSource;
     }
 
     void setParent(ExecutionState* parent)
@@ -246,11 +231,7 @@ public:
         if (parent) {
             m_stackLimit = parent->stackLimit();
         }
-        if (hasRareData()) {
-            rareData()->m_parent = parent;
-        } else {
-            m_parent = parent;
-        }
+        m_parent = parent;
     }
 
     bool inStrictMode() const
@@ -311,10 +292,10 @@ public:
     bool isLocalEvalCode()
     {
         // evalcode has codeBlock now.
-        return codeBlock() != nullptr;
+        return codeBlock();
     }
 
-    InterpretedCodeBlock* codeBlock()
+    Optional<InterpretedCodeBlock*> codeBlock()
     {
         if (hasRareData()) {
             return rareData()->m_codeBlock;
@@ -349,9 +330,32 @@ public:
 
     ExecutionPauser* executionPauser();
 
-private:
+protected:
     // create a dummy ExecutionState for initialization of Escargot engine
     ExecutionState();
+    // for pauser
+    ExecutionState(Context* context, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode)
+        : m_context(context)
+        , m_lexicalEnvironment(lexicalEnvironment)
+        , m_stackLimit(0)
+        , m_programCounter(nullptr)
+        , m_parent(nullptr)
+        , m_hasRareData(false)
+        , m_inStrictMode(inStrictMode)
+        , m_isNativeFunctionObjectExecutionContext(false)
+        , m_inExecutionStopState(false)
+#if defined(ESCARGOT_ENABLE_TEST)
+        , m_onTry(false)
+        , m_onCatch(false)
+        , m_onFinally(false)
+#endif
+#if defined(ENABLE_TCO)
+        , m_initTCO(false)
+#endif
+        , m_argc(argc)
+        , m_argv(argv)
+    {
+    }
 
     Context* m_context;
     LexicalEnvironment* m_lexicalEnvironment;
@@ -361,10 +365,7 @@ private:
         NativeFunctionObject* m_calledNativeFunctionObject;
     };
 
-    union {
-        ExecutionState* m_parent;
-        ExecutionStateRareData* m_rareData;
-    };
+    ExecutionState* m_parent;
 
     bool m_hasRareData : 1;
     bool m_inStrictMode : 1;
@@ -385,6 +386,46 @@ private:
     size_t m_argc : 56;
 #endif
     Value* m_argv;
+};
+
+class ExtendedExecutionState : public ExecutionState {
+public:
+    ExtendedExecutionState(Context* context)
+        : ExecutionState(context)
+    {
+        m_hasRareData = true;
+    }
+
+    ExtendedExecutionState(Context* context, size_t stackLimit)
+        : ExecutionState(context, stackLimit)
+    {
+        m_hasRareData = true;
+    }
+
+    ExtendedExecutionState(ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
+        : ExecutionState(parent, lexicalEnvironment, inStrictMode)
+    {
+        m_hasRareData = true;
+    }
+
+    ExtendedExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode)
+        : ExecutionState(context, parent, lexicalEnvironment, argc, argv, inStrictMode)
+    {
+        m_hasRareData = true;
+    }
+
+    enum ForPauserType {
+        ForPauser
+    };
+    ExtendedExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode, ForPauserType)
+        : ExecutionState(context, lexicalEnvironment, argc, argv, inStrictMode)
+    {
+        m_parent = parent;
+        m_hasRareData = true;
+    }
+
+private:
+    ExecutionStateRareData m_rareData;
 };
 } // namespace Escargot
 

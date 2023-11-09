@@ -78,10 +78,9 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
     auto& currentCodeSizeTotal = state.context()->vmInstance()->compiledByteCodeSize();
     ASSERT(currentCodeSizeTotal < std::numeric_limits<size_t>::max());
     currentCodeSizeTotal += interpretedCodeBlock()->byteCodeBlock()->memoryAllocatedSize();
+    auto cb = m_codeBlock->asInterpretedCodeBlock();
 
-
-    if (hasVTag(g_scriptFunctionObjectTag)) {
-        auto cb = m_codeBlock->asInterpretedCodeBlock();
+    if (hasVTag(g_scriptFunctionObjectTag) && !cb->byteCodeBlock()->needsExtendedExecutionState()) {
         auto byteCb = cb->byteCodeBlock();
         size_t registerFileSize = byteCb->m_requiredTotalRegisterNumber;
         bool isStrict = cb->isStrict();
