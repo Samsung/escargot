@@ -616,7 +616,7 @@ private:
 };
 
 // temporally disable StackOverflow check
-// StackOverflowDisabler only unlocks the predefined stack limit (STACK_LIMIT_FROM_BASE: 3MB)
+// StackOverflowDisabler only unlocks the predefined stack limit (STACK_USAGE_LIMIT: 4MB)
 // should be carefully used because it cannot prevent the system-stackoverflow exception
 class ESCARGOT_EXPORT StackOverflowDisabler {
 public:

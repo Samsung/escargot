@@ -785,6 +785,10 @@
   'es6/unicode-regexp-unanchored-advance': [SKIP],
   'regress/regress-latin-1': [SKIP],
 
+  ## 16. Etc
+  # Stackoverflow error not occured with some compiler
+  'json-parser-recursive': [SKIP],
+
 }],  # 'escargot == True'
 
 ]

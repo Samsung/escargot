@@ -140,7 +140,7 @@ public:
             Value* arguments = CustomAllocator<Value>().allocate(argc);
             memcpy(arguments, argv, sizeof(Value) * argc);
 
-            ExecutionState* newState = new ExtendedExecutionState(ctx, nullptr, lexEnv, argc, arguments, isStrict, ExtendedExecutionState::ForPauser);
+            ExecutionState* newState = new ExtendedExecutionState(ctx, nullptr, lexEnv, argc, arguments, isStrict);
 
             // prepare receiver(this variable)
             // we should use newState because
@@ -192,7 +192,7 @@ public:
         ExecutionState* newState;
 
         if (std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value) {
-            newState = new ExtendedExecutionState(ctx, nullptr, lexEnv, argc, argv, isStrict, ExtendedExecutionState::ForPauser);
+            newState = new ExtendedExecutionState(ctx, nullptr, lexEnv, argc, argv, isStrict);
             newState->setPauseSource(new ExecutionPauser(state, self, newState, registerFile, blk));
             newState->pauseSource()->m_promiseCapability = PromiseObject::newPromiseCapability(*newState, newState->context()->globalObject()->promise());
         } else if (blk->needsExtendedExecutionState()) {

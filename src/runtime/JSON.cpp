@@ -210,6 +210,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
         root->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString), ObjectPropertyDescriptor(unfiltered, ObjectPropertyDescriptor::AllPresent));
         std::function<Value(Value, const ObjectPropertyName&)> Walk;
         Walk = [&](Value holder, const ObjectPropertyName& name) -> Value {
+            CHECK_STACK_OVERFLOW(state);
             Value val = holder.asPointerValue()->asObject()->get(state, name).value(state, holder);
             if (val.isObject()) {
                 if (val.asObject()->isArray(state)) {

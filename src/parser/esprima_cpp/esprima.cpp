@@ -201,21 +201,20 @@ public:
         }
     };
 
-    Parser(::Escargot::Context* escargotContext, StringView code, ASTClassInfo* outerClassInfo, bool isModule, size_t stackRemain, ExtendedNodeLOC startLoc = ExtendedNodeLOC(1, 0, 0))
+    Parser(::Escargot::Context* escargotContext, StringView code, ASTClassInfo* outerClassInfo, bool isModule, ExtendedNodeLOC startLoc = ExtendedNodeLOC(1, 0, 0))
         : scannerInstance(escargotContext, &contextInstance, code, isModule, startLoc.line, startLoc.column)
         , allocator(escargotContext->astAllocator())
         , fakeContext(escargotContext->astAllocator())
     {
         ASSERT(escargotContext != nullptr);
 
-        if (stackRemain >= STACK_LIMIT_FROM_BASE) {
-            stackRemain = STACK_LIMIT_FROM_BASE;
-        }
-        size_t currentStackBase = reinterpret_cast<size_t>(currentStackPointer());
+        this->stackLimit = ThreadLocal::stackLimit();
+
+        // Use more stack for computing loc on stack-overflow situation
 #ifdef STACK_GROWS_DOWN
-        this->stackLimit = currentStackBase - stackRemain;
+        this->stackLimit = this->stackLimit + STACK_FREESPACE_FROM_LIMIT / 2;
 #else
-        this->stackLimit = currentStackBase + stackRemain;
+        this->stackLimit = this->stackLimit - STACK_FREESPACE_FROM_LIMIT / 2;
 #endif
         this->escargotContext = escargotContext;
         this->stringArguments = escargotContext->staticStrings().arguments;
@@ -7142,12 +7141,12 @@ public:
 };
 
 ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ASTClassInfo* outerClassInfo, bool isModule, bool strictFromOutside,
-                          bool inWith, size_t stackRemain, bool allowSuperCallFromOutside, bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside, bool allowArgumentsFromOutside)
+                          bool inWith, bool allowSuperCallFromOutside, bool allowSuperPropertyFromOutside, bool allowNewTargetFromOutside, bool allowArgumentsFromOutside)
 {
     // GC should be disabled during the parsing process
     ASSERT(GC_is_disabled());
 
-    Parser parser(ctx, source, outerClassInfo, isModule, stackRemain);
+    Parser parser(ctx, source, outerClassInfo, isModule);
     NodeGenerator builder(ctx->astAllocator());
 
     parser.context->strict |= strictFromOutside;
@@ -7161,13 +7160,13 @@ ProgramNode* parseProgram(::Escargot::Context* ctx, StringView source, ASTClassI
     return nd;
 }
 
-FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock, size_t stackRemain)
+FunctionNode* parseSingleFunction(::Escargot::Context* ctx, InterpretedCodeBlock* codeBlock)
 {
     // GC should be disabled during the parsing process
     ASSERT(GC_is_disabled());
     ASSERT(ctx->astAllocator().isInitialized());
 
-    Parser parser(ctx, codeBlock->src(), nullptr, codeBlock->script()->isModule(), stackRemain, codeBlock->functionStart());
+    Parser parser(ctx, codeBlock->src(), nullptr, codeBlock->script()->isModule(), codeBlock->functionStart());
     NodeGenerator builder(ctx->astAllocator());
 
     parser.trackUsingNames = false;
@@ -7235,7 +7234,7 @@ void simpleSyntaxCheckFunctionElements(::Escargot::Context* ctx, String* paramet
     ASSERT(GC_is_disabled());
     ASSERT(ctx->astAllocator().isInitialized());
 
-    Parser parser(ctx, StringView(parameters), nullptr, false, SIZE_MAX);
+    Parser parser(ctx, StringView(parameters), nullptr, false);
 #if defined(ESCARGOT_SMALL_CONFIG)
     NodeGenerator checker(ctx->astAllocator(), false);
 #else

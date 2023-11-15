@@ -26,6 +26,7 @@ namespace Escargot {
 ToStringRecursionPreventerItemAutoHolder::ToStringRecursionPreventerItemAutoHolder(ExecutionState& state, Object* obj)
     : m_preventer(state.context()->toStringRecursionPreventer())
 {
+    CHECK_STACK_OVERFLOW(state);
     m_preventer->pushItem(obj);
 #ifndef NDEBUG
     m_object = obj;

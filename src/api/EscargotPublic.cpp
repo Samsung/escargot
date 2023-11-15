@@ -3065,17 +3065,14 @@ StackOverflowDisabler::StackOverflowDisabler(ExecutionStateRef* es)
 
     // We assume that StackOverflowDisabler should not be nested-called
     ASSERT(m_originStackLimit != newStackLimit);
-    ASSERT(m_originStackLimit == state->context()->vmInstance()->stackLimit());
-    state->m_stackLimit = newStackLimit;
-    state->context()->vmInstance()->m_stackLimit = newStackLimit;
+    ASSERT(m_originStackLimit == ThreadLocal::stackLimit());
+    ThreadLocal::g_stackLimit = newStackLimit;
 }
 
 StackOverflowDisabler::~StackOverflowDisabler()
 {
     ASSERT(!!m_executionState);
-    ExecutionState* state = toImpl(m_executionState);
-    state->m_stackLimit = m_originStackLimit;
-    state->context()->vmInstance()->m_stackLimit = m_originStackLimit;
+    ThreadLocal::g_stackLimit = m_originStackLimit;
 }
 
 OptionalRef<FunctionObjectRef> ExecutionStateRef::resolveCallee()

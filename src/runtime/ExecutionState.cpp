@@ -31,7 +31,6 @@ namespace Escargot {
 ExecutionState::ExecutionState()
     : m_context(nullptr)
     , m_lexicalEnvironment(nullptr)
-    , m_stackLimit(0)
     , m_programCounter(nullptr)
     , m_parent(0)
     , m_hasRareData(false)
@@ -49,38 +48,6 @@ ExecutionState::ExecutionState()
     , m_argc(0)
     , m_argv(nullptr)
 {
-    // create a dummy ExecutionState for initialization of Escargot engine
-    volatile int sp;
-    m_stackLimit = (size_t)&sp;
-#ifdef STACK_GROWS_DOWN
-    m_stackLimit = m_stackLimit - STACK_LIMIT_FROM_BASE;
-#else
-    m_stackLimit = m_stackLimit + STACK_LIMIT_FROM_BASE;
-#endif
-}
-
-ExecutionState::ExecutionState(Context* context)
-    : m_context(context)
-    , m_lexicalEnvironment(nullptr)
-    , m_stackLimit(context->vmInstance()->stackLimit())
-    , m_programCounter(nullptr)
-    , m_parent(0)
-    , m_hasRareData(false)
-    , m_inStrictMode(false)
-    , m_isNativeFunctionObjectExecutionContext(false)
-    , m_inExecutionStopState(false)
-#if defined(ESCARGOT_ENABLE_TEST)
-    , m_onTry(false)
-    , m_onCatch(false)
-    , m_onFinally(false)
-#endif
-#if defined(ENABLE_TCO)
-    , m_initTCO(false)
-#endif
-    , m_argc(0)
-    , m_argv(nullptr)
-{
-    ASSERT(!!context);
 }
 
 void ExecutionState::throwException(const Value& e)

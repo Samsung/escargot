@@ -82,12 +82,9 @@ class ExecutionState : public gc {
     friend struct OpcodeTable;
 
 public:
-    ExecutionState(Context* context);
-
     ALWAYS_INLINE ExecutionState(ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
         : m_context(parent->context())
         , m_lexicalEnvironment(lexicalEnvironment)
-        , m_stackLimit(parent->stackLimit())
         , m_programCounter(nullptr)
         , m_parent(parent)
         , m_hasRareData(false)
@@ -107,10 +104,9 @@ public:
     {
     }
 
-    ExecutionState(Context* context, size_t stackLimit)
+    ExecutionState(Context* context)
         : m_context(context)
         , m_lexicalEnvironment(nullptr)
-        , m_stackLimit(stackLimit)
         , m_programCounter(nullptr)
         , m_parent(nullptr)
         , m_hasRareData(false)
@@ -133,7 +129,6 @@ public:
     ALWAYS_INLINE ExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode)
         : m_context(context)
         , m_lexicalEnvironment(lexicalEnvironment)
-        , m_stackLimit(parent->stackLimit())
         , m_programCounter(nullptr)
         , m_parent(parent)
         , m_hasRareData(false)
@@ -156,7 +151,6 @@ public:
     ALWAYS_INLINE ExecutionState(Context* context, ExecutionState* parent, NativeFunctionObject* callee, size_t argc, Value* argv, bool inStrictMode)
         : m_context(context)
         , m_lexicalEnvironment(nullptr)
-        , m_stackLimit(parent->stackLimit())
         , m_calledNativeFunctionObject(callee)
         , m_parent(parent)
         , m_hasRareData(false)
@@ -194,7 +188,7 @@ public:
 
     size_t stackLimit()
     {
-        return m_stackLimit;
+        return 0;
     }
 
     void throwException(const Value& e);
@@ -228,9 +222,6 @@ public:
     void setParent(ExecutionState* parent)
     {
         ASSERT(parent != this);
-        if (parent) {
-            m_stackLimit = parent->stackLimit();
-        }
         m_parent = parent;
     }
 
@@ -333,33 +324,9 @@ public:
 protected:
     // create a dummy ExecutionState for initialization of Escargot engine
     ExecutionState();
-    // for pauser
-    ExecutionState(Context* context, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode)
-        : m_context(context)
-        , m_lexicalEnvironment(lexicalEnvironment)
-        , m_stackLimit(0)
-        , m_programCounter(nullptr)
-        , m_parent(nullptr)
-        , m_hasRareData(false)
-        , m_inStrictMode(inStrictMode)
-        , m_isNativeFunctionObjectExecutionContext(false)
-        , m_inExecutionStopState(false)
-#if defined(ESCARGOT_ENABLE_TEST)
-        , m_onTry(false)
-        , m_onCatch(false)
-        , m_onFinally(false)
-#endif
-#if defined(ENABLE_TCO)
-        , m_initTCO(false)
-#endif
-        , m_argc(argc)
-        , m_argv(argv)
-    {
-    }
 
     Context* m_context;
     LexicalEnvironment* m_lexicalEnvironment;
-    size_t m_stackLimit;
     union {
         size_t* m_programCounter;
         NativeFunctionObject* m_calledNativeFunctionObject;
@@ -396,12 +363,6 @@ public:
         m_hasRareData = true;
     }
 
-    ExtendedExecutionState(Context* context, size_t stackLimit)
-        : ExecutionState(context, stackLimit)
-    {
-        m_hasRareData = true;
-    }
-
     ExtendedExecutionState(ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, bool inStrictMode)
         : ExecutionState(parent, lexicalEnvironment, inStrictMode)
     {
@@ -411,16 +372,6 @@ public:
     ExtendedExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode)
         : ExecutionState(context, parent, lexicalEnvironment, argc, argv, inStrictMode)
     {
-        m_hasRareData = true;
-    }
-
-    enum ForPauserType {
-        ForPauser
-    };
-    ExtendedExecutionState(Context* context, ExecutionState* parent, LexicalEnvironment* lexicalEnvironment, size_t argc, Value* argv, bool inStrictMode, ForPauserType)
-        : ExecutionState(context, lexicalEnvironment, argc, argv, inStrictMode)
-    {
-        m_parent = parent;
         m_hasRareData = true;
     }
 

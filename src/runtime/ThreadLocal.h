@@ -87,9 +87,11 @@ private:
 // ThreadLocal should be created for each thread
 // ThreadLocal is a non-GC global object which means that users who want to customize it should manage memory by themselves
 class ThreadLocal {
+    friend class StackOverflowDisabler;
     static MAY_THREAD_LOCAL bool inited;
 
     // Global data per thread
+    static MAY_THREAD_LOCAL size_t g_stackLimit;
     static MAY_THREAD_LOCAL std::mt19937* g_randEngine;
     static MAY_THREAD_LOCAL bf_context_t g_bfContext;
 #if defined(ENABLE_WASM)
@@ -110,6 +112,12 @@ public:
     }
 
     // Global data getter
+    static size_t stackLimit()
+    {
+        ASSERT(inited);
+        return g_stackLimit;
+    }
+
     static std::mt19937& randEngine()
     {
         ASSERT(inited && !!g_randEngine);
