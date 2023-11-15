@@ -295,6 +295,10 @@ jobs:
       env:
         GC_FREE_SPACE_DIVISOR: 1
       run: $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/release/x86/escargot" ${{ matrix.tc }}
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
+
 
   build-test-on-x64-release:
     runs-on: ubuntu-latest
@@ -330,6 +334,9 @@ jobs:
         export LANG=en_US.UTF-8
         locale
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/release/x64/escargot" ${{ matrix.tc }}
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
 
   build-test-on-x86-x64-debug:
     runs-on: ubuntu-latest

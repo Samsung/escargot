@@ -523,18 +523,26 @@ typedef uint16_t LexicalBlockIndex;
 #define STACK_GROWS_DOWN
 #endif
 
-#ifndef STACK_LIMIT_FROM_BASE
-#define STACK_LIMIT_FROM_BASE (1024 * 1024 * 3) // 3MB
+#ifndef STACK_FREESPACE_FROM_LIMIT
+#define STACK_FREESPACE_FROM_LIMIT (1024 * 256) // 256KB
+#endif
+
+#ifndef STACK_USAGE_LIMIT
+#ifdef ESCARGOT_ENABLE_TEST
+#define STACK_USAGE_LIMIT (1024 * 1024 * 2) // 2MB
+#else
+#define STACK_USAGE_LIMIT (1024 * 1024 * 4) // 4MB
+#endif
 #endif
 
 #ifdef STACK_GROWS_DOWN
 #define CHECK_STACK_OVERFLOW(state)                                                                       \
-    if (UNLIKELY(state.stackLimit() > (size_t)currentStackPointer())) {                                   \
+    if (UNLIKELY(ThreadLocal::stackLimit() > (size_t)currentStackPointer())) {                            \
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded"); \
     }
 #else
 #define CHECK_STACK_OVERFLOW(state)                                                                       \
-    if (UNLIKELY(state.stackLimit() < (size_t)currentStackPointer())) {                                   \
+    if (UNLIKELY(ThreadLocal::stackLimit() < (size_t)currentStackPointer())) {                            \
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Maximum call stack size exceeded"); \
     }
 #endif
@@ -581,5 +589,6 @@ using HashMap = tsl::robin_map<Key, T, Hash, KeyEqual, Allocator, StoreHash, Gro
 #include "heap/Heap.h"
 #include "util/Util.h"
 #include "util/Optional.h"
+#include "runtime/ThreadLocal.h"
 
 #endif

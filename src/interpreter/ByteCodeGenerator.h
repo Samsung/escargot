@@ -72,7 +72,6 @@ struct ByteCodeGenerateContext {
         , m_codeBlock(contextBefore.m_codeBlock)
         , m_byteCodeBlock(contextBefore.m_byteCodeBlock)
         , m_locData(contextBefore.m_locData)
-        , m_stackLimit(contextBefore.m_stackLimit)
         , m_isGlobalScope(contextBefore.m_isGlobalScope)
         , m_isEvalCode(contextBefore.m_isEvalCode)
         , m_isOutermostContext(false)
@@ -109,6 +108,7 @@ struct ByteCodeGenerateContext {
 #endif /* ESCARGOT_DEBUGGER */
     {
         ASSERT(m_complexJumpBreakIgnoreCount == m_complexJumpContinueIgnoreCount);
+        checkStack();
     }
 
     ~ByteCodeGenerateContext()
@@ -226,14 +226,7 @@ struct ByteCodeGenerateContext {
         if (UNLIKELY(m_baseRegisterCount >= REGULAR_REGISTER_LIMIT)) {
             throw "register limit exceed while generate byte code";
         }
-#ifdef STACK_GROWS_DOWN
-        if (UNLIKELY(m_stackLimit > (size_t)currentStackPointer())) {
-#else
-        if (UNLIKELY(m_stackLimit < (size_t)currentStackPointer())) {
-#endif
-            throw "native stack limit exceed while generate byte code";
-        }
-
+        checkStack();
         m_registerStack->push_back(m_baseRegisterCount);
         m_baseRegisterCount++;
         return m_registerStack->back();
@@ -328,6 +321,17 @@ struct ByteCodeGenerateContext {
     }
 #endif
 
+    ALWAYS_INLINE void checkStack()
+    {
+#ifdef STACK_GROWS_DOWN
+        if (UNLIKELY(ThreadLocal::stackLimit() > (size_t)currentStackPointer())) {
+#else
+        if (UNLIKELY(ThreadLocal::stackLimit() < (size_t)currentStackPointer())) {
+#endif
+            throw "native stack limit exceed while generate byte code";
+        }
+    }
+
 #ifdef ESCARGOT_DEBUGGER
     void calculateBreakpointLocation(size_t index, ExtendedNodeLOC sourceElementStart);
     void insertBreakpoint(size_t index, Node* node);
@@ -340,8 +344,6 @@ struct ByteCodeGenerateContext {
     InterpretedCodeBlock* m_codeBlock;
     ByteCodeBlock* m_byteCodeBlock;
     std::vector<std::pair<size_t, size_t>, std::allocator<std::pair<size_t, size_t>>>* m_locData; // used only for calculating location info
-
-    size_t m_stackLimit;
 
     bool m_isGlobalScope : 1;
     bool m_isEvalCode : 1;

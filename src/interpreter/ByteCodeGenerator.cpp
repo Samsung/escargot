@@ -36,7 +36,6 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_codeBlock(codeBlock)
     , m_byteCodeBlock(byteCodeBlock)
     , m_locData(nullptr)
-    , m_stackLimit(codeBlock->context()->vmInstance()->stackLimit())
     , m_isGlobalScope(isGlobalScope)
     , m_isEvalCode(isEvalCode)
     , m_isOutermostContext(true)
@@ -313,9 +312,9 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
     Node* ast = nullptr;
     if (codeBlock->isGlobalCodeBlock() || codeBlock->isEvalCode()) {
         ast = esprima::parseProgram(context, codeBlock->src(), esprima::generateClassInfoFrom(context, codeBlock->parent()),
-                                    codeBlock->script()->isModule(), codeBlock->isStrict(), codeBlock->inWith(), SIZE_MAX, false, false, false, true);
+                                    codeBlock->script()->isModule(), codeBlock->isStrict(), codeBlock->inWith(), false, false, false, true);
     } else {
-        ast = esprima::parseSingleFunction(context, codeBlock, SIZE_MAX);
+        ast = esprima::parseSingleFunction(context, codeBlock);
     }
 
     // Generate ByteCode

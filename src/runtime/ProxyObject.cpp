@@ -21,6 +21,7 @@
 #include "ProxyObject.h"
 #include "Context.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/Context.h"
 #include "interpreter/ByteCodeInterpreter.h"
 
 namespace Escargot {

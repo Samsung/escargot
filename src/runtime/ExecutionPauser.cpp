@@ -77,15 +77,14 @@ ExecutionPauser::ExecutionPauser(ExecutionState& state, Object* sourceObject, Ex
 
 Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Object* source, const Value& resumeValue, bool isAbruptReturn, bool isAbruptThrow, StartFrom from)
 {
-    class ExecutionPauserExecutionStateParentAndStackLimitBinder {
+    class ExecutionPauserExecutionStateParentBinder {
     public:
-        ExecutionPauserExecutionStateParentAndStackLimitBinder(ExecutionState& state, ExecutionState* originalState)
+        ExecutionPauserExecutionStateParentBinder(ExecutionState& state, ExecutionState* originalState)
             : m_originalState(originalState)
         {
             m_oldParent = m_originalState->parent();
 
             ExecutionState* pstate = m_originalState;
-            m_originalState->m_stackLimit = state.context()->vmInstance()->stackLimit();
             while (pstate) {
                 if (pstate == &state) {
                     // AsyncGeneratorObject::asyncGeneratorResolve can make loop
@@ -97,10 +96,9 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
             m_originalState->setParent(&state);
         }
 
-        ~ExecutionPauserExecutionStateParentAndStackLimitBinder()
+        ~ExecutionPauserExecutionStateParentBinder()
         {
             m_originalState->setParent(m_oldParent);
-            m_originalState->m_stackLimit = 0;
         }
 
         ExecutionState* m_originalState;
@@ -112,7 +110,7 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
         originalState = originalState->parent();
     }
 
-    ExecutionPauserExecutionStateParentAndStackLimitBinder parentBinder(state, originalState);
+    ExecutionPauserExecutionStateParentBinder parentBinder(state, originalState);
 
     if (self->m_resumeValueIndex != REGISTER_LIMIT) {
         self->m_registerFile[self->m_resumeValueIndex] = resumeValue;

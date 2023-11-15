@@ -293,7 +293,7 @@ void ScriptParser::deleteCodeBlockCacheInfo()
 }
 #endif
 
-ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* originSource, size_t originLineOffset, String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget, bool needByteCodeGeneration, size_t stackSizeRemain)
+ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* originSource, size_t originLineOffset, String* source, String* srcName, InterpretedCodeBlock* parentCodeBlock, bool isModule, bool isEvalMode, bool isEvalCodeInFunction, bool inWithOperation, bool strictFromOutside, bool allowSuperCall, bool allowSuperProperty, bool allowNewTarget, bool needByteCodeGeneration)
 {
     ASSERT(m_context->astAllocator().isInitialized());
 
@@ -366,7 +366,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
         ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock);
 
         programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo,
-                                            isModule, strictFromOutside, inWith, stackSizeRemain, allowSC, allowSP, allowNewTarget, allowArguments);
+                                            isModule, strictFromOutside, inWith, allowSC, allowSP, allowNewTarget, allowArguments);
 
         script = new Script(srcName, source, programNode->moduleData(), !parentCodeBlock, originLineOffset);
         if (parentCodeBlock) {
@@ -460,7 +460,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
     return result;
 }
 
-void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock, size_t stackSizeRemain)
+void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCodeBlock* codeBlock)
 {
 #ifdef ESCARGOT_DEBUGGER
     // When the debugger is enabled, lazy compilation is disabled, so the functions are compiled
@@ -475,7 +475,7 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
 
     // Parsing
     try {
-        functionNode = esprima::parseSingleFunction(m_context, codeBlock, stackSizeRemain);
+        functionNode = esprima::parseSingleFunction(m_context, codeBlock);
     } catch (esprima::Error* orgError) {
         // reset ASTAllocator
         m_context->astAllocator().reset();
@@ -538,7 +538,7 @@ void ScriptParser::recursivelyGenerateChildrenByteCode(InterpretedCodeBlock* par
         InterpretedCodeBlock* codeBlock = childrenVector[i];
 
         // Errors caught by the caller.
-        FunctionNode* functionNode = esprima::parseSingleFunction(m_context, codeBlock, SIZE_MAX);
+        FunctionNode* functionNode = esprima::parseSingleFunction(m_context, codeBlock);
         codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, codeBlock, functionNode);
 
         m_context->astAllocator().reset();
@@ -573,7 +573,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScriptWithDebugger(
     try {
         ASTClassInfo* outerClassInfo = esprima::generateClassInfoFrom(m_context, parentCodeBlock);
 
-        programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo, isModule, strictFromOutside, inWith, SIZE_MAX, allowSC, allowSP, allowNewTarget, allowArguments);
+        programNode = esprima::parseProgram(m_context, sourceView, outerClassInfo, isModule, strictFromOutside, inWith, allowSC, allowSP, allowNewTarget, allowArguments);
 
         script = new Script(srcName, source, programNode->moduleData(), !parentCodeBlock, originLineOffset);
         if (parentCodeBlock) {

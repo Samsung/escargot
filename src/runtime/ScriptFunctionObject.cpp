@@ -65,15 +65,7 @@ NEVER_INLINE void ScriptFunctionObject::generateByteCodeBlock(ExecutionState& st
 {
     ASSERT(m_codeBlock->isInterpretedCodeBlock());
 
-    volatile int sp;
-    size_t currentStackBase = (size_t)&sp;
-#ifdef STACK_GROWS_DOWN
-    size_t stackRemainApprox = currentStackBase - state.stackLimit();
-#else
-    size_t stackRemainApprox = state.stackLimit() - currentStackBase;
-#endif
-
-    state.context()->scriptParser().generateFunctionByteCode(state, interpretedCodeBlock(), stackRemainApprox);
+    state.context()->scriptParser().generateFunctionByteCode(state, interpretedCodeBlock());
 
     auto& currentCodeSizeTotal = state.context()->vmInstance()->compiledByteCodeSize();
     ASSERT(currentCodeSizeTotal < std::numeric_limits<size_t>::max());

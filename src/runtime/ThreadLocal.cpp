@@ -28,10 +28,21 @@
 #include "wasm.h"
 #endif
 
+#if defined(OS_WINDOWS)
+#include <Windows.h>
+#include <processthreadsapi.h>
+#ifndef _WIN32_WINNT
+#define 0x0602
+#endif
+#else
+#include <pthread.h>
+#endif
+
 namespace Escargot {
 
 MAY_THREAD_LOCAL bool ThreadLocal::inited;
 
+MAY_THREAD_LOCAL size_t ThreadLocal::g_stackLimit;
 MAY_THREAD_LOCAL std::mt19937* ThreadLocal::g_randEngine;
 MAY_THREAD_LOCAL bf_context_t ThreadLocal::g_bfContext;
 #if defined(ENABLE_WASM)
@@ -130,6 +141,46 @@ void ThreadLocal::initialize()
 
     // Heap is initialized for each thread
     Heap::initialize();
+
+    // g_stackLimit
+#if defined(OS_WINDOWS)
+    ULONG_PTR low, high;
+    GetCurrentThreadStackLimits(&low, &high);
+    void* stackStartAddress = reinterpret_cast<void*>(low);
+    void* stackEndAddress = reinterpret_cast<void*>(high);
+    size_t stackSize = reinterpret_cast<size_t>(stackEndAddress) - reinterpret_cast<size_t>(stackStartAddress);
+#else
+    void* stackStartAddress;
+    void* stackEndAddress;
+    size_t stackSize;
+#if defined(OS_DARWIN)
+    stackStartAddress = pthread_get_stackaddr_np(pthread_self());
+    stackSize = pthread_get_stacksize_np(pthread_self());
+#else
+    pthread_attr_t attr;
+    pthread_getattr_np(pthread_self(), &attr);
+    pthread_attr_getstack(&attr, &stackStartAddress, &stackSize);
+    pthread_attr_destroy(&attr);
+#endif
+
+    stackSize = std::min(stackSize, (size_t)STACK_USAGE_LIMIT);
+#ifdef STACK_GROWS_DOWN
+    stackEndAddress = (char*)stackStartAddress - stackSize;
+#if defined(OS_DARWIN)
+    std::swap(stackStartAddress, stackEndAddress);
+#endif
+#else
+    stackEndAddress = (char*)stackStartAddress + stackSize;
+#endif
+#endif
+
+#ifdef STACK_GROWS_DOWN
+    UNUSED_VARIABLE(stackEndAddress);
+    g_stackLimit = reinterpret_cast<size_t>(stackStartAddress) + STACK_FREESPACE_FROM_LIMIT;
+#else
+    UNUSED_VARIABLE(stackStartAddress);
+    g_stackLimit = reinterpret_cast<size_t>(stackEndAddress) - STACK_FREESPACE_FROM_LIMIT;
+#endif
 
     // g_randEngine
     g_randEngine = new std::mt19937(static_cast<unsigned int>(time(NULL)));

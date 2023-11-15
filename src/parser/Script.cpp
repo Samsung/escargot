@@ -377,12 +377,12 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     ExecutionState* newState;
     if (LIKELY(!m_topCodeBlock->isAsync())) {
         if (byteCodeBlock->needsExtendedExecutionState()) {
-            newState = new (alloca(sizeof(ExtendedExecutionState))) ExtendedExecutionState(context(), state.stackLimit());
+            newState = new (alloca(sizeof(ExtendedExecutionState))) ExtendedExecutionState(context());
         } else {
-            newState = new (alloca(sizeof(ExecutionState))) ExecutionState(context(), state.stackLimit());
+            newState = new (alloca(sizeof(ExecutionState))) ExecutionState(context());
         }
     } else {
-        newState = new ExtendedExecutionState(context(), nullptr, nullptr, 0, nullptr, false, ExtendedExecutionState::ForPauser);
+        newState = new ExtendedExecutionState(context(), nullptr, nullptr, 0, nullptr, false);
     }
     ExecutionState* codeExecutionState = newState;
 
@@ -1088,12 +1088,12 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
     ExecutionState* newState;
     if (LIKELY(!m_topCodeBlock->isAsync())) {
         if (byteCodeBlock->needsExtendedExecutionState()) {
-            newState = new (alloca(sizeof(ExtendedExecutionState))) ExtendedExecutionState(context(), state.stackLimit());
+            newState = new (alloca(sizeof(ExtendedExecutionState))) ExtendedExecutionState(context());
         } else {
-            newState = new (alloca(sizeof(ExecutionState))) ExecutionState(context(), state.stackLimit());
+            newState = new (alloca(sizeof(ExecutionState))) ExecutionState(context());
         }
     } else {
-        newState = new ExtendedExecutionState(context(), nullptr, nullptr, 0, nullptr, false, ExtendedExecutionState::ForPauser);
+        newState = new ExtendedExecutionState(context(), nullptr, nullptr, 0, nullptr, false);
     }
     newState->setLexicalEnvironment(new LexicalEnvironment(moduleData()->m_moduleRecord, globalLexicalEnv), true);
 

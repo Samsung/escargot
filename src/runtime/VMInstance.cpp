@@ -35,24 +35,10 @@
 #include "codecache/CodeCache.h"
 #endif
 
+#include <time.h> // for tzname
 #if defined(OS_WINDOWS)
 #include <Windows.h>
-#include <intrin.h>
-NT_TIB* getTIB()
-{
-#ifdef _M_IX86
-    return (NT_TIB*)__readfsdword(0x18);
-#elif _M_AMD64
-    return (NT_TIB*)__readgsqword(0x30);
-#else
-#error unsupported architecture
 #endif
-}
-#else
-#include <pthread.h>
-#endif
-
-#include <time.h> // for tzname
 
 namespace Escargot {
 
@@ -364,32 +350,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
         self->~VMInstance();
     },
                                    nullptr, nullptr, nullptr);
-
-#if defined(OS_WINDOWS)
-    void* stackStartAddress = getTIB()->StackBase;
-#elif defined(OS_DARWIN)
-    void* stackStartAddress = pthread_get_stackaddr_np(pthread_self());
-#else
-    pthread_attr_t attr;
-    RELEASE_ASSERT(pthread_getattr_np(pthread_self(), &attr) == 0);
-
-    size_t size;
-    void* stackStartAddress;
-    RELEASE_ASSERT(pthread_attr_getstack(&attr, &stackStartAddress, &size) == 0);
-    pthread_attr_destroy(&attr);
-#ifdef STACK_GROWS_DOWN
-    stackStartAddress = (char*)stackStartAddress + size;
-#endif
-#endif
-    // test stack base property aligned
-    RELEASE_ASSERT(((size_t)stackStartAddress) % sizeof(size_t) == 0);
-
-    // set stack limit
-#ifdef STACK_GROWS_DOWN
-    m_stackLimit = reinterpret_cast<size_t>(stackStartAddress) - STACK_LIMIT_FROM_BASE;
-#else
-    m_stackLimit = return reinterpret_cast<size_t>(stackStartAddress) + STACK_LIMIT_FROM_BASE;
-#endif
 
     if (!String::emptyString) {
         String::initEmptyString();

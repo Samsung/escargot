@@ -170,16 +170,7 @@ Value GlobalObject::eval(ExecutionState& state, const Value& arg)
         }
         ScriptParser parser(state.context());
         bool strictFromOutside = false;
-
-        volatile int sp;
-        size_t currentStackBase = (size_t)&sp;
-#ifdef STACK_GROWS_DOWN
-        size_t stackRemainApprox = currentStackBase - state.stackLimit();
-#else
-        size_t stackRemainApprox = state.stackLimit() - currentStackBase;
-#endif
-
-        Script* script = parser.initializeScript(nullptr, 0, arg.asString(), state.context()->staticStrings().lazyEvalCode().string(), nullptr, false, true, false, false, strictFromOutside, false, false, false, true, stackRemainApprox).scriptThrowsExceptionIfParseError(state);
+        Script* script = parser.initializeScript(nullptr, 0, arg.asString(), state.context()->staticStrings().lazyEvalCode().string(), nullptr, false, true, false, false, strictFromOutside, false, false, false, true).scriptThrowsExceptionIfParseError(state);
         // In case of indirect call, use global execution context
         ExtendedExecutionState stateForNewGlobal(m_context);
         return script->execute(stateForNewGlobal, true, script->topCodeBlock()->isStrict());
@@ -220,17 +211,9 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
             allowNewTarget = true;
         }
 
-        volatile int sp;
-        size_t currentStackBase = (size_t)&sp;
-#ifdef STACK_GROWS_DOWN
-        size_t stackRemainApprox = currentStackBase - state.stackLimit();
-#else
-        size_t stackRemainApprox = state.stackLimit() - currentStackBase;
-#endif
-
         Script* script = parser.initializeScript(nullptr, 0, arg.asString(), state.context()->staticStrings().lazyEvalCode().string(), parentCodeBlock,
                                                  false, true, isRunningEvalOnFunction, inWithOperation, strictFromOutside, parentCodeBlock->allowSuperCall(),
-                                                 parentCodeBlock->allowSuperProperty(), allowNewTarget, true, stackRemainApprox)
+                                                 parentCodeBlock->allowSuperProperty(), allowNewTarget, true)
                              .scriptThrowsExceptionIfParseError(state);
         return script->executeLocal(state, thisValue, parentCodeBlock, script->topCodeBlock()->isStrict(), isRunningEvalOnFunction);
     }
