@@ -1233,6 +1233,16 @@ void VMInstanceRef::executePendingJobFromAnotherThread()
     toImpl(this)->executePendingJobFromAnotherThread();
 }
 
+size_t VMInstanceRef::maxCompiledByteCodeSize()
+{
+    return toImpl(this)->maxCompiledByteCodeSize();
+}
+
+void VMInstanceRef::setMaxCompiledByteCodeSize(size_t s)
+{
+    toImpl(this)->setMaxCompiledByteCodeSize(s);
+}
+
 #ifdef ESCARGOT_DEBUGGER
 
 class DebuggerOperationsRef::BreakpointOperations::ObjectStore {

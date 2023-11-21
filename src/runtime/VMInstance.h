@@ -203,6 +203,16 @@ public:
         return m_compiledByteCodeSize;
     }
 
+    size_t maxCompiledByteCodeSize()
+    {
+        return m_maxCompiledByteCodeSize;
+    }
+
+    void setMaxCompiledByteCodeSize(size_t s)
+    {
+        m_maxCompiledByteCodeSize = s;
+    }
+
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     std::vector<CompressibleString*>& compressibleStrings()
     {
@@ -413,6 +423,7 @@ private:
 
     std::vector<ByteCodeBlock*> m_compiledByteCodeBlocks;
     size_t m_compiledByteCodeSize;
+    size_t m_maxCompiledByteCodeSize;
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     uint64_t m_lastCompressibleStringsTestTime;
