@@ -26,12 +26,12 @@
 #error "Code Cache does not support OS other than POSIX"
 #endif
 
-#if defined(ESCARGOT_ENABLE_TEST)
-#define CODE_CACHE_MIN_SOURCE_LENGTH 1024
-#define CODE_CACHE_MAX_CACHE_NUM 128
-#else
-#define CODE_CACHE_MIN_SOURCE_LENGTH 1024 * 4
-#define CODE_CACHE_MAX_CACHE_NUM 32
+#ifndef CODE_CACHE_MIN_SOURCE_LENGTH
+#define CODE_CACHE_MIN_SOURCE_LENGTH 1024 * 32
+#endif
+
+#ifndef CODE_CACHE_MAX_CACHE_NUM
+#define CODE_CACHE_MAX_CACHE_NUM 256
 #endif
 
 namespace Escargot {
@@ -85,6 +85,43 @@ struct CodeCacheMetaInfo {
     size_t dataSize;
 };
 
+struct CodeCacheItem {
+    size_t m_srcHash;
+    Optional<size_t> m_functionSourceIndex;
+    CodeCacheItem(size_t srcHash, Optional<size_t> functionSourceIndex)
+        : m_srcHash(srcHash)
+        , m_functionSourceIndex(functionSourceIndex)
+    {
+    }
+
+    bool operator==(const CodeCacheItem& src) const
+    {
+        return m_srcHash == src.m_srcHash && m_functionSourceIndex == src.m_functionSourceIndex;
+    }
+};
+
+} // namespace Escargot
+
+namespace std {
+template <>
+struct hash<Escargot::CodeCacheItem> {
+    size_t operator()(Escargot::CodeCacheItem const& x) const
+    {
+        return x.m_srcHash;
+    }
+};
+
+template <>
+struct equal_to<Escargot::CodeCacheItem> {
+    bool operator()(Escargot::CodeCacheItem const& a, Escargot::CodeCacheItem const& b) const
+    {
+        return a == b;
+    }
+};
+} // namespace std
+
+namespace Escargot {
+
 struct CodeCacheEntry {
     CodeCacheEntry()
         : m_lastWrittenTimeStamp(0)
@@ -134,13 +171,15 @@ public:
         {
         }
 
-        CodeCacheEntryChunk(size_t srcHash, const CodeCacheEntry& entry)
+        CodeCacheEntryChunk(size_t srcHash, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry)
             : m_srcHash(srcHash)
+            , m_functionSourceIndex(functionSourceIndex)
             , m_entry(entry)
         {
         }
 
         size_t m_srcHash;
+        Optional<size_t> m_functionSourceIndex;
         CodeCacheEntry m_entry;
     };
 
@@ -148,12 +187,12 @@ public:
     ~CodeCache();
 
     bool enabled() const { return m_enabled; }
-    std::pair<bool, CodeCacheEntry> searchCache(size_t srcHash);
+    std::pair<bool, CodeCacheEntry> searchCache(size_t srcHash, Optional<size_t> functionSourceIndex);
 
-    void prepareCacheLoading(Context* context, size_t srcHash, const CodeCacheEntry& entry);
-    void prepareCacheWriting(size_t srcHash);
+    void prepareCacheLoading(Context* context, size_t srcHash, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry);
+    void prepareCacheWriting(size_t srcHash, Optional<size_t> functionSourceIndex);
     bool postCacheLoading();
-    void postCacheWriting(size_t srcHash);
+    void postCacheWriting(size_t srcHash, Optional<size_t> functionSourceIndex);
 
     void storeStringTable();
     void storeCodeBlockTree(InterpretedCodeBlock* topCodeBlock, CodeBlockCacheInfo* codeBlockCacheInfo);
@@ -170,7 +209,7 @@ private:
 
     CodeCacheContext m_currentContext; // current CodeCache infos
 
-    typedef std::unordered_map<size_t, CodeCacheEntry, std::hash<size_t>, std::equal_to<size_t>, std::allocator<std::pair<size_t const, CodeCacheEntry>>> CodeCacheListMap;
+    typedef std::unordered_map<CodeCacheItem, CodeCacheEntry, std::hash<CodeCacheItem>, std::equal_to<CodeCacheItem>, std::allocator<std::pair<CodeCacheItem const, CodeCacheEntry>>> CodeCacheListMap;
     CodeCacheListMap m_cacheList;
 
     CodeCacheWriter* m_cacheWriter;
@@ -190,10 +229,10 @@ private:
     void clearAll();
     void reset();
     void setCacheEntry(const CodeCacheEntryChunk& entryChunk);
-    bool addCacheEntry(size_t hash, const CodeCacheEntry& entry);
+    bool addCacheEntry(size_t hash, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry);
 
     bool removeLRUCacheEntry();
-    bool removeCacheFile(size_t hash);
+    bool removeCacheFile(size_t hash, Optional<size_t> functionSourceIndex);
 
     void storeCodeBlockTreeNode(InterpretedCodeBlock* codeBlock, size_t& nodeCount);
     InterpretedCodeBlock* loadCodeBlockTreeNode(Script* script);

@@ -161,8 +161,17 @@ public:
         }
     };
 
-    Script(String* srcName, String* sourceCode, ModuleData* moduleData, bool canExecuteAgain, size_t originLineOffset)
+    Script(String* srcName, String* sourceCode, ModuleData* moduleData, size_t originLineOffset, bool canExecuteAgain
+#if defined(ENABLE_CODE_CACHE)
+           ,
+           bool isCacheable
+#endif
+           )
         : m_canExecuteAgain(canExecuteAgain && !moduleData)
+#if defined(ENABLE_CODE_CACHE)
+        , m_isCacheable(isCacheable)
+        , m_sourceCodeHashValue(0)
+#endif
         , m_srcName(srcName)
         , m_sourceCode(sourceCode)
         , m_topCodeBlock(nullptr)
@@ -203,6 +212,18 @@ public:
     {
         return m_moduleData;
     }
+
+#if defined(ENABLE_CODE_CACHE)
+    bool isCacheable()
+    {
+        return m_isCacheable;
+    }
+
+    size_t sourceCodeHashValue()
+    {
+        return m_sourceCodeHashValue;
+    }
+#endif
 
     size_t moduleRequestsLength();
     String* moduleRequest(size_t i);
@@ -297,6 +318,10 @@ private:
     static Value asyncModuleRejectedFunction(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
     bool m_canExecuteAgain;
+#if defined(ENABLE_CODE_CACHE)
+    bool m_isCacheable;
+    size_t m_sourceCodeHashValue;
+#endif
     String* m_srcName;
     String* m_sourceCode;
     InterpretedCodeBlock* m_topCodeBlock;
