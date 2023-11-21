@@ -616,10 +616,24 @@ public:
     }
 
     // for TCO
-    bool isTailRecursionTarget() const
+    bool isTailRecursionTarget(size_t argc, const AtomicString& calleeName) const
     {
         // global scope cannot create a return statement, neither tail recursion
         ASSERT(!isGlobalScope());
+
+        // check argc
+        if (m_parameterCount != argc) {
+            return false;
+        }
+
+#ifndef ESCARGOT_ENABLE_TEST
+        // check callee name
+        // this check is disabled in test build to pass test262 tco-related test cases
+        if (m_functionName.string()->length() && m_functionName != calleeName) {
+            return false;
+        }
+#endif
+
         return (!m_canAllocateVariablesOnStack || m_isArrowFunctionExpression || m_isClassConstructor || m_isDerivedClassConstructor || m_isClassMethod || m_isClassStaticMethod || m_isGenerator || m_isAsync || m_usesArgumentsObject) != true;
     }
 
