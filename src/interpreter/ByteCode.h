@@ -2020,6 +2020,7 @@ public:
         , m_argumentCount(argumentCount)
     {
     }
+
     ByteCodeRegisterIndex m_calleeIndex;
     ByteCodeRegisterIndex m_argumentsStartIndex;
     uint16_t m_argumentCount;
@@ -2045,6 +2046,7 @@ public:
         , m_argumentCount(argumentCount)
     {
     }
+
     ByteCodeRegisterIndex m_calleeIndex;
     ByteCodeRegisterIndex m_argumentsStartIndex;
     uint16_t m_argumentCount;
