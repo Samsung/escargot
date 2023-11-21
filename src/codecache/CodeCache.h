@@ -27,11 +27,15 @@
 #endif
 
 #ifndef CODE_CACHE_MIN_SOURCE_LENGTH
-#define CODE_CACHE_MIN_SOURCE_LENGTH 1024 * 16
+#define CODE_CACHE_MIN_SOURCE_LENGTH 1024 * 8
 #endif
 
-#ifndef CODE_CACHE_MAX_CACHE_NUM
-#define CODE_CACHE_MAX_CACHE_NUM 256
+#ifndef CODE_CACHE_MAX_CACHE_COUNT
+#define CODE_CACHE_MAX_CACHE_COUNT 16
+#endif
+
+#ifndef CODE_CACHE_SHOULD_LOAD_FUNCTIONS_ON_SCRIPT_LOADING
+#define CODE_CACHE_SHOULD_LOAD_FUNCTIONS_ON_SCRIPT_LOADING false
 #endif
 
 namespace Escargot {
@@ -107,7 +111,7 @@ template <>
 struct hash<Escargot::CodeCacheItem> {
     size_t operator()(Escargot::CodeCacheItem const& x) const
     {
-        return x.m_srcHash;
+        return x.m_srcHash + (x.m_functionSourceIndex ? x.m_functionSourceIndex.value() : 0);
     }
 };
 
@@ -124,19 +128,15 @@ namespace Escargot {
 
 struct CodeCacheEntry {
     CodeCacheEntry()
-        : m_lastWrittenTimeStamp(0)
     {
     }
 
     void reset()
     {
-        m_lastWrittenTimeStamp = 0;
         for (size_t i = 0; i < (size_t)CodeCacheType::CACHE_TYPE_NUM; i++) {
             m_metaInfos[i].cacheType = CodeCacheType::CACHE_INVALID;
         }
     }
-
-    uint64_t m_lastWrittenTimeStamp;
     CodeCacheMetaInfo m_metaInfos[(size_t)CodeCacheType::CACHE_TYPE_NUM];
 };
 
@@ -204,6 +204,13 @@ public:
 
     void clear();
 
+    size_t minSourceLength();
+    void setMinSourceLength(size_t s);
+    size_t maxCacheCount();
+    void setMaxCacheCount(size_t s);
+    bool shouldLoadFunctionOnScriptLoading();
+    void setShouldLoadFunctionOnScriptLoading(bool s);
+
 private:
     std::string m_cacheDirPath;
 
@@ -211,14 +218,19 @@ private:
 
     typedef std::unordered_map<CodeCacheItem, CodeCacheEntry, std::hash<CodeCacheItem>, std::equal_to<CodeCacheItem>, std::allocator<std::pair<CodeCacheItem const, CodeCacheEntry>>> CodeCacheListMap;
     CodeCacheListMap m_cacheList;
+    typedef std::unordered_map<size_t, uint64_t> CodeCacheLRUList; /* <Hash, TimeStamp> */
+    CodeCacheLRUList m_cacheLRUList;
 
     CodeCacheWriter* m_cacheWriter;
     CodeCacheReader* m_cacheReader;
 
     int m_cacheDirFD; // CodeCache directory file descriptor
     bool m_enabled; // CodeCache enabled
-
+    bool m_shouldLoadFunctionOnScriptLoading;
     Status m_status; // current caching status
+
+    size_t m_minSourceLength;
+    size_t m_maxCacheCount;
 
     void initialize(const char* baseCacheDir);
     bool tryInitCacheDir();
@@ -232,7 +244,7 @@ private:
     bool addCacheEntry(size_t hash, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry);
 
     bool removeLRUCacheEntry();
-    bool removeCacheFile(size_t hash, Optional<size_t> functionSourceIndex);
+    bool removeCacheFile(size_t hash);
 
     void storeCodeBlockTreeNode(InterpretedCodeBlock* codeBlock, size_t& nodeCount);
     InterpretedCodeBlock* loadCodeBlockTreeNode(Script* script);

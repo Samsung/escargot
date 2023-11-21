@@ -164,13 +164,14 @@ public:
     Script(String* srcName, String* sourceCode, ModuleData* moduleData, size_t originLineOffset, bool canExecuteAgain
 #if defined(ENABLE_CODE_CACHE)
            ,
-           bool isCacheable
+           bool isCacheable = false,
+           size_t sourceCodeHashValue = 0
 #endif
            )
         : m_canExecuteAgain(canExecuteAgain && !moduleData)
 #if defined(ENABLE_CODE_CACHE)
         , m_isCacheable(isCacheable)
-        , m_sourceCodeHashValue(0)
+        , m_sourceCodeHashValue(sourceCodeHashValue)
 #endif
         , m_srcName(srcName)
         , m_sourceCode(sourceCode)
