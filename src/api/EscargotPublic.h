@@ -724,6 +724,14 @@ public:
 
     size_t maxCompiledByteCodeSize();
     void setMaxCompiledByteCodeSize(size_t s);
+
+    bool isCodeCacheEnabled();
+    size_t codeCacheMinSourceLength();
+    void setCodeCacheMinSourceLength(size_t s);
+    size_t codeCacheMaxCacheCount();
+    void setCodeCacheMaxCacheCount(size_t s);
+    bool codeCacheShouldLoadFunctionOnScriptLoading();
+    void setCodeCacheShouldLoadFunctionOnScriptLoading(bool s);
 };
 
 class ESCARGOT_EXPORT DebuggerOperationsRef {

@@ -208,6 +208,7 @@ class InterpretedCodeBlock : public CodeBlock {
     friend class ScriptParser;
     friend int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr);
 #if defined(ENABLE_CODE_CACHE)
+    friend class CodeCache;
     friend class CodeCacheWriter;
     friend class CodeCacheReader;
 #endif
