@@ -1540,35 +1540,36 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             TailRecursion* code = (TailRecursion*)programCounter;
             const Value& callee = registerFile[code->m_calleeIndex];
 
-            if (UNLIKELY((callee != Value(state->resolveCallee())) || (state->initTCO() && (state->m_argc != code->m_argumentCount)))) {
+            if (UNLIKELY(callee != Value(state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()))) {
                 // goto slow path
                 return InterpreterSlowPath::tailRecursionSlowCase(*state, code, callee, registerFile);
+            }
+
+            if (UNLIKELY(!state->initTCO())) {
+                // At the start of tail call, we need to allocate a buffer for arguments
+                // because recursive tail call reuses this buffer
+                state->m_argc = code->m_argumentCount;
+                Value* newArgs = code->m_argumentCount ? ALLOCA(sizeof(Value) * code->m_argumentCount, Value) : nullptr;
+                state->setTCOArguments(newArgs);
             }
 
             // fast tail recursion
             ASSERT(callee.isPointerValue() && callee.asPointerValue()->isScriptFunctionObject());
             ASSERT(callee.asPointerValue()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
-            ASSERT(!state->initTCO() || (state->m_argc == code->m_argumentCount));
-
-            if (code->m_argumentCount) {
-                // At the start of tail call, we need to allocate a buffer for arguments
-                // because recursive tail call reuses this buffer
-                if (UNLIKELY(!state->initTCO())) {
-                    state->m_argc = code->m_argumentCount;
-                    Value* newArgs = ALLOCA(sizeof(Value) * code->m_argumentCount, Value);
-                    state->setTCOArguments(newArgs);
-                }
-
-                // its safe to overwrite arguments because old arguments are no longer necessary
-                for (size_t i = 0; i < state->m_argc; i++) {
-                    state->m_argv[i] = registerFile[code->m_argumentsStartIndex + i];
-                }
+            ASSERT(state->initTCO() && (state->m_argc == code->m_argumentCount));
+#ifndef NDEBUG
+            // check this value
+            if (state->inStrictMode()) {
+                ASSERT(registerFile[byteCodeBlock->m_requiredOperandRegisterNumber].isUndefined());
+            } else {
+                ASSERT(registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] == Value(state->context()->globalObjectProxy()));
             }
+#endif
 
-            state->setInitTCO();
-
-            // set this value
-            registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] = state->inStrictMode() ? Value() : state->context()->globalObjectProxy();
+            // its safe to overwrite arguments because old arguments are no longer necessary
+            for (size_t i = 0; i < state->m_argc; i++) {
+                state->m_argv[i] = registerFile[code->m_argumentsStartIndex + i];
+            }
 
             // set programCounter
             programCounter = reinterpret_cast<size_t>(byteCodeBlock->m_code.data());
@@ -1585,34 +1586,30 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             const Value& callee = registerFile[code->m_calleeIndex];
             const Value& receiver = registerFile[code->m_receiverIndex];
 
-            if (UNLIKELY((callee != Value(state->resolveCallee())) || (state->initTCO() && (state->m_argc != code->m_argumentCount)))) {
+            if (UNLIKELY(callee != Value(state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()))) {
                 // goto slow path
                 return InterpreterSlowPath::tailRecursionWithReceiverSlowCase(*state, code, callee, receiver, registerFile);
+            }
+
+            if (UNLIKELY(!state->initTCO())) {
+                // At the start of tail call, we need to allocate a buffer for arguments
+                // because recursive tail call reuses this buffer
+                state->m_argc = code->m_argumentCount;
+                Value* newArgs = code->m_argumentCount ? ALLOCA(sizeof(Value) * code->m_argumentCount, Value) : nullptr;
+                state->setTCOArguments(newArgs);
             }
 
             // fast tail recursion with receiver
             ASSERT(callee.isPointerValue() && callee.asPointerValue()->isScriptFunctionObject());
             ASSERT(callee.asPointerValue()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
-            ASSERT(!state->initTCO() || (state->m_argc == code->m_argumentCount));
+            ASSERT(state->initTCO() && (state->m_argc == code->m_argumentCount));
 
-            if (code->m_argumentCount) {
-                // At the start of tail call, we need to allocate a buffer for arguments
-                // because recursive tail call reuses this buffer
-                if (UNLIKELY(!state->initTCO())) {
-                    state->m_argc = code->m_argumentCount;
-                    Value* newArgs = ALLOCA(sizeof(Value) * code->m_argumentCount, Value);
-                    state->setTCOArguments(newArgs);
-                }
-
-                // its safe to overwrite arguments because old arguments are no longer necessary
-                for (size_t i = 0; i < state->m_argc; i++) {
-                    state->m_argv[i] = registerFile[code->m_argumentsStartIndex + i];
-                }
+            // its safe to overwrite arguments because old arguments are no longer necessary
+            for (size_t i = 0; i < state->m_argc; i++) {
+                state->m_argv[i] = registerFile[code->m_argumentsStartIndex + i];
             }
 
-            state->setInitTCO();
-
-            // set this value (receiver) // FIXME
+            // set this value (receiver)
             if (state->inStrictMode()) {
                 registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] = receiver;
             } else {
@@ -1637,7 +1634,8 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             TailRecursionInTry* code = (TailRecursionInTry*)programCounter;
             const Value& callee = registerFile[code->m_calleeIndex];
 
-            if (UNLIKELY((callee != Value(state->resolveCallee())) || (state->m_argc != code->m_argumentCount))) {
+            if (UNLIKELY(callee != Value(state->resolveCallee()))) {
+                // should call resolveCallee because try-catch-finally block is executed in a sub-interpreter
                 // goto slow path
                 code->changeOpcode(Opcode::CallOpcode);
                 if (UNLIKELY(!callee.isPointerValue())) {
@@ -1653,7 +1651,6 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
 
             ASSERT(callee.isPointerValue() && callee.asPointerValue()->isScriptFunctionObject());
             ASSERT(callee.asPointerValue()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
-            ASSERT(state->m_argc == code->m_argumentCount);
             ASSERT(state->rareData()->controlFlowRecordVector() && state->rareData()->controlFlowRecordVector()->size());
 
             // postpone recursion call
@@ -3228,26 +3225,31 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             ASSERT(!inPauserScope && !inPauserResumeProcess);
             ASSERT(code->m_hasCatch || code->m_hasFinalizer);
             ASSERT(record->m_value == state->resolveCallee());
+#ifndef NDEBUG
+            // check this value
+            if (state->inStrictMode()) {
+                ASSERT(registerFile[byteCodeBlock->m_requiredOperandRegisterNumber].isUndefined());
+            } else {
+                ASSERT(registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] == Value(state->context()->globalObjectProxy()));
+            }
+#endif
 
             Value callee = record->m_value;
             size_t argCount = record->m_count;
             size_t argStartIndex = record->m_outerLimitCount;
-            if (argCount) {
-                // At the start of tail call, we need to allocate a buffer for arguments
-                // because recursive tail call reuses this buffer
-                if (UNLIKELY(!state->initTCO())) {
-                    Value* newArgs = (Value*)GC_MALLOC(sizeof(Value) * argCount);
-                    state->setTCOArguments(newArgs);
-                }
-
-                // its safe to overwrite arguments because old arguments are no longer necessary
-                for (size_t i = 0; i < state->m_argc; i++) {
-                    state->m_argv[i] = registerFile[argStartIndex + i];
-                }
+            // At the start of tail call, we need to allocate a buffer for arguments
+            // because recursive tail call reuses this buffer
+            if (UNLIKELY(!state->initTCO())) {
+                state->m_argc = argCount;
+                Value* newArgs = argCount ? (Value*)GC_MALLOC(sizeof(Value) * argCount) : nullptr;
+                state->setTCOArguments(newArgs);
             }
 
-            // set this value
-            registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] = state->inStrictMode() ? Value() : state->context()->globalObjectProxy();
+            // its safe to overwrite arguments because old arguments are no longer necessary
+            ASSERT(state->m_argc == argCount);
+            for (size_t i = 0; i < state->m_argc; i++) {
+                state->m_argv[i] = registerFile[argStartIndex + i];
+            }
 
             // set programCounter
             programCounter = reinterpret_cast<size_t>(byteCodeBlock->m_code.data());
