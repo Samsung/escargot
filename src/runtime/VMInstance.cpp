@@ -199,7 +199,7 @@ void vmMarkStartCallback(void* data)
     }
 
     auto& currentCodeSizeTotal = self->compiledByteCodeSize();
-    if (currentCodeSizeTotal > SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX || UNLIKELY(self->inIdleMode())) {
+    if (currentCodeSizeTotal > self->maxCompiledByteCodeSize() || UNLIKELY(self->inIdleMode())) {
         currentCodeSizeTotal = std::numeric_limits<size_t>::max();
 
         auto& v = self->compiledByteCodeBlocks();
@@ -329,6 +329,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     , m_inIdleMode(false)
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
     , m_compiledByteCodeSize(0)
+    , m_maxCompiledByteCodeSize(SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX)
 #if defined(ENABLE_COMPRESSIBLE_STRING)
     , m_lastCompressibleStringsTestTime(0)
     , m_compressibleStringsUncomressedBufferSize(0)

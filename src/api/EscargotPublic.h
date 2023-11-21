@@ -721,6 +721,9 @@ public:
     bool hasPendingJobFromAnotherThread();
     bool waitEventFromAnotherThread(unsigned timeoutInMillisecond = 0); // zero means infinity
     void executePendingJobFromAnotherThread();
+
+    size_t maxCompiledByteCodeSize();
+    void setMaxCompiledByteCodeSize(size_t s);
 };
 
 class ESCARGOT_EXPORT DebuggerOperationsRef {
