@@ -3054,7 +3054,7 @@ void ContextRef::setSecurityPolicyCheckCallback(SecurityPolicyCheckCallback cb)
 
 StackOverflowDisabler::StackOverflowDisabler(ExecutionStateRef* es)
     : m_executionState(es)
-    , m_originStackLimit(toImpl(es)->stackLimit())
+    , m_originStackLimit(ThreadLocal::stackLimit())
 {
 #ifdef STACK_GROWS_DOWN
     size_t newStackLimit = 0;

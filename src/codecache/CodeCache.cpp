@@ -299,19 +299,20 @@ void CodeCache::reset()
 
 void CodeCache::setCacheEntry(const CodeCacheEntryChunk& entryChunk)
 {
+    CodeCacheItem item(entryChunk.m_srcHash, entryChunk.m_functionSourceIndex);
 #ifndef NDEBUG
-    auto iter = m_cacheList.find(entryChunk.m_srcHash);
+    auto iter = m_cacheList.find(item);
     ASSERT(iter == m_cacheList.end());
 #endif
-    m_cacheList.insert(std::make_pair(entryChunk.m_srcHash, entryChunk.m_entry));
+    m_cacheList.insert(std::make_pair(item, entryChunk.m_entry));
 }
 
-bool CodeCache::addCacheEntry(size_t hash, const CodeCacheEntry& entry)
+bool CodeCache::addCacheEntry(size_t hash, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry)
 {
     ASSERT(m_enabled);
 
 #ifndef NDEBUG
-    auto iter = m_cacheList.find(hash);
+    auto iter = m_cacheList.find(CodeCacheItem(hash, functionSourceIndex));
     ASSERT(iter == m_cacheList.end());
 #endif
     if (m_cacheList.size() == CODE_CACHE_MAX_CACHE_NUM) {
@@ -320,7 +321,7 @@ bool CodeCache::addCacheEntry(size_t hash, const CodeCacheEntry& entry)
         }
     }
 
-    m_cacheList.insert(std::make_pair(hash, entry));
+    m_cacheList.insert(std::make_pair(CodeCacheItem(hash, functionSourceIndex), entry));
     return true;
 }
 
@@ -332,7 +333,7 @@ bool CodeCache::removeLRUCacheEntry()
 #ifndef NDEBUG
     uint64_t currentTimeStamp = fastTickCount();
 #endif
-    size_t lruHash = 0;
+    CodeCacheItem lruItem(0, Optional<size_t>());
     uint64_t lruTimeStamp = std::numeric_limits<uint64_t>::max();
     for (auto iter = m_cacheList.begin(); iter != m_cacheList.end(); iter++) {
         uint64_t timeStamp = iter->second.m_lastWrittenTimeStamp;
@@ -340,27 +341,30 @@ bool CodeCache::removeLRUCacheEntry()
         ASSERT(timeStamp <= currentTimeStamp);
 #endif
         if (lruTimeStamp > timeStamp) {
-            lruHash = iter->first;
+            lruItem = iter->first;
             lruTimeStamp = timeStamp;
         }
     }
 
-    if (UNLIKELY(!removeCacheFile(lruHash))) {
+    if (UNLIKELY(!removeCacheFile(lruItem.m_srcHash, lruItem.m_functionSourceIndex))) {
         return false;
     }
 
-    size_t eraseReturn = m_cacheList.erase(lruHash);
+    size_t eraseReturn = m_cacheList.erase(lruItem);
     ASSERT(eraseReturn == 1 && m_cacheList.size() == CODE_CACHE_MAX_CACHE_NUM - 1);
 
     return true;
 }
 
-bool CodeCache::removeCacheFile(size_t hash)
+bool CodeCache::removeCacheFile(size_t hash, Optional<size_t> functionSourceIndex)
 {
     ASSERT(m_enabled);
     ASSERT(m_cacheDirPath.length());
 
     std::string filePath = m_cacheDirPath + std::to_string(hash);
+    if (functionSourceIndex) {
+        filePath += "." + std::to_string(functionSourceIndex.value());
+    }
 
     if (remove(filePath.data()) != 0) {
         ESCARGOT_LOG_ERROR("[CodeCache] can`t remove a cache file %s\n", filePath.data());
@@ -370,14 +374,14 @@ bool CodeCache::removeCacheFile(size_t hash)
     return true;
 }
 
-std::pair<bool, CodeCacheEntry> CodeCache::searchCache(size_t srcHash)
+std::pair<bool, CodeCacheEntry> CodeCache::searchCache(size_t srcHash, Optional<size_t> functionSourceIndex)
 {
     ASSERT(m_enabled);
 
     CodeCacheEntry entry;
     bool cacheHit = false;
 
-    auto iter = m_cacheList.find(srcHash);
+    auto iter = m_cacheList.find(CodeCacheItem(srcHash, functionSourceIndex));
     if (iter != m_cacheList.end()) {
         cacheHit = true;
         entry = iter->second;
@@ -386,7 +390,7 @@ std::pair<bool, CodeCacheEntry> CodeCache::searchCache(size_t srcHash)
     return std::make_pair(cacheHit, entry);
 }
 
-void CodeCache::prepareCacheLoading(Context* context, size_t srcHash, const CodeCacheEntry& entry)
+void CodeCache::prepareCacheLoading(Context* context, size_t srcHash, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry)
 {
     ASSERT(m_enabled && m_status == Status::READY);
     ASSERT(m_cacheDirPath.length());
@@ -396,11 +400,14 @@ void CodeCache::prepareCacheLoading(Context* context, size_t srcHash, const Code
     m_status = Status::IN_PROGRESS;
 
     m_currentContext.m_cacheFilePath = m_cacheDirPath + std::to_string(srcHash);
+    if (functionSourceIndex) {
+        m_currentContext.m_cacheFilePath += "." + std::to_string(functionSourceIndex.value());
+    }
     m_currentContext.m_cacheEntry = entry;
     m_currentContext.m_cacheStringTable = loadCacheStringTable(context);
 }
 
-void CodeCache::prepareCacheWriting(size_t srcHash)
+void CodeCache::prepareCacheWriting(size_t srcHash, Optional<size_t> functionSourceIndex)
 {
     ASSERT(m_enabled && m_status == Status::READY);
     ASSERT(m_cacheDirPath.length());
@@ -410,6 +417,9 @@ void CodeCache::prepareCacheWriting(size_t srcHash)
     m_status = Status::IN_PROGRESS;
 
     m_currentContext.m_cacheFilePath = m_cacheDirPath + std::to_string(srcHash);
+    if (functionSourceIndex) {
+        m_currentContext.m_cacheFilePath += "." + std::to_string(functionSourceIndex.value());
+    }
     m_currentContext.m_cacheStringTable = new CacheStringTable();
 }
 
@@ -430,7 +440,7 @@ bool CodeCache::postCacheLoading()
     return false;
 }
 
-void CodeCache::postCacheWriting(size_t srcHash)
+void CodeCache::postCacheWriting(size_t srcHash, Optional<size_t> functionSourceIndex)
 {
     ASSERT(m_enabled);
 
@@ -441,7 +451,7 @@ void CodeCache::postCacheWriting(size_t srcHash)
         // write time stamp
         entry.m_lastWrittenTimeStamp = fastTickCount();
 
-        if (addCacheEntry(srcHash, m_currentContext.m_cacheEntry)) {
+        if (addCacheEntry(srcHash, functionSourceIndex, m_currentContext.m_cacheEntry)) {
             if (writeCacheList()) {
                 reset();
                 m_status = Status::READY;
@@ -694,7 +704,7 @@ bool CodeCache::writeCacheList()
     while (entryCount < listSize) {
         ASSERT(iter != m_cacheList.end());
 
-        CodeCacheEntryChunk entryChunk(iter->first, iter->second);
+        CodeCacheEntryChunk entryChunk(iter->first.m_srcHash, iter->first.m_functionSourceIndex, iter->second);
         if (UNLIKELY(fwrite(&entryChunk, sizeof(CodeCacheEntryChunk), 1, listFile) != 1)) {
             ESCARGOT_LOG_ERROR("[CodeCache] fwrite of %s failed\n", cacheListFilePath.data());
             fclose(listFile);

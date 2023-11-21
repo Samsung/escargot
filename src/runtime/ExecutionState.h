@@ -186,11 +186,6 @@ public:
         m_inStrictMode = inStrictMode;
     }
 
-    size_t stackLimit()
-    {
-        return 0;
-    }
-
     void throwException(const Value& e);
 
     bool hasRareData()
