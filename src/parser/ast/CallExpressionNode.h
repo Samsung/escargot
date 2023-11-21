@@ -417,7 +417,8 @@ public:
             if (dstRegister == context->m_returnRegister) {
                 // Try tail recursion optimization (TCO)
                 isTailCall = true;
-                bool isTailRecursion = context->m_codeBlock->isTailRecursionTarget();
+                const AtomicString& calleeName = m_callee->asMemberExpression()->property()->isIdentifier() ? m_callee->asMemberExpression()->property()->asIdentifier()->name() : AtomicString();
+                bool isTailRecursion = context->m_codeBlock->isTailRecursionTarget(m_arguments.size(), calleeName);
                 if (UNLIKELY(context->tryCatchWithBlockStatementCount())) {
                     codeBlock->pushCode(CallWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
                 } else {
@@ -434,7 +435,8 @@ public:
             if (dstRegister == context->m_returnRegister) {
                 // Try tail recursion optimization (TCO)
                 isTailCall = true;
-                bool isTailRecursion = context->m_codeBlock->isTailRecursionTarget();
+                const AtomicString& calleeName = m_callee->isIdentifier() ? m_callee->asIdentifier()->name() : AtomicString();
+                bool isTailRecursion = context->m_codeBlock->isTailRecursionTarget(m_arguments.size(), calleeName);
                 if (UNLIKELY(context->tryCatchWithBlockStatementCount())) {
                     if (isTailRecursion) {
                         codeBlock->pushCode(TailRecursionInTry(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
