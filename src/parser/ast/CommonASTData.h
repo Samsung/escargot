@@ -188,6 +188,11 @@ struct ExtendedNodeLOC {
     };
     size_t index;
 
+    ExtendedNodeLOC()
+        : ExtendedNodeLOC(0, 0, 0)
+    {
+    }
+
     ExtendedNodeLOC(size_t line, size_t column, size_t index)
         : line(line)
         , column(column)
