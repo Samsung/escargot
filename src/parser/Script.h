@@ -164,13 +164,11 @@ public:
     Script(String* srcName, String* sourceCode, ModuleData* moduleData, size_t originLineOffset, bool canExecuteAgain
 #if defined(ENABLE_CODE_CACHE)
            ,
-           bool isCacheable = false,
            size_t sourceCodeHashValue = 0
 #endif
            )
         : m_canExecuteAgain(canExecuteAgain && !moduleData)
 #if defined(ENABLE_CODE_CACHE)
-        , m_isCacheable(isCacheable)
         , m_sourceCodeHashValue(sourceCodeHashValue)
 #endif
         , m_srcName(srcName)
@@ -215,13 +213,11 @@ public:
     }
 
 #if defined(ENABLE_CODE_CACHE)
-    bool isCacheable()
-    {
-        return m_isCacheable;
-    }
-
     size_t sourceCodeHashValue()
     {
+        if (UNLIKELY(m_sourceCodeHashValue == 0)) {
+            m_sourceCodeHashValue = m_sourceCode->hashValue();
+        }
         return m_sourceCodeHashValue;
     }
 #endif
@@ -320,7 +316,6 @@ private:
 
     bool m_canExecuteAgain;
 #if defined(ENABLE_CODE_CACHE)
-    bool m_isCacheable;
     size_t m_sourceCodeHashValue;
 #endif
     String* m_srcName;
