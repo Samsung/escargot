@@ -127,7 +127,7 @@ public:
         void put(IntegralType value)
         {
             ASSERT(isAvailable(sizeof(IntegralType)));
-            *reinterpret_cast<IntegralType*>(m_buffer + m_index) = value;
+            memcpy(m_buffer + m_index, &value, sizeof(IntegralType));
             m_index += sizeof(IntegralType);
         }
 
@@ -251,7 +251,8 @@ public:
         IntegralType get()
         {
             ASSERT(m_index < m_capacity);
-            IntegralType value = *(reinterpret_cast<IntegralType*>(m_buffer + m_index));
+            IntegralType value;
+            memcpy(&value, m_buffer + m_index, sizeof(IntegralType));
             m_index += sizeof(IntegralType);
             return value;
         }
