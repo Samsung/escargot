@@ -312,7 +312,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
         if (result.first) {
             GC_disable();
 
-            Script* script = new Script(srcName, source, nullptr, originLineOffset, false, cacheable, srcHash);
+            Script* script = new Script(srcName, source, nullptr, originLineOffset, false, srcHash);
             CodeCacheEntry& entry = result.second;
 
             codeCache->prepareCacheLoading(m_context, srcHash, Optional<size_t>(), entry);
@@ -370,7 +370,6 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
         script = new Script(srcName, source, programNode->moduleData(), originLineOffset, !parentCodeBlock
 #if defined(ENABLE_CODE_CACHE)
                             ,
-                            cacheable,
                             srcHash
 #endif
         );
@@ -475,9 +474,13 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
 
 #if defined(ENABLE_CODE_CACHE)
     CodeCache* codeCache = m_context->vmInstance()->codeCache();
-    bool cacheable = codeBlock->script()->isCacheable() && codeBlock->src().length() > codeCache->minSourceLength();
+    bool cacheable = codeCache->enabled() && codeBlock->src().length() > codeCache->minSourceLength();
     // Lode code from cache
-    size_t srcHash = codeBlock->script()->sourceCodeHashValue();
+    size_t srcHash = 0;
+    // loading source code hash value can cause computing hash value of entire source code
+    if (cacheable) {
+        srcHash = codeBlock->script()->sourceCodeHashValue();
+    }
 
     // Load cache
     if (cacheable) {
