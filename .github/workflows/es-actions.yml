@@ -528,7 +528,7 @@ jobs:
     - name: Handle error cases
       run: |
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
-        rm $HOME/Escargot-cache/3217641879501852439
+        rm $HOME/Escargot-cache/3217641879501852439_17149
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
         ls -1q $HOME/Escargot-cache/ | wc -l
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js

@@ -89,18 +89,41 @@ struct CodeCacheMetaInfo {
     size_t dataSize;
 };
 
-struct CodeCacheItem {
+struct CodeCacheScriptIdentifier {
     size_t m_srcHash;
-    Optional<size_t> m_functionSourceIndex;
-    CodeCacheItem(size_t srcHash, Optional<size_t> functionSourceIndex)
+    size_t m_sourceCodeLength;
+
+    CodeCacheScriptIdentifier(size_t srcHash, size_t sourceCodeLength)
         : m_srcHash(srcHash)
+        , m_sourceCodeLength(sourceCodeLength)
+    {
+    }
+
+    void makeCacheFilePath(std::stringstream& ss) const
+    {
+        ss << m_srcHash;
+        ss << '_';
+        ss << m_sourceCodeLength;
+    }
+
+    bool operator==(const CodeCacheScriptIdentifier& src) const
+    {
+        return m_srcHash == src.m_srcHash && m_sourceCodeLength == src.m_sourceCodeLength;
+    }
+};
+
+struct CodeCacheItem {
+    CodeCacheScriptIdentifier m_scriptIdentifier;
+    Optional<size_t> m_functionSourceIndex;
+    CodeCacheItem(CodeCacheScriptIdentifier scriptIdentifier, Optional<size_t> functionSourceIndex)
+        : m_scriptIdentifier(scriptIdentifier)
         , m_functionSourceIndex(functionSourceIndex)
     {
     }
 
     bool operator==(const CodeCacheItem& src) const
     {
-        return m_srcHash == src.m_srcHash && m_functionSourceIndex == src.m_functionSourceIndex;
+        return m_scriptIdentifier == src.m_scriptIdentifier && m_functionSourceIndex == src.m_functionSourceIndex;
     }
 };
 
@@ -111,13 +134,29 @@ template <>
 struct hash<Escargot::CodeCacheItem> {
     size_t operator()(Escargot::CodeCacheItem const& x) const
     {
-        return x.m_srcHash + (x.m_functionSourceIndex ? x.m_functionSourceIndex.value() : 0);
+        return x.m_scriptIdentifier.m_srcHash + (x.m_functionSourceIndex ? x.m_functionSourceIndex.value() : 0);
     }
 };
 
 template <>
 struct equal_to<Escargot::CodeCacheItem> {
     bool operator()(Escargot::CodeCacheItem const& a, Escargot::CodeCacheItem const& b) const
+    {
+        return a == b;
+    }
+};
+
+template <>
+struct hash<Escargot::CodeCacheScriptIdentifier> {
+    size_t operator()(Escargot::CodeCacheScriptIdentifier const& x) const
+    {
+        return x.m_srcHash;
+    }
+};
+
+template <>
+struct equal_to<Escargot::CodeCacheScriptIdentifier> {
+    bool operator()(Escargot::CodeCacheScriptIdentifier const& a, Escargot::CodeCacheScriptIdentifier const& b) const
     {
         return a == b;
     }
@@ -167,18 +206,18 @@ public:
 
     struct CodeCacheEntryChunk {
         CodeCacheEntryChunk()
-            : m_srcHash(0)
+            : m_scriptIdentifier(0, 0)
         {
         }
 
-        CodeCacheEntryChunk(size_t srcHash, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry)
-            : m_srcHash(srcHash)
+        CodeCacheEntryChunk(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry)
+            : m_scriptIdentifier(scriptIdentifier)
             , m_functionSourceIndex(functionSourceIndex)
             , m_entry(entry)
         {
         }
 
-        size_t m_srcHash;
+        CodeCacheScriptIdentifier m_scriptIdentifier;
         Optional<size_t> m_functionSourceIndex;
         CodeCacheEntry m_entry;
     };
@@ -187,12 +226,12 @@ public:
     ~CodeCache();
 
     bool enabled() const { return m_enabled; }
-    std::pair<bool, CodeCacheEntry> searchCache(size_t srcHash, Optional<size_t> functionSourceIndex);
+    std::pair<bool, CodeCacheEntry> searchCache(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex);
 
-    void prepareCacheLoading(Context* context, size_t srcHash, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry);
-    void prepareCacheWriting(size_t srcHash, Optional<size_t> functionSourceIndex);
+    void prepareCacheLoading(Context* context, const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry);
+    void prepareCacheWriting(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex);
     bool postCacheLoading();
-    void postCacheWriting(size_t srcHash, Optional<size_t> functionSourceIndex);
+    void postCacheWriting(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex);
 
     void storeStringTable();
     void storeCodeBlockTree(InterpretedCodeBlock* topCodeBlock, CodeBlockCacheInfo* codeBlockCacheInfo);
@@ -218,7 +257,7 @@ private:
 
     typedef std::unordered_map<CodeCacheItem, CodeCacheEntry, std::hash<CodeCacheItem>, std::equal_to<CodeCacheItem>, std::allocator<std::pair<CodeCacheItem const, CodeCacheEntry>>> CodeCacheListMap;
     CodeCacheListMap m_cacheList;
-    typedef std::unordered_map<size_t, uint64_t> CodeCacheLRUList; /* <Hash, TimeStamp> */
+    typedef std::unordered_map<CodeCacheScriptIdentifier, uint64_t> CodeCacheLRUList; /* <Hash, TimeStamp> */
     CodeCacheLRUList m_cacheLRUList;
 
     CodeCacheWriter* m_cacheWriter;
@@ -241,10 +280,10 @@ private:
     void clearAll();
     void reset();
     void setCacheEntry(const CodeCacheEntryChunk& entryChunk);
-    bool addCacheEntry(size_t hash, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry);
+    bool addCacheEntry(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry);
 
     bool removeLRUCacheEntry();
-    bool removeCacheFile(size_t hash);
+    bool removeCacheFile(const CodeCacheScriptIdentifier& scriptIdentifier);
 
     void storeCodeBlockTreeNode(InterpretedCodeBlock* codeBlock, size_t& nodeCount);
     InterpretedCodeBlock* loadCodeBlockTreeNode(Script* script);
