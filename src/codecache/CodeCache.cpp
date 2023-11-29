@@ -41,6 +41,14 @@
 
 namespace Escargot {
 
+static std::string makeCacheFilePath(const std::string& cacheDirPath, const CodeCacheScriptIdentifier& id)
+{
+    std::stringstream ss;
+    ss << cacheDirPath;
+    id.makeCacheFilePath(ss);
+    return ss.str();
+}
+
 void CodeCache::CodeCacheContext::reset()
 {
     m_cacheFilePath.clear();
@@ -304,7 +312,7 @@ void CodeCache::reset()
 
 void CodeCache::setCacheEntry(const CodeCacheEntryChunk& entryChunk)
 {
-    CodeCacheItem item(entryChunk.m_srcHash, entryChunk.m_functionSourceIndex);
+    CodeCacheItem item(entryChunk.m_scriptIdentifier, entryChunk.m_functionSourceIndex);
 #ifndef NDEBUG
     auto iter = m_cacheList.find(item);
     ASSERT(iter == m_cacheList.end());
@@ -312,12 +320,12 @@ void CodeCache::setCacheEntry(const CodeCacheEntryChunk& entryChunk)
     m_cacheList.insert(std::make_pair(item, entryChunk.m_entry));
 }
 
-bool CodeCache::addCacheEntry(size_t hash, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry)
+bool CodeCache::addCacheEntry(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry)
 {
     ASSERT(m_enabled);
 
 #ifndef NDEBUG
-    auto iter = m_cacheList.find(CodeCacheItem(hash, functionSourceIndex));
+    auto iter = m_cacheList.find(CodeCacheItem(scriptIdentifier, functionSourceIndex));
     ASSERT(iter == m_cacheList.end());
 #endif
     if (m_cacheLRUList.size() == m_maxCacheCount) {
@@ -326,7 +334,7 @@ bool CodeCache::addCacheEntry(size_t hash, Optional<size_t> functionSourceIndex,
         }
     }
 
-    m_cacheList.insert(std::make_pair(CodeCacheItem(hash, functionSourceIndex), entry));
+    m_cacheList.insert(std::make_pair(CodeCacheItem(scriptIdentifier, functionSourceIndex), entry));
     return true;
 }
 
@@ -338,7 +346,7 @@ bool CodeCache::removeLRUCacheEntry()
 #ifndef NDEBUG
     uint64_t currentTimeStamp = fastTickCount();
 #endif
-    size_t lruItem = 0;
+    CodeCacheScriptIdentifier lruItem(0, 0);
     uint64_t lruTimeStamp = std::numeric_limits<uint64_t>::max();
     for (auto iter = m_cacheLRUList.begin(); iter != m_cacheLRUList.end(); iter++) {
         uint64_t timeStamp = iter->second;
@@ -359,7 +367,7 @@ bool CodeCache::removeLRUCacheEntry()
     ASSERT(eraseReturn == 1 && m_cacheLRUList.size() == m_maxCacheCount - 1);
 
     for (auto iter = m_cacheList.begin(); iter != m_cacheList.end();) {
-        if (iter->first.m_srcHash == lruItem) {
+        if (iter->first.m_scriptIdentifier == lruItem) {
             iter = m_cacheList.erase(iter);
         } else {
             iter++;
@@ -367,18 +375,18 @@ bool CodeCache::removeLRUCacheEntry()
     }
 
 #ifndef NDEBUG
-    ESCARGOT_LOG_INFO("[CodeCache] removeLRUCacheEntry %zu done\n", lruItem);
+    ESCARGOT_LOG_INFO("[CodeCache] removeLRUCacheEntry %zu_%zu done\n", lruItem.m_srcHash, lruItem.m_sourceCodeLength);
 #endif
 
     return true;
 }
 
-bool CodeCache::removeCacheFile(size_t hash)
+bool CodeCache::removeCacheFile(const CodeCacheScriptIdentifier& scriptIdentifier)
 {
     ASSERT(m_enabled);
     ASSERT(m_cacheDirPath.length());
 
-    std::string filePath = m_cacheDirPath + std::to_string(hash);
+    std::string filePath = makeCacheFilePath(m_cacheDirPath, scriptIdentifier);
     if (remove(filePath.data()) != 0) {
         ESCARGOT_LOG_ERROR("[CodeCache] can`t remove a cache file %s\n", filePath.data());
         return false;
@@ -387,14 +395,14 @@ bool CodeCache::removeCacheFile(size_t hash)
     return true;
 }
 
-std::pair<bool, CodeCacheEntry> CodeCache::searchCache(size_t srcHash, Optional<size_t> functionSourceIndex)
+std::pair<bool, CodeCacheEntry> CodeCache::searchCache(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex)
 {
     ASSERT(m_enabled);
 
     CodeCacheEntry entry;
     bool cacheHit = false;
 
-    auto iter = m_cacheList.find(CodeCacheItem(srcHash, functionSourceIndex));
+    auto iter = m_cacheList.find(CodeCacheItem(scriptIdentifier, functionSourceIndex));
     if (iter != m_cacheList.end()) {
         cacheHit = true;
         entry = iter->second;
@@ -403,7 +411,7 @@ std::pair<bool, CodeCacheEntry> CodeCache::searchCache(size_t srcHash, Optional<
     return std::make_pair(cacheHit, entry);
 }
 
-void CodeCache::prepareCacheLoading(Context* context, size_t srcHash, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry)
+void CodeCache::prepareCacheLoading(Context* context, const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry)
 {
     ASSERT(m_enabled && m_status == Status::READY);
     ASSERT(m_cacheDirPath.length());
@@ -412,12 +420,12 @@ void CodeCache::prepareCacheLoading(Context* context, size_t srcHash, Optional<s
 
     m_status = Status::IN_PROGRESS;
 
-    m_currentContext.m_cacheFilePath = m_cacheDirPath + std::to_string(srcHash);
+    m_currentContext.m_cacheFilePath = makeCacheFilePath(m_cacheDirPath, scriptIdentifier);
     m_currentContext.m_cacheEntry = entry;
     m_currentContext.m_cacheStringTable = loadCacheStringTable(context);
 }
 
-void CodeCache::prepareCacheWriting(size_t srcHash, Optional<size_t> functionSourceIndex)
+void CodeCache::prepareCacheWriting(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex)
 {
     ASSERT(m_enabled && m_status == Status::READY);
     ASSERT(m_cacheDirPath.length());
@@ -426,7 +434,7 @@ void CodeCache::prepareCacheWriting(size_t srcHash, Optional<size_t> functionSou
 
     m_status = Status::IN_PROGRESS;
 
-    m_currentContext.m_cacheFilePath = m_cacheDirPath + std::to_string(srcHash);
+    m_currentContext.m_cacheFilePath = makeCacheFilePath(m_cacheDirPath, scriptIdentifier);
     m_currentContext.m_cacheStringTable = new CacheStringTable();
 }
 
@@ -447,15 +455,15 @@ bool CodeCache::postCacheLoading()
     return false;
 }
 
-void CodeCache::postCacheWriting(size_t srcHash, Optional<size_t> functionSourceIndex)
+void CodeCache::postCacheWriting(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex)
 {
     ASSERT(m_enabled);
 
     if (LIKELY(m_status == Status::FINISH)) {
         // write time stamp
-        m_cacheLRUList[srcHash] = fastTickCount();
+        m_cacheLRUList[scriptIdentifier] = fastTickCount();
 
-        if (addCacheEntry(srcHash, functionSourceIndex, m_currentContext.m_cacheEntry)) {
+        if (addCacheEntry(scriptIdentifier, functionSourceIndex, m_currentContext.m_cacheEntry)) {
             if (writeCacheList()) {
                 reset();
                 m_status = Status::READY;
@@ -633,10 +641,11 @@ InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* scr
     // load bytecode of functions
     if (m_shouldLoadFunctionOnScriptLoading) {
         FILE* dataFile = nullptr;
+        CodeCacheScriptIdentifier scriptIdentifier(script->sourceCodeHashValue(), script->sourceCode()->length());
         size_t loadedFunctionCount = 0;
         for (size_t i = 0; i < tempCodeBlockVector.size(); i++) {
             InterpretedCodeBlock* codeBlock = tempCodeBlockVector[i];
-            auto result = searchCache(script->sourceCodeHashValue(), codeBlock->functionStart().index);
+            auto result = searchCache(scriptIdentifier, codeBlock->functionStart().index);
             if (result.first) {
                 if (!dataFile) {
                     dataFile = fopen(m_currentContext.m_cacheFilePath.data(), "rb");
@@ -778,7 +787,7 @@ bool CodeCache::writeCacheList()
     while (entryCount < listSize) {
         ASSERT(iter != m_cacheList.end());
 
-        CodeCacheEntryChunk entryChunk(iter->first.m_srcHash, iter->first.m_functionSourceIndex, iter->second);
+        CodeCacheEntryChunk entryChunk(iter->first.m_scriptIdentifier, iter->first.m_functionSourceIndex, iter->second);
         if (UNLIKELY(fwrite(&entryChunk, sizeof(CodeCacheEntryChunk), 1, listFile) != 1)) {
             ESCARGOT_LOG_ERROR("[CodeCache] fwrite of %s failed\n", cacheListFilePath.data());
             fclose(listFile);
