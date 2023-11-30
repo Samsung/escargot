@@ -3455,6 +3455,10 @@ public:
                         }
                     }
 
+                    if (UNLIKELY(exprNode->type() == ASTNodeType::AwaitExpression)) {
+                        this->throwError(Messages::InvalidLHSInAssignment);
+                    }
+
                     if (!this->match(Substitution)) {
                         this->context->isAssignmentTarget = false;
                         this->context->isBindingElement = false;
