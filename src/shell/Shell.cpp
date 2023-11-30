@@ -1097,6 +1097,11 @@ int main(int argc, char* argv[])
     Memory::setGCFrequency(24);
 
     PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    instance->registerPromiseRejectCallback([](ExecutionStateRef* state, PromiseObjectRef* promise, ValueRef* value, VMInstanceRef::PromiseRejectEvent event) {
+        if (event == VMInstanceRef::PromiseRejectWithNoHandler) {
+            fprintf(stderr, "Unhandled promise reject %s:\n", value->toStringWithoutException(state->context())->toStdUTF8String().data());
+        }
+    });
     PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
 
     if (getenv("GC_FREE_SPACE_DIVISOR") && strlen(getenv("GC_FREE_SPACE_DIVISOR"))) {
