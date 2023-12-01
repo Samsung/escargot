@@ -67,9 +67,11 @@
 #include "runtime/BigIntObject.h"
 #include "runtime/SharedArrayBufferObject.h"
 #include "runtime/serialization/Serializer.h"
-#include "codecache/CodeCache.h"
 #include "interpreter/ByteCode.h"
 #include "api/internal/ValueAdapter.h"
+#if defined(ENABLE_CODE_CACHE)
+#include "codecache/CodeCache.h"
+#endif
 #if defined(ENABLE_WASM)
 #include "wasm/WASMOperations.h"
 #endif
@@ -1244,75 +1246,83 @@ void VMInstanceRef::setMaxCompiledByteCodeSize(size_t s)
     toImpl(this)->setMaxCompiledByteCodeSize(s);
 }
 
+#if defined(ENABLE_CODE_CACHE)
 bool VMInstanceRef::isCodeCacheEnabled()
 {
-#if defined(ENABLE_CODE_CACHE)
     return true;
-#else
-    return false;
-#endif
 }
 
 size_t VMInstanceRef::codeCacheMinSourceLength()
 {
-#if defined(ENABLE_CODE_CACHE)
     return toImpl(this)->codeCache()->minSourceLength();
-#else
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable code cache");
-    RELEASE_ASSERT_NOT_REACHED();
-#endif
 }
 
 void VMInstanceRef::setCodeCacheMinSourceLength(size_t s)
 {
-#if defined(ENABLE_CODE_CACHE)
     toImpl(this)->codeCache()->setMinSourceLength(s);
-#else
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable code cache");
-    RELEASE_ASSERT_NOT_REACHED();
-#endif
 }
 
 size_t VMInstanceRef::codeCacheMaxCacheCount()
 {
-#if defined(ENABLE_CODE_CACHE)
     return toImpl(this)->codeCache()->maxCacheCount();
-#else
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable code cache");
-    RELEASE_ASSERT_NOT_REACHED();
-#endif
 }
 
 void VMInstanceRef::setCodeCacheMaxCacheCount(size_t s)
 {
-#if defined(ENABLE_CODE_CACHE)
     toImpl(this)->codeCache()->setMaxCacheCount(s);
-#else
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable code cache");
-    RELEASE_ASSERT_NOT_REACHED();
-#endif
 }
 
 bool VMInstanceRef::codeCacheShouldLoadFunctionOnScriptLoading()
 {
-#if defined(ENABLE_CODE_CACHE)
     return toImpl(this)->codeCache()->shouldLoadFunctionOnScriptLoading();
-#else
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable code cache");
-    RELEASE_ASSERT_NOT_REACHED();
-#endif
 }
 
 void VMInstanceRef::setCodeCacheShouldLoadFunctionOnScriptLoading(bool s)
 {
-#if defined(ENABLE_CODE_CACHE)
     toImpl(this)->codeCache()->setShouldLoadFunctionOnScriptLoading(s);
-#else
-    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable code cache");
-    RELEASE_ASSERT_NOT_REACHED();
-#endif
+}
+#else // ENABLE_CODE_CACHE
+bool VMInstanceRef::isCodeCacheEnabled()
+{
+    return false;
 }
 
+size_t VMInstanceRef::codeCacheMinSourceLength()
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable code cache");
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+void VMInstanceRef::setCodeCacheMinSourceLength(size_t s)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable code cache");
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+size_t VMInstanceRef::codeCacheMaxCacheCount()
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable code cache");
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+void VMInstanceRef::setCodeCacheMaxCacheCount(size_t s)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable code cache");
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+bool VMInstanceRef::codeCacheShouldLoadFunctionOnScriptLoading()
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable code cache");
+    RELEASE_ASSERT_NOT_REACHED();
+}
+
+void VMInstanceRef::setCodeCacheShouldLoadFunctionOnScriptLoading(bool s)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable code cache");
+    RELEASE_ASSERT_NOT_REACHED();
+}
+#endif // ENABLE_CODE_CACHE
 
 #ifdef ESCARGOT_DEBUGGER
 

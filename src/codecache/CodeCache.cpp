@@ -41,11 +41,11 @@
 
 namespace Escargot {
 
-static std::string makeCacheFilePath(const std::string& cacheDirPath, const CodeCacheScriptIdentifier& id)
+static std::string createCacheFilePath(const std::string& cacheDirPath, const CodeCacheIndex& cacheIndex)
 {
     std::stringstream ss;
     ss << cacheDirPath;
-    id.makeCacheFilePath(ss);
+    cacheIndex.createCacheFileName(ss);
     return ss.str();
 }
 
@@ -53,6 +53,11 @@ void CodeCache::CodeCacheContext::reset()
 {
     m_cacheFilePath.clear();
     m_cacheEntry.reset();
+
+    if (m_cacheFile) {
+        fclose(m_cacheFile);
+        m_cacheFile = nullptr;
+    }
 
     if (m_cacheStringTable) {
         delete m_cacheStringTable;
@@ -279,6 +284,7 @@ void CodeCache::clear()
 
     m_cacheDirPath.clear();
     m_cacheList.clear();
+    m_cacheLRUList.clear();
 
     if (m_cacheWriter) {
         delete m_cacheWriter;
@@ -312,20 +318,19 @@ void CodeCache::reset()
 
 void CodeCache::setCacheEntry(const CodeCacheEntryChunk& entryChunk)
 {
-    CodeCacheItem item(entryChunk.m_scriptIdentifier, entryChunk.m_functionSourceIndex);
 #ifndef NDEBUG
-    auto iter = m_cacheList.find(item);
+    auto iter = m_cacheList.find(entryChunk.m_index);
     ASSERT(iter == m_cacheList.end());
 #endif
-    m_cacheList.insert(std::make_pair(item, entryChunk.m_entry));
+    m_cacheList.insert(std::make_pair(entryChunk.m_index, entryChunk.m_entry));
 }
 
-bool CodeCache::addCacheEntry(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry)
+bool CodeCache::addCacheEntry(const CodeCacheIndex& cacheIndex, const CodeCacheEntry& entry)
 {
     ASSERT(m_enabled);
 
 #ifndef NDEBUG
-    auto iter = m_cacheList.find(CodeCacheItem(scriptIdentifier, functionSourceIndex));
+    auto iter = m_cacheList.find(cacheIndex);
     ASSERT(iter == m_cacheList.end());
 #endif
     if (m_cacheLRUList.size() == m_maxCacheCount) {
@@ -334,7 +339,7 @@ bool CodeCache::addCacheEntry(const CodeCacheScriptIdentifier& scriptIdentifier,
         }
     }
 
-    m_cacheList.insert(std::make_pair(CodeCacheItem(scriptIdentifier, functionSourceIndex), entry));
+    m_cacheList.insert(std::make_pair(cacheIndex, entry));
     return true;
 }
 
@@ -346,7 +351,7 @@ bool CodeCache::removeLRUCacheEntry()
 #ifndef NDEBUG
     uint64_t currentTimeStamp = fastTickCount();
 #endif
-    CodeCacheScriptIdentifier lruItem(0, 0);
+    CodeCacheIndex::ScriptID lruIndex;
     uint64_t lruTimeStamp = std::numeric_limits<uint64_t>::max();
     for (auto iter = m_cacheLRUList.begin(); iter != m_cacheLRUList.end(); iter++) {
         uint64_t timeStamp = iter->second;
@@ -354,20 +359,20 @@ bool CodeCache::removeLRUCacheEntry()
         ASSERT(timeStamp <= currentTimeStamp);
 #endif
         if (lruTimeStamp > timeStamp) {
-            lruItem = iter->first;
+            lruIndex = iter->first;
             lruTimeStamp = timeStamp;
         }
     }
 
-    if (UNLIKELY(!removeCacheFile(lruItem))) {
+    if (UNLIKELY(!removeCacheFile(lruIndex))) {
         return false;
     }
 
-    size_t eraseReturn = m_cacheLRUList.erase(lruItem);
+    size_t eraseReturn = m_cacheLRUList.erase(lruIndex);
     ASSERT(eraseReturn == 1 && m_cacheLRUList.size() == m_maxCacheCount - 1);
 
     for (auto iter = m_cacheList.begin(); iter != m_cacheList.end();) {
-        if (iter->first.m_scriptIdentifier == lruItem) {
+        if (iter->first.scriptID() == lruIndex) {
             iter = m_cacheList.erase(iter);
         } else {
             iter++;
@@ -375,34 +380,38 @@ bool CodeCache::removeLRUCacheEntry()
     }
 
 #ifndef NDEBUG
-    ESCARGOT_LOG_INFO("[CodeCache] removeLRUCacheEntry %zu_%zu done\n", lruItem.m_srcHash, lruItem.m_sourceCodeLength);
+    ESCARGOT_LOG_INFO("[CodeCache] removeLRUCacheEntry %zu_%zu done\n", lruIndex.m_srcHash, lruIndex.m_srcLength);
 #endif
 
     return true;
 }
 
-bool CodeCache::removeCacheFile(const CodeCacheScriptIdentifier& scriptIdentifier)
+bool CodeCache::removeCacheFile(const CodeCacheIndex::ScriptID& scriptID)
 {
     ASSERT(m_enabled);
     ASSERT(m_cacheDirPath.length());
+    ASSERT(scriptID.m_srcHash && scriptID.m_srcLength);
 
-    std::string filePath = makeCacheFilePath(m_cacheDirPath, scriptIdentifier);
+    std::string filePath = createCacheFilePath(m_cacheDirPath, CodeCacheIndex(scriptID.m_srcHash, scriptID.m_srcLength, 0));
     if (remove(filePath.data()) != 0) {
         ESCARGOT_LOG_ERROR("[CodeCache] can`t remove a cache file %s\n", filePath.data());
         return false;
     }
 
+#ifndef NDEBUG
+    ESCARGOT_LOG_INFO("[CodeCache] remove a cache file %s\n", filePath.data());
+#endif
     return true;
 }
 
-std::pair<bool, CodeCacheEntry> CodeCache::searchCache(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex)
+std::pair<bool, CodeCacheEntry> CodeCache::searchCache(const CodeCacheIndex& cacheIndex)
 {
-    ASSERT(m_enabled);
+    ASSERT(m_enabled && cacheIndex.isValid());
 
     CodeCacheEntry entry;
     bool cacheHit = false;
 
-    auto iter = m_cacheList.find(CodeCacheItem(scriptIdentifier, functionSourceIndex));
+    auto iter = m_cacheList.find(cacheIndex);
     if (iter != m_cacheList.end()) {
         cacheHit = true;
         entry = iter->second;
@@ -411,21 +420,124 @@ std::pair<bool, CodeCacheEntry> CodeCache::searchCache(const CodeCacheScriptIden
     return std::make_pair(cacheHit, entry);
 }
 
-void CodeCache::prepareCacheLoading(Context* context, const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex, const CodeCacheEntry& entry)
+bool CodeCache::loadGlobalCache(Context* context, const CodeCacheIndex& cacheIndex, const CodeCacheEntry& entry, Script* script)
+{
+    ASSERT(m_enabled && cacheIndex.isValid());
+
+    // load global CodeBlock and its related information
+    prepareCacheLoading(context, cacheIndex, entry);
+
+    InterpretedCodeBlock* topCodeBlock = loadCodeBlockTree(context, script);
+    ByteCodeBlock* topByteCodeBlock = loadByteCodeBlock(context, topCodeBlock);
+
+    if (!postCacheLoading()) {
+        return false;
+    }
+
+    ASSERT(!!topCodeBlock && !!topByteCodeBlock);
+    script->m_topCodeBlock = topCodeBlock;
+    topCodeBlock->m_byteCodeBlock = topByteCodeBlock;
+
+    ESCARGOT_LOG_INFO("[CodeCache] Load CodeCache Done (%s)\n", script->srcName()->toUTF8StringData().data());
+
+    return true;
+}
+
+bool CodeCache::loadFunctionCache(Context* context, const CodeCacheIndex& cacheIndex, const CodeCacheEntry& entry, InterpretedCodeBlock* codeBlock)
+{
+    ASSERT(m_enabled && cacheIndex.isValid());
+
+    // load function CodeBlock and its related information
+    prepareCacheLoading(context, cacheIndex, entry);
+
+    codeBlock->m_byteCodeBlock = loadByteCodeBlock(context, codeBlock);
+
+    bool result = postCacheLoading();
+    if (result) {
+        ESCARGOT_LOG_INFO("[CodeCache] Load CodeCache Done (%s: index %zu size %zu)\n", codeBlock->script()->srcName()->toNonGCUTF8StringData().data(),
+                          codeBlock->functionStart().index, codeBlock->src().length());
+    }
+    return result;
+}
+
+bool CodeCache::storeGlobalCache(Context* context, const CodeCacheIndex& cacheIndex, InterpretedCodeBlock* topCodeBlock, CodeBlockCacheInfo* codeBlockCacheInfo, Node* programNode, bool inWith)
+{
+    ASSERT(m_enabled && cacheIndex.isValid());
+
+    // store global CodeBlock and its related information
+    prepareCacheWriting(cacheIndex);
+
+    // For storing cache, CodeBlockTree is firstly saved
+    storeCodeBlockTree(topCodeBlock, codeBlockCacheInfo);
+
+    // After CodeBlockTree, ByteCode and StringTable are stored sequentially
+    try {
+        topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(context, topCodeBlock, programNode, inWith, true);
+    } catch (const char* message) {
+        // handle failure
+        m_status = Status::FAILED;
+        postCacheWriting(cacheIndex);
+        throw message;
+    }
+
+    bool result = postCacheWriting(cacheIndex);
+#ifndef NDEBUG
+    if (result) {
+        ESCARGOT_LOG_INFO("[CodeCache] Store CodeCache Done (%s)\n", topCodeBlock->script()->srcName()->toUTF8StringData().data());
+    }
+#endif
+    return result;
+}
+
+bool CodeCache::storeFunctionCache(Context* context, const CodeCacheIndex& cacheIndex, InterpretedCodeBlock* codeBlock, Node* functionNode)
+{
+    ASSERT(m_enabled && cacheIndex.isValid());
+
+    // store function ByteCodeBlock and its related information
+    prepareCacheWriting(cacheIndex);
+
+    try {
+        codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(context, codeBlock, functionNode, false, true);
+    } catch (const char* message) {
+        // handle failure
+        m_status = Status::FAILED;
+        postCacheWriting(cacheIndex);
+        throw message;
+    }
+
+    bool result = postCacheWriting(cacheIndex);
+#ifndef NDEBUG
+    if (result) {
+        ESCARGOT_LOG_INFO("[CodeCache] Store CodeCache Done (%s: index %zu size %zu)\n", codeBlock->script()->srcName()->toNonGCUTF8StringData().data(),
+                          codeBlock->functionStart().index, codeBlock->src().length());
+    }
+#endif
+    return result;
+}
+
+void CodeCache::prepareCacheLoading(Context* context, const CodeCacheIndex& cacheIndex, const CodeCacheEntry& entry)
 {
     ASSERT(m_enabled && m_status == Status::READY);
     ASSERT(m_cacheDirPath.length());
     ASSERT(!m_currentContext.m_cacheFilePath.length());
     ASSERT(!m_currentContext.m_cacheStringTable);
+    ASSERT(cacheIndex.isValid());
 
     m_status = Status::IN_PROGRESS;
 
-    m_currentContext.m_cacheFilePath = makeCacheFilePath(m_cacheDirPath, scriptIdentifier);
+    m_currentContext.m_cacheFilePath = createCacheFilePath(m_cacheDirPath, cacheIndex);
     m_currentContext.m_cacheEntry = entry;
+    FILE* dataFile = fopen(m_currentContext.m_cacheFilePath.data(), "rb");
+    if (UNLIKELY(!dataFile)) {
+        ESCARGOT_LOG_ERROR("[CodeCache] can't open the cache data file %s\n", m_currentContext.m_cacheFilePath.data());
+        m_status = Status::FAILED;
+        return;
+    }
+    m_currentContext.m_cacheFile = dataFile;
     m_currentContext.m_cacheStringTable = loadCacheStringTable(context);
 }
 
-void CodeCache::prepareCacheWriting(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex)
+void CodeCache::prepareCacheWriting(const CodeCacheIndex& cacheIndex)
 {
     ASSERT(m_enabled && m_status == Status::READY);
     ASSERT(m_cacheDirPath.length());
@@ -434,47 +546,57 @@ void CodeCache::prepareCacheWriting(const CodeCacheScriptIdentifier& scriptIdent
 
     m_status = Status::IN_PROGRESS;
 
-    m_currentContext.m_cacheFilePath = makeCacheFilePath(m_cacheDirPath, scriptIdentifier);
+    m_currentContext.m_cacheFilePath = createCacheFilePath(m_cacheDirPath, cacheIndex);
     m_currentContext.m_cacheStringTable = new CacheStringTable();
+    FILE* dataFile = fopen(m_currentContext.m_cacheFilePath.data(), "ab");
+    if (UNLIKELY(!dataFile)) {
+        ESCARGOT_LOG_ERROR("[CodeCache] can't open the cache data file %s\n", m_currentContext.m_cacheFilePath.data());
+        m_status = Status::FAILED;
+        return;
+    }
+    m_currentContext.m_cacheFile = dataFile;
 }
 
 bool CodeCache::postCacheLoading()
 {
     ASSERT(m_enabled);
 
-    if (LIKELY(m_status == Status::FINISH)) {
-        reset();
-        m_status = Status::READY;
+    reset();
 
+    if (LIKELY(m_status == Status::FINISH)) {
+        m_status = Status::READY;
         return true;
     }
 
     // failed to load cache
     clearAll();
-
+    m_status = Status::READY;
     return false;
 }
 
-void CodeCache::postCacheWriting(const CodeCacheScriptIdentifier& scriptIdentifier, Optional<size_t> functionSourceIndex)
+bool CodeCache::postCacheWriting(const CodeCacheIndex& cacheIndex)
 {
     ASSERT(m_enabled);
 
     if (LIKELY(m_status == Status::FINISH)) {
         // write time stamp
-        m_cacheLRUList[scriptIdentifier] = fastTickCount();
+        m_cacheLRUList[cacheIndex.scriptID()] = fastTickCount();
 
-        if (addCacheEntry(scriptIdentifier, functionSourceIndex, m_currentContext.m_cacheEntry)) {
+        if (addCacheEntry(cacheIndex, m_currentContext.m_cacheEntry)) {
             if (writeCacheList()) {
                 reset();
                 m_status = Status::READY;
 
-                return;
+                return true;
             }
         }
     }
 
     // failed to write cache
+    reset();
     clearAll();
+    m_status = Status::READY;
+    return false;
 }
 
 void CodeCache::storeStringTable()
@@ -561,8 +683,6 @@ CacheStringTable* CodeCache::loadCacheStringTable(Context* context)
         return nullptr;
     }
 
-    ASSERT(m_status == Status::IN_PROGRESS);
-
     CodeCacheMetaInfo& metaInfo = m_currentContext.m_cacheEntry.m_metaInfos[(size_t)CodeCacheType::CACHE_STRING];
 
     ASSERT(metaInfo.cacheType == CodeCacheType::CACHE_STRING);
@@ -587,8 +707,6 @@ InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* scr
         return nullptr;
     }
 
-    ASSERT(m_status == Status::IN_PROGRESS);
-
     CodeCacheMetaInfo& metaInfo = m_currentContext.m_cacheEntry.m_metaInfos[(size_t)CodeCacheType::CACHE_CODEBLOCK];
 
     ASSERT(!!context);
@@ -602,21 +720,23 @@ InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* scr
         return nullptr;
     }
 
-    // temporal vector to keep the loaded InterpretedCodeBlock in GC heap
-    Vector<InterpretedCodeBlock*, GCUtil::gc_malloc_allocator<InterpretedCodeBlock*>> tempCodeBlockVector;
+    ASSERT(GC_is_disabled());
+    // temporal vector to keep the loaded InterpretedCodeBlock (GC is already disabled)
+    std::vector<InterpretedCodeBlock*> tempCodeBlockVector;
 
     // CodeCacheMetaInfo::codeBlockCount has the value of nodeCount for CACHE_CODEBLOCK
     size_t nodeCount = metaInfo.codeBlockCount;
-    tempCodeBlockVector.resizeFitWithUninitializedValues(nodeCount);
+    tempCodeBlockVector.reserve(nodeCount);
     for (size_t i = 0; i < nodeCount; i++) {
         InterpretedCodeBlock* codeBlock = m_cacheReader->loadInterpretedCodeBlock(context, script);
-        tempCodeBlockVector[i] = codeBlock;
+        tempCodeBlockVector.push_back(codeBlock);
 
         if (i == 0) {
             // GlobalCodeBlock is firstly stored and loaded
             topCodeBlock = codeBlock;
         }
     }
+    ASSERT(tempCodeBlockVector.size() == nodeCount);
 
     // link CodeBlock tree
     for (size_t i = 0; i < tempCodeBlockVector.size(); i++) {
@@ -640,75 +760,8 @@ InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* scr
 
     // load bytecode of functions
     if (m_shouldLoadFunctionOnScriptLoading) {
-        FILE* dataFile = nullptr;
-        CodeCacheScriptIdentifier scriptIdentifier(script->sourceCodeHashValue(), script->sourceCode()->length());
-        size_t loadedFunctionCount = 0;
-        for (size_t i = 0; i < tempCodeBlockVector.size(); i++) {
-            InterpretedCodeBlock* codeBlock = tempCodeBlockVector[i];
-            auto result = searchCache(scriptIdentifier, codeBlock->functionStart().index);
-            if (result.first) {
-                if (!dataFile) {
-                    dataFile = fopen(m_currentContext.m_cacheFilePath.data(), "rb");
-                    if (!dataFile) {
-                        ESCARGOT_LOG_ERROR("[CodeCache] can't open the cache data file %s\n", m_currentContext.m_cacheFilePath.data());
-                    }
-                }
-                CodeCacheEntry& cacheEntry = result.second;
-
-                CodeCacheMetaInfo& stringMetaInfo = cacheEntry.m_metaInfos[(size_t)CodeCacheType::CACHE_STRING];
-                CodeCacheReader cacheReader;
-
-                if (UNLIKELY(fseek(dataFile, stringMetaInfo.dataOffset, SEEK_SET) != 0)) {
-                    ESCARGOT_LOG_ERROR("[CodeCache] can't seek the cache data file %s\n", m_currentContext.m_cacheFilePath.data());
-                    break;
-                }
-
-                if (UNLIKELY(!cacheReader.loadData(dataFile, stringMetaInfo.dataSize))) {
-                    ESCARGOT_LOG_ERROR("[CodeCache] load cache data of %s failed\n", m_currentContext.m_cacheFilePath.data());
-                    break;
-                }
-
-                CacheStringTable* table = cacheReader.loadStringTable(context);
-                cacheReader.clearBuffer();
-                CodeCacheMetaInfo& byteCodeMetaInfo = cacheEntry.m_metaInfos[(size_t)CodeCacheType::CACHE_BYTECODE];
-
-                cacheReader.setStringTable(table);
-                if (UNLIKELY(fseek(dataFile, byteCodeMetaInfo.dataOffset, SEEK_SET) != 0)) {
-                    ESCARGOT_LOG_ERROR("[CodeCache] can't seek the cache data file %s\n", m_currentContext.m_cacheFilePath.data());
-                    break;
-                }
-
-                if (UNLIKELY(!cacheReader.loadData(dataFile, byteCodeMetaInfo.dataSize))) {
-                    ESCARGOT_LOG_ERROR("[CodeCache] load cache data of %s failed\n", m_currentContext.m_cacheFilePath.data());
-                    break;
-                }
-
-                codeBlock->m_byteCodeBlock = cacheReader.loadByteCodeBlock(context, codeBlock);
-                cacheReader.clearBuffer();
-
-                if (LIKELY(codeBlock->m_byteCodeBlock != nullptr)) {
-#ifndef NDEBUG
-                    ESCARGOT_LOG_INFO("[CodeCache] Load CodeCache Done (%s: index %zu size %zu)\n", codeBlock->script()->srcName()->toNonGCUTF8StringData().data(),
-                                      codeBlock->functionStart().index, codeBlock->src().length());
-#endif
-                    auto& currentCodeSizeTotal = context->vmInstance()->compiledByteCodeSize();
-                    ASSERT(currentCodeSizeTotal < std::numeric_limits<size_t>::max());
-                    currentCodeSizeTotal += codeBlock->m_byteCodeBlock->memoryAllocatedSize();
-                    loadedFunctionCount++;
-                }
-            }
-        }
-
-        if (dataFile) {
-            fclose(dataFile);
-            dataFile = nullptr;
-        }
-
-        if (loadedFunctionCount) {
-            ESCARGOT_LOG_INFO("[CodeCache] Load function CodeCache Done (%s, %zu function(s))\n", topCodeBlock->script()->srcName()->toNonGCUTF8StringData().data(), loadedFunctionCount);
-        }
+        loadAllByteCodeBlockOfFunctions(context, tempCodeBlockVector, script);
     }
-
 
     // clear
     tempCodeBlockVector.clear();
@@ -723,14 +776,12 @@ InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* scr
     return topCodeBlock;
 }
 
-ByteCodeBlock* CodeCache::loadByteCodeBlock(Context* context, InterpretedCodeBlock* topCodeBlock)
+ByteCodeBlock* CodeCache::loadByteCodeBlock(Context* context, InterpretedCodeBlock* codeBlock)
 {
     if (m_status != Status::IN_PROGRESS) {
         // Caching process failed in the previous stage
         return nullptr;
     }
-
-    ASSERT(m_status == Status::IN_PROGRESS);
 
     CodeCacheMetaInfo& metaInfo = m_currentContext.m_cacheEntry.m_metaInfos[(size_t)CodeCacheType::CACHE_BYTECODE];
 
@@ -743,13 +794,71 @@ ByteCodeBlock* CodeCache::loadByteCodeBlock(Context* context, InterpretedCodeBlo
         return nullptr;
     }
 
-    ByteCodeBlock* block = m_cacheReader->loadByteCodeBlock(context, topCodeBlock);
+    ByteCodeBlock* block = m_cacheReader->loadByteCodeBlock(context, codeBlock);
 
     // clear and finish
     m_cacheReader->clearBuffer();
     m_status = Status::FINISH;
 
     return block;
+}
+
+void CodeCache::loadAllByteCodeBlockOfFunctions(Context* context, std::vector<InterpretedCodeBlock*>& codeBlockVector, Script* script)
+{
+    // load CodeBlock of functions during loading of global code
+    ASSERT(m_enabled && m_status == Status::IN_PROGRESS);
+    ASSERT(m_currentContext.m_cacheFilePath.length() && m_currentContext.m_cacheFile);
+    FILE* dataFile = m_currentContext.m_cacheFile;
+
+    size_t srcHash = script->sourceCodeHashValue();
+    size_t srcLength = script->sourceCode()->length();
+
+    // hold the current context
+    CodeCacheContext previousContext = m_currentContext;
+    m_cacheReader->clearBuffer();
+
+    for (size_t i = 0; i < codeBlockVector.size(); i++) {
+        InterpretedCodeBlock* codeBlock = codeBlockVector[i];
+        ASSERT(script == codeBlock->script());
+        auto result = searchCache(CodeCacheIndex(srcHash, srcLength, codeBlock->functionStart().index));
+        if (result.first) {
+            CodeCacheEntry& cacheEntry = result.second;
+
+            // init context
+            m_currentContext.m_cacheEntry = cacheEntry;
+            m_currentContext.m_cacheStringTable = loadCacheStringTable(context);
+
+            // load ByteCodeBlock
+            codeBlock->m_byteCodeBlock = loadByteCodeBlock(context, codeBlock);
+
+            // finalize
+            if (m_currentContext.m_cacheStringTable) {
+                delete m_currentContext.m_cacheStringTable;
+                m_currentContext.m_cacheStringTable = nullptr;
+            }
+
+            if (LIKELY(m_status == Status::FINISH)) {
+                m_status = Status::IN_PROGRESS;
+            } else {
+                ESCARGOT_LOG_ERROR("[CodeCache] load function cache data of %s failed\n", m_currentContext.m_cacheFilePath.data());
+                break;
+            }
+
+            if (LIKELY(codeBlock->m_byteCodeBlock != nullptr)) {
+#ifndef NDEBUG
+                ESCARGOT_LOG_INFO("[CodeCache] Load CodeCache Done (%s: index %zu size %zu)\n", codeBlock->script()->srcName()->toNonGCUTF8StringData().data(),
+                                  codeBlock->functionStart().index, codeBlock->src().length());
+#endif
+                auto& currentCodeSizeTotal = context->vmInstance()->compiledByteCodeSize();
+                ASSERT(currentCodeSizeTotal < std::numeric_limits<size_t>::max());
+                currentCodeSizeTotal += codeBlock->m_byteCodeBlock->memoryAllocatedSize();
+            }
+        }
+    }
+
+    // reset status
+    m_status = Status::IN_PROGRESS;
+    m_currentContext = previousContext;
 }
 
 bool CodeCache::writeCacheList()
@@ -787,7 +896,7 @@ bool CodeCache::writeCacheList()
     while (entryCount < listSize) {
         ASSERT(iter != m_cacheList.end());
 
-        CodeCacheEntryChunk entryChunk(iter->first.m_scriptIdentifier, iter->first.m_functionSourceIndex, iter->second);
+        CodeCacheEntryChunk entryChunk(iter->first, iter->second);
         if (UNLIKELY(fwrite(&entryChunk, sizeof(CodeCacheEntryChunk), 1, listFile) != 1)) {
             ESCARGOT_LOG_ERROR("[CodeCache] fwrite of %s failed\n", cacheListFilePath.data());
             fclose(listFile);
@@ -812,9 +921,10 @@ bool CodeCache::writeCacheData(CodeCacheType type, size_t extraCount)
 {
     ASSERT(m_enabled);
     ASSERT(type == CodeCacheType::CACHE_CODEBLOCK || type == CodeCacheType::CACHE_BYTECODE || type == CodeCacheType::CACHE_STRING);
-    ASSERT(m_currentContext.m_cacheFilePath.length());
+    ASSERT(!!m_currentContext.m_cacheFilePath.length());
+    ASSERT(!!m_currentContext.m_cacheFile);
 
-    FILE* dataFile = nullptr;
+    FILE* dataFile = m_currentContext.m_cacheFile;
 
     // meta info
     CodeCacheMetaInfo meta(type, m_currentContext.m_cacheDataOffset, m_cacheWriter->bufferSize());
@@ -822,14 +932,6 @@ bool CodeCache::writeCacheData(CodeCacheType type, size_t extraCount)
         ASSERT(m_currentContext.m_cacheDataOffset == 0);
         // extraCount represents the total count of CodeBlocks used only for CodeBlockTree caching
         meta.codeBlockCount = extraCount;
-        dataFile = fopen(m_currentContext.m_cacheFilePath.data(), "wb");
-    } else {
-        dataFile = fopen(m_currentContext.m_cacheFilePath.data(), "ab");
-    }
-
-    if (UNLIKELY(!dataFile)) {
-        ESCARGOT_LOG_ERROR("[CodeCache] can't open the cache data file %s\n", m_currentContext.m_cacheFilePath.data());
-        return false;
     }
 
     // record correct position for function
@@ -842,7 +944,6 @@ bool CodeCache::writeCacheData(CodeCacheType type, size_t extraCount)
     // write cache data
     if (UNLIKELY(fwrite(m_cacheWriter->bufferData(), sizeof(char), m_cacheWriter->bufferSize(), dataFile) != m_cacheWriter->bufferSize())) {
         ESCARGOT_LOG_ERROR("[CodeCache] fwrite of %s failed\n", m_currentContext.m_cacheFilePath.data());
-        fclose(dataFile);
         m_cacheWriter->clearBuffer();
         return false;
     }
@@ -852,7 +953,6 @@ bool CodeCache::writeCacheData(CodeCacheType type, size_t extraCount)
     /* for performance issue, fsync is skipped for now
     fsync(fileno(dataFile));
     */
-    fclose(dataFile);
 
     m_currentContext.m_cacheDataOffset += m_cacheWriter->bufferSize();
     m_cacheWriter->clearBuffer();
@@ -864,28 +964,21 @@ bool CodeCache::readCacheData(CodeCacheMetaInfo& metaInfo)
     ASSERT(m_enabled);
     ASSERT(metaInfo.cacheType == CodeCacheType::CACHE_CODEBLOCK || metaInfo.cacheType == CodeCacheType::CACHE_BYTECODE || metaInfo.cacheType == CodeCacheType::CACHE_STRING);
     ASSERT(!!m_currentContext.m_cacheFilePath.length());
+    ASSERT(!!m_currentContext.m_cacheFile);
 
     size_t dataOffset = metaInfo.cacheType == CodeCacheType::CACHE_CODEBLOCK ? 0 : metaInfo.dataOffset;
-    FILE* dataFile = fopen(m_currentContext.m_cacheFilePath.data(), "rb");
-
-    if (UNLIKELY(!dataFile)) {
-        ESCARGOT_LOG_ERROR("[CodeCache] can't open the cache data file %s\n", m_currentContext.m_cacheFilePath.data());
-        return false;
-    }
+    FILE* dataFile = m_currentContext.m_cacheFile;
 
     if (UNLIKELY(fseek(dataFile, dataOffset, SEEK_SET) != 0)) {
         ESCARGOT_LOG_ERROR("[CodeCache] can't seek the cache data file %s\n", m_currentContext.m_cacheFilePath.data());
-        fclose(dataFile);
         return false;
     }
 
     if (UNLIKELY(!m_cacheReader->loadData(dataFile, metaInfo.dataSize))) {
         ESCARGOT_LOG_ERROR("[CodeCache] load cache data of %s failed\n", m_currentContext.m_cacheFilePath.data());
-        fclose(dataFile);
         return false;
     }
 
-    fclose(dataFile);
     return true;
 }
 

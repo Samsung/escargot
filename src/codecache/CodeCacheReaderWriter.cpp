@@ -654,9 +654,10 @@ void CodeCacheReader::CacheBuffer::resize(size_t size)
 
 void CodeCacheReader::CacheBuffer::reset()
 {
-    free(m_buffer);
-
-    m_buffer = nullptr;
+    if (m_buffer) {
+        free(m_buffer);
+        m_buffer = nullptr;
+    }
     m_capacity = 0;
     m_index = 0;
 }
