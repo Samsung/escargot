@@ -35,6 +35,37 @@
 
 namespace Escargot {
 
+#if defined(ENABLE_CODE_CACHE)
+class CodeBlockCacheInfoHolder {
+public:
+    CodeBlockCacheInfoHolder()
+        : m_parser(nullptr)
+        , m_cacheInfo(nullptr)
+    {
+    }
+
+    ~CodeBlockCacheInfoHolder()
+    {
+        if (m_cacheInfo) {
+            m_parser->deleteCodeBlockCacheInfo();
+        }
+        m_parser = nullptr;
+        m_cacheInfo = nullptr;
+    }
+
+    void setCacheInfo(ScriptParser* parser, CodeBlockCacheInfo* cacheInfo)
+    {
+        m_parser = parser;
+        m_cacheInfo = cacheInfo;
+        parser->setCodeBlockCacheInfo(cacheInfo);
+    }
+
+private:
+    ScriptParser* m_parser;
+    CodeBlockCacheInfo* m_cacheInfo;
+};
+#endif
+
 ScriptParser::ScriptParser(Context* c)
     : m_context(c)
 #if defined(ENABLE_CODE_CACHE)
@@ -288,6 +319,7 @@ void ScriptParser::setCodeBlockCacheInfo(CodeBlockCacheInfo* info)
 
 void ScriptParser::deleteCodeBlockCacheInfo()
 {
+    ASSERT(m_codeBlockCacheInfo);
     delete m_codeBlockCacheInfo;
     m_codeBlockCacheInfo = nullptr;
 }
@@ -300,44 +332,39 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
 #if defined(ENABLE_CODE_CACHE)
     UNUSED_PARAMETER(originSource);
 
-    CodeCacheScriptIdentifier scriptIdentifier(0, 0);
+    CodeCacheIndex cacheIndex;
+    CodeBlockCacheInfoHolder cacheInfoHolder;
     CodeCache* codeCache = m_context->vmInstance()->codeCache();
     bool cacheable = codeCache->enabled() && needByteCodeGeneration && !isModule && !isEvalMode && srcName->length() && source->length() > codeCache->minSourceLength();
 
     // Load caching
     if (cacheable) {
         ASSERT(!parentCodeBlock);
-        scriptIdentifier = CodeCacheScriptIdentifier(source->hashValue(), source->length());
-        auto result = codeCache->searchCache(scriptIdentifier, Optional<size_t>());
+        // set m_functionIndex as SIZE_MAX for global code
+        cacheIndex = CodeCacheIndex(source->hashValue(), source->length(), SIZE_MAX);
+        auto result = codeCache->searchCache(cacheIndex);
         if (result.first) {
             GC_disable();
 
-            Script* script = new Script(srcName, source, nullptr, originLineOffset, false, scriptIdentifier.m_srcHash);
+            Script* script = new Script(srcName, source, nullptr, originLineOffset, false, cacheIndex.m_srcHash);
             CodeCacheEntry& entry = result.second;
 
-            codeCache->prepareCacheLoading(m_context, scriptIdentifier, Optional<size_t>(), entry);
-            // load CodeBlockTree
-            InterpretedCodeBlock* topCodeBlock = codeCache->loadCodeBlockTree(m_context, script);
-            // load global ByteCodeBlock
-            ByteCodeBlock* topByteBlock = codeCache->loadByteCodeBlock(m_context, topCodeBlock);
-            bool loadingDone = codeCache->postCacheLoading();
-            cacheable = loadingDone;
+            bool loadingDone = codeCache->loadGlobalCache(m_context, cacheIndex, entry, script);
 
             GC_enable();
 
             if (LIKELY(loadingDone)) {
-                ASSERT(!!topCodeBlock && !!topByteBlock);
-                script->m_topCodeBlock = topCodeBlock;
-                topCodeBlock->m_byteCodeBlock = topByteBlock;
-                ESCARGOT_LOG_INFO("[CodeCache] Load CodeCache Done (%s)\n", srcName->toUTF8StringData().data());
-
                 ScriptParser::InitializeScriptResult result;
                 result.script = script;
                 return result;
             }
+
+            // failed in loading the cache
+            // give up caching for this script
+            cacheable = false;
         } else {
             // prepare for caching
-            setCodeBlockCacheInfo(new CodeBlockCacheInfo());
+            cacheInfoHolder.setCacheInfo(this, new CodeBlockCacheInfo());
         }
     }
 #endif
@@ -370,7 +397,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
         script = new Script(srcName, source, programNode->moduleData(), originLineOffset, !parentCodeBlock
 #if defined(ENABLE_CODE_CACHE)
                             ,
-                            scriptIdentifier.m_srcHash
+                            cacheIndex.m_srcHash
 #endif
         );
         if (parentCodeBlock) {
@@ -394,11 +421,6 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
         // reset ASTAllocator
         m_context->astAllocator().reset();
         GC_enable();
-#if defined(ENABLE_CODE_CACHE)
-        if (cacheable) {
-            deleteCodeBlockCacheInfo();
-        }
-#endif
 
         ScriptParser::InitializeScriptResult result;
         result.parseErrorCode = orgError->errorCode;
@@ -425,17 +447,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
 #if defined(ENABLE_CODE_CACHE)
             // Store cache
             if (cacheable) {
-                codeCache->prepareCacheWriting(scriptIdentifier, Optional<size_t>());
-
-                // For storing cache, CodeBlockTree is firstly saved
-                codeCache->storeCodeBlockTree(topCodeBlock, m_codeBlockCacheInfo);
-
-                // After CodeBlockTree, ByteCode and StringTable are stored sequentially
-                topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, true);
-
-                codeCache->postCacheWriting(scriptIdentifier, Optional<size_t>());
-                deleteCodeBlockCacheInfo();
-                ESCARGOT_LOG_INFO("[CodeCache] Store CodeCache Done (%s)\n", srcName->toUTF8StringData().data());
+                codeCache->storeGlobalCache(m_context, cacheIndex, topCodeBlock, m_codeBlockCacheInfo, programNode, inWith);
             } else {
                 topCodeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(m_context, topCodeBlock, programNode, inWith, false);
             }
@@ -474,35 +486,29 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
 
 #if defined(ENABLE_CODE_CACHE)
     CodeCache* codeCache = m_context->vmInstance()->codeCache();
+    CodeCacheIndex cacheIndex;
     bool cacheable = codeCache->enabled() && codeBlock->src().length() > codeCache->minSourceLength();
-    // Lode code from cache
-    CodeCacheScriptIdentifier scriptIdentifier(0, codeBlock->script()->sourceCode()->length());
-    // loading source code hash value can cause computing hash value of entire source code
-    if (cacheable) {
-        scriptIdentifier.m_srcHash = codeBlock->script()->sourceCodeHashValue();
-    }
 
     // Load cache
     if (cacheable) {
-        auto result = codeCache->searchCache(scriptIdentifier, codeBlock->functionStart().index);
+        // loading source code hash value can cause computing hash value of entire source code
+        cacheIndex = CodeCacheIndex(codeBlock->script()->sourceCodeHashValue(), codeBlock->script()->sourceCode()->length(), codeBlock->functionStart().index);
+        auto result = codeCache->searchCache(cacheIndex);
         if (result.first) {
             GC_disable();
             CodeCacheEntry& entry = result.second;
 
-            codeCache->prepareCacheLoading(m_context, scriptIdentifier, codeBlock->functionStart().index, entry);
-            // load ByteCodeBlock
-            codeBlock->m_byteCodeBlock = codeCache->loadByteCodeBlock(m_context, codeBlock);
-            bool loadingDone = codeCache->postCacheLoading();
-            cacheable = loadingDone;
+            bool loadingDone = codeCache->loadFunctionCache(m_context, cacheIndex, entry, codeBlock);
+
             GC_enable();
 
             if (LIKELY(loadingDone)) {
-#ifndef NDEBUG
-                ESCARGOT_LOG_INFO("[CodeCache] Load CodeCache Done (%s: index %zu size %zu)\n", codeBlock->script()->srcName()->toNonGCUTF8StringData().data(),
-                                  codeBlock->functionStart().index, codeBlock->src().length());
-#endif
                 return;
             }
+
+            // failed in loading the cache
+            // give up caching for this function
+            cacheable = false;
         }
     }
 
@@ -531,21 +537,13 @@ void ScriptParser::generateFunctionByteCode(ExecutionState& state, InterpretedCo
 #if defined(ENABLE_CODE_CACHE)
         // Store cache
         if (cacheable) {
-            codeCache->prepareCacheWriting(scriptIdentifier, codeBlock->functionStart().index);
-            codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, functionNode, false, true);
-            codeCache->postCacheWriting(scriptIdentifier, codeBlock->functionStart().index);
-#ifndef NDEBUG
-            ESCARGOT_LOG_INFO("[CodeCache] Store CodeCache Done (%s: index %zu size %zu)\n", codeBlock->script()->srcName()->toNonGCUTF8StringData().data(),
-                              codeBlock->functionStart().index, codeBlock->src().length());
-#endif
+            codeCache->storeFunctionCache(state.context(), cacheIndex, codeBlock, functionNode);
         } else {
             codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, functionNode);
         }
 #else
         codeBlock->m_byteCodeBlock = ByteCodeGenerator::generateByteCode(state.context(), codeBlock, functionNode);
 #endif
-
-
     } catch (const char* message) {
         // reset ASTAllocator
         m_context->astAllocator().reset();

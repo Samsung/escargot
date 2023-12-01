@@ -34,6 +34,9 @@ class Script : public gc {
     friend class ScriptParser;
     friend class GlobalObject;
     friend class ModuleNamespaceObject;
+#if defined(ENABLE_CODE_CACHE)
+    friend class CodeCache;
+#endif
 
 public:
     struct ModuleRequest {
