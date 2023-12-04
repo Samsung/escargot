@@ -200,6 +200,8 @@ public:
 
     void appendStringBuilder(StringBuilderImpl<InlineStorageSize>& src)
     {
+        reserveMoreSpaceForPieces(src.m_piecesInlineStorageUsage + src.m_pieces.size());
+
         for (size_t i = 0; i < src.m_piecesInlineStorageUsage; i++) {
             if (src.m_piecesInlineStorage[i].m_type == StringBuilderPiece::Type::Char) {
                 appendPiece(src.m_piecesInlineStorage[i].m_ch);
@@ -224,6 +226,13 @@ public:
     String* finalize(ExecutionState* state = nullptr) // provide ExecutionState if you need limit of string length(exception can be thrown only in ExecutionState area)
     {
         return finalizeBase(m_piecesInlineStorage, state);
+    }
+
+    void reserveMoreSpaceForPieces(size_t s)
+    {
+        if (s + m_piecesInlineStorageUsage > InlineStorageSize) {
+            m_pieces.reserve(s + m_pieces.size());
+        }
     }
 
 private:
