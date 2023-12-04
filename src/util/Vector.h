@@ -406,6 +406,25 @@ public:
         }
     }
 
+    void resizeFitWithUninitializedValues(size_t newSize)
+    {
+        if (newSize) {
+            if (m_capacity < newSize) {
+                T* newBuffer = Allocator().allocate(newSize);
+                VectorCopier<T>::copy(newBuffer, m_buffer, std::min(m_size, newSize));
+
+                if (m_buffer)
+                    Allocator().deallocate(m_buffer, m_capacity);
+
+                m_buffer = newBuffer;
+                m_capacity = newSize;
+            }
+            m_size = newSize;
+        } else {
+            clear();
+        }
+    }
+
     void resizeWithUninitializedValues(size_t newSize)
     {
         if (newSize) {

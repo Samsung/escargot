@@ -39,7 +39,7 @@ BoundFunctionObject::BoundFunctionObject(ExecutionState& state, Object* targetFu
     Object::setPrototype(state, proto);
 
     if (boundArgc > 0) {
-        m_boundArguments.resizeWithUninitializedValues(boundArgc);
+        m_boundArguments.resizeFitWithUninitializedValues(boundArgc);
         for (size_t i = 0; i < boundArgc; i++) {
             m_boundArguments[i] = boundArgv[i];
         }

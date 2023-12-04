@@ -321,14 +321,15 @@ public:
 
     {
         ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
-        newProperties->resizeWithUninitializedValues(properties.size());
+        newProperties->resizeFitWithUninitializedValues(properties.size());
         memcpy(newProperties->data(), properties.data(), properties.size() * sizeof(ObjectStructureItem));
 
         m_properties = newProperties;
         m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(newProperties);
     }
 
-    ObjectStructureWithMap(bool hasIndexPropertyName, bool hasSymbolPropertyName, bool hasEnumerableProperty, ObjectStructureItemTightVector&& properties)
+    template <typename ItemVector>
+    ObjectStructureWithMap(bool hasIndexPropertyName, bool hasSymbolPropertyName, bool hasEnumerableProperty, ItemVector&& properties)
         : ObjectStructure(hasIndexPropertyName,
                           hasSymbolPropertyName, hasEnumerableProperty)
     {

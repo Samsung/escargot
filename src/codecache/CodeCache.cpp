@@ -607,7 +607,7 @@ InterpretedCodeBlock* CodeCache::loadCodeBlockTree(Context* context, Script* scr
 
     // CodeCacheMetaInfo::codeBlockCount has the value of nodeCount for CACHE_CODEBLOCK
     size_t nodeCount = metaInfo.codeBlockCount;
-    tempCodeBlockVector.resizeWithUninitializedValues(nodeCount);
+    tempCodeBlockVector.resizeFitWithUninitializedValues(nodeCount);
     for (size_t i = 0; i < nodeCount; i++) {
         InterpretedCodeBlock* codeBlock = m_cacheReader->loadInterpretedCodeBlock(context, script);
         tempCodeBlockVector[i] = codeBlock;

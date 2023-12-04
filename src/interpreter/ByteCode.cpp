@@ -323,7 +323,7 @@ void ByteCodeBlock::pushPauseStatementExtraData(ByteCodeGenerateContext* context
     if (context->m_recursiveStatementStack.size()) {
         size_t startSize = m_code.size();
         size_t tailDataLength = context->m_recursiveStatementStack.size() * (sizeof(ByteCodeGenerateContext::RecursiveStatementKind) + sizeof(size_t));
-        m_code.resizeWithUninitializedValues(startSize + tailDataLength);
+        m_code.resizeFitWithUninitializedValues(startSize + tailDataLength);
 
         auto* codeAddr = m_code.data();
         auto iter = context->m_recursiveStatementStack.begin();

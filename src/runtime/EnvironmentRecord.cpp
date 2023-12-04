@@ -326,7 +326,7 @@ FunctionEnvironmentRecordNotIndexed<canBindThisValue, hasNewTarget>::FunctionEnv
 {
     const InterpretedCodeBlock::IdentifierInfoVector& vec = function->interpretedCodeBlock()->identifierInfos();
     size_t len = vec.size();
-    m_recordVector.resizeWithUninitializedValues(len);
+    m_recordVector.resizeFitWithUninitializedValues(len);
     m_heapStorage.resizeWithUninitializedValues(len);
 
     for (size_t i = 0; i < len; i++) {

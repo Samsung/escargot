@@ -7214,7 +7214,7 @@ ASTClassInfo* generateClassInfoFrom(::Escargot::Context* ctx, InterpretedCodeBlo
         if (privateNames) {
             ASTClassInfo* newInfo = new (ctx->astAllocator()) ASTClassInfo();
             if (privateNames->size()) {
-                newInfo->m_classPrivateNames.resizeWithUninitializedValues(privateNames->size());
+                newInfo->m_classPrivateNames.resizeFitWithUninitializedValues(privateNames->size());
                 memcpy(newInfo->m_classPrivateNames.data(), privateNames->data(), sizeof(AtomicString) * privateNames->size());
             }
             if (currentClassInfo) {

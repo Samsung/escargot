@@ -133,7 +133,7 @@ ObjectStructure* ObjectStructureWithoutTransition::removeProperty(size_t pIndex)
 {
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
     size_t ps = m_properties->size();
-    newProperties->resizeWithUninitializedValues(ps - 1);
+    newProperties->resizeFitWithUninitializedValues(ps - 1);
 
     size_t newIdx = 0;
     bool hasIndexString = false;
@@ -314,7 +314,7 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructur
 ObjectStructure* ObjectStructureWithTransition::removeProperty(size_t pIndex)
 {
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
-    newProperties->resizeWithUninitializedValues(m_properties.size() - 1);
+    newProperties->resizeFitWithUninitializedValues(m_properties.size() - 1);
     size_t pc = m_properties.size();
 
     size_t newIdx = 0;
@@ -417,7 +417,7 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
 {
     ObjectStructureItemVector* newProperties = new ObjectStructureItemVector();
     size_t ps = m_properties->size();
-    newProperties->resizeWithUninitializedValues(ps - 1);
+    newProperties->resizeFitWithUninitializedValues(ps - 1);
 
     size_t newIdx = 0;
     bool hasIndexString = false;

@@ -126,17 +126,31 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
         }
         return arr;
     } else if (value.IsObject()) {
-        Object* obj = new Object(state);
-        if (value.MemberCount() > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE) {
-            obj->markThisObjectDontNeedStructureTransitionTable();
-        }
-        auto iter = value.MemberBegin();
-        while (iter != value.MemberEnd()) {
-            Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name);
-            ASSERT(propertyName.isString());
-            obj->defineOwnProperty(state, ObjectPropertyName(AtomicString(state, propertyName.toString(state))),
-                                   ObjectPropertyDescriptor(parseJSONWorker<CharType, JSONCharType>(state, iter->value), ObjectPropertyDescriptor::AllPresent));
-            iter++;
+        Object* obj;
+        auto memberCount = value.MemberCount();
+        if (memberCount > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE) {
+            typedef typename rapidjson::GenericValue<JSONCharType>::MemberIterator JSONIter;
+            JSONIter iter = value.MemberBegin();
+            obj = new Object(state, memberCount,
+                             [](ExecutionState& state, void* data) -> std::pair<Value, Value> {
+                                 JSONIter& iter = *((JSONIter*)data);
+                                 Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name);
+                                 Value value = parseJSONWorker<CharType, JSONCharType>(state, iter->value);
+                                 iter++;
+                                 return std::make_pair(propertyName, value);
+                             },
+                             &iter, true, true, true);
+            ASSERT(iter == value.MemberEnd());
+        } else {
+            obj = new Object(state);
+            auto iter = value.MemberBegin();
+            while (iter != value.MemberEnd()) {
+                Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name);
+                ASSERT(propertyName.isString());
+                obj->defineOwnProperty(state, ObjectPropertyName(AtomicString(state, propertyName.toString(state))),
+                                       ObjectPropertyDescriptor(parseJSONWorker<CharType, JSONCharType>(state, iter->value), ObjectPropertyDescriptor::AllPresent));
+                iter++;
+            }
         }
         return obj;
     } else {

@@ -200,7 +200,7 @@ void FinalizationRegistryObject::tryToShrinkCells()
         ASSERT(m_deletedCellCount <= oldSize);
         size_t newSize = oldSize - m_deletedCellCount;
         FinalizationRegistryObjectCells newCells;
-        newCells.resizeWithUninitializedValues(newSize);
+        newCells.resizeFitWithUninitializedValues(newSize);
 
         size_t j = 0;
         for (size_t i = 0; i < oldSize; i++) {
