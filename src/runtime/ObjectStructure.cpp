@@ -50,12 +50,22 @@ void* ObjectStructureWithoutTransition::operator new(size_t size)
 
 std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithoutTransition::findProperty(const ObjectStructurePropertyName& s)
 {
+    if (m_properties->size() && m_lastFoundPropertyName == s) {
+        uint16_t lastIndex = lastFoundPropertyIndex();
+        if (lastIndex == std::numeric_limits<uint16_t>::max()) {
+            return std::make_pair(std::numeric_limits<size_t>::max(), Optional<const ObjectStructureItem*>());
+        }
+        return std::make_pair(lastIndex, &(*m_properties)[lastIndex]);
+    }
+    m_lastFoundPropertyName = s;
+    setLastFoundPropertyIndex(std::numeric_limits<uint16_t>::max());
     size_t size = m_properties->size();
 
     if (LIKELY(s.hasAtomicString())) {
         if (LIKELY(!m_hasNonAtomicPropertyName)) {
             for (size_t i = 0; i < size; i++) {
                 if ((*m_properties)[i].m_propertyName.rawValue() == s.rawValue()) {
+                    setLastFoundPropertyIndex(i);
                     return std::make_pair(i, &(*m_properties)[i]);
                 }
             }
@@ -63,6 +73,7 @@ std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithoutTr
             AtomicString as = s.asAtomicString();
             for (size_t i = 0; i < size; i++) {
                 if ((*m_properties)[i].m_propertyName == as) {
+                    setLastFoundPropertyIndex(i);
                     return std::make_pair(i, &(*m_properties)[i]);
                 }
             }
@@ -71,6 +82,7 @@ std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithoutTr
         if (m_hasSymbolPropertyName) {
             for (size_t i = 0; i < size; i++) {
                 if ((*m_properties)[i].m_propertyName == s) {
+                    setLastFoundPropertyIndex(i);
                     return std::make_pair(i, &(*m_properties)[i]);
                 }
             }
@@ -78,6 +90,7 @@ std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithoutTr
     } else {
         for (size_t i = 0; i < size; i++) {
             if ((*m_properties)[i].m_propertyName == s) {
+                setLastFoundPropertyIndex(i);
                 return std::make_pair(i, &(*m_properties)[i]);
             }
         }
@@ -121,7 +134,7 @@ ObjectStructure* ObjectStructureWithoutTransition::addProperty(const ObjectStruc
 
 
     if (propertiesForNewStructure->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
-        newStructure = new ObjectStructureWithMap(propertiesForNewStructure, ObjectStructureWithMap::createPropertyNameMap(propertiesForNewStructure), nameIsIndexString, nameIsSymbol, hasEnumerableProperty);
+        newStructure = new ObjectStructureWithMap(propertiesForNewStructure, nullptr, nameIsIndexString, nameIsSymbol, hasEnumerableProperty);
     } else {
         newStructure = new ObjectStructureWithoutTransition(propertiesForNewStructure, nameIsIndexString, nameIsSymbol, hasNonAtomicName, hasEnumerableProperty);
     }
@@ -367,11 +380,14 @@ void* ObjectStructureWithMap::operator new(size_t size)
 
 std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithMap::findProperty(const ObjectStructurePropertyName& s)
 {
-    auto iter = m_propertyNameMap->find(s);
-    if (iter == m_propertyNameMap->end()) {
+    if (!m_propertyNameMap) {
+        m_propertyNameMap = createPropertyNameMap(m_properties);
+    }
+    auto idx = m_propertyNameMap->find(s);
+    if (idx == SIZE_MAX) {
         return std::make_pair(SIZE_MAX, Optional<const ObjectStructureItem*>());
     }
-    return std::make_pair(iter->second, &(m_properties->data()[iter->second]));
+    return std::make_pair(idx, &(m_properties->data()[idx]));
 }
 
 const ObjectStructureItem& ObjectStructureWithMap::readProperty(size_t idx)
@@ -396,19 +412,23 @@ ObjectStructure* ObjectStructureWithMap::addProperty(const ObjectStructureProper
     bool hasSymbol = m_hasSymbolPropertyName ? true : name.isSymbol();
     bool hasEnumerableProperty = m_hasEnumerableProperty ? true : desc.isEnumerable();
 
-    ObjectStructureItemVector* newProperties = m_properties;
-    PropertyNameMap* newPropertyNameMap = m_propertyNameMap;
+    ObjectStructureItemVector* newProperties;
+    Optional<PropertyNameMapWithCache*> newPropertyNameMap;
 
     if (m_isReferencedByInlineCache) {
-        newProperties = new ObjectStructureItemVector(*m_properties);
-        newPropertyNameMap = new (GC) PropertyNameMap(*m_propertyNameMap);
+        newProperties = new ObjectStructureItemVector(*m_properties, newItem);
     } else {
+        newProperties = m_properties;
+        newProperties->push_back(newItem);
         m_properties = nullptr;
-        m_propertyNameMap = nullptr;
+        if (m_propertyNameMap) {
+            m_propertyNameMap->insert(name, newProperties->size() - 1);
+            ASSERT(m_propertyNameMap->size() == newProperties->size());
+            newPropertyNameMap = m_propertyNameMap;
+            m_propertyNameMap = nullptr;
+        }
     }
 
-    newPropertyNameMap->insert(std::make_pair(name, newProperties->size()));
-    newProperties->push_back(newItem);
     ObjectStructure* newStructure = new ObjectStructureWithMap(newProperties, newPropertyNameMap, nameIsIndexString, hasSymbol, hasEnumerableProperty);
     return newStructure;
 }
@@ -441,7 +461,7 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
         m_propertyNameMap = nullptr;
     }
     if (newProperties->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
-        return new ObjectStructureWithMap(newProperties, ObjectStructureWithMap::createPropertyNameMap(newProperties), hasIndexString, hasSymbol, hasEnumerableProperty);
+        return new ObjectStructureWithMap(newProperties, nullptr, hasIndexString, hasSymbol, hasEnumerableProperty);
     } else {
         return new ObjectStructureWithoutTransition(newProperties, hasIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
     }
@@ -450,11 +470,11 @@ ObjectStructure* ObjectStructureWithMap::removeProperty(size_t pIndex)
 ObjectStructure* ObjectStructureWithMap::replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc)
 {
     ObjectStructureItemVector* newProperties = m_properties;
-    PropertyNameMap* newPropertyNameMap = m_propertyNameMap;
+    auto newPropertyNameMap = m_propertyNameMap;
 
     if (m_isReferencedByInlineCache) {
         newProperties = new ObjectStructureItemVector(*m_properties);
-        newPropertyNameMap = new (GC) PropertyNameMap(*m_propertyNameMap);
+        newPropertyNameMap = nullptr;
     } else {
         m_properties = nullptr;
         m_propertyNameMap = nullptr;

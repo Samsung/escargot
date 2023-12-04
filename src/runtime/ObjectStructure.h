@@ -102,7 +102,7 @@ public:
 
 #if defined(ESCARGOT_SMALL_CONFIG)
 #ifndef ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE
-#define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 256
+#define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 2048
 #endif
 #ifndef ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE
 #define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE 12
@@ -112,15 +112,17 @@ public:
 #endif
 #else
 #ifndef ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE
-#define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 96
+#define ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE 512
 #endif
 #ifndef ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE
-#define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE 48
+#define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE 36
 #endif
 #ifndef ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE
 #define ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE 32
 #endif
 #endif
+
+COMPILE_ASSERT(ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE < 65536, "");
 
 class ObjectStructure : public gc {
 public:
@@ -220,6 +222,12 @@ public:
                           hasSymbolPropertyName, hasNonAtomicPropertyName, hasEnumerableProperty)
         , m_properties(properties)
     {
+        size_t propertyCount = m_properties->size();
+        ASSERT(propertyCount < 65535);
+        if (LIKELY(propertyCount)) {
+            m_lastFoundPropertyName = m_properties->back().m_propertyName;
+            setLastFoundPropertyIndex(propertyCount - 1);
+        }
     }
 
     virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const ObjectStructurePropertyName& s) override;
@@ -239,8 +247,27 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
+    void setLastFoundPropertyIndex(uint16_t s)
+    {
+        uint8_t* p = reinterpret_cast<uint8_t*>(&s);
+        m_transitionTableVectorBufferSize = *p;
+        p++;
+        m_transitionTableVectorBufferCapacity = *p;
+    }
+
+    uint16_t lastFoundPropertyIndex()
+    {
+        uint16_t s;
+        uint8_t* p = reinterpret_cast<uint8_t*>(&s);
+        *p = m_transitionTableVectorBufferSize;
+        p++;
+        *p = m_transitionTableVectorBufferCapacity;
+        return s;
+    }
+
 private:
     ObjectStructureItemVector* m_properties;
+    ObjectStructurePropertyName m_lastFoundPropertyName;
 };
 
 class ObjectStructureWithTransition : public ObjectStructure {
@@ -290,9 +317,70 @@ private:
 COMPILE_ASSERT(ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MAP_MIN_SIZE <= 32, "");
 COMPILE_ASSERT(sizeof(ObjectStructureWithTransition) == sizeof(size_t) * 5, "");
 
+class PropertyNameMapWithCache : protected PropertyNameMap, public gc {
+    struct CacheItem {
+        ObjectStructurePropertyName m_name;
+        size_t m_index;
+        CacheItem()
+            : m_name()
+            , m_index(SIZE_MAX)
+        {
+        }
+    };
+
+public:
+    PropertyNameMapWithCache()
+        : PropertyNameMap()
+    {
+    }
+
+    void reserve(size_t t)
+    {
+        PropertyNameMap::reserve(t);
+    }
+
+    size_t size() const
+    {
+        return PropertyNameMap::size();
+    }
+
+    void insert(const ObjectStructurePropertyName& name, size_t idx)
+    {
+        m_lastItem.m_name = name;
+        m_lastItem.m_index = idx;
+        PropertyNameMap::insert(std::make_pair(name, idx));
+    }
+
+    size_t find(const ObjectStructurePropertyName& name)
+    {
+        if (name == m_lastItem.m_name) {
+#ifndef NDEBUG
+            auto iter = PropertyNameMap::find(name);
+            if (iter == end()) {
+                ASSERT(m_lastItem.m_index == SIZE_MAX);
+            } else {
+                ASSERT(m_lastItem.m_index == m_lastItem.m_index);
+            }
+#endif
+            return m_lastItem.m_index;
+        }
+        m_lastItem.m_name = name;
+        auto iter = PropertyNameMap::find(name);
+        if (iter == end()) {
+            m_lastItem.m_index = SIZE_MAX;
+            return SIZE_MAX;
+        }
+        m_lastItem.m_index = iter->second;
+        return iter->second;
+    }
+
+private:
+    CacheItem m_lastItem;
+};
+
 class ObjectStructureWithMap : public ObjectStructure {
 public:
-    ObjectStructureWithMap(ObjectStructureItemVector* properties, PropertyNameMap* map, bool hasIndexPropertyName, bool hasSymbolPropertyName, bool hasEnumerableProperty)
+    ObjectStructureWithMap(ObjectStructureItemVector* properties, Optional<PropertyNameMapWithCache*> map, bool hasIndexPropertyName, bool hasSymbolPropertyName, bool hasEnumerableProperty)
         : ObjectStructure(hasIndexPropertyName,
                           hasSymbolPropertyName, hasEnumerableProperty)
         , m_properties(properties)
@@ -312,7 +400,6 @@ public:
         newProperties->at(properties.size()) = newItem;
 
         m_properties = newProperties;
-        m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(newProperties);
     }
 
     ObjectStructureWithMap(bool hasIndexPropertyName, bool hasSymbolPropertyName, bool hasEnumerableProperty, const ObjectStructureItemTightVector& properties)
@@ -325,7 +412,6 @@ public:
         memcpy(newProperties->data(), properties.data(), properties.size() * sizeof(ObjectStructureItem));
 
         m_properties = newProperties;
-        m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(newProperties);
     }
 
     template <typename ItemVector>
@@ -334,7 +420,6 @@ public:
                           hasSymbolPropertyName, hasEnumerableProperty)
     {
         m_properties = new ObjectStructureItemVector(std::move(properties));
-        m_propertyNameMap = ObjectStructureWithMap::createPropertyNameMap(m_properties);
     }
 
     virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const ObjectStructurePropertyName& s) override;
@@ -355,12 +440,13 @@ public:
     void* operator new[](size_t size) = delete;
 
     template <typename SourceVectorType>
-    static PropertyNameMap* createPropertyNameMap(SourceVectorType* from)
+    static PropertyNameMapWithCache* createPropertyNameMap(SourceVectorType* from)
     {
-        PropertyNameMap* map = new (GC) PropertyNameMap();
+        PropertyNameMapWithCache* map = new PropertyNameMapWithCache();
 
+        map->reserve(from->size());
         for (size_t i = 0; i < from->size(); i++) {
-            map->insert(std::make_pair((*from)[i].m_propertyName, i));
+            map->insert((*from)[i].m_propertyName, i);
         }
 
         return map;
@@ -368,7 +454,7 @@ public:
 
 private:
     ObjectStructureItemVector* m_properties;
-    PropertyNameMap* m_propertyNameMap;
+    Optional<PropertyNameMapWithCache*> m_propertyNameMap;
 };
 } // namespace Escargot
 
