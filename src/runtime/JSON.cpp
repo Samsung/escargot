@@ -159,9 +159,8 @@ static Value parseJSON(ExecutionState& state, const CharType* data, size_t lengt
     return parseJSONWorker<CharType, JSONCharType>(state, jsonDocument);
 }
 
-String* codePointTo4digitString(int codepoint)
+static void codePointTo4digitString(int codepoint, std::basic_string<char16_t>& ss)
 {
-    StringBuilder ret;
     int d = 16 * 16 * 16;
     for (int i = 0; i < 4; ++i) {
         if (codepoint >= d) {
@@ -172,14 +171,12 @@ String* codePointTo4digitString(int codepoint)
                 c = (codepoint / d) - 10 + 'a';
             }
             codepoint %= d;
-            ret.appendChar(c);
+            ss.push_back(c);
         } else {
-            ret.appendChar('0');
+            ss.push_back(u'0');
         }
         d >>= 4;
     }
-
-    return ret.finalize();
 }
 
 Value JSON::parse(ExecutionState& state, Value text, Value reviver)
@@ -535,36 +532,93 @@ static void builtinJSONStringifyJO(ExecutionState& state, Object* value,
 // https://www.ecma-international.org/ecma-262/6.0/#sec-quotejsonstring
 static void builtinJSONStringifyQuote(ExecutionState& state, String* value, LargeStringBuilder& product)
 {
+    bool allNormalChar = true;
     auto bad = value->bufferAccessData();
-    product.appendChar('"');
     for (size_t i = 0; i < bad.length; ++i) {
         char16_t c = bad.charAt(i);
-
         switch (c) {
         case u'\"':
         case u'\\':
-            product.appendChar('\\');
-            product.appendChar(c);
+        case u'\b':
+        case u'\f':
+        case u'\n':
+        case u'\r':
+        case u'\t':
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+        case 7:
+        case 11:
+        case 14:
+        case 15:
+        case 16:
+        case 17:
+        case 18:
+        case 19:
+        case 20:
+        case 21:
+        case 22:
+        case 23:
+        case 24:
+        case 25:
+        case 26:
+        case 27:
+        case 28:
+        case 29:
+        case 30:
+        case 31:
+            allNormalChar = false;
+            break;
+        default:
+            break;
+        }
+        if (UNLIKELY(!allNormalChar)) {
+            break;
+        }
+    }
+
+    if (allNormalChar) {
+        product.appendChar('"');
+        product.appendString(value);
+        product.appendChar('"');
+        return;
+    }
+
+    bool allLatin1 = true;
+    std::basic_string<char16_t> buffer;
+    buffer.reserve(bad.length);
+    buffer.push_back(u'"');
+    for (size_t i = 0; i < bad.length; ++i) {
+        char16_t c = bad.charAt(i);
+        switch (c) {
+        case u'\"':
+        case u'\\':
+            buffer.push_back(u'\\');
+            buffer.push_back(c);
             break;
         case u'\b':
-            product.appendChar('\\');
-            product.appendChar('b');
+            buffer.push_back(u'\\');
+            buffer.push_back(u'b');
             break;
         case u'\f':
-            product.appendChar('\\');
-            product.appendChar('f');
+            buffer.push_back(u'\\');
+            buffer.push_back(u'f');
             break;
         case u'\n':
-            product.appendChar('\\');
-            product.appendChar('n');
+            buffer.push_back(u'\\');
+            buffer.push_back(u'n');
             break;
         case u'\r':
-            product.appendChar('\\');
-            product.appendChar('r');
+            buffer.push_back(u'\\');
+            buffer.push_back(u'r');
             break;
         case u'\t':
-            product.appendChar('\\');
-            product.appendChar('t');
+            buffer.push_back(u'\\');
+            buffer.push_back(u't');
             break;
         case 0:
         case 1:
@@ -593,15 +647,23 @@ static void builtinJSONStringifyQuote(ExecutionState& state, String* value, Larg
         case 29:
         case 30:
         case 31:
-            product.appendChar('\\');
-            product.appendChar('u');
-            product.appendString(codePointTo4digitString(c));
+            buffer.push_back(u'\\');
+            buffer.push_back(u'u');
+            codePointTo4digitString(c, buffer);
             break;
         default:
-            product.appendChar(c);
+            if (c > 255) {
+                allLatin1 = false;
+            }
+            buffer.push_back(c);
         }
     }
-    product.appendChar('"');
+    buffer.push_back(u'"');
+    if (allLatin1) {
+        product.appendString(String::fromLatin1(buffer.data(), buffer.length()));
+    } else {
+        product.appendString(new UTF16String(buffer.data(), buffer.length()));
+    }
 }
 
 static void builtinJSONStringifyQuote(ExecutionState& state, Value value, LargeStringBuilder& product)
