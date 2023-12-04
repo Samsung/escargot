@@ -511,6 +511,58 @@ Object::Object(ObjectStructure* structure, ObjectPropertyValueVector&& values, O
     ASSERT(!!proto);
 }
 
+Object::Object(ExecutionState& state, size_t propertyCount,
+               std::pair<Value, Value> (*keyAndValueCallback)(ExecutionState& state, void* data), void* callbackData,
+               bool isWritable, bool isEnumerable, bool isConfigurable)
+    : Object(state)
+{
+    ASSERT(m_structure->propertyCount() == 0);
+    m_values.resizeWithUninitializedValues(0, propertyCount);
+    bool hasIndexPropertyName = false;
+    bool hasSymbolPropertyName = false;
+    bool hasNonAtomicPropertyName = false;
+    bool hasEnumerableProperty = false;
+    ObjectStructureItemVector* keyVector = new ObjectStructureItemVector();
+    keyVector->resizeFitWithUninitializedValues(propertyCount);
+
+    ObjectStructurePropertyDescriptor::PresentAttribute attr = ObjectStructurePropertyDescriptor::PresentAttribute::NotPresent;
+    if (isWritable) {
+        attr = (ObjectStructurePropertyDescriptor::PresentAttribute)(attr | ObjectStructurePropertyDescriptor::WritablePresent);
+    }
+    if (isEnumerable) {
+        hasEnumerableProperty = true;
+        attr = (ObjectStructurePropertyDescriptor::PresentAttribute)(attr | ObjectStructurePropertyDescriptor::EnumerablePresent);
+    }
+    if (isConfigurable) {
+        attr = (ObjectStructurePropertyDescriptor::PresentAttribute)(attr | ObjectStructurePropertyDescriptor::ConfigurablePresent);
+    }
+    for (size_t i = 0; i < propertyCount; i++) {
+        auto kv = keyAndValueCallback(state, callbackData);
+        keyVector->at(i) = ObjectStructureItem(ObjectStructurePropertyName(state, kv.first), attr);
+        m_values[i] = kv.second;
+
+        if (keyVector->at(i).m_propertyName.isIndexString()) {
+            hasIndexPropertyName = true;
+        }
+
+        if (keyVector->at(i).m_propertyName.isSymbol()) {
+            hasSymbolPropertyName = true;
+        }
+
+        if (keyVector->at(i).m_propertyName.isPlainString() && keyVector->at(i).m_propertyName.hasAtomicString()) {
+            hasNonAtomicPropertyName = true;
+        }
+    }
+
+    if (propertyCount > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
+        m_structure = new ObjectStructureWithMap(hasIndexPropertyName,
+                                                 hasSymbolPropertyName, hasEnumerableProperty, std::move(*keyVector));
+    } else {
+        m_structure = new ObjectStructureWithoutTransition(keyVector,
+                                                           hasIndexPropertyName, hasSymbolPropertyName, hasNonAtomicPropertyName, hasEnumerableProperty);
+    }
+}
+
 // https://www.ecma-international.org/ecma-262/6.0/#sec-isconcatspreadable
 bool Object::isConcatSpreadable(ExecutionState& state)
 {

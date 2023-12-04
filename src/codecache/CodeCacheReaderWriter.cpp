@@ -863,19 +863,19 @@ ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, InterpretedC
     // ByteCodeBlock::m_numeralLiteralData
     ByteCodeNumeralLiteralData& numeralLiteralData = block->m_numeralLiteralData;
     size = m_buffer.get<size_t>();
-    numeralLiteralData.resizeWithUninitializedValues(size);
+    numeralLiteralData.resizeFitWithUninitializedValues(size);
     m_buffer.getData(numeralLiteralData.data(), size);
 
     // ByteCodeBlock::m_jumpFlowRecordData
     ByteCodeJumpFlowRecordData& jumpFlowRecordData = block->m_jumpFlowRecordData;
     size = m_buffer.get<size_t>();
-    jumpFlowRecordData.resizeWithUninitializedValues(size);
+    jumpFlowRecordData.resizeFitWithUninitializedValues(size);
     m_buffer.getData(jumpFlowRecordData.data(), size);
 
     // ByteCodeBlock::m_stringLiteralData
     ByteCodeStringLiteralData& stringLiteralData = block->m_stringLiteralData;
     size = m_buffer.get<size_t>();
-    stringLiteralData.resizeWithUninitializedValues(size);
+    stringLiteralData.resizeFitWithUninitializedValues(size);
     for (size_t i = 0; i < size; i++) {
         stringLiteralData[i] = m_buffer.getString();
     }
@@ -884,7 +884,7 @@ ByteCodeBlock* CodeCacheReader::loadByteCodeBlock(Context* context, InterpretedC
     // Note) only BigInt exists
     ByteCodeOtherLiteralData& bigIntData = block->m_otherLiteralData;
     size = m_buffer.get<size_t>();
-    bigIntData.resizeWithUninitializedValues(size);
+    bigIntData.resizeFitWithUninitializedValues(size);
     for (size_t i = 0; i < size; i++) {
         bigIntData[i] = new BigInt(m_buffer.getBF(ThreadLocal::bfContext()));
     }

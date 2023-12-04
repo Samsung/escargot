@@ -272,7 +272,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
     ast->generateStatementByteCode(block, &ctx);
 
     if (ctx.m_keepNumberalLiteralsInRegisterFile) {
-        block->m_numeralLiteralData.resizeWithUninitializedValues(nData->size());
+        block->m_numeralLiteralData.resizeFitWithUninitializedValues(nData->size());
         memcpy(block->m_numeralLiteralData.data(), nData->data(), sizeof(Value) * nData->size());
     }
 

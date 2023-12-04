@@ -783,6 +783,10 @@ public:
     explicit Object(ExecutionState& state, Object* proto);
     enum PrototypeIsNullTag { PrototypeIsNull };
     explicit Object(ExecutionState& state, PrototypeIsNullTag); // I added new function for reducing checking null for prototype
+    // create huge object
+    explicit Object(ExecutionState& state, size_t propertyCount,
+                    std::pair<Value, Value> (*keyAndValueCallback)(ExecutionState& state, void* data), void* callbackData,
+                    bool isWritable, bool isEnumerable, bool isConfigurable);
 
     static Object* createBuiltinObjectPrototype(ExecutionState& state);
     static Object* createFunctionPrototypeObject(ExecutionState& state, FunctionObject* function);

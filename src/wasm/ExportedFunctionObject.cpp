@@ -120,7 +120,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     // Otherwise,
     // Let values be << >>.
     ValueVector values;
-    values.resizeWithUninitializedValues(ret.size);
+    values.resizeFitWithUninitializedValues(ret.size);
 
     // For each r of ret,
     // Append ToJSValue(r) to values.
