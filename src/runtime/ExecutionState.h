@@ -257,7 +257,7 @@ public:
     {
         // allocate a new argument buffer
         // because tail call reuses this buffer which can modify caller's register file
-        ASSERT(!m_initTCO && !!argv);
+        ASSERT(!m_initTCO);
         m_argv = argv;
         m_initTCO = true; // initialize of TCO done
     }
