@@ -880,7 +880,7 @@ def run_escargot_debugger(engine, arch, extra_arg):
     ESCARGOT_DEBUGGER_TESTER = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger_tester.sh')
     print('Running Escargot-Debugger-Server-Source test:')
     fails = 0
-    proc = Popen(['chmod', '+x', ESCARGOT_DEBUGGER_TESTER],stdout=PIPE)
+    proc = Popen(['chmod', '+x', ESCARGOT_DEBUGGER_TESTER], stdout=PIPE)
     for files in os.listdir(ESCARGOT_DEBUGGER_TEST_DIR):
         if files.endswith(".cmd"):
             test_case, _ = os.path.splitext(files)
@@ -902,7 +902,7 @@ def run_escargot_debugger2(engine, arch, extra_arg):
     ESCARGOT_DEBUGGER_TESTER = join(PROJECT_SOURCE_DIR, 'tools', 'debugger', 'debugger_tester.sh')
     print('Running Escargot-Debugger-Client-Source test:')
     fails = 0
-    proc = Popen(['chmod', '+x', ESCARGOT_DEBUGGER_TESTER],stdout=PIPE)
+    proc = Popen(['chmod', '+x', ESCARGOT_DEBUGGER_TESTER], stdout=PIPE)
     for files in os.listdir(ESCARGOT_DEBUGGER_TEST_DIR):
         if files.endswith(".cmd"):
             test_case, _ = os.path.splitext(files)
@@ -916,6 +916,33 @@ def run_escargot_debugger2(engine, arch, extra_arg):
                  fails += 1
     if fails > 0:
         raise Exception('Escargot-Debugger-Client-Source tests failed')
+
+@runner('web-tooling-benchmark', default=False)
+def run_web_tooling_benchmark(engine, arch, extra_arg):
+    WEB_TOOLING_DIR = join(PROJECT_SOURCE_DIR, 'test', 'web-tooling-benchmark')
+    WEB_TOOLING_SRC_DIR = join(WEB_TOOLING_DIR, 'src')
+
+    suite_file = join(WEB_TOOLING_SRC_DIR, 'suite.js')
+    with open(suite_file, "r") as f:
+        lines = f.readlines()
+    with open(suite_file, "w") as f:
+        for line in lines:
+            # minimize sample count to 1
+            f.write(re.sub(r'minSamples: 20', 'minSamples: 1', line))
+
+    flag_file = join(WEB_TOOLING_SRC_DIR, 'cli-flags-helper.js')
+    with open(flag_file, "r") as f:
+        lines = f.readlines()
+    with open(flag_file, "w") as f:
+        for line in lines:
+            # exclude long running tests
+            if "babel" not in line and "babylon" not in line and "chai" not in line:
+                f.write(line)
+
+    proc = Popen(['npx', 'npm@6', 'install'], cwd=WEB_TOOLING_DIR, stdout=PIPE)
+    proc.wait()
+
+    run([engine, 'dist/cli.js'], cwd=WEB_TOOLING_DIR)
 
 @runner('dump-all', default=False)
 def run_dump_all(engine, arch, extra_arg):
