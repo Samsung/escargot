@@ -26,3 +26,6 @@
 	path = third_party/walrus
 	url = https://github.com/Samsung/walrus.git
 	ignore = untracked
+[submodule "test/web-tooling-benchmark"]
+	path = test/web-tooling-benchmark
+	url = https://github.com/v8/web-tooling-benchmark
