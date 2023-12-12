@@ -2751,22 +2751,11 @@ public:
             this->nextToken(token);
 
             exprNode = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-            if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
-                this->throwError(Messages::InvalidLHSInAssignment);
-            }
-            if (this->context->strict && exprNode->type() == Identifier && Scanner::isRestrictedWord(escargotContext, exprNode->asIdentifier()->name())) {
+            if (UNLIKELY(this->context->strict && exprNode->type() == Identifier && Scanner::isRestrictedWord(escargotContext, exprNode->asIdentifier()->name()))) {
                 this->throwError(Messages::StrictLHSPrefix);
             }
 
-            if (!this->context->isAssignmentTarget && this->context->strict) {
-                this->throwError(Messages::InvalidLHSInAssignment);
-            }
-
-            auto exprNodeType = exprNode->type();
-            if (UNLIKELY(exprNodeType == ASTNodeType::MemberExpression && exprNode->asMemberExpression()->isOptional())) {
-                this->throwError(Messages::InvalidLHSInAssignment);
-            }
-            if (UNLIKELY(exprNodeType == ASTNodeType::ImportCall)) {
+            if (UNLIKELY((!this->context->isAssignmentTarget && (exprNode->type() != ASTNodeType::CallExpression || this->context->strict)) || (exprNode->type() == ObjectExpression))) {
                 this->throwError(Messages::InvalidLHSInAssignment);
             }
 
@@ -2783,20 +2772,11 @@ public:
             exprNode = this->inheritCoverGrammar(builder, &Parser::parseLeftHandSideExpressionAllowCall<ASTBuilder>);
             if (!this->hasLineTerminator && this->lookahead.type == Token::PunctuatorToken && (this->match(PlusPlus) || this->match(MinusMinus))) {
                 bool isPlus = this->match(PlusPlus);
-                if (exprNode->isLiteral() || exprNode->type() == ASTNodeType::ThisExpression) {
-                    this->throwError(Messages::InvalidLHSInAssignment);
-                }
-                if (this->context->strict && exprNode->isIdentifier() && Scanner::isRestrictedWord(escargotContext, exprNode->asIdentifier()->name())) {
+                if (UNLIKELY(this->context->strict && exprNode->isIdentifier() && Scanner::isRestrictedWord(escargotContext, exprNode->asIdentifier()->name()))) {
                     this->throwError(Messages::StrictLHSPostfix);
                 }
-                if (!this->context->isAssignmentTarget && this->context->strict) {
-                    this->throwError(Messages::InvalidLHSInAssignment);
-                }
-                auto exprNodeType = exprNode->type();
-                if (UNLIKELY(exprNodeType == ASTNodeType::MemberExpression && exprNode->asMemberExpression()->isOptional())) {
-                    this->throwError(Messages::InvalidLHSInAssignment);
-                }
-                if (UNLIKELY(exprNodeType == ASTNodeType::ImportCall)) {
+
+                if (UNLIKELY((!this->context->isAssignmentTarget && (exprNode->type() != ASTNodeType::CallExpression || this->context->strict)) || (exprNode->type() == ObjectExpression))) {
                     this->throwError(Messages::InvalidLHSInAssignment);
                 }
 
@@ -4362,7 +4342,7 @@ public:
                     init = nullptr;
                     type = statementTypeForIn;
                 } else if (this->lookahead.type == Token::IdentifierToken && this->lookahead.equalsToKeywordNoEscape(OfKeyword)) {
-                    if (!this->context->isAssignmentTarget || (initNodeType >= ASTNodeType::AssignmentExpression && initNodeType <= ASTNodeType::AssignmentExpressionSimple)) {
+                    if (UNLIKELY(!this->context->isAssignmentTarget || (initNodeType >= ASTNodeType::AssignmentExpression && initNodeType <= ASTNodeType::AssignmentExpressionSimple))) {
                         this->throwError(Messages::InvalidLHSInForLoop);
                     }
 
