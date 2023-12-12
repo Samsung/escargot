@@ -268,7 +268,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        tc: ['octane', 'v8 chakracore spidermonkey', 'jetstream-only-simple-parallel-1', 'jetstream-only-simple-parallel-2 jsc-stress', 'jetstream-only-simple-parallel-3 jetstream-only-cdjs']
+        tc: ['new-es octane', 'v8 chakracore spidermonkey', 'jetstream-only-simple-parallel-1', 'jetstream-only-simple-parallel-2 jsc-stress', 'jetstream-only-simple-parallel-3 jetstream-only-cdjs']
     steps:
     - uses: actions/checkout@v3
       with:
@@ -304,11 +304,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        tc: ['new-es octane v8', 'chakracore spidermonkey']
+        tc: ['octane v8 web-tooling-benchmark', 'chakracore spidermonkey new-es']
         build_opt: ['', '-DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON', '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_USE_CUSTOM_LOGGING=ON']
         exclude:
-          # exclude octane, v8 due to low performance incurred by SMALL_CONFIG
-          - tc: 'new-es octane v8'
+          # exclude octane, v8, web-tooling-benchmark due to low performance incurred by SMALL_CONFIG
+          - tc: 'octane v8 web-tooling-benchmark'
             build_opt: '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_USE_CUSTOM_LOGGING=ON'
     steps:
     - uses: actions/checkout@v3
@@ -507,6 +507,15 @@ jobs:
         export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu/pkgconfig
         cmake -H. -Bout/codecache/x64 $BUILD_OPTIONS
         ninja -Cout/codecache/x64
+    - name: Build x64 Release Mode
+      env:
+        BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_CODE_CACHE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+      run: |
+        export CXXFLAGS="-I$GITHUB_WORKSPACE/icu64/usr/include"
+        export LDFLAGS="-L$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu"
+        export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu64/usr/lib/x86_64-linux-gnu/pkgconfig
+        cmake -H. -Bout/codecache/release/x64 $BUILD_OPTIONS
+        ninja -Cout/codecache/release/x64
     - name: Run x86 test
       run: |
         $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/codecache/x86/escargot" sunspider-js
@@ -525,6 +534,11 @@ jobs:
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" octane-loading
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" octane-loading
         rm -rf $HOME/Escargot-cache/
+    - name: Run x64 release test
+      run: |
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/release/x64/escargot" web-tooling-benchmark
+        $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/release/x64/escargot" web-tooling-benchmark
+        rm -rf $HOME/Escargot-cache/
     - name: Handle error cases
       run: |
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
@@ -534,6 +548,9 @@ jobs:
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
         rm $HOME/Escargot-cache/cache_list
         $RUNNER --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/codecache/x64/escargot" sunspider-js
+    - if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 15
 
   build-test-wasmjs:
     runs-on: ubuntu-latest
