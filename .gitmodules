@@ -15,17 +15,18 @@
     url = https://github.com/chromium/octane.git
     ignore = untracked
 [submodule "test/kangax"]
-	path = test/kangax
-	url = https://github.com/kangax/compat-table.git
+    path = test/kangax
+    url = https://github.com/kangax/compat-table.git
     ignore = untracked
 [submodule "third_party/googletest"]
-	path = third_party/googletest
-	url = https://github.com/google/googletest.git
+    path = third_party/googletest
+    url = https://github.com/google/googletest.git
     ignore = untracked
 [submodule "third_party/walrus"]
-	path = third_party/walrus
-	url = https://github.com/Samsung/walrus.git
-	ignore = untracked
+    path = third_party/walrus
+    url = https://github.com/Samsung/walrus.git
+    ignore = untracked
 [submodule "test/web-tooling-benchmark"]
-	path = test/web-tooling-benchmark
-	url = https://github.com/v8/web-tooling-benchmark
+    path = test/web-tooling-benchmark
+    url = https://github.com/v8/web-tooling-benchmark
+    ignore = untracked
