@@ -2829,46 +2829,35 @@ public:
     template <class ASTBuilder>
     ASTNode parseUnaryExpression(ASTBuilder& builder)
     {
+        ASTNode exprNode = nullptr;
         if (this->lookahead.type == Token::PunctuatorToken) {
             auto punctuatorsKind = this->lookahead.valuePunctuatorKind;
-            ASTNode exprNode = nullptr;
 
-            if (punctuatorsKind == Plus) {
+            if (punctuatorsKind == Plus || punctuatorsKind == Minus || punctuatorsKind == Wave || punctuatorsKind == ExclamationMark) {
                 this->nextToken();
                 MetaNode node = this->startNode(&this->lookahead);
                 ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createUnaryExpressionPlusNode(subExpr));
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
-                return exprNode;
-            } else if (punctuatorsKind == Minus) {
-                this->nextToken();
-                if (this->lookahead.type == Token::NumericLiteralToken) {
-                    return parseNumericLiteralNode(builder, true);
-                } else {
-                    MetaNode node = this->startNode(&this->lookahead);
-                    ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                    exprNode = this->finalize(node, builder.createUnaryExpressionMinusNode(subExpr));
-                    this->context->isAssignmentTarget = false;
-                    this->context->isBindingElement = false;
+
+                switch (punctuatorsKind) {
+                case Plus: {
+                    return this->finalize(node, builder.createUnaryExpressionPlusNode(subExpr));
+                }
+                case Minus: {
+                    return this->finalize(node, builder.createUnaryExpressionMinusNode(subExpr));
+                }
+                case Wave: {
+                    return this->finalize(node, builder.createUnaryExpressionBitwiseNotNode(subExpr));
+                }
+                case ExclamationMark: {
+                    return this->finalize(node, builder.createUnaryExpressionLogicalNotNode(subExpr));
+                }
+                default: {
+                    RELEASE_ASSERT_NOT_REACHED();
                     return exprNode;
                 }
-            } else if (punctuatorsKind == Wave) {
-                this->nextToken();
-                MetaNode node = this->startNode(&this->lookahead);
-                ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createUnaryExpressionBitwiseNotNode(subExpr));
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                return exprNode;
-            } else if (punctuatorsKind == ExclamationMark) {
-                this->nextToken();
-                MetaNode node = this->startNode(&this->lookahead);
-                ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createUnaryExpressionLogicalNotNode(subExpr));
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-                return exprNode;
+                }
             } else if (punctuatorsKind == Hash) {
                 ALLOC_TOKEN(hashToken);
                 this->nextToken(hashToken);
@@ -2897,47 +2886,39 @@ public:
                 this->throwUnexpectedToken(*hashToken);
             }
         } else if (this->lookahead.type == Token::KeywordToken) {
-            ASTNode exprNode = nullptr;
+            auto valueKeywordKind = this->lookahead.valueKeywordKind;
 
-            if (this->lookahead.valueKeywordKind == DeleteKeyword) {
+            if (valueKeywordKind == DeleteKeyword || valueKeywordKind == VoidKeyword || valueKeywordKind == TypeofKeyword) {
                 this->nextToken();
                 MetaNode node = this->startNode(&this->lookahead);
                 ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
+                this->context->isAssignmentTarget = false;
+                this->context->isBindingElement = false;
 
-                if (this->context->strict && subExpr->isIdentifier()) {
-                    this->throwError(Messages::StrictDelete);
-                }
-
-                if (subExpr->type() == ASTNodeType::MemberExpression) {
-                    if (subExpr->asMemberExpression()->isReferencePrivateField()) {
-                        this->throwError(Messages::CannnotUsePrivateFieldHere);
+                switch (valueKeywordKind) {
+                case DeleteKeyword: {
+                    if (this->context->strict && subExpr->isIdentifier()) {
+                        this->throwError(Messages::StrictDelete);
                     }
+
+                    if (subExpr->type() == ASTNodeType::MemberExpression) {
+                        if (subExpr->asMemberExpression()->isReferencePrivateField()) {
+                            this->throwError(Messages::CannnotUsePrivateFieldHere);
+                        }
+                    }
+                    return this->finalize(node, builder.createUnaryExpressionDeleteNode(subExpr));
                 }
-
-                exprNode = this->finalize(node, builder.createUnaryExpressionDeleteNode(subExpr));
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-
-                return exprNode;
-            } else if (this->lookahead.valueKeywordKind == VoidKeyword) {
-                this->nextToken();
-                MetaNode node = this->startNode(&this->lookahead);
-                ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createUnaryExpressionVoidNode(subExpr));
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-
-                return exprNode;
-            } else if (this->lookahead.valueKeywordKind == TypeofKeyword) {
-                this->nextToken();
-
-                MetaNode node = this->startNode(&this->lookahead);
-                ASTNode subExpr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createUnaryExpressionTypeOfNode(subExpr));
-                this->context->isAssignmentTarget = false;
-                this->context->isBindingElement = false;
-
-                return exprNode;
+                case VoidKeyword: {
+                    return this->finalize(node, builder.createUnaryExpressionVoidNode(subExpr));
+                }
+                case TypeofKeyword: {
+                    return this->finalize(node, builder.createUnaryExpressionTypeOfNode(subExpr));
+                }
+                default: {
+                    RELEASE_ASSERT_NOT_REACHED();
+                    return exprNode;
+                }
+                }
             }
         } else if (this->matchContextualKeyword(AwaitKeyword)) {
             bool parseAwait = false;
@@ -2961,8 +2942,7 @@ public:
                 }
             }
             if (parseAwait) {
-                ASTNode exprNode = this->parseAwaitExpression(builder);
-                return exprNode;
+                return this->parseAwaitExpression(builder);
             }
         }
 
@@ -2974,11 +2954,10 @@ public:
     {
         ALLOC_TOKEN(startToken);
         *startToken = this->lookahead;
-        bool seenMinus = this->match(Minus);
         ASTNode expr = this->inheritCoverGrammar(builder, &Parser::parseUnaryExpression<ASTBuilder>);
 
-        if (!expr->isUnaryOperation() && this->match(Exponentiation)) {
-            if (UNLIKELY(seenMinus)) {
+        if (this->match(Exponentiation)) {
+            if (expr->isUnaryOperation() && (startToken->type != Token::PunctuatorToken || startToken->valuePunctuatorKind != PunctuatorKind::LeftParenthesis)) {
                 this->throwError("Unary operator used immediately before exponentiation expression. Parenthesis must be used to disambiguate operator precedence");
             }
             this->nextToken();
