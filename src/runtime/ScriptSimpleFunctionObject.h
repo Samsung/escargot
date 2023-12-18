@@ -81,7 +81,7 @@ protected:
 #endif
         );
 
-        char* registerFileBuffer[sizeof(Value) * registerFileSize];
+        char registerFileBuffer[sizeof(Value) * registerFileSize];
         Value* registerFile = reinterpret_cast<Value*>(registerFileBuffer);
         Value* stackStorage = registerFile + registerSize;
 
@@ -152,7 +152,7 @@ protected:
 #endif
         );
 
-        char* registerFileBuffer[sizeof(Value) * registerFileSize];
+        char registerFileBuffer[sizeof(Value) * registerFileSize];
         Value* registerFile = reinterpret_cast<Value*>(registerFileBuffer);
         Value* stackStorage = registerFile + registerSize;
 

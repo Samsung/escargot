@@ -477,7 +477,8 @@ bool CodeCache::storeGlobalCache(Context* context, const CodeCacheIndex& cacheIn
         // handle failure
         m_status = Status::FAILED;
         postCacheWriting(cacheIndex);
-        throw message;
+        // rethrow
+        throw;
     }
 
     bool result = postCacheWriting(cacheIndex);
@@ -502,7 +503,8 @@ bool CodeCache::storeFunctionCache(Context* context, const CodeCacheIndex& cache
         // handle failure
         m_status = Status::FAILED;
         postCacheWriting(cacheIndex);
-        throw message;
+        // rethrow
+        throw;
     }
 
     bool result = postCacheWriting(cacheIndex);
@@ -808,7 +810,6 @@ void CodeCache::loadAllByteCodeBlockOfFunctions(Context* context, std::vector<In
     // load CodeBlock of functions during loading of global code
     ASSERT(m_enabled && m_status == Status::IN_PROGRESS);
     ASSERT(m_currentContext.m_cacheFilePath.length() && m_currentContext.m_cacheFile);
-    FILE* dataFile = m_currentContext.m_cacheFile;
 
     size_t srcHash = script->sourceCodeHashValue();
     size_t srcLength = script->sourceCode()->length();
