@@ -663,7 +663,7 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
             return UDAT_NONE;
         };
 
-        UErrorCode status = U_ZERO_ERROR;
+        status = U_ZERO_ERROR;
         LocalResourcePointer<UDateFormat> dateFormatFromStyle(
             udat_open(convertFormatStyle(m_timeStyle), convertFormatStyle(m_dateStyle), dataLocaleWithExtensions.data(), m_timeZone->toUTF16StringData().data(), m_timeZone->length(), nullptr, -1, &status),
             [](UDateFormat* fmt) { udat_close(fmt); });
