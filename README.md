@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-LGPL%20v2.1-blue.svg)](LICENSE)
 [![GitHub release (latestSemVer)](https://img.shields.io/github/v/release/Samsung/escargot)](https://github.com/Samsung/escargot/releases)
-[![Actions Status](https://github.com/Samsung/escargot/workflows/Escargot%20Actions/badge.svg)](https://github.com/Samsung/escargot/actions)
+[![Actions Status](https://github.com/Samsung/escargot/workflows/ES-Actions/badge.svg)](https://github.com/Samsung/escargot/actions/workflows/es-actions.yml)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/21647/badge.svg)](https://scan.coverity.com/projects/samsung-escargot)
 [![codecov](https://codecov.io/gh/Samsung/escargot/branch/master/graph/badge.svg?token=DX8CN6E7A8)](https://codecov.io/gh/Samsung/escargot)
 
