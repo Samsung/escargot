@@ -376,6 +376,7 @@ jobs:
 
   build-test-on-self-hosted-linux:
     runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 60
     steps:
     - uses: actions/checkout@v3
       with:
@@ -402,6 +403,7 @@ jobs:
 
   build-test-on-self-hosted-arm-linux:
     runs-on: [self-hosted, linux, arm]
+    timeout-minutes: 60
     steps:
     - uses: actions/checkout@v3
       with:
@@ -416,6 +418,7 @@ jobs:
 
   build-test-on-self-hosted-arm64-linux:
     runs-on: [self-hosted, linux, arm64]
+    timeout-minutes: 60
     steps:
     - uses: actions/checkout@v3
       with:
