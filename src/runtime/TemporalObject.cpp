@@ -1766,6 +1766,10 @@ Value TemporalPlainDateTimeObject::createTemporalDateTime(ExecutionState& state,
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ISODateTime is out of limits");
     }
 
+    if (!calendar.asObject()->isTemporalCalendarObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "");
+    }
+
     TemporalDate date(isoYear, isoMonth, isoDay);
     TemporalTime time(hour, minute, second, millisecond, microsecond, nanosecond);
 
@@ -3029,21 +3033,24 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalDurationObject::addDuration
         duration[TemporalObject::DAY_UNIT] = dateDifference->getDay();
         auto result = TemporalDurationObject::balanceDuration(state, duration, largestUnit);
         return TemporalDurationObject::createDurationRecord(state, dateDifference->getYear(), dateDifference->getMonth(), dateDifference->getWeek(), result[TemporalObject::DAY_UNIT], result[TemporalObject::HOUR_UNIT], result[TemporalObject::MINUTE_UNIT], result[TemporalObject::SECOND_UNIT], result[TemporalObject::MILLISECOND_UNIT], result[TemporalObject::MICROSECOND_UNIT], result[TemporalObject::NANOSECOND_UNIT]);
+    } else if (relativeTo.asObject()->isTemporalZonedDateTimeObject()) {
+        auto zonedDateTime = relativeTo.asObject()->asTemporalZonedDateTimeObject();
+        auto timeZone = zonedDateTime->getTimeZone();
+        auto calendar = zonedDateTime->getCalendar();
+        auto intermediateNs = TemporalZonedDateTimeObject::addZonedDateTime(state, zonedDateTime->getNanoseconds(), timeZone, calendar, first);
+        auto endNs = TemporalZonedDateTimeObject::addZonedDateTime(state, intermediateNs, timeZone, calendar, second);
+
+        if (largestUnit <= TemporalObject::DAY_UNIT) {
+            auto diffNs = TemporalInstantObject::differenceInstant(state, zonedDateTime->getNanoseconds(), endNs, 1, TemporalObject::NANOSECOND_UNIT, HALF_EXPAND)->toInt64();
+            std::map<TemporalObject::DateTimeUnits, int> result = TemporalDurationObject::balanceDuration(state, { { TemporalObject::DAY_UNIT, 0 }, { TemporalObject::HOUR_UNIT, 0 }, { TemporalObject::MINUTE_UNIT, 0 }, { TemporalObject::SECOND_UNIT, 0 }, { TemporalObject::MILLISECOND_UNIT, 0 }, { TemporalObject::MICROSECOND_UNIT, 0 }, { TemporalObject::NANOSECOND_UNIT, diffNs } }, largestUnit);
+            return TemporalDurationObject::createDurationRecord(state, 0, 0, 0, 0, result[TemporalObject::HOUR_UNIT], result[TemporalObject::MINUTE_UNIT], result[TemporalObject::SECOND_UNIT], result[TemporalObject::MILLISECOND_UNIT], result[TemporalObject::MICROSECOND_UNIT], result[TemporalObject::NANOSECOND_UNIT]);
+        }
+
+        return TemporalZonedDateTimeObject::differenceZonedDateTime(state, const_cast<BigInt*>(zonedDateTime->getNanoseconds()), endNs, timeZone, calendar, largestUnit, new Object(state, Object::PrototypeIsNull));
     }
 
-    auto zonedDateTime = relativeTo.asObject()->asTemporalZonedDateTimeObject();
-    auto timeZone = zonedDateTime->getTimeZone();
-    auto calendar = zonedDateTime->getCalendar();
-    auto intermediateNs = TemporalZonedDateTimeObject::addZonedDateTime(state, zonedDateTime->getNanoseconds(), timeZone, calendar, first);
-    auto endNs = TemporalZonedDateTimeObject::addZonedDateTime(state, intermediateNs, timeZone, calendar, second);
-
-    if (largestUnit <= TemporalObject::DAY_UNIT) {
-        auto diffNs = TemporalInstantObject::differenceInstant(state, zonedDateTime->getNanoseconds(), endNs, 1, TemporalObject::NANOSECOND_UNIT, HALF_EXPAND)->toInt64();
-        std::map<TemporalObject::DateTimeUnits, int> result = TemporalDurationObject::balanceDuration(state, { { TemporalObject::DAY_UNIT, 0 }, { TemporalObject::HOUR_UNIT, 0 }, { TemporalObject::MINUTE_UNIT, 0 }, { TemporalObject::SECOND_UNIT, 0 }, { TemporalObject::MILLISECOND_UNIT, 0 }, { TemporalObject::MICROSECOND_UNIT, 0 }, { TemporalObject::NANOSECOND_UNIT, diffNs } }, largestUnit);
-        return TemporalDurationObject::createDurationRecord(state, 0, 0, 0, 0, result[TemporalObject::HOUR_UNIT], result[TemporalObject::MINUTE_UNIT], result[TemporalObject::SECOND_UNIT], result[TemporalObject::MILLISECOND_UNIT], result[TemporalObject::MICROSECOND_UNIT], result[TemporalObject::NANOSECOND_UNIT]);
-    }
-
-    return TemporalZonedDateTimeObject::differenceZonedDateTime(state, const_cast<BigInt*>(zonedDateTime->getNanoseconds()), endNs, timeZone, calendar, largestUnit, new Object(state, Object::PrototypeIsNull));
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "");
+    return std::map<TemporalObject::DateTimeUnits, int>();
 }
 
 TemporalObject::DateTimeUnits TemporalDurationObject::defaultTemporalLargestUnit(std::map<TemporalObject::DateTimeUnits, int> temporalObject)
