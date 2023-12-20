@@ -271,10 +271,7 @@ static Value builtinTemporalPlainTimeConstructor(ExecutionState& state, Value th
     memset(values, 0, sizeof(values));
 
     for (unsigned int i = 0; i < argc && i < 6; ++i) {
-        if (!argv[i].isInteger(state)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
-        }
-        values[i] = argv[i].asInt32();
+        values[i] = argv[i].toInteger(state);
     }
 
     return TemporalPlainTimeObject::createTemporalTime(state, values[0], values[1], values[2], values[3], values[4], values[5], newTarget);
@@ -394,7 +391,7 @@ static Value builtinTemporalPlainTimeToPlainDateTime(ExecutionState& state, Valu
                                                                temporalDate->day(), temporalTime->getHour(),
                                                                temporalTime->getMinute(), temporalTime->getSecond(),
                                                                temporalTime->getMillisecond(), temporalTime->getMicrosecond(),
-                                                               temporalTime->getNanosecond(), thisValue.asObject()->asTemporalPlainDateObject()->getCalendar(), nullptr);
+                                                               temporalTime->getNanosecond(), temporalTime->getCalendar(), nullptr);
 }
 
 static Value builtinTemporalPlainTimeGetISOFields(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -558,9 +555,15 @@ static Value builtinTemporalZonedDateTimeConstructor(ExecutionState& state, Valu
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "epoch Nanoseconds is out of range");
     }
 
-    auto timeZone = TemporalTimeZoneObject::toTemporalTimeZone(state, argv[1]).asObject()->asTemporalTimeZoneObject();
-    auto calendar = TemporalCalendarObject::toTemporalCalendarWithISODefault(state, argc > 2 ? argv[2] : Value()).asObject()->asTemporalCalendarObject();
-    return TemporalZonedDateTimeObject::createTemporalZonedDateTime(state, *(argv[0].asBigInt()), timeZone, calendar, newTarget);
+    auto timeZoneValue = TemporalTimeZoneObject::toTemporalTimeZone(state, argv[1]);
+    if (!timeZoneValue.asObject()->isTemporalTimeZoneObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
+    }
+    auto calendarValue = TemporalCalendarObject::toTemporalCalendarWithISODefault(state, argc > 2 ? argv[2] : Value());
+    if (!calendarValue.asObject()->isTemporalCalendarObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
+    }
+    return TemporalZonedDateTimeObject::createTemporalZonedDateTime(state, *(argv[0].asBigInt()), timeZoneValue.asObject()->asTemporalTimeZoneObject(), calendarValue.asObject()->asTemporalCalendarObject(), newTarget);
 }
 
 static Value builtinTemporalZonedDateTimeFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -1483,7 +1486,7 @@ static Value builtinTemporalCalendarPrototypeDaysInMonth(ExecutionState& state, 
 {
     getTemporalPlainDate(state, thisValue, argc, argv);
 
-    TemporalPlainDateObject* temporalDate;
+    TemporalPlainDateObject* temporalDate = nullptr;
 
     if (!argv[0].isObject() || !(argv[0].asObject()->isTemporalPlainDateObject() || argv[0].asObject()->isTemporalPlainDateTimeObject() || argv[0].asObject()->isTemporalPlainYearMonthObject())) {
         temporalDate = TemporalPlainDateObject::toTemporalDate(state, argv[0]).asObject()->asTemporalPlainDateObject();
@@ -1498,9 +1501,9 @@ static Value builtinTemporalCalendarPrototypeDaysInYear(ExecutionState& state, V
 {
     CHECK_TEMPORAL_CALENDAR(state, thisValue, argc);
 
-    TemporalPlainDateObject* temporalDate;
+    TemporalPlainDateObject* temporalDate = nullptr;
 
-    if (!argv[0].isObject() || !(argv[0].asObject()->isTemporalPlainDateObject() || argv[0].asObject()->isTemporalPlainDateTimeObject() || argv[0].asObject()->isTemporalPlainYearMonthObject())) {
+    if (!argv[0].isObject() || !argv[0].asObject()->isTemporalPlainDateObject() || !argv[0].asObject()->isTemporalPlainDateTimeObject() || !argv[0].asObject()->isTemporalPlainYearMonthObject()) {
         temporalDate = TemporalPlainDateObject::toTemporalDate(state, argv[0]).asObject()->asTemporalPlainDateObject();
     } else {
         temporalDate = argv[0].asObject()->asTemporalPlainDateObject();
@@ -1513,7 +1516,7 @@ static Value builtinTemporalCalendarPrototypeMonthsInYear(ExecutionState& state,
 {
     CHECK_TEMPORAL_CALENDAR(state, thisValue, argc);
 
-    if (!argv[0].isObject() || !(argv[0].asObject()->isTemporalPlainDateObject() || argv[0].asObject()->isTemporalPlainDateTimeObject() || argv[0].asObject()->isTemporalPlainYearMonthObject())) {
+    if (!argv[0].isObject() || !argv[0].asObject()->isTemporalPlainDateObject() || !argv[0].asObject()->isTemporalPlainDateTimeObject() || !argv[0].asObject()->isTemporalPlainYearMonthObject()) {
         TemporalPlainDateObject::toTemporalDate(state, argv[0]);
     }
 
@@ -1522,13 +1525,16 @@ static Value builtinTemporalCalendarPrototypeMonthsInYear(ExecutionState& state,
 
 static Value builtinTemporalCalendarInLeapYear(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value temporalDateLike = argv[0];
+    CHECK_TEMPORAL_CALENDAR(state, thisValue, argc);
+    TemporalPlainDateObject* temporalDate = nullptr;
 
-    if (!temporalDateLike.isObject() || !(temporalDateLike.asObject()->isTemporalPlainDateObject() || temporalDateLike.asObject()->isTemporalPlainDateTimeObject() || temporalDateLike.asObject()->isTemporalPlainYearMonthObject())) {
-        temporalDateLike = TemporalPlainDateObject::toTemporalDate(state, temporalDateLike);
+    if (!argv[0].isObject() || !argv[0].asObject()->isTemporalPlainDateObject() || !argv[0].asObject()->isTemporalPlainDateTimeObject() || !argv[0].asObject()->isTemporalPlainYearMonthObject()) {
+        temporalDate = TemporalPlainDateObject::toTemporalDate(state, argv[0]).asObject()->asTemporalPlainDateObject();
+    } else {
+        temporalDate = argv[0].asObject()->asTemporalPlainDateObject();
     }
 
-    return Value(TemporalCalendarObject::isIsoLeapYear(state, temporalDateLike.asObject()->asTemporalPlainDateObject()->year()));
+    return Value(TemporalCalendarObject::isIsoLeapYear(state, temporalDate->year()));
 }
 
 static Value builtinTemporalCalendarFields(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
