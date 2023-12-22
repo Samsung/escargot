@@ -20,6 +20,7 @@
 #ifndef __EscargotByteCode__
 #define __EscargotByteCode__
 
+#include "interpreter/ByteCodeBlockData.h"
 #include "interpreter/ByteCodeGenerator.h"
 #include "runtime/ExecutionPauser.h"
 
@@ -256,7 +257,7 @@ public:
     ByteCodeLOC m_loc;
     Opcode m_orgOpcode;
 
-    static void dumpCode(const char* byteCodeStart, const size_t endPos);
+    static void dumpCode(const uint8_t* byteCodeStart, const size_t endPos);
     static size_t dumpJumpPosition(size_t pos);
 #endif
 };
@@ -3044,7 +3045,6 @@ public:
 #endif
 };
 
-typedef Vector<char, std::allocator<char>, ComputeReservedCapacityFunctionWithLog2<200>> ByteCodeBlockData;
 typedef Vector<Value, std::allocator<Value>> ByteCodeNumeralLiteralData;
 typedef Vector<JumpFlowRecord, std::allocator<JumpFlowRecord>> ByteCodeJumpFlowRecordData;
 
@@ -3128,7 +3128,7 @@ public:
     template <typename CodeType>
     CodeType* peekCode(size_t position)
     {
-        char* pos = m_code.data();
+        uint8_t* pos = m_code.data();
         pos = &pos[position];
         return (CodeType*)pos;
     }

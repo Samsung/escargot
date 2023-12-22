@@ -395,9 +395,9 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
 
     // mark bytecode relocation infos
     {
-        char* code = byteCodeStream.data();
+        uint8_t* code = byteCodeStream.data();
         size_t codeBase = (size_t)code;
-        char* end = code + byteCodeStream.size();
+        uint8_t* end = code + byteCodeStream.size();
 
         Context* context = block->codeBlock()->context();
 
@@ -985,8 +985,8 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
 
     // relocate ByteCodeStream
     {
-        char* code = byteCodeStream.data();
-        char* end = code + byteCodeStream.size();
+        uint8_t* code = byteCodeStream.data();
+        uint8_t* end = code + byteCodeStream.size();
 
         InterpretedCodeBlock* codeBlock = block->codeBlock();
 

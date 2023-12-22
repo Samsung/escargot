@@ -172,13 +172,13 @@ void DebuggerRemote::parseCompleted(String* source, String* srcName, size_t orig
         }
 
         /* Send function info. */
-        char* byteCodeStart = codeBlock->byteCodeBlock()->m_code.data();
+        uint8_t* byteCodeStart = codeBlock->byteCodeBlock()->m_code.data();
         // adjust startLine with originLineOffset
         uint32_t startLine = (uint32_t)codeBlock->functionStart().line - originLineOffset;
         uint32_t startColumn = (uint32_t)(codeBlock->functionStart().column + 1);
         FunctionInfo functionInfo;
 
-        memcpy(&functionInfo.byteCodeStart, (void*)&byteCodeStart, sizeof(char*));
+        memcpy(&functionInfo.byteCodeStart, (void*)&byteCodeStart, sizeof(uint8_t*));
         memcpy(&functionInfo.startLine, &startLine, sizeof(uint32_t));
         memcpy(&functionInfo.startColumn, &startColumn, sizeof(uint32_t));
 
@@ -198,7 +198,7 @@ void DebuggerRemote::sendBacktraceInfo(uint8_t type, ByteCodeBlock* byteCodeBloc
 {
     BacktraceInfo backtraceInfo;
 
-    char* byteCode = byteCodeBlock->m_code.data();
+    uint8_t* byteCode = byteCodeBlock->m_code.data();
     memcpy(&backtraceInfo.byteCode, &byteCode, sizeof(void*));
     memcpy(&backtraceInfo.line, &line, sizeof(uint32_t));
     memcpy(&backtraceInfo.column, &column, sizeof(uint32_t));

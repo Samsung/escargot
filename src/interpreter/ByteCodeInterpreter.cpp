@@ -60,7 +60,7 @@ namespace Escargot {
 
 #define ADD_PROGRAM_COUNTER(CodeType) programCounter += sizeof(CodeType);
 
-ALWAYS_INLINE size_t jumpTo(char* codeBuffer, const size_t jumpPosition)
+ALWAYS_INLINE size_t jumpTo(uint8_t* codeBuffer, const size_t jumpPosition)
 {
     return (size_t)&codeBuffer[jumpPosition];
 }
@@ -155,10 +155,10 @@ public:
     static void spreadFunctionArguments(ExecutionState& state, const Value* argv, const size_t argc, ValueVector& argVector);
 
     static void createEnumerateObject(ExecutionState& state, CreateEnumerateObject* code, Value* registerFile);
-    static void checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, char* codeBuffer, size_t& programCounter, Value* registerFile);
+    static void checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, uint8_t* codeBuffer, size_t& programCounter, Value* registerFile);
     static void markEnumerateKey(ExecutionState& state, MarkEnumerateKey* code, Value* registerFile);
 
-    static void executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer);
+    static void executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, uint8_t* codeBuffer);
     static Value executionResumeOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
 
     static void metaPropertyOperation(ExecutionState& state, MetaPropertyOperation* code, ByteCodeBlock* byteCodeBlock, Value* registerFile);
@@ -177,11 +177,11 @@ public:
 
     static void unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile);
 
-    static void iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer);
+    static void iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, uint8_t* codeBuffer);
     static void getMethodOperation(ExecutionState& state, size_t programCounter, Value* registerFile);
     static Object* restBindOperation(ExecutionState& state, IteratorRecord* iteratorRecord);
 
-    static void taggedTemplateOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer, ByteCodeBlock* byteCodeBlock);
+    static void taggedTemplateOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, uint8_t* codeBuffer, ByteCodeBlock* byteCodeBlock);
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
@@ -3025,7 +3025,7 @@ NEVER_INLINE ArrayObject* InterpreterSlowPath::createRestElementOperation(Execut
 
 NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
-    char* codeBuffer = byteCodeBlock->m_code.data();
+    uint8_t* codeBuffer = byteCodeBlock->m_code.data();
     TryOperation* code = (TryOperation*)programCounter;
 
     const bool inPauserScope = state->inPauserScope();
@@ -3501,7 +3501,7 @@ NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& 
         LexicalEnvironment* env = state->lexicalEnvironment();
         state->rareData()->ensureControlFlowRecordVector()->push_back(nullptr);
         size_t newPc = programCounter + sizeof(OpenLexicalEnvironment);
-        char* codeBuffer = byteCodeBlock->m_code.data();
+        uint8_t* codeBuffer = byteCodeBlock->m_code.data();
 
         // setup new env
         EnvironmentRecord* newRecord = new ObjectEnvironmentRecord(registerFile[code->m_withOrThisRegisterIndex].toObject(*state));
@@ -3520,7 +3520,7 @@ NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& 
 #endif /* ESCARGOT_DEBUGGER */
 
     size_t newPc = programCounter + sizeof(OpenLexicalEnvironment);
-    char* codeBuffer = byteCodeBlock->m_code.data();
+    uint8_t* codeBuffer = byteCodeBlock->m_code.data();
 
     Interpreter::interpret(newState, byteCodeBlock, newPc, registerFile);
 
@@ -3597,7 +3597,7 @@ NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, B
 {
     state->rareData()->ensureControlFlowRecordVector()->push_back(nullptr);
     size_t newPc = programCounter + sizeof(BlockOperation);
-    char* codeBuffer = byteCodeBlock->m_code.data();
+    uint8_t* codeBuffer = byteCodeBlock->m_code.data();
 
     // setup new env
     EnvironmentRecord* newRecord;
@@ -4015,7 +4015,7 @@ NEVER_INLINE void InterpreterSlowPath::createEnumerateObject(ExecutionState& sta
     registerFile[code->m_dataRegisterIndex] = Value((PointerValue*)enumObj);
 }
 
-NEVER_INLINE void InterpreterSlowPath::checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, char* codeBuffer, size_t& programCounter, Value* registerFile)
+NEVER_INLINE void InterpreterSlowPath::checkLastEnumerateKey(ExecutionState& state, CheckLastEnumerateKey* code, uint8_t* codeBuffer, size_t& programCounter, Value* registerFile)
 {
     EnumerateObject* data = (EnumerateObject*)registerFile[code->m_registerIndex].asPointerValue();
     if (data->checkLastEnumerateKey(state)) {
@@ -4047,7 +4047,7 @@ NEVER_INLINE void InterpreterSlowPath::markEnumerateKey(ExecutionState& state, M
     }
 }
 
-NEVER_INLINE void InterpreterSlowPath::executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, char* codeBuffer)
+NEVER_INLINE void InterpreterSlowPath::executionPauseOperation(ExecutionState& state, Value* registerFile, size_t& programCounter, uint8_t* codeBuffer)
 {
     ExecutionPause* code = (ExecutionPause*)programCounter;
     if (code->m_reason == ExecutionPause::Yield) {
@@ -4508,7 +4508,7 @@ NEVER_INLINE void InterpreterSlowPath::unaryTypeof(ExecutionState& state, UnaryT
     registerFile[code->m_dstIndex] = val;
 }
 
-NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer)
+NEVER_INLINE void InterpreterSlowPath::iteratorOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, uint8_t* codeBuffer)
 {
     IteratorOperation* code = (IteratorOperation*)programCounter;
     if (code->m_operation == IteratorOperation::Operation::GetIterator) {
@@ -4670,7 +4670,7 @@ NEVER_INLINE Object* InterpreterSlowPath::restBindOperation(ExecutionState& stat
     return result;
 }
 
-NEVER_INLINE void InterpreterSlowPath::taggedTemplateOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, char* codeBuffer, ByteCodeBlock* byteCodeBlock)
+NEVER_INLINE void InterpreterSlowPath::taggedTemplateOperation(ExecutionState& state, size_t& programCounter, Value* registerFile, uint8_t* codeBuffer, ByteCodeBlock* byteCodeBlock)
 {
     TaggedTemplateOperation* code = (TaggedTemplateOperation*)programCounter;
     InterpretedCodeBlock* cb = byteCodeBlock->m_codeBlock;
