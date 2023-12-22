@@ -36,7 +36,7 @@ static MAY_THREAD_LOCAL size_t g_dumpCodeStartPosition;
 #endif
 
 #ifndef NDEBUG
-void ByteCode::dumpCode(const char* byteCodeStart, const size_t endPos)
+void ByteCode::dumpCode(const uint8_t* byteCodeStart, const size_t endPos)
 {
     // set the start code position
     g_dumpCodeStartPosition = (size_t)byteCodeStart;

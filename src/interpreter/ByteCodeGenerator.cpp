@@ -276,10 +276,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
         memcpy(block->m_numeralLiteralData.data(), nData->data(), sizeof(Value) * nData->size());
     }
 
-    if (block->m_code.capacity() - block->m_code.size() > 1024 * 4) {
-        block->m_code.shrinkToFit();
-    }
-
+    block->m_code.shrinkToFit();
     block->m_requiredTotalRegisterNumber = block->m_requiredOperandRegisterNumber + codeBlock->totalStackAllocatedVariableSize() + block->m_numeralLiteralData.size();
     block->m_needsExtendedExectuionState = ctx.m_needsExtendedExecutionState;
 
@@ -363,9 +360,9 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
     ByteCodeRegisterIndex stackBaseWillBe = block->m_requiredOperandRegisterNumber;
     ByteCodeRegisterIndex stackVariableSize = codeBlock->totalStackAllocatedVariableSize();
 
-    char* code = block->m_code.data();
+    uint8_t* code = block->m_code.data();
     size_t codeBase = (size_t)code;
-    char* end = code + block->m_code.size();
+    uint8_t* end = code + block->m_code.size();
 
     while (code < end) {
         ByteCode* currentCode = (ByteCode*)code;
