@@ -3749,7 +3749,7 @@ public:
         if (this->isParsingSingleFunction) {
             bool finded = false;
             for (size_t i = 0; i < this->codeBlock->blockInfos().size(); i++) {
-                if (this->codeBlock->blockInfos()[i]->m_blockIndex == ctx.childLexicalBlockIndex) {
+                if (this->codeBlock->blockInfos()[i]->blockIndex() == ctx.childLexicalBlockIndex) {
                     finded = true;
                     break;
                 }

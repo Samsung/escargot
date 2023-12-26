@@ -263,8 +263,8 @@ void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* 
                 context->m_isFunctionDeclarationBindingInitialization = true;
             }
 
-            for (size_t i = 0; i < blockInfo->m_identifiers.size(); i++) {
-                if (blockInfo->m_identifiers[i].m_name == child->functionName()) {
+            for (size_t i = 0; i < blockInfo->identifiers().size(); i++) {
+                if (blockInfo->identifiers()[i].m_name == child->functionName()) {
                     context->m_isLexicallyDeclaredBindingInitialization = true;
                     break;
                 }
@@ -286,7 +286,7 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
     ByteCodeBlock::ByteCodeLexicalBlockContext ctx;
     ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
 
-    if (blockInfo->m_shouldAllocateEnvironment) {
+    if (blockInfo->shouldAllocateEnvironment()) {
         ctx.lexicalBlockSetupStartPosition = currentCodeSize();
         context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Block, ctx.lexicalBlockSetupStartPosition));
         this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), blockInfo), context, SIZE_MAX);

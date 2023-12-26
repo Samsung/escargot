@@ -26,6 +26,7 @@ namespace Escargot {
 
 class ByteCodeBlockData {
     typedef ComputeReservedCapacityFunctionWithLog2<200> ComputeReservedCapacityFunction;
+
 public:
     ByteCodeBlockData()
         : m_buffer(nullptr)

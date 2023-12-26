@@ -35,7 +35,7 @@ namespace Escargot {
 Value builtinRegisterLeakCheck(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isPointerValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorObject::None, "builtinRegisterLeakCheck should get pointer-type argument");
+        ErrorObject::throwBuiltinError(state, ErrorCode::None, "builtinRegisterLeakCheck should get pointer-type argument");
     }
 
     PointerValue* ptr = argv[0].asPointerValue();

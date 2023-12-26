@@ -85,12 +85,12 @@ public:
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
             std::vector<size_t> nameRegisters;
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+            for (size_t i = 0; i < bi->identifiers().size(); i++) {
                 nameRegisters.push_back(newContext.getRegister());
             }
 
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                IdentifierNode* id = new (tempNode) IdentifierNode(bi->m_identifiers[i].m_name);
+            for (size_t i = 0; i < bi->identifiers().size(); i++) {
+                IdentifierNode* id = new (tempNode) IdentifierNode(bi->identifiers()[i].m_name);
                 id->m_loc = m_loc;
                 id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
             }
@@ -98,13 +98,13 @@ public:
             newContext.m_lexicalBlockIndex = m_iterationLexicalBlockIndex;
             iterationBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
 
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                newContext.addLexicallyDeclaredNames(bi->m_identifiers[i].m_name);
+            for (size_t i = 0; i < bi->identifiers().size(); i++) {
+                newContext.addLexicallyDeclaredNames(bi->identifiers()[i].m_name);
             }
 
-            size_t reverse = bi->m_identifiers.size() - 1;
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
-                IdentifierNode* id = new (tempNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
+            size_t reverse = bi->identifiers().size() - 1;
+            for (size_t i = 0; i < bi->identifiers().size(); i++, reverse--) {
+                IdentifierNode* id = new (tempNode) IdentifierNode(bi->identifiers()[reverse].m_name);
                 id->m_loc = m_loc;
                 newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
                 id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
@@ -114,7 +114,7 @@ public:
 
             // we should increase this count here.
             // because the block was created after newContext creation
-            if (bi->m_shouldAllocateEnvironment) {
+            if (bi->shouldAllocateEnvironment()) {
                 newContext.m_complexJumpContinueIgnoreCount++;
                 newContext.m_complexJumpBreakIgnoreCount++;
             }
@@ -157,16 +157,16 @@ public:
         // replace env if needed
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
-            if (bi->m_shouldAllocateEnvironment) {
+            if (bi->shouldAllocateEnvironment()) {
                 newContext.getRegister();
 
                 std::vector<size_t> nameRegisters;
-                for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+                for (size_t i = 0; i < bi->identifiers().size(); i++) {
                     nameRegisters.push_back(newContext.getRegister());
                 }
 
-                for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                    IdentifierNode* id = new (tempNode) IdentifierNode(bi->m_identifiers[i].m_name);
+                for (size_t i = 0; i < bi->identifiers().size(); i++) {
+                    IdentifierNode* id = new (tempNode) IdentifierNode(bi->identifiers()[i].m_name);
                     id->m_loc = m_loc;
                     id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
                 }
@@ -175,9 +175,9 @@ public:
 
                 codeBlock->initFunctionDeclarationWithinBlock(&newContext, bi, this);
 
-                size_t reverse = bi->m_identifiers.size() - 1;
-                for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
-                    IdentifierNode* id = new (tempNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
+                size_t reverse = bi->identifiers().size() - 1;
+                for (size_t i = 0; i < bi->identifiers().size(); i++, reverse--) {
+                    IdentifierNode* id = new (tempNode) IdentifierNode(bi->identifiers()[reverse].m_name);
                     id->m_loc = m_loc;
                     newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
                     id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
@@ -213,7 +213,7 @@ public:
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
             codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
             newContext.m_lexicalBlockIndex = iterationLexicalBlockIndexBefore;
-            if (bi->m_shouldAllocateEnvironment) {
+            if (bi->shouldAllocateEnvironment()) {
                 newContext.m_complexJumpContinueIgnoreCount--;
             }
         }

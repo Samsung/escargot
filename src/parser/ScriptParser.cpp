@@ -239,7 +239,7 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
 
                         if (r.first) {
                             // if variable is global variable, we don't need to capture it
-                            if (!codeBlock->hasAncestorUsesNonIndexedVariableStorage() && !c->isKindOfFunction() && (r.second == SIZE_MAX || c->blockInfos()[r.second]->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX)) {
+                            if (!codeBlock->hasAncestorUsesNonIndexedVariableStorage() && !c->isKindOfFunction() && (r.second == SIZE_MAX || c->blockInfos()[r.second]->parentBlockIndex() == LEXICAL_BLOCK_INDEX_MAX)) {
                             } else {
                                 if (r.second == SIZE_MAX) {
                                     // captured variable is `var` declared variable
@@ -764,17 +764,17 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
         for (size_t i = 0; i < cb->m_blockInfos.size(); i++) {
             puts("");
             PRINT_TAB_BLOCK()
-            printf("Block %p %d:%d [%d parent(%d)]: %s, %s", cb->m_blockInfos[i], (int)cb->scopeContext()->m_childBlockScopes[i]->m_loc.line, (int)cb->scopeContext()->m_childBlockScopes[i]->m_loc.column, (int)cb->m_blockInfos[i]->m_blockIndex, (int)cb->m_blockInfos[i]->m_parentBlockIndex, cb->m_blockInfos[i]->m_canAllocateEnvironmentOnStack ? "Stack" : "Heap", cb->m_blockInfos[i]->m_shouldAllocateEnvironment ? "Allocated" : "Skipped");
+            printf("Block %p %d:%d [%d parent(%d)]: %s, %s", cb->m_blockInfos[i], (int)cb->scopeContext()->m_childBlockScopes[i]->m_loc.line, (int)cb->scopeContext()->m_childBlockScopes[i]->m_loc.column, (int)cb->m_blockInfos[i]->blockIndex(), (int)cb->m_blockInfos[i]->parentBlockIndex(), cb->m_blockInfos[i]->canAllocateEnvironmentOnStack() ? "Stack" : "Heap", cb->m_blockInfos[i]->shouldAllocateEnvironment() ? "Allocated" : "Skipped");
 
             puts("");
             PRINT_TAB_BLOCK()
             printf("Names : ");
 
-            for (size_t j = 0; j < cb->m_blockInfos[i]->m_identifiers.size(); j++) {
-                printf("%s(%s, %s, %d), ", cb->m_blockInfos[i]->m_identifiers[j].m_name.string()->toUTF8StringData().data(),
-                       cb->m_blockInfos[i]->m_identifiers[j].m_needToAllocateOnStack ? "Stack" : "Heap",
-                       cb->m_blockInfos[i]->m_identifiers[j].m_isMutable ? "Mutable" : "Inmmutable",
-                       (int)cb->m_blockInfos[i]->m_identifiers[j].m_indexForIndexedStorage);
+            for (size_t j = 0; j < cb->m_blockInfos[i]->identifiers().size(); j++) {
+                printf("%s(%s, %s, %d), ", cb->m_blockInfos[i]->identifiers()[j].m_name.string()->toUTF8StringData().data(),
+                       cb->m_blockInfos[i]->identifiers()[j].m_needToAllocateOnStack ? "Stack" : "Heap",
+                       cb->m_blockInfos[i]->identifiers()[j].m_isMutable ? "Mutable" : "Inmmutable",
+                       (int)cb->m_blockInfos[i]->identifiers()[j].m_indexForIndexedStorage);
             }
 
             puts("");
