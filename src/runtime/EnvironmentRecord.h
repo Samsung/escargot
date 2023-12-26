@@ -411,7 +411,7 @@ public:
         , m_blockInfo(blockInfo)
         , m_heapStorage()
     {
-        const auto& v = m_blockInfo->m_identifiers;
+        const auto& v = m_blockInfo->identifiers();
 
         size_t cnt = 0;
         size_t siz = v.size();
@@ -447,7 +447,7 @@ public:
 
     virtual GetBindingValueResult getBindingValue(ExecutionState& state, const AtomicString& name) override
     {
-        const auto& v = m_blockInfo->m_identifiers;
+        const auto& v = m_blockInfo->identifiers();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
@@ -459,7 +459,7 @@ public:
 
     virtual BindingSlot hasBinding(ExecutionState& state, const AtomicString& name) override
     {
-        const auto& v = m_blockInfo->m_identifiers;
+        const auto& v = m_blockInfo->identifiers();
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
                 return BindingSlot(this, v[i].m_indexForIndexedStorage, true);
@@ -501,7 +501,7 @@ public:
 
     void throwReferenceError(ExecutionState& state, const size_t idx)
     {
-        const auto& v = m_blockInfo->m_identifiers;
+        const auto& v = m_blockInfo->identifiers();
         size_t cnt = 0;
         for (size_t i = 0; i < v.size(); i++) {
             if (!v[i].m_needToAllocateOnStack) {
@@ -515,7 +515,7 @@ public:
 
     virtual void setMutableBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
     {
-        const auto& v = m_blockInfo->m_identifiers;
+        const auto& v = m_blockInfo->identifiers();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
@@ -528,7 +528,7 @@ public:
 
     virtual void initializeBinding(ExecutionState& state, const AtomicString& name, const Value& V) override
     {
-        const auto& v = m_blockInfo->m_identifiers;
+        const auto& v = m_blockInfo->identifiers();
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {

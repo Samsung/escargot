@@ -3575,13 +3575,13 @@ NEVER_INLINE void InterpreterSlowPath::replaceBlockLexicalEnvironmentOperation(E
 
     bool shouldUseIndexedStorage = byteCodeBlock->m_codeBlock->canUseIndexedVariableStorage();
     InterpretedCodeBlock::BlockInfo* blockInfo = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(code->m_blockInfo);
-    ASSERT(blockInfo && blockInfo->m_shouldAllocateEnvironment);
+    ASSERT(blockInfo && blockInfo->shouldAllocateEnvironment());
     if (LIKELY(shouldUseIndexedStorage)) {
         newRecord = new DeclarativeEnvironmentRecordIndexed(state, blockInfo);
     } else {
         newRecord = new DeclarativeEnvironmentRecordNotIndexed(state);
 
-        auto& iv = blockInfo->m_identifiers;
+        auto& iv = blockInfo->identifiers();
         auto siz = iv.size();
         for (size_t i = 0; i < siz; i++) {
             newRecord->createBinding(state, iv[i].m_name, false, iv[i].m_isMutable, false);
@@ -3608,13 +3608,13 @@ NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, B
 
     if (LIKELY(!inPauserResumeProcess)) {
         InterpretedCodeBlock::BlockInfo* blockInfo = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(code->m_blockInfo);
-        ASSERT(blockInfo->m_shouldAllocateEnvironment);
+        ASSERT(blockInfo->shouldAllocateEnvironment());
         if (LIKELY(shouldUseIndexedStorage)) {
             newRecord = new DeclarativeEnvironmentRecordIndexed(*state, blockInfo);
         } else {
-            newRecord = new DeclarativeEnvironmentRecordNotIndexed(*state, false, blockInfo->m_nodeType == ASTNodeType::CatchClause);
+            newRecord = new DeclarativeEnvironmentRecordNotIndexed(*state, false, blockInfo->fromCatchClauseNode());
 
-            auto& iv = blockInfo->m_identifiers;
+            auto& iv = blockInfo->identifiers();
             auto siz = iv.size();
             for (size_t i = 0; i < siz; i++) {
                 newRecord->createBinding(*state, iv[i].m_name, false, iv[i].m_isMutable, false);

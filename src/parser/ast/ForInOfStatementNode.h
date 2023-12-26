@@ -65,12 +65,12 @@ public:
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
             std::vector<size_t> nameRegisters;
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+            for (size_t i = 0; i < bi->identifiers().size(); i++) {
                 nameRegisters.push_back(newContext.getRegister());
             }
 
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[i].m_name);
+            for (size_t i = 0; i < bi->identifiers().size(); i++) {
+                IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->identifiers()[i].m_name);
                 id->m_loc = m_loc;
                 id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
             }
@@ -78,13 +78,13 @@ public:
             newContext.m_lexicalBlockIndex = m_iterationLexicalBlockIndex;
             iterationBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
 
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                newContext.addLexicallyDeclaredNames(bi->m_identifiers[i].m_name);
+            for (size_t i = 0; i < bi->identifiers().size(); i++) {
+                newContext.addLexicallyDeclaredNames(bi->identifiers()[i].m_name);
             }
 
-            size_t reverse = bi->m_identifiers.size() - 1;
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
-                IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
+            size_t reverse = bi->identifiers().size() - 1;
+            for (size_t i = 0; i < bi->identifiers().size(); i++, reverse--) {
+                IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->identifiers()[reverse].m_name);
                 id->m_loc = m_loc;
                 newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
                 id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
@@ -101,12 +101,12 @@ public:
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
             std::vector<size_t> nameRegisters;
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
+            for (size_t i = 0; i < bi->identifiers().size(); i++) {
                 nameRegisters.push_back(newContext.getRegister());
             }
 
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++) {
-                IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[i].m_name);
+            for (size_t i = 0; i < bi->identifiers().size(); i++) {
+                IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->identifiers()[i].m_name);
                 id->m_loc = m_loc;
                 id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
             }
@@ -114,9 +114,9 @@ public:
             codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
             newContext.m_lexicalBlockIndex = iterationLexicalBlockIndexBefore;
 
-            size_t reverse = bi->m_identifiers.size() - 1;
-            for (size_t i = 0; i < bi->m_identifiers.size(); i++, reverse--) {
-                IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->m_identifiers[reverse].m_name);
+            size_t reverse = bi->identifiers().size() - 1;
+            for (size_t i = 0; i < bi->identifiers().size(); i++, reverse--) {
+                IdentifierNode* id = new (tmpIdentifierNode) IdentifierNode(bi->identifiers()[reverse].m_name);
                 id->m_loc = m_loc;
                 newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
                 id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);

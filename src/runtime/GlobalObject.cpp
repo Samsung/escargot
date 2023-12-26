@@ -102,7 +102,7 @@ static Value builtinIsBlockAllocatedOnStack(ExecutionState& state, Value thisVal
     if (arg.isObject() && arg.asObject()->isScriptFunctionObject()) {
         auto bi = arg.asObject()->asScriptFunctionObject()->interpretedCodeBlock()->blockInfo((uint16_t)blockIndex);
         if (bi) {
-            result = bi->m_canAllocateEnvironmentOnStack;
+            result = bi->canAllocateEnvironmentOnStack();
         }
     }
 

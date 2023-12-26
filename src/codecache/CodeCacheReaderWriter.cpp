@@ -172,18 +172,17 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     size = blockInfoVector.size();
     m_buffer.ensureSize(sizeof(size_t));
     m_buffer.put(size);
-    // FIXME ignore BlockInfo::m_loc member
     for (size_t i = 0; i < size; i++) {
         m_buffer.ensureSize(2 * sizeof(bool) + 3 * sizeof(uint16_t));
         const InterpretedCodeBlock::BlockInfo* info = blockInfoVector[i];
-        m_buffer.put(info->m_canAllocateEnvironmentOnStack);
-        m_buffer.put(info->m_shouldAllocateEnvironment);
-        m_buffer.put((uint16_t)info->m_nodeType);
-        m_buffer.put((uint16_t)info->m_parentBlockIndex);
-        m_buffer.put((uint16_t)info->m_blockIndex);
+        m_buffer.put(info->canAllocateEnvironmentOnStack());
+        m_buffer.put(info->shouldAllocateEnvironment());
+        m_buffer.put(info->fromCatchClauseNode());
+        m_buffer.put((uint16_t)info->parentBlockIndex());
+        m_buffer.put((uint16_t)info->blockIndex());
 
         // InterpretedCodeBlock::BlockInfo::m_identifiers
-        const InterpretedCodeBlock::BlockIdentifierInfoVector& infoVector = info->m_identifiers;
+        const InterpretedCodeBlock::BlockIdentifierInfoVector& infoVector = info->identifiers();
         const size_t vectorSize = infoVector.size();
         m_buffer.ensureSize(sizeof(size_t) + vectorSize * (2 * sizeof(bool) + 2 * sizeof(size_t)));
         m_buffer.put(vectorSize);
@@ -738,27 +737,31 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     size = m_buffer.get<size_t>();
     blockInfoVector.resizeWithUninitializedValues(size);
     for (size_t i = 0; i < size; i++) {
-        InterpretedCodeBlock::BlockInfo* info = new InterpretedCodeBlock::BlockInfo(
-#ifndef NDEBUG
-            ExtendedNodeLOC(0, 0, 0)
-#endif
-        );
-
-        info->m_canAllocateEnvironmentOnStack = m_buffer.get<bool>();
-        info->m_shouldAllocateEnvironment = m_buffer.get<bool>();
-        info->m_nodeType = (ASTNodeType)m_buffer.get<uint16_t>();
-        info->m_parentBlockIndex = (LexicalBlockIndex)m_buffer.get<uint16_t>();
-        info->m_blockIndex = (LexicalBlockIndex)m_buffer.get<uint16_t>();
-
+        bool canAllocateEnvironmentOnStack = m_buffer.get<bool>();
+        bool shouldAllocateEnvironment = m_buffer.get<bool>();
+        bool fromCatchClauseNode = m_buffer.get<bool>();
+        LexicalBlockIndex parentBlockIndex = (LexicalBlockIndex)m_buffer.get<uint16_t>();
+        LexicalBlockIndex blockIndex = (LexicalBlockIndex)m_buffer.get<uint16_t>();
         size_t vectorSize = m_buffer.get<size_t>();
-        info->m_identifiers.resizeWithUninitializedValues(vectorSize);
-        for (size_t j = 0; j < vectorSize; j++) {
-            InterpretedCodeBlock::BlockIdentifierInfo idInfo;
-            idInfo.m_needToAllocateOnStack = m_buffer.get<bool>();
-            idInfo.m_isMutable = m_buffer.get<bool>();
-            idInfo.m_indexForIndexedStorage = m_buffer.get<size_t>();
-            idInfo.m_name = m_stringTable->get(m_buffer.get<size_t>());
-            info->m_identifiers[j] = idInfo;
+
+        InterpretedCodeBlock::BlockInfo* info = InterpretedCodeBlock::BlockInfo::create(
+            canAllocateEnvironmentOnStack,
+            shouldAllocateEnvironment,
+            fromCatchClauseNode,
+            parentBlockIndex,
+            blockIndex,
+            vectorSize);
+        if (vectorSize) {
+            ASSERT(!info->isGenericBlockInfo());
+            info->identifiers().resizeWithUninitializedValues(vectorSize);
+            for (size_t j = 0; j < vectorSize; j++) {
+                InterpretedCodeBlock::BlockIdentifierInfo idInfo;
+                idInfo.m_needToAllocateOnStack = m_buffer.get<bool>();
+                idInfo.m_isMutable = m_buffer.get<bool>();
+                idInfo.m_indexForIndexedStorage = m_buffer.get<size_t>();
+                idInfo.m_name = m_stringTable->get(m_buffer.get<size_t>());
+                info->identifiers()[j] = idInfo;
+            }
         }
 
         blockInfoVector[i] = info;

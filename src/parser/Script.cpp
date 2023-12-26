@@ -410,7 +410,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
     const InterpretedCodeBlock::IdentifierInfoVector& identifierVector = m_topCodeBlock->identifierInfos();
     size_t identifierVectorLen = identifierVector.size();
 
-    const auto& globalLexicalVector = m_topCodeBlock->blockInfo(0)->m_identifiers;
+    const auto& globalLexicalVector = m_topCodeBlock->blockInfo(0)->identifiers();
     size_t globalLexicalVectorLen = globalLexicalVector.size();
 
     if (!isExecuteOnEvalFunction) {
@@ -1015,9 +1015,9 @@ Value Script::moduleInitializeEnvironment(ExecutionState& state)
 
     InterpretedCodeBlock::BlockInfo* bi = m_topCodeBlock->blockInfo(0);
     if (bi) {
-        len = bi->m_identifiers.size();
+        len = bi->identifiers().size();
         for (size_t i = 0; i < len; i++) {
-            moduleRecord->createBinding(state, bi->m_identifiers[i].m_name, false, bi->m_identifiers[i].m_isMutable, false);
+            moduleRecord->createBinding(state, bi->identifiers()[i].m_name, false, bi->identifiers()[i].m_isMutable, false);
         }
     }
 

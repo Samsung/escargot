@@ -253,35 +253,135 @@ public:
 
     typedef TightVector<BlockIdentifierInfo, GCUtil::gc_malloc_atomic_allocator<BlockIdentifierInfo>> BlockIdentifierInfoVector;
 
-    struct BlockInfo : public gc {
-        bool m_canAllocateEnvironmentOnStack : 1;
-        bool m_shouldAllocateEnvironment : 1;
-        ASTNodeType m_nodeType : 16;
-        LexicalBlockIndex m_parentBlockIndex;
-        LexicalBlockIndex m_blockIndex;
-        BlockIdentifierInfoVector m_identifiers;
-
-#ifndef NDEBUG
-        ExtendedNodeLOC m_loc;
-#endif
-        BlockInfo(
-#ifndef NDEBUG
-            ExtendedNodeLOC loc
-#endif
-            )
-            : m_canAllocateEnvironmentOnStack(false)
-            , m_shouldAllocateEnvironment(false)
-            , m_nodeType(ASTNodeType::ASTNodeTypeError)
-            , m_parentBlockIndex(LEXICAL_BLOCK_INDEX_MAX)
-            , m_blockIndex(LEXICAL_BLOCK_INDEX_MAX)
-#ifndef NDEBUG
-            , m_loc(loc)
-#endif
+    class BlockInfo : public gc {
+    public:
+        BlockInfo(bool isGenericBlockInfo = false,
+                  bool canAllocateEnvironmentOnStack = false,
+                  bool shouldAllocateEnvironment = false,
+                  bool fromCatchClauseNode = false,
+                  LexicalBlockIndex parentBlockIndex = LEXICAL_BLOCK_INDEX_MAX,
+                  LexicalBlockIndex blockIndex = LEXICAL_BLOCK_INDEX_MAX)
+            : m_isGenericBlockInfo(isGenericBlockInfo)
+            , m_canAllocateEnvironmentOnStack(canAllocateEnvironmentOnStack)
+            , m_shouldAllocateEnvironment(shouldAllocateEnvironment)
+            , m_fromCatchClauseNode(fromCatchClauseNode)
+            , m_parentBlockIndex(parentBlockIndex)
+            , m_blockIndex(blockIndex)
         {
         }
 
+        static BlockInfo* genericBlockInfo(bool canAllocateEnvironmentOnStack, bool shouldAllocateEnvironment)
+        {
+            static BlockInfo s_genericBlockInfo[4] = {
+                BlockInfo(
+                    true, false, false, false,
+                    LEXICAL_BLOCK_INDEX_MAX, 0),
+                BlockInfo(
+                    true, false, true, false,
+                    LEXICAL_BLOCK_INDEX_MAX, 0),
+                BlockInfo(
+                    true, true, false, false,
+                    LEXICAL_BLOCK_INDEX_MAX, 0),
+                BlockInfo(
+                    true, true, true, false,
+                    LEXICAL_BLOCK_INDEX_MAX, 0)
+            };
+
+            size_t idx = (canAllocateEnvironmentOnStack ? 2 : 0) + (shouldAllocateEnvironment ? 1 : 0);
+
+            return &s_genericBlockInfo[idx];
+        }
+
+        static BlockInfo* create(bool canAllocateEnvironmentOnStack,
+                                 bool shouldAllocateEnvironment,
+                                 bool fromCatchClauseNode,
+                                 LexicalBlockIndex parentBlockIndex,
+                                 LexicalBlockIndex blockIndex,
+                                 size_t identifierCount)
+        {
+            if (!fromCatchClauseNode && parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX && blockIndex == 0 && identifierCount == 0) {
+                return genericBlockInfo(canAllocateEnvironmentOnStack, shouldAllocateEnvironment);
+            }
+            return new BlockInfo(
+                false, canAllocateEnvironmentOnStack, shouldAllocateEnvironment,
+                fromCatchClauseNode, parentBlockIndex, blockIndex);
+        }
+
+        bool isGenericBlockInfo() const
+        {
+            return m_isGenericBlockInfo;
+        }
+
+        bool canAllocateEnvironmentOnStack() const
+        {
+            return m_canAllocateEnvironmentOnStack;
+        }
+
+        void setCanAllocateEnvironmentOnStack(bool b)
+        {
+            ASSERT(!isGenericBlockInfo());
+            m_canAllocateEnvironmentOnStack = b;
+        }
+
+        bool shouldAllocateEnvironment() const
+        {
+            return m_shouldAllocateEnvironment;
+        }
+
+        void setShouldAllocateEnvironment(bool b)
+        {
+            ASSERT(!isGenericBlockInfo());
+            m_shouldAllocateEnvironment = b;
+        }
+
+        bool fromCatchClauseNode() const
+        {
+            return m_fromCatchClauseNode;
+        }
+
+        LexicalBlockIndex parentBlockIndex() const
+        {
+            return m_parentBlockIndex;
+        }
+
+        void setParentBlockIndex(LexicalBlockIndex b)
+        {
+            ASSERT(!isGenericBlockInfo());
+            m_parentBlockIndex = b;
+        }
+
+        LexicalBlockIndex blockIndex() const
+        {
+            return m_blockIndex;
+        }
+
+        void setBlockIndex(LexicalBlockIndex b)
+        {
+            ASSERT(!isGenericBlockInfo());
+            m_blockIndex = b;
+        }
+
+        BlockIdentifierInfoVector& identifiers()
+        {
+            return m_identifiers;
+        }
+
+        const BlockIdentifierInfoVector& identifiers() const
+        {
+            return m_identifiers;
+        }
+
+    private:
         void* operator new(size_t size);
         void* operator new[](size_t size) = delete;
+
+        bool m_isGenericBlockInfo : 1;
+        bool m_canAllocateEnvironmentOnStack : 1;
+        bool m_shouldAllocateEnvironment : 1;
+        bool m_fromCatchClauseNode : 1;
+        LexicalBlockIndex m_parentBlockIndex;
+        LexicalBlockIndex m_blockIndex;
+        BlockIdentifierInfoVector m_identifiers;
     };
 
     typedef TightVector<BlockInfo*, GCUtil::gc_malloc_allocator<BlockInfo*>> BlockInfoVector;
@@ -727,7 +827,7 @@ public:
     BlockInfo* blockInfo(LexicalBlockIndex blockIndex)
     {
         for (size_t i = 0; i < m_blockInfos.size(); i++) {
-            if (m_blockInfos[i]->m_blockIndex == blockIndex) {
+            if (m_blockInfos[i]->blockIndex() == blockIndex) {
                 return m_blockInfos[i];
             }
         }
@@ -915,7 +1015,7 @@ protected:
         size_t blockVectorIndex = SIZE_MAX;
         size_t blockInfoSize = m_blockInfos.size();
         for (size_t i = 0; i < blockInfoSize; i++) {
-            if (m_blockInfos[i]->m_blockIndex == blockIndex) {
+            if (m_blockInfos[i]->blockIndex() == blockIndex) {
                 b = m_blockInfos[i];
                 blockVectorIndex = i;
                 break;
@@ -924,7 +1024,7 @@ protected:
 
         ASSERT(b != nullptr);
         while (true) {
-            auto& v = b->m_identifiers;
+            auto& v = b->identifiers();
             size_t idSize = v.size();
             for (size_t i = 0; i < idSize; i++) {
                 if (v[i].m_name == name) {
@@ -932,7 +1032,7 @@ protected:
                 }
             }
 
-            if (b->m_parentBlockIndex == LEXICAL_BLOCK_INDEX_MAX) {
+            if (b->parentBlockIndex() == LEXICAL_BLOCK_INDEX_MAX) {
                 break;
             }
 
@@ -940,7 +1040,7 @@ protected:
             bool finded = false;
 #endif
             for (size_t i = 0; i < blockInfoSize; i++) {
-                if (m_blockInfos[i]->m_blockIndex == b->m_parentBlockIndex) {
+                if (m_blockInfos[i]->blockIndex() == b->parentBlockIndex()) {
                     b = m_blockInfos[i];
                     blockVectorIndex = i;
 #ifndef NDEBUG
