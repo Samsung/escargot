@@ -131,6 +131,23 @@ public:
     }
 };
 
+class ArrayUtil {
+public:
+    constexpr static const size_t invalidIndex = SIZE_MAX;
+
+    template <typename T, typename E>
+    static size_t findInArray(const T& arr, size_t len, const E& target)
+    {
+        for (size_t i = 0; i < len; i++) {
+            if (arr[i] == target) {
+                return i;
+            }
+        }
+
+        return invalidIndex;
+    }
+};
+
 
 namespace detail {
 

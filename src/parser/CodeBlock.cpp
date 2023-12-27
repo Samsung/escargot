@@ -125,8 +125,30 @@ void* InterpretedCodeBlock::BlockInfo::operator new(size_t size)
 void InterpretedCodeBlock::initBlockScopeInformation(ASTScopeContext* scopeCtx)
 {
     const ASTBlockContextVector& blockScopes = scopeCtx->m_childBlockScopes;
-    m_blockInfos.resizeWithUninitializedValues(blockScopes.size());
-    for (size_t i = 0; i < blockScopes.size(); i++) {
+    if (blockScopes.size() == 1) {
+        auto& b = blockScopes[0];
+        if (b->m_nodeType != ASTNodeType::CatchClause
+            && b->m_names.size() == 0) {
+            bool everyVariablesShouldUseHeapStorage = b->m_nodeType == ASTNodeType::SwitchStatement;
+            m_canAllocateEnvironmentOnStack = m_canAllocateEnvironmentOnStack && !everyVariablesShouldUseHeapStorage;
+
+            ASSERT(BlockInfo::create(
+                       m_canAllocateEnvironmentOnStack,
+                       false,
+                       b->m_nodeType == ASTNodeType::CatchClause,
+                       b->m_parentBlockIndex,
+                       b->m_blockIndex,
+                       b->m_names.size())
+                       ->isGenericBlockInfo());
+            m_blockInfos = BlockInfo::genericBlockInfoArray(m_canAllocateEnvironmentOnStack, false);
+            m_blockInfosLength = 1;
+            return;
+        }
+    }
+
+    m_blockInfosLength = blockScopes.size();
+    m_blockInfos = (InterpretedCodeBlock::BlockInfo**)GC_MALLOC(sizeof(InterpretedCodeBlock::BlockInfo*) * m_blockInfosLength);
+    for (size_t i = 0; i < m_blockInfosLength; i++) {
         // if block comes from switch statement, we should allocate variables on heap.
         // because our we can track only heap variables are initialized by user
         // we can track that {let, const} variables are initialized by user only if variables are allocated in heap
@@ -220,6 +242,8 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
     , m_byteCodeBlock(nullptr)
     , m_parent(nullptr)
     , m_children(nullptr)
+    , m_blockInfos(nullptr)
+    , m_blockInfosLength(0)
     , m_functionName()
     , m_functionStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER
@@ -457,7 +481,7 @@ void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexicalBlockInde
     while (c) {
         size_t blockArrayIndex = SIZE_MAX;
         InterpretedCodeBlock::BlockInfo* bi = nullptr;
-        for (size_t i = 0; i < c->m_blockInfos.size(); i++) {
+        for (size_t i = 0; i < c->m_blockInfosLength; i++) {
             if (c->m_blockInfos[i]->blockIndex() == blockIndex) {
                 bi = c->m_blockInfos[i];
                 blockArrayIndex = i;
@@ -467,8 +491,13 @@ void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexicalBlockInde
 
         while (bi && bi->canAllocateEnvironmentOnStack()) {
             if (bi->isGenericBlockInfo()) {
-                bi = BlockInfo::genericBlockInfo(false, bi->shouldAllocateEnvironment());
-                c->m_blockInfos[blockArrayIndex] = bi;
+                if (c->m_blockInfosLength == 1) {
+                    c->m_blockInfos = BlockInfo::genericBlockInfoArray(false, bi->shouldAllocateEnvironment());
+                    bi = c->m_blockInfos[0];
+                } else {
+                    bi = BlockInfo::genericBlockInfo(false, bi->shouldAllocateEnvironment());
+                    c->m_blockInfos[blockArrayIndex] = bi;
+                }
             } else {
                 bi->setCanAllocateEnvironmentOnStack(false);
             }
@@ -477,7 +506,7 @@ void InterpretedCodeBlock::markHeapAllocatedEnvironmentFromHere(LexicalBlockInde
                 break;
             }
 
-            for (size_t i = 0; i < c->m_blockInfos.size(); i++) {
+            for (size_t i = 0; i < c->m_blockInfosLength; i++) {
                 if (c->m_blockInfos[i]->blockIndex() == bi->parentBlockIndex()) {
                     bi = c->m_blockInfos[i];
                     blockArrayIndex = i;
@@ -501,7 +530,7 @@ void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockI
 {
     InterpretedCodeBlock::BlockInfo* bi = nullptr;
     size_t arrayIndex = SIZE_MAX;
-    for (size_t i = 0; i < m_blockInfos.size(); i++) {
+    for (size_t i = 0; i < m_blockInfosLength; i++) {
         if (m_blockInfos[i]->blockIndex() == currentBlockIndex) {
             bi = m_blockInfos[i];
             arrayIndex = i;
@@ -538,13 +567,17 @@ void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockI
     }
 
     if (bi->isGenericBlockInfo()) {
-        bi = BlockInfo::genericBlockInfo(bi->canAllocateEnvironmentOnStack(), isThereHeapVariable);
-        m_blockInfos[arrayIndex] = bi;
+        if (m_blockInfosLength == 1) {
+            m_blockInfos = BlockInfo::genericBlockInfoArray(bi->canAllocateEnvironmentOnStack(), isThereHeapVariable);
+        } else {
+            bi = BlockInfo::genericBlockInfo(bi->canAllocateEnvironmentOnStack(), isThereHeapVariable);
+            m_blockInfos[arrayIndex] = bi;
+        }
     } else {
         bi->setShouldAllocateEnvironment(isThereHeapVariable);
     }
 
-    for (size_t i = 0; i < m_blockInfos.size(); i++) {
+    for (size_t i = 0; i < m_blockInfosLength; i++) {
         if (m_blockInfos[i]->parentBlockIndex() == currentBlockIndex) {
             computeBlockVariables(m_blockInfos[i]->blockIndex(), currentStackAllocatedVariableIndex, maxStackAllocatedVariableDepth);
         }
@@ -636,9 +669,13 @@ void InterpretedCodeBlock::computeVariables()
         m_lexicalBlockStackAllocatedIdentifierMaximumDepth = 0;
 
         if (!canUseIndexedVariableStorage()) {
-            for (size_t i = 0; i < m_blockInfos.size(); i++) {
+            for (size_t i = 0; i < m_blockInfosLength; i++) {
                 if (m_blockInfos[i]->isGenericBlockInfo()) {
-                    m_blockInfos[i] = BlockInfo::genericBlockInfo(false, m_blockInfos[i]->identifiers().size());
+                    if (m_blockInfosLength == 1) {
+                        m_blockInfos = BlockInfo::genericBlockInfoArray(false, m_blockInfos[i]->identifiers().size());
+                    } else {
+                        m_blockInfos[i] = BlockInfo::genericBlockInfo(false, m_blockInfos[i]->identifiers().size());
+                    }
                 } else {
                     m_blockInfos[i]->setCanAllocateEnvironmentOnStack(false);
                     m_blockInfos[i]->setShouldAllocateEnvironment(m_blockInfos[i]->identifiers().size());
@@ -659,7 +696,7 @@ void InterpretedCodeBlock::computeVariables()
 
         InterpretedCodeBlock::BlockInfo* bi = nullptr;
         size_t arrayIndex = SIZE_MAX;
-        for (size_t i = 0; i < m_blockInfos.size(); i++) {
+        for (size_t i = 0; i < m_blockInfosLength; i++) {
             if (m_blockInfos[i]->blockIndex() == 0) {
                 bi = m_blockInfos[i];
                 arrayIndex = i;
@@ -675,7 +712,11 @@ void InterpretedCodeBlock::computeVariables()
         }
 
         if (bi->isGenericBlockInfo()) {
-            m_blockInfos[arrayIndex] = BlockInfo::genericBlockInfo(bi->canAllocateEnvironmentOnStack(), false);
+            if (m_blockInfosLength == 1) {
+                m_blockInfos = BlockInfo::genericBlockInfoArray(bi->canAllocateEnvironmentOnStack(), false);
+            } else {
+                m_blockInfos[arrayIndex] = BlockInfo::genericBlockInfo(bi->canAllocateEnvironmentOnStack(), false);
+            }
         } else {
             bi->setShouldAllocateEnvironment(false);
         }
@@ -714,9 +755,13 @@ void InterpretedCodeBlock::computeVariables()
         m_lexicalBlockStackAllocatedIdentifierMaximumDepth = 0;
 
         if (!canUseIndexedVariableStorage()) {
-            for (size_t i = 0; i < m_blockInfos.size(); i++) {
+            for (size_t i = 0; i < m_blockInfosLength; i++) {
                 if (m_blockInfos[i]->isGenericBlockInfo()) {
-                    m_blockInfos[i] = BlockInfo::genericBlockInfo(false, m_blockInfos[i]->identifiers().size());
+                    if (m_blockInfosLength == 1) {
+                        m_blockInfos = BlockInfo::genericBlockInfoArray(false, m_blockInfos[i]->identifiers().size());
+                    } else {
+                        m_blockInfos[i] = BlockInfo::genericBlockInfo(false, m_blockInfos[i]->identifiers().size());
+                    }
                 } else {
                     m_blockInfos[i]->setCanAllocateEnvironmentOnStack(false);
                     m_blockInfos[i]->setShouldAllocateEnvironment(m_blockInfos[i]->identifiers().size());
@@ -738,7 +783,7 @@ void InterpretedCodeBlock::computeVariables()
         if (isGlobalCodeBlock()) {
             InterpretedCodeBlock::BlockInfo* bi = nullptr;
             size_t arrayIndex = SIZE_MAX;
-            for (size_t i = 0; i < m_blockInfos.size(); i++) {
+            for (size_t i = 0; i < m_blockInfosLength; i++) {
                 if (m_blockInfos[i]->blockIndex() == 0) {
                     bi = m_blockInfos[i];
                     arrayIndex = i;
@@ -754,8 +799,13 @@ void InterpretedCodeBlock::computeVariables()
             }
 
             if (bi->isGenericBlockInfo()) {
-                bi = BlockInfo::genericBlockInfo(bi->canAllocateEnvironmentOnStack(), false);
-                m_blockInfos[arrayIndex] = bi;
+                if (m_blockInfosLength == 1) {
+                    m_blockInfos = BlockInfo::genericBlockInfoArray(bi->canAllocateEnvironmentOnStack(), false);
+                    bi = m_blockInfos[0];
+                } else {
+                    bi = BlockInfo::genericBlockInfo(bi->canAllocateEnvironmentOnStack(), false);
+                    m_blockInfos[arrayIndex] = bi;
+                }
             } else {
                 bi->setShouldAllocateEnvironment(false);
             }
@@ -797,7 +847,7 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
         // search block first.
         while (true) {
             InterpretedCodeBlock::BlockInfo* bi = nullptr;
-            for (size_t i = 0; i < blk->m_blockInfos.size(); i++) {
+            for (size_t i = 0; i < blk->m_blockInfosLength; i++) {
                 if (blk->m_blockInfos[i]->blockIndex() == blockIndex) {
                     bi = blk->m_blockInfos[i];
                     break;

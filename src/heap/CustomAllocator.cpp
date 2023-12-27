@@ -171,7 +171,7 @@ int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr)
     arr[6].from = (GC_word*)&current->m_identifierInfos;
     arr[6].to = (GC_word*)current->m_identifierInfos.data();
     arr[7].from = (GC_word*)&current->m_blockInfos;
-    arr[7].to = (GC_word*)current->m_blockInfos.data();
+    arr[7].to = (GC_word*)current->m_blockInfos;
     return 0;
 }
 
@@ -193,7 +193,7 @@ int getValidValueInInterpretedCodeBlockWithRareData(void* ptr, GC_mark_custom_re
     arr[6].from = (GC_word*)&current->m_identifierInfos;
     arr[6].to = (GC_word*)current->m_identifierInfos.data();
     arr[7].from = (GC_word*)&current->m_blockInfos;
-    arr[7].to = (GC_word*)current->m_blockInfos.data();
+    arr[7].to = (GC_word*)current->m_blockInfos;
     arr[8].from = (GC_word*)&current->m_rareData;
     arr[8].to = (GC_word*)current->m_rareData;
     return 0;

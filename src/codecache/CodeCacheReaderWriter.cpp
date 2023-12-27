@@ -168,8 +168,8 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
     }
 
     // InterpretedCodeBlock::m_blockInfos
-    const InterpretedCodeBlock::BlockInfoVector& blockInfoVector = codeBlock->m_blockInfos;
-    size = blockInfoVector.size();
+    InterpretedCodeBlock::BlockInfo** blockInfoVector = codeBlock->m_blockInfos;
+    size = codeBlock->m_blockInfosLength;
     m_buffer.ensureSize(sizeof(size_t));
     m_buffer.put(size);
     for (size_t i = 0; i < size; i++) {
@@ -558,16 +558,16 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
             case BlockOperationOpcode: {
                 BlockOperation* bc = static_cast<BlockOperation*>(currentCode);
                 InterpretedCodeBlock::BlockInfo* info = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(bc->m_blockInfo);
-                size_t infoIndex = VectorUtil::findInVector(block->codeBlock()->m_blockInfos, info);
-                ASSERT(infoIndex != VectorUtil::invalidIndex);
+                size_t infoIndex = ArrayUtil::findInArray(block->codeBlock()->m_blockInfos, block->codeBlock()->m_blockInfosLength, info);
+                ASSERT(infoIndex != ArrayUtil::invalidIndex);
                 relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_BLOCKINFO, (size_t)currentCode - codeBase, infoIndex));
                 break;
             }
             case ReplaceBlockLexicalEnvironmentOperationOpcode: {
                 ReplaceBlockLexicalEnvironmentOperation* bc = static_cast<ReplaceBlockLexicalEnvironmentOperation*>(currentCode);
                 InterpretedCodeBlock::BlockInfo* info = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(bc->m_blockInfo);
-                size_t infoIndex = VectorUtil::findInVector(block->codeBlock()->m_blockInfos, info);
-                ASSERT(infoIndex != VectorUtil::invalidIndex);
+                size_t infoIndex = ArrayUtil::findInArray(block->codeBlock()->m_blockInfos, block->codeBlock()->m_blockInfosLength, info);
+                ASSERT(infoIndex != ArrayUtil::invalidIndex);
                 relocInfoVector.push_back(ByteCodeRelocInfo(ByteCodeRelocType::RELOC_BLOCKINFO, (size_t)currentCode - codeBase, infoIndex));
                 break;
             }
@@ -732,10 +732,9 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         identifierVector[i] = info;
     }
 
-    // InterpretedCodeBlock::m_blockInfos
-    InterpretedCodeBlock::BlockInfoVector& blockInfoVector = codeBlock->m_blockInfos;
     size = m_buffer.get<size_t>();
-    blockInfoVector.resizeWithUninitializedValues(size);
+    InterpretedCodeBlock::BlockInfo** blockInfoVector = codeBlock->m_blockInfos = (InterpretedCodeBlock::BlockInfo**)GC_MALLOC(sizeof(InterpretedCodeBlock::BlockInfo*) * size);
+    codeBlock->m_blockInfosLength = size;
     for (size_t i = 0; i < size; i++) {
         bool canAllocateEnvironmentOnStack = m_buffer.get<bool>();
         bool shouldAllocateEnvironment = m_buffer.get<bool>();
@@ -1148,14 +1147,14 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
             case BlockOperationOpcode: {
                 BlockOperation* bc = static_cast<BlockOperation*>(currentCode);
                 size_t blockIndex = info.dataOffset;
-                ASSERT(blockIndex < codeBlock->m_blockInfos.size());
+                ASSERT(blockIndex < codeBlock->m_blockInfosLength);
                 bc->m_blockInfo = codeBlock->m_blockInfos[blockIndex];
                 break;
             }
             case ReplaceBlockLexicalEnvironmentOperationOpcode: {
                 ReplaceBlockLexicalEnvironmentOperation* bc = static_cast<ReplaceBlockLexicalEnvironmentOperation*>(currentCode);
                 size_t blockIndex = info.dataOffset;
-                ASSERT(blockIndex < codeBlock->m_blockInfos.size());
+                ASSERT(blockIndex < codeBlock->m_blockInfosLength);
                 bc->m_blockInfo = codeBlock->m_blockInfos[blockIndex];
                 break;
             }
