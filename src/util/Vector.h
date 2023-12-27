@@ -964,7 +964,7 @@ protected:
 
 class VectorUtil {
 public:
-    static const size_t invalidIndex;
+    constexpr static const size_t invalidIndex = SIZE_MAX;
 
     template <typename T, typename E>
     static size_t findInVector(const T& vector, const E& target)

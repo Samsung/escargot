@@ -270,6 +270,11 @@ public:
         {
         }
 
+        static size_t genericBlockInfoIndex(bool canAllocateEnvironmentOnStack, bool shouldAllocateEnvironment)
+        {
+            return (canAllocateEnvironmentOnStack ? 2 : 0) + (shouldAllocateEnvironment ? 1 : 0);
+        }
+
         static BlockInfo* genericBlockInfo(bool canAllocateEnvironmentOnStack, bool shouldAllocateEnvironment)
         {
             static BlockInfo s_genericBlockInfo[4] = {
@@ -287,9 +292,21 @@ public:
                     LEXICAL_BLOCK_INDEX_MAX, 0)
             };
 
-            size_t idx = (canAllocateEnvironmentOnStack ? 2 : 0) + (shouldAllocateEnvironment ? 1 : 0);
-
+            size_t idx = genericBlockInfoIndex(canAllocateEnvironmentOnStack, shouldAllocateEnvironment);
             return &s_genericBlockInfo[idx];
+        }
+
+        static BlockInfo** genericBlockInfoArray(bool canAllocateEnvironmentOnStack, bool shouldAllocateEnvironment)
+        {
+            static BlockInfo* s_genericBlockArray[4] = {
+                genericBlockInfo(false, false),
+                genericBlockInfo(false, true),
+                genericBlockInfo(true, false),
+                genericBlockInfo(true, true)
+            };
+
+            size_t idx = genericBlockInfoIndex(canAllocateEnvironmentOnStack, shouldAllocateEnvironment);
+            return &s_genericBlockArray[idx];
         }
 
         static BlockInfo* create(bool canAllocateEnvironmentOnStack,
@@ -383,8 +400,6 @@ public:
         LexicalBlockIndex m_blockIndex;
         BlockIdentifierInfoVector m_identifiers;
     };
-
-    typedef TightVector<BlockInfo*, GCUtil::gc_malloc_allocator<BlockInfo*>> BlockInfoVector;
 
     struct IdentifierInfo {
         bool m_needToAllocateOnStack : 1;
@@ -529,9 +544,14 @@ public:
         return m_identifierInfos;
     }
 
-    const BlockInfoVector& blockInfos() const
+    BlockInfo** blockInfos() const
     {
         return m_blockInfos;
+    }
+
+    size_t blockInfosLength() const
+    {
+        return m_blockInfosLength;
     }
 
     ExtendedNodeLOC functionStart()
@@ -826,7 +846,7 @@ public:
 
     BlockInfo* blockInfo(LexicalBlockIndex blockIndex)
     {
-        for (size_t i = 0; i < m_blockInfos.size(); i++) {
+        for (size_t i = 0; i < m_blockInfosLength; i++) {
             if (m_blockInfos[i]->blockIndex() == blockIndex) {
                 return m_blockInfos[i];
             }
@@ -927,7 +947,8 @@ protected:
     // all parameter names including targets of patterns and rest element
     AtomicStringTightVector m_parameterNames;
     IdentifierInfoVector m_identifierInfos;
-    BlockInfoVector m_blockInfos;
+    BlockInfo** m_blockInfos;
+    size_t m_blockInfosLength;
 
     AtomicString m_functionName;
 
@@ -1013,7 +1034,7 @@ protected:
     {
         BlockInfo* b = nullptr;
         size_t blockVectorIndex = SIZE_MAX;
-        size_t blockInfoSize = m_blockInfos.size();
+        size_t blockInfoSize = m_blockInfosLength;
         for (size_t i = 0; i < blockInfoSize; i++) {
             if (m_blockInfos[i]->blockIndex() == blockIndex) {
                 b = m_blockInfos[i];

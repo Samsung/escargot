@@ -760,8 +760,8 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
 
         PRINT_TAB_BLOCK()
         printf("Block information: ");
-        ASSERT(cb->scopeContext()->m_childBlockScopes.size() == cb->m_blockInfos.size());
-        for (size_t i = 0; i < cb->m_blockInfos.size(); i++) {
+        ASSERT(cb->scopeContext()->m_childBlockScopes.size() == cb->m_blockInfosLength);
+        for (size_t i = 0; i < cb->m_blockInfosLength; i++) {
             puts("");
             PRINT_TAB_BLOCK()
             printf("Block %p %d:%d [%d parent(%d)]: %s, %s", cb->m_blockInfos[i], (int)cb->scopeContext()->m_childBlockScopes[i]->m_loc.line, (int)cb->scopeContext()->m_childBlockScopes[i]->m_loc.column, (int)cb->m_blockInfos[i]->blockIndex(), (int)cb->m_blockInfos[i]->parentBlockIndex(), cb->m_blockInfos[i]->canAllocateEnvironmentOnStack() ? "Stack" : "Heap", cb->m_blockInfos[i]->shouldAllocateEnvironment() ? "Allocated" : "Skipped");
