@@ -676,13 +676,14 @@ void InterpretedCodeBlock::computeVariables()
                     } else {
                         m_blockInfos[i] = BlockInfo::genericBlockInfo(false, m_blockInfos[i]->identifiers().size());
                     }
+                    ASSERT(!m_blockInfos[i]->identifiers().size());
                 } else {
                     m_blockInfos[i]->setCanAllocateEnvironmentOnStack(false);
                     m_blockInfos[i]->setShouldAllocateEnvironment(m_blockInfos[i]->identifiers().size());
-                }
-                for (size_t j = 0; j < m_blockInfos[i]->identifiers().size(); j++) {
-                    m_blockInfos[i]->identifiers()[j].m_indexForIndexedStorage = SIZE_MAX;
-                    m_blockInfos[i]->identifiers()[j].m_needToAllocateOnStack = false;
+                    for (size_t j = 0; j < m_blockInfos[i]->identifiers().size(); j++) {
+                        m_blockInfos[i]->identifiers()[j].m_indexForIndexedStorage = SIZE_MAX;
+                        m_blockInfos[i]->identifiers()[j].m_needToAllocateOnStack = false;
+                    }
                 }
             }
         } else {
@@ -762,13 +763,14 @@ void InterpretedCodeBlock::computeVariables()
                     } else {
                         m_blockInfos[i] = BlockInfo::genericBlockInfo(false, m_blockInfos[i]->identifiers().size());
                     }
+                    ASSERT(!m_blockInfos[i]->identifiers().size());
                 } else {
                     m_blockInfos[i]->setCanAllocateEnvironmentOnStack(false);
                     m_blockInfos[i]->setShouldAllocateEnvironment(m_blockInfos[i]->identifiers().size());
-                }
-                for (size_t j = 0; j < m_blockInfos[i]->identifiers().size(); j++) {
-                    m_blockInfos[i]->identifiers()[j].m_indexForIndexedStorage = SIZE_MAX;
-                    m_blockInfos[i]->identifiers()[j].m_needToAllocateOnStack = false;
+                    for (size_t j = 0; j < m_blockInfos[i]->identifiers().size(); j++) {
+                        m_blockInfos[i]->identifiers()[j].m_indexForIndexedStorage = SIZE_MAX;
+                        m_blockInfos[i]->identifiers()[j].m_needToAllocateOnStack = false;
+                    }
                 }
             }
         } else {

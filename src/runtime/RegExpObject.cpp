@@ -149,7 +149,7 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, Option op
     m_source = source->length() ? source : defaultRegExpString;
     m_source = escapeSlashInPattern(m_source);
 
-    auto entry = getCacheEntryAndCompileIfNeeded(state, m_source, this->option());
+    auto& entry = getCacheEntryAndCompileIfNeeded(state, m_source, this->option());
     if (entry.m_yarrError) {
         m_source = previousSource;
         setOptionValueForGC(previousOptions);
