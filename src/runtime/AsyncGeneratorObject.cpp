@@ -216,7 +216,7 @@ Value AsyncGeneratorObject::asyncGeneratorResolve(ExecutionState& state, AsyncGe
     auto next = queue[0];
     queue.erase(0);
     // Let promiseCapability be next.[[Capability]].
-    auto promiseCapability = next.m_capability;
+    auto& promiseCapability = next.m_capability;
     // Let iteratorResult be ! CreateIterResultObject(value, done).
     Value iteratorResult = IteratorObject::createIterResultObject(state, value, done);
     // Perform ! Call(promiseCapability.[[Resolve]], undefined, « iteratorResult »).
@@ -239,7 +239,7 @@ Value AsyncGeneratorObject::asyncGeneratorReject(ExecutionState& state, AsyncGen
     auto next = queue[0];
     queue.erase(0);
     // Let promiseCapability be next.[[Capability]].
-    auto promiseCapability = next.m_capability;
+    auto& promiseCapability = next.m_capability;
     // Perform ! Call(promiseCapability.[[Reject]], undefined, « exception »).
     Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &exception);
     // Perform ! AsyncGeneratorResumeNext(generator).

@@ -5115,7 +5115,7 @@ public:
         this->expect(LeftBrace);
         this->parseDirectivePrologues(builder, body);
 
-        auto previousLabelSet = this->context->labelSet;
+        auto previousLabelSet = std::move(this->context->labelSet);
         bool previousInIteration = this->context->inIteration;
         bool previousInSwitch = this->context->inSwitch;
         bool previousInFunctionBody = this->context->inFunctionBody;
@@ -5150,7 +5150,7 @@ public:
         this->context->allowLexicalDeclaration = oldAllowLexicalDeclaration;
         this->nameDeclaredCallback = oldNameCallback;
 
-        this->context->labelSet = previousLabelSet;
+        this->context->labelSet = std::move(previousLabelSet);
         this->context->inIteration = previousInIteration;
         this->context->inSwitch = previousInSwitch;
         this->context->inFunctionBody = previousInFunctionBody;
@@ -6967,7 +6967,7 @@ public:
                 params->appendChild(this->finalize(node, builder.createExpressionStatementNode(init)));
             }
 
-            auto previousLabelSet = this->context->labelSet;
+            auto previousLabelSet = std::move(this->context->labelSet);
             bool previousInIteration = this->context->inIteration;
             bool previousInSwitch = this->context->inSwitch;
             bool previousInFunctionBody = this->context->inFunctionBody;
@@ -6996,7 +6996,7 @@ public:
             this->context->strict = previousStrict;
             this->context->allowYield = previousAllowYield;
 
-            this->context->labelSet = previousLabelSet;
+            this->context->labelSet = std::move(previousLabelSet);
             this->context->inIteration = previousInIteration;
             this->context->inSwitch = previousInSwitch;
             this->context->inFunctionBody = previousInFunctionBody;
@@ -7022,7 +7022,7 @@ public:
                 MetaNode nodeStart = this->createNode();
                 StatementContainer* container = builder.createStatementContainer();
 
-                auto previousLabelSet = this->context->labelSet;
+                auto previousLabelSet = std::move(this->context->labelSet);
                 bool previousInIteration = this->context->inIteration;
                 bool previousInSwitch = this->context->inSwitch;
                 bool previousInFunctionBody = this->context->inFunctionBody;
@@ -7053,7 +7053,7 @@ public:
                 this->context->strict = previousStrict;
                 this->context->allowYield = previousAllowYield;
 
-                this->context->labelSet = previousLabelSet;
+                this->context->labelSet = std::move(previousLabelSet);
                 this->context->inIteration = previousInIteration;
                 this->context->inSwitch = previousInSwitch;
                 this->context->inFunctionBody = previousInFunctionBody;
