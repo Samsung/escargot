@@ -1808,6 +1808,41 @@ static Value builtinArrayCopyWithin(ExecutionState& state, Value thisValue, size
     return O;
 }
 
+static Value builtinArrayWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be ToObject(this value).
+    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, with);
+
+    uint64_t len = O->length(state);
+    double relativeIndex = argv[0].toInteger(state);
+    double actualIndex = relativeIndex;
+
+    if (relativeIndex < 0) {
+        actualIndex = len + relativeIndex;
+    }
+
+    if (UNLIKELY(actualIndex >= len || actualIndex < 0)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+    }
+
+    ArrayObject* arr = new ArrayObject(state, static_cast<uint64_t>(len));
+
+    uint64_t k = 0;
+    Value fromValue;
+    while (k < len) {
+        if (k == actualIndex) {
+            fromValue = argv[1];
+        } else {
+            fromValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        }
+
+        arr->setIndexedPropertyThrowsException(state, Value(k), fromValue);
+        k++;
+    }
+
+    return arr;
+}
+
 static Value builtinArrayKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_OBJECT(M, Array, keys);
@@ -2018,6 +2053,8 @@ void GlobalObject::installArray(ExecutionState& state)
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().findIndex, builtinArrayFindIndex, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().copyWithin),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().copyWithin, builtinArrayCopyWithin, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().with),
+                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().with, builtinArrayWith, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().flat),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().flat, builtinArrayFlat, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().flatMap),
