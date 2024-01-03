@@ -593,14 +593,12 @@ static Value fastTypedArrayIndexSearch(TypedArrayObject* arr, size_t k, size_t l
 
 static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // NOTE: Same algorithm as Array.prototype.indexOf
-    // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, indexOf);
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
-    size_t len = O->asTypedArrayObject()->arrayLength();
+    size_t len = O->arrayLength();
 
     // If len is 0, return -1.
     if (len == 0) {
@@ -634,20 +632,18 @@ static Value builtinTypedArrayIndexOf(ExecutionState& state, Value thisValue, si
     }
     size_t k = (size_t)doubleK;
     // Reloading `len` because second argument can affect arrayLength
-    len = std::min((size_t)O->asTypedArrayObject()->arrayLength(), len);
-    return fastTypedArrayIndexSearch<true>(O->asTypedArrayObject(), k, len, argv[0]);
+    len = std::min((size_t)O->arrayLength(), len);
+    return fastTypedArrayIndexSearch<true>(O, k, len, argv[0]);
 }
 
 static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // NOTE: Same algorithm as Array.prototype.lastIndexOf
-    // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, lastIndexOf);
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let lenValue be this object's [[ArrayLength]] internal slot.
     // Let len be ToUint32(lenValue).
-    size_t len = O->asTypedArrayObject()->arrayLength();
+    size_t len = O->arrayLength();
 
     // If len is 0, return -1.
     if (len == 0) {
@@ -677,17 +673,16 @@ static Value builtinTypedArrayLastIndexOf(ExecutionState& state, Value thisValue
     }
     int64_t k = (int64_t)doubleK;
     // Reloading `len` because second argument can affect arrayLength
-    len = std::min((size_t)O->asTypedArrayObject()->arrayLength(), len);
-    return fastTypedArrayIndexSearch<false>(O->asTypedArrayObject(), k, len, argv[0]);
+    len = std::min((size_t)O->arrayLength(), len);
+    return fastTypedArrayIndexSearch<false>(O, k, len, argv[0]);
 }
 
 static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ? ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, includes);
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
-    size_t len = O->asTypedArrayObject()->arrayLength();
+    size_t len = O->arrayLength();
 
     // If len is 0, return false.
     if (len == 0) {
@@ -840,15 +835,14 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, some);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Array.prototype.some as defined in 22.1.3.23 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asTypedArrayObject()->arrayLength();
+    double len = O->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -889,13 +883,12 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
 
 static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, sort);
     // Let buffer be TypedArrayObject::validateTypedArray(obj).
-    ArrayBuffer* buffer = TypedArrayObject::validateTypedArray(state, O);
+    ArrayBuffer* buffer = TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
-    int64_t len = O->asTypedArrayObject()->arrayLength();
+    int64_t len = O->arrayLength();
 
     Value cmpfn = argv[0];
     if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
@@ -981,15 +974,14 @@ static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, s
 
 static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, every);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Array.prototype.every as defined in 22.1.3.5 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    unsigned len = O->asTypedArrayObject()->arrayLength();
+    unsigned len = O->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -1036,7 +1028,7 @@ static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_
 
     Value value(Value::ForceUninitialized);
     // If O.[[TypedArrayName]] is "BigUint64Array" or "BigInt64Array", let value be ? ToBigInt(value).
-    auto typedArrayType = O->asTypedArrayObject()->typedArrayType();
+    auto typedArrayType = O->typedArrayType();
     if (UNLIKELY(typedArrayType == TypedArrayType::BigInt64 || typedArrayType == TypedArrayType::BigUint64)) {
         value = argv[0].toBigInt(state);
     } else {
@@ -1129,15 +1121,14 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
 {
     Value predicate = argv[0];
     Value thisArg = argc > 1 ? argv[1] : Value();
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, find);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Array.prototype.find as defined in 22.1.3.8 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    size_t len = O->asTypedArrayObject()->arrayLength();
+    size_t len = O->arrayLength();
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     if (!predicate.isCallable()) {
@@ -1168,15 +1159,14 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
 {
     Value predicate = argv[0];
     Value thisArg = argc > 1 ? argv[1] : Value();
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, findIndex);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Array.prototype.findIndex as defined in 22.1.3.9 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    size_t len = O->asTypedArrayObject()->arrayLength();
+    size_t len = O->arrayLength();
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     if (!predicate.isCallable()) {
@@ -1207,13 +1197,12 @@ static Value builtinTypedArrayFindLast(ExecutionState& state, Value thisValue, s
 {
     Value predicate = argv[0];
     Value thisArg = argc > 1 ? argv[1] : Value();
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, find);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
-    int64_t len = static_cast<int64_t>(O->asTypedArrayObject()->arrayLength());
+    int64_t len = static_cast<int64_t>(O->arrayLength());
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     if (!predicate.isCallable()) {
@@ -1245,13 +1234,12 @@ static Value builtinTypedArrayFindLastIndex(ExecutionState& state, Value thisVal
 {
     Value predicate = argv[0];
     Value thisArg = argc > 1 ? argv[1] : Value();
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, findIndex);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be O.[[ArrayLength]].
-    int64_t len = static_cast<int64_t>(O->asTypedArrayObject()->arrayLength());
+    int64_t len = static_cast<int64_t>(O->arrayLength());
 
     // If IsCallable(predicate) is false, throw a TypeError exception.
     if (!predicate.isCallable()) {
@@ -1281,15 +1269,14 @@ static Value builtinTypedArrayFindLastIndex(ExecutionState& state, Value thisVal
 
 static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, forEach);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Array.prototype.forEach as defined in 22.1.3.10 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asTypedArrayObject()->arrayLength();
+    double len = O->arrayLength();
 
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
@@ -1318,15 +1305,14 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
 
 static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, join);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Array.prototype.join as defined in 22.1.3.12 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asTypedArrayObject()->arrayLength();
+    double len = O->arrayLength();
 
     Value separator = argv[0];
     size_t lenMax = STRING_MAXIMUM_LENGTH;
@@ -1411,15 +1397,14 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
 
 static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reduce);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Array.prototype.reduce as defined in 22.1.3.18 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asTypedArrayObject()->arrayLength();
+    double len = O->arrayLength();
 
     Value callbackfn = argv[0];
     if (!callbackfn.isCallable()) {
@@ -1451,15 +1436,14 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
 
 static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reduceRight);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Array.prototype.reduceRight as defined in 22.1.3.19 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    double len = O->asTypedArrayObject()->arrayLength();
+    double len = O->arrayLength();
 
     // If IsCallable(callbackfn) is false, throw a TypeError exception.
     Value callbackfn = argv[0];
@@ -1502,15 +1486,14 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
 
 static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, TypedArray, reverse);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
-    TypedArrayObject::validateTypedArray(state, O);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Array.prototype.reverse as defined in 22.1.3.20 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    size_t len = O->asTypedArrayObject()->arrayLength();
+    size_t len = O->arrayLength();
     size_t middle = std::floor(len / 2);
     size_t lower = 0;
     while (middle > lower) {
@@ -1597,15 +1580,14 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
 
 static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(array, TypedArray, toLocaleString);
     // validateTypedArray is applied to the this value prior to evaluating the algorithm.
-    TypedArrayObject::validateTypedArray(state, array);
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* array = thisValue.asObject()->asTypedArrayObject();
 
     // Array.prototype.toLocaleString as defined in 22.1.3.26 except
     // that the this object’s [[ArrayLength]] internal slot is accessed
     // in place of performing a [[Get]] of "length"
-    size_t len = array->asTypedArrayObject()->arrayLength();
+    size_t len = array->arrayLength();
 
     if (!state.context()->toStringRecursionPreventer()->canInvokeToString(array)) {
         return String::emptyString;

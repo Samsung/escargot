@@ -268,7 +268,7 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
 
 static Value builtinNumberToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Number, toLocaleString);
+    Object* thisObject = thisValue.toObject(state);
     if (!thisObject->isNumberObject()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotNumber);
     }
