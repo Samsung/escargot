@@ -1822,7 +1822,7 @@ static Value builtinArrayWith(ExecutionState& state, Value thisValue, size_t arg
     }
 
     if (UNLIKELY(actualIndex >= len || actualIndex < 0)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
     }
 
     ArrayObject* arr = new ArrayObject(state, static_cast<uint64_t>(len));
