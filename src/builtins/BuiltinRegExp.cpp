@@ -83,7 +83,7 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
 
 static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, exec);
+    Object* thisObject = thisValue.toObject(state);
     if (!thisObject->isRegExpObject()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().exec.string(), ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
     }
@@ -149,7 +149,7 @@ static Value regExpExec(ExecutionState& state, Object* R, String* S)
 
 static Value builtinRegExpTest(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, RegExp, test);
+    Object* thisObject = thisValue.toObject(state);
     if (!thisObject->isRegExpObject()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().RegExp.string(), true, state.context()->staticStrings().test.string(), ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
     }
@@ -224,7 +224,7 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
 static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // $21.2.5.9 RegExp.prototype[@@search]
-    RESOLVE_THIS_BINDING_TO_OBJECT(rx, Object, search);
+    Object* rx = thisValue.toObject(state);
     String* s = argv[0].toString(state);
     Value previousLastIndex = rx->get(state, ObjectPropertyName(state.context()->staticStrings().lastIndex)).value(state, thisValue);
     if (!previousLastIndex.equalsToByTheSameValueAlgorithm(state, Value(0))) {

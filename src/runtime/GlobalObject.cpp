@@ -822,7 +822,7 @@ static Value builtinUnescape(ExecutionState& state, Value thisValue, size_t argc
 static Value builtinArrayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // this builtin function is shared both for Array and TypedArray (prototype.toString property)
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, toString);
+    Object* thisObject = thisValue.toObject(state);
     Value toString = thisObject->get(state, state.context()->staticStrings().join).value(state, thisObject);
     if (!toString.isCallable()) {
         toString = state.context()->globalObject()->objectPrototypeToString();

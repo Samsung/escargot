@@ -278,7 +278,7 @@ static Value builtinDateToISOString(ExecutionState& state, Value thisValue, size
 
 static Value builtinDateToJSON(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Date, toJSON);
+    Object* thisObject = thisValue.toObject(state);
 
     Value tv = Value(thisObject).toPrimitive(state, Value::PreferNumber);
     if (tv.isNumber() && (std::isnan(tv.asNumber()) || std::isinf(tv.asNumber()))) {

@@ -93,7 +93,7 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
 #define DECLARE_DATAVIEW_GETTER(Name)                                                                                                    \
     static Value builtinDataViewGet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
     {                                                                                                                                    \
-        RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, DataView, get##Name);                                                                 \
+        Object* thisObject = thisValue.toObject(state);                                                                                  \
         if (!(thisObject->isDataViewObject())) {                                                                                         \
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(),              \
                                            true, state.context()->staticStrings().get##Name.string(),                                    \
@@ -109,7 +109,7 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
 #define DECLARE_DATAVIEW_SETTER(Name)                                                                                                    \
     static Value builtinDataViewSet##Name(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
     {                                                                                                                                    \
-        RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, DataView, get##Name);                                                                 \
+        Object* thisObject = thisValue.toObject(state);                                                                                  \
         if (!(thisObject->isDataViewObject())) {                                                                                         \
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(),              \
                                            true, state.context()->staticStrings().set##Name.string(),                                    \

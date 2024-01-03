@@ -71,8 +71,7 @@ static Value builtinObjectConstructor(ExecutionState& state, Value thisValue, si
 
 static Value builtinObjectValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(ret, Object, valueOf);
-    return ret;
+    return thisValue.toObject(state);
 }
 
 static Value builtinObjectPreventExtensions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -271,7 +270,7 @@ static Value builtinObjectIsPrototypeOf(ExecutionState& state, Value thisValue, 
     Value V = argv[0];
 
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, isPrototypeOf);
+    Object* O = thisValue.toObject(state);
 
     // Repeat
     while (true) {
@@ -293,7 +292,7 @@ static Value builtinObjectPropertyIsEnumerable(ExecutionState& state, Value this
     ObjectPropertyName P(state, argv[0]);
 
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, propertyIsEnumerable);
+    Object* O = thisValue.toObject(state);
 
     // Let desc be the result of calling the [[GetOwnProperty]] internal method of O with argument name.
     ObjectGetResult desc = O->getOwnProperty(state, P);
@@ -311,7 +310,7 @@ static Value builtinObjectToLocaleString(ExecutionState& state, Value thisValue,
     // https://www.ecma-international.org/ecma-262/#sec-object.prototype.tolocalestring
     // Let O be the this value.
     // Return ? Invoke(O, "toString").
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Object, toLocaleString);
+    Object* O = thisValue.toObject(state);
     Value toString = O->get(state, ObjectPropertyName(state.context()->staticStrings().toString)).value(state, thisValue);
     return Object::call(state, toString, thisValue, 0, nullptr);
 }

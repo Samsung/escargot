@@ -355,7 +355,7 @@ static Value builtinArrayOf(ExecutionState& state, Value thisValue, size_t argc,
 
 static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisBinded, Array, join);
+    Object* thisBinded = thisValue.toObject(state);
     int64_t len = thisBinded->length(state);
     Value separator = argv[0];
     String* sep;
@@ -445,7 +445,7 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
 
 static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, reverse);
+    Object* O = thisValue.toObject(state);
     int64_t len = O->length(state);
     int64_t middle = std::floor(len / 2);
     int64_t lower = 0;
@@ -500,7 +500,7 @@ static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, sort);
+    Object* thisObject = thisValue.toObject(state);
     Value cmpfn = argv[0];
     if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotCallable);
@@ -537,7 +537,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     //      Different: arr.splice(2) vs. arr.splice(2, undefined)
 
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, splice);
+    Object* O = thisValue.toObject(state);
 
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
     // Let len be ToLength(Get(O, "length")).
@@ -694,7 +694,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
 
 static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, concat);
+    Object* thisObject = thisValue.toObject(state);
     Object* obj = arraySpeciesCreate(state, thisObject, 0);
     int64_t n = 0;
     for (size_t i = 0; i < argc + 1; i++) {
@@ -747,7 +747,7 @@ static Value builtinArrayConcat(ExecutionState& state, Value thisValue, size_t a
 
 static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, slice);
+    Object* thisObject = thisValue.toObject(state);
     int64_t len = thisObject->length(state);
     double relativeStart = argv[0].toInteger(state);
     int64_t k = (relativeStart < 0) ? std::max((double)len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
@@ -783,7 +783,7 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
 
 static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(thisObject, Array, forEach);
+    Object* thisObject = thisValue.toObject(state);
     int64_t len = thisObject->length(state);
 
     Value callbackfn = argv[0];
@@ -819,7 +819,7 @@ static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t 
 static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, indexOf);
+    Object* O = thisValue.toObject(state);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
     // Let len be ToLength(Get(O, "length")).
     int64_t len = O->length(state);
@@ -890,7 +890,7 @@ static Value builtinArrayIndexOf(ExecutionState& state, Value thisValue, size_t 
 static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, lastIndexOf);
+    Object* O = thisValue.toObject(state);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
     // Let len be ToLength(Get(O, "length")).
     double len = O->length(state);
@@ -954,7 +954,7 @@ static Value builtinArrayLastIndexOf(ExecutionState& state, Value thisValue, siz
 
 static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, every);
+    Object* O = thisValue.toObject(state);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
     // Let len be ToLength(Get(O, "length")).
     int64_t len = O->length(state);
@@ -1004,7 +1004,7 @@ static Value builtinArrayEvery(ExecutionState& state, Value thisValue, size_t ar
 
 static Value builtinArrayFill(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, fill);
+    Object* O = thisValue.toObject(state);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
     // Let len be ToLength(Get(O, "length")).
     int64_t len = O->length(state);
@@ -1039,7 +1039,7 @@ static Value builtinArrayFill(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, filter);
+    Object* O = thisValue.toObject(state);
 
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
     // Let len be ToLength(Get(O, "length")).
@@ -1103,7 +1103,7 @@ static Value builtinArrayFilter(ExecutionState& state, Value thisValue, size_t a
 static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, map);
+    Object* O = thisValue.toObject(state);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
     // Let len be ToLength(Get(O, "length")).
     int64_t len = O->length(state);
@@ -1155,7 +1155,7 @@ static Value builtinArrayMap(ExecutionState& state, Value thisValue, size_t argc
 static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, some);
+    Object* O = thisValue.toObject(state);
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
     // Let len be ToLength(Get(O, "length")).
     int64_t len = O->length(state);
@@ -1208,7 +1208,7 @@ static Value builtinArraySome(ExecutionState& state, Value thisValue, size_t arg
 static Value builtinArrayIncludes(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be ? ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, includes);
+    Object* O = thisValue.toObject(state);
     // Let len be ? ToLength(? Get(O, "length")).
     int64_t len = O->length(state);
 
@@ -1258,7 +1258,7 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
 {
     // https://www.ecma-international.org/ecma-402/6.0/index.html#sup-array.prototype.tolocalestring
     // Let array be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(array, Array, toLocaleString);
+    Object* array = thisValue.toObject(state);
 
     if (!state.context()->toStringRecursionPreventer()->canInvokeToString(array)) {
         return String::emptyString;
@@ -1311,7 +1311,7 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
 static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, reduce);
+    Object* O = thisValue.toObject(state);
     int64_t len = O->length(state); // 2-3
     Value callbackfn = argv[0];
     Value initialValue = Value(Value::EmptyValue);
@@ -1361,7 +1361,7 @@ static Value builtinArrayReduce(ExecutionState& state, Value thisValue, size_t a
 static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, reduceRight);
+    Object* O = thisValue.toObject(state);
 
     // Let lenValue be the result of calling the [[Get]] internal method of O with the argument "length".
     // Let len be ToLength(Get(O, "length")).
@@ -1444,7 +1444,7 @@ static Value builtinArrayReduceRight(ExecutionState& state, Value thisValue, siz
 static Value builtinArrayPop(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, pop);
+    Object* O = thisValue.toObject(state);
 
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
     // Let len be ToUint32(lenVal).
@@ -1475,7 +1475,7 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
 {
     // Array.prototype.push ( [ item1 [ , item2 [ , … ] ] ] )
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, push);
+    Object* O = thisValue.toObject(state);
 
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
     // Let len be ToLength(Get(O, "length")).
@@ -1505,7 +1505,7 @@ static Value builtinArrayPush(ExecutionState& state, Value thisValue, size_t arg
 // Array.prototype.flat( [ depth ] )
 static Value builtinArrayFlat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, flat);
+    Object* O = thisValue.toObject(state);
     int64_t sourceLen = O->length(state);
     double depthNum = 1;
     if (argc > 0 && !argv[0].isUndefined()) {
@@ -1521,7 +1521,7 @@ static Value builtinArrayFlat(ExecutionState& state, Value thisValue, size_t arg
 // Array.prototype.flatMap ( mapperFunction [ , thisArg ] )
 static Value builtinArrayFlatMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, flatMap);
+    Object* O = thisValue.toObject(state);
     int64_t sourceLen = O->length(state);
     if (!argv[0].isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().flatMap.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotCallable);
@@ -1538,7 +1538,7 @@ static Value builtinArrayFlatMap(ExecutionState& state, Value thisValue, size_t 
 static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, shift);
+    Object* O = thisValue.toObject(state);
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
     // Let len be ToLength(Get(O, "length")).
     int64_t len = O->length(state);
@@ -1599,7 +1599,7 @@ static Value builtinArrayShift(ExecutionState& state, Value thisValue, size_t ar
 static Value builtinArrayUnshift(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the result of calling ToObject passing the this value as the argument.
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, unshift);
+    Object* O = thisValue.toObject(state);
     // Let lenVal be the result of calling the [[Get]] internal method of O with argument "length".
     // Let len be ToLength(Get(O, "length")).
     int64_t len = O->length(state);
@@ -1682,7 +1682,7 @@ static Value builtinArrayFind(ExecutionState& state, Value thisValue, size_t arg
     Value predicate = argv[0];
     Value thisArg = argc > 1 ? argv[1] : Value();
     // Let O be ? ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, find);
+    Object* O = thisValue.toObject(state);
     // Let len be ? ToLength(? Get(O, "length")).
     uint64_t len = O->length(state);
     // If IsCallable(predicate) is false, throw a TypeError exception.
@@ -1717,7 +1717,7 @@ static Value builtinArrayFindIndex(ExecutionState& state, Value thisValue, size_
     Value predicate = argv[0];
     Value thisArg = argc > 1 ? argv[1] : Value();
     // Let O be ? ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, findIndex);
+    Object* O = thisValue.toObject(state);
     // Let len be ? ToLength(? Get(O, "length")).
     uint64_t len = O->length(state);
     // If IsCallable(predicate) is false, throw a TypeError exception.
@@ -1750,7 +1750,7 @@ static Value builtinArrayFindIndex(ExecutionState& state, Value thisValue, size_
 static Value builtinArrayCopyWithin(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, copyWithin);
+    Object* O = thisValue.toObject(state);
     // Let len be ToLength(Get(O, "length")).
     double len = O->length(state);
     // Let relativeTarget be ToInteger(target).
@@ -1811,7 +1811,7 @@ static Value builtinArrayCopyWithin(ExecutionState& state, Value thisValue, size
 static Value builtinArrayWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, with);
+    Object* O = thisValue.toObject(state);
 
     uint64_t len = O->length(state);
     double relativeIndex = argv[0].toInteger(state);
@@ -1845,19 +1845,19 @@ static Value builtinArrayWith(ExecutionState& state, Value thisValue, size_t arg
 
 static Value builtinArrayKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(M, Array, keys);
+    Object* M = thisValue.toObject(state);
     return M->keys(state);
 }
 
 static Value builtinArrayValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(M, Array, values);
+    Object* M = thisValue.toObject(state);
     return M->values(state);
 }
 
 static Value builtinArrayEntries(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(M, Array, entries);
+    Object* M = thisValue.toObject(state);
     return M->entries(state);
 }
 
@@ -1873,7 +1873,7 @@ static Value builtinArrayIteratorNext(ExecutionState& state, Value thisValue, si
 
 static Value builtinArrayAt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    RESOLVE_THIS_BINDING_TO_OBJECT(obj, Array, at);
+    Object* obj = thisValue.toObject(state);
     size_t len = obj->length(state);
     double relativeIndex = argv[0].toInteger(state);
     double k = (relativeIndex < 0) ? len + relativeIndex : relativeIndex;
@@ -1891,7 +1891,7 @@ static Value builtinArrayFindLast(ExecutionState& state, Value thisValue, size_t
     Value predicate = argv[0];
     Value thisArg = argc > 1 ? argv[1] : Value();
     // 1. Let O be ? ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, findLast);
+    Object* O = thisValue.toObject(state);
     // 2. Let len be ? LengthOfArrayLike(O).
     int64_t len = static_cast<int64_t>(O->length(state));
     // 3. If IsCallable(predicate) is false, throw a TypeError exception.
@@ -1927,7 +1927,7 @@ static Value builtinArrayFindLastIndex(ExecutionState& state, Value thisValue, s
     Value predicate = argv[0];
     Value thisArg = argc > 1 ? argv[1] : Value();
     // 1. Let O be ? ToObject(this value).
-    RESOLVE_THIS_BINDING_TO_OBJECT(O, Array, findLastIndex);
+    Object* O = thisValue.toObject(state);
     // 2. Let len be ? LengthOfArrayLike(O).
     int64_t len = static_cast<int64_t>(O->length(state));
     // 3. If IsCallable(predicate) is false, throw a TypeError exception.
