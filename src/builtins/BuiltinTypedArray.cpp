@@ -97,6 +97,18 @@ static Value TypedArraySpeciesCreate(ExecutionState& state, TypedArrayObject* ex
     return A;
 }
 
+static Value TypedArrayCreateSameType(ExecutionState& state, TypedArrayObject* exemplar, size_t argc, Value* argumentList)
+{
+    // Let defaultConstructor be the intrinsic object listed in column one of Table 49 for the value of O’s [[TypedArrayName]] internal slot.
+    Value defaultConstructor = getDefaultTypedArrayConstructor(state, exemplar->typedArrayType());
+    Value A = Object::construct(state, defaultConstructor, argc, argumentList);
+    TypedArrayObject::validateTypedArray(state, A);
+    if (argc == 1 && argumentList[0].isNumber() && A.asObject()->asTypedArrayObject()->arrayLength() < argumentList->toNumber(state)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+    }
+    return A;
+}
+
 static Value builtinTypedArrayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
@@ -1639,6 +1651,50 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
     return R;
 }
 
+static Value builtinTypedArrayWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
+
+    size_t len = O->arrayLength();
+    double relativeIndex = argv[0].toInteger(state);
+    double actualIndex = relativeIndex;
+    auto type = O->typedArrayType();
+
+    if (relativeIndex < 0) {
+        actualIndex = len + relativeIndex;
+    }
+
+    Value numericValue;
+    if (type == TypedArrayType::BigInt64 || type == TypedArrayType::BigUint64) {
+        numericValue = argv[1].toBigInt(state);
+    } else {
+        numericValue = Value(Value::DoubleToIntConvertibleTestNeeds, argv[1].toNumber(state));
+    }
+
+    if (UNLIKELY(std::isinf(actualIndex) || actualIndex < 0 || actualIndex >= len)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+    }
+
+    Value arg[1] = { Value(len) };
+    TypedArrayObject* A = TypedArrayCreateSameType(state, O, 1, arg).asObject()->asTypedArrayObject();
+
+    size_t k = 0;
+    Value fromValue;
+    while (k < len) {
+        if (k == actualIndex) {
+            fromValue = numericValue;
+        } else {
+            fromValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        }
+
+        A->setIndexedPropertyThrowsException(state, Value(k), fromValue);
+        k++;
+    }
+
+    return A;
+}
+
 // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.keys
 static Value builtinTypedArrayKeys(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -1805,6 +1861,8 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinTypedArraySlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toLocaleString),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinTypedArrayToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->with),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->with, builtinTypedArrayWith, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.tostring
     // The initial value of the %TypedArray%.prototype.toString data property is the same built-in function object as the Array.prototype.toString method
