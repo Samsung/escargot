@@ -21,16 +21,31 @@
 #define __EscargotSymbol__
 
 #include "runtime/PointerValue.h"
+#include "util/Vector.h"
+#include "util/TightVector.h"
 
 namespace Escargot {
 
 class VMInstance;
+
+typedef void (*SymbolFinalizer)(Symbol* self, void* data);
+
+struct SymbolFinalizerData : public gc {
+    SymbolFinalizerData()
+        : m_removedFinalizerCount(0)
+    {
+    }
+
+    size_t m_removedFinalizerCount;
+    TightVector<std::pair<SymbolFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<SymbolFinalizer, void*>>> m_finalizer;
+};
 
 class Symbol : public PointerValue {
 public:
     explicit Symbol(Optional<String*> desc = nullptr)
         : m_typeTag(POINTER_VALUE_SYMBOL_TAG_IN_DATA)
         , m_description(desc)
+        , m_finalizerData(nullptr)
     {
     }
 
@@ -39,13 +54,25 @@ public:
         return m_description;
     }
 
+    SymbolFinalizerData* finalizerData() const
+    {
+        ASSERT(!!m_finalizerData);
+        return m_finalizerData;
+    }
+
     String* symbolDescriptiveString() const;
 
     static Symbol* fromGlobalSymbolRegistry(VMInstance* vm, String* stringKey);
 
 private:
+    SymbolFinalizerData* ensureFinalizerData();
+    void addFinalizer(SymbolFinalizer fn, void* data);
+    bool removeFinalizer(SymbolFinalizer fn, void* data);
+    void tryToShrinkFinalizers();
+
     size_t m_typeTag;
     Optional<String*> m_description;
+    SymbolFinalizerData* m_finalizerData; // handle finalizer data of Symbol
 };
 } // namespace Escargot
 

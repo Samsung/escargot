@@ -2247,7 +2247,7 @@ bool Object::removeFinalizer(ObjectFinalizer fn, void* data)
 void Object::tryToShrinkFinalizers()
 {
     auto r = extendedExtraData();
-    auto oldFinalizer = r->m_finalizer;
+    auto& oldFinalizer = r->m_finalizer;
     size_t oldSize = oldFinalizer.size();
     if (r->m_removedFinalizerCount > ((oldSize / 2) + 1)) {
         ASSERT(r->m_removedFinalizerCount <= oldSize);

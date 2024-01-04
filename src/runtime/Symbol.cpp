@@ -56,4 +56,104 @@ String* Symbol::symbolDescriptiveString() const
     sb.appendString(")");
     return sb.finalize();
 }
+
+SymbolFinalizerData* Symbol::ensureFinalizerData()
+{
+    if (!m_finalizerData) {
+        m_finalizerData = new SymbolFinalizerData();
+
+        // register finalizers
+#define FINALIZER_CALLBACK()                                         \
+    Symbol* self = (Symbol*)sym;                                     \
+    auto d = self->finalizerData();                                  \
+    for (size_t i = 0; i < d->m_finalizer.size(); i++) {             \
+        if (LIKELY(!!d->m_finalizer[i].first)) {                     \
+            d->m_finalizer[i].first(self, d->m_finalizer[i].second); \
+        }                                                            \
+    }                                                                \
+    d->m_finalizer.clear();
+
+#ifndef NDEBUG
+        GC_finalization_proc of = nullptr;
+        void* od = nullptr;
+        GC_REGISTER_FINALIZER_NO_ORDER(
+            this, [](void* sym, void*) {
+                FINALIZER_CALLBACK()
+            },
+            nullptr, &of, &od);
+        ASSERT(!of);
+        ASSERT(!od);
+#else
+        GC_REGISTER_FINALIZER_NO_ORDER(
+            this, [](void* sym, void*) {
+                FINALIZER_CALLBACK()
+            },
+            nullptr, nullptr, nullptr);
+#endif
+    }
+
+    return m_finalizerData;
+}
+
+void Symbol::addFinalizer(SymbolFinalizer fn, void* data)
+{
+    auto finData = ensureFinalizerData();
+    if (UNLIKELY(finData->m_removedFinalizerCount)) {
+        for (size_t i = 0; i < finData->m_finalizer.size(); i++) {
+            if (finData->m_finalizer[i].first == nullptr) {
+                ASSERT(finData->m_finalizer[i].second == nullptr);
+                finData->m_finalizer[i].first = fn;
+                finData->m_finalizer[i].second = data;
+                finData->m_removedFinalizerCount--;
+                return;
+            }
+        }
+        ASSERT_NOT_REACHED();
+    }
+
+    finData->m_finalizer.pushBack(std::make_pair(fn, data));
+}
+
+bool Symbol::removeFinalizer(SymbolFinalizer fn, void* data)
+{
+    auto finData = finalizerData();
+    for (size_t i = 0; i < finData->m_finalizer.size(); i++) {
+        if (finData->m_finalizer[i].first == fn && finData->m_finalizer[i].second == data) {
+            finData->m_finalizer[i].first = nullptr;
+            finData->m_finalizer[i].second = nullptr;
+            finData->m_removedFinalizerCount++;
+
+            tryToShrinkFinalizers();
+            return true;
+        }
+    }
+    return false;
+}
+
+void Symbol::tryToShrinkFinalizers()
+{
+    auto finData = finalizerData();
+    auto& oldFinalizer = finData->m_finalizer;
+    size_t oldSize = oldFinalizer.size();
+    if (finData->m_removedFinalizerCount > ((oldSize / 2) + 1)) {
+        ASSERT(finData->m_removedFinalizerCount <= oldSize);
+        size_t newSize = oldSize - finData->m_removedFinalizerCount;
+        TightVector<std::pair<SymbolFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<SymbolFinalizer, void*>>> newFinalizer;
+        newFinalizer.resizeWithUninitializedValues(newSize);
+
+        size_t j = 0;
+        for (size_t i = 0; i < oldSize; i++) {
+            if (oldFinalizer[i].first) {
+                newFinalizer[j].first = oldFinalizer[i].first;
+                newFinalizer[j].second = oldFinalizer[i].second;
+                j++;
+            }
+        }
+        ASSERT(j == newSize);
+
+        finData->m_finalizer = std::move(newFinalizer);
+        finData->m_removedFinalizerCount = 0;
+    }
+}
+
 } // namespace Escargot
