@@ -1874,7 +1874,7 @@ TEST(EnumerateObjectOwnProperties, Basic1)
         EXPECT_TRUE(indexes[1] == 10);
         EXPECT_TRUE(strings->at(0)->equalsTo(state, StringRef::createFromASCII("a_enum")));
         EXPECT_TRUE(strings->at(1)->equalsTo(state, StringRef::createFromASCII("-20")));
-        EXPECT_TRUE(symbols->at(0)->asSymbol()->description()->equalsTo(state, StringRef::createFromASCII("sym_enum")));
+        EXPECT_TRUE(symbols->at(0)->asSymbol()->descriptionString()->equalsTo(state, StringRef::createFromASCII("sym_enum")));
 
         return ValueRef::createUndefined();
     });
@@ -2318,7 +2318,7 @@ TEST(Serializer, Basic7)
     SerializerRef::serializeInto(v1, ostream);
     std::istringstream istream(ostream.str());
     ValueRef* v2 = SerializerRef::deserializeFrom(g_context.get(), istream);
-    EXPECT_FALSE(v2->asSymbol()->description().hasValue());
+    EXPECT_TRUE(v2->asSymbol()->descriptionValue()->isUndefined());
 }
 
 TEST(Serializer, Basic8)
@@ -2328,7 +2328,7 @@ TEST(Serializer, Basic8)
     SerializerRef::serializeInto(v1, ostream);
     std::istringstream istream(ostream.str());
     ValueRef* v2 = SerializerRef::deserializeFrom(g_context.get(), istream);
-    EXPECT_TRUE(v2->asSymbol()->description().value()->equalsWithASCIIString("asdfasdfasdf", 12));
+    EXPECT_TRUE(v2->asSymbol()->descriptionString()->equalsWithASCIIString("asdfasdfasdf", 12));
 }
 
 TEST(Serializer, Basic9)

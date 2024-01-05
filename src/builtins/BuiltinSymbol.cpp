@@ -33,14 +33,16 @@ static Value builtinSymbolConstructor(ExecutionState& state, Value thisValue, si
     if (newTarget.hasValue()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "illegal constructor Symbol");
     }
-    Optional<String*> descString = nullptr;
+
     // If description is undefined, let descString be undefined.
-    if (!(argc == 0 || argv[0].isUndefined())) {
+    // (NOTE) we represent `undefined` as nullptr here
+    String* descStr = nullptr;
+    if (argc > 0 && !argv[0].isUndefined()) {
         // Else, let descString be ? ToString(description).
-        descString = argv[0].toString(state);
+        descStr = argv[0].toString(state);
     }
-    // Return a new unique Symbol value whose [[Description]] value is descString.
-    return new Symbol(descString);
+    // Return a new Symbol whose [[Description]] is descString.
+    return new Symbol(descStr);
 }
 
 #define RESOLVE_THIS_BINDING_TO_SYMBOL(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                                         \
@@ -88,35 +90,15 @@ static Value builtinSymbolKeyFor(ExecutionState& state, Value thisValue, size_t 
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
     Symbol* sym = argv[0].asSymbol();
-    // For each element e of the GlobalSymbolRegistry List (see 19.4.2.1),
-    auto& list = state.context()->vmInstance()->globalSymbolRegistry();
-    for (size_t i = 0; i < list.size(); i++) {
-        // If SameValue(e.[[Symbol]], sym) is true, return e.[[Key]].
-        if (list[i].symbol == sym) {
-            return list[i].key.value();
-        }
-    }
-    // Assert: GlobalSymbolRegistry does not currently contain an entry for sym.
-    // Return undefined.
-    return Value();
+    return Symbol::keyForSymbol(state.context()->vmInstance(), sym);
 }
 
 static Value builtinSymbolDescriptionGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (thisValue.isSymbol()) {
-        if (!thisValue.asSymbol()->description().hasValue()) {
-            return Value();
-        }
-
-        return thisValue.asSymbol()->description().value();
-
+        return thisValue.asSymbol()->descriptionValue();
     } else if (thisValue.isObject() && thisValue.asObject()->isSymbolObject()) {
-        if (!thisValue.asObject()->asSymbolObject()->primitiveValue()->description().hasValue()) {
-            return Value();
-        }
-
-        return thisValue.asObject()->asSymbolObject()->primitiveValue()->description().value();
-
+        return thisValue.asObject()->asSymbolObject()->primitiveValue()->descriptionValue();
     } else {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "getter called on non-Symbol object");
     }

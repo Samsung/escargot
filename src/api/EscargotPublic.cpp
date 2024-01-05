@@ -784,12 +784,14 @@ SymbolRef* SymbolRef::fromGlobalSymbolRegistry(VMInstanceRef* vm, StringRef* des
     return toRef(Symbol::fromGlobalSymbolRegistry(toImpl(vm), toImpl(desc)));
 }
 
-OptionalRef<StringRef> SymbolRef::description()
+StringRef* SymbolRef::descriptionString()
 {
-    if (toImpl(this)->description().hasValue()) {
-        return toRef(toImpl(this)->description().value());
-    }
-    return nullptr;
+    return toRef(toImpl(this)->descriptionString());
+}
+
+ValueRef* SymbolRef::descriptionValue()
+{
+    return toRef(toImpl(this)->descriptionValue());
 }
 
 StringRef* SymbolRef::symbolDescriptiveString()
@@ -3823,7 +3825,7 @@ StringRef* StringObjectRef::primitiveValue()
 
 SymbolObjectRef* SymbolObjectRef::create(ExecutionStateRef* state)
 {
-    return toRef(new SymbolObject(*toImpl(state), new Symbol(String::emptyString)));
+    return toRef(new SymbolObject(*toImpl(state), new Symbol()));
 }
 
 void SymbolObjectRef::setPrimitiveValue(ExecutionStateRef* state, SymbolRef* value)

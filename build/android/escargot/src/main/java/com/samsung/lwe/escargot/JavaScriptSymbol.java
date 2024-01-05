@@ -9,7 +9,8 @@ public class JavaScriptSymbol extends JavaScriptValue {
     }
 
     native static public JavaScriptSymbol create(Optional<JavaScriptString> value);
-    native public Optional<JavaScriptString> description();
+    native public JavaScriptString descriptionString();
+    native public JavaScriptValue descriptionValue();
     native public JavaScriptString symbolDescriptiveString();
 
     /**

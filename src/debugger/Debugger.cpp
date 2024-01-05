@@ -602,11 +602,7 @@ static void sendProperty(DebuggerRemote* debugger, ExecutionState* state, Atomic
         } else {
             type = DebuggerRemote::ESCARGOT_VARIABLE_SYMBOL;
             Symbol* symbol = value.asSymbol();
-
-            valueStr = String::emptyString;
-            if (symbol->description().hasValue()) {
-                valueStr = symbol->description().value();
-            }
+            valueStr = symbol->descriptionString();
         }
 
         if (valueStr->length() >= ESCARGOT_DEBUGGER_MAX_VARIABLE_LENGTH) {

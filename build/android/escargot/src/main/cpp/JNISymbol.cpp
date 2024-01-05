@@ -56,10 +56,18 @@ Java_com_samsung_lwe_escargot_JavaScriptSymbol_fromGlobalSymbolRegistry(JNIEnv* 
 
 extern "C"
 JNIEXPORT jobject JNICALL
-Java_com_samsung_lwe_escargot_JavaScriptSymbol_description(JNIEnv* env, jobject thiz)
+Java_com_samsung_lwe_escargot_JavaScriptSymbol_descriptionString(JNIEnv* env, jobject thiz)
 {
-    auto desc = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asSymbol()->description();
-    return nativeOptionalValueIntoJavaOptionalValue(env, desc);
+    auto desc = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asSymbol()->descriptionString();
+    return createJavaObjectFromValue(env, desc);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_samsung_lwe_escargot_JavaScriptSymbol_descriptionValue(JNIEnv* env, jobject thiz)
+{
+    auto desc = unwrapValueRefFromValue(env, env->GetObjectClass(thiz), thiz)->asSymbol()->descriptionValue();
+    return createJavaObjectFromValue(env, desc);
 }
 
 extern "C"

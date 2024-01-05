@@ -24,8 +24,19 @@
 
 namespace Escargot {
 
+String* Symbol::descriptionString() const
+{
+    return m_description ? const_cast<String*>(m_description.value()) : String::emptyString;
+}
+
+Value Symbol::descriptionValue() const
+{
+    return m_description ? m_description.value() : Value();
+}
+
 Symbol* Symbol::fromGlobalSymbolRegistry(VMInstance* vm, String* stringKey)
 {
+    ASSERT(!!stringKey);
     // Let stringKey be ? ToString(key).
     // For each element e of the GlobalSymbolRegistry List,
     auto& list = vm->globalSymbolRegistry();
@@ -47,12 +58,26 @@ Symbol* Symbol::fromGlobalSymbolRegistry(VMInstance* vm, String* stringKey)
     return newSymbol;
 }
 
+Value Symbol::keyForSymbol(VMInstance* vm, Symbol* sym)
+{
+    ASSERT(!!sym);
+    auto& list = vm->globalSymbolRegistry();
+
+    for (size_t i = 0; i < list.size(); i++) {
+        // If SameValue(e.[[Symbol]], sym) is true, return e.[[Key]].
+        if (list[i].symbol == sym) {
+            ASSERT(!!list[i].key);
+            return list[i].key;
+        }
+    }
+    return Value();
+}
+
 String* Symbol::symbolDescriptiveString() const
 {
     StringBuilder sb;
     sb.appendString("Symbol(");
-    if (description().hasValue())
-        sb.appendString(description().value());
+    sb.appendString(descriptionString());
     sb.appendString(")");
     return sb.finalize();
 }

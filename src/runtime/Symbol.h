@@ -49,10 +49,8 @@ public:
     {
     }
 
-    Optional<String*> description() const
-    {
-        return m_description;
-    }
+    String* descriptionString() const;
+    Value descriptionValue() const;
 
     SymbolFinalizerData* finalizerData() const
     {
@@ -63,6 +61,7 @@ public:
     String* symbolDescriptiveString() const;
 
     static Symbol* fromGlobalSymbolRegistry(VMInstance* vm, String* stringKey);
+    static Value keyForSymbol(VMInstance* vm, Symbol* sym);
 
 private:
     SymbolFinalizerData* ensureFinalizerData();
@@ -71,7 +70,7 @@ private:
     void tryToShrinkFinalizers();
 
     size_t m_typeTag;
-    Optional<String*> m_description;
+    Optional<String*> m_description; // nullptr of desc represents `undefined`
     SymbolFinalizerData* m_finalizerData; // handle finalizer data of Symbol
 };
 } // namespace Escargot
