@@ -114,10 +114,9 @@ String* Value::toStringSlowCase(ExecutionState& ec) const // $7.1.12 ToString
         ASSERT_NOT_REACHED();
     } else if (isBigInt()) {
         return asBigInt()->toString();
-    } else {
-        return toPrimitive(ec, PreferString).toString(ec);
     }
-    return nullptr;
+
+    return toPrimitive(ec, PreferString).toString(ec);
 }
 
 Object* Value::toObjectSlowCase(ExecutionState& state) const // $7.1.13 ToObject

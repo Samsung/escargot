@@ -648,18 +648,18 @@ public class EscargotTest {
         Context context = Context.create(vmInstance);
 
         JavaScriptSymbol symbol = JavaScriptSymbol.create(Optional.empty());
-        assertFalse(symbol.description().isPresent());
+        assertTrue(symbol.descriptionValue().isUndefined());
         assertTrue(symbol.symbolDescriptiveString().toJavaString().equals("Symbol()"));
         printNegativeTC("symbol null test 1");
 
         symbol = JavaScriptSymbol.create((Optional<JavaScriptString>) null);
-        assertFalse(symbol.description().isPresent());
+        assertTrue(symbol.descriptionValue().isUndefined());
         assertTrue(symbol.symbolDescriptiveString().toJavaString().equals("Symbol()"));
         printNegativeTC("symbol null test 2");
 
         symbol = JavaScriptSymbol.create(Optional.of(JavaScriptString.create("foobar")));
-        assertTrue(symbol.description().isPresent());
-        assertTrue(symbol.description().get().toJavaString().equals("foobar"));
+        assertFalse(symbol.descriptionValue().isUndefined());
+        assertTrue(symbol.descriptionString().toJavaString().equals("foobar"));
         assertFalse(symbol.equalsTo(context, JavaScriptSymbol.create(Optional.of(JavaScriptString.create("foobar")))).get().booleanValue());
         printNegativeTC("symbol null test 4");
 

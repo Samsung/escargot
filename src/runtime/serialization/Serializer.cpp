@@ -46,8 +46,8 @@ std::unique_ptr<SerializedValue> Serializer::serialize(const Value& value)
     } else if (value.isBigInt()) {
         return std::unique_ptr<SerializedValue>(new SerializedBigIntValue(value.asBigInt()->toString()->toNonGCUTF8StringData()));
     } else if (value.isSymbol()) {
-        if (value.asSymbol()->description()) {
-            return std::unique_ptr<SerializedValue>(new SerializedSymbolValue(value.asSymbol()->description()->toNonGCUTF8StringData()));
+        if (value.asSymbol()->descriptionString()->length()) {
+            return std::unique_ptr<SerializedValue>(new SerializedSymbolValue(value.asSymbol()->descriptionString()->toNonGCUTF8StringData()));
         } else {
             return std::unique_ptr<SerializedValue>(new SerializedSymbolValue());
         }

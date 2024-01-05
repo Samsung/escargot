@@ -1162,7 +1162,8 @@ class ESCARGOT_EXPORT SymbolRef : public PointerValueRef {
 public:
     static SymbolRef* create(OptionalRef<StringRef> desc);
     static SymbolRef* fromGlobalSymbolRegistry(VMInstanceRef* context, StringRef* desc); // this is same with Symbol.for
-    OptionalRef<StringRef> description();
+    StringRef* descriptionString();
+    ValueRef* descriptionValue();
     StringRef* symbolDescriptiveString();
 };
 
