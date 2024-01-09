@@ -32,7 +32,7 @@ WeakSetObject::WeakSetObject(ExecutionState& state)
 WeakSetObject::WeakSetObject(ExecutionState& state, Object* proto)
     : DerivedObject(state, proto)
 {
-    addFinalizer([](Object* self, void* data) {
+    addFinalizer([](PointerValue* self, void* data) {
         auto ws = self->asWeakSetObject();
         for (size_t i = 0; i < ws->m_storage.size(); i++) {
             ws->m_storage[i]->removeFinalizer(WeakSetObject::finalizer, ws);
@@ -90,7 +90,7 @@ bool WeakSetObject::has(ExecutionState& state, Object* key)
     return false;
 }
 
-void WeakSetObject::finalizer(Object* self, void* data)
+void WeakSetObject::finalizer(PointerValue* self, void* data)
 {
     WeakSetObject* s = (WeakSetObject*)data;
     for (size_t i = 0; i < s->m_storage.size(); i++) {

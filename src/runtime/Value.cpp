@@ -47,6 +47,15 @@ bool Value::isConstructor() const
     return true;
 }
 
+bool Value::canBeHeldWeakly(VMInstance* vm) const
+{
+    if (isObject() || (isSymbol() && Symbol::keyForSymbol(vm, asSymbol()).isUndefined())) {
+        return true;
+    }
+
+    return false;
+}
+
 String* Value::toStringWithoutException(ExecutionState& ec) const
 {
     if (LIKELY(isString())) {

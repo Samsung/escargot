@@ -825,7 +825,7 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
         return;
     }
 
-    addFinalizer([](Object* obj, void* data) {
+    addFinalizer([](PointerValue* obj, void* data) {
         IntlDateTimeFormatObject* self = (IntlDateTimeFormatObject*)obj;
         udat_close(self->m_icuDateFormat);
     },

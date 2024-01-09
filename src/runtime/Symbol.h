@@ -28,8 +28,6 @@ namespace Escargot {
 
 class VMInstance;
 
-typedef void (*SymbolFinalizer)(Symbol* self, void* data);
-
 struct SymbolFinalizerData : public gc {
     SymbolFinalizerData()
         : m_removedFinalizerCount(0)
@@ -37,7 +35,7 @@ struct SymbolFinalizerData : public gc {
     }
 
     size_t m_removedFinalizerCount;
-    TightVector<std::pair<SymbolFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<SymbolFinalizer, void*>>> m_finalizer;
+    TightVector<std::pair<FinalizerFunction, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<FinalizerFunction, void*>>> m_finalizer;
 };
 
 class Symbol : public PointerValue {
@@ -63,10 +61,11 @@ public:
     static Symbol* fromGlobalSymbolRegistry(VMInstance* vm, String* stringKey);
     static Value keyForSymbol(VMInstance* vm, Symbol* sym);
 
+    virtual void addFinalizer(FinalizerFunction fn, void* data);
+    virtual bool removeFinalizer(FinalizerFunction fn, void* data);
+
 private:
     SymbolFinalizerData* ensureFinalizerData();
-    void addFinalizer(SymbolFinalizer fn, void* data);
-    bool removeFinalizer(SymbolFinalizer fn, void* data);
     void tryToShrinkFinalizers();
 
     size_t m_typeTag;

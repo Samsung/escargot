@@ -407,7 +407,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
         internalSlot->setExtraData(ucollator);
 
-        internalSlot->addFinalizer([](Object* obj, void* data) {
+        internalSlot->addFinalizer([](PointerValue* obj, void* data) {
             Object* self = (Object*)obj;
             ucol_close((UCollator*)self->extraData());
         },
