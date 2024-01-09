@@ -6434,13 +6434,6 @@
     <test id="built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer"><reason>TODO</reason></test>
     <test id="built-ins/WeakRef/prototype/deref/return-symbol-target"><reason>TODO</reason></test>
     <test id="built-ins/WeakRef/returns-new-object-from-constructor-with-symbol-target"><reason>TODO</reason></test>
-    <test id="built-ins/WeakSet/iterable-with-symbol-values"><reason>TODO</reason></test>
-    <test id="built-ins/WeakSet/prototype/add/adds-symbol-element"><reason>TODO</reason></test>
-    <test id="built-ins/WeakSet/prototype/add/returns-this-symbol"><reason>TODO</reason></test>
-    <test id="built-ins/WeakSet/prototype/add/returns-this-when-ignoring-duplicate-symbol"><reason>TODO</reason></test>
-    <test id="built-ins/WeakSet/prototype/delete/delete-symbol-entry"><reason>TODO</reason></test>
-    <test id="built-ins/WeakSet/prototype/has/returns-false-when-symbol-value-not-present"><reason>TODO</reason></test>
-    <test id="built-ins/WeakSet/prototype/has/returns-true-when-symbol-value-present"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-func-throws-sync"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-rejects-non-callable"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-return-not-thenable"><reason>TODO</reason></test>

@@ -4265,19 +4265,28 @@ WeakSetObjectRef* WeakSetObjectRef::create(ExecutionStateRef* state)
     return toRef(new WeakSetObject(*toImpl(state)));
 }
 
-void WeakSetObjectRef::add(ExecutionStateRef* state, ObjectRef* key)
+void WeakSetObjectRef::add(ExecutionStateRef* state, ValueRef* key)
 {
-    toImpl(this)->add(*toImpl(state), toImpl(key));
+    if (!toImpl(key).canBeHeldWeakly(toImpl(state)->context()->vmInstance())) {
+        return;
+    }
+    toImpl(this)->add(*toImpl(state), toImpl(key).asPointerValue());
 }
 
-bool WeakSetObjectRef::deleteOperation(ExecutionStateRef* state, ObjectRef* key)
+bool WeakSetObjectRef::deleteOperation(ExecutionStateRef* state, ValueRef* key)
 {
-    return toImpl(this)->deleteOperation(*toImpl(state), toImpl(key));
+    if (!toImpl(key).canBeHeldWeakly(toImpl(state)->context()->vmInstance())) {
+        return false;
+    }
+    return toImpl(this)->deleteOperation(*toImpl(state), toImpl(key).asPointerValue());
 }
 
-bool WeakSetObjectRef::has(ExecutionStateRef* state, ObjectRef* key)
+bool WeakSetObjectRef::has(ExecutionStateRef* state, ValueRef* key)
 {
-    return toImpl(this)->has(*toImpl(state), toImpl(key));
+    if (!toImpl(key).canBeHeldWeakly(toImpl(state)->context()->vmInstance())) {
+        return false;
+    }
+    return toImpl(this)->has(*toImpl(state), toImpl(key).asPointerValue());
 }
 
 MapObjectRef* MapObjectRef::create(ExecutionStateRef* state)
