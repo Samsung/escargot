@@ -29,15 +29,15 @@ class WeakRefObject : public DerivedObject {
     friend int getValidValueInWeakRefObject(void* ptr, GC_mark_custom_result* arr);
 #endif
 public:
-    explicit WeakRefObject(ExecutionState& state, Object* target);
-    explicit WeakRefObject(ExecutionState& state, Object* proto, Object* target);
+    explicit WeakRefObject(ExecutionState& state, PointerValue* target);
+    explicit WeakRefObject(ExecutionState& state, Object* proto, PointerValue* target);
 
     virtual bool isWeakRefObject() const
     {
         return true;
     }
 
-    Optional<Object*> target()
+    Optional<PointerValue*> target()
     {
         return m_target;
     }
@@ -57,7 +57,7 @@ public:
 
 private:
     static void finalizer(PointerValue* self, void* data);
-    Optional<Object*> m_target;
+    Optional<PointerValue*> m_target;
 };
 } // namespace Escargot
 

@@ -24,16 +24,17 @@
 
 namespace Escargot {
 
-WeakRefObject::WeakRefObject(ExecutionState& state, Object* target)
+WeakRefObject::WeakRefObject(ExecutionState& state, PointerValue* target)
     : WeakRefObject(state, state.context()->globalObject()->weakRefPrototype(), target)
 {
 }
 
-WeakRefObject::WeakRefObject(ExecutionState& state, Object* proto, Object* target)
+WeakRefObject::WeakRefObject(ExecutionState& state, Object* proto, PointerValue* target)
     : DerivedObject(state, proto)
     , m_target(target)
 {
     ASSERT(m_target);
+    ASSERT(m_target->isObject() || m_target->isSymbol());
     m_target->addFinalizer(WeakRefObject::finalizer, this);
     addFinalizer([](PointerValue* self, void* data) {
         WeakRefObject* s = (WeakRefObject*)self;

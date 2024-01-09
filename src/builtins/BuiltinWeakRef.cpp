@@ -32,7 +32,7 @@ static Value builtinWeakRefConstructor(ExecutionState& state, Value thisValue, s
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
         return Value();
     }
-    if (argc == 0 || !argv[0].isObject()) {
+    if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "target is not object");
     }
 
@@ -40,7 +40,7 @@ static Value builtinWeakRefConstructor(ExecutionState& state, Value thisValue, s
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->weakRefPrototype();
     });
-    WeakRefObject* weakRef = new WeakRefObject(state, proto, argv[0].asObject());
+    WeakRefObject* weakRef = new WeakRefObject(state, proto, argv[0].asPointerValue());
 
     return weakRef;
 }

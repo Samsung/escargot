@@ -1940,10 +1940,10 @@ public:
 
 class ESCARGOT_EXPORT WeakRefObjectRef : public ObjectRef {
 public:
-    static WeakRefObjectRef* create(ExecutionStateRef* state, ObjectRef* target);
+    static OptionalRef<WeakRefObjectRef> create(ExecutionStateRef* state, ValueRef* target);
     // returns true if target is alive
     bool deleteOperation(ExecutionStateRef* state);
-    OptionalRef<ObjectRef> deref();
+    OptionalRef<PointerValueRef> deref();
 };
 
 class ESCARGOT_EXPORT FinalizationRegistryObjectRef : public ObjectRef {
