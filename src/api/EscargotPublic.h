@@ -1910,7 +1910,7 @@ public:
 class ESCARGOT_EXPORT WeakSetObjectRef : public ObjectRef {
 public:
     static WeakSetObjectRef* create(ExecutionStateRef* state);
-    void add(ExecutionStateRef* state, ValueRef* key);
+    bool add(ExecutionStateRef* state, ValueRef* key);
     bool deleteOperation(ExecutionStateRef* state, ValueRef* key);
     bool has(ExecutionStateRef* state, ValueRef* key);
 };

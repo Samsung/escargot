@@ -38,7 +38,7 @@ static Value builtinFinalizationRegistryConstructor(ExecutionState& state, Value
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
         return Value();
     }
-    if (argc == 0 || !argv[0].isCallable()) {
+    if (!argv[0].isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "cleanup Callback is not callable");
     }
 
@@ -54,32 +54,32 @@ static Value builtinfinalizationRegistryRegister(ExecutionState& state, Value th
 {
     RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, stringRegister);
 
-    if (argc == 0 || !argv[0].isObject()) {
+    if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "target is not object");
     }
     if (argv[0] == argv[1]) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "target and heldValue is the same");
     }
 
-    Optional<Object*> unregisterToken;
-    if (argc >= 3) {
-        if (argv[2].isObject()) {
-            unregisterToken = argv[2].asObject();
-        } else if (!argv[2].isUndefined()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "unregisterToken is not undefined");
-        }
+    Optional<PointerValue*> unregisterToken;
+    Value tokenValue = argc >= 3 ? argv[2] : Value();
+    if (tokenValue.canBeHeldWeakly(state.context()->vmInstance())) {
+        unregisterToken = argv[2].asPointerValue();
+    } else if (!tokenValue.isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "unregisterToken is not undefined");
     }
-    finalRegistry->setCell(argv[0].asObject(), argv[1], unregisterToken);
+
+    finalRegistry->setCell(argv[0].asPointerValue(), argv[1], unregisterToken);
     return Value();
 }
 
 static Value builtinfinalizationRegistryUnregister(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_FINALIZATIONREGISTRY(finalRegistry, unregister);
-    if (argc == 0 || !argv[0].isObject()) {
+    if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "unregisterToken is not object");
     }
-    return Value(finalRegistry->deleteCell(argv[0].asObject()));
+    return Value(finalRegistry->deleteCell(argv[0].asPointerValue()));
 }
 
 static Value builtinfinalizationRegistryCleanupSome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

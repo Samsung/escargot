@@ -72,9 +72,10 @@ void* FinalizationRegistryObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-void FinalizationRegistryObject::setCell(Object* weakRefTarget, const Value& heldValue, Optional<Object*> unregisterToken)
+void FinalizationRegistryObject::setCell(PointerValue* weakRefTarget, const Value& heldValue, Optional<PointerValue*> unregisterToken)
 {
     ASSERT(!!weakRefTarget);
+    ASSERT(weakRefTarget->isObject() || weakRefTarget->isSymbol());
     FinalizationRegistryObjectItem* newCell = nullptr;
 
     if (m_deletedCellCount) {
@@ -99,9 +100,10 @@ void FinalizationRegistryObject::setCell(Object* weakRefTarget, const Value& hel
     weakRefTarget->addFinalizer(finalizer, newCell);
 }
 
-bool FinalizationRegistryObject::deleteCell(Object* unregisterToken)
+bool FinalizationRegistryObject::deleteCell(PointerValue* unregisterToken)
 {
     ASSERT(!!unregisterToken);
+    ASSERT(unregisterToken->isObject() || unregisterToken->isSymbol());
     bool removed = false;
     for (size_t i = 0; i < m_cells.size(); i++) {
         if (m_cells[i]->unregisterToken.hasValue() && m_cells[i]->unregisterToken.value() == unregisterToken) {

@@ -32,10 +32,10 @@ public:
 #if !defined(NDEBUG)
         friend int getValidValueInFinalizationRegistryObjectItem(void* ptr, GC_mark_custom_result* arr);
 #endif
-        Object* weakRefTarget;
+        PointerValue* weakRefTarget;
         EncodedValue heldValue;
         FinalizationRegistryObject* source;
-        Optional<Object*> unregisterToken;
+        Optional<PointerValue*> unregisterToken;
 
         void reset()
         {
@@ -59,8 +59,8 @@ public:
         return true;
     }
 
-    void setCell(Object* weakRefTarget, const Value& heldValue, Optional<Object*> unregisterToken);
-    bool deleteCell(Object* unregisterToken);
+    void setCell(PointerValue* weakRefTarget, const Value& heldValue, Optional<PointerValue*> unregisterToken);
+    bool deleteCell(PointerValue* unregisterToken);
     bool deleteCellOnly(FinalizationRegistryObjectItem* item);
     void cleanupSome(ExecutionState& state, Optional<Object*> callback);
 

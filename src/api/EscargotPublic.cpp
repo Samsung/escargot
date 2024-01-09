@@ -4265,12 +4265,13 @@ WeakSetObjectRef* WeakSetObjectRef::create(ExecutionStateRef* state)
     return toRef(new WeakSetObject(*toImpl(state)));
 }
 
-void WeakSetObjectRef::add(ExecutionStateRef* state, ValueRef* key)
+bool WeakSetObjectRef::add(ExecutionStateRef* state, ValueRef* key)
 {
     if (!toImpl(key).canBeHeldWeakly(toImpl(state)->context()->vmInstance())) {
-        return;
+        return false;
     }
     toImpl(this)->add(*toImpl(state), toImpl(key).asPointerValue());
+    return true;
 }
 
 bool WeakSetObjectRef::deleteOperation(ExecutionStateRef* state, ValueRef* key)
