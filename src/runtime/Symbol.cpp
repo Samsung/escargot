@@ -120,7 +120,7 @@ SymbolFinalizerData* Symbol::ensureFinalizerData()
     return m_finalizerData;
 }
 
-void Symbol::addFinalizer(SymbolFinalizer fn, void* data)
+void Symbol::addFinalizer(FinalizerFunction fn, void* data)
 {
     auto finData = ensureFinalizerData();
     if (UNLIKELY(finData->m_removedFinalizerCount)) {
@@ -139,7 +139,7 @@ void Symbol::addFinalizer(SymbolFinalizer fn, void* data)
     finData->m_finalizer.pushBack(std::make_pair(fn, data));
 }
 
-bool Symbol::removeFinalizer(SymbolFinalizer fn, void* data)
+bool Symbol::removeFinalizer(FinalizerFunction fn, void* data)
 {
     auto finData = finalizerData();
     for (size_t i = 0; i < finData->m_finalizer.size(); i++) {
@@ -163,7 +163,7 @@ void Symbol::tryToShrinkFinalizers()
     if (finData->m_removedFinalizerCount > ((oldSize / 2) + 1)) {
         ASSERT(finData->m_removedFinalizerCount <= oldSize);
         size_t newSize = oldSize - finData->m_removedFinalizerCount;
-        TightVector<std::pair<SymbolFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<SymbolFinalizer, void*>>> newFinalizer;
+        TightVector<std::pair<FinalizerFunction, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<FinalizerFunction, void*>>> newFinalizer;
         newFinalizer.resizeWithUninitializedValues(newSize);
 
         size_t j = 0;

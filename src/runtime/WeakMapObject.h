@@ -27,7 +27,7 @@ namespace Escargot {
 class WeakMapObject : public DerivedObject {
 public:
     struct WeakMapObjectDataItem : public gc {
-        Object* key;
+        PointerValue* key; // should be Object or Symbol
         EncodedValue data;
 
         void* operator new(size_t size);
@@ -44,16 +44,16 @@ public:
         return true;
     }
 
-    bool deleteOperation(ExecutionState& state, Object* key);
-    Value get(ExecutionState& state, Object* key);
-    bool has(ExecutionState& state, Object* key);
-    void set(ExecutionState& state, Object* key, const Value& value);
+    bool deleteOperation(ExecutionState& state, PointerValue* key);
+    Value get(ExecutionState& state, PointerValue* key);
+    bool has(ExecutionState& state, PointerValue* key);
+    void set(ExecutionState& state, PointerValue* key, const Value& value);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
 private:
-    static void finalizer(Object* self, void* data);
+    static void finalizer(PointerValue* self, void* data);
 
     WeakMapObjectData m_storage;
 };

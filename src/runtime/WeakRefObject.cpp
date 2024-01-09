@@ -35,7 +35,7 @@ WeakRefObject::WeakRefObject(ExecutionState& state, Object* proto, Object* targe
 {
     ASSERT(m_target);
     m_target->addFinalizer(WeakRefObject::finalizer, this);
-    addFinalizer([](Object* self, void* data) {
+    addFinalizer([](PointerValue* self, void* data) {
         WeakRefObject* s = (WeakRefObject*)self;
         if (s->m_target) {
             s->m_target->removeFinalizer(WeakRefObject::finalizer, self);
@@ -45,7 +45,7 @@ WeakRefObject::WeakRefObject(ExecutionState& state, Object* proto, Object* targe
                  nullptr);
 }
 
-void WeakRefObject::finalizer(Object* self, void* data)
+void WeakRefObject::finalizer(PointerValue* self, void* data)
 {
     WeakRefObject* s = (WeakRefObject*)data;
     ASSERT(s->m_target);

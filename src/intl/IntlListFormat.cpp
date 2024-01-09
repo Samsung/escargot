@@ -117,7 +117,7 @@ IntlListFormatObject::IntlListFormatObject(ExecutionState& state, Object* proto,
         return;
     }
 
-    addFinalizer([](Object* obj, void* data) {
+    addFinalizer([](PointerValue* obj, void* data) {
         IntlListFormatObject* self = (IntlListFormatObject*)obj;
         ulistfmt_close(self->m_icuListFormatter);
     },

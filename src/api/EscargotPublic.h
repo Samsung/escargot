@@ -1932,10 +1932,10 @@ public:
 class ESCARGOT_EXPORT WeakMapObjectRef : public ObjectRef {
 public:
     static WeakMapObjectRef* create(ExecutionStateRef* state);
-    bool deleteOperation(ExecutionStateRef* state, ObjectRef* key);
-    ValueRef* get(ExecutionStateRef* state, ObjectRef* key);
-    bool has(ExecutionStateRef* state, ObjectRef* key);
-    void set(ExecutionStateRef* state, ObjectRef* key, ValueRef* value);
+    bool deleteOperation(ExecutionStateRef* state, ValueRef* key);
+    ValueRef* get(ExecutionStateRef* state, ValueRef* key);
+    bool has(ExecutionStateRef* state, ValueRef* key);
+    void set(ExecutionStateRef* state, ValueRef* key, ValueRef* value);
 };
 
 class ESCARGOT_EXPORT WeakRefObjectRef : public ObjectRef {

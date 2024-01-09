@@ -2177,7 +2177,7 @@ bool Object::isRegExp(ExecutionState& state)
     return isRegExpObject();
 }
 
-void Object::addFinalizer(ObjectFinalizer fn, void* data)
+void Object::addFinalizer(FinalizerFunction fn, void* data)
 {
     auto r = ensureExtendedExtraData();
     if (!rareData()->m_isFinalizerRegistered) {
@@ -2228,7 +2228,7 @@ void Object::addFinalizer(ObjectFinalizer fn, void* data)
     r->m_finalizer.pushBack(std::make_pair(fn, data));
 }
 
-bool Object::removeFinalizer(ObjectFinalizer fn, void* data)
+bool Object::removeFinalizer(FinalizerFunction fn, void* data)
 {
     auto r = extendedExtraData();
     for (size_t i = 0; i < r->m_finalizer.size(); i++) {
@@ -2252,7 +2252,7 @@ void Object::tryToShrinkFinalizers()
     if (r->m_removedFinalizerCount > ((oldSize / 2) + 1)) {
         ASSERT(r->m_removedFinalizerCount <= oldSize);
         size_t newSize = oldSize - r->m_removedFinalizerCount;
-        TightVector<std::pair<ObjectFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<ObjectFinalizer, void*>>> newFinalizer;
+        TightVector<std::pair<FinalizerFunction, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<FinalizerFunction, void*>>> newFinalizer;
         newFinalizer.resizeWithUninitializedValues(newSize);
 
         size_t j = 0;

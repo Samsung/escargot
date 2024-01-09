@@ -43,7 +43,7 @@ FinalizationRegistryObject::FinalizationRegistryObject(ExecutionState& state, Ob
     , m_realm(realm)
     , m_deletedCellCount(0)
 {
-    addFinalizer([](Object* self, void* data) {
+    addFinalizer([](PointerValue* self, void* data) {
         FinalizationRegistryObject* s = self->asFinalizationRegistryObject();
         for (size_t i = 0; i < s->m_cells.size(); i++) {
             if (s->m_cells[i]->weakRefTarget) {
@@ -159,7 +159,7 @@ void* FinalizationRegistryObject::FinalizationRegistryObjectItem::operator new(s
 #endif
 }
 
-void FinalizationRegistryObject::finalizer(Object* self, void* data)
+void FinalizationRegistryObject::finalizer(PointerValue* self, void* data)
 {
     UNUSED_PARAMETER(self);
     FinalizationRegistryObjectItem* item = (FinalizationRegistryObjectItem*)data;

@@ -6432,15 +6432,6 @@
     <test id="built-ins/TypedArrayConstructors/ctors/no-species"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/tonumber-value-detached-buffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer"><reason>TODO</reason></test>
-    <test id="built-ins/WeakMap/iterable-with-symbol-keys"><reason>TODO</reason></test>
-    <test id="built-ins/WeakMap/prototype/delete/delete-entry-with-symbol-key"><reason>TODO</reason></test>
-    <test id="built-ins/WeakMap/prototype/delete/delete-entry-with-symbol-key-initial-iterable"><reason>TODO</reason></test>
-    <test id="built-ins/WeakMap/prototype/delete/returns-false-when-symbol-key-not-present"><reason>TODO</reason></test>
-    <test id="built-ins/WeakMap/prototype/get/returns-undefined-with-symbol-key"><reason>TODO</reason></test>
-    <test id="built-ins/WeakMap/prototype/get/returns-value-with-symbol-key"><reason>TODO</reason></test>
-    <test id="built-ins/WeakMap/prototype/has/returns-false-when-symbol-key-not-present"><reason>TODO</reason></test>
-    <test id="built-ins/WeakMap/prototype/has/returns-true-when-symbol-key-present"><reason>TODO</reason></test>
-    <test id="built-ins/WeakMap/prototype/set/adds-symbol-element"><reason>TODO</reason></test>
     <test id="built-ins/WeakRef/prototype/deref/return-symbol-target"><reason>TODO</reason></test>
     <test id="built-ins/WeakRef/returns-new-object-from-constructor-with-symbol-target"><reason>TODO</reason></test>
     <test id="built-ins/WeakSet/iterable-with-symbol-values"><reason>TODO</reason></test>

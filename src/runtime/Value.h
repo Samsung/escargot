@@ -36,6 +36,7 @@ class String;
 class BigInt;
 class FunctionObject;
 class ExtendedNativeFunctionObject;
+class VMInstance;
 
 union ValueDescriptor {
     int64_t asInt64;
@@ -227,6 +228,7 @@ public:
     bool isObject() const;
     bool isCallable() const;
     bool isConstructor() const;
+    bool canBeHeldWeakly(VMInstance* vm) const;
 
     enum PrimitiveTypeHint { PreferString,
                              PreferNumber,

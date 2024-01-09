@@ -85,7 +85,7 @@ protected:
         m_observerItems.clear();
     }
 
-    static void objectFinalizer(Object* obj, void* data)
+    static void objectFinalizer(PointerValue* obj, void* data)
     {
         BufferAddressObserverManager<BufferOwnerType>* self = reinterpret_cast<BufferAddressObserverManager<BufferOwnerType>*>(data);
         for (size_t i = 0; i < self->m_observerItems.size(); i++) {

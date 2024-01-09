@@ -160,7 +160,7 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize RelativeTimeFormat");
     }
 
-    addFinalizer([](Object* obj, void* data) {
+    addFinalizer([](PointerValue* obj, void* data) {
         IntlRelativeTimeFormatObject* self = (IntlRelativeTimeFormatObject*)obj;
         ureldatefmt_close(self->m_icuRelativeDateTimeFormatter);
     },

@@ -85,41 +85,41 @@ static Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, s
 static Value builtinWeakMapDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, stringDelete);
-    if (!argv[0].isObject()) {
+    if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
         return Value(false);
     }
 
-    return Value(M->deleteOperation(state, argv[0].asObject()));
+    return Value(M->deleteOperation(state, argv[0].asPointerValue()));
 }
 
 static Value builtinWeakMapGet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, get);
-    if (!argv[0].isObject()) {
+    if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
         return Value();
     }
 
-    return M->get(state, argv[0].asObject());
+    return M->get(state, argv[0].asPointerValue());
 }
 
 static Value builtinWeakMapHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, has);
-    if (!argv[0].isObject()) {
+    if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
         return Value(false);
     }
 
-    return Value(M->has(state, argv[0].asObject()));
+    return Value(M->has(state, argv[0].asPointerValue()));
 }
 
 static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, set);
-    if (!argv[0].isObject()) {
+    if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid value used as weak map key");
     }
 
-    M->set(state, argv[0].asObject(), argv[1]);
+    M->set(state, argv[0].asPointerValue(), argv[1]);
     return M;
 }
 

@@ -127,7 +127,7 @@ IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* pr
         return;
     }
 
-    addFinalizer([](Object* obj, void* data) {
+    addFinalizer([](PointerValue* obj, void* data) {
         IntlDisplayNamesObject* self = (IntlDisplayNamesObject*)obj;
         uldn_close(self->m_icuLocaleDisplayNames);
     },

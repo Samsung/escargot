@@ -32,7 +32,7 @@ WeakMapObject::WeakMapObject(ExecutionState& state)
 WeakMapObject::WeakMapObject(ExecutionState& state, Object* proto)
     : DerivedObject(state, proto)
 {
-    addFinalizer([](Object* self, void* data) {
+    addFinalizer([](PointerValue* self, void* data) {
         auto wm = self->asWeakMapObject();
         for (size_t i = 0; i < wm->m_storage.size(); i++) {
             wm->m_storage[i]->key->removeFinalizer(WeakMapObject::finalizer, wm);
@@ -73,8 +73,9 @@ void* WeakMapObject::WeakMapObjectDataItem::operator new(size_t size)
 #endif
 }
 
-bool WeakMapObject::deleteOperation(ExecutionState& state, Object* key)
+bool WeakMapObject::deleteOperation(ExecutionState& state, PointerValue* key)
 {
+    ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
         auto existingKey = m_storage[i]->key;
         if (existingKey == key) {
@@ -86,8 +87,9 @@ bool WeakMapObject::deleteOperation(ExecutionState& state, Object* key)
     return false;
 }
 
-Value WeakMapObject::get(ExecutionState& state, Object* key)
+Value WeakMapObject::get(ExecutionState& state, PointerValue* key)
 {
+    ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
         auto existingKey = m_storage[i]->key;
         if (existingKey == key) {
@@ -97,8 +99,9 @@ Value WeakMapObject::get(ExecutionState& state, Object* key)
     return Value();
 }
 
-bool WeakMapObject::has(ExecutionState& state, Object* key)
+bool WeakMapObject::has(ExecutionState& state, PointerValue* key)
 {
+    ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
         auto existingKey = m_storage[i]->key;
         if (existingKey == key) {
@@ -109,8 +112,9 @@ bool WeakMapObject::has(ExecutionState& state, Object* key)
 }
 
 
-void WeakMapObject::set(ExecutionState& state, Object* key, const Value& value)
+void WeakMapObject::set(ExecutionState& state, PointerValue* key, const Value& value)
 {
+    ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
         auto existingKey = m_storage[i]->key;
         if (existingKey == key) {
@@ -127,7 +131,7 @@ void WeakMapObject::set(ExecutionState& state, Object* key, const Value& value)
     key->addFinalizer(WeakMapObject::finalizer, this);
 }
 
-void WeakMapObject::finalizer(Object* self, void* data)
+void WeakMapObject::finalizer(PointerValue* self, void* data)
 {
     WeakMapObject* s = (WeakMapObject*)data;
     for (size_t i = 0; i < s->m_storage.size(); i++) {

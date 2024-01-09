@@ -172,7 +172,7 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
     m_locale = foundLocale;
     m_type = t;
 
-    addFinalizer([](Object* obj, void* data) {
+    addFinalizer([](PointerValue* obj, void* data) {
         IntlPluralRulesObject* self = (IntlPluralRulesObject*)obj;
         uplrules_close(self->m_icuPluralRules);
         unum_close(self->m_icuNumberFormat);

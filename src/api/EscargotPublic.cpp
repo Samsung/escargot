@@ -363,7 +363,7 @@ void Memory::gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback)
     }
 }
 
-static void ObjectRefFinalizer(Object* self, void* fn)
+static void ObjectRefFinalizer(PointerValue* self, void* fn)
 {
     Memory::GCAllocatedMemoryFinalizer cb = (Memory::GCAllocatedMemoryFinalizer)fn;
     cb(self);
@@ -4335,24 +4335,36 @@ WeakMapObjectRef* WeakMapObjectRef::create(ExecutionStateRef* state)
     return toRef(new WeakMapObject(*toImpl(state)));
 }
 
-bool WeakMapObjectRef::deleteOperation(ExecutionStateRef* state, ObjectRef* key)
+bool WeakMapObjectRef::deleteOperation(ExecutionStateRef* state, ValueRef* key)
 {
-    return toImpl(this)->deleteOperation(*toImpl(state), toImpl(key));
+    if (!toImpl(key).canBeHeldWeakly(toImpl(state)->context()->vmInstance())) {
+        return false;
+    }
+    return toImpl(this)->deleteOperation(*toImpl(state), toImpl(key).asPointerValue());
 }
 
-ValueRef* WeakMapObjectRef::get(ExecutionStateRef* state, ObjectRef* key)
+ValueRef* WeakMapObjectRef::get(ExecutionStateRef* state, ValueRef* key)
 {
-    return toRef(toImpl(this)->get(*toImpl(state), toImpl(key)));
+    if (!toImpl(key).canBeHeldWeakly(toImpl(state)->context()->vmInstance())) {
+        return ValueRef::createUndefined();
+    }
+    return toRef(toImpl(this)->get(*toImpl(state), toImpl(key).asPointerValue()));
 }
 
-void WeakMapObjectRef::set(ExecutionStateRef* state, ObjectRef* key, ValueRef* value)
+void WeakMapObjectRef::set(ExecutionStateRef* state, ValueRef* key, ValueRef* value)
 {
-    toImpl(this)->set(*toImpl(state), toImpl(key), toImpl(value));
+    if (!toImpl(key).canBeHeldWeakly(toImpl(state)->context()->vmInstance())) {
+        return;
+    }
+    toImpl(this)->set(*toImpl(state), toImpl(key).asPointerValue(), toImpl(value));
 }
 
-bool WeakMapObjectRef::has(ExecutionStateRef* state, ObjectRef* key)
+bool WeakMapObjectRef::has(ExecutionStateRef* state, ValueRef* key)
 {
-    return toImpl(this)->has(*toImpl(state), toImpl(key));
+    if (!toImpl(key).canBeHeldWeakly(toImpl(state)->context()->vmInstance())) {
+        return false;
+    }
+    return toImpl(this)->has(*toImpl(state), toImpl(key).asPointerValue());
 }
 
 WeakRefObjectRef* WeakRefObjectRef::create(ExecutionStateRef* state, ObjectRef* target)

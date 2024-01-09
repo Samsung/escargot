@@ -70,6 +70,7 @@ class GeneratorObject;
 class AsyncGeneratorObject;
 class AsyncFromSyncIteratorObject;
 class GlobalObjectProxyObject;
+class PointerValue;
 #if defined(ENABLE_TEMPORAL)
 class TemporalObject;
 class TemporalPlainDateObject;
@@ -148,6 +149,8 @@ class ExportedFunctionObject;
 // but, it uses more memory for String, Symbol, BigInt type
 // POINTER_VALUE_STRING_TAG_IN_DATA is not essential thing for implementing figure type(we can use isObject, isString)
 // so, we can remove each m_typeTag value in very small device future
+
+typedef void (*FinalizerFunction)(PointerValue* self, void* data);
 
 class PointerValue : public gc {
     friend class Object;
@@ -615,6 +618,16 @@ public:
     virtual bool isConstructor() const
     {
         return false;
+    }
+
+    virtual void addFinalizer(FinalizerFunction fn, void* data)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+
+    virtual bool removeFinalizer(FinalizerFunction fn, void* data)
+    {
+        RELEASE_ASSERT_NOT_REACHED();
     }
 
     String* asString()

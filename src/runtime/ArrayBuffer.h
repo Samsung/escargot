@@ -114,7 +114,7 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    static void arrayBufferFinalizer(Object* obj, void* data)
+    static void arrayBufferFinalizer(PointerValue* obj, void* data)
     {
         ArrayBuffer* self = reinterpret_cast<ArrayBuffer*>(obj);
         self->dispose();

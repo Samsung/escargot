@@ -71,7 +71,7 @@ WASMModuleObject::WASMModuleObject(ExecutionState& state, Object* proto, wasm_mo
 {
     ASSERT(!!m_module);
 
-    addFinalizer([](Object* obj, void* data) {
+    addFinalizer([](PointerValue* obj, void* data) {
         WASMModuleObject* self = (WASMModuleObject*)obj;
         wasm_module_delete(self->module());
     },
@@ -103,7 +103,7 @@ WASMInstanceObject::WASMInstanceObject(ExecutionState& state, Object* proto, was
 {
     ASSERT(!!m_instance && !!m_exports);
 
-    addFinalizer([](Object* obj, void* data) {
+    addFinalizer([](PointerValue* obj, void* data) {
         WASMInstanceObject* self = (WASMInstanceObject*)obj;
         wasm_instance_delete(self->instance());
     },
@@ -136,7 +136,7 @@ WASMMemoryObject::WASMMemoryObject(ExecutionState& state, Object* proto, wasm_me
 {
     ASSERT(!!m_memory && !!m_buffer);
 
-    addFinalizer([](Object* obj, void* data) {
+    addFinalizer([](PointerValue* obj, void* data) {
         WASMMemoryObject* self = (WASMMemoryObject*)obj;
         wasm_memory_delete(self->memory());
         self->buffer()->detachArrayBuffer();
@@ -220,7 +220,7 @@ WASMTableObject::WASMTableObject(ExecutionState& state, Object* proto, wasm_tabl
 {
     ASSERT(!!m_table);
 
-    addFinalizer([](Object* obj, void* data) {
+    addFinalizer([](PointerValue* obj, void* data) {
         WASMTableObject* self = (WASMTableObject*)obj;
         wasm_table_delete(self->table());
     },
@@ -278,7 +278,7 @@ WASMGlobalObject::WASMGlobalObject(ExecutionState& state, Object* proto, wasm_gl
 {
     ASSERT(!!m_global);
 
-    addFinalizer([](Object* obj, void* data) {
+    addFinalizer([](PointerValue* obj, void* data) {
         WASMGlobalObject* self = (WASMGlobalObject*)obj;
         wasm_global_delete(self->global());
     },

@@ -42,7 +42,7 @@ ExportedFunctionObject::ExportedFunctionObject(ExecutionState& state, NativeFunc
 {
     ASSERT(!!m_function);
 
-    addFinalizer([](Object* obj, void* data) {
+    addFinalizer([](PointerValue* obj, void* data) {
         ExportedFunctionObject* self = (ExportedFunctionObject*)obj;
         wasm_func_delete(self->function());
     },

@@ -41,7 +41,6 @@ class ExecutionPauser;
 #define OBJECT_PROPERTY_NAME_UINT32_VIAS 2
 #define MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME (std::numeric_limits<uint32_t>::max() >> OBJECT_PROPERTY_NAME_UINT32_VIAS)
 
-typedef void (*ObjectFinalizer)(Object* self, void* data);
 typedef TightVectorWithNoSizeUseGCRealloc<EncodedValue> ObjectPrivateFieldValueVector;
 
 struct ObjectPrivateMemberDataChain : public gc {
@@ -60,7 +59,7 @@ struct ObjectPrivateMemberDataChain : public gc {
 struct ObjectExtendedExtraData : public gc {
     void* m_extraData;
     size_t m_removedFinalizerCount;
-    TightVector<std::pair<ObjectFinalizer, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<ObjectFinalizer, void*>>> m_finalizer;
+    TightVector<std::pair<FinalizerFunction, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<FinalizerFunction, void*>>> m_finalizer;
     Optional<ObjectPrivateMemberDataChain*> m_privateMemberChain;
     Optional<FunctionObject*> m_meaningfulConstructor;
     ObjectExtendedExtraData(void* e)
@@ -1125,8 +1124,8 @@ public:
         m_values[idx] = newValue;
     }
 
-    void addFinalizer(ObjectFinalizer fn, void* data);
-    bool removeFinalizer(ObjectFinalizer fn, void* data);
+    virtual void addFinalizer(FinalizerFunction fn, void* data);
+    virtual bool removeFinalizer(FinalizerFunction fn, void* data);
 
     struct FastLookupSymbolResult {
         FastLookupSymbolResult()

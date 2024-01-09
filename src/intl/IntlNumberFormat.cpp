@@ -596,7 +596,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
 
     numberFormat->internalSlot()->setExtraData(fomatter);
 
-    numberFormat->internalSlot()->addFinalizer([](Object* obj, void* data) {
+    numberFormat->internalSlot()->addFinalizer([](PointerValue* obj, void* data) {
         Object* self = (Object*)obj;
         unumf_close((UNumberFormatter*)self->extraData());
     },
