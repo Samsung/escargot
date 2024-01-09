@@ -276,8 +276,6 @@
     <test id="built-ins/Date/UTC/fp-evaluation-order"><reason>TODO</reason></test>
     <test id="built-ins/Date/parse/year-zero"><reason>TODO</reason></test>
     <test id="built-ins/Date/year-zero"><reason>TODO</reason></test>
-    <test id="built-ins/FinalizationRegistry/prototype/register/return-undefined-register-symbol"><reason>TODO</reason></test>
-    <test id="built-ins/FinalizationRegistry/prototype/unregister/unregister-symbol-token"><reason>TODO</reason></test>
     <test id="built-ins/Function/internals/Construct/derived-this-uninitialized-realm"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/toString/line-terminator-normalisation-CR"><reason>TODO</reason></test>
     <test id="built-ins/GeneratorFunction/prototype/not-callable"><reason>TODO</reason></test>
