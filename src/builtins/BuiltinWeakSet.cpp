@@ -84,32 +84,32 @@ static Value builtinWeakSetConstructor(ExecutionState& state, Value thisValue, s
 static Value builtinWeakSetAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKSET(S, WeakSet, add);
-    if (!argv[0].isObject()) {
+    if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid value used as weak set key");
     }
 
-    S->add(state, argv[0].asObject());
+    S->add(state, argv[0].asPointerValue());
     return S;
 }
 
 static Value builtinWeakSetDelete(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKSET(S, WeakSet, stringDelete);
-    if (!argv[0].isObject()) {
+    if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
         return Value(false);
     }
 
-    return Value(S->deleteOperation(state, argv[0].asObject()));
+    return Value(S->deleteOperation(state, argv[0].asPointerValue()));
 }
 
 static Value builtinWeakSetHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKSET(S, WeakSet, has);
-    if (!argv[0].isObject()) {
+    if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
         return Value(false);
     }
 
-    return Value(S->has(state, argv[0].asObject()));
+    return Value(S->has(state, argv[0].asPointerValue()));
 }
 
 void GlobalObject::initializeWeakSet(ExecutionState& state)

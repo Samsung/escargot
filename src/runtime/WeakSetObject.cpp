@@ -56,8 +56,9 @@ void* WeakSetObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-bool WeakSetObject::deleteOperation(ExecutionState& state, Object* key)
+bool WeakSetObject::deleteOperation(ExecutionState& state, PointerValue* key)
 {
+    ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
         if (m_storage[i] == key) {
             key->removeFinalizer(finalizer, this);
@@ -68,8 +69,9 @@ bool WeakSetObject::deleteOperation(ExecutionState& state, Object* key)
     return false;
 }
 
-void WeakSetObject::add(ExecutionState& state, Object* key)
+void WeakSetObject::add(ExecutionState& state, PointerValue* key)
 {
+    ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
         if (m_storage[i] == key) {
             return;
@@ -80,8 +82,9 @@ void WeakSetObject::add(ExecutionState& state, Object* key)
     m_storage.pushBack(key);
 }
 
-bool WeakSetObject::has(ExecutionState& state, Object* key)
+bool WeakSetObject::has(ExecutionState& state, PointerValue* key)
 {
+    ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
         if (m_storage[i] == key) {
             return true;
