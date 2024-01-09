@@ -4376,9 +4376,12 @@ bool WeakMapObjectRef::has(ExecutionStateRef* state, ValueRef* key)
     return toImpl(this)->has(*toImpl(state), toImpl(key).asPointerValue());
 }
 
-WeakRefObjectRef* WeakRefObjectRef::create(ExecutionStateRef* state, ObjectRef* target)
+OptionalRef<WeakRefObjectRef> WeakRefObjectRef::create(ExecutionStateRef* state, ValueRef* target)
 {
-    return toRef(new WeakRefObject(*toImpl(state), toImpl(target)));
+    if (!toImpl(target).canBeHeldWeakly(toImpl(state)->context()->vmInstance())) {
+        return nullptr;
+    }
+    return OptionalRef<WeakRefObjectRef>(toRef(new WeakRefObject(*toImpl(state), toImpl(target).asPointerValue())));
 }
 
 bool WeakRefObjectRef::deleteOperation(ExecutionStateRef* state)
@@ -4386,10 +4389,10 @@ bool WeakRefObjectRef::deleteOperation(ExecutionStateRef* state)
     return toImpl(this)->deleteOperation(*toImpl(state));
 }
 
-OptionalRef<ObjectRef> WeakRefObjectRef::deref()
+OptionalRef<PointerValueRef> WeakRefObjectRef::deref()
 {
     if (toImpl(this)->target()) {
-        return OptionalRef<ObjectRef>(toRef(toImpl(this)->target().value()));
+        return OptionalRef<PointerValueRef>(toRef(toImpl(this)->target().value()));
     }
     return nullptr;
 }

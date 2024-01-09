@@ -6432,8 +6432,6 @@
     <test id="built-ins/TypedArrayConstructors/ctors/no-species"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/tonumber-value-detached-buffer"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/internals/DefineOwnProperty/tonumber-value-detached-buffer"><reason>TODO</reason></test>
-    <test id="built-ins/WeakRef/prototype/deref/return-symbol-target"><reason>TODO</reason></test>
-    <test id="built-ins/WeakRef/returns-new-object-from-constructor-with-symbol-target"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-func-throws-sync"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-rejects-non-callable"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-return-not-thenable"><reason>TODO</reason></test>
