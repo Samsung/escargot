@@ -211,7 +211,7 @@ class EscargotFunction(object):
     def __init__(self, is_func, function_info, source, source_name, name, locations):
         self.is_func = is_func
         self.byte_code_ptr = function_info[0]
-        self.source = re.split("\r\n|[\r\n]", str(source))
+        self.source = source
         self.source_name = source_name
         self.name = name
         self.lines = {}
@@ -832,10 +832,10 @@ class Debugger(object):
 
     # pylint: disable=too-many-branches,too-many-locals,too-many-statements
     def _parse_source(self, data):
-        source = ""
-        source_name = ""
+        source = bytearray()
+        source_name = bytearray()
         is_func = False
-        name = ""
+        name = bytearray()
         locations = []
 
         result = ""
@@ -859,22 +859,34 @@ class Debugger(object):
                 return "%sSyntaxError: %s%s\n" % (self.red, error_str, self.nocolor)
 
             elif buffer_type in [ESCARGOT_MESSAGE_SOURCE_8BIT, ESCARGOT_MESSAGE_SOURCE_8BIT_END]:
-                source += self.decode8(data[1:])
+                source += data[1:]
+                if buffer_type == ESCARGOT_MESSAGE_SOURCE_8BIT_END:
+                    source = re.split("\r\n|[\r\n]", self.decode8(source))
 
             elif buffer_type in [ESCARGOT_MESSAGE_SOURCE_16BIT, ESCARGOT_MESSAGE_SOURCE_16BIT_END]:
-                source += self.decode16(data[1:])
+                source += data[1:]
+                if buffer_type == ESCARGOT_MESSAGE_SOURCE_16BIT_END:
+                    source = re.split("\r\n|[\r\n]", self.decode16(source))
 
             elif buffer_type in [ESCARGOT_MESSAGE_FILE_NAME_8BIT, ESCARGOT_MESSAGE_FILE_NAME_8BIT_END]:
-                source_name += self.decode8(data[1:])
+                source_name += data[1:]
+                if buffer_type == ESCARGOT_MESSAGE_FILE_NAME_8BIT_END:
+                    source_name = self.decode8(source_name)
 
             elif buffer_type in [ESCARGOT_MESSAGE_FILE_NAME_16BIT, ESCARGOT_MESSAGE_FILE_NAME_16BIT_END]:
-                source_name += self.decode16(data[1:])
+                source_name += data[1:]
+                if buffer_type == ESCARGOT_MESSAGE_FILE_NAME_16BIT_END:
+                    source_name = self.decode16(source_name)
 
             elif buffer_type in [ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT, ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT_END]:
-                name += self.decode8(data[1:])
+                name += data[1:]
+                if buffer_type == ESCARGOT_MESSAGE_FUNCTION_NAME_8BIT_END:
+                    name = self.decode8(name)
 
             elif buffer_type in [ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT, ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT_END]:
-                name += self.decode16(data[1:])
+                name += data[1:]
+                if buffer_type == ESCARGOT_MESSAGE_FUNCTION_NAME_16BIT_END:
+                    name = self.decode16(name)
 
             elif buffer_type == ESCARGOT_MESSAGE_BREAKPOINT_LOCATION:
                 logging.debug("Breakpoint %s received", source_name)
@@ -891,10 +903,13 @@ class Debugger(object):
                 function_info = struct.unpack(self.byte_order + self.pointer_format + self.idx_format + self.idx_format, data[1:])
                 logging.debug("Pointer %s received %d", source_name, function_info[0])
 
+                if isinstance(name, bytearray):
+                    name = ""
+
                 function_list.append(EscargotFunction(is_func, function_info, source, source_name, name, locations))
 
                 is_func = True
-                name = ""
+                name = bytearray()
                 locations = []
 
             elif buffer_type == ESCARGOT_MESSAGE_RELEASE_FUNCTION:
