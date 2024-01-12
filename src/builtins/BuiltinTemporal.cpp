@@ -425,7 +425,10 @@ static Value builtinTemporalPlainDateTimeConstructor(ExecutionState& state, Valu
 
     ASSERT(argc > 2);
 
-    if (!(argv[0].isInteger(state) || argv[1].isInteger(state) || argv[2].isInteger(state)) || !(argc > 3 && argv[3].isInteger(state)) || !(argc > 4 && argv[4].isInteger(state)) || !(argc > 5 && argv[5].isInteger(state)) || !(argc > 6 && argv[6].isInteger(state)) || !(argc > 7 && argv[7].isInteger(state)) || !(argc > 8 && argv[8].isInteger(state))) {
+    if (!argv[0].isInteger(state) || !argv[1].isInteger(state) || !argv[2].isInteger(state)
+        || (argc > 3 && !argv[3].isInteger(state)) || (argc > 4 && !argv[4].isInteger(state))
+        || (argc > 5 && !argv[5].isInteger(state)) || (argc > 6 && !argv[6].isInteger(state))
+        || (argc > 7 && !argv[7].isInteger(state)) || (argc > 8 && !argv[8].isInteger(state))) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
     }
 
@@ -802,14 +805,14 @@ static Value builtinTemporalDurationConstructor(ExecutionState& state, Value thi
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::New_Target_Is_Undefined);
     }
 
-    int values[10];
+    double values[10];
     memset(values, 0, sizeof(values));
 
     for (unsigned int i = 0; i < argc && i < 10; ++i) {
         if (!argv[i].isInteger(state)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid type");
         }
-        values[i] = argv[i].asInt32();
+        values[i] = argv[i].toInteger(state);
     }
 
     return TemporalDurationObject::createTemporalDuration(state, values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], newTarget);
