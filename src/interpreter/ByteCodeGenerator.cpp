@@ -433,6 +433,16 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         case CreateObjectOpcode: {
             CreateObject* cd = (CreateObject*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dataRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            break;
+        }
+        case CreateObjectPrepareOpcode: {
+            CreateObjectPrepare* cd = (CreateObjectPrepare*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dataRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            if (cd->m_stage == CreateObjectPrepare::FillKeyValue) {
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_keyIndex, stackBase, stackBaseWillBe, stackVariableSize);
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_valueIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            }
             break;
         }
         case CreateArrayOpcode: {

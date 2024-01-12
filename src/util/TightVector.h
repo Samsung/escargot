@@ -304,6 +304,14 @@ public:
     TightVectorWithNoSize(const TightVectorWithNoSize<T, Allocator>& other) = delete;
 
     const TightVectorWithNoSize<T, Allocator>& operator=(const TightVectorWithNoSize<T, Allocator>& other) = delete;
+    void operator=(TightVectorWithNoSize<T, Allocator>&& other)
+    {
+        if (m_buffer) {
+            Allocator().deallocate(m_buffer);
+        }
+        m_buffer = other.m_buffer;
+        other.m_buffer = nullptr;
+    }
 
     ~TightVectorWithNoSize()
     {
@@ -415,6 +423,14 @@ public:
     TightVectorWithNoSizeUseGCRealloc(const TightVectorWithNoSizeUseGCRealloc<T>& other) = delete;
 
     const TightVectorWithNoSizeUseGCRealloc<T>& operator=(const TightVectorWithNoSizeUseGCRealloc<T>& other) = delete;
+    void operator=(TightVectorWithNoSizeUseGCRealloc<T>&& other)
+    {
+        if (m_buffer) {
+            GC_FREE(m_buffer);
+        }
+        m_buffer = other.m_buffer;
+        other.m_buffer = nullptr;
+    }
 
     ~TightVectorWithNoSizeUseGCRealloc()
     {

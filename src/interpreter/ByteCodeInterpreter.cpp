@@ -140,6 +140,9 @@ public:
 
     static Value tryOperation(ExecutionState*& state, size_t& programCounter, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
+    static void createObjectOperation(ExecutionState& state, CreateObject* createObject, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static void createObjectPrepareOperation(ExecutionState& state, CreateObjectPrepare* createObject, ByteCodeBlock* byteCodeBlock, Value* registerFile);
+    static void createArrayOperation(ExecutionState& state, CreateArray* createArray, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static void createFunctionOperation(ExecutionState& state, CreateFunction* createFunction, ByteCodeBlock* byteCodeBlock, Value* registerFile);
     static ArrayObject* createRestElementOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock);
     static void initializeClassOperation(ExecutionState& state, InitializeClass* code, Value* registerFile);
@@ -1157,11 +1160,17 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             :
         {
             CreateObject* code = (CreateObject*)programCounter;
-            registerFile[code->m_registerIndex] = new Object(*state);
-#if defined(ESCARGOT_SMALL_CONFIG)
-            registerFile[code->m_registerIndex].asObject()->markThisObjectDontNeedStructureTransitionTable();
-#endif
+            InterpreterSlowPath::createObjectOperation(*state, code, byteCodeBlock, registerFile);
             ADD_PROGRAM_COUNTER(CreateObject);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(CreateObjectPrepare)
+            :
+        {
+            CreateObjectPrepare* code = (CreateObjectPrepare*)programCounter;
+            InterpreterSlowPath::createObjectPrepareOperation(*state, code, byteCodeBlock, registerFile);
+            ADD_PROGRAM_COUNTER(CreateObjectPrepare);
             NEXT_INSTRUCTION();
         }
 
@@ -1169,7 +1178,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             :
         {
             CreateArray* code = (CreateArray*)programCounter;
-            registerFile[code->m_registerIndex] = new ArrayObject(*state, (uint64_t)code->m_length);
+            InterpreterSlowPath::createArrayOperation(*state, code, byteCodeBlock, registerFile);
             ADD_PROGRAM_COUNTER(CreateArray);
             NEXT_INSTRUCTION();
         }
@@ -2959,6 +2968,52 @@ NEVER_INLINE void InterpreterSlowPath::initializeGlobalVariable(ExecutionState& 
         }
     }
     ASSERT_NOT_REACHED();
+}
+
+NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& state, CreateObject* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+{
+    if (code->m_dataRegisterIndex != REGISTER_LIMIT) {
+        CreateObjectPrepare::CreateObjectData* data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].payload());
+        ASSERT(data->m_fillIndex == data->m_properties.size());
+        Object* obj = registerFile[code->m_registerIndex].asObject();
+        obj->m_values = std::move(data->m_values);
+        obj->m_structure = ObjectStructure::create(state.context(), std::move(data->m_properties));
+    } else {
+        registerFile[code->m_registerIndex] = new Object(state);
+    }
+#if defined(ESCARGOT_SMALL_CONFIG)
+    registerFile[code->m_registerIndex].asObject()->markThisObjectDontNeedStructureTransitionTable();
+#endif
+}
+
+NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionState& state, CreateObjectPrepare* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+{
+    if (code->m_stage == CreateObjectPrepare::Init) {
+        CreateObjectPrepare::CreateObjectData* data = new CreateObjectPrepare::CreateObjectData(code->m_propertyCount, new Object(state));
+        registerFile[code->m_dataRegisterIndex] = Value(Value::FromPayload, reinterpret_cast<intptr_t>(data));
+        registerFile[code->m_objectIndex] = data->m_target;
+    } else {
+        ASSERT(code->m_stage == CreateObjectPrepare::FillKeyValue);
+        CreateObjectPrepare::CreateObjectData* data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].payload());
+
+        if (code->m_hasAtomicString) {
+            data->m_properties[data->m_fillIndex] = ObjectStructureItem(ObjectStructurePropertyName(AtomicString::fromPayload(registerFile[code->m_keyIndex].asString())),
+                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent));
+        } else {
+            data->m_properties[data->m_fillIndex] = ObjectStructureItem(ObjectStructurePropertyName(state,
+                                                                                                    registerFile[code->m_keyIndex]),
+                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent));
+            data->m_hasNonAtomicPropertyName = true;
+        }
+
+        data->m_values[data->m_fillIndex] = registerFile[code->m_valueIndex];
+        data->m_fillIndex++;
+    }
+}
+
+NEVER_INLINE void InterpreterSlowPath::createArrayOperation(ExecutionState& state, CreateArray* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
+{
+    registerFile[code->m_registerIndex] = new ArrayObject(state, (uint64_t)code->m_length);
 }
 
 NEVER_INLINE void InterpreterSlowPath::createFunctionOperation(ExecutionState& state, CreateFunction* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)

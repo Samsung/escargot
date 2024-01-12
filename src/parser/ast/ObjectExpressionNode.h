@@ -41,9 +41,68 @@ public:
         return m_properties;
     }
 
+    size_t generateInitValueByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, PropertyNode* p, ByteCodeRegisterIndex dstRegister)
+    {
+        size_t valueIndex = p->value()->getRegister(codeBlock, context);
+        const ClassContextInformation classInfoBefore = context->m_classInfo;
+        context->m_classInfo.m_prototypeIndex = dstRegister;
+        context->m_classInfo.m_constructorIndex = SIZE_MAX;
+        context->m_classInfo.m_superIndex = SIZE_MAX;
+        p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
+        context->m_classInfo = classInfoBefore;
+        return valueIndex;
+    }
+
     virtual ASTNodeType type() override { return ASTNodeType::ObjectExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
+        size_t initPropertyCount = 0;
+        bool allSimpleCase = true;
+        for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
+            initPropertyCount++;
+            if (property->astNode()->isProperty()) {
+                PropertyNode* p = property->astNode()->asProperty();
+                if (p->kind() != PropertyNode::Kind::Init) {
+                    allSimpleCase = false;
+                    break;
+                }
+            } else {
+                allSimpleCase = false;
+                break;
+            }
+        }
+
+        if (allSimpleCase && initPropertyCount >= ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE && initPropertyCount <= REGISTER_LIMIT) {
+            size_t dataIndex = context->getRegister();
+            codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), dataIndex, initPropertyCount, dstRegister), context, this->m_loc.index);
+
+            size_t propertyIndex = 0;
+            for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); propertyIndex++, property = property->next()) {
+                PropertyNode* p = property->astNode()->asProperty();
+                ASSERT(p->kind() == PropertyNode::Kind::Init);
+
+                bool hasKeyName = false;
+                size_t propertyIndex = SIZE_MAX;
+                if (p->key()->isIdentifier() && !p->computed()) {
+                    hasKeyName = true;
+                    propertyIndex = context->getRegister();
+                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), propertyIndex, Value(p->key()->asIdentifier()->name().string())), context, this->m_loc.index);
+                } else {
+                    propertyIndex = p->key()->getRegister(codeBlock, context);
+                    p->key()->generateExpressionByteCode(codeBlock, context, propertyIndex);
+                }
+
+                size_t valueIndex = generateInitValueByteCode(codeBlock, context, p, dstRegister);
+                codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), hasKeyName, dataIndex, propertyIndex, valueIndex), context, this->m_loc.index);
+                context->giveUpRegister();
+                context->giveUpRegister();
+            }
+
+            codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), dstRegister, dataIndex), context, this->m_loc.index);
+            context->giveUpRegister();
+            return;
+        }
+
         codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), dstRegister), context, this->m_loc.index);
         size_t objIndex = dstRegister;
         for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
@@ -58,13 +117,7 @@ public:
                     p->key()->generateExpressionByteCode(codeBlock, context, propertyIndex);
                 }
 
-                size_t valueIndex = p->value()->getRegister(codeBlock, context);
-                const ClassContextInformation classInfoBefore = context->m_classInfo;
-                context->m_classInfo.m_prototypeIndex = dstRegister;
-                context->m_classInfo.m_constructorIndex = SIZE_MAX;
-                context->m_classInfo.m_superIndex = SIZE_MAX;
-                p->value()->generateExpressionByteCode(codeBlock, context, valueIndex);
-                context->m_classInfo = classInfoBefore;
+                size_t valueIndex = generateInitValueByteCode(codeBlock, context, p, dstRegister);
 
                 if (p->kind() == PropertyNode::Kind::Init) {
                     if (hasKeyName) {

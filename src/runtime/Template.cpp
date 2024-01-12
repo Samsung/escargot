@@ -94,10 +94,6 @@ Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx,
         structureItemVector[i] = baseItems[i];
     }
 
-    bool hasIndexStringAsPropertyName = false;
-    bool hasSymbol = false;
-    bool hasNonAtomicPropertyName = false;
-    bool hasEnumerableProperty = false;
     bool isInlineNonCacheable = false;
     for (size_t i = baseItemCount; i < propertyCount; i++) {
         auto propertyIndex = i - baseItemCount;
@@ -109,14 +105,7 @@ Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx,
         } else {
             ASSERT(propertyNameValue.isSymbol());
             propertyName = ObjectStructurePropertyName(propertyNameValue.asSymbol());
-            hasSymbol = true;
         }
-
-        if (!hasIndexStringAsPropertyName) {
-            hasIndexStringAsPropertyName |= propertyName.isIndexString();
-        }
-
-        hasNonAtomicPropertyName |= !propertyName.hasAtomicString();
 
         auto type = m_properties[propertyIndex].second.propertyType();
         ObjectStructurePropertyDescriptor desc;
@@ -130,20 +119,11 @@ Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx,
             desc = ObjectStructurePropertyDescriptor::createAccessorDescriptor(m_properties[propertyIndex].second.presentAttributes());
         }
 
-        hasEnumerableProperty |= desc.isEnumerable();
-
         structureItemVector[i] = ObjectStructureItem(propertyName, desc);
     }
 
-    ObjectStructure* newObjectStructure;
-    if (propertyCount > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
-        newObjectStructure = new ObjectStructureWithMap(hasIndexStringAsPropertyName, hasSymbol, hasEnumerableProperty, std::move(structureItemVector));
-    } else {
-        newObjectStructure = new ObjectStructureWithTransition(std::move(structureItemVector), hasIndexStringAsPropertyName, hasSymbol, hasNonAtomicPropertyName, hasEnumerableProperty);
-    }
-
     CachedObjectStructure s;
-    s.m_objectStructure = newObjectStructure;
+    s.m_objectStructure = ObjectStructure::create(ctx, std::move(structureItemVector));
     s.m_inlineCacheable = !isInlineNonCacheable;
     return s;
 }

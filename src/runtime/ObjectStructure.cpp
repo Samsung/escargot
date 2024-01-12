@@ -48,6 +48,33 @@ void* ObjectStructureWithoutTransition::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
+ObjectStructure* ObjectStructure::create(Context* ctx, ObjectStructureItemTightVector&& properties)
+{
+    bool hasIndexStringAsPropertyName = false;
+    bool hasSymbol = false;
+    bool hasNonAtomicPropertyName = false;
+    bool hasEnumerableProperty = true;
+    for (size_t i = 0; i < properties.size(); i++) {
+        const ObjectStructurePropertyName& propertyName = properties[i].m_propertyName;
+        if (propertyName.isSymbol()) {
+            hasSymbol = true;
+        }
+        if (!hasIndexStringAsPropertyName) {
+            hasIndexStringAsPropertyName |= propertyName.isIndexString();
+        }
+
+        hasNonAtomicPropertyName |= !propertyName.hasAtomicString();
+        hasEnumerableProperty |= properties[i].m_descriptor.isEnumerable();
+    }
+
+    ObjectStructure* newObjectStructure;
+    if (properties.size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
+        return new ObjectStructureWithMap(hasIndexStringAsPropertyName, hasSymbol, hasEnumerableProperty, std::move(properties));
+    } else {
+        return new ObjectStructureWithoutTransition(new ObjectStructureItemVector(std::move(properties)), hasIndexStringAsPropertyName, hasSymbol, hasNonAtomicPropertyName, hasEnumerableProperty);
+    }
+}
+
 std::pair<size_t, Optional<const ObjectStructureItem*>> ObjectStructureWithoutTransition::findProperty(const ObjectStructurePropertyName& s)
 {
     if (m_properties->size() && m_lastFoundPropertyName == s) {
