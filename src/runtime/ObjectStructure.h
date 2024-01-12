@@ -127,6 +127,9 @@ COMPILE_ASSERT(ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE < 65536, ""
 class ObjectStructure : public gc {
 public:
     virtual ~ObjectStructure() {}
+
+    static ObjectStructure* create(Context* ctx, ObjectStructureItemTightVector&& properties);
+
     std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(ExecutionState& state, String* propertyName)
     {
         ObjectStructurePropertyName name(state, propertyName);

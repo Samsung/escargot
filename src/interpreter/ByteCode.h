@@ -64,6 +64,7 @@ struct GlobalVariableAccessCacheItem;
     F(BinaryUnsignedRightShift)                       \
     F(BinaryInOperation)                              \
     F(BinaryInstanceOfOperation)                      \
+    F(CreateObjectPrepare)                            \
     F(CreateObject)                                   \
     F(CreateArray)                                    \
     F(CreateSpreadArrayObject)                        \
@@ -953,20 +954,91 @@ public:
 COMPILE_ASSERT(sizeof(BreakpointDisabled) == sizeof(BreakpointEnabled), "");
 #endif /* ESCARGOT_DEBUGGER */
 
-class CreateObject : public ByteCode {
+class CreateObjectPrepare : public ByteCode {
 public:
-    CreateObject(const ByteCodeLOC& loc, const size_t registerIndex)
-        : ByteCode(Opcode::CreateObjectOpcode, loc)
-        , m_registerIndex(registerIndex)
+    enum Stage ENSURE_ENUM_UNSIGNED {
+        Init,
+        FillKeyValue
+    };
+
+    struct CreateObjectData : public gc {
+        bool m_hasSymbol;
+        bool m_hasNonAtomicPropertyName;
+        size_t m_fillIndex;
+        ObjectStructureItemTightVector m_properties;
+        ObjectPropertyValueVector m_values;
+        Object* m_target;
+        CreateObjectData(size_t propertyCount, Object* target)
+            : m_hasSymbol(false)
+            , m_hasNonAtomicPropertyName(false)
+            , m_fillIndex(0)
+            , m_target(target)
+        {
+            m_properties.resizeWithUninitializedValues(propertyCount);
+            m_values.resizeWithUninitializedValues(0, propertyCount);
+        }
+    };
+
+    CreateObjectPrepare(const ByteCodeLOC& loc, const size_t dataRegisterIndex, const size_t propertyCount, const size_t objectIndex)
+        : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
+        , m_stage(Stage::Init)
+        , m_hasAtomicString(false)
+        , m_dataRegisterIndex(dataRegisterIndex)
+        , m_propertyCount(propertyCount)
+        , m_objectIndex(objectIndex)
     {
     }
 
-    ByteCodeRegisterIndex m_registerIndex;
+    CreateObjectPrepare(const ByteCodeLOC& loc, const bool hasAtomicString, const size_t dataRegisterIndex, const size_t keyIndex, const size_t valueIndex)
+        : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
+        , m_stage(Stage::FillKeyValue)
+        , m_hasAtomicString(hasAtomicString)
+        , m_dataRegisterIndex(dataRegisterIndex)
+        , m_keyIndex(keyIndex)
+        , m_valueIndex(valueIndex)
+    {
+    }
+
+    Stage m_stage : 1;
+    bool m_hasAtomicString : 1;
+    ByteCodeRegisterIndex m_dataRegisterIndex : REGISTER_INDEX_IN_BIT;
+
+    union {
+        struct {
+            ByteCodeRegisterIndex m_propertyCount : REGISTER_INDEX_IN_BIT;
+            ByteCodeRegisterIndex m_objectIndex : REGISTER_INDEX_IN_BIT;
+        };
+
+        struct {
+            ByteCodeRegisterIndex m_keyIndex : REGISTER_INDEX_IN_BIT;
+            ByteCodeRegisterIndex m_valueIndex : REGISTER_INDEX_IN_BIT;
+        };
+    };
 
 #ifndef NDEBUG
     void dump()
     {
-        printf("createobject -> r%u", m_registerIndex);
+        printf("createobjectprepare -> r%u stage: %d", m_dataRegisterIndex, m_stage);
+    }
+#endif
+};
+
+class CreateObject : public ByteCode {
+public:
+    CreateObject(const ByteCodeLOC& loc, const size_t registerIndex, const size_t dataRegisterIndex = SIZE_MAX)
+        : ByteCode(Opcode::CreateObjectOpcode, loc)
+        , m_registerIndex(registerIndex)
+        , m_dataRegisterIndex(dataRegisterIndex)
+    {
+    }
+
+    ByteCodeRegisterIndex m_registerIndex;
+    ByteCodeRegisterIndex m_dataRegisterIndex;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("createobject -> r%u r%u", m_registerIndex, m_dataRegisterIndex);
     }
 #endif
 };
