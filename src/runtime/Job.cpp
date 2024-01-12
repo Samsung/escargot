@@ -127,13 +127,18 @@ SandBox::SandBoxResult PromiseResolveThenableJob::run()
 
 SandBox::SandBoxResult CleanupSomeJob::run()
 {
+    ASSERT(m_object->m_cleanupCallback);
+
     auto oldCallback = m_object->m_cleanupCallback;
-    m_object->m_cleanupCallback = m_callback;
+    if (m_callback.hasValue()) {
+        m_object->m_cleanupCallback = m_callback.value();
+    }
 
     clearStack<1024>();
     GC_gcollect_and_unmap();
     GC_gcollect_and_unmap();
     GC_gcollect_and_unmap();
+
     m_object->m_cleanupCallback = oldCallback;
 
     SandBox::SandBoxResult result;

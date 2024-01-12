@@ -232,14 +232,8 @@ int getValidValueInFinalizationRegistryObjectItem(void* ptr, GC_mark_custom_resu
     } else {
         arr[0].to = nullptr;
     }
-    arr[1].from = (GC_word*)&current->unregisterToken;
-    if (current->unregisterToken.hasValue()) {
-        arr[1].to = (GC_word*)current->unregisterToken.value();
-    } else {
-        arr[1].to = nullptr;
-    }
-    arr[2].from = (GC_word*)&current->source;
-    arr[2].to = (GC_word*)current->source;
+    arr[1].from = (GC_word*)&current->source;
+    arr[1].to = (GC_word*)current->source;
     return 0;
 }
 #endif
@@ -316,7 +310,7 @@ void initializeCustomAllocators()
                                                                TRUE);
 
     s_gcKinds[HeapObjectKind::FinalizationRegistryObjectItemKind] = GC_new_kind(GC_new_free_list(),
-                                                                                GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInFinalizationRegistryObjectItem, 3>), 0),
+                                                                                GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInFinalizationRegistryObjectItem, 2>), 0),
                                                                                 FALSE,
                                                                                 TRUE);
 #endif
