@@ -43,11 +43,17 @@ FinalizationRegistryObject::FinalizationRegistryObject(ExecutionState& state, Ob
     , m_realm(realm)
     , m_deletedCellCount(0)
 {
+    ASSERT(!!cleanupCallback && cleanupCallback->isCallable());
+
     addFinalizer([](PointerValue* self, void* data) {
         FinalizationRegistryObject* s = self->asFinalizationRegistryObject();
         for (size_t i = 0; i < s->m_cells.size(); i++) {
-            if (s->m_cells[i]->weakRefTarget) {
-                s->m_cells[i]->weakRefTarget->removeFinalizer(finalizer, s->m_cells[i]);
+            auto cell = s->m_cells[i];
+            if (cell->weakRefTarget) {
+                cell->weakRefTarget->removeFinalizer(finalizer, cell);
+                if (cell->unregisterToken.hasValue() && cell->unregisterToken.value() != cell->weakRefTarget) {
+                    cell->unregisterToken->removeFinalizer(finalizerUnregisterToken, cell);
+                }
             }
         }
         s->m_cells.clear();
@@ -98,6 +104,10 @@ void FinalizationRegistryObject::setCell(PointerValue* weakRefTarget, const Valu
     newCell->unregisterToken = unregisterToken;
 
     weakRefTarget->addFinalizer(finalizer, newCell);
+    if (unregisterToken.hasValue() && unregisterToken.value() != weakRefTarget) {
+        ASSERT(unregisterToken->isObject() || unregisterToken->isSymbol());
+        unregisterToken->addFinalizer(finalizerUnregisterToken, newCell);
+    }
 }
 
 bool FinalizationRegistryObject::deleteCell(PointerValue* unregisterToken)
@@ -106,9 +116,12 @@ bool FinalizationRegistryObject::deleteCell(PointerValue* unregisterToken)
     ASSERT(unregisterToken->isObject() || unregisterToken->isSymbol());
     bool removed = false;
     for (size_t i = 0; i < m_cells.size(); i++) {
-        if (m_cells[i]->unregisterToken.hasValue() && m_cells[i]->unregisterToken.value() == unregisterToken) {
+        if (m_cells[i]->weakRefTarget && m_cells[i]->unregisterToken.hasValue() && m_cells[i]->unregisterToken.value() == unregisterToken) {
             ASSERT(!!m_cells[i]->weakRefTarget);
             m_cells[i]->weakRefTarget->removeFinalizer(finalizer, m_cells[i]);
+            if (unregisterToken != m_cells[i]->weakRefTarget) {
+                unregisterToken->removeFinalizer(finalizerUnregisterToken, m_cells[i]);
+            }
             m_cells[i]->reset();
             m_deletedCellCount++;
 
@@ -116,17 +129,24 @@ bool FinalizationRegistryObject::deleteCell(PointerValue* unregisterToken)
         }
     }
 
-    tryToShrinkCells();
+    if (removed) {
+        tryToShrinkCells();
+    }
+
     return removed;
 }
 
 bool FinalizationRegistryObject::deleteCellOnly(FinalizationRegistryObjectItem* item)
 {
     // delete cell only without removing finalizer in weakRefTarget
+    // but remove finalizer of unregisterToken if it has
     ASSERT(!!item);
     for (size_t i = 0; i < m_cells.size(); i++) {
         if (m_cells[i] == item) {
             ASSERT(!!m_cells[i]->weakRefTarget);
+            if (m_cells[i]->unregisterToken.hasValue() && m_cells[i]->unregisterToken.value() != m_cells[i]->weakRefTarget) {
+                m_cells[i]->unregisterToken->removeFinalizer(finalizerUnregisterToken, m_cells[i]);
+            }
             m_cells[i]->reset();
             m_deletedCellCount++;
 
@@ -151,7 +171,6 @@ void* FinalizationRegistryObject::FinalizationRegistryObjectItem::operator new(s
         GC_word obj_bitmap[GC_BITMAP_SIZE(FinalizationRegistryObject::FinalizationRegistryObjectItem)] = { 0 };
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FinalizationRegistryObject::FinalizationRegistryObjectItem, source));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FinalizationRegistryObject::FinalizationRegistryObjectItem, heldValue));
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(FinalizationRegistryObject::FinalizationRegistryObjectItem, unregisterToken));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(FinalizationRegistryObject::FinalizationRegistryObjectItem));
         typeInited = true;
     }
@@ -166,33 +185,42 @@ void FinalizationRegistryObject::finalizer(PointerValue* self, void* data)
     UNUSED_PARAMETER(self);
     FinalizationRegistryObjectItem* item = (FinalizationRegistryObjectItem*)data;
 
-    ASSERT(!!item->source);
-    if (item->source->m_cleanupCallback) {
-        bool wasCallbackDeleted = false;
-        auto callback = item->source->m_cleanupCallback.value();
-        if (callback->isScriptFunctionObject()) {
-            auto cb = callback->asScriptFunctionObject()->interpretedCodeBlock();
-            if (cb->byteCodeBlock() && cb->byteCodeBlock()->m_code.data() == nullptr) {
-                // NOTE this case means this function was deleted by gc(same time with this FinalizationRegistryObject)
-                // we should check before calling because finalizer is not ordered
-                wasCallbackDeleted = true;
-            }
+    ASSERT(!!item->source && !!item->source->m_cleanupCallback);
+    bool wasCallbackDeleted = false;
+    auto callback = item->source->m_cleanupCallback;
+    if (callback->isScriptFunctionObject()) {
+        auto cb = callback->asScriptFunctionObject()->interpretedCodeBlock();
+        if (cb->byteCodeBlock() && cb->byteCodeBlock()->m_code.data() == nullptr) {
+            // NOTE this case means this function was deleted by gc(same time with this FinalizationRegistryObject)
+            // we should check before calling because finalizer is not ordered
+            wasCallbackDeleted = true;
         }
+    }
 
-        if (!wasCallbackDeleted) {
-            try {
-                ExecutionState tempState(item->source->m_realm);
-                Value argv = item->heldValue;
-                Object::call(tempState, item->source->m_cleanupCallback.value(), Value(), 1, &argv);
-            } catch (const Value& v) {
-                // do nothing
-            }
+    if (!wasCallbackDeleted) {
+        try {
+            ExecutionState tempState(item->source->m_realm);
+            Value argv = item->heldValue;
+            Object::call(tempState, callback, Value(), 1, &argv);
+        } catch (const Value& v) {
+            // do nothing
         }
     }
 
     // remove item from FinalizationRegistryObject
     bool deleteResult = item->source->deleteCellOnly(item);
     ASSERT(deleteResult);
+}
+
+void FinalizationRegistryObject::finalizerUnregisterToken(PointerValue* self, void* data)
+{
+    UNUSED_PARAMETER(self);
+    FinalizationRegistryObjectItem* item = (FinalizationRegistryObjectItem*)data;
+
+    // item should be valid and have a valid unregisterToken
+    ASSERT(!!item->weakRefTarget);
+    ASSERT(item->unregisterToken.hasValue() && item->unregisterToken.value() == self);
+    item->unregisterToken.reset();
 }
 
 void FinalizationRegistryObject::tryToShrinkCells()

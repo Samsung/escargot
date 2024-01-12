@@ -32,10 +32,10 @@ public:
 #if !defined(NDEBUG)
         friend int getValidValueInFinalizationRegistryObjectItem(void* ptr, GC_mark_custom_result* arr);
 #endif
-        PointerValue* weakRefTarget;
+        PointerValue* weakRefTarget; // weak reference (should have a valid address)
         EncodedValue heldValue;
         FinalizationRegistryObject* source;
-        Optional<PointerValue*> unregisterToken;
+        Optional<PointerValue*> unregisterToken; // weak reference (could be null)
 
         void reset()
         {
@@ -69,10 +69,11 @@ public:
 
 private:
     static void finalizer(PointerValue* self, void* data);
+    static void finalizerUnregisterToken(PointerValue* self, void* data);
 
     void tryToShrinkCells();
 
-    Optional<Object*> m_cleanupCallback;
+    Object* m_cleanupCallback;
     Context* m_realm;
     FinalizationRegistryObjectCells m_cells;
     size_t m_deletedCellCount;
