@@ -35,60 +35,6 @@ static void gcCallback(void* data)
     }
 }
 
-static const char32_t offsetsFromUTF8[6] = { 0x00000000UL, 0x00003080UL, 0x000E2080UL, 0x03C82080UL, static_cast<char32_t>(0xFA082080UL), static_cast<char32_t>(0x82082080UL) };
-
-static char32_t readUTF8Sequence(const char*& sequence, bool& valid, int& charlen)
-{
-    unsigned length;
-    const char sch = *sequence;
-    valid = true;
-    if ((sch & 0x80) == 0)
-        length = 1;
-    else {
-        unsigned char ch2 = static_cast<unsigned char>(*(sequence + 1));
-        if ((sch & 0xE0) == 0xC0
-            && (ch2 & 0xC0) == 0x80)
-            length = 2;
-        else {
-            unsigned char ch3 = static_cast<unsigned char>(*(sequence + 2));
-            if ((sch & 0xF0) == 0xE0
-                && (ch2 & 0xC0) == 0x80
-                && (ch3 & 0xC0) == 0x80)
-                length = 3;
-            else {
-                unsigned char ch4 = static_cast<unsigned char>(*(sequence + 3));
-                if ((sch & 0xF8) == 0xF0
-                    && (ch2 & 0xC0) == 0x80
-                    && (ch3 & 0xC0) == 0x80
-                    && (ch4 & 0xC0) == 0x80)
-                    length = 4;
-                else {
-                    valid = false;
-                    sequence++;
-                    return -1;
-                }
-            }
-        }
-    }
-
-    charlen = length;
-    char32_t ch = 0;
-    switch (length) {
-        case 4:
-            ch += static_cast<unsigned char>(*sequence++);
-            ch <<= 6; // Fall through.
-        case 3:
-            ch += static_cast<unsigned char>(*sequence++);
-            ch <<= 6; // Fall through.
-        case 2:
-            ch += static_cast<unsigned char>(*sequence++);
-            ch <<= 6; // Fall through.
-        case 1:
-            ch += static_cast<unsigned char>(*sequence++);
-    }
-    return ch - offsetsFromUTF8[length - 1];
-}
-
 static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRef> state, const char* fileName, const char* builtinName)
 {
     FILE* fp = fopen(fileName, "r");
@@ -101,24 +47,22 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
         size_t readLen;
         while ((readLen = fread(buf, 1, sizeof buf, fp))) {
             if (!hasNonLatin1Content) {
-                const char* source = buf;
-                int charlen;
-                bool valid;
-                while (source < buf + readLen) {
-                    char32_t ch = readUTF8Sequence(source, valid, charlen);
-                    if (ch > 255) {
+                for (size_t i = 0; i < readLen; i++) {
+                    unsigned char ch = buf[i];
+                    if (ch & 0x80) {
+                        // check non-latin1 character
                         hasNonLatin1Content = true;
                         fseek(fp, 0, SEEK_SET);
                         break;
-                    } else {
-                        str += (unsigned char)ch;
                     }
+                    str += ch;
                 }
             } else {
                 utf8Str.append(buf, readLen);
             }
         }
         fclose(fp);
+
         if (StringRef::isCompressibleStringEnabled()) {
             if (state) {
                 if (hasNonLatin1Content) {
