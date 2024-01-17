@@ -94,7 +94,7 @@ Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx,
         structureItemVector[i] = baseItems[i];
     }
 
-    bool isInlineNonCacheable = false;
+    bool isInlineCacheable = true;
     for (size_t i = baseItemCount; i < propertyCount; i++) {
         auto propertyIndex = i - baseItemCount;
         auto propertyNameValue = m_properties[propertyIndex].first.toValue();
@@ -113,7 +113,7 @@ Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx,
             desc = ObjectStructurePropertyDescriptor::createDataDescriptor(m_properties[propertyIndex].second.presentAttributes());
         } else if (type == Template::TemplatePropertyData::PropertyType::PropertyNativeAccessorData) {
             desc = ObjectStructurePropertyDescriptor::createDataButHasNativeGetterSetterDescriptor(m_properties[propertyIndex].second.nativeAccessorData());
-            isInlineNonCacheable = isInlineNonCacheable | m_properties[propertyIndex].second.nativeAccessorData()->m_actsLikeJSGetterSetter;
+            isInlineCacheable = isInlineCacheable && !m_properties[propertyIndex].second.nativeAccessorData()->m_actsLikeJSGetterSetter;
         } else {
             ASSERT(type == Template::TemplatePropertyData::PropertyType::PropertyAccessorData);
             desc = ObjectStructurePropertyDescriptor::createAccessorDescriptor(m_properties[propertyIndex].second.presentAttributes());
@@ -124,7 +124,7 @@ Template::CachedObjectStructure Template::constructObjectStructure(Context* ctx,
 
     CachedObjectStructure s;
     s.m_objectStructure = ObjectStructure::create(ctx, std::move(structureItemVector));
-    s.m_inlineCacheable = !isInlineNonCacheable;
+    s.m_inlineCacheable = isInlineCacheable;
     return s;
 }
 

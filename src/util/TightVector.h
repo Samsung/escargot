@@ -264,6 +264,13 @@ public:
         }
     }
 
+    // used for specific case
+    void reset(T* newData, size_t newSize)
+    {
+        m_buffer = newData;
+        m_size = newSize;
+    }
+
     using iterator = T*;
     constexpr iterator begin() const { return m_buffer; }
     constexpr iterator end() const { return m_buffer + m_size; }
@@ -527,6 +534,15 @@ public:
     {
         return m_buffer;
     }
+
+    // used for specific case
+    // should not have any valid data
+    void reset(T* resetData)
+    {
+        ASSERT(!m_buffer);
+        m_buffer = resetData;
+    }
+
 
 protected:
     T* m_buffer;

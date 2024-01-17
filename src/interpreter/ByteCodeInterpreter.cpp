@@ -201,6 +201,7 @@ private:
     static bool setObjectPreComputedCaseOperationSlowCase(ExecutionState& state, Object* obj, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
     static void setObjectPreComputedCaseOperationCacheMiss(ExecutionState& state, Object* obj, const Value& willBeObject, const Value& value, SetObjectPreComputedCase* code, ByteCodeBlock* block);
     static void defineObjectGetterSetterOperation(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile, Object* object);
+    static void updateObjectGetterSetterFunctionName(ExecutionState& state, FunctionObject* fn, Value propertyName, bool isGetter);
     static Value incrementOperationSlowCase(ExecutionState& state, const Value& value);
     static Value decrementOperationSlowCase(ExecutionState& state, const Value& value);
 };
@@ -2974,10 +2975,11 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
 {
     if (code->m_dataRegisterIndex != REGISTER_LIMIT) {
         CreateObjectPrepare::CreateObjectData* data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].payload());
-        ASSERT(data->m_fillIndex == data->m_properties.size());
         Object* obj = registerFile[code->m_registerIndex].asObject();
-        obj->m_values = std::move(data->m_values);
-        obj->m_structure = ObjectStructure::create(state.context(), std::move(data->m_properties));
+        ObjectStructureItemTightVector properties;
+        properties.reset(data->m_properties.takeBuffer(), data->m_values.size());
+        obj->m_structure = ObjectStructure::create(state.context(), std::move(properties));
+        obj->m_values.reset(data->m_values.takeBuffer());
     } else {
         registerFile[code->m_registerIndex] = new Object(state);
     }
@@ -2986,28 +2988,114 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
 #endif
 }
 
+static Value createObjectPropertyFunctionName(ExecutionState& state, const Value& name, const char* prefix)
+{
+    StringBuilder builder;
+    if (name.isSymbol()) {
+        builder.appendString(prefix);
+        if (name.asSymbol()->descriptionString()->length()) {
+            // add symbol name if it is not an empty symbol
+            builder.appendString("[");
+            builder.appendString(name.asSymbol()->descriptionString());
+            builder.appendString("]");
+        }
+    } else {
+        builder.appendString(prefix);
+        builder.appendString(name.toString(state));
+    }
+    return builder.finalize(&state);
+}
+
 NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionState& state, CreateObjectPrepare* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     if (code->m_stage == CreateObjectPrepare::Init) {
-        CreateObjectPrepare::CreateObjectData* data = new CreateObjectPrepare::CreateObjectData(code->m_propertyCount, new Object(state));
+        CreateObjectPrepare::CreateObjectData* data = new CreateObjectPrepare::CreateObjectData(code->m_propertyReserveSize, new Object(state));
         registerFile[code->m_dataRegisterIndex] = Value(Value::FromPayload, reinterpret_cast<intptr_t>(data));
         registerFile[code->m_objectIndex] = data->m_target;
     } else {
-        ASSERT(code->m_stage == CreateObjectPrepare::FillKeyValue);
+        ASSERT(code->m_stage == CreateObjectPrepare::FillKeyValue || code->m_stage == CreateObjectPrepare::DefineGetterSetter);
         CreateObjectPrepare::CreateObjectData* data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].payload());
 
-        if (code->m_hasAtomicString) {
-            data->m_properties[data->m_fillIndex] = ObjectStructureItem(ObjectStructurePropertyName(AtomicString::fromPayload(registerFile[code->m_keyIndex].asString())),
-                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent));
+        ObjectStructurePropertyName propertyName;
+        if (code->m_hasPreComputedKey) {
+            propertyName = ObjectStructurePropertyName(AtomicString::fromPayload(registerFile[code->m_keyIndex].asString()));
+            // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
+            if (UNLIKELY(propertyName.asAtomicString() == state.context()->staticStrings().__proto__ && code->m_stage == CreateObjectPrepare::FillKeyValue)) {
+                const Value& v = registerFile[code->m_valueIndex];
+                if (v.isObject() || v.isNull()) {
+                    data->m_target->setPrototype(state, v);
+                }
+                return;
+            }
         } else {
-            data->m_properties[data->m_fillIndex] = ObjectStructureItem(ObjectStructurePropertyName(state,
-                                                                                                    registerFile[code->m_keyIndex]),
-                                                                        ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent));
-            data->m_hasNonAtomicPropertyName = true;
+            propertyName = ObjectStructurePropertyName(state, registerFile[code->m_keyIndex]);
         }
 
-        data->m_values[data->m_fillIndex] = registerFile[code->m_valueIndex];
-        data->m_fillIndex++;
+        size_t lastPropertyCount = data->m_properties.size();
+        size_t targetIndex = lastPropertyCount;
+        bool updateProperty = false;
+        for (size_t i = 0; i < lastPropertyCount; i++) {
+            if (data->m_properties[i].m_propertyName == propertyName) {
+                targetIndex = i;
+                updateProperty = true;
+                break;
+            }
+        }
+
+        ObjectStructurePropertyDescriptor newDesc;
+        Value newValue;
+        if (code->m_stage == CreateObjectPrepare::FillKeyValue) {
+            Value& value = registerFile[code->m_valueIndex];
+            if (code->m_needsToUpdateFunctionName) {
+                Value propertyStringOrSymbol(propertyName.isSymbol() ? Value(propertyName.symbol()) : Value(propertyName.toValue().toString(state)));
+                ASSERT(value.isFunction());
+                Value fnName = createObjectPropertyFunctionName(state, propertyStringOrSymbol, "");
+                value.asFunction()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
+            }
+            newDesc = ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent);
+            newValue = value;
+        } else {
+            FunctionObject* fn = registerFile[code->m_valueIndex].asFunction();
+            updateObjectGetterSetterFunctionName(state, fn, registerFile[code->m_keyIndex], code->m_isGetter);
+            int flag = ObjectStructurePropertyDescriptor::ConfigurablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent;
+            if (code->m_isGetter) {
+                flag = flag | ObjectStructurePropertyDescriptor::HasJSGetter;
+            } else {
+                flag = flag | ObjectStructurePropertyDescriptor::HasJSSetter;
+            }
+            JSGetterSetter* gs;
+            if (updateProperty) {
+                const auto& oldDesc = data->m_properties[targetIndex].m_descriptor;
+                if (oldDesc.isDataProperty()) {
+                    gs = new JSGetterSetter(Value(Value::EmptyValue), Value(Value::EmptyValue));
+                } else {
+                    if (oldDesc.hasJSGetter()) {
+                        flag = flag | ObjectStructurePropertyDescriptor::HasJSGetter;
+                    } else {
+                        flag = flag | ObjectStructurePropertyDescriptor::HasJSSetter;
+                    }
+                    gs = Value(data->m_values[targetIndex]).asPointerValue()->asJSGetterSetter();
+                }
+            } else {
+                gs = new JSGetterSetter(Value(Value::EmptyValue), Value(Value::EmptyValue));
+            }
+
+            if (code->m_isGetter) {
+                gs->setGetter(fn);
+            } else {
+                gs->setSetter(fn);
+            }
+            newValue = gs;
+            newDesc = ObjectStructurePropertyDescriptor::createAccessorDescriptor((ObjectStructurePropertyDescriptor::PresentAttribute)flag);
+        }
+
+        if (updateProperty) {
+            data->m_properties[targetIndex] = ObjectStructureItem(propertyName, newDesc);
+            data->m_values[targetIndex] = newValue;
+        } else {
+            data->m_properties.pushBack(ObjectStructureItem(propertyName, newDesc));
+            data->m_values.pushBack(newValue);
+        }
     }
 }
 
@@ -4215,24 +4303,6 @@ NEVER_INLINE void InterpreterSlowPath::metaPropertyOperation(ExecutionState& sta
     }
 }
 
-static Value createObjectPropertyFunctionName(ExecutionState& state, const Value& name, const char* prefix)
-{
-    StringBuilder builder;
-    if (name.isSymbol()) {
-        builder.appendString(prefix);
-        if (name.asSymbol()->descriptionString()->length()) {
-            // add symbol name if it is not an empty symbol
-            builder.appendString("[");
-            builder.appendString(name.asSymbol()->descriptionString());
-            builder.appendString("]");
-        }
-    } else {
-        builder.appendString(prefix);
-        builder.appendString(name.toString(state));
-    }
-    return builder.finalize(&state);
-}
-
 NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyOperation(ExecutionState& state, ObjectDefineOwnPropertyOperation* code, Value* registerFile)
 {
     const Value& willBeObject = registerFile[code->m_objectRegisterIndex];
@@ -4404,17 +4474,22 @@ NEVER_INLINE void InterpreterSlowPath::createSpreadArrayObject(ExecutionState& s
     registerFile[code->m_registerIndex] = spreadArray;
 }
 
+NEVER_INLINE void InterpreterSlowPath::updateObjectGetterSetterFunctionName(ExecutionState& state, FunctionObject* fn, Value propertyName, bool isGetter)
+{
+    Value fnName;
+    if (isGetter) {
+        fnName = createObjectPropertyFunctionName(state, propertyName, "get ");
+    } else {
+        fnName = createObjectPropertyFunctionName(state, propertyName, "set ");
+    }
+    fn->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
+}
+
 NEVER_INLINE void InterpreterSlowPath::defineObjectGetterSetterOperation(ExecutionState& state, ObjectDefineGetterSetter* code, ByteCodeBlock* byteCodeBlock, Value* registerFile, Object* object)
 {
     FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
     Value pName = code->m_objectPropertyNameRegisterIndex == REGISTER_LIMIT ? fn->codeBlock()->functionName().string() : registerFile[code->m_objectPropertyNameRegisterIndex];
-    Value fnName;
-    if (code->m_isGetter) {
-        fnName = createObjectPropertyFunctionName(state, pName, "get ");
-    } else {
-        fnName = createObjectPropertyFunctionName(state, pName, "set ");
-    }
-    fn->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
+    updateObjectGetterSetterFunctionName(state, fn, pName, code->m_isGetter);
     JSGetterSetter* gs;
     if (code->m_isGetter) {
         gs = new (alloca(sizeof(JSGetterSetter))) JSGetterSetter(registerFile[code->m_objectPropertyValueRegisterIndex].asFunction(), Value(Value::EmptyValue));
@@ -4430,11 +4505,14 @@ NEVER_INLINE void InterpreterSlowPath::defineObjectGetterSetter(ExecutionState& 
     Object* object = registerFile[code->m_objectRegisterIndex].toObject(state);
     const size_t minCacheFillCount = 2;
     if (object->structure() == code->m_inlineCachedStructureBefore) {
+        FunctionObject* fn = registerFile[code->m_objectPropertyValueRegisterIndex].asFunction();
+        updateObjectGetterSetterFunctionName(state, fn,
+                                             code->m_objectPropertyNameRegisterIndex == REGISTER_LIMIT ? fn->codeBlock()->functionName().string() : registerFile[code->m_objectPropertyNameRegisterIndex], code->m_isGetter);
         JSGetterSetter* gs;
         if (code->m_isGetter) {
-            gs = new JSGetterSetter(registerFile[code->m_objectPropertyValueRegisterIndex].asFunction(), Value(Value::EmptyValue));
+            gs = new JSGetterSetter(fn, Value(Value::EmptyValue));
         } else {
-            gs = new JSGetterSetter(Value(Value::EmptyValue), registerFile[code->m_objectPropertyValueRegisterIndex].asFunction());
+            gs = new JSGetterSetter(Value(Value::EmptyValue), fn);
         }
         object->m_values.push_back(Value(gs), code->m_inlineCachedStructureAfter->propertyCount());
         object->m_structure = code->m_inlineCachedStructureAfter;

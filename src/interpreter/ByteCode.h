@@ -958,54 +958,67 @@ class CreateObjectPrepare : public ByteCode {
 public:
     enum Stage ENSURE_ENUM_UNSIGNED {
         Init,
-        FillKeyValue
+        FillKeyValue,
+        DefineGetterSetter,
     };
 
     struct CreateObjectData : public gc {
-        bool m_hasSymbol;
-        bool m_hasNonAtomicPropertyName;
-        size_t m_fillIndex;
-        ObjectStructureItemTightVector m_properties;
-        ObjectPropertyValueVector m_values;
+        ObjectStructureItemVector m_properties;
+        EncodedValueVector m_values;
         Object* m_target;
-        CreateObjectData(size_t propertyCount, Object* target)
-            : m_hasSymbol(false)
-            , m_hasNonAtomicPropertyName(false)
-            , m_fillIndex(0)
-            , m_target(target)
+        CreateObjectData(size_t reserveSize, Object* target)
+            : m_target(target)
         {
-            m_properties.resizeWithUninitializedValues(propertyCount);
-            m_values.resizeWithUninitializedValues(0, propertyCount);
+            m_properties.reserve(reserveSize);
+            m_values.reserve(reserveSize);
         }
     };
 
-    CreateObjectPrepare(const ByteCodeLOC& loc, const size_t dataRegisterIndex, const size_t propertyCount, const size_t objectIndex)
+    CreateObjectPrepare(const ByteCodeLOC& loc, const size_t dataRegisterIndex, const size_t objectIndex)
         : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
         , m_stage(Stage::Init)
-        , m_hasAtomicString(false)
+        , m_hasPreComputedKey(false)
+        , m_needsToUpdateFunctionName(false)
+        , m_isGetter(false)
         , m_dataRegisterIndex(dataRegisterIndex)
-        , m_propertyCount(propertyCount)
+        , m_propertyReserveSize(0)
         , m_objectIndex(objectIndex)
     {
     }
 
-    CreateObjectPrepare(const ByteCodeLOC& loc, const bool hasAtomicString, const size_t dataRegisterIndex, const size_t keyIndex, const size_t valueIndex)
+    CreateObjectPrepare(const ByteCodeLOC& loc, const bool hasPreComputedKey, const size_t dataRegisterIndex, const size_t keyIndex, const size_t valueIndex, const bool needsToUpdateFunctionName)
         : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
         , m_stage(Stage::FillKeyValue)
-        , m_hasAtomicString(hasAtomicString)
+        , m_hasPreComputedKey(hasPreComputedKey)
+        , m_needsToUpdateFunctionName(needsToUpdateFunctionName)
+        , m_isGetter(false)
         , m_dataRegisterIndex(dataRegisterIndex)
         , m_keyIndex(keyIndex)
         , m_valueIndex(valueIndex)
     {
     }
 
-    Stage m_stage : 1;
-    bool m_hasAtomicString : 1;
+    CreateObjectPrepare(const ByteCodeLOC& loc, const bool hasPreComputedKey, const bool isGetter, const size_t dataRegisterIndex, const size_t keyIndex, const size_t valueIndex)
+        : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
+        , m_stage(Stage::DefineGetterSetter)
+        , m_hasPreComputedKey(hasPreComputedKey)
+        , m_needsToUpdateFunctionName(false)
+        , m_isGetter(isGetter)
+        , m_dataRegisterIndex(dataRegisterIndex)
+        , m_keyIndex(keyIndex)
+        , m_valueIndex(valueIndex)
+    {
+    }
+
+    Stage m_stage : 2;
+    bool m_hasPreComputedKey : 1;
+    bool m_needsToUpdateFunctionName : 1;
+    bool m_isGetter : 1; // other case, this is setter
     ByteCodeRegisterIndex m_dataRegisterIndex : REGISTER_INDEX_IN_BIT;
 
     union {
         struct {
-            ByteCodeRegisterIndex m_propertyCount : REGISTER_INDEX_IN_BIT;
+            ByteCodeRegisterIndex m_propertyReserveSize : REGISTER_INDEX_IN_BIT;
             ByteCodeRegisterIndex m_objectIndex : REGISTER_INDEX_IN_BIT;
         };
 

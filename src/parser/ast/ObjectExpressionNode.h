@@ -56,50 +56,81 @@ public:
     virtual ASTNodeType type() override { return ASTNodeType::ObjectExpression; }
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
     {
-        size_t initPropertyCount = 0;
-        bool allSimpleCase = true;
-        for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); property = property->next()) {
-            initPropertyCount++;
-            if (property->astNode()->isProperty()) {
-                PropertyNode* p = property->astNode()->asProperty();
-                if (p->kind() != PropertyNode::Kind::Init) {
-                    allSimpleCase = false;
-                    break;
-                }
-            } else {
-                allSimpleCase = false;
-                break;
-            }
-        }
-
-        if (allSimpleCase && initPropertyCount >= ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE && initPropertyCount <= REGISTER_LIMIT) {
-            size_t dataIndex = context->getRegister();
-            codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), dataIndex, initPropertyCount, dstRegister), context, this->m_loc.index);
+        if (m_properties.size() >= ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE) {
+            size_t objectCreationDataIndex = context->getRegister();
+            size_t initCodePosition = codeBlock->currentCodeSize();
+            codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), objectCreationDataIndex, dstRegister), context, this->m_loc.index);
 
             size_t propertyIndex = 0;
             for (SentinelNode* property = m_properties.begin(); property != m_properties.end(); propertyIndex++, property = property->next()) {
-                PropertyNode* p = property->astNode()->asProperty();
-                ASSERT(p->kind() == PropertyNode::Kind::Init);
+                if (property->astNode()->isProperty()) {
+                    PropertyNode* p = property->astNode()->asProperty();
+                    bool hasKeyName = false;
+                    size_t propertyIndex = SIZE_MAX;
+                    if (p->key()->isIdentifier() && !p->computed()) {
+                        hasKeyName = true;
+                        propertyIndex = context->getRegister();
+                        codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), propertyIndex, Value(p->key()->asIdentifier()->name().string())), context, this->m_loc.index);
+                    } else {
+                        propertyIndex = p->key()->getRegister(codeBlock, context);
+                        p->key()->generateExpressionByteCode(codeBlock, context, propertyIndex);
+                    }
 
-                bool hasKeyName = false;
-                size_t propertyIndex = SIZE_MAX;
-                if (p->key()->isIdentifier() && !p->computed()) {
-                    hasKeyName = true;
-                    propertyIndex = context->getRegister();
-                    codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), propertyIndex, Value(p->key()->asIdentifier()->name().string())), context, this->m_loc.index);
+                    size_t valueIndex = generateInitValueByteCode(codeBlock, context, p, dstRegister);
+                    if (p->kind() == PropertyNode::Kind::Init) {
+                        bool hasFunctionOnRightSide = p->value()->type() == ASTNodeType::FunctionExpression || p->value()->type() == ASTNodeType::ArrowFunctionExpression;
+                        bool hasClassOnRightSide = p->value()->type() == ASTNodeType::ClassExpression && !p->value()->asClassExpression()->classNode().classBody()->hasStaticMemberName(codeBlock->m_codeBlock->context()->staticStrings().name);
+                        codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), hasKeyName, objectCreationDataIndex, propertyIndex, valueIndex, !hasKeyName && (hasFunctionOnRightSide | hasClassOnRightSide)), context, this->m_loc.index);
+                    } else {
+                        ASSERT(p->kind() == PropertyNode::Kind::Get || p->kind() == PropertyNode::Kind::Set);
+                        codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), hasKeyName, p->kind() == PropertyNode::Kind::Get, objectCreationDataIndex, propertyIndex, valueIndex), context, this->m_loc.index);
+                    }
+
+                    context->giveUpRegister(); // value
+                    context->giveUpRegister(); // key
                 } else {
-                    propertyIndex = p->key()->getRegister(codeBlock, context);
-                    p->key()->generateExpressionByteCode(codeBlock, context, propertyIndex);
-                }
+                    // handle spread element in Object initialization
+                    ASSERT(property->astNode()->type() == ASTNodeType::SpreadElement);
+                    Node* element = property->astNode()->asSpreadElement()->argument();
 
-                size_t valueIndex = generateInitValueByteCode(codeBlock, context, p, dstRegister);
-                codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), hasKeyName, dataIndex, propertyIndex, valueIndex), context, this->m_loc.index);
-                context->giveUpRegister();
-                context->giveUpRegister();
+                    ByteCodeRegisterIndex elementIndex = element->getRegister(codeBlock, context);
+                    ByteCodeRegisterIndex dataIndex = context->getRegister();
+                    ByteCodeRegisterIndex keyIndex = context->getRegister();
+                    ByteCodeRegisterIndex valueIndex = context->getRegister();
+
+                    element->generateExpressionByteCode(codeBlock, context, elementIndex);
+
+                    codeBlock->pushCode<JumpIfUndefinedOrNull>(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, elementIndex), context, this->m_loc.index);
+                    size_t pos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
+
+                    codeBlock->pushCode(CreateEnumerateObject(ByteCodeLOC(m_loc.index), elementIndex, dataIndex, true), context, this->m_loc.index);
+
+                    size_t checkPos = codeBlock->currentCodeSize();
+                    codeBlock->pushCode(CheckLastEnumerateKey(ByteCodeLOC(m_loc.index)), context, this->m_loc.index);
+                    codeBlock->peekCode<CheckLastEnumerateKey>(checkPos)->m_registerIndex = dataIndex;
+                    codeBlock->pushCode(GetEnumerateKey(ByteCodeLOC(m_loc.index), keyIndex, dataIndex), context, this->m_loc.index);
+
+                    codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), elementIndex, keyIndex, valueIndex), context, this->m_loc.index);
+                    codeBlock->pushCode(CreateObjectPrepare(ByteCodeLOC(m_loc.index), false, objectCreationDataIndex, keyIndex, valueIndex, false), context, this->m_loc.index);
+                    codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), checkPos), context, this->m_loc.index);
+
+                    size_t exitPos = codeBlock->currentCodeSize();
+                    codeBlock->peekCode<CheckLastEnumerateKey>(checkPos)->m_exitPosition = exitPos;
+
+                    // for drop elementIndex, dataIndex, keyIndex, valueIndex
+                    context->giveUpRegister();
+                    context->giveUpRegister();
+                    context->giveUpRegister();
+                    context->giveUpRegister();
+
+                    codeBlock->peekCode<JumpIfUndefinedOrNull>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
+                }
             }
 
-            codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), dstRegister, dataIndex), context, this->m_loc.index);
+            codeBlock->pushCode(CreateObject(ByteCodeLOC(m_loc.index), dstRegister, objectCreationDataIndex), context, this->m_loc.index);
+            codeBlock->peekCode<CreateObjectPrepare>(initCodePosition)->m_propertyReserveSize = propertyIndex;
             context->giveUpRegister();
+            codeBlock->m_shouldClearStack = true;
             return;
         }
 
