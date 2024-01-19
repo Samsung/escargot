@@ -32,6 +32,10 @@
 #include <unistd.h>
 #endif
 
+#if defined(ESCARGOT_GOOGLE_PERF)
+#include <gperftools/profiler.h>
+#endif
+
 #include "api/EscargotPublic.h"
 
 #if defined(ESCARGOT_ENABLE_TEST)
@@ -1030,6 +1034,10 @@ int main(int argc, char* argv[])
     mallopt(M_MMAP_MAX, 1024 * 1024);
 #endif
 
+#if defined(ESCARGOT_GOOGLE_PERF)
+    ProfilerStart("gperf_result");
+#endif
+
     bool waitBeforeExit = false;
 
     ShellPlatform* platform = new ShellPlatform();
@@ -1189,6 +1197,10 @@ int main(int argc, char* argv[])
     instance.release();
 
     Globals::finalize();
+
+#if defined(ESCARGOT_GOOGLE_PERF)
+    ProfilerStop();
+#endif
 
     return 0;
 }

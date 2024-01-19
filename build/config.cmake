@@ -181,7 +181,7 @@ SET (ESCARGOT_CXXFLAGS_STATICLIB -fPIC -DESCARGOT_EXPORT=)
 SET (ESCARGOT_CXXFLAGS_SHELL -DESCARGOT_EXPORT=)
 
 #######################################################
-# FLAGS FOR MEMORY PROFILING
+# FLAGS FOR PROFILING
 #######################################################
 SET (PROFILER_FLAGS)
 
@@ -195,6 +195,11 @@ ENDIF()
 
 IF (ESCARGOT_VALGRIND)
     SET (PROFILER_FLAGS ${PROFILER_FLAGS} -DESCARGOT_VALGRIND)
+ENDIF()
+
+IF (ESARGOT_GOOGLE_PERF)
+    SET (PROFILER_FLAGS ${PROFILER_FLAGS} -DESCARGOT_GOOGLE_PERF)
+    SET (ESCARGOT_LDFLAGS ${ESCARGOT_LDFLAGS} -lprofiler -lunwind -llzma)
 ENDIF()
 
 #######################################################
