@@ -140,7 +140,6 @@ void* VMInstance::operator new(size_t size)
     if (!typeInited) {
         GC_word desc[GC_BITMAP_SIZE(VMInstance)] = { 0 };
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_staticStrings.dtoaCache));
-
         // we should mark every word of m_atomicStringMap
         for (size_t i = 0; i < sizeof(m_atomicStringMap); i += sizeof(size_t)) {
             GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_atomicStringMap) + (i / sizeof(size_t)));
@@ -166,6 +165,7 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForMappedArgumentsObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForUnmappedArgumentsObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultPrivateMemberStructure));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_rootedObjectStructure));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_onVMInstanceDestroyData));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_toStringRecursionPreventer.m_registeredItems));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpCache));
@@ -613,6 +613,26 @@ DateObject* VMInstance::cachedUTC(ExecutionState& state)
         m_cachedUTC = obj;
     }
     return m_cachedUTC;
+}
+
+Optional<ObjectStructure*> VMInstance::findRootedObjectStructure(ObjectStructureItem* properties, size_t propertyCount)
+{
+    for (size_t i = 0; i < m_rootedObjectStructure.size(); i++) {
+        if (m_rootedObjectStructure[i]->propertyCount() == propertyCount) {
+            auto cachedProperties = m_rootedObjectStructure[i]->properties();
+            bool match = true;
+            for (size_t j = 0; j < propertyCount; j++) {
+                if (cachedProperties[j].m_propertyName != properties[j].m_propertyName || cachedProperties[j].m_descriptor != properties[j].m_descriptor) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                return m_rootedObjectStructure[i];
+            }
+        }
+    }
+    return nullptr;
 }
 
 void VMInstance::clearCachesRelatedWithContext()

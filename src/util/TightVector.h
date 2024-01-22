@@ -98,6 +98,19 @@ public:
         m_buffer[other.size()] = newItem;
     }
 
+    TightVector(const T* start, const T* end)
+    {
+        m_buffer = nullptr;
+        m_size = std::distance(start, end);
+
+        if (m_size) {
+            T* newBuffer = Allocator().allocate(m_size);
+            m_buffer = newBuffer;
+
+            VectorCopier<T>::copy(m_buffer, start, m_size);
+        }
+    }
+
     ~TightVector()
     {
         if (m_buffer)
@@ -261,6 +274,20 @@ public:
 
             m_size = newSize;
             m_buffer = nullptr;
+        }
+    }
+
+    void assign(const T* start, const T* end)
+    {
+        clear();
+
+        m_size = std::distance(start, end);
+
+        if (m_size) {
+            T* newBuffer = Allocator().allocate(m_size);
+            m_buffer = newBuffer;
+
+            VectorCopier<T>::copy(m_buffer, start, m_size);
         }
     }
 

@@ -2974,18 +2974,46 @@ NEVER_INLINE void InterpreterSlowPath::initializeGlobalVariable(ExecutionState& 
 NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& state, CreateObject* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     if (code->m_dataRegisterIndex != REGISTER_LIMIT) {
-        CreateObjectPrepare::CreateObjectData* data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].payload());
+        CreateObjectPrepare::CreateObjectData* data;
+        if (byteCodeBlock->codeBlock()->isAsyncOrGenerator()) {
+            data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].payload());
+        } else {
+            data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(&registerFile[code->m_dataRegisterIndex]);
+        }
+
         Object* obj = registerFile[code->m_registerIndex].asObject();
-        ObjectStructureItemTightVector properties;
-        properties.reset(data->m_properties.takeBuffer(), data->m_values.size());
-        obj->m_structure = ObjectStructure::create(state.context(), std::move(properties));
+        if (!data->m_wasStructureComputed) {
+            size_t propertyCount = data->m_properties.size();
+            Optional<ObjectStructure*> cache;
+            if (data->m_allPrecomputed && ObjectStructure::isTransitionModeAvailable(propertyCount)) {
+                cache = state.context()->vmInstance()->findRootedObjectStructure(data->m_properties.data(), propertyCount);
+            }
+            if (cache) {
+                obj->m_structure = cache.value();
+            } else {
+                obj->m_structure = ObjectStructure::create(state.context(),
+                                                           ObjectStructureItemTightVector(data->m_properties.data(), data->m_properties.data() + propertyCount),
+#if defined(ESCARGOT_SMALL_CONFIG)
+                                                           false);
+#else
+                                                               data->m_allPrecomputed);
+#endif
+                if (data->m_canStoreStructureOnCode) {
+                    data->m_initCode->m_cachedObjectStructure = obj->m_structure;
+                    data->m_initCode->m_cachedObjectStructure->markReferencedByInlineCache();
+                    byteCodeBlock->m_otherLiteralData.pushBack(obj->m_structure);
+                }
+            }
+        }
         obj->m_values.reset(data->m_values.takeBuffer());
+        // reset creation area prevent leak from stack
+        memset(data, 0, sizeof(CreateObjectPrepare::CreateObjectData));
     } else {
         registerFile[code->m_registerIndex] = new Object(state);
-    }
 #if defined(ESCARGOT_SMALL_CONFIG)
-    registerFile[code->m_registerIndex].asObject()->markThisObjectDontNeedStructureTransitionTable();
+        registerFile[code->m_registerIndex].asObject()->markThisObjectDontNeedStructureTransitionTable();
 #endif
+    }
 }
 
 static Value createObjectPropertyFunctionName(ExecutionState& state, const Value& name, const char* prefix)
@@ -3009,15 +3037,33 @@ static Value createObjectPropertyFunctionName(ExecutionState& state, const Value
 NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionState& state, CreateObjectPrepare* code, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
     if (code->m_stage == CreateObjectPrepare::Init) {
-        CreateObjectPrepare::CreateObjectData* data = new CreateObjectPrepare::CreateObjectData(code->m_propertyReserveSize, new Object(state));
-        registerFile[code->m_dataRegisterIndex] = Value(Value::FromPayload, reinterpret_cast<intptr_t>(data));
+        void* ptr;
+        if (byteCodeBlock->codeBlock()->isAsyncOrGenerator()) {
+            // async or generator uses ValueVector alloctor for allocating registerFile
+            // ValueVector allocator cannot track CreateObjectData if there is CreateObjectData on registerFile
+            ptr = GC_MALLOC(sizeof(CreateObjectPrepare::CreateObjectData));
+            registerFile[code->m_dataRegisterIndex] = Value(Value::FromPayload, reinterpret_cast<intptr_t>(ptr));
+        } else {
+            ptr = &registerFile[code->m_dataRegisterIndex];
+        }
+        CreateObjectPrepare::CreateObjectData* data = new (ptr) CreateObjectPrepare::CreateObjectData(
+            code->m_allPrecomputed, code->m_propertyReserveSize,
+            new Object(state), code->m_cachedObjectStructure.hasValue(), code);
         registerFile[code->m_objectIndex] = data->m_target;
+        if (data->m_wasStructureComputed) {
+            data->m_target->m_structure = code->m_cachedObjectStructure.value();
+        }
     } else {
         ASSERT(code->m_stage == CreateObjectPrepare::FillKeyValue || code->m_stage == CreateObjectPrepare::DefineGetterSetter);
-        CreateObjectPrepare::CreateObjectData* data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].payload());
+        CreateObjectPrepare::CreateObjectData* data;
+        if (byteCodeBlock->codeBlock()->isAsyncOrGenerator()) {
+            data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].payload());
+        } else {
+            data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(&registerFile[code->m_dataRegisterIndex]);
+        }
 
         ObjectStructurePropertyName propertyName;
-        if (code->m_hasPreComputedKey) {
+        if (code->m_hasPrecomputedKey) {
             propertyName = ObjectStructurePropertyName(AtomicString::fromPayload(registerFile[code->m_keyIndex].asString()));
             // http://www.ecma-international.org/ecma-262/6.0/#sec-__proto__-property-names-in-object-initializers
             if (UNLIKELY(propertyName.asAtomicString() == state.context()->staticStrings().__proto__ && code->m_stage == CreateObjectPrepare::FillKeyValue)) {
@@ -3031,6 +3077,18 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
             propertyName = ObjectStructurePropertyName(state, registerFile[code->m_keyIndex]);
         }
 
+        Value newValue = registerFile[code->m_valueIndex];
+        if (UNLIKELY(code->m_needsToUpdateFunctionName)) {
+            Value propertyStringOrSymbol(propertyName.isSymbol() ? Value(propertyName.symbol()) : Value(propertyName.toValue().toString(state)));
+            Value fnName = createObjectPropertyFunctionName(state, propertyStringOrSymbol, "");
+            newValue.asFunction()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
+        }
+
+        if (data->m_wasStructureComputed) {
+            data->m_values.pushBack(newValue);
+            return;
+        }
+
         size_t lastPropertyCount = data->m_properties.size();
         size_t targetIndex = lastPropertyCount;
         bool updateProperty = false;
@@ -3038,23 +3096,16 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
             if (data->m_properties[i].m_propertyName == propertyName) {
                 targetIndex = i;
                 updateProperty = true;
+                data->m_canStoreStructureOnCode = false;
                 break;
             }
         }
 
         ObjectStructurePropertyDescriptor newDesc;
-        Value newValue;
         if (code->m_stage == CreateObjectPrepare::FillKeyValue) {
-            Value& value = registerFile[code->m_valueIndex];
-            if (code->m_needsToUpdateFunctionName) {
-                Value propertyStringOrSymbol(propertyName.isSymbol() ? Value(propertyName.symbol()) : Value(propertyName.toValue().toString(state)));
-                ASSERT(value.isFunction());
-                Value fnName = createObjectPropertyFunctionName(state, propertyStringOrSymbol, "");
-                value.asFunction()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
-            }
             newDesc = ObjectStructurePropertyDescriptor::createDataDescriptor(ObjectStructurePropertyDescriptor::AllPresent);
-            newValue = value;
         } else {
+            data->m_canStoreStructureOnCode = false;
             FunctionObject* fn = registerFile[code->m_valueIndex].asFunction();
             updateObjectGetterSetterFunctionName(state, fn, registerFile[code->m_keyIndex], code->m_isGetter);
             int flag = ObjectStructurePropertyDescriptor::ConfigurablePresent | ObjectStructurePropertyDescriptor::EnumerablePresent;

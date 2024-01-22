@@ -221,7 +221,7 @@ public:
 
     void pushBack(const T& val)
     {
-        if (m_capacity <= (m_size + 1)) {
+        if (m_capacity < (m_size + 1)) {
             size_t oldc = m_capacity;
             ComputeReservedCapacityFunction f;
             m_capacity = f(m_size + 1);
@@ -245,7 +245,7 @@ public:
     void insert(size_t pos, const T& val)
     {
         ASSERT(pos <= m_size);
-        if (m_capacity <= (m_size + 1)) {
+        if (m_capacity < (m_size + 1)) {
             size_t oldC = m_capacity;
 
             ComputeReservedCapacityFunction f;
@@ -521,7 +521,7 @@ public:
 
     void pushBack(const T& val, size_t newSize)
     {
-        if (m_capacity <= (newSize)) {
+        if (m_capacity < newSize) {
             size_t oldc = m_capacity;
             ComputeReservedCapacityFunction f;
             m_capacity = f(newSize);
@@ -635,7 +635,7 @@ public:
 
     void pushBack(const T& val, size_t newSize)
     {
-        if (m_capacity <= (newSize)) {
+        if (m_capacity < newSize) {
             ComputeReservedCapacityFunction f;
             m_capacity = f(newSize);
             m_buffer = (T*)GC_REALLOC(m_buffer, sizeof(T) * m_capacity);
@@ -821,6 +821,23 @@ public:
             return (T*)m_inlineStorage;
         } else {
             return m_externalStorage.data();
+        }
+    }
+
+    void reserve(size_t siz)
+    {
+        ASSERT(siz >= size());
+        if (LIKELY(!m_useExternalStorage)) {
+            if (siz >= InlineStorageSize) {
+                m_useExternalStorage = true;
+                m_externalStorage.reserve(siz);
+
+                for (size_t i = 0; i < m_size; i++) {
+                    m_externalStorage.push_back(std::move(*inlineAt(i)));
+                }
+            }
+        } else {
+            m_externalStorage.reserve(siz);
         }
     }
 

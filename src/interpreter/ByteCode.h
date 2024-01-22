@@ -963,13 +963,24 @@ public:
     };
 
     struct CreateObjectData : public gc {
-        ObjectStructureItemVector m_properties;
+        bool m_allPrecomputed;
+        bool m_wasStructureComputed;
+        bool m_canStoreStructureOnCode;
+        Vector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> m_properties;
         EncodedValueVector m_values;
         Object* m_target;
-        CreateObjectData(size_t reserveSize, Object* target)
-            : m_target(target)
+        CreateObjectPrepare* m_initCode;
+        CreateObjectData(bool allPrecomputed, size_t reserveSize, Object* target, bool wasStructureComputed,
+                         CreateObjectPrepare* initCode)
+            : m_allPrecomputed(allPrecomputed)
+            , m_wasStructureComputed(wasStructureComputed)
+            , m_canStoreStructureOnCode(allPrecomputed)
+            , m_target(target)
+            , m_initCode(initCode)
         {
-            m_properties.reserve(reserveSize);
+            if (!wasStructureComputed) {
+                m_properties.reserve(reserveSize);
+            }
             m_values.reserve(reserveSize);
         }
     };
@@ -977,7 +988,8 @@ public:
     CreateObjectPrepare(const ByteCodeLOC& loc, const size_t dataRegisterIndex, const size_t objectIndex)
         : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
         , m_stage(Stage::Init)
-        , m_hasPreComputedKey(false)
+        , m_allPrecomputed(false)
+        , m_hasPrecomputedKey(false)
         , m_needsToUpdateFunctionName(false)
         , m_isGetter(false)
         , m_dataRegisterIndex(dataRegisterIndex)
@@ -989,7 +1001,8 @@ public:
     CreateObjectPrepare(const ByteCodeLOC& loc, const bool hasPreComputedKey, const size_t dataRegisterIndex, const size_t keyIndex, const size_t valueIndex, const bool needsToUpdateFunctionName)
         : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
         , m_stage(Stage::FillKeyValue)
-        , m_hasPreComputedKey(hasPreComputedKey)
+        , m_allPrecomputed(false)
+        , m_hasPrecomputedKey(hasPreComputedKey)
         , m_needsToUpdateFunctionName(needsToUpdateFunctionName)
         , m_isGetter(false)
         , m_dataRegisterIndex(dataRegisterIndex)
@@ -1001,7 +1014,8 @@ public:
     CreateObjectPrepare(const ByteCodeLOC& loc, const bool hasPreComputedKey, const bool isGetter, const size_t dataRegisterIndex, const size_t keyIndex, const size_t valueIndex)
         : ByteCode(Opcode::CreateObjectPrepareOpcode, loc)
         , m_stage(Stage::DefineGetterSetter)
-        , m_hasPreComputedKey(hasPreComputedKey)
+        , m_allPrecomputed(false)
+        , m_hasPrecomputedKey(hasPreComputedKey)
         , m_needsToUpdateFunctionName(false)
         , m_isGetter(isGetter)
         , m_dataRegisterIndex(dataRegisterIndex)
@@ -1011,10 +1025,12 @@ public:
     }
 
     Stage m_stage : 2;
-    bool m_hasPreComputedKey : 1;
+    bool m_allPrecomputed : 1;
+    bool m_hasPrecomputedKey : 1;
     bool m_needsToUpdateFunctionName : 1;
     bool m_isGetter : 1; // other case, this is setter
     ByteCodeRegisterIndex m_dataRegisterIndex : REGISTER_INDEX_IN_BIT;
+    Optional<ObjectStructure*> m_cachedObjectStructure;
 
     union {
         struct {

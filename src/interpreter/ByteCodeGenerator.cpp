@@ -439,7 +439,9 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         case CreateObjectPrepareOpcode: {
             CreateObjectPrepare* cd = (CreateObjectPrepare*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dataRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
-            if (cd->m_stage == CreateObjectPrepare::FillKeyValue || cd->m_stage == CreateObjectPrepare::DefineGetterSetter) {
+            if (cd->m_stage == CreateObjectPrepare::Init) {
+                ASSIGN_STACKINDEX_IF_NEEDED(cd->m_objectIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            } else if (cd->m_stage == CreateObjectPrepare::FillKeyValue || cd->m_stage == CreateObjectPrepare::DefineGetterSetter) {
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_keyIndex, stackBase, stackBaseWillBe, stackVariableSize);
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_valueIndex, stackBase, stackBaseWillBe, stackVariableSize);
             }
