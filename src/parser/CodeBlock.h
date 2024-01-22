@@ -736,6 +736,11 @@ public:
         return m_isAsync;
     }
 
+    bool isAsyncOrGenerator() const
+    {
+        return m_isGenerator || m_isAsync;
+    }
+
     // for TCO
     bool isTailRecursionTarget(size_t argc, const AtomicString& calleeName) const
     {

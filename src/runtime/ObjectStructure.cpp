@@ -19,6 +19,8 @@
 
 #include "Escargot.h"
 #include "Object.h"
+#include "runtime/Context.h"
+#include "runtime/VMInstance.h"
 
 namespace Escargot {
 
@@ -48,8 +50,9 @@ void* ObjectStructureWithoutTransition::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-ObjectStructure* ObjectStructure::create(Context* ctx, ObjectStructureItemTightVector&& properties)
+ObjectStructure* ObjectStructure::create(Context* ctx, ObjectStructureItemTightVector&& properties, bool preferTransition)
 {
+    preferTransition = isTransitionModeAvailable(properties.size() <= ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) && preferTransition;
     bool hasIndexStringAsPropertyName = false;
     bool hasSymbol = false;
     bool hasNonAtomicPropertyName = false;
@@ -69,9 +72,12 @@ ObjectStructure* ObjectStructure::create(Context* ctx, ObjectStructureItemTightV
         hasEnumerableProperty |= properties[i].m_descriptor.isEnumerable();
     }
 
-    ObjectStructure* newObjectStructure;
-    if (properties.size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
+    if (!isTransitionModeAvailable(properties.size())) {
         return new ObjectStructureWithMap(hasIndexStringAsPropertyName, hasSymbol, hasEnumerableProperty, std::move(properties));
+    } else if (preferTransition) {
+        ObjectStructure* newObjectStructure = new ObjectStructureWithTransition(std::move(properties), hasIndexStringAsPropertyName, hasSymbol, hasNonAtomicPropertyName, hasEnumerableProperty);
+        ctx->vmInstance()->rootedObjectStructure().pushBack(newObjectStructure);
+        return newObjectStructure;
     } else {
         return new ObjectStructureWithoutTransition(new ObjectStructureItemVector(std::move(properties)), hasIndexStringAsPropertyName, hasSymbol, hasNonAtomicPropertyName, hasEnumerableProperty);
     }

@@ -128,7 +128,7 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
     } else if (value.IsObject()) {
         Object* obj;
         auto memberCount = value.MemberCount();
-        if (memberCount > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE) {
+        if (!ObjectStructure::isTransitionModeAvailable(memberCount)) {
             typedef typename rapidjson::GenericValue<JSONCharType>::MemberIterator JSONIter;
             JSONIter iter = value.MemberBegin();
             obj = new Object(state, memberCount,

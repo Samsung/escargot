@@ -128,7 +128,11 @@ class ObjectStructure : public gc {
 public:
     virtual ~ObjectStructure() {}
 
-    static ObjectStructure* create(Context* ctx, ObjectStructureItemTightVector&& properties);
+    static bool isTransitionModeAvailable(size_t propertyCount)
+    {
+        return propertyCount <= ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE;
+    }
+    static ObjectStructure* create(Context* ctx, ObjectStructureItemTightVector&& properties, bool preferTransition = false);
 
     std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(ExecutionState& state, String* propertyName)
     {
