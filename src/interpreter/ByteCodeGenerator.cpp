@@ -278,7 +278,7 @@ ByteCodeBlock* ByteCodeGenerator::generateByteCode(Context* context, Interpreted
 
     block->m_code.shrinkToFit();
     block->m_requiredTotalRegisterNumber = block->m_requiredOperandRegisterNumber + codeBlock->totalStackAllocatedVariableSize() + block->m_numeralLiteralData.size();
-    block->m_needsExtendedExectuionState = ctx.m_needsExtendedExecutionState;
+    block->m_needsExtendedExecutionState = ctx.m_needsExtendedExecutionState;
 
 #if defined(ENABLE_CODE_CACHE)
     // cache bytecode right before relocation
@@ -607,6 +607,13 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         // TCO
         case CallReturnOpcode: {
             CallReturn* cd = (CallReturn*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            break;
+        }
+        case TailCallOpcode: {
+            TailCall* cd = (TailCall*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);

@@ -742,25 +742,17 @@ public:
     }
 
     // for TCO
-    bool isTailRecursionTarget(size_t argc, const AtomicString& calleeName) const
+    bool isTailCallTarget(size_t argc) const
     {
-        // global scope cannot create a return statement, neither tail recursion
+        // global scope cannot create a return statement, neither tail call
         ASSERT(!isGlobalScope());
 
-        // check argc
-        if (m_parameterCount != argc) {
+        if (argc > TCO_ARGUMENT_COUNT_LIMIT) {
             return false;
         }
 
-#ifndef ESCARGOT_ENABLE_TEST
-        // check callee name
-        // this check is disabled in test build to pass test262 tco-related test cases
-        if (m_functionName.string()->length() && m_functionName != calleeName) {
-            return false;
-        }
-#endif
-
-        return (!m_canAllocateVariablesOnStack || m_isArrowFunctionExpression || m_isClassConstructor || m_isDerivedClassConstructor || m_isClassMethod || m_isClassStaticMethod || m_isGenerator || m_isAsync || m_usesArgumentsObject) != true;
+        // skip arrow functions because arrow functions are rarely invoked in tail call
+        return m_canAllocateVariablesOnStack && !m_isArrowFunctionExpression && !m_isClassConstructor && !m_isDerivedClassConstructor && !m_isClassMethod && !m_isClassStaticMethod && !m_isGenerator && !m_isAsync && !m_usesArgumentsObject;
     }
 
     bool usesArgumentsObject() const
@@ -802,6 +794,18 @@ public:
     {
         m_hasDynamicSourceCode = true;
     }
+
+#if defined(ENABLE_TCO)
+    bool isTailRecursionDisabled() const
+    {
+        return m_isTailRecursionDisabled;
+    }
+
+    void disableTailRecursion()
+    {
+        m_isTailRecursionDisabled = true;
+    }
+#endif
 
 #ifdef ESCARGOT_DEBUGGER
     bool markDebugging() const
@@ -1008,6 +1012,9 @@ protected:
     bool m_allowArguments : 1;
     // represent if its source code is created dynamically by createDynamicFunctionScript
     bool m_hasDynamicSourceCode : 1;
+#if defined(ENABLE_TCO)
+    bool m_isTailRecursionDisabled : 1;
+#endif
 #ifdef ESCARGOT_DEBUGGER
     // mark that this InterpretedCodeBlock should generate debugging bytecode (breakpoint)
     bool m_markDebugging : 1;

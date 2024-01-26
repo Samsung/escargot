@@ -99,6 +99,17 @@ protected:
             }
         }
 
+#if defined(ENABLE_TCO)
+        const Value returnValue = Interpreter::interpret(&newState, blk, programStart, registerFile);
+        if (shouldClearStack) {
+            clearStack<512>();
+        }
+        if (UNLIKELY(newState.inTCO())) {
+            // callee has been called in tail call, so reset the argument buffer
+            memset(Interpreter::tcoBuffer, 0, sizeof(Value) * TCO_ARGUMENT_COUNT_LIMIT);
+        }
+        return returnValue;
+#else
         if (shouldClearStack) {
             const Value returnValue = Interpreter::interpret(&newState, blk, programStart, registerFile);
             clearStack<512>();
@@ -106,6 +117,7 @@ protected:
         } else {
             return Interpreter::interpret(&newState, blk, programStart, registerFile);
         }
+#endif
     }
 
     virtual Value construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget) override
@@ -163,7 +175,6 @@ protected:
 
         ExecutionState newState(ctx, &state, &lexEnv, argc, argv, isStrict);
         stackStorage[0] = thisArgument;
-
         record.setNewTarget(newTarget);
 
         const Value returnValue = Interpreter::interpret(&newState, blk, reinterpret_cast<const size_t>(blk->m_code.data()), registerFile);

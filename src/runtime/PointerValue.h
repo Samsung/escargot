@@ -630,6 +630,10 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+#if defined(ENABLE_TCO)
+    bool canBeTailCallTargetRuntime(size_t argc);
+#endif
+
     String* asString()
     {
         ASSERT(isString());

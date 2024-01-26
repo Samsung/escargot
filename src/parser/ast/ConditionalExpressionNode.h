@@ -58,7 +58,7 @@ public:
     }
 
 #if defined(ENABLE_TCO)
-    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCall) override
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCallForm) override
     {
         size_t testReg = m_test->getRegister(codeBlock, context);
         m_test->generateExpressionByteCode(codeBlock, context, testReg);
@@ -68,13 +68,13 @@ public:
         context->giveUpRegister();
 
         size_t jumpPosForTestIsFalse = codeBlock->lastCodePosition<JumpIfFalse>();
-        m_consequente->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
+        m_consequente->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCallForm);
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), SIZE_MAX), context, this->m_loc.index);
         JumpIfFalse* jumpForTestIsFalse = codeBlock->peekCode<JumpIfFalse>(jumpPosForTestIsFalse);
         size_t jumpPosForEndOfConsequence = codeBlock->lastCodePosition<Jump>();
 
         jumpForTestIsFalse->m_jumpPosition = codeBlock->currentCodeSize();
-        m_alternate->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
+        m_alternate->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCallForm);
 
         Jump* jumpForEndOfConsequence = codeBlock->peekCode<Jump>(jumpPosForEndOfConsequence);
         jumpForEndOfConsequence->m_jumpPosition = codeBlock->currentCodeSize();

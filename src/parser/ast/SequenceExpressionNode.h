@@ -48,7 +48,7 @@ public:
     }
 
 #if defined(ENABLE_TCO)
-    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCall) override
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCallForm) override
     {
         ASSERT(m_expressions.size());
         ByteCodeRegisterIndex r = 0;
@@ -59,7 +59,7 @@ public:
         }
 
         // directly store the result of the last expression on to dstRegister
-        m_expressions.back()->astNode()->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
+        m_expressions.back()->astNode()->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCallForm);
     }
 #endif
 

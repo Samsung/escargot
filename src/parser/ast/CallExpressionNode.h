@@ -288,7 +288,7 @@ public:
     }
 
 #if defined(ENABLE_TCO)
-    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCall) override
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCallForm) override
     {
         if (m_callee->isIdentifier() && m_callee->asIdentifier()->name().string()->equals("eval")) {
             ByteCodeRegisterIndex evalIndex = context->getRegister();
@@ -415,15 +415,15 @@ public:
                                 context, this->m_loc.index);
         } else if (isCalleeHasReceiver) {
             if (dstRegister == context->m_returnRegister) {
-                // Try tail recursion optimization (TCO)
-                isTailCall = true;
+                // try tail call optimization (TCO)
+                isTailCallForm = true;
                 const AtomicString& calleeName = m_callee->asMemberExpression()->property()->isIdentifier() ? m_callee->asMemberExpression()->property()->asIdentifier()->name() : AtomicString();
-                bool isTailRecursion = context->m_codeBlock->isTailRecursionTarget(m_arguments.size(), calleeName);
                 if (UNLIKELY(context->tryCatchWithBlockStatementCount())) {
                     codeBlock->pushCode(CallWithReceiver(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
                 } else {
-                    if (isTailRecursion) {
-                        codeBlock->pushCode(TailRecursion(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
+                    if (context->m_codeBlock->isTailCallTarget(m_arguments.size())) {
+                        // tail call
+                        codeBlock->pushCode(TailCall(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
                     } else {
                         codeBlock->pushCode(CallReturn(ByteCodeLOC(m_loc.index), receiverIndex, calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
                     }
@@ -433,19 +433,21 @@ public:
             }
         } else {
             if (dstRegister == context->m_returnRegister) {
-                // Try tail recursion optimization (TCO)
-                isTailCall = true;
+                // try tail call optimization (TCO)
+                isTailCallForm = true;
                 const AtomicString& calleeName = m_callee->isIdentifier() ? m_callee->asIdentifier()->name() : AtomicString();
-                bool isTailRecursion = context->m_codeBlock->isTailRecursionTarget(m_arguments.size(), calleeName);
+                bool isTailCallTarget = context->m_codeBlock->isTailCallTarget(m_arguments.size());
                 if (UNLIKELY(context->tryCatchWithBlockStatementCount())) {
-                    if (isTailRecursion) {
+                    if (isTailCallTarget) {
+                        // try tail recursion
                         codeBlock->pushCode(TailRecursionInTry(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
                     } else {
                         codeBlock->pushCode(Call(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, dstRegister, m_arguments.size()), context, this->m_loc.index);
                     }
                 } else {
-                    if (isTailRecursion) {
-                        codeBlock->pushCode(TailRecursion(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
+                    if (isTailCallTarget) {
+                        // tail call
+                        codeBlock->pushCode(TailCall(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
                     } else {
                         codeBlock->pushCode(CallReturn(ByteCodeLOC(m_loc.index), calleeIndex, argumentsStartIndex, m_arguments.size()), context, this->m_loc.index);
                     }

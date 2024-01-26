@@ -141,6 +141,7 @@ struct GlobalVariableAccessCacheItem;
 #if defined(ENABLE_TCO)
 #define FOR_EACH_BYTECODE_TCO_OP(F) \
     F(CallReturn)                   \
+    F(TailCall)                     \
     F(TailRecursion)                \
     F(TailRecursionInTry)
 #else
@@ -2158,6 +2159,53 @@ public:
 #endif
 };
 
+class TailCall : public ByteCode {
+public:
+    TailCall(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
+        : ByteCode(Opcode::TailCallOpcode, loc)
+        , m_receiverIndex(REGISTER_LIMIT)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+    {
+        // tail call without receiver
+    }
+
+    TailCall(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
+        : ByteCode(Opcode::TailCallOpcode, loc)
+        , m_receiverIndex(receiverIndex)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+    {
+        // tail call with receiver
+    }
+
+    ByteCodeRegisterIndex m_receiverIndex;
+    ByteCodeRegisterIndex m_calleeIndex;
+    ByteCodeRegisterIndex m_argumentsStartIndex;
+    uint16_t m_argumentCount;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        if (m_receiverIndex != REGISTER_LIMIT) {
+            if (m_argumentCount) {
+                printf("tail call r%u.r%u(r%u-r%u)", m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+            } else {
+                printf("tail call r%u.r%u()", m_receiverIndex, m_calleeIndex);
+            }
+        } else {
+            if (m_argumentCount) {
+                printf("tail call r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+            } else {
+                printf("tail call r%u()", m_calleeIndex);
+            }
+        }
+    }
+#endif
+};
+
 class TailRecursion : public ByteCode {
 public:
     TailRecursion(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
@@ -2167,7 +2215,7 @@ public:
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_argumentCount(argumentCount)
     {
-        // tail recursion call without receiver
+        // tail recursion without receiver
     }
 
     TailRecursion(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
@@ -2177,7 +2225,7 @@ public:
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_argumentCount(argumentCount)
     {
-        // tail recursion call with receiver
+        // tail recursion with receiver
     }
 
     ByteCodeRegisterIndex m_receiverIndex;
@@ -2232,6 +2280,7 @@ public:
 #endif
 };
 
+COMPILE_ASSERT(sizeof(CallReturn) == sizeof(TailCall), "");
 COMPILE_ASSERT(sizeof(CallReturn) == sizeof(TailRecursion), "");
 COMPILE_ASSERT(sizeof(Call) == sizeof(TailRecursionInTry), "");
 #endif
@@ -3242,7 +3291,7 @@ public:
 
     bool needsExtendedExecutionState() const
     {
-        return m_needsExtendedExectuionState;
+        return m_needsExtendedExecutionState;
     }
 
     ExtendedNodeLOC computeNodeLOCFromByteCode(Context* c, size_t codePosition, InterpretedCodeBlock* cb, ByteCodeLOCData* locData);
@@ -3251,7 +3300,7 @@ public:
 
     bool m_shouldClearStack : 1;
     bool m_isOwnerMayFreed : 1;
-    bool m_needsExtendedExectuionState : 1;
+    bool m_needsExtendedExecutionState : 1;
     // number of bytecode registers used for bytecode operation like adding...moving...
     ByteCodeRegisterIndex m_requiredOperandRegisterNumber : REGISTER_INDEX_IN_BIT;
     // precomputed value of total register number which is "m_requiredTotalRegisterNumber + stack allocated variables size"

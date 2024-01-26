@@ -53,9 +53,9 @@ public:
     }
 
 #if defined(ENABLE_TCO)
-    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCall) override
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCallForm) override
     {
-        return m_convertedExpression->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
+        return m_convertedExpression->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCallForm);
     }
 #endif
 

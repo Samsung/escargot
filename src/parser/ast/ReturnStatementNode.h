@@ -54,9 +54,9 @@ public:
 #if defined(ENABLE_TCO)
                 if (!context->m_tcoDisabled && (context->tryCatchWithBlockStatementCount() == 1) && ((context->m_recursiveStatementStack.back().first == ByteCodeGenerateContext::Catch) || (context->m_recursiveStatementStack.back().first == ByteCodeGenerateContext::Finally))) {
                     // consider tail recursion (TCO) for catch, finally block within depth 1
-                    bool isTailCall = false;
+                    bool isTailCallForm = false;
                     context->setReturnRegister(index);
-                    m_argument->generateTCOExpressionByteCode(codeBlock, context, index, isTailCall);
+                    m_argument->generateTCOExpressionByteCode(codeBlock, context, index, isTailCallForm);
                     context->setReturnRegister(SIZE_MAX);
                 } else {
                     m_argument->generateExpressionByteCode(codeBlock, context, index);
@@ -74,7 +74,7 @@ public:
             }
             context->giveUpRegister();
         } else {
-            bool isTailCall = false;
+            bool isTailCallForm = false;
             size_t r;
             if (m_argument) {
                 r = m_argument->getRegister(codeBlock, context);
@@ -83,7 +83,7 @@ public:
                 // consider tail recursion (TCO)
                 ASSERT(!context->m_tcoDisabled);
                 context->setReturnRegister(r);
-                m_argument->generateTCOExpressionByteCode(codeBlock, context, r, isTailCall);
+                m_argument->generateTCOExpressionByteCode(codeBlock, context, r, isTailCallForm);
                 context->setReturnRegister(SIZE_MAX);
 #else
                 m_argument->generateExpressionByteCode(codeBlock, context, r);
@@ -94,7 +94,7 @@ public:
             }
 
 #if defined(ENABLE_TCO)
-            if (!isTailCall || (m_argument->type() != CallExpression))
+            if (!isTailCallForm || (m_argument->type() != CallExpression))
             // skip End bytecode only if it directly returns the result of tail call
 #endif
                 codeBlock->pushCode(End(ByteCodeLOC(m_loc.index), r), context, this->m_loc.index);
