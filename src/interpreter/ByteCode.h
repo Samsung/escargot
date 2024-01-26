@@ -142,9 +142,7 @@ struct GlobalVariableAccessCacheItem;
 #define FOR_EACH_BYTECODE_TCO_OP(F) \
     F(CallReturn)                   \
     F(TailRecursion)                \
-    F(TailRecursionInTry)           \
-    F(CallReturnWithReceiver)       \
-    F(TailRecursionWithReceiver)
+    F(TailRecursionInTry)
 #else
 #define FOR_EACH_BYTECODE_TCO_OP(F)
 #endif
@@ -2117,12 +2115,25 @@ class CallReturn : public ByteCode {
 public:
     CallReturn(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
         : ByteCode(Opcode::CallReturnOpcode, loc)
+        , m_receiverIndex(REGISTER_LIMIT)
         , m_calleeIndex(calleeIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_argumentCount(argumentCount)
     {
+        // call return without receiver
     }
 
+    CallReturn(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
+        : ByteCode(Opcode::CallReturnOpcode, loc)
+        , m_receiverIndex(receiverIndex)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+    {
+        // call return with receiver
+    }
+
+    ByteCodeRegisterIndex m_receiverIndex;
     ByteCodeRegisterIndex m_calleeIndex;
     ByteCodeRegisterIndex m_argumentsStartIndex;
     uint16_t m_argumentCount;
@@ -2130,10 +2141,18 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        if (m_argumentCount) {
-            printf("tail call r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        if (m_receiverIndex != REGISTER_LIMIT) {
+            if (m_argumentCount) {
+                printf("call return r%u.r%u(r%u-r%u)", m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+            } else {
+                printf("call return r%u.r%u()", m_receiverIndex, m_calleeIndex);
+            }
         } else {
-            printf("tail call r%u()", m_calleeIndex);
+            if (m_argumentCount) {
+                printf("call return r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+            } else {
+                printf("call return r%u()", m_calleeIndex);
+            }
         }
     }
 #endif
@@ -2143,12 +2162,25 @@ class TailRecursion : public ByteCode {
 public:
     TailRecursion(const ByteCodeLOC& loc, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
         : ByteCode(Opcode::TailRecursionOpcode, loc)
+        , m_receiverIndex(REGISTER_LIMIT)
         , m_calleeIndex(calleeIndex)
         , m_argumentsStartIndex(argumentsStartIndex)
         , m_argumentCount(argumentCount)
     {
+        // tail recursion call without receiver
     }
 
+    TailRecursion(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
+        : ByteCode(Opcode::TailRecursionOpcode, loc)
+        , m_receiverIndex(receiverIndex)
+        , m_calleeIndex(calleeIndex)
+        , m_argumentsStartIndex(argumentsStartIndex)
+        , m_argumentCount(argumentCount)
+    {
+        // tail recursion call with receiver
+    }
+
+    ByteCodeRegisterIndex m_receiverIndex;
     ByteCodeRegisterIndex m_calleeIndex;
     ByteCodeRegisterIndex m_argumentsStartIndex;
     uint16_t m_argumentCount;
@@ -2156,10 +2188,18 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        if (m_argumentCount) {
-            printf("tail recursion call r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+        if (m_receiverIndex != REGISTER_LIMIT) {
+            if (m_argumentCount) {
+                printf("tail recursion r%u.r%u(r%u-r%u)", m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+            } else {
+                printf("tail recursion r%u.r%u()", m_receiverIndex, m_calleeIndex);
+            }
         } else {
-            printf("tail recursion call r%u()", m_calleeIndex);
+            if (m_argumentCount) {
+                printf("tail recursion r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+            } else {
+                printf("tail recursion r%u()", m_calleeIndex);
+            }
         }
     }
 #endif
@@ -2184,72 +2224,15 @@ public:
     void dump()
     {
         if (m_argumentCount) {
-            printf("tail recursion call in try r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
+            printf("tail recursion in try r%u(r%u-r%u)", m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
         } else {
-            printf("tail recursion call in try r%u()", m_calleeIndex);
-        }
-    }
-#endif
-};
-
-class CallReturnWithReceiver : public ByteCode {
-public:
-    CallReturnWithReceiver(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
-        : ByteCode(Opcode::CallReturnWithReceiverOpcode, loc)
-        , m_receiverIndex(receiverIndex)
-        , m_calleeIndex(calleeIndex)
-        , m_argumentsStartIndex(argumentsStartIndex)
-        , m_argumentCount(argumentCount)
-    {
-    }
-
-    ByteCodeRegisterIndex m_receiverIndex;
-    ByteCodeRegisterIndex m_calleeIndex;
-    ByteCodeRegisterIndex m_argumentsStartIndex;
-    uint16_t m_argumentCount;
-
-#ifndef NDEBUG
-    void dump()
-    {
-        if (m_argumentCount) {
-            printf("tail call r%u.r%u(r%u-r%u)", m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
-        } else {
-            printf("tail call r%u.r%u()", m_receiverIndex, m_calleeIndex);
-        }
-    }
-#endif
-};
-
-class TailRecursionWithReceiver : public ByteCode {
-public:
-    TailRecursionWithReceiver(const ByteCodeLOC& loc, const size_t receiverIndex, const size_t calleeIndex, const size_t argumentsStartIndex, const size_t argumentCount)
-        : ByteCode(Opcode::TailRecursionWithReceiverOpcode, loc)
-        , m_receiverIndex(receiverIndex)
-        , m_calleeIndex(calleeIndex)
-        , m_argumentsStartIndex(argumentsStartIndex)
-        , m_argumentCount(argumentCount)
-    {
-    }
-
-    ByteCodeRegisterIndex m_receiverIndex;
-    ByteCodeRegisterIndex m_calleeIndex;
-    ByteCodeRegisterIndex m_argumentsStartIndex;
-    uint16_t m_argumentCount;
-
-#ifndef NDEBUG
-    void dump()
-    {
-        if (m_argumentCount) {
-            printf("tail recursion call r%u.r%u(r%u-r%u)", m_receiverIndex, m_calleeIndex, m_argumentsStartIndex, m_argumentsStartIndex + m_argumentCount);
-        } else {
-            printf("tail recursion call r%u.r%u()", m_receiverIndex, m_calleeIndex);
+            printf("tail recursion in try r%u()", m_calleeIndex);
         }
     }
 #endif
 };
 
 COMPILE_ASSERT(sizeof(CallReturn) == sizeof(TailRecursion), "");
-COMPILE_ASSERT(sizeof(CallReturnWithReceiver) == sizeof(TailRecursionWithReceiver), "");
 COMPILE_ASSERT(sizeof(Call) == sizeof(TailRecursionInTry), "");
 #endif
 

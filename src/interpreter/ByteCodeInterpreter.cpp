@@ -191,8 +191,7 @@ public:
     static int evaluateImportAssertionOperation(ExecutionState& state, const Value& options);
 
 #if defined(ENABLE_TCO)
-    static Value tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, const Value& callee, Value* registerFile);
-    static Value tailRecursionWithReceiverSlowCase(ExecutionState& state, TailRecursionWithReceiver* code, const Value& callee, const Value& receiver, Value* registerFile);
+    static Value tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, const Value& callee, const Value& receiver, Value* registerFile);
 #endif
 
 private:
@@ -1082,24 +1081,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             CallReturn* code = (CallReturn*)programCounter;
             const Value& callee = registerFile[code->m_calleeIndex];
-
-            // if PointerValue is not callable, PointerValue::call function throws builtin error
-            // https://www.ecma-international.org/ecma-262/6.0/#sec-call
-            // If IsCallable(F) is false, throw a TypeError exception.
-            if (UNLIKELY(!callee.isPointerValue())) {
-                ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
-            }
-
-            return callee.asPointerValue()->call(*state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
-        }
-
-        // return the result of call directly for tail call
-        DEFINE_OPCODE(CallReturnWithReceiver)
-            :
-        {
-            CallReturnWithReceiver* code = (CallReturnWithReceiver*)programCounter;
-            const Value& callee = registerFile[code->m_calleeIndex];
-            const Value& receiver = registerFile[code->m_receiverIndex];
+            const Value& receiver = (code->m_receiverIndex == REGISTER_LIMIT) ? Value() : registerFile[code->m_receiverIndex];
 
             // if PointerValue is not callable, PointerValue::call function throws builtin error
             // https://www.ecma-international.org/ecma-262/6.0/#sec-call
@@ -1549,10 +1531,11 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         {
             TailRecursion* code = (TailRecursion*)programCounter;
             const Value& callee = registerFile[code->m_calleeIndex];
+            const Value& receiver = (code->m_receiverIndex == REGISTER_LIMIT) ? Value() : registerFile[code->m_receiverIndex];
 
             if (UNLIKELY(callee != Value(state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()))) {
                 // goto slow path
-                return InterpreterSlowPath::tailRecursionSlowCase(*state, code, callee, registerFile);
+                return InterpreterSlowPath::tailRecursionSlowCase(*state, code, callee, receiver, registerFile);
             }
 
             if (UNLIKELY(!state->initTCO())) {
@@ -1568,11 +1551,13 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             ASSERT(callee.asPointerValue()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
             ASSERT(state->initTCO() && (state->m_argc == code->m_argumentCount));
 #ifndef NDEBUG
-            // check this value
-            if (state->inStrictMode()) {
-                ASSERT(registerFile[byteCodeBlock->m_requiredOperandRegisterNumber].isUndefined());
-            } else {
-                ASSERT(registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] == Value(state->context()->globalObjectProxy()));
+            // check this value for call without receiver
+            if (code->m_receiverIndex == REGISTER_LIMIT) {
+                if (state->inStrictMode()) {
+                    ASSERT(registerFile[byteCodeBlock->m_requiredOperandRegisterNumber].isUndefined());
+                } else {
+                    ASSERT(registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] == Value(state->context()->globalObjectProxy()));
+                }
             }
 #endif
 
@@ -1581,52 +1566,16 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                 state->m_argv[i] = registerFile[code->m_argumentsStartIndex + i];
             }
 
-            // set programCounter
-            programCounter = reinterpret_cast<size_t>(byteCodeBlock->m_code.data());
-            ASSERT(state->m_programCounter == &programCounter);
-
-            NEXT_INSTRUCTION();
-        }
-
-        // TCO : tail recursion case with receiver
-        DEFINE_OPCODE(TailRecursionWithReceiver)
-            :
-        {
-            TailRecursionWithReceiver* code = (TailRecursionWithReceiver*)programCounter;
-            const Value& callee = registerFile[code->m_calleeIndex];
-            const Value& receiver = registerFile[code->m_receiverIndex];
-
-            if (UNLIKELY(callee != Value(state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()))) {
-                // goto slow path
-                return InterpreterSlowPath::tailRecursionWithReceiverSlowCase(*state, code, callee, receiver, registerFile);
-            }
-
-            if (UNLIKELY(!state->initTCO())) {
-                // At the start of tail call, we need to allocate a buffer for arguments
-                // because recursive tail call reuses this buffer
-                state->m_argc = code->m_argumentCount;
-                Value* newArgs = code->m_argumentCount ? ALLOCA(sizeof(Value) * code->m_argumentCount, Value) : nullptr;
-                state->setTCOArguments(newArgs);
-            }
-
-            // fast tail recursion with receiver
-            ASSERT(callee.isPointerValue() && callee.asPointerValue()->isScriptFunctionObject());
-            ASSERT(callee.asPointerValue()->asScriptFunctionObject()->codeBlock() == byteCodeBlock->codeBlock());
-            ASSERT(state->initTCO() && (state->m_argc == code->m_argumentCount));
-
-            // its safe to overwrite arguments because old arguments are no longer necessary
-            for (size_t i = 0; i < state->m_argc; i++) {
-                state->m_argv[i] = registerFile[code->m_argumentsStartIndex + i];
-            }
-
             // set this value (receiver)
-            if (state->inStrictMode()) {
-                registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] = receiver;
-            } else {
-                if (receiver.isUndefinedOrNull()) {
-                    registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] = state->context()->globalObjectProxy();
+            if (code->m_receiverIndex != REGISTER_LIMIT) {
+                if (state->inStrictMode()) {
+                    registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] = receiver;
                 } else {
-                    registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] = receiver.toObject(*state);
+                    if (receiver.isUndefinedOrNull()) {
+                        registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] = state->context()->globalObjectProxy();
+                    } else {
+                        registerFile[byteCodeBlock->m_requiredOperandRegisterNumber] = receiver.toObject(*state);
+                    }
                 }
             }
 
@@ -4969,27 +4918,11 @@ NEVER_INLINE int InterpreterSlowPath::evaluateImportAssertionOperation(Execution
 }
 
 #if defined(ENABLE_TCO)
-NEVER_INLINE Value InterpreterSlowPath::tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, const Value& callee, Value* registerFile)
+NEVER_INLINE Value InterpreterSlowPath::tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, const Value& callee, const Value& receiver, Value* registerFile)
 {
     // fail to tail recursion
     // convert to CallReturn
     code->changeOpcode(Opcode::CallReturnOpcode);
-
-    // if PointerValue is not callable, PointerValue::call function throws builtin error
-    // https://www.ecma-international.org/ecma-262/6.0/#sec-call
-    // If IsCallable(F) is false, throw a TypeError exception.
-    if (UNLIKELY(!callee.isPointerValue())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
-    }
-
-    return callee.asPointerValue()->call(state, Value(), code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
-}
-
-NEVER_INLINE Value InterpreterSlowPath::tailRecursionWithReceiverSlowCase(ExecutionState& state, TailRecursionWithReceiver* code, const Value& callee, const Value& receiver, Value* registerFile)
-{
-    // fail to tail recursion
-    // convert to CallReturn
-    code->changeOpcode(Opcode::CallReturnWithReceiverOpcode);
 
     // if PointerValue is not callable, PointerValue::call function throws builtin error
     // https://www.ecma-international.org/ecma-262/6.0/#sec-call

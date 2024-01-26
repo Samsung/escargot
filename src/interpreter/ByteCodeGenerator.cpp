@@ -607,25 +607,13 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         // TCO
         case CallReturnOpcode: {
             CallReturn* cd = (CallReturn*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
         case TailRecursionOpcode: {
             TailRecursion* cd = (TailRecursion*)currentCode;
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
-            break;
-        }
-        case CallReturnWithReceiverOpcode: {
-            CallReturnWithReceiver* cd = (CallReturnWithReceiver*)currentCode;
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
-            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
-            break;
-        }
-        case TailRecursionWithReceiverOpcode: {
-            TailRecursionWithReceiver* cd = (TailRecursionWithReceiver*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_receiverIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_calleeIndex, stackBase, stackBaseWillBe, stackVariableSize);
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_argumentsStartIndex, stackBase, stackBaseWillBe, stackVariableSize);
