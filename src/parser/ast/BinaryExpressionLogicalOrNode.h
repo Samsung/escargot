@@ -62,7 +62,7 @@ public:
     }
 
 #if defined(ENABLE_TCO)
-    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCall) override
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCallForm) override
     {
         bool isSlow = !canUseDirectRegister(context, m_left, m_right);
         bool directBefore = context->m_canSkipCopyToRegister;
@@ -73,9 +73,9 @@ public:
         if (UNLIKELY(m_left->isLiteral())) {
             bool boolVal = m_left->asLiteral()->value().toBoolean();
             if (boolVal) {
-                m_left->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
+                m_left->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCallForm);
             } else {
-                m_right->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
+                m_right->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCallForm);
             }
         } else {
             m_left->generateExpressionByteCode(codeBlock, context, dstRegister);

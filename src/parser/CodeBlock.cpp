@@ -289,6 +289,9 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
     , m_allowSuperProperty(false)
     , m_allowArguments(false)
     , m_hasDynamicSourceCode(false)
+#if defined(ENABLE_TCO)
+    , m_isTailRecursionDisabled(false)
+#endif
 #ifdef ESCARGOT_DEBUGGER
     , m_markDebugging(ctx->inDebuggingCodeMode())
 #endif

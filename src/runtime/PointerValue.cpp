@@ -21,6 +21,7 @@
 #include "PointerValue.h"
 #include "FunctionObject.h"
 #include "ErrorObject.h"
+#include "ScriptFunctionObject.h"
 
 namespace Escargot {
 
@@ -36,6 +37,13 @@ size_t PointerValue::g_objectRareDataTag;
 
 DECLARE_SCRIPTSIMPLEFUNCTION_LIST(DEFINE_SCRIPTSIMPLEFUNCTION_TAGS);
 #undef DEFINE_SCRIPTSIMPLEFUNCTION_TAGS
+
+#if defined(ENABLE_TCO)
+bool PointerValue::canBeTailCallTargetRuntime(size_t argc)
+{
+    return isScriptFunctionObject() && asScriptFunctionObject()->interpretedCodeBlock()->isTailCallTarget(argc);
+}
+#endif
 
 Value PointerValue::call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv)
 {

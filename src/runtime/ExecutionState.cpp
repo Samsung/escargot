@@ -43,7 +43,7 @@ ExecutionState::ExecutionState()
     , m_onFinally(false)
 #endif
 #if defined(ENABLE_TCO)
-    , m_initTCO(false)
+    , m_inTCO(false)
 #endif
     , m_argc(0)
     , m_argv(nullptr)

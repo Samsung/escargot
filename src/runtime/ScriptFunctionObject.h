@@ -26,6 +26,7 @@ namespace Escargot {
 
 class ScriptFunctionObject : public FunctionObject {
     friend class Script;
+    friend class Interpreter;
     friend class InterpreterSlowPath;
     friend class FunctionObjectProcessCallGenerator;
     friend class Global;

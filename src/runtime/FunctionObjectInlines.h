@@ -224,11 +224,18 @@ public:
         if (UNLIKELY(blk->m_shouldClearStack)) {
             clearStack<512>();
         }
+#if defined(ENABLE_TCO)
+        if (!isConstructCall) {
+            if (UNLIKELY(newState->inTCO())) {
+                // callee has been called in tail call, so reset the argument buffer
+                memset(Interpreter::tcoBuffer, 0, sizeof(Value) * TCO_ARGUMENT_COUNT_LIMIT);
+            }
+        }
+#endif
 
         return returnValue;
     }
 
-private:
     template <typename FunctionObjectType, bool hasNewTargetOnEnvironment, bool canBindThisValueOnEnvironment>
     static NEVER_INLINE FunctionEnvironmentRecord* createFunctionEnvironmentRecord(ExecutionState& state, FunctionObjectType* self, InterpretedCodeBlock* codeBlock)
     {

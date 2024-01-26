@@ -568,6 +568,11 @@ typedef uint16_t LexicalBlockIndex;
 #define REGEXP_CACHE_SIZE_MAX 64
 #endif
 
+// maximum number of tail call arguments allowed
+#ifndef TCO_ARGUMENT_COUNT_LIMIT
+#define TCO_ARGUMENT_COUNT_LIMIT 8
+#endif
+
 #include <tsl/robin_set.h>
 template <class Key, class Hash = std::hash<Key>,
           class KeyEqual = std::equal_to<Key>,

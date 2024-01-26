@@ -97,7 +97,7 @@ public:
         , m_onFinally(false)
 #endif
 #if defined(ENABLE_TCO)
-        , m_initTCO(false)
+        , m_inTCO(false)
 #endif
         , m_argc(parent->argc())
         , m_argv(parent->argv())
@@ -119,7 +119,7 @@ public:
         , m_onFinally(false)
 #endif
 #if defined(ENABLE_TCO)
-        , m_initTCO(false)
+        , m_inTCO(false)
 #endif
         , m_argc(0)
         , m_argv(nullptr)
@@ -141,7 +141,7 @@ public:
         , m_onFinally(false)
 #endif
 #if defined(ENABLE_TCO)
-        , m_initTCO(false)
+        , m_inTCO(false)
 #endif
         , m_argc(argc)
         , m_argv(argv)
@@ -163,7 +163,7 @@ public:
         , m_onFinally(false)
 #endif
 #if defined(ENABLE_TCO)
-        , m_initTCO(false)
+        , m_inTCO(false)
 #endif
         , m_argc(argc)
         , m_argv(argv)
@@ -248,18 +248,17 @@ public:
 #endif
 
 #if defined(ENABLE_TCO)
-    bool initTCO() const
+    bool inTCO() const
     {
-        return m_initTCO;
+        return m_inTCO;
     }
 
-    void setTCOArguments(Value* argv)
+    void initTCOWithBuffer(Value* argv)
     {
-        // allocate a new argument buffer
-        // because tail call reuses this buffer which can modify caller's register file
-        ASSERT(!m_initTCO);
+        // initialize arguments buffer for tail call
+        ASSERT(!m_inTCO);
         m_argv = argv;
-        m_initTCO = true; // initialize of TCO done
+        m_inTCO = true;
     }
 #endif
 
@@ -339,7 +338,7 @@ protected:
     bool m_onFinally : 1;
 #endif
 #if defined(ENABLE_TCO)
-    bool m_initTCO : 1;
+    bool m_inTCO : 1;
 #endif
 
 #ifdef ESCARGOT_32

@@ -54,7 +54,7 @@ public:
     }
 
 #if defined(ENABLE_TCO)
-    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCall) override
+    virtual void generateTCOExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister, bool& isTailCallForm) override
     {
         bool isSlow = !canUseDirectRegister(context, m_left, m_right);
         bool directBefore = context->m_canSkipCopyToRegister;
@@ -68,7 +68,7 @@ public:
         size_t pos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
 
         // try TCO only for right hand-side because we need to check the result of left hand-side expression
-        m_right->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCall);
+        m_right->generateTCOExpressionByteCode(codeBlock, context, dstRegister, isTailCallForm);
         codeBlock->peekCode<JumpIfUndefinedOrNull>(pos)->m_jumpPosition = codeBlock->currentCodeSize();
 
         context->m_canSkipCopyToRegister = directBefore;
