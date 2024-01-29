@@ -828,7 +828,7 @@ public:
     {
         ASSERT(siz >= size());
         if (LIKELY(!m_useExternalStorage)) {
-            if (siz >= InlineStorageSize) {
+            if (siz > InlineStorageSize) {
                 m_useExternalStorage = true;
                 m_externalStorage.reserve(siz);
 

@@ -133,6 +133,17 @@ void VMInstance::compressStringsIfNeeds(uint64_t currentTickCount)
 }
 #endif
 
+static void markHashSet(GC_word* desc, size_t base)
+{
+#if defined(COMPILER_MSVC) || defined(COMPILER_CLANG_CL)
+    GC_set_bit(desc, base + 2); // m_ht.m_buckets_data
+    GC_set_bit(desc, base + 5); // m_ht.m_buckets
+#else
+    GC_set_bit(desc, base + 1); // m_ht.m_buckets_data
+    GC_set_bit(desc, base + 4); // m_ht.m_buckets
+#endif
+}
+
 void* VMInstance::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
@@ -140,11 +151,8 @@ void* VMInstance::operator new(size_t size)
     if (!typeInited) {
         GC_word desc[GC_BITMAP_SIZE(VMInstance)] = { 0 };
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_staticStrings.dtoaCache));
-        // we should mark every word of m_atomicStringMap
-        for (size_t i = 0; i < sizeof(m_atomicStringMap); i += sizeof(size_t)) {
-            GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_atomicStringMap) + (i / sizeof(size_t)));
-        }
 
+        markHashSet(desc, GC_WORD_OFFSET(VMInstance, m_atomicStringMap));
 #define DECLARE_GLOBAL_SYMBOLS(name) GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_globalSymbols.name));
         DEFINE_GLOBAL_SYMBOLS(DECLARE_GLOBAL_SYMBOLS);
 #undef DECLARE_GLOBAL_SYMBOLS
@@ -165,7 +173,7 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForMappedArgumentsObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultStructureForUnmappedArgumentsObject));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultPrivateMemberStructure));
-        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_rootedObjectStructure));
+        markHashSet(desc, GC_WORD_OFFSET(VMInstance, m_rootedObjectStructure));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_onVMInstanceDestroyData));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_toStringRecursionPreventer.m_registeredItems));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpCache));
@@ -615,22 +623,80 @@ DateObject* VMInstance::cachedUTC(ExecutionState& state)
     return m_cachedUTC;
 }
 
+void VMInstance::addObjectStructureToRootSet(ObjectStructure* structure)
+{
+    ASSERT(m_rootedObjectStructure.find(structure) == m_rootedObjectStructure.end());
+    m_rootedObjectStructure.insert(structure);
+    // if non-tranition structure not marked by inlinecache,
+    // properties can be disappear if modifying property function is called
+    structure->markReferencedByInlineCache();
+}
+
+class TempObjectStructure : public ObjectStructure {
+public:
+    TempObjectStructure(ObjectStructureItem* properties, size_t propertyCount)
+        : ObjectStructure(false, false, false)
+        , m_properties(properties)
+        , m_propertyCount(propertyCount)
+    {
+    }
+
+    virtual std::pair<size_t, Optional<const ObjectStructureItem*>> findProperty(const ObjectStructurePropertyName& s) override
+    {
+        return std::make_pair(0, nullptr);
+    }
+
+    virtual const ObjectStructureItem& readProperty(size_t idx) override
+    {
+        return m_properties[idx];
+    }
+
+    virtual const ObjectStructureItem* properties() const override
+    {
+        return m_properties;
+    }
+
+    virtual size_t propertyCount() const override
+    {
+        return m_propertyCount;
+    }
+
+    virtual ObjectStructure* addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc) override
+    {
+        return nullptr;
+    }
+
+    virtual ObjectStructure* removeProperty(size_t pIndex) override
+    {
+        return nullptr;
+    }
+
+    virtual ObjectStructure* replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc) override
+    {
+        return nullptr;
+    }
+
+    virtual ObjectStructure* convertToNonTransitionStructure() override
+    {
+        return nullptr;
+    }
+
+    virtual bool inTransitionMode() override
+    {
+        return false;
+    }
+
+private:
+    ObjectStructureItem* m_properties;
+    size_t m_propertyCount;
+};
+
 Optional<ObjectStructure*> VMInstance::findRootedObjectStructure(ObjectStructureItem* properties, size_t propertyCount)
 {
-    for (size_t i = 0; i < m_rootedObjectStructure.size(); i++) {
-        if (m_rootedObjectStructure[i]->propertyCount() == propertyCount) {
-            auto cachedProperties = m_rootedObjectStructure[i]->properties();
-            bool match = true;
-            for (size_t j = 0; j < propertyCount; j++) {
-                if (cachedProperties[j].m_propertyName != properties[j].m_propertyName || cachedProperties[j].m_descriptor != properties[j].m_descriptor) {
-                    match = false;
-                    break;
-                }
-            }
-            if (match) {
-                return m_rootedObjectStructure[i];
-            }
-        }
+    TempObjectStructure temp(properties, propertyCount);
+    auto iter = m_rootedObjectStructure.find(&temp);
+    if (iter != m_rootedObjectStructure.end()) {
+        return *iter;
     }
     return nullptr;
 }
