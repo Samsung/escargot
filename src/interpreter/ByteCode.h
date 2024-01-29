@@ -966,15 +966,15 @@ public:
         bool m_allPrecomputed;
         bool m_wasStructureComputed;
         bool m_canStoreStructureOnCode;
-        Vector<ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> m_properties;
+        VectorWithInlineStorage<6, ObjectStructureItem, GCUtil::gc_malloc_allocator<ObjectStructureItem>> m_properties;
         EncodedValueVector m_values;
         Object* m_target;
         CreateObjectPrepare* m_initCode;
-        CreateObjectData(bool allPrecomputed, size_t reserveSize, Object* target, bool wasStructureComputed,
-                         CreateObjectPrepare* initCode)
+        CreateObjectData(bool allPrecomputed, bool wasStructureComputed, bool canStoreStructureOnCode,
+                         size_t reserveSize, Object* target, CreateObjectPrepare* initCode)
             : m_allPrecomputed(allPrecomputed)
             , m_wasStructureComputed(wasStructureComputed)
-            , m_canStoreStructureOnCode(allPrecomputed)
+            , m_canStoreStructureOnCode(canStoreStructureOnCode)
             , m_target(target)
             , m_initCode(initCode)
         {

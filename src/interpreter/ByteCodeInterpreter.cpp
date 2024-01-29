@@ -2985,7 +2985,7 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
         if (!data->m_wasStructureComputed) {
             size_t propertyCount = data->m_properties.size();
             Optional<ObjectStructure*> cache;
-            if (data->m_allPrecomputed && ObjectStructure::isTransitionModeAvailable(propertyCount)) {
+            if (data->m_allPrecomputed) {
                 cache = state.context()->vmInstance()->findRootedObjectStructure(data->m_properties.data(), propertyCount);
             }
             if (cache) {
@@ -2993,15 +2993,11 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
             } else {
                 obj->m_structure = ObjectStructure::create(state.context(),
                                                            ObjectStructureItemTightVector(data->m_properties.data(), data->m_properties.data() + propertyCount),
-#if defined(ESCARGOT_SMALL_CONFIG)
-                                                           false);
-#else
-                                                               data->m_allPrecomputed);
-#endif
+                                                           data->m_allPrecomputed);
                 if (data->m_canStoreStructureOnCode) {
-                    data->m_initCode->m_cachedObjectStructure = obj->m_structure;
-                    data->m_initCode->m_cachedObjectStructure->markReferencedByInlineCache();
-                    byteCodeBlock->m_otherLiteralData.pushBack(obj->m_structure);
+                    auto structure = obj->m_structure;
+                    data->m_initCode->m_cachedObjectStructure = structure;
+                    state.context()->vmInstance()->addObjectStructureToRootSet(structure);
                 }
             }
         }
@@ -3047,8 +3043,8 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
             ptr = &registerFile[code->m_dataRegisterIndex];
         }
         CreateObjectPrepare::CreateObjectData* data = new (ptr) CreateObjectPrepare::CreateObjectData(
-            code->m_allPrecomputed, code->m_propertyReserveSize,
-            new Object(state), code->m_cachedObjectStructure.hasValue(), code);
+            code->m_allPrecomputed, code->m_cachedObjectStructure.hasValue(), code->m_allPrecomputed,
+            code->m_propertyReserveSize, new Object(state), code);
         registerFile[code->m_objectIndex] = data->m_target;
         if (data->m_wasStructureComputed) {
             data->m_target->m_structure = code->m_cachedObjectStructure.value();

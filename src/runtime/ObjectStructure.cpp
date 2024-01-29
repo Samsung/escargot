@@ -75,9 +75,7 @@ ObjectStructure* ObjectStructure::create(Context* ctx, ObjectStructureItemTightV
     if (!isTransitionModeAvailable(properties.size())) {
         return new ObjectStructureWithMap(hasIndexStringAsPropertyName, hasSymbol, hasEnumerableProperty, std::move(properties));
     } else if (preferTransition) {
-        ObjectStructure* newObjectStructure = new ObjectStructureWithTransition(std::move(properties), hasIndexStringAsPropertyName, hasSymbol, hasNonAtomicPropertyName, hasEnumerableProperty);
-        ctx->vmInstance()->rootedObjectStructure().pushBack(newObjectStructure);
-        return newObjectStructure;
+        return new ObjectStructureWithTransition(std::move(properties), hasIndexStringAsPropertyName, hasSymbol, hasNonAtomicPropertyName, hasEnumerableProperty);
     } else {
         return new ObjectStructureWithoutTransition(new ObjectStructureItemVector(std::move(properties)), hasIndexStringAsPropertyName, hasSymbol, hasNonAtomicPropertyName, hasEnumerableProperty);
     }

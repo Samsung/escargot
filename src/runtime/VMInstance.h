@@ -173,10 +173,7 @@ public:
         return m_didSomePrototypeObjectDefineIndexedProperty;
     }
 
-    Vector<ObjectStructure*, GCUtil::gc_malloc_allocator<ObjectStructure*>>& rootedObjectStructure()
-    {
-        return m_rootedObjectStructure;
-    }
+    void addObjectStructureToRootSet(ObjectStructure* structure);
     Optional<ObjectStructure*> findRootedObjectStructure(ObjectStructureItem* properties, size_t propertyCount);
 
     void somePrototypeObjectDefineIndexedProperty(ExecutionState& state);
@@ -427,7 +424,7 @@ private:
 
     ObjectPrivateMemberStructure* m_defaultPrivateMemberStructure;
 
-    Vector<ObjectStructure*, GCUtil::gc_malloc_allocator<ObjectStructure*>> m_rootedObjectStructure;
+    HashSet<ObjectStructure*, ObjectStructureHash, ObjectStructureEqualTo, GCUtil::gc_malloc_allocator<ObjectStructure*>> m_rootedObjectStructure;
 
     std::vector<ByteCodeBlock*> m_compiledByteCodeBlocks;
     size_t m_compiledByteCodeSize;

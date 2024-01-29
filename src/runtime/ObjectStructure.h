@@ -182,6 +182,23 @@ public:
         return m_isReferencedByInlineCache;
     }
 
+    bool hasSamePropertiesTo(const ObjectStructure* src) const
+    {
+        size_t myCount = propertyCount();
+        size_t srcCount = src->propertyCount();
+        if (myCount == srcCount) {
+            auto myProperties = properties();
+            auto srcProperties = src->properties();
+            for (size_t j = 0; j < myCount; j++) {
+                if (myProperties[j].m_propertyName != srcProperties[j].m_propertyName || myProperties[j].m_descriptor != srcProperties[j].m_descriptor) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
 protected:
     ObjectStructure(bool hasIndexPropertyName,
                     bool hasSymbolPropertyName, bool hasEnumerableProperty)
@@ -219,6 +236,27 @@ protected:
     bool m_isReferencedByInlineCache : 1;
     uint8_t m_transitionTableVectorBufferSize : 8;
     uint8_t m_transitionTableVectorBufferCapacity : 8;
+};
+
+struct ObjectStructureEqualTo {
+    bool operator()(const ObjectStructure* x, const ObjectStructure* y) const
+    {
+        return x->hasSamePropertiesTo(y);
+    }
+};
+
+struct ObjectStructureHash {
+    size_t operator()(const ObjectStructure* x) const
+    {
+        size_t propertyCount = x->propertyCount();
+        size_t result = propertyCount;
+        size_t hashPropertyCount = std::min(propertyCount, static_cast<size_t>(6));
+        auto properties = x->properties();
+        for (size_t i = 0; i < hashPropertyCount; i++) {
+            result += properties[i].m_propertyName.hashValue();
+        }
+        return result;
+    }
 };
 
 class ObjectStructureWithoutTransition : public ObjectStructure {
