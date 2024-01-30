@@ -130,7 +130,9 @@ public:
         if (std::is_same<FunctionObjectType, ScriptGeneratorFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncFunctionObject>::value || std::is_same<FunctionObjectType, ScriptAsyncGeneratorFunctionObject>::value) {
             registerFile = (Value*)CustomAllocator<Value>().allocate(registerFileSize);
         } else {
-            registerFile = (Value*)alloca((registerFileSize) * sizeof(Value));
+            // keep ByteCodeBlock pointer in registerFileBuffer
+            registerFile = (Value*)alloca((registerFileSize) * sizeof(Value) + sizeof(size_t));
+            memcpy(&registerFile[registerFileSize], &blk, sizeof(size_t));
         }
 
         Value* stackStorage = registerFile + generalRegisterSize;

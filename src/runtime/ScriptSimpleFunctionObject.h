@@ -81,8 +81,11 @@ protected:
 #endif
         );
 
-        char registerFileBuffer[sizeof(Value) * registerFileSize];
+        // keep ByteCodeBlock pointer in registerFileBuffer
+        char registerFileBuffer[sizeof(Value) * registerFileSize + sizeof(size_t)];
         Value* registerFile = reinterpret_cast<Value*>(registerFileBuffer);
+        memcpy(registerFileBuffer + sizeof(Value) * registerFileSize, &blk, sizeof(size_t));
+
         Value* stackStorage = registerFile + registerSize;
 
         ExecutionState newState(ctx, &state, &lexEnv, argc, argv, isStrict);
@@ -152,8 +155,10 @@ protected:
 #endif
         );
 
-        char registerFileBuffer[sizeof(Value) * registerFileSize];
+        // keep ByteCodeBlock pointer in registerFileBuffer
+        char registerFileBuffer[sizeof(Value) * registerFileSize + sizeof(size_t)];
         Value* registerFile = reinterpret_cast<Value*>(registerFileBuffer);
+        memcpy(registerFileBuffer + sizeof(Value) * registerFileSize, &blk, sizeof(size_t));
         Value* stackStorage = registerFile + registerSize;
 
         ExecutionState newState(ctx, &state, &lexEnv, argc, argv, isStrict);
