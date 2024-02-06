@@ -41,7 +41,7 @@ class ExecutionPauser;
 #define OBJECT_PROPERTY_NAME_UINT32_VIAS 2
 #define MAXIMUM_UINT_FOR_32BIT_PROPERTY_NAME (std::numeric_limits<uint32_t>::max() >> OBJECT_PROPERTY_NAME_UINT32_VIAS)
 
-typedef TightVectorWithNoSizeUseGCRealloc<EncodedValue> ObjectPrivateFieldValueVector;
+typedef TightVectorWithNoSizeUseGCRealloc<EncodedValue, GCUtil::gc_malloc_allocator<EncodedValue>> ObjectPrivateFieldValueVector;
 
 struct ObjectPrivateMemberDataChain : public gc {
     Object* m_contextObject;
