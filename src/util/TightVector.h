@@ -440,7 +440,7 @@ protected:
     T* m_buffer;
 };
 
-template <typename T>
+template <typename T, typename GCAllocator>
 class TightVectorWithNoSizeUseGCRealloc : public gc {
 public:
     TightVectorWithNoSizeUseGCRealloc()
@@ -448,16 +448,16 @@ public:
         m_buffer = nullptr;
     }
 
-    TightVectorWithNoSizeUseGCRealloc(TightVectorWithNoSizeUseGCRealloc<T>&& other)
+    TightVectorWithNoSizeUseGCRealloc(TightVectorWithNoSizeUseGCRealloc<T, GCAllocator>&& other)
     {
         m_buffer = other.m_buffer;
         other.m_buffer = nullptr;
     }
 
-    TightVectorWithNoSizeUseGCRealloc(const TightVectorWithNoSizeUseGCRealloc<T>& other) = delete;
+    TightVectorWithNoSizeUseGCRealloc(const TightVectorWithNoSizeUseGCRealloc<T, GCAllocator>& other) = delete;
 
-    const TightVectorWithNoSizeUseGCRealloc<T>& operator=(const TightVectorWithNoSizeUseGCRealloc<T>& other) = delete;
-    void operator=(TightVectorWithNoSizeUseGCRealloc<T>&& other)
+    const TightVectorWithNoSizeUseGCRealloc<T, GCAllocator>& operator=(const TightVectorWithNoSizeUseGCRealloc<T, GCAllocator>& other) = delete;
+    void operator=(TightVectorWithNoSizeUseGCRealloc<T, GCAllocator>&& other)
     {
         if (m_buffer) {
             GC_FREE(m_buffer);
@@ -483,7 +483,12 @@ public:
 
     void pushBack(const T& val, size_t newSize)
     {
-        T* newBuffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
+        T* newBuffer;
+        if (m_buffer == nullptr) {
+            newBuffer = GCAllocator().allocate(newSize);
+        } else {
+            newBuffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
+        }
         newBuffer[newSize - 1] = val;
         m_buffer = newBuffer;
     }
@@ -506,7 +511,12 @@ public:
     void resize(size_t oldSize, size_t newSize, const T& val = T())
     {
         if (newSize) {
-            T* newBuffer = (T*)GC_REALLOC(m_buffer, sizeof(T) * newSize);
+            T* newBuffer;
+            if (m_buffer == nullptr) {
+                newBuffer = GCAllocator().allocate(newSize);
+            } else {
+                newBuffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
+            }
 
             for (size_t i = oldSize; i < newSize; i++) {
                 newBuffer[i] = val;
@@ -521,7 +531,13 @@ public:
     void resizeWithUninitializedValues(size_t oldSize, size_t newSize)
     {
         if (newSize) {
-            m_buffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
+            T* newBuffer;
+            if (m_buffer == nullptr) {
+                newBuffer = GCAllocator().allocate(newSize);
+            } else {
+                newBuffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
+            }
+            m_buffer = newBuffer;
         } else {
             GC_FREE(m_buffer);
             m_buffer = nullptr;
@@ -541,7 +557,7 @@ public:
 
         size_t c = end - start;
         if (currentSize - c) {
-            T* newBuffer = (T*)GC_MALLOC((currentSize - c) * sizeof(T));
+            T* newBuffer = GCAllocator().allocate((currentSize - c) * sizeof(T));
             VectorCopier<T>::copy(newBuffer, m_buffer, start);
             VectorCopier<T>::copy(&newBuffer[end - c], &m_buffer[end], currentSize - end);
 
