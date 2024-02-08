@@ -396,10 +396,10 @@ jobs:
         cmake --build build/out_linux64_release/
     - name: Test
       run: |
-        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release/escargot" test262
-        GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${{ github.workspace }}/backtrace-hooking-32.so tools/run-tests.py --arch=x86 --engine="${{ github.workspace }}/build/out_linux/escargot" test262
-        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release/escargot" test262
-        python tools/kangax/run-kangax.py --engine="${{ github.workspace }}/build/out_linux64/escargot"
+        LD_LIBRARY_PATH=/usr/icu32/lib/ GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu32/lib/ GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${{ github.workspace }}/backtrace-hooking-32.so tools/run-tests.py --arch=x86 --engine="${{ github.workspace }}/build/out_linux/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu64/lib/ GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu64/lib/ python tools/kangax/run-kangax.py --engine="${{ github.workspace }}/build/out_linux64/escargot"
 
   build-test-on-self-hosted-arm-linux:
     runs-on: [self-hosted, linux, arm]
