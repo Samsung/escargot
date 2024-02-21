@@ -20,6 +20,8 @@
 #ifndef __EscargotTemplate__
 #define __EscargotTemplate__
 
+#if defined(ENABLE_EXTENDED_API)
+
 #include "util/Vector.h"
 #include "runtime/Value.h"
 #include "runtime/ObjectStructure.h"
@@ -274,5 +276,7 @@ protected:
     CachedObjectStructure m_cachedObjectStructure;
 };
 } // namespace Escargot
+
+#endif // ENABLE_EXTENDED_API
 
 #endif

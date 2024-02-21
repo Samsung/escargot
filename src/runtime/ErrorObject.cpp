@@ -154,7 +154,7 @@ static Value builtinErrorObjectStackInfoSet(ExecutionState& state, Value thisVal
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "set Error.prototype.stack called on incompatible receiver");
     }
 
-    // Do noting
+    // Do nothing
     return Value();
 }
 

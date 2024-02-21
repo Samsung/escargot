@@ -91,7 +91,7 @@ public:
         , m_inStrictMode(inStrictMode)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
@@ -113,7 +113,7 @@ public:
         , m_inStrictMode(false)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
@@ -135,7 +135,7 @@ public:
         , m_inStrictMode(inStrictMode)
         , m_isNativeFunctionObjectExecutionContext(false)
         , m_inExecutionStopState(false)
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
@@ -157,7 +157,7 @@ public:
         , m_inStrictMode(inStrictMode)
         , m_isNativeFunctionObjectExecutionContext(true)
         , m_inExecutionStopState(false)
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
         , m_onTry(false)
         , m_onCatch(false)
         , m_onFinally(false)
@@ -230,7 +230,7 @@ public:
         return m_inExecutionStopState;
     }
 
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
     bool onTry() const
     {
         return m_onTry;
@@ -332,7 +332,7 @@ protected:
     bool m_inStrictMode : 1;
     bool m_isNativeFunctionObjectExecutionContext : 1;
     bool m_inExecutionStopState : 1;
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
     bool m_onTry : 1;
     bool m_onCatch : 1;
     bool m_onFinally : 1;

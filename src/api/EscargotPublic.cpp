@@ -1138,6 +1138,7 @@ void VMInstanceRef::setOnVMInstanceDelete(OnVMInstanceDelete cb)
                                        (void*)cb);
 }
 
+#if defined(ENABLE_EXTENDED_API)
 void VMInstanceRef::registerErrorCreationCallback(ErrorCallback cb)
 {
     toImpl(this)->registerErrorCreationCallback([](ExecutionState& state, ErrorObject* err, void* cb) -> void {
@@ -1165,6 +1166,7 @@ void VMInstanceRef::unregisterErrorThrowCallback()
 {
     toImpl(this)->unregisterErrorThrowCallback();
 }
+#endif
 
 void VMInstanceRef::registerPromiseHook(PromiseHook promiseHook)
 {
@@ -3234,7 +3236,7 @@ GlobalObjectRef* ExecutionStateRef::resolveCallerLexicalGlobalObject()
     return toRef(ctx->globalObject());
 }
 
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
 bool ExecutionStateRef::onTry()
 {
     return toImpl(this)->onTry();
@@ -3249,11 +3251,6 @@ bool ExecutionStateRef::onFinally()
 {
     return toImpl(this)->onFinally();
 }
-#else
-// these three functions are used only for test purpose
-bool ExecutionStateRef::onTry() { return false; }
-bool ExecutionStateRef::onCatch() { return false; }
-bool ExecutionStateRef::onFinally() { return false; }
 #endif
 
 void ExecutionStateRef::throwException(ValueRef* value)
@@ -4412,6 +4409,8 @@ FinalizationRegistryObjectRef* FinalizationRegistryObjectRef::create(ExecutionSt
     return toRef(new FinalizationRegistryObject(*toImpl(state), toImpl(cleanupCallback), toImpl(realm)));
 }
 
+
+#if defined(ENABLE_EXTENDED_API)
 void TemplateRef::set(ValueRef* propertyName, ValueRef* data, bool isWritable, bool isEnumerable, bool isConfigurable)
 {
     toImpl(this)->set(toImpl(propertyName), toImpl(data), isWritable, isEnumerable, isConfigurable);
@@ -4605,6 +4604,7 @@ OptionalRef<FunctionTemplateRef> FunctionTemplateRef::parent()
         return nullptr;
     }
 }
+#endif
 
 ScriptParserRef::InitializeScriptResult::InitializeScriptResult()
     : script()

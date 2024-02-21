@@ -251,6 +251,7 @@ public:
         m_onVMInstanceDestroyData = data;
     }
 
+#if defined(ENABLE_EXTENDED_API)
     bool isErrorCreationCallbackRegistered()
     {
         return !!m_errorCreationCallback;
@@ -300,6 +301,7 @@ public:
             m_errorThrowCallback(state, error, m_errorThrowCallbackPublic);
         }
     }
+#endif
 
     // PromiseHook is triggered for each Promise event
     // Third party app registers PromiseHook when it is necessary
@@ -445,10 +447,12 @@ private:
     void (*m_onVMInstanceDestroy)(VMInstance* instance, void* data);
     void* m_onVMInstanceDestroyData;
 
+#if defined(ENABLE_EXTENDED_API)
     void (*m_errorCreationCallback)(ExecutionState& state, ErrorObject* err, void* cb);
     void* m_errorCreationCallbackPublic;
     void (*m_errorThrowCallback)(ExecutionState& state, ErrorObject* err, void* cb);
     void* m_errorThrowCallbackPublic;
+#endif
 
     // PromiseHook is triggered for each Promise event
     // Third party app registers PromiseHook when it is necessary

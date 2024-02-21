@@ -122,10 +122,12 @@ void Context::throwException(ExecutionState& state, const Value& exception)
 {
     if (LIKELY(vmInstance()->currentSandBox() != nullptr)) {
         ASSERT(!!m_instance);
+#if defined(ENABLE_EXTENDED_API)
         if (UNLIKELY(m_instance->isErrorThrowCallbackRegistered() && exception.isObject() && exception.asObject()->isErrorObject())) {
             // trigger ErrorThrowCallback when an ErrorObject is thrown
             m_instance->triggerErrorThrowCallback(state, exception.asObject()->asErrorObject());
         }
+#endif
         vmInstance()->currentSandBox()->throwException(state, exception);
     } else {
         ESCARGOT_LOG_ERROR("there is no sandbox but exception occurred");

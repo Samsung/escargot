@@ -460,13 +460,6 @@ void SandBox::fillStackDataIntoErrorObject(const Value& e)
 {
     if (e.isObject() && e.asObject()->isErrorObject()) {
         ErrorObject* obj = e.asObject()->asErrorObject();
-        ExecutionState state(m_context);
-
-        if (UNLIKELY((m_context->vmInstance()->isErrorCreationCallbackRegistered() || m_context->vmInstance()->isErrorThrowCallbackRegistered()) && obj->hasOwnProperty(state, ObjectPropertyName(m_context->staticStrings().stack)))) {
-            // if ErrorCreationCallback or ErrorThrowCallback is registered and this callback already inserts `stack` property for the created ErrorObject,
-            // we just ignore adding `stack` data here
-            return;
-        }
 
         obj->setStackTraceData(StackTraceData::create(this));
     }

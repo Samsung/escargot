@@ -20,6 +20,8 @@
 #ifndef __EscargotFunctionTemplate__
 #define __EscargotFunctionTemplate__
 
+#if defined(ENABLE_EXTENDED_API)
+
 #include "runtime/Template.h"
 #include "api/EscargotPublic.h"
 
@@ -93,5 +95,7 @@ protected:
     Optional<FunctionTemplate*> m_parent;
 };
 } // namespace Escargot
+
+#endif // ENABLE_EXTENDED_API
 
 #endif

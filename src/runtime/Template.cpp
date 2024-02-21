@@ -17,6 +17,8 @@
  *  USA
  */
 
+#if defined(ENABLE_EXTENDED_API)
+
 #include "Escargot.h"
 #include "Template.h"
 #include "runtime/FunctionTemplate.h"
@@ -177,3 +179,5 @@ void Template::postProcessing(Object* instantiatedObject)
     }
 }
 } // namespace Escargot
+
+#endif // ENABLE_EXTENDED_API
