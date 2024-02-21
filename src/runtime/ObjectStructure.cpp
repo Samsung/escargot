@@ -56,7 +56,6 @@ ObjectStructure* ObjectStructure::create(Context* ctx, ObjectStructureItemTightV
     bool hasSymbol = false;
     bool hasNonAtomicPropertyName = false;
     bool hasEnumerableProperty = true;
-    bool isInlineCacheable = true;
 
     for (size_t i = 0; i < properties.size(); i++) {
         const ObjectStructurePropertyName& propertyName = properties[i].m_propertyName;

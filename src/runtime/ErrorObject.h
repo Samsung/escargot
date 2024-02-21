@@ -171,7 +171,7 @@ public:
     static void throwBuiltinError(ExecutionState& state, ErrorCode code, String* objectName, bool prototype, String* functionName, const char* templateString);
     static void throwBuiltinError(ExecutionState& state, ErrorCode code, String* errorMessage);
 
-    ErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
+    ErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
     void updateStackTraceData(ExecutionState& state);
 
     virtual bool isErrorObject() const
@@ -195,53 +195,53 @@ private:
 
 class ReferenceErrorObject : public ErrorObject {
 public:
-    ReferenceErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
+    ReferenceErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
 };
 
 class TypeErrorObject : public ErrorObject {
 public:
-    TypeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
+    TypeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
 };
 
 class SyntaxErrorObject : public ErrorObject {
 public:
-    SyntaxErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
+    SyntaxErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
 };
 
 class RangeErrorObject : public ErrorObject {
 public:
-    RangeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
+    RangeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
 };
 
 class URIErrorObject : public ErrorObject {
 public:
-    URIErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
+    URIErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
 };
 
 class EvalErrorObject : public ErrorObject {
 public:
-    EvalErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
+    EvalErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
 };
 
 class AggregateErrorObject : public ErrorObject {
 public:
-    AggregateErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
+    AggregateErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
 };
 
 #if defined(ENABLE_WASM)
 class WASMCompileErrorObject : public ErrorObject {
 public:
-    WASMCompileErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
+    WASMCompileErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
 };
 
 class WASMLinkErrorObject : public ErrorObject {
 public:
-    WASMLinkErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
+    WASMLinkErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
 };
 
 class WASMRuntimeErrorObject : public ErrorObject {
 public:
-    WASMRuntimeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true);
+    WASMRuntimeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
 };
 #endif
 } // namespace Escargot

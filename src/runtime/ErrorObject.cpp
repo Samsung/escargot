@@ -22,6 +22,9 @@
 #include "Context.h"
 #include "SandBox.h"
 #include "NativeFunctionObject.h"
+#ifdef ENABLE_EXTENDED_API
+#include "VMInstance.h"
+#endif
 
 namespace Escargot {
 
@@ -158,22 +161,39 @@ static Value builtinErrorObjectStackInfoSet(ExecutionState& state, Value thisVal
     return Value();
 }
 
-ErrorObject::ErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo)
+ErrorObject::ErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback)
     : DerivedObject(state, proto)
     , m_stackTraceData(nullptr)
 {
+    UNUSED_PARAMETER(triggerCallback);
+    Context* context = state.context();
+
     if (errorMessage->length()) {
         defineOwnPropertyThrowsException(state, state.context()->staticStrings().message,
                                          ObjectPropertyDescriptor(errorMessage, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
     }
 
-    Context* context = state.context();
+#if defined(ENABLE_EXTENDED_API)
+    if (UNLIKELY(triggerCallback)) {
+        ASSERT(context->vmInstance()->isErrorCreationCallbackRegistered());
+        // trigger ErrorCreationCallback
+        context->vmInstance()->triggerErrorCreationCallback(state, this);
+        if (this->hasOwnProperty(state, ObjectPropertyName(context->staticStrings().stack))) {
+            // if ErrorCreationCallback is registered and this callback already inserts `stack` property for the created ErrorObject,
+            // we just ignore adding `stack` data here
+            return;
+        }
+    }
+#endif
+
     JSGetterSetter gs(
         new NativeFunctionObject(state, NativeFunctionInfo(context->staticStrings().stack, builtinErrorObjectStackInfoGet, 0, NativeFunctionInfo::Strict)),
         new NativeFunctionObject(state, NativeFunctionInfo(context->staticStrings().stack, builtinErrorObjectStackInfoSet, 0, NativeFunctionInfo::Strict)));
     ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
     defineOwnProperty(state, ObjectPropertyName(context->staticStrings().stack), desc);
+
     if (fillStackInfo) {
+        // fill stack info at the creation of Error object rather than the moment of thrown
         updateStackTraceData(state);
     }
 }
@@ -185,54 +205,54 @@ void ErrorObject::updateStackTraceData(ExecutionState& state)
     setStackTraceData(StackTraceData::create(stackTraceDataVector));
 }
 
-ReferenceErrorObject::ReferenceErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo)
-    : ErrorObject(state, proto, errorMessage, fillStackInfo)
+ReferenceErrorObject::ReferenceErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback)
+    : ErrorObject(state, proto, errorMessage, fillStackInfo, triggerCallback)
 {
 }
 
-TypeErrorObject::TypeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo)
-    : ErrorObject(state, proto, errorMessage, fillStackInfo)
+TypeErrorObject::TypeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback)
+    : ErrorObject(state, proto, errorMessage, fillStackInfo, triggerCallback)
 {
 }
 
-RangeErrorObject::RangeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo)
-    : ErrorObject(state, proto, errorMessage, fillStackInfo)
+RangeErrorObject::RangeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback)
+    : ErrorObject(state, proto, errorMessage, fillStackInfo, triggerCallback)
 {
 }
 
-SyntaxErrorObject::SyntaxErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo)
-    : ErrorObject(state, proto, errorMessage, fillStackInfo)
+SyntaxErrorObject::SyntaxErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback)
+    : ErrorObject(state, proto, errorMessage, fillStackInfo, triggerCallback)
 {
 }
 
-URIErrorObject::URIErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo)
-    : ErrorObject(state, proto, errorMessage, fillStackInfo)
+URIErrorObject::URIErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback)
+    : ErrorObject(state, proto, errorMessage, fillStackInfo, triggerCallback)
 {
 }
 
-EvalErrorObject::EvalErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo)
-    : ErrorObject(state, proto, errorMessage, fillStackInfo)
+EvalErrorObject::EvalErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback)
+    : ErrorObject(state, proto, errorMessage, fillStackInfo, triggerCallback)
 {
 }
 
-AggregateErrorObject::AggregateErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo)
-    : ErrorObject(state, proto, errorMessage, fillStackInfo)
+AggregateErrorObject::AggregateErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback)
+    : ErrorObject(state, proto, errorMessage, fillStackInfo, triggerCallback)
 {
 }
 
 #if defined(ENABLE_WASM)
-WASMCompileErrorObject::WASMCompileErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo)
-    : ErrorObject(state, proto, errorMessage, fillStackInfo)
+WASMCompileErrorObject::WASMCompileErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback)
+    : ErrorObject(state, proto, errorMessage, fillStackInfo, triggerCallback)
 {
 }
 
-WASMLinkErrorObject::WASMLinkErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo)
-    : ErrorObject(state, proto, errorMessage, fillStackInfo)
+WASMLinkErrorObject::WASMLinkErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback)
+    : ErrorObject(state, proto, errorMessage, fillStackInfo, triggerCallback)
 {
 }
 
-WASMRuntimeErrorObject::WASMRuntimeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo)
-    : ErrorObject(state, proto, errorMessage, fillStackInfo)
+WASMRuntimeErrorObject::WASMRuntimeErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback)
+    : ErrorObject(state, proto, errorMessage, fillStackInfo, triggerCallback)
 {
 }
 #endif
