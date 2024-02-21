@@ -52,7 +52,12 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->errorPrototype();
     });
+
+#if defined(ENABLE_EXTENDED_API)
+    ErrorObject* obj = new ErrorObject(state, proto, String::emptyString, true, state.context()->vmInstance()->isErrorCreationCallbackRegistered());
+#else
     ErrorObject* obj = new ErrorObject(state, proto, String::emptyString);
+#endif
 
     Value message = argv[0];
     if (!message.isUndefined()) {
@@ -62,12 +67,6 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
 
     Value options = argc > 1 ? argv[1] : Value();
     installErrorCause(state, obj, options);
-
-#if defined(ENABLE_EXTENDED_API)
-    if (UNLIKELY(state.context()->vmInstance()->isErrorCreationCallbackRegistered())) {
-        state.context()->vmInstance()->triggerErrorCreationCallback(state, obj);
-    }
-#endif
 
     return obj;
 }
@@ -82,7 +81,7 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {                                                                                                 \
             return constructorRealm->globalObject()->lowerCaseErrorName##ErrorPrototype();                                                                                                                                                              \
         });                                                                                                                                                                                                                                             \
-        ErrorObject* obj = new errorName##ErrorObject(state, proto, String::emptyString);                                                                                                                                                               \
+        ErrorObject* obj = new errorName##ErrorObject(state, proto, String::emptyString, true, state.context()->vmInstance()->isErrorCreationCallbackRegistered());                                                                                     \
         Value message = argv[0];                                                                                                                                                                                                                        \
         if (!message.isUndefined()) {                                                                                                                                                                                                                   \
             obj->defineOwnPropertyThrowsException(state, state.context()->staticStrings().message,                                                                                                                                                      \
@@ -90,9 +89,6 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
         }                                                                                                                                                                                                                                               \
         Value options = argc > 1 ? argv[1] : Value();                                                                                                                                                                                                   \
         installErrorCause(state, obj, options);                                                                                                                                                                                                         \
-        if (UNLIKELY(state.context()->vmInstance()->isErrorCreationCallbackRegistered())) {                                                                                                                                                             \
-            state.context()->vmInstance()->triggerErrorCreationCallback(state, obj);                                                                                                                                                                    \
-        }                                                                                                                                                                                                                                               \
         return obj;                                                                                                                                                                                                                                     \
     }
 #else
@@ -134,7 +130,13 @@ static Value builtinAggregateErrorConstructor(ExecutionState& state, Value thisV
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->aggregateErrorPrototype();
     });
+
+#if defined(ENABLE_EXTENDED_API)
+    ErrorObject* O = new AggregateErrorObject(state, proto, String::emptyString, true, state.context()->vmInstance()->isErrorCreationCallbackRegistered());
+#else
     ErrorObject* O = new AggregateErrorObject(state, proto, String::emptyString);
+#endif
+
     Value message = argv[1];
     // If message is not undefined, then
     if (!message.isUndefined()) {
@@ -154,12 +156,6 @@ static Value builtinAggregateErrorConstructor(ExecutionState& state, Value thisV
     // Perform ! DefinePropertyOrThrow(O, "errors", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: ! CreateArrayFromList(errorsList) }).
     O->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("errors")),
                                         ObjectPropertyDescriptor(Value(Object::createArrayFromList(state, errorsList.size(), errorsList.data())), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
-
-#if defined(ENABLE_EXTENDED_API)
-    if (UNLIKELY(state.context()->vmInstance()->isErrorCreationCallbackRegistered())) {
-        state.context()->vmInstance()->triggerErrorCreationCallback(state, O);
-    }
-#endif
 
     // Return O.
     return O;
