@@ -45,7 +45,11 @@
 namespace Escargot {
 
 GlobalObject::GlobalObject(ExecutionState& state)
+#if defined(ENABLE_EXTENDED_API)
+    : PrototypeObject(state, Object::createBuiltinObjectPrototype(state))
+#else
     : ImmutablePrototypeObject(state, Object::createBuiltinObjectPrototype(state))
+#endif
     , m_context(state.context())
 #define INIT_BUILTIN_VALUE(builtin, TYPE, objName) \
     , m_##builtin(nullptr)

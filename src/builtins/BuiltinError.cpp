@@ -63,13 +63,16 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
     Value options = argc > 1 ? argv[1] : Value();
     installErrorCause(state, obj, options);
 
+#if defined(ENABLE_EXTENDED_API)
     if (UNLIKELY(state.context()->vmInstance()->isErrorCreationCallbackRegistered())) {
         state.context()->vmInstance()->triggerErrorCreationCallback(state, obj);
     }
+#endif
 
     return obj;
 }
 
+#if defined(ENABLE_EXTENDED_API)
 #define DEFINE_ERROR_CTOR(errorName, lowerCaseErrorName)                                                                                                                                                                                                \
     static Value builtin##errorName##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)                                                                                                    \
     {                                                                                                                                                                                                                                                   \
@@ -92,6 +95,27 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
         }                                                                                                                                                                                                                                               \
         return obj;                                                                                                                                                                                                                                     \
     }
+#else
+#define DEFINE_ERROR_CTOR(errorName, lowerCaseErrorName)                                                                                                                                                                                                \
+    static Value builtin##errorName##ErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)                                                                                                    \
+    {                                                                                                                                                                                                                                                   \
+        if (!newTarget.hasValue()) {                                                                                                                                                                                                                    \
+            newTarget = state.resolveCallee();                                                                                                                                                                                                          \
+        }                                                                                                                                                                                                                                               \
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {                                                                                                 \
+            return constructorRealm->globalObject()->lowerCaseErrorName##ErrorPrototype();                                                                                                                                                              \
+        });                                                                                                                                                                                                                                             \
+        ErrorObject* obj = new errorName##ErrorObject(state, proto, String::emptyString);                                                                                                                                                               \
+        Value message = argv[0];                                                                                                                                                                                                                        \
+        if (!message.isUndefined()) {                                                                                                                                                                                                                   \
+            obj->defineOwnPropertyThrowsException(state, state.context()->staticStrings().message,                                                                                                                                                      \
+                                                  ObjectPropertyDescriptor(message.toString(state), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent))); \
+        }                                                                                                                                                                                                                                               \
+        Value options = argc > 1 ? argv[1] : Value();                                                                                                                                                                                                   \
+        installErrorCause(state, obj, options);                                                                                                                                                                                                         \
+        return obj;                                                                                                                                                                                                                                     \
+    }
+#endif
 
 DEFINE_ERROR_CTOR(Reference, reference);
 DEFINE_ERROR_CTOR(Type, type);
@@ -131,9 +155,11 @@ static Value builtinAggregateErrorConstructor(ExecutionState& state, Value thisV
     O->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, String::fromASCII("errors")),
                                         ObjectPropertyDescriptor(Value(Object::createArrayFromList(state, errorsList.size(), errorsList.data())), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
 
+#if defined(ENABLE_EXTENDED_API)
     if (UNLIKELY(state.context()->vmInstance()->isErrorCreationCallbackRegistered())) {
         state.context()->vmInstance()->triggerErrorCreationCallback(state, O);
     }
+#endif
 
     // Return O.
     return O;

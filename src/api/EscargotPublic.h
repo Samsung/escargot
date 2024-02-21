@@ -636,7 +636,7 @@ public:
     GCManagedVector<FunctionObjectRef*> resolveCallstack(); // resolve list of callee
     GlobalObjectRef* resolveCallerLexicalGlobalObject(); // resolve caller's lexical global object
 
-    // these 3 functions are used only for test purpose
+    // only enabled when `ENABLE_EXTENDED_API` macro is set (default: disabled)
     bool onTry();
     bool onCatch();
     bool onFinally();
@@ -662,6 +662,8 @@ public:
 
     // register ErrorCallback which is triggered when each Error constructor (e.g. new TypeError()) invoked or thrown
     // parameter `err` stands for the newly created ErrorObject
+    // these functions are used only for third party usage
+    // only enabled when `ENABLE_EXTENDED_API` macro is set (default: disabled)
     typedef void (*ErrorCallback)(ExecutionStateRef* state, ErrorObjectRef* err);
     void registerErrorCreationCallback(ErrorCallback cb);
     void registerErrorThrowCallback(ErrorCallback cb);
@@ -1956,6 +1958,7 @@ public:
 // it is not intented operation
 // Note) only String or Symbol type is allowed for `propertyName`
 // because TemplateRef is set without ExecutionStateRef, so property name conversion is impossible.
+// only enabled when `ENABLE_EXTENDED_API` macro is set (default: disabled)
 class ESCARGOT_EXPORT TemplateRef {
 public:
     void set(ValueRef* propertyName, ValueRef* data, bool isWritable, bool isEnumerable, bool isConfigurable);
@@ -2039,13 +2042,7 @@ struct ESCARGOT_EXPORT ObjectTemplatePropertyHandlerConfiguration {
     }
 };
 
-class ESCARGOT_EXPORT SerializerRef {
-public:
-    // returns the serialization was successful
-    static bool serializeInto(ValueRef* value, std::ostringstream& output);
-    static ValueRef* deserializeFrom(ContextRef* context, std::istringstream& input);
-};
-
+// only enabled when `ENABLE_EXTENDED_API` macro is set (default: disabled)
 class ESCARGOT_EXPORT ObjectTemplateRef : public TemplateRef {
 public:
     static ObjectTemplateRef* create();
@@ -2062,6 +2059,7 @@ public:
 };
 
 // FunctionTemplateRef returns the unique function instance in context.
+// only enabled when `ENABLE_EXTENDED_API` macro is set (default: disabled)
 class ESCARGOT_EXPORT FunctionTemplateRef : public TemplateRef {
 public:
     // in constructor call, thisValue is default consturcted object
@@ -2082,6 +2080,13 @@ public:
 
     void inherit(OptionalRef<FunctionTemplateRef> parent);
     OptionalRef<FunctionTemplateRef> parent();
+};
+
+class ESCARGOT_EXPORT SerializerRef {
+public:
+    // returns the serialization was successful
+    static bool serializeInto(ValueRef* value, std::ostringstream& output);
+    static ValueRef* deserializeFrom(ContextRef* context, std::istringstream& input);
 };
 
 class ESCARGOT_EXPORT ScriptParserRef {

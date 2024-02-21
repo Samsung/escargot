@@ -17,6 +17,8 @@
  *  USA
  */
 
+#if defined(ENABLE_EXTENDED_API)
+
 #include "Escargot.h"
 #include "ObjectTemplate.h"
 #include "runtime/Value.h"
@@ -441,3 +443,5 @@ void ObjectTemplate::removeIndexedPropertyHandler()
     m_indexedPropertyHandler = nullptr;
 }
 } // namespace Escargot
+
+#endif // ENABLE_EXTENDED_API

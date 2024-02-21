@@ -318,7 +318,12 @@ class FunctionObject;
 
 Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
+#if defined(ENABLE_EXTENDED_API)
+// for certain third-party cases, GlobalObject's prototype can be modified
+class GlobalObject : public PrototypeObject {
+#else
 class GlobalObject : public ImmutablePrototypeObject {
+#endif
 public:
     friend class GlobalEnvironmentRecord;
 

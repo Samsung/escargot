@@ -79,7 +79,7 @@ ALWAYS_INLINE size_t jumpTo(uint8_t* codeBuffer, const size_t jumpPosition)
     return (size_t)&codeBuffer[jumpPosition];
 }
 
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
 template <typename T>
 class ExecutionStateVariableChanger {
 public:
@@ -3294,7 +3294,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
 
     if (LIKELY(!code->m_isCatchResumeProcess && !code->m_isFinallyResumeProcess)) {
         try {
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
             ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
                 state.m_onTry = in;
             });
@@ -3350,7 +3350,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
                 stackTraceDataVector.clear();
                 registerFile[code->m_catchedValueRegisterIndex] = val;
                 try {
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
                     ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
                         state.m_onCatch = in;
                     });
@@ -3367,7 +3367,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
         }
     } else if (code->m_isCatchResumeProcess) {
         try {
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
             ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
                 state.m_onCatch = in;
             });
@@ -3388,7 +3388,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
     }
 
     if (code->m_isFinallyResumeProcess) {
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
         ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
             state.m_onFinally = in;
         });
@@ -3411,7 +3411,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             newState = new ExtendedExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
             newState->rareData()->setControlFlowRecordVector(state->rareData()->controlFlowRecordVector());
         }
-#if defined(ESCARGOT_ENABLE_TEST)
+#if defined(ENABLE_EXTENDED_API)
         ExecutionStateVariableChanger<void (*)(ExecutionState&, bool)> changer(*state, [](ExecutionState& state, bool in) {
             state.m_onFinally = in;
         });

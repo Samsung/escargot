@@ -20,6 +20,8 @@
 #ifndef __EscargotObjectTemplate__
 #define __EscargotObjectTemplate__
 
+#if defined(ENABLE_EXTENDED_API)
+
 #include "runtime/Template.h"
 
 namespace Escargot {
@@ -62,5 +64,7 @@ private:
     ObjectTemplatePropertyHandlerData* m_indexedPropertyHandler;
 };
 } // namespace Escargot
+
+#endif // ENABLE_EXTENDED_API
 
 #endif

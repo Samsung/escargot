@@ -17,6 +17,8 @@
  *  USA
  */
 
+#if defined(ENABLE_EXTENDED_API)
+
 #include "Escargot.h"
 #include "FunctionTemplate.h"
 #include "runtime/ObjectTemplate.h"
@@ -235,3 +237,5 @@ Object* FunctionTemplate::instantiate(Context* ctx)
     return result;
 }
 } // namespace Escargot
+
+#endif // ENABLE_EXTENDED_API
