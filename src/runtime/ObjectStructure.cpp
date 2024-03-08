@@ -52,7 +52,6 @@ void* ObjectStructureWithoutTransition::operator new(size_t size)
 
 ObjectStructure* ObjectStructure::create(Context* ctx, ObjectStructureItemTightVector&& properties, bool preferTransition)
 {
-    preferTransition = isTransitionModeAvailable(properties.size() <= ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) && preferTransition;
     bool hasIndexStringAsPropertyName = false;
     bool hasSymbol = false;
     bool hasNonAtomicPropertyName = false;
@@ -165,7 +164,6 @@ ObjectStructure* ObjectStructureWithoutTransition::addProperty(const ObjectStruc
         m_properties = nullptr;
     }
 
-
     if (propertiesForNewStructure->size() > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
         newStructure = new ObjectStructureWithMap(propertiesForNewStructure, nullptr, nameIsIndexString, nameIsSymbol, hasEnumerableProperty);
     } else {
@@ -216,11 +214,6 @@ ObjectStructure* ObjectStructureWithoutTransition::replacePropertyDescriptor(siz
     }
     newProperties->at(idx).m_descriptor = newDesc;
     return new ObjectStructureWithoutTransition(newProperties, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasNonAtomicPropertyName, m_hasEnumerableProperty);
-}
-
-ObjectStructure* ObjectStructureWithoutTransition::convertToNonTransitionStructure()
-{
-    return this;
 }
 
 void* ObjectStructureWithTransition::operator new(size_t size)
@@ -315,9 +308,9 @@ ObjectStructure* ObjectStructureWithTransition::addProperty(const ObjectStructur
     ObjectStructure* newObjectStructure;
 
     size_t nextSize = m_properties.size() + 1;
-    if (nextSize > ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE) {
-        newObjectStructure = new ObjectStructureWithMap(nameIsIndexString, hasSymbol, hasEnumerableProperty, m_properties, newItem);
-    } else if (nextSize > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE || nameIsIndexString) {
+    // ObjectStructureWithTransition cannot directly convert to ObjectStructureWithMap by just adding one property
+    ASSERT(nextSize < ESCARGOT_OBJECT_STRUCTURE_ACCESS_CACHE_BUILD_MIN_SIZE);
+    if (nextSize > ESCARGOT_OBJECT_STRUCTURE_TRANSITION_MODE_MAX_SIZE || nameIsIndexString) {
         ObjectStructureItemVector* newProperties = new ObjectStructureItemVector(m_properties, newItem);
         newObjectStructure = new ObjectStructureWithoutTransition(newProperties, nameIsIndexString, hasSymbol, hasNonAtomicName, hasEnumerableProperty);
     } else {
@@ -515,10 +508,5 @@ ObjectStructure* ObjectStructureWithMap::replacePropertyDescriptor(size_t idx, c
 
     newProperties->at(idx).m_descriptor = newDesc;
     return new ObjectStructureWithMap(newProperties, newPropertyNameMap, m_hasIndexPropertyName, m_hasSymbolPropertyName, m_hasEnumerableProperty);
-}
-
-ObjectStructure* ObjectStructureWithMap::convertToNonTransitionStructure()
-{
-    return this;
 }
 } // namespace Escargot
