@@ -1284,12 +1284,16 @@ struct GetObjectInlineCacheData {
         m_cachedIndex = 0;
     }
 
+    static constexpr size_t CachedIndexMax = std::numeric_limits<uint16_t>::max();
+    static constexpr size_t MaxCacheMissCount = 32;
+    static constexpr size_t MinCacheFillCount = 4;
+    static constexpr size_t MaxCacheCount = 24;
+
     ObjectStructure** m_cachedhiddenClassChain;
     bool m_isPlainDataProperty : 1;
     // 15bits of storage is enough
     // inlineCacheProtoTraverseMaxCount is so small
     uint16_t m_cachedhiddenClassChainLength : 15;
-    static constexpr size_t inlineCacheCachedIndexMax = std::numeric_limits<uint16_t>::max();
     uint16_t m_cachedIndex : 16;
 };
 
@@ -1388,6 +1392,11 @@ struct SetObjectInlineCacheData {
         m_cachedIndex = m_cachedhiddenClassChainLength = 0;
     }
 
+    static constexpr size_t CachedIndexMax = std::numeric_limits<uint16_t>::max();
+    static constexpr size_t MaxCacheMissCount = 32;
+    static constexpr size_t MinCacheFillCount = 3;
+    static constexpr size_t MaxCacheCount = 24;
+
     union {
         ObjectStructure** m_cachedHiddenClassChainData;
         ObjectStructure* m_cachedHiddenClass;
@@ -1395,7 +1404,6 @@ struct SetObjectInlineCacheData {
     // 16bits of storage is enough
     // inlineCacheProtoTraverseMaxCount is so small
     uint16_t m_cachedhiddenClassChainLength : 16;
-    static constexpr size_t inlineCacheCachedIndexMax = std::numeric_limits<uint16_t>::max();
     uint16_t m_cachedIndex : 16;
 };
 
