@@ -80,9 +80,6 @@ public:
 
     ObjectStructureItemVector(const ObjectStructureItemTightVector& other)
     {
-        m_buffer = nullptr;
-        m_capacity = 0;
-        m_size = 0;
         assign(other.data(), other.data() + other.size());
     }
 
@@ -154,8 +151,15 @@ public:
     virtual ObjectStructure* removeProperty(size_t pIndex) = 0;
     virtual ObjectStructure* replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc) = 0;
 
-    virtual ObjectStructure* convertToNonTransitionStructure() = 0;
-    virtual bool inTransitionMode() = 0;
+    virtual ObjectStructure* convertToNonTransitionStructure()
+    {
+        return this;
+    }
+
+    virtual bool inTransitionMode()
+    {
+        return false;
+    }
 
     void markReferencedByInlineCache()
     {
@@ -282,12 +286,6 @@ public:
     virtual ObjectStructure* addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
     virtual ObjectStructure* removeProperty(size_t pIndex) override;
     virtual ObjectStructure* replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc) override;
-    virtual ObjectStructure* convertToNonTransitionStructure() override;
-
-    virtual bool inTransitionMode() override
-    {
-        return false;
-    }
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -474,12 +472,6 @@ public:
     virtual ObjectStructure* addProperty(const ObjectStructurePropertyName& name, const ObjectStructurePropertyDescriptor& desc) override;
     virtual ObjectStructure* removeProperty(size_t pIndex) override;
     virtual ObjectStructure* replacePropertyDescriptor(size_t idx, const ObjectStructurePropertyDescriptor& newDesc) override;
-    virtual ObjectStructure* convertToNonTransitionStructure() override;
-
-    virtual bool inTransitionMode() override
-    {
-        return false;
-    }
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
