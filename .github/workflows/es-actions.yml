@@ -13,7 +13,7 @@ jobs:
   check-tidy:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
@@ -27,13 +27,13 @@ jobs:
   build-on-macos:
     runs-on: macos-12
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
       run: |
         brew update
-        brew install cmake ninja pkg-config icu4c
+        brew install cmake ninja pkg-config
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
@@ -53,7 +53,7 @@ jobs:
         arch: [x86, x86_64]
         api: [28]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
@@ -61,14 +61,14 @@ jobs:
         brew update
         brew install cmake pkg-config
     - name: Set up JDK
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4.1.0
       with:
         distribution: "zulu"
         java-version: 17
     - name: Gradle cache
-      uses: gradle/gradle-build-action@v2
+      uses: gradle/actions/setup-gradle@v3
     - name: AVD cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: avd-cache
       with:
         path: |
@@ -98,7 +98,7 @@ jobs:
   build-by-clang:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
@@ -134,24 +134,24 @@ jobs:
       run: |
         git config --global core.autocrlf input
         git config --global core.eol lf
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - uses: szenius/set-timezone@v1.2
       with:
         timezoneWindows: "Pacific Standard Time"
     - uses: lukka/get-cmake@latest
-    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
         sdk-version: 20348
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     - name: Install msvc redist package
       run: |
         (new-object System.Net.WebClient).DownloadFile('https://github.com/abbodi1406/vcredist/releases/download/v0.73.0/VisualCppRedist_AIO_x86_x64.exe','VisualCppRedist_AIO_x86_x64.exe')
         .\VisualCppRedist_AIO_x86_x64.exe /y
-    - uses: ilammy/msvc-dev-cmd@v1.12.1
+    - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: ${{ matrix.arch.cpu }}
         sdk: "10.0.20348.0"
@@ -185,24 +185,24 @@ jobs:
       run: |
         git config --global core.autocrlf input
         git config --global core.eol lf
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - uses: szenius/set-timezone@v1.2
       with:
         timezoneWindows: "Pacific Standard Time"
     - uses: lukka/get-cmake@latest
-    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
         sdk-version: 20348
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     - name: Install msvc redist package
       run: |
         (new-object System.Net.WebClient).DownloadFile('https://github.com/abbodi1406/vcredist/releases/download/v0.73.0/VisualCppRedist_AIO_x86_x64.exe','VisualCppRedist_AIO_x86_x64.exe')
         .\VisualCppRedist_AIO_x86_x64.exe /y
-    - uses: ilammy/msvc-dev-cmd@v1.12.1
+    - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: ${{ matrix.arch }}
         sdk: "10.0.20348.0"
@@ -234,14 +234,14 @@ jobs:
       run: |
         git config --global core.autocrlf input
         git config --global core.eol lf
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - uses: lukka/get-cmake@latest
-    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v1.11
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
         sdk-version: 20348
-    - uses: ilammy/msvc-dev-cmd@v1.12.1
+    - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: x64
         sdk: "10.0.20348.0"
@@ -251,7 +251,7 @@ jobs:
         CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=x64 -Bout/win64_release_uwp/ -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_TEST=ON
         cmake --build out\win64_release_uwp --config Release
       shell: cmd
-    - uses: ilammy/msvc-dev-cmd@v1.12.1
+    - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: x86
         sdk: "10.0.20348.0"
@@ -270,7 +270,7 @@ jobs:
       matrix:
         tc: ['new-es octane', 'v8 chakracore spidermonkey', 'jetstream-only-simple-parallel-1', 'jetstream-only-simple-parallel-2 jsc-stress', 'jetstream-only-simple-parallel-3 jetstream-only-cdjs']
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
@@ -311,7 +311,7 @@ jobs:
           - tc: 'octane v8 web-tooling-benchmark'
             build_opt: '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_USE_CUSTOM_LOGGING=ON'
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
@@ -341,7 +341,7 @@ jobs:
   build-test-on-x86-x64-debug:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
@@ -378,7 +378,7 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Build
@@ -405,7 +405,7 @@ jobs:
     runs-on: [self-hosted, linux, arm]
     timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Build
@@ -420,7 +420,7 @@ jobs:
     runs-on: [self-hosted, linux, arm64]
     timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Build
@@ -434,7 +434,7 @@ jobs:
   build-test-debugger:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
@@ -455,7 +455,7 @@ jobs:
   build-test-api:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
@@ -479,7 +479,7 @@ jobs:
   build-test-codecache:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
@@ -557,7 +557,7 @@ jobs:
   build-test-wasmjs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
