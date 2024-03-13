@@ -86,12 +86,17 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
         }
         return src;
     } else {
-        char msg[1024];
-        snprintf(msg, sizeof(msg), "GlobalObject.%s: cannot open file %s", builtinName, fileName);
         if (state) {
-            state->throwException(URIErrorObjectRef::create(state.get(), StringRef::createFromUTF8(msg, strnlen(msg, sizeof msg))));
+            const size_t maxNameLength = 990;
+            if ((strnlen(builtinName, maxNameLength) + strnlen(fileName, maxNameLength)) < maxNameLength) {
+                char msg[1024];
+                snprintf(msg, sizeof(msg), "GlobalObject.%s: cannot open file %s", builtinName, fileName);
+                state->throwException(URIErrorObjectRef::create(state.get(), StringRef::createFromUTF8(msg, strnlen(msg, sizeof msg))));
+            } else {
+                state->throwException(URIErrorObjectRef::create(state.get(), StringRef::createFromASCII("invalid file name")));
+            }
         } else {
-            LOGD("%s", msg);
+            LOGE("%s", fileName);
         }
         return nullptr;
     }
