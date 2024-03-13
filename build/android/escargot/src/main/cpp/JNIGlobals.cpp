@@ -86,12 +86,9 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
         }
         return src;
     } else {
-        char msg[1024];
-        snprintf(msg, sizeof(msg), "GlobalObject.%s: cannot open file %s", builtinName, fileName);
+        LOGE("cannot open file %s", fileName);
         if (state) {
-            state->throwException(URIErrorObjectRef::create(state.get(), StringRef::createFromUTF8(msg, strnlen(msg, sizeof msg))));
-        } else {
-            LOGD("%s", msg);
+            state->throwException(URIErrorObjectRef::create(state.get(), StringRef::emptyString()));
         }
         return nullptr;
     }
