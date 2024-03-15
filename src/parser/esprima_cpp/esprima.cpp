@@ -2685,7 +2685,7 @@ public:
                 // CodeBlock should allocate a RareData for caching
                 this->currentScopeContext->m_needRareData = true;
                 exprNode = this->finalize(node, builder.createTaggedTemplateExpressionNode(exprNode, quasi, convertedNode));
-            } else if (this->lookahead.valuePunctuatorKind == GuessDot) {
+            } else if (this->lookahead.type == Token::PunctuatorToken && this->lookahead.valuePunctuatorKind == GuessDot) {
                 bool oldBindingElement = this->context->isBindingElement;
                 bool oldAssignmentTarget = this->context->isAssignmentTarget;
                 Marker startMarker = this->startMarker;
