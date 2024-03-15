@@ -308,8 +308,11 @@ void ByteCodeGenerator::collectByteCodeLOCData(Context* context, InterpretedCode
     // Parsing
     Node* ast = nullptr;
     if (codeBlock->isGlobalCodeBlock() || codeBlock->isEvalCode()) {
+        InterpretedCodeBlock* parentCodeBlock = codeBlock->parent();
+        bool allowSC = parentCodeBlock ? parentCodeBlock->allowSuperCall() : false;
+        bool allowSP = parentCodeBlock ? parentCodeBlock->allowSuperProperty() : false;
         ast = esprima::parseProgram(context, codeBlock->src(), esprima::generateClassInfoFrom(context, codeBlock->parent()),
-                                    codeBlock->script()->isModule(), codeBlock->isStrict(), codeBlock->inWith(), false, false, false, true);
+                                    codeBlock->script()->isModule(), codeBlock->isStrict(), codeBlock->inWith(), allowSC, allowSP, false, true);
     } else {
         ast = esprima::parseSingleFunction(context, codeBlock);
     }
