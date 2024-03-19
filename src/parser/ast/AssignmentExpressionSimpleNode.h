@@ -45,7 +45,6 @@ public:
             isSlowMode = isSlowMode || isLeftBindingAffectedByRightExpression();
         }
 
-        bool isBase = context->m_registerStack->size() == 0;
         size_t rightRegister = dstRegister;
 
         if (isSlowMode) {

@@ -326,10 +326,10 @@ private:
                     if (context->m_isWithScope) {
                         return true;
                     }
-                }
 
-                if (context->m_isLeftBindingAffectedByRightExpression) {
-                    return true;
+                    if (context->m_isLeftBindingAffectedByRightExpression) {
+                        return true;
+                    }
                 }
             }
         } else {

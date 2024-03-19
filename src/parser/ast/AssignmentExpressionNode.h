@@ -82,6 +82,7 @@ protected:
             for (size_t i = 0; i < leftNames.size(); i++) {
                 if (leftNames[i] == name) {
                     isSlowMode = true;
+                    break;
                 }
             }
         });
@@ -95,15 +96,7 @@ protected:
             AtomicString leftName = m_left->asIdentifier()->name();
             bool result = false;
             m_right->iterateChildren([&](Node* node) {
-                if (node->type() == ASTNodeType::UnaryExpressionDelete) {
-                    UnaryExpressionDeleteNode* del = ((UnaryExpressionDeleteNode*)node);
-                    if (del->argument()->isIdentifier()) {
-                        if (leftName == del->argument()->asIdentifier()->name()) {
-                            // x = delete x;
-                            result = true;
-                        }
-                    }
-                } else if (node->type() == ASTNodeType::CallExpression) {
+                if (node->type() == ASTNodeType::CallExpression) {
                     CallExpressionNode* call = (CallExpressionNode*)node;
                     if (call->callee()->isIdentifier() && call->callee()->asIdentifier()->name().string()->equals("eval")) {
                         // x = (eval("var x;"), 1);
