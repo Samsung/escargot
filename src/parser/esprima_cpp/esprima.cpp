@@ -2488,7 +2488,7 @@ public:
             if (isPunctuatorTokenLookahead) {
                 if (this->lookahead.valuePunctuatorKind == Period) {
                     this->context->isBindingElement = false;
-                    this->context->isAssignmentTarget = true;
+                    this->context->isAssignmentTarget = !seenOptionalExpression;
                     this->nextToken();
                     exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode);
                 } else if (this->lookahead.valuePunctuatorKind == LeftParenthesis) {
@@ -2509,7 +2509,7 @@ public:
                     }
                 } else if (this->lookahead.valuePunctuatorKind == LeftSquareBracket) {
                     this->context->isBindingElement = false;
-                    this->context->isAssignmentTarget = true;
+                    this->context->isAssignmentTarget = !seenOptionalExpression;
                     this->nextToken();
                     ASTNode property = this->isolateCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
                     exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode, property, false));
@@ -2665,14 +2665,14 @@ public:
         while (true) {
             if (this->match(LeftSquareBracket)) {
                 this->context->isBindingElement = false;
-                this->context->isAssignmentTarget = true;
+                this->context->isAssignmentTarget = !seenOptionalExpression;
                 this->nextToken();
                 ASTNode property = this->isolateCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
                 exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, false));
                 this->expect(RightSquareBracket);
             } else if (this->match(Period)) {
                 this->context->isBindingElement = false;
-                this->context->isAssignmentTarget = true;
+                this->context->isAssignmentTarget = !seenOptionalExpression;
                 this->nextToken();
                 exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, node, exprNode);
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
@@ -3388,7 +3388,7 @@ public:
                             this->throwError(Messages::InvalidLHSInAssignment);
                         }
                         auto exprNodeType = exprNode->type();
-                        if (UNLIKELY(exprNodeType == ASTNodeType::MemberExpression && exprNode->asMemberExpression()->isOptional())) {
+                        if (UNLIKELY(exprNodeType == ASTNodeType::MemberExpression)) {
                             this->throwError(Messages::InvalidLHSInAssignment);
                         }
                         if (UNLIKELY(exprNodeType == ASTNodeType::ImportCall)) {
