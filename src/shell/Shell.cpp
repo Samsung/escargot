@@ -252,7 +252,7 @@ static OptionalRef<StringRef> builtinHelperFileRead(OptionalRef<ExecutionStateRe
         return src;
     } else {
         if (state) {
-            const size_t maxNameLength = 990;
+            const size_t maxNameLength = 980;
             if ((strnlen(builtinName, maxNameLength) + strnlen(fileName, maxNameLength)) < maxNameLength) {
                 char msg[1024];
                 snprintf(msg, sizeof(msg), "GlobalObject.%s: cannot open file %s", builtinName, fileName);
