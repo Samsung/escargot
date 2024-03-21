@@ -81,7 +81,7 @@ class FunctionObject;
     F(callerAndArgumentsGetterSetter, FunctionObject, objName)
 #define GLOBALOBJECT_BUILTIN_GENERATOR(F, objName) \
     F(generatorFunction, FunctionObject, objName)  \
-    F(generator, FunctionObject, objName)          \
+    F(generator, Object, objName)                  \
     F(generatorPrototype, Object, objName)
 // INTL
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
