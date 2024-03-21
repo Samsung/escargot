@@ -100,7 +100,7 @@ void GlobalObject::installAsyncGenerator(ExecutionState& state)
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringThrow, builtinAsyncGeneratorThrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_asyncGeneratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                                       ObjectPropertyDescriptor(Value(state.context()->staticStrings().AsyncGenerator.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                       ObjectPropertyDescriptor(state.context()->staticStrings().AsyncGenerator.string(), ObjectPropertyDescriptor::ConfigurablePresent));
 }
 
 } // namespace Escargot

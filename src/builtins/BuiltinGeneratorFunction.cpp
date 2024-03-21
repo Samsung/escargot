@@ -71,14 +71,15 @@ void GlobalObject::installGenerator(ExecutionState& state)
     // %GeneratorFunction% : The constructor of generator objects
     m_generatorFunction = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().GeneratorFunction, builtinGeneratorFunction, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_generatorFunction->setGlobalIntrinsicObject(state);
+    m_generatorFunction->setPrototype(state, m_function);
 
     // %Generator% : The initial value of the prototype property of %GeneratorFunction%
-    m_generator = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().GeneratorFunction, nullptr, 0, NativeFunctionInfo::Strict));
+    m_generator = new PrototypeObject(state, m_functionPrototype);
     m_generator->setGlobalIntrinsicObject(state, true);
     m_generatorFunction->setFunctionPrototype(state, m_generator);
 
     // 25.2.3.1 The initial value of GeneratorFunction.prototype.constructor is the intrinsic object %GeneratorFunction%.
-    m_generator->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_generatorFunction, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_generator->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_generatorFunction, ObjectPropertyDescriptor::ConfigurablePresent));
 
     {
         ASSERT(!!m_callerAndArgumentsGetterSetter);
@@ -99,7 +100,7 @@ void GlobalObject::installGenerator(ExecutionState& state)
     // The initial value of the @@toStringTag property is the String value "GeneratorFunction"..
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }.
     m_generator->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                         ObjectPropertyDescriptor(Value(state.context()->staticStrings().GeneratorFunction.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                         ObjectPropertyDescriptor(state.context()->staticStrings().GeneratorFunction.string(), ObjectPropertyDescriptor::ConfigurablePresent));
 
     // The initial value of Generator.prototype.constructor is the intrinsic object %Generator%.
     m_generatorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_generator, ObjectPropertyDescriptor::ConfigurablePresent));
@@ -112,6 +113,6 @@ void GlobalObject::installGenerator(ExecutionState& state)
                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringThrow, builtinGeneratorThrow, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // http://www.ecma-international.org/ecma-262/6.0/#sec-generatorfunction.prototype-@@tostringtag
     m_generatorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
-                                                  ObjectPropertyDescriptor(Value(state.context()->staticStrings().Generator.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                  ObjectPropertyDescriptor(state.context()->staticStrings().Generator.string(), ObjectPropertyDescriptor::ConfigurablePresent));
 }
 } // namespace Escargot
