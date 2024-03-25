@@ -166,10 +166,12 @@ Object* ExecutionState::getNewTarget()
 {
     EnvironmentRecord* envRec = getThisEnvironment();
 
+    if (UNLIKELY(!envRec->isDeclarativeEnvironmentRecord())) {
+        return nullptr;
+    }
+
     ASSERT(envRec->isDeclarativeEnvironmentRecord() && envRec->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord());
-
     FunctionEnvironmentRecord* funcEnvRec = envRec->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-
     return funcEnvRec->newTarget();
 }
 
