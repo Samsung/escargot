@@ -2901,27 +2901,10 @@ public:
                 }
             }
         } else if (this->matchContextualKeyword(AwaitKeyword)) {
-            bool parseAwait = false;
             if (this->context->await) {
-                parseAwait = true;
-            } else {
-                if (inGlobalSourceCodeParsing()) {
-                    Marker startMarker = this->startMarker;
-                    this->nextToken();
-                    if (!this->match(PunctuatorKind::Comma) && !this->match(PunctuatorKind::Substitution) && !this->match(PunctuatorKind::RightParenthesis)
-                        && !this->match(PunctuatorKind::Colon) && !this->matchKeyword(KeywordKind::InstanceofKeyword)) {
-                        this->currentScopeContext->m_isAsync = true;
-                        parseAwait = true;
-                    }
-
-                    // rewind scanner
-                    this->scanner->index = startMarker.index;
-                    this->scanner->lineNumber = startMarker.lineNumber;
-                    this->scanner->lineStart = startMarker.lineStart;
-                    this->nextToken();
-                }
-            }
-            if (parseAwait) {
+                return this->parseAwaitExpression(builder);
+            } else if (this->sourceType == Module && inGlobalSourceCodeParsing()) {
+                this->currentScopeContext->m_isAsync = true;
                 return this->parseAwaitExpression(builder);
             }
         }
@@ -3277,6 +3260,8 @@ public:
 
                 BEGIN_FUNCTION_SCANNING(AtomicString());
 
+                bool previousAwait = this->context->await;
+
                 ParseFormalParametersResult list;
                 // FIXME reinterpretAsCoverFormalsList
                 if (type == Identifier) {
@@ -3313,7 +3298,6 @@ public:
 
                 bool previousStrict = this->context->strict;
                 bool previousAllowYield = this->context->allowYield;
-                bool previousAwait = this->context->await;
                 bool previousInArrowFunction = this->context->inArrowFunction;
                 bool previousAllowStrictDirective = this->context->allowStrictDirective;
 
