@@ -89,6 +89,9 @@ static Value builtinReflectDefineProperty(ExecutionState& state, Value thisValue
     ObjectPropertyName key(state, argv[1]);
 
     // 3. Let desc be ToPropertyDescriptor(attributes).
+    if (!argv[2].isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Reflect.string(), false, String::emptyString, "%s: The attributes of Reflect.defineProperty should be an Object");
+    }
     ObjectPropertyDescriptor desc(state, argv[2].asObject());
 
     // 6. Return target.[[DefineOwnProperty]](key, desc).
