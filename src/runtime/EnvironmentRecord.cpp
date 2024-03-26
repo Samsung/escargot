@@ -189,6 +189,10 @@ EnvironmentRecord::BindingSlot GlobalEnvironmentRecord::hasBinding(ExecutionStat
 
     auto result = m_globalObject->get(state, ObjectPropertyName(atomicName));
     if (result.hasValue()) {
+        if (UNLIKELY(result.isDataAccessorProperty() && result.isDataProperty())) {
+            // access and install builtin Global properties first
+            Value val = result.value(state, m_globalObject);
+        }
         return BindingSlot(this, SIZE_MAX - 1, false);
     } else {
         return BindingSlot(this, SIZE_MAX, false);
