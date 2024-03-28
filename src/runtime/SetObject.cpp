@@ -25,7 +25,7 @@
 namespace Escargot {
 
 SetObject::SetObject(ExecutionState& state)
-    : SetObject(state, state.context()->globalObject()->setPrototype())
+    : SetObject(state, state.context()->globalObject()->setPrototypeObject())
 {
 }
 

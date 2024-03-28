@@ -97,7 +97,7 @@ Object* GlobalObjectProxyObject::getPrototypeObject(ExecutionState& state)
 bool GlobalObjectProxyObject::setPrototype(ExecutionState& state, const Value& proto)
 {
     checkSecurity(state, GlobalObjectProxyObjectRef::AccessOperationType::Write, Optional<AtomicString>());
-    return m_target->Object::setPrototype(state, proto);
+    return m_target->setPrototype(state, proto);
 }
 
 Object::OwnPropertyKeyVector GlobalObjectProxyObject::ownPropertyKeys(ExecutionState& state)

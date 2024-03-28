@@ -582,7 +582,7 @@ bool Object::isConcatSpreadable(ExecutionState& state)
 
 Object* Object::createBuiltinObjectPrototype(ExecutionState& state)
 {
-    Object* obj = new PrototypeObject(state, PrototypeObject::__ForGlobalBuiltin__);
+    Object* obj = new ImmutablePrototypeObject(state, ImmutablePrototypeObject::__ForGlobalBuiltin__);
     obj->markThisObjectDontNeedStructureTransitionTable();
     return obj;
 }

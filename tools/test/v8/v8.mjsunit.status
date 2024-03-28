@@ -779,6 +779,20 @@
   # outdated
   'invalid-lhs': [SKIP],
 
+  # can't set prototype of this object
+  'getter-in-prototype': [SKIP],
+  'global-deleted-property-ic': [SKIP],
+  'es6/unscopables': [SKIP],
+  'regress/readonly3': [SKIP],
+  'regress/readonly5': [SKIP],
+  'regress/regress-186': [SKIP],
+  'regress/regress-447561': [SKIP],
+  'regress/regress-489151': [SKIP],
+  'regress/regress-675': [SKIP],
+  'regress/regress-88591': [SKIP],
+  'regress/regress-crbug-454091': [SKIP],
+  'regress/regress-crbug-513472': [SKIP],
+
   ## 15. Out of memory
 
   # 32bit addressing on 64bit causes memory allocation failure

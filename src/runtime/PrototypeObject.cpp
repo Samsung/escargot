@@ -46,4 +46,17 @@ void PrototypeObject::markAsPrototypeObject(ExecutionState& state)
     }
 }
 
+bool ImmutablePrototypeObject::setPrototype(ExecutionState& state, const Value& proto)
+{
+    // Let current be ? O.[[GetPrototypeOf]]().
+    Value current = getPrototype(state);
+    // If SameValue(V, current) is true, return true.
+    if (current == proto) {
+        return true;
+    }
+
+    // Return false.
+    return false;
+}
+
 } // namespace Escargot

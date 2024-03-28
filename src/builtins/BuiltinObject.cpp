@@ -347,10 +347,9 @@ static Value builtinObjectSetPrototypeOf(ExecutionState& state, Value thisValue,
 
     // 5. Let status be O.[[SetPrototypeOf]](proto).
     Object* obj = object.toObject(state);
-    bool status = obj->setPrototype(state, proto);
 
     // 7. If status is false, throw a TypeError exception.
-    if (!status) {
+    if (!obj->setPrototype(state, proto)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Object.string(), false, state.context()->staticStrings().setPrototypeOf.string(), "can't set prototype of this object");
         return Value();
     }
