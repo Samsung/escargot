@@ -188,7 +188,7 @@ class FunctionObject;
     F(regexpSplitMethod, FunctionObject, objName)
 #define GLOBALOBJECT_BUILTIN_SET(F, objName) \
     F(set, FunctionObject, objName)          \
-    F(setPrototype, Object, objName)         \
+    F(setPrototypeObject, Object, objName)   \
     F(setIteratorPrototype, Object, objName)
 #define GLOBALOBJECT_BUILTIN_STRING(F, objName) \
     F(string, FunctionObject, objName)          \
@@ -318,7 +318,7 @@ class FunctionObject;
 
 Value builtinSpeciesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
-class GlobalObject : public PrototypeObject {
+class GlobalObject : public ImmutablePrototypeObject {
 public:
     friend class GlobalEnvironmentRecord;
 

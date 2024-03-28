@@ -46,6 +46,26 @@ public:
     }
 };
 
+// Immutable Prototype Exotic Objects
+// An immutable prototype exotic object is an exotic object that has a [[Prototype]] internal slot
+// that will not change once it is initialized.
+class ImmutablePrototypeObject : public PrototypeObject {
+public:
+    explicit ImmutablePrototypeObject(ExecutionState& state, Object* proto, size_t defaultSpace = ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+        : PrototypeObject(state, proto, defaultSpace)
+    {
+    }
+
+    enum ForGlobalBuiltin { __ForGlobalBuiltin__ };
+    explicit ImmutablePrototypeObject(ExecutionState& state, ForGlobalBuiltin)
+        : PrototypeObject(state, PrototypeObject::__ForGlobalBuiltin__)
+    {
+    }
+
+    // internal [[prototype]]
+    virtual bool setPrototype(ExecutionState& state, const Value& proto);
+};
+
 } // namespace Escargot
 
 #endif

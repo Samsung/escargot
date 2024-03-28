@@ -45,7 +45,7 @@
 namespace Escargot {
 
 GlobalObject::GlobalObject(ExecutionState& state)
-    : PrototypeObject(state, Object::createBuiltinObjectPrototype(state))
+    : ImmutablePrototypeObject(state, Object::createBuiltinObjectPrototype(state))
     , m_context(state.context())
 #define INIT_BUILTIN_VALUE(builtin, TYPE, objName) \
     , m_##builtin(nullptr)
