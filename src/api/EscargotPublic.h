@@ -1399,6 +1399,7 @@ public:
     ValueRef* getPrototype(ExecutionStateRef* state);
     OptionalRef<ObjectRef> getPrototypeObject(ExecutionStateRef* state); // if __proto__ is not object(undefined or null), this function returns nullptr instead of orginal value.
     bool setPrototype(ExecutionStateRef* state, ValueRef* value);
+    bool setObjectPrototype(ExecutionStateRef* state, ValueRef* value); // explicitly call Object::setPrototype
 
     StringRef* constructorName(ExecutionStateRef* state);
 

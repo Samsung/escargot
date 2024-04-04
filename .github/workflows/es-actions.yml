@@ -29,7 +29,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        submodules: true
+        submodules: recursive
     - name: Install Packages
       run: |
         brew update
@@ -100,7 +100,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        submodules: true
+        submodules: recursive
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -157,7 +157,7 @@ jobs:
         sdk: "10.0.20348.0"
     - name: Build ${{ matrix.arch.cpu }} Release
       run: |
-        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch.cpu }} -Bout/ -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=NO -DESCARGOT_WASM=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=release -DCMAKE_C_FLAGS="${{ matrix.arch.flag }}" -DCMAKE_CXX_FLAGS="${{ matrix.arch.flag }}"
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch.cpu }} -Bout/ -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=NO -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=release -DCMAKE_C_FLAGS="${{ matrix.arch.flag }}" -DCMAKE_CXX_FLAGS="${{ matrix.arch.flag }}"
         CMake --build out/ --config Release
     - name: Run octane
       run: |
@@ -187,7 +187,7 @@ jobs:
         git config --global core.eol lf
     - uses: actions/checkout@v4
       with:
-        submodules: true
+        submodules: recursive
     - uses: szenius/set-timezone@v1.2
       with:
         timezoneWindows: "Pacific Standard Time"
@@ -559,7 +559,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        submodules: true
+        submodules: recursive
     - name: Install Packages
       run: |
         sudo apt-get update

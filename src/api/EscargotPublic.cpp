@@ -2348,6 +2348,15 @@ bool ObjectRef::setPrototype(ExecutionStateRef* state, ValueRef* value)
     return toImpl(this)->setPrototype(*toImpl(state), toImpl(value));
 }
 
+bool ObjectRef::setObjectPrototype(ExecutionStateRef* state, ValueRef* value)
+{
+    // explicitly call Object::setPrototype
+    // could be used for initialization of __proto__to avoid ImmutablePrototypeObject::setPrototype
+    // should not be ProxyObject because ProxyObject has it's own setPrototype method
+    ASSERT(!toImpl(this)->isProxyObject());
+    return toImpl(this)->Object::setPrototype(*toImpl(state), toImpl(value));
+}
+
 StringRef* ObjectRef::constructorName(ExecutionStateRef* state)
 {
     return toRef(toImpl(this)->constructorName(*toImpl(state)));
