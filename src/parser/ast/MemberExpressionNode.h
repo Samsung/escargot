@@ -124,7 +124,7 @@ public:
         if (m_isPreComputedCase) {
             ASSERT(m_property->isIdentifier());
             if (UNLIKELY(m_object->isSuperExpression())) {
-                size_t propertyIndex = m_property->getRegister(codeBlock, context);
+                size_t propertyIndex = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property->m_loc.index);
                 codeBlock->pushCode(ComplexGetObjectOperation(ByteCodeLOC(m_loc.index), objectIndex, dstIndex, propertyIndex), context, this->m_loc.index);
                 context->giveUpRegister();
@@ -132,7 +132,7 @@ public:
                 // Handle Infinity property not to be inline-cached
                 // because TypedArray has a corner case (TypedArrayObject get/set should be invoked)
                 // e.g. typedarr.Infinity
-                size_t propertyIndex = m_property->getRegister(codeBlock, context);
+                size_t propertyIndex = context->getRegister();
                 codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_property->asIdentifier()->m_loc.index), propertyIndex, m_property->asIdentifier()->name().string()), context, m_property->m_loc.index);
                 codeBlock->pushCode(GetObject(ByteCodeLOC(m_loc.index), objectIndex, propertyIndex, dstIndex), context, this->m_loc.index);
                 context->giveUpRegister();
