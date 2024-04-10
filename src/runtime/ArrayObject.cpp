@@ -74,6 +74,15 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto, const uint64_t& s
     : ArrayObject(state, proto)
 {
     if (UNLIKELY(size > ((1LL << 32LL) - 1LL))) {
+        if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
+            // m_fastModeData has the initial value `DummyArrayElement`
+            // this could trigger an error while destructing of m_fastModeData when an exception thrown right after here
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+            m_fastModeData.reset();
+#else
+            m_fastModeData = nullptr;
+#endif
+        }
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
 
