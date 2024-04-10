@@ -436,6 +436,12 @@ public:
         m_buffer = resetData;
     }
 
+    // used for specific case
+    void reset()
+    {
+        m_buffer = nullptr;
+    }
+
 protected:
     T* m_buffer;
 };
