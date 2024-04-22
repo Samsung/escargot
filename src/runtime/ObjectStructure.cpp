@@ -60,6 +60,12 @@ ObjectStructure* ObjectStructure::create(Context* ctx, ObjectStructureItemTightV
 
     for (size_t i = 0; i < properties.size(); i++) {
         const ObjectStructurePropertyName& propertyName = properties[i].m_propertyName;
+#ifndef NDEBUG
+        // there should be no duplicated properties
+        for (size_t j = i + 1; j < properties.size(); j++) {
+            ASSERT(propertyName != properties[j].m_propertyName);
+        }
+#endif
         if (propertyName.isSymbol()) {
             hasSymbol = true;
         }
