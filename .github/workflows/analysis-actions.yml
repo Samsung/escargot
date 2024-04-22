@@ -10,9 +10,9 @@ jobs:
     if: github.repository == 'Samsung/escargot'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
-        submodules: true
+        submodules: recursive
     - name: Install Packages
       run: |
         sudo apt-get update
@@ -50,7 +50,7 @@ jobs:
     # ubuntu version fixed
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
