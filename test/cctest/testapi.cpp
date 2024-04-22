@@ -1669,6 +1669,8 @@ TEST(FunctionTemplate, Basic4)
         bool result = g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("Parent"));
         EXPECT_TRUE(result);
 
+        result = g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("Child"));
+        EXPECT_TRUE(result);
         return ValueRef::createUndefined();
     });
 }
@@ -1687,6 +1689,86 @@ TEST(FunctionTemplate, Basic5)
         return ValueRef::createUndefined();
     },
                        obj, symbol);
+}
+
+TEST(FunctionTemplate, Basic6)
+{
+    ObjectRef::NativeDataAccessorPropertyData* parentAccessorData = new ObjectRef::NativeDataAccessorPropertyData(true, false, false,
+                                                                                                                  [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) {
+                                                                                                                      return ValueRef::create(1);
+                                                                                                                  },
+                                                                                                                  nullptr);
+
+    ObjectRef::NativeDataAccessorPropertyData* parentReadOnlyAccessorData = new ObjectRef::NativeDataAccessorPropertyData(false, false, false,
+                                                                                                                          [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) {
+                                                                                                                              return ValueRef::create(1);
+                                                                                                                          },
+                                                                                                                          nullptr);
+
+    ObjectRef::NativeDataAccessorPropertyData* childAccessorData = new ObjectRef::NativeDataAccessorPropertyData(true, false, false,
+                                                                                                                 [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) {
+                                                                                                                     return ValueRef::create(42);
+                                                                                                                 },
+                                                                                                                 nullptr);
+
+    ObjectRef::NativeDataAccessorPropertyData* childReadOnlyAccessorData = new ObjectRef::NativeDataAccessorPropertyData(false, false, false,
+                                                                                                                         [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) {
+                                                                                                                             return ValueRef::create(42);
+                                                                                                                         },
+                                                                                                                         nullptr);
+
+    auto parent = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "parent"), 0,
+                                              true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
+                                                  return ValueRef::createUndefined();
+                                              });
+    auto parentInstance = parent->instanceTemplate();
+    parentInstance->setNativeDataAccessorProperty(StringRef::createFromASCII("f"), parentAccessorData, true);
+
+    auto child = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "child"), 0,
+                                             true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
+                                                 return ValueRef::createUndefined();
+                                             });
+    auto childInstance = child->instanceTemplate();
+    child->inherit(parent);
+
+    childInstance->setNativeDataAccessorProperty(StringRef::createFromASCII("f"), childAccessorData, true);
+    childInstance->setNativeDataAccessorProperty(StringRef::createFromASCII("g"), parentAccessorData, true);
+    childInstance->setNativeDataAccessorProperty(StringRef::createFromASCII("g"), childAccessorData, true);
+
+    auto childProto = child->prototypeTemplate();
+    childProto->setNativeDataAccessorProperty(StringRef::createFromASCII("h"), parentReadOnlyAccessorData, true);
+
+    childInstance->setNativeDataAccessorProperty(StringRef::createFromASCII("i"), childReadOnlyAccessorData, true);
+
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
+        g_context.get()->globalObject()->set(state, StringRef::createFromASCII("ChildInstance"), obj);
+        return ValueRef::createUndefined();
+    },
+                       childInstance->instantiate(g_context.get()));
+
+    auto s = evalScript(g_context.get(), StringRef::createFromASCII("ChildInstance.h = 3; ChildInstance.i = 3;"), StringRef::createFromASCII("testTemplate.js"), false);
+
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        ValueRef* childObj = state->context()->globalObject()->get(state, StringRef::createFromASCII("ChildInstance"));
+        EXPECT_TRUE(childObj->isObject());
+
+        EXPECT_TRUE(childObj->asObject()->hasOwnProperty(state, StringRef::createFromASCII("f")));
+        EXPECT_TRUE(childObj->asObject()->get(state, StringRef::createFromASCII("f"))->equalsTo(state, ValueRef::create(42)));
+
+        EXPECT_TRUE(childObj->asObject()->hasOwnProperty(state, StringRef::createFromASCII("g")));
+        EXPECT_TRUE(childObj->asObject()->get(state, StringRef::createFromASCII("g"))->equalsTo(state, ValueRef::create(42)));
+
+        EXPECT_FALSE(childObj->asObject()->hasOwnProperty(state, StringRef::createFromASCII("h")));
+        EXPECT_TRUE(childObj->asObject()->get(state, StringRef::createFromASCII("h"))->equalsTo(state, ValueRef::create(1)));
+
+        EXPECT_TRUE(childObj->asObject()->hasOwnProperty(state, StringRef::createFromASCII("i")));
+        EXPECT_TRUE(childObj->asObject()->get(state, StringRef::createFromASCII("i"))->equalsTo(state, ValueRef::create(42)));
+
+        EXPECT_TRUE(g_context.get()->globalObject()->deleteOwnProperty(state, StringRef::createFromASCII("ChildInstance")));
+        return ValueRef::createUndefined();
+    });
 }
 
 TEST(BackingStore, Basic1)

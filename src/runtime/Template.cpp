@@ -79,7 +79,17 @@ void Template::addNativeDataAccessorProperties(Template* other)
     for (size_t i = 0; i < fromProperties.size(); i++) {
         auto type = fromProperties[i].second.propertyType();
         if (type == Template::TemplatePropertyData::PropertyType::PropertyNativeAccessorData) {
-            m_properties.pushBack(std::make_pair(fromProperties[i].first, fromProperties[i].second));
+            auto propertyName = fromProperties[i].first;
+            bool isOverriding = false;
+            for (size_t j = 0; j < m_properties.size(); j++) {
+                if (m_properties[j].first == propertyName) {
+                    isOverriding = true;
+                    break;
+                }
+            }
+            if (!isOverriding) {
+                m_properties.pushBack(std::make_pair(fromProperties[i].first, fromProperties[i].second));
+            }
         }
     }
 }
