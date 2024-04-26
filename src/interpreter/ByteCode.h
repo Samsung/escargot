@@ -2689,7 +2689,7 @@ public:
 #ifndef NDEBUG
     void dump()
     {
-        printf("check if key is last r%u", m_registerIndex);
+        printf("check if key is last r%u -> exit %zu", m_registerIndex, m_exitPosition);
     }
 #endif
 };

@@ -157,7 +157,7 @@ public:
 
         size_t baseCountBefore = newContext.m_registerStack->size();
 
-        size_t exit1Pos, exit2Pos, exit3Pos, continuePosition;
+        size_t exit1Pos, exit2Pos, continuePosition;
         // for-of only
         TryStatementNode::TryStatementByteCodeContext forOfTryStatementContext;
         ByteCodeRegisterIndex finishCheckRegisterIndex = REGISTER_LIMIT, iteratorRecordRegisterIndex = REGISTER_LIMIT, iteratorObjectRegisterIndex = REGISTER_LIMIT;
@@ -184,19 +184,8 @@ public:
                 newContext.m_lexicalBlockIndex = headRightLexicalBlockIndexBefore;
             }
 
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), newContext.getRegister(), Value()), &newContext, this->m_loc.index);
-            size_t literalIdx = newContext.getLastRegisterIndex();
-            newContext.giveUpRegister();
-            size_t equalResultIndex = newContext.getRegister();
-            newContext.giveUpRegister();
-            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx, equalResultIndex), &newContext, this->m_loc.index);
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), equalResultIndex), &newContext, this->m_loc.index);
-            exit1Pos = codeBlock->lastCodePosition<JumpIfTrue>();
-
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalIdx, Value(Value::Null)), &newContext, this->m_loc.index);
-            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx, equalResultIndex), &newContext, this->m_loc.index);
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), equalResultIndex), &newContext, this->m_loc.index);
-            exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
+            codeBlock->pushCode(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, rightIdx), &newContext, this->m_loc.index);
+            exit1Pos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
 
             size_t ePosition = codeBlock->currentCodeSize();
             codeBlock->pushCode(CreateEnumerateObject(ByteCodeLOC(m_loc.index)), &newContext, this->m_loc.index);
@@ -208,7 +197,7 @@ public:
             continuePosition = codeBlock->currentCodeSize();
             codeBlock->pushCode(CheckLastEnumerateKey(ByteCodeLOC(m_loc.index)), &newContext, this->m_loc.index);
 
-            size_t checkPos = exit3Pos = codeBlock->lastCodePosition<CheckLastEnumerateKey>();
+            size_t checkPos = exit2Pos = codeBlock->lastCodePosition<CheckLastEnumerateKey>();
             codeBlock->pushCode(GetEnumerateKey(ByteCodeLOC(m_loc.index)), &newContext, this->m_loc.index);
             size_t enumerateObjectKeyPos = codeBlock->lastCodePosition<GetEnumerateKey>();
 
@@ -271,19 +260,8 @@ public:
             data.m_dstIteratorObjectIndex = REGISTER_LIMIT;
             codeBlock->pushCode(IteratorOperation(ByteCodeLOC(m_loc.index), data), &newContext, this->m_loc.index);
 
-            size_t literalIdx = newContext.getRegister();
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalIdx, Value()), &newContext, this->m_loc.index);
-            newContext.giveUpRegister();
-            size_t equalResultIndex = newContext.getRegister();
-            newContext.giveUpRegister();
-            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx, equalResultIndex), &newContext, this->m_loc.index);
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), equalResultIndex), &newContext, this->m_loc.index);
-            exit1Pos = codeBlock->lastCodePosition<JumpIfTrue>();
-
-            codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), literalIdx, Value(Value::Null)), &newContext, this->m_loc.index);
-            codeBlock->pushCode(BinaryEqual(ByteCodeLOC(m_loc.index), literalIdx, rightIdx, equalResultIndex), &newContext, this->m_loc.index);
-            codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), equalResultIndex), &newContext, this->m_loc.index);
-            exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
+            codeBlock->pushCode(JumpIfUndefinedOrNull(ByteCodeLOC(m_loc.index), false, rightIdx), &newContext, this->m_loc.index);
+            exit1Pos = codeBlock->lastCodePosition<JumpIfUndefinedOrNull>();
 
             // drop rightIdx
             newContext.giveUpRegister();
@@ -325,7 +303,7 @@ public:
 
             // If done is true, return NormalCompletion(V).
             codeBlock->pushCode(JumpIfTrue(ByteCodeLOC(m_loc.index), doneRegister), &newContext, this->m_loc.index);
-            exit3Pos = codeBlock->lastCodePosition<JumpIfTrue>();
+            exit2Pos = codeBlock->lastCodePosition<JumpIfTrue>();
             newContext.giveUpRegister(); // drop doneRegister
 
             // Let nextValue be ? IteratorValue(nextResult).
@@ -512,12 +490,11 @@ public:
             codeBlock->peekCode<LoadLiteral>(forOfEndCheckRegisterBodyEndPosition)->m_registerIndex = finishCheckRegisterIndex;
         }
 
-        codeBlock->peekCode<JumpIfTrue>(exit1Pos)->m_jumpPosition = exitPos;
-        codeBlock->peekCode<JumpIfTrue>(exit2Pos)->m_jumpPosition = exitPos;
+        codeBlock->peekCode<JumpIfUndefinedOrNull>(exit1Pos)->m_jumpPosition = exitPos;
         if (m_forIn) {
-            codeBlock->peekCode<CheckLastEnumerateKey>(exit3Pos)->m_exitPosition = exitPos;
+            codeBlock->peekCode<CheckLastEnumerateKey>(exit2Pos)->m_exitPosition = exitPos;
         } else {
-            codeBlock->peekCode<JumpIfTrue>(exit3Pos)->m_jumpPosition = exitPos;
+            codeBlock->peekCode<JumpIfTrue>(exit2Pos)->m_jumpPosition = exitPos;
         }
 
         newContext.propagateInformationTo(*context);
