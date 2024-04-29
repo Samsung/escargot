@@ -196,17 +196,13 @@ struct ByteCodeGenerateContext {
 
         for (unsigned i = 0; i < m_labelledBreakStatmentPositions.size(); i++) {
             if (m_labelledBreakStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labelledBreakStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
-                if (tryCatchWithBlockStatementCount() > 0) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_labelledBreakStatmentPositions[i].second, tryCatchWithBlockStatementCount()));
-                }
+                m_complexCaseStatementPositions.insert(std::make_pair(m_labelledBreakStatmentPositions[i].second, tryCatchWithBlockStatementCount()));
             }
         }
 
         for (unsigned i = 0; i < m_labelledContinueStatmentPositions.size(); i++) {
             if (m_labelledContinueStatmentPositions[i].second > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_labelledContinueStatmentPositions[i].second) == m_complexCaseStatementPositions.end()) {
-                if (tryCatchWithBlockStatementCount() > 0) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_labelledContinueStatmentPositions[i].second, tryCatchWithBlockStatementCount()));
-                }
+                m_complexCaseStatementPositions.insert(std::make_pair(m_labelledContinueStatmentPositions[i].second, tryCatchWithBlockStatementCount()));
             }
         }
     }

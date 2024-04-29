@@ -1785,10 +1785,6 @@ public:
 
 class ControlFlowRecord : public gc {
     friend class InterpreterSlowPath;
-#if defined(ENABLE_CODE_CACHE)
-    friend class CodeCacheWriter;
-    friend class CodeCacheReader;
-#endif
 
 public:
     enum ControlFlowReason {
