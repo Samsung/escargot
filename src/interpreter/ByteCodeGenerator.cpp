@@ -58,8 +58,6 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
     , m_lexicallyDeclaredNames(new std::vector<std::pair<size_t, AtomicString>>())
     , m_positionToContinue(0)
-    , m_complexJumpBreakIgnoreCount(0)
-    , m_complexJumpContinueIgnoreCount(0)
     , m_lexicalBlockIndex(0)
     , m_classInfo()
     , m_numeralLiteralData(numeralLiteralData) // should be NumeralLiteralVector

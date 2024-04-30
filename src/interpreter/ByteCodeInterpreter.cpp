@@ -1261,6 +1261,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         DEFINE_OPCODE(CloseLexicalEnvironment)
             :
         {
+            ASSERT(state->rareData()->controlFlowRecordVector()->size() > 0);
             (*(state->rareData()->controlFlowRecordVector()))[state->rareData()->controlFlowRecordVector()->size() - 1] = nullptr;
             return Value(Value::EmptyValue);
         }

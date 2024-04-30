@@ -95,8 +95,6 @@ struct ByteCodeGenerateContext {
         , m_lexicallyDeclaredNames(contextBefore.m_lexicallyDeclaredNames)
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_recursiveStatementStack(contextBefore.m_recursiveStatementStack)
-        , m_complexJumpBreakIgnoreCount(contextBefore.m_recursiveStatementStack.size())
-        , m_complexJumpContinueIgnoreCount(m_complexJumpBreakIgnoreCount)
         , m_lexicalBlockIndex(contextBefore.m_lexicalBlockIndex)
         , m_classInfo(contextBefore.m_classInfo)
         , m_numeralLiteralData(contextBefore.m_numeralLiteralData) // should be NumeralLiteralVector
@@ -107,7 +105,6 @@ struct ByteCodeGenerateContext {
         , m_breakpointContext(contextBefore.m_breakpointContext)
 #endif /* ESCARGOT_DEBUGGER */
     {
-        ASSERT(m_complexJumpBreakIgnoreCount == m_complexJumpContinueIgnoreCount);
         checkStack();
     }
 
@@ -180,17 +177,13 @@ struct ByteCodeGenerateContext {
         ASSERT(tryCatchWithBlockStatementCount());
         for (unsigned i = 0; i < m_breakStatementPositions.size(); i++) {
             if (m_breakStatementPositions[i] > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_breakStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
-                if (tryCatchWithBlockStatementCount() - m_complexJumpBreakIgnoreCount > 0) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_breakStatementPositions[i], tryCatchWithBlockStatementCount() - m_complexJumpBreakIgnoreCount));
-                }
+                m_complexCaseStatementPositions.insert(std::make_pair(m_breakStatementPositions[i], tryCatchWithBlockStatementCount()));
             }
         }
 
         for (unsigned i = 0; i < m_continueStatementPositions.size(); i++) {
             if (m_continueStatementPositions[i] > (unsigned long)frontlimit && m_complexCaseStatementPositions.find(m_continueStatementPositions[i]) == m_complexCaseStatementPositions.end()) {
-                if (tryCatchWithBlockStatementCount() - m_complexJumpContinueIgnoreCount > 0) {
-                    m_complexCaseStatementPositions.insert(std::make_pair(m_continueStatementPositions[i], tryCatchWithBlockStatementCount() - m_complexJumpContinueIgnoreCount));
-                }
+                m_complexCaseStatementPositions.insert(std::make_pair(m_continueStatementPositions[i], tryCatchWithBlockStatementCount()));
             }
         }
 
@@ -383,8 +376,6 @@ struct ByteCodeGenerateContext {
         Block
     };
     std::vector<std::pair<RecursiveStatementKind, size_t>> m_recursiveStatementStack;
-    int m_complexJumpBreakIgnoreCount;
-    int m_complexJumpContinueIgnoreCount;
     size_t m_lexicalBlockIndex;
     ClassContextInformation m_classInfo;
     std::map<size_t, size_t> m_complexCaseStatementPositions;

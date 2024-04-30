@@ -111,13 +111,6 @@ public:
                 ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
                 newContext.giveUpRegister();
             }
-
-            // we should increase this count here.
-            // because the block was created after newContext creation
-            if (bi->shouldAllocateEnvironment()) {
-                newContext.m_complexJumpContinueIgnoreCount++;
-                newContext.m_complexJumpBreakIgnoreCount++;
-            }
         }
 
         size_t forStart = codeBlock->currentCodeSize();
@@ -209,18 +202,16 @@ public:
             codeBlock->peekCode<Jump>(testPos)->m_jumpPosition = forEnd;
         }
 
+        newContext.consumeBreakPositions(codeBlock, forEnd, newContext.tryCatchWithBlockStatementCount());
+        newContext.consumeContinuePositions(codeBlock, updatePosition, newContext.tryCatchWithBlockStatementCount());
+        newContext.m_positionToContinue = updatePosition;
+
         if (m_iterationLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_iterationLexicalBlockIndex);
             codeBlock->finalizeLexicalBlock(&newContext, iterationBlockContext);
             newContext.m_lexicalBlockIndex = iterationLexicalBlockIndexBefore;
-            if (bi->shouldAllocateEnvironment()) {
-                newContext.m_complexJumpContinueIgnoreCount--;
-            }
         }
 
-        newContext.consumeBreakPositions(codeBlock, forEnd, context->tryCatchWithBlockStatementCount());
-        newContext.consumeContinuePositions(codeBlock, updatePosition, context->tryCatchWithBlockStatementCount());
-        newContext.m_positionToContinue = updatePosition;
         newContext.propagateInformationTo(*context);
 
         if (m_headLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {

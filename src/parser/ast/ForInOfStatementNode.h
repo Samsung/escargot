@@ -354,8 +354,8 @@ public:
         ASSERT(codeBlock->peekCode<CheckLastEnumerateKey>(continuePosition)->m_orgOpcode == CheckLastEnumerateKeyOpcode || codeBlock->peekCode<IteratorOperation>(continuePosition)->m_orgOpcode == IteratorOperationOpcode);
 
         // we need to add 1 on third parameter because we add try operation manually
-        newContext.consumeBreakPositions(codeBlock, exitPos, context->tryCatchWithBlockStatementCount() + (m_forIn ? 0 : 1));
-        newContext.consumeContinuePositions(codeBlock, continuePosition, context->tryCatchWithBlockStatementCount() + (m_forIn ? 0 : 1));
+        newContext.consumeBreakPositions(codeBlock, exitPos, newContext.tryCatchWithBlockStatementCount());
+        newContext.consumeContinuePositions(codeBlock, continuePosition, newContext.tryCatchWithBlockStatementCount());
         newContext.m_positionToContinue = continuePosition;
 
         if (!m_forIn) {
