@@ -246,6 +246,7 @@ void ThreadLocal::finalize()
     // g_gcEventListenerSet
     delete g_gcEventListenerSet;
     g_gcEventListenerSet = nullptr;
+    GC_set_on_collection_event(nullptr);
 
     // g_astAllocator
     delete g_astAllocator;
