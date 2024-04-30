@@ -121,7 +121,7 @@ public:
             nd = nd->nextSibling();
         }
         size_t breakPos = codeBlock->currentCodeSize();
-        newContext.consumeBreakPositions(codeBlock, breakPos, context->tryCatchWithBlockStatementCount());
+        newContext.consumeBreakPositions(codeBlock, breakPos, newContext.tryCatchWithBlockStatementCount());
         newContext.m_positionToContinue = context->m_positionToContinue;
 
         if (!m_default) {

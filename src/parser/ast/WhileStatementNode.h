@@ -79,9 +79,9 @@ public:
         m_body->generateStatementByteCode(codeBlock, &newContext);
 
         codeBlock->pushCode(Jump(ByteCodeLOC(m_loc.index), whileStart), &newContext, this->m_loc.index);
-        newContext.consumeContinuePositions(codeBlock, whileStart, context->tryCatchWithBlockStatementCount());
+        newContext.consumeContinuePositions(codeBlock, whileStart, newContext.tryCatchWithBlockStatementCount());
         size_t whileEnd = codeBlock->currentCodeSize();
-        newContext.consumeBreakPositions(codeBlock, whileEnd, context->tryCatchWithBlockStatementCount());
+        newContext.consumeBreakPositions(codeBlock, whileEnd, newContext.tryCatchWithBlockStatementCount());
         if (testPos != SIZE_MAX)
             codeBlock->peekCode<Jump>(testPos)->m_jumpPosition = whileEnd;
         newContext.m_positionToContinue = context->m_positionToContinue;
