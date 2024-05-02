@@ -67,31 +67,13 @@ jobs:
         java-version: 17
     - name: Gradle cache
       uses: gradle/actions/setup-gradle@v3
-    - name: AVD cache
-      uses: actions/cache@v4
-      id: avd-cache
-      with:
-        path: |
-          ~/.android/avd/*
-          ~/.android/adb*
-        key: avd-${{ matrix.api }}-${{ matrix.arch }}
-    - name: Create AVD and generate snapshot for caching
-      if: steps.avd-cache.outputs.cache-hit != 'true'
+    - name: Create AVD and run tests
       uses: reactivecircus/android-emulator-runner@v2
       with:
         api-level: ${{ matrix.api }}
         arch: ${{ matrix.arch }}
         force-avd-creation: false
-        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-        disable-animations: false
-        script: echo "Generated AVD snapshot for caching."
-    - name: Run tests
-      uses: reactivecircus/android-emulator-runner@v2
-      with:
-        api-level: ${{ matrix.api }}
-        arch: ${{ matrix.arch }}
-        force-avd-creation: false
-        emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+        emulator-options: -no-window -gpu swiftshader_indirect -camera-back none -no-snapshot-save -gpu swiftshader_indirect -noaudio -no-boot-anim
         disable-animations: true
         script: cd build/android/;./gradlew connectedDebugAndroidTest
 
