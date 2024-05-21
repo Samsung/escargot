@@ -11,7 +11,7 @@ IF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL
         SET (RIB_CFLAGS_INTERNAL ${RIB_CFLAGS_INTERNAL} -O2)
     ENDIF()
 
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti -g3")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti")
 
     link_libraries(-ldl)
 ELSE()
@@ -22,7 +22,8 @@ add_compile_options(${RIB_CFLAGS_INTERNAL})
 add_compile_options(${RIB_CFLAGS})
 SET (RIB_CFLAGS_FROM_ENV $ENV{CFLAGS})
 SEPARATE_ARGUMENTS(RIB_CFLAGS_FROM_ENV)
-add_compile_options(${RIB_CFLAGS_FROM_ENV})
+# add ${RIB_CFLAGS_FROM_EXTERNAL} at the end
+add_compile_options(${RIB_CFLAGS_FROM_ENV} ${RIB_CFLAGS_FROM_EXTERNAL})
 
 link_libraries(-ldl)
 
