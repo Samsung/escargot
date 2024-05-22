@@ -1830,6 +1830,32 @@ void Object::sort(ExecutionState& state, int64_t length, const std::function<boo
     }
 }
 
+ArrayObject* Object::toSorted(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
+{
+    ValueVectorWithInlineStorage64 selected;
+    for (int64_t i = 0; i < length; i++) {
+        // toSorted should be read-through-holes
+        selected.push_back(get(state, ObjectPropertyName(state, Value(i)), this).value(state, this));
+    }
+
+    if (selected.size()) {
+        TightVector<Value, GCUtil::gc_malloc_allocator<Value>> tempSpace;
+        tempSpace.resizeWithUninitializedValues(selected.size());
+
+        mergeSort(selected.data(), selected.size(), tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
+            *lessOrEqualp = comp(a, b);
+            return true;
+        });
+    }
+
+    ArrayObject* arr = new ArrayObject(state, static_cast<uint64_t>(length));
+    for (int64_t i = 0; i < length; i++) {
+        arr->setIndexedPropertyThrowsException(state, Value(i), selected[i]);
+    }
+
+    return arr;
+}
+
 Value Object::getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& receiver)
 {
     Value v = m_values[idx];
