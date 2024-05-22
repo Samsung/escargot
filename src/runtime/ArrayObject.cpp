@@ -293,47 +293,35 @@ void ArrayObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionS
 
 void ArrayObject::sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
-    if (isFastModeArray()) {
-        if (length) {
-            uint32_t orgLength = length;
-            size_t byteLength = sizeof(Value) * orgLength;
+    if (length) {
+        if (isFastModeArray()) {
+            size_t byteLength = sizeof(Value) * length;
             bool canUseStack = byteLength <= 1024;
-            Value* tempBuffer = canUseStack ? (Value*)alloca(byteLength) : CustomAllocator<Value>().allocate(orgLength);
+            Value* tempBuffer = canUseStack ? (Value*)alloca(byteLength) : CustomAllocator<Value>().allocate(length);
 
-            for (size_t i = 0; i < orgLength; i++) {
+            for (int64_t i = 0; i < length; i++) {
                 tempBuffer[i] = m_fastModeData[i];
             }
 
-            if (orgLength) {
-                Value* tempSpace = canUseStack ? (Value*)alloca(byteLength) : CustomAllocator<Value>().allocate(orgLength);
+            Value* tempSpace = canUseStack ? (Value*)alloca(byteLength) : CustomAllocator<Value>().allocate(length);
 
-                mergeSort(tempBuffer, orgLength, tempSpace, [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
-                    *lessOrEqualp = comp(a, b);
-                    return true;
-                });
+            mergeSort(tempBuffer, length, tempSpace, [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
+                *lessOrEqualp = comp(a, b);
+                return true;
+            });
 
-                if (!canUseStack) {
-                    GC_FREE(tempSpace);
-                }
-            }
-
-            if (arrayLength(state) != orgLength) {
-                setArrayLength(state, orgLength);
-            }
-
-            if (isFastModeArray()) {
-                for (size_t i = 0; i < orgLength; i++) {
-                    m_fastModeData[i] = tempBuffer[i];
-                }
+            for (int64_t i = 0; i < length; i++) {
+                m_fastModeData[i] = tempBuffer[i];
             }
 
             if (!canUseStack) {
+                GC_FREE(tempSpace);
                 GC_FREE(tempBuffer);
             }
+        } else {
+            Object::sort(state, length, comp);
         }
-        return;
     }
-    Object::sort(state, length, comp);
 }
 
 ArrayObject* ArrayObject::toSorted(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
