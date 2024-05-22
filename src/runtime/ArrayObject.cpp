@@ -336,6 +336,47 @@ void ArrayObject::sort(ExecutionState& state, int64_t length, const std::functio
     Object::sort(state, length, comp);
 }
 
+ArrayObject* ArrayObject::toSorted(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
+{
+    if (length) {
+        if (isFastModeArray()) {
+            size_t byteLength = sizeof(Value) * length;
+            bool canUseStack = byteLength <= 1024;
+            Value* tempBuffer = canUseStack ? (Value*)alloca(byteLength) : CustomAllocator<Value>().allocate(length);
+
+            for (int64_t i = 0; i < length; i++) {
+                // toSorted handles all hole elements as undefined values
+                Value v = m_fastModeData[i];
+                tempBuffer[i] = v.isEmpty() ? Value() : v;
+            }
+
+            Value* tempSpace = canUseStack ? (Value*)alloca(byteLength) : CustomAllocator<Value>().allocate(length);
+
+            mergeSort(tempBuffer, length, tempSpace, [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
+                *lessOrEqualp = comp(a, b);
+                return true;
+            });
+
+            ArrayObject* arr = new ArrayObject(state, static_cast<uint64_t>(length));
+            ASSERT(arr->isFastModeArray());
+            for (int64_t i = 0; i < length; i++) {
+                arr->m_fastModeData[i] = tempBuffer[i];
+            }
+
+            if (!canUseStack) {
+                GC_FREE(tempSpace);
+                GC_FREE(tempBuffer);
+            }
+
+            return arr;
+        } else {
+            return Object::toSorted(state, length, comp);
+        }
+    }
+
+    return new ArrayObject(state);
+}
+
 void* ArrayObject::operator new(size_t size)
 {
     return CustomAllocator<ArrayObject>().allocate(1);

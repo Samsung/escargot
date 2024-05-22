@@ -500,13 +500,13 @@ static Value builtinArrayReverse(ExecutionState& state, Value thisValue, size_t 
 
 static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Object* thisObject = thisValue.toObject(state);
     Value cmpfn = argv[0];
     if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotCallable);
     }
     bool defaultSort = (argc == 0) || cmpfn.isUndefined();
 
+    Object* thisObject = thisValue.toObject(state);
     int64_t len = thisObject->length(state);
 
     thisObject->sort(state, len, [defaultSort, &cmpfn, &state](const Value& a, const Value& b) -> bool {
@@ -779,6 +779,37 @@ static Value builtinArraySlice(ExecutionState& state, Value thisValue, size_t ar
         ArrayObject->setThrowsException(state, ObjectPropertyName(state.context()->staticStrings().length), Value(0), Value(ArrayObject));
     }
     return ArrayObject;
+}
+
+static Value builtinArrayToSorted(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value cmpfn = argv[0];
+    if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().toSorted.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotCallable);
+    }
+    bool defaultSort = (argc == 0) || cmpfn.isUndefined();
+
+    Object* thisObject = thisValue.toObject(state);
+    int64_t len = thisObject->length(state);
+
+    return thisObject->toSorted(state, len, [defaultSort, &cmpfn, &state](const Value& a, const Value& b) -> bool {
+        if (a.isEmpty() && b.isUndefined())
+            return false;
+        if (a.isUndefined() && b.isEmpty())
+            return true;
+        if (a.isEmpty() || a.isUndefined())
+            return false;
+        if (b.isEmpty() || b.isUndefined())
+            return true;
+        Value arg[2] = { a, b };
+        if (defaultSort) {
+            String* vala = a.toString(state);
+            String* valb = b.toString(state);
+            return *vala < *valb;
+        } else {
+            Value ret = Object::call(state, cmpfn, Value(), 2, arg);
+            return (ret.toNumber(state) < 0);
+        } });
 }
 
 static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -1825,7 +1856,7 @@ static Value builtinArrayWith(ExecutionState& state, Value thisValue, size_t arg
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
     }
 
-    ArrayObject* arr = new ArrayObject(state, static_cast<uint64_t>(len));
+    ArrayObject* arr = new ArrayObject(state, len);
 
     uint64_t k = 0;
     Value fromValue;
@@ -2014,6 +2045,8 @@ void GlobalObject::installArray(ExecutionState& state)
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().splice, builtinArraySplice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().slice),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().slice, builtinArraySlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toSorted),
+                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toSorted, builtinArrayToSorted, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().every),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().every, builtinArrayEvery, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().fill),
