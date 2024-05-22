@@ -1790,8 +1790,9 @@ void Object::sort(ExecutionState& state, int64_t length, const std::function<boo
 
     while (k < length) {
         Value idx = Value(k);
-        if (hasOwnProperty(state, ObjectPropertyName(state, idx))) {
-            selected.push_back(getOwnProperty(state, ObjectPropertyName(state, idx)).value(state, this));
+        auto hasResult = hasProperty(state, ObjectPropertyName(state, idx));
+        if (hasResult) {
+            selected.push_back(hasResult.value(state, ObjectPropertyName(state, idx), this));
             n++;
             k++;
         } else {
@@ -1832,6 +1833,8 @@ void Object::sort(ExecutionState& state, int64_t length, const std::function<boo
 
 ArrayObject* Object::toSorted(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
+    ArrayObject* arr = new ArrayObject(state, static_cast<uint64_t>(length));
+
     ValueVectorWithInlineStorage64 selected;
     for (int64_t i = 0; i < length; i++) {
         // toSorted should be read-through-holes
@@ -1848,7 +1851,6 @@ ArrayObject* Object::toSorted(ExecutionState& state, int64_t length, const std::
         });
     }
 
-    ArrayObject* arr = new ArrayObject(state, static_cast<uint64_t>(length));
     for (int64_t i = 0; i < length; i++) {
         arr->setIndexedPropertyThrowsException(state, Value(i), selected[i]);
     }
