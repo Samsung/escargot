@@ -368,7 +368,7 @@ void ArrayObject::toSorted(ExecutionState& state, Object* target, uint64_t lengt
             } else {
                 // fast-mode could be changed due to the compare function executed in the previous merge sort
                 for (uint64_t i = 0; i < length; i++) {
-                    arr->setIndexedPropertyThrowsException(state, Value(i), tempBuffer[i]);
+                    arr->setIndexedProperty(state, Value(i), tempBuffer[i], arr);
                 }
             }
 

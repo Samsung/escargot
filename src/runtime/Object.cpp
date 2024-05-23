@@ -1853,7 +1853,7 @@ void Object::toSorted(ExecutionState& state, Object* target, uint64_t length, co
     }
 
     for (uint64_t i = 0; i < length; i++) {
-        arr->setIndexedPropertyThrowsException(state, Value(i), selected[i]);
+        arr->setIndexedProperty(state, Value(i), selected[i], arr);
     }
 }
 
