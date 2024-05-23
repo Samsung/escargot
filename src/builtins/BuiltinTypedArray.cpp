@@ -171,7 +171,7 @@ static Value builtinTypedArrayFrom(ExecutionState& state, Value thisValue, size_
 
     size_t k = 0;
     while (k < len) {
-        Value kValue = arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike);
+        Value kValue = arrayLike->getIndexedPropertyValue(state, Value(k), arrayLike);
         Value mappedValue = kValue;
         if (mapping) {
             // Let mappedValue be Call(mapfn, T, «kValue, k»).
@@ -368,7 +368,7 @@ static void initializeTypedArrayFromArrayLike(ExecutionState& state, TypedArrayO
     size_t k = 0;
     while (k < len) {
         // Perform ? Set(O, Pk, kValue, true).
-        obj->setIndexedPropertyThrowsException(state, Value(k), arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike));
+        obj->setIndexedPropertyThrowsException(state, Value(k), arrayLike->getIndexedPropertyValue(state, Value(k), arrayLike));
         k++;
     }
 }
@@ -715,7 +715,7 @@ static Value builtinTypedArrayIncludes(ExecutionState& state, Value thisValue, s
     // Repeat, while k < len
     while (k < len) {
         // Let elementK be the result of ? Get(O, ! ToString(k)).
-        Value elementK = O->getIndexedProperty(state, Value(k)).value(state, O);
+        Value elementK = O->getIndexedPropertyValue(state, Value(k), O);
         // If SameValueZero(searchElement, elementK) is true, return true.
         if (elementK.equalsToByTheSameValueZeroAlgorithm(state, searchElement)) {
             return Value(true);
@@ -862,9 +862,8 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
 
     // Repeat, while k < len
     while (k < len) {
-        ObjectGetResult kResult = O->getIndexedProperty(state, Value(k));
         // Let kValue be the result of calling the [[Get]] internal method of O with argument ToString(k).
-        Value kValue = kResult.value(state, O);
+        Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
         // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
         Value args[] = { kValue, Value(k), O };
         Value testResult = Object::call(state, callbackfn, T, 3, args);
@@ -1008,6 +1007,7 @@ static Value builtinTypedArrayToReversed(ExecutionState& state, Value thisValue,
     return A;
 }
 
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.slice
 // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.subarray
 static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -1074,9 +1074,8 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
     size_t k = 0;
 
     while (k < len) {
-        ObjectGetResult value = O->getIndexedProperty(state, Value(k));
         // Let kValue be the result of calling the [[Get]] internal method of O with argument Pk.
-        Value kValue = value.value(state, O);
+        Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
         // Let testResult be the result of calling the [[Call]] internal method of callbackfn with T as the this value and argument list containing kValue, k, and O.
         Value args[] = { kValue, Value(k), O };
         Value testResult = Object::call(state, callbackfn, T, 3, args);
@@ -1168,7 +1167,7 @@ static Value builtinTypedArrayFilter(ExecutionState& state, Value thisValue, siz
     size_t captured = 0;
     // Repeat, while k < len
     while (k < len) {
-        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
         Value args[] = { kValue, Value(k), O };
         bool selected = Object::call(state, callbackfn, T, 3, args).toBoolean();
         if (selected) {
@@ -1215,7 +1214,7 @@ static Value builtinTypedArrayFind(ExecutionState& state, Value thisValue, size_
     // Repeat, while k < len
     while (k < len) {
         // Let kValue be Get(O, Pk).
-        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
         // Let testResult be ToBoolean(Call(predicate, thisArg, «kValue, k, O»)).
         Value args[] = { kValue, Value(k), O };
         bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean();
@@ -1253,7 +1252,7 @@ static Value builtinTypedArrayFindIndex(ExecutionState& state, Value thisValue, 
     // Repeat, while k < len
     while (k < len) {
         // Let kValue be ? Get(O, Pk).
-        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
         // Let testResult be ToBoolean(? Call(predicate, thisArg, « kValue, k, O »)).
         Value args[] = { kValue, Value(k), O };
         bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean();
@@ -1290,7 +1289,7 @@ static Value builtinTypedArrayFindLast(ExecutionState& state, Value thisValue, s
     // Repeat, while k >= 0
     while (k >= 0) {
         // Let kValue be Get(O, Pk).
-        kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        kValue = O->getIndexedPropertyValue(state, Value(k), O);
         // Let testResult be ToBoolean(Call(predicate, thisArg, «kValue, k, O»)).
         Value args[] = { kValue, Value(k), O };
         bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean();
@@ -1327,7 +1326,7 @@ static Value builtinTypedArrayFindLastIndex(ExecutionState& state, Value thisVal
     // Repeat, while k >= 0
     while (k >= 0) {
         // Let kValue be ? Get(O, Pk).
-        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
         // Let testResult be ToBoolean(? Call(predicate, thisArg, « kValue, k, O »)).
         Value args[] = { kValue, Value(k), O };
         bool testResult = Object::call(state, predicate, thisArg, 3, args).toBoolean();
@@ -1368,8 +1367,7 @@ static Value builtinTypedArrayForEach(ExecutionState& state, Value thisValue, si
     // Let k be 0.
     size_t k = 0;
     while (k < len) {
-        ObjectGetResult res = O->getIndexedProperty(state, Value(k));
-        Value kValue = res.value(state, O);
+        Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
         Value args[] = { kValue, Value(k), O };
         Object::call(state, callbackfn, T, 3, args);
         k++;
@@ -1405,7 +1403,7 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
     ToStringRecursionPreventerItemAutoHolder holder(state, O);
 
     StringBuilder builder;
-    Value elem = O->getIndexedProperty(state, Value(0)).value(state, O);
+    Value elem = O->getIndexedPropertyValue(state, Value(0), O);
     if (elem.isUndefinedOrNull()) {
         elem = String::emptyString;
     }
@@ -1419,7 +1417,7 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
             }
             builder.appendString(sep);
         }
-        elem = O->getIndexedProperty(state, Value(curIndex)).value(state, O);
+        elem = O->getIndexedPropertyValue(state, Value(curIndex), O);
         if (elem.isUndefinedOrNull()) {
             elem = String::emptyString;
         }
@@ -1460,7 +1458,7 @@ static Value builtinTypedArrayMap(ExecutionState& state, Value thisValue, size_t
     size_t k = 0;
     // Repeat, while k < len
     while (k < len) {
-        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
         Value args[] = { kValue, Value(k), O };
         Value mappedValue = Object::call(state, callbackfn, T, 3, args);
         A.asObject()->setIndexedPropertyThrowsException(state, Value(k), mappedValue);
@@ -1495,13 +1493,11 @@ static Value builtinTypedArrayReduce(ExecutionState& state, Value thisValue, siz
     if (argc > 1) { // 7
         accumulator = argv[1];
     } else { // 8
-        ObjectGetResult res = O->getIndexedProperty(state, Value(k));
-        accumulator = res.value(state, O);
+        accumulator = O->getIndexedPropertyValue(state, Value(k), O);
         k++;
     }
     while (k < len) { // 9
-        ObjectGetResult res = O->getIndexedProperty(state, Value(k));
-        Value kValue = res.value(state, O);
+        Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
         Value args[] = { accumulator, kValue, Value(k), O };
         accumulator = Object::call(state, callbackfn, Value(), 4, args);
         k++;
@@ -1542,15 +1538,13 @@ static Value builtinTypedArrayReduceRight(ExecutionState& state, Value thisValue
         accumulator = argv[1];
     } else {
         // Else, initialValue is not present
-        ObjectGetResult res = O->getIndexedProperty(state, Value(k));
-        accumulator = res.value(state, O);
+        accumulator = O->getIndexedPropertyValue(state, Value(k), O);
         k--;
     }
 
     // Repeat, while k ≥ 0
     while (k >= 0) {
-        ObjectGetResult res = O->getIndexedProperty(state, Value(k));
-        Value kValue = res.value(state, O);
+        Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
         Value args[] = { accumulator, kValue, Value(k), O };
         accumulator = Object::call(state, callbackfn, Value(), 4, args);
         k--;
@@ -1574,12 +1568,8 @@ static Value builtinTypedArrayReverse(ExecutionState& state, Value thisValue, si
     while (middle > lower) {
         size_t upper = len - lower - 1;
 
-        ObjectGetResult upperResult = O->getIndexedProperty(state, Value(upper));
-        ObjectGetResult lowerResult = O->getIndexedProperty(state, Value(lower));
-        RELEASE_ASSERT(upperResult.hasValue() && lowerResult.hasValue());
-
-        Value upperValue = upperResult.value(state, O);
-        Value lowerValue = lowerResult.value(state, O);
+        Value upperValue = O->getIndexedPropertyValue(state, Value(upper), O);
+        Value lowerValue = O->getIndexedPropertyValue(state, Value(lower), O);
 
         if (!O->setIndexedProperty(state, Value(lower), upperValue)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
@@ -1623,7 +1613,7 @@ static Value builtinTypedArraySlice(ExecutionState& state, Value thisValue, size
         size_t n = 0;
         while (k < finalEnd) {
             O->buffer()->throwTypeErrorIfDetached(state);
-            Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+            Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
             A.asObject()->setIndexedPropertyThrowsException(state, Value(n), kValue);
             k++;
             n++;
@@ -1689,7 +1679,7 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
             R = builder.finalize(&state);
         }
         // Let nextElement be ? Get(array, ! ToString(k)).
-        Value nextElement = array->getIndexedProperty(state, Value(k)).value(state, array);
+        Value nextElement = array->getIndexedPropertyValue(state, Value(k), array);
         // If nextElement is not undefined or null, then
         ASSERT(!nextElement.isUndefinedOrNull());
         // Let S be ? ToString(? Invoke(nextElement, "toLocaleString")).
@@ -1742,10 +1732,10 @@ static Value builtinTypedArrayWith(ExecutionState& state, Value thisValue, size_
         if (k == actualIndex) {
             fromValue = numericValue;
         } else {
-            fromValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+            fromValue = O->getIndexedPropertyValue(state, Value(k), O);
         }
 
-        A->setIndexedPropertyThrowsException(state, Value(k), fromValue);
+        A->setIndexedProperty(state, Value(k), fromValue);
         k++;
     }
 
@@ -1801,7 +1791,7 @@ static Value builtinTypedArrayAt(ExecutionState& state, Value thisValue, size_t 
     if (relativeStart < 0 || relativeStart >= len) {
         return Value();
     }
-    return obj->getIndexedProperty(state, Value(Value::DoubleToIntConvertibleTestNeeds, relativeStart)).value(state, thisValue);
+    return obj->getIndexedPropertyValue(state, Value(Value::DoubleToIntConvertibleTestNeeds, relativeStart), thisValue);
 }
 
 template <typename TA, int elementSize>

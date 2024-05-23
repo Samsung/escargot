@@ -73,7 +73,6 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
                 Value val = argv[0];
                 for (size_t idx = 0; idx < argc; idx++) {
                     array->setIndexedProperty(state, Value(idx), argv[idx], array);
-                    //array->defineOwnProperty(state, ObjectPropertyName(state, idx), ObjectPropertyDescriptor(argv[idx], ObjectPropertyDescriptor::AllPresent));
                 }
             }
         }
