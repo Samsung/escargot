@@ -306,7 +306,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
         // Let Pk be ! ToString(k).
         ObjectPropertyName Pk(state, k);
         // Let kValue be ? Get(arrayLike, Pk).
-        Value kValue = arrayLike->getIndexedProperty(state, Value(k)).value(state, arrayLike);
+        Value kValue = arrayLike->getIndexedPropertyValue(state, Value(k), arrayLike);
         // If mapping is true, then
         Value mappedValue;
         if (mapping) {
@@ -386,7 +386,7 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
             }
             builder.appendString(sep);
         }
-        Value elem = thisBinded->getIndexedProperty(state, Value(curIndex)).value(state, thisBinded);
+        Value elem = thisBinded->getIndexedPropertyValue(state, Value(curIndex), thisBinded);
 
         if (!elem.isUndefinedOrNull()) {
             builder.appendString(elem.toString(state));
@@ -853,7 +853,7 @@ static Value builtinArrayToSpliced(ExecutionState& state, Value thisValue, size_
     // Repeat, while i < actualStart,
     while (i < actualStart) {
         // Perform ! CreateDataPropertyOrThrow(A, Pi, iValue).
-        A->setIndexedProperty(state, Value(i), O->getIndexedProperty(state, Value(i), O).value(state, O), A);
+        A->setIndexedProperty(state, Value(i), O->getIndexedPropertyValue(state, Value(i), O), A);
         i++;
     }
 
@@ -865,10 +865,27 @@ static Value builtinArrayToSpliced(ExecutionState& state, Value thisValue, size_
 
     // Repeat, while i < newLen,
     while (i < newLen) {
-        Value fromValue = O->getIndexedProperty(state, Value(r), O).value(state, O);
+        Value fromValue = O->getIndexedPropertyValue(state, Value(r), O);
         A->setIndexedProperty(state, Value(i), fromValue, A);
         i++;
         r++;
+    }
+
+    return A;
+}
+
+static Value builtinArrayToReversed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Object* O = thisValue.toObject(state);
+    uint64_t len = O->length(state);
+
+    ArrayObject* A = new ArrayObject(state, len);
+    uint64_t k = 0;
+
+    while (k < len) {
+        Value fromValue = O->getIndexedPropertyValue(state, Value(len - k - 1), O);
+        A->setIndexedProperty(state, Value(k), fromValue, A);
+        k++;
     }
 
     return A;
@@ -1381,7 +1398,7 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
             R = builder.finalize(&state);
         }
         // Let nextElement be ? Get(array, ! ToString(k)).
-        Value nextElement = array->getIndexedProperty(state, Value(k)).value(state, array);
+        Value nextElement = array->getIndexedPropertyValue(state, Value(k), array);
         // If nextElement is not undefined or null, then
         if (!nextElement.isUndefinedOrNull()) {
             // Let S be ? ToString(? Invoke(nextElement, "toLocaleString", « locales, options »)).
@@ -1926,7 +1943,7 @@ static Value builtinArrayWith(ExecutionState& state, Value thisValue, size_t arg
         if (k == actualIndex) {
             fromValue = argv[1];
         } else {
-            fromValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+            fromValue = O->getIndexedPropertyValue(state, Value(k), O);
         }
 
         arr->setIndexedProperty(state, Value(k), fromValue, arr);
@@ -1975,7 +1992,7 @@ static Value builtinArrayAt(ExecutionState& state, Value thisValue, size_t argc,
         return Value();
     }
 
-    return obj->getIndexedProperty(state, Value(Value::DoubleToIntConvertibleTestNeeds, k)).value(state, thisValue);
+    return obj->getIndexedPropertyValue(state, Value(Value::DoubleToIntConvertibleTestNeeds, k), thisValue);
 }
 
 static Value builtinArrayFindLast(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -1997,7 +2014,7 @@ static Value builtinArrayFindLast(ExecutionState& state, Value thisValue, size_t
     while (k >= 0) {
         // a. Let Pk be ! ToString(𝔽(k)).
         // b. Let kValue be ? Get(O, Pk).
-        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
         // c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue, 𝔽(k), O »)).
         Value predicateArgv[] = {
             kValue, Value(k), Value(O)
@@ -2033,7 +2050,7 @@ static Value builtinArrayFindLastIndex(ExecutionState& state, Value thisValue, s
     while (k >= 0) {
         // a. Let Pk be ! ToString(𝔽(k)).
         // b. Let kValue be ? Get(O, Pk).
-        Value kValue = O->getIndexedProperty(state, Value(k)).value(state, O);
+        Value kValue = O->getIndexedPropertyValue(state, Value(k), O);
         // c. Let testResult be ! ToBoolean(? Call(predicate, thisArg, « kValue, 𝔽(k), O »)).
         Value predicateArgv[] = {
             kValue, Value(k), Value(O)
@@ -2107,6 +2124,8 @@ void GlobalObject::installArray(ExecutionState& state)
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().splice, builtinArraySplice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().slice),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().slice, builtinArraySlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toReversed),
+                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toReversed, builtinArrayToReversed, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toSorted),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toSorted, builtinArrayToSorted, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toSpliced),

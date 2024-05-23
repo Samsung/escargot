@@ -937,6 +937,14 @@ public:
         return getIndexedProperty(state, property, this);
     }
     virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver);
+
+    // this function returns value instead of ObjectGetResult
+    // can be used for interpreter
+    virtual Value getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver)
+    {
+        return getIndexedProperty(state, property, receiver).value(state, receiver);
+    }
+
     bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value)
     {
         return setIndexedProperty(state, property, value, this);
@@ -1322,13 +1330,6 @@ protected:
         if (UNLIKELY(!setOwnPropertyUtilForObject(state, idx, newValue, receiver) && state.inStrictMode())) {
             throwCannotWriteError(state, m_structure->readProperty(idx).m_propertyName);
         }
-    }
-
-    // this function returns value instead of ObjectGetResult
-    // can be used for interpreter
-    virtual Value getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver)
-    {
-        return getIndexedProperty(state, property, receiver).value(state, receiver);
     }
 
     void setGlobalIntrinsicObject(ExecutionState& state, bool isPrototype = false);
