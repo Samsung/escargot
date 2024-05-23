@@ -987,6 +987,27 @@ static Value builtinTypedArrayToSorted(ExecutionState& state, Value thisValue, s
     return A;
 }
 
+static Value builtinTypedArrayToReversed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // validateTypedArray is applied to the this value prior to evaluating the algorithm.
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
+
+    size_t length = O->arrayLength();
+
+    Value arg[1] = { Value(length) };
+    TypedArrayObject* A = TypedArrayCreateSameType(state, O, 1, arg).asObject()->asTypedArrayObject();
+
+    size_t k = 0;
+    while (k < length) {
+        Value fromValue = O->getIndexedPropertyValue(state, Value(length - k - 1), O);
+        A->setIndexedProperty(state, Value(k), fromValue);
+        k++;
+    }
+
+    return A;
+}
+
 // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.subarray
 static Value builtinTypedArraySubArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -1865,6 +1886,8 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->some, builtinTypedArraySome, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->sort),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->sort, builtinTypedArraySort, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toReversed),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toReversed, builtinTypedArrayToReversed, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toSorted),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toSorted, builtinTypedArrayToSorted, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->copyWithin),
