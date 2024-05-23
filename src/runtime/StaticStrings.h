@@ -459,6 +459,7 @@ namespace Escargot {
     F(toLowerCase)                \
     F(toPrecision)                \
     F(toPrimitive)                \
+    F(toReversed)                 \
     F(toSorted)                   \
     F(toSpliced)                  \
     F(toString)                   \
