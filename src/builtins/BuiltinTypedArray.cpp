@@ -883,26 +883,24 @@ static Value builtinTypedArraySome(ExecutionState& state, Value thisValue, size_
 
 static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
+    Value cmpfn = argv[0];
+    if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotCallable);
+    }
+
     // Let buffer be TypedArrayObject::validateTypedArray(obj).
     ArrayBuffer* buffer = TypedArrayObject::validateTypedArray(state, thisValue);
     TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
 
     // Let len be the value of O’s [[ArrayLength]] internal slot.
-    int64_t len = O->arrayLength();
-
-    Value cmpfn = argv[0];
-    if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().sort.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotCallable);
-    }
+    uint64_t len = O->arrayLength();
     bool defaultSort = (argc == 0) || cmpfn.isUndefined();
-
     // [defaultSort, &cmpfn, &state, &buffer]
     O->sort(state, len, [&](const Value& x, const Value& y) -> bool {
         ASSERT((x.isNumber() || x.isBigInt()) && (y.isNumber() || y.isBigInt()));
         if (!defaultSort) {
             Value args[] = { x, y };
             double v = Object::call(state, cmpfn, Value(), 2, args).toNumber(state);
-            buffer->throwTypeErrorIfDetached(state);
             if (std::isnan(v)) {
                 return false;
             }
@@ -930,7 +928,63 @@ static Value builtinTypedArraySort(ExecutionState& state, Value thisValue, size_
                 return x.asBigInt()->lessThanEqual(y.asBigInt());
             }
         } });
+
     return O;
+}
+
+static Value builtinTypedArrayToSorted(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value cmpfn = argv[0];
+    if (!cmpfn.isUndefined() && !cmpfn.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), true, state.context()->staticStrings().toSorted.string(), ErrorObject::Messages::GlobalObject_FirstArgumentNotCallable);
+    }
+
+    // Let buffer be TypedArrayObject::validateTypedArray(obj).
+    ArrayBuffer* buffer = TypedArrayObject::validateTypedArray(state, thisValue);
+    TypedArrayObject* O = thisValue.asObject()->asTypedArrayObject();
+
+    // Let len be the value of O’s [[ArrayLength]] internal slot.
+    uint64_t len = O->arrayLength();
+    bool defaultSort = (argc == 0) || cmpfn.isUndefined();
+
+    Value arg[1] = { Value(len) };
+    TypedArrayObject* A = TypedArrayCreateSameType(state, O, 1, arg).asObject()->asTypedArrayObject();
+
+    // [defaultSort, &cmpfn, &state, &buffer]
+    O->toSorted(state, A, len, [&](const Value& x, const Value& y) -> bool {
+        ASSERT((x.isNumber() || x.isBigInt()) && (y.isNumber() || y.isBigInt()));
+        if (!defaultSort) {
+            Value args[] = { x, y };
+            double v = Object::call(state, cmpfn, Value(), 2, args).toNumber(state);
+            if (std::isnan(v)) {
+                return false;
+            }
+            return (v < 0);
+        } else {
+            if (LIKELY(x.isNumber())) {
+                double xNum = x.asNumber();
+                double yNum = y.asNumber();
+
+                // 22.2.3.25.3-10
+                if (std::isnan(xNum)) {
+                    return false;
+                }
+
+                if (std::isnan(yNum)) {
+                    return true;
+                }
+
+                if (xNum == 0.0 && xNum == yNum) {
+                    return std::signbit(xNum);
+                }
+
+                return xNum <= yNum;
+            } else {
+                return x.asBigInt()->lessThanEqual(y.asBigInt());
+            }
+        } });
+
+    return A;
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.subarray
@@ -1811,6 +1865,8 @@ void GlobalObject::installTypedArray(ExecutionState& state)
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->some, builtinTypedArraySome, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->sort),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->sort, builtinTypedArraySort, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toSorted),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toSorted, builtinTypedArrayToSorted, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->copyWithin),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->copyWithin, builtinTypedArrayCopyWithin, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     typedArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->every),

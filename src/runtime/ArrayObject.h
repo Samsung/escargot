@@ -68,8 +68,8 @@ public:
     virtual bool defineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc) override;
     virtual bool deleteOwnProperty(ExecutionState& state, const ObjectPropertyName& P) override;
     virtual void enumeration(ExecutionState& state, bool (*callback)(ExecutionState& state, Object* self, const ObjectPropertyName&, const ObjectStructurePropertyDescriptor& desc, void* data), void* data, bool shouldSkipSymbolKey = true) override;
-    virtual void sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override;
-    virtual ArrayObject* toSorted(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override;
+    virtual void sort(ExecutionState& state, uint64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override;
+    virtual void toSorted(ExecutionState& state, Object* target, uint64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override;
     virtual ObjectGetResult getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver) override;
     virtual ObjectHasPropertyResult hasIndexedProperty(ExecutionState& state, const Value& propertyName) override;
     virtual bool setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver) override;

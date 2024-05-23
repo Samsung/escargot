@@ -291,7 +291,7 @@ void ArrayObject::enumeration(ExecutionState& state, bool (*callback)(ExecutionS
     Object::enumeration(state, callback, data, shouldSkipSymbolKey);
 }
 
-void ArrayObject::sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
+void ArrayObject::sort(ExecutionState& state, uint64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
     if (length) {
         if (isFastModeArray()) {
@@ -299,7 +299,7 @@ void ArrayObject::sort(ExecutionState& state, int64_t length, const std::functio
             bool canUseStack = byteLength <= 1024;
             Value* tempBuffer = canUseStack ? (Value*)alloca(byteLength) : CustomAllocator<Value>().allocate(length);
 
-            for (int64_t i = 0; i < length; i++) {
+            for (uint64_t i = 0; i < length; i++) {
                 tempBuffer[i] = m_fastModeData[i];
             }
 
@@ -310,8 +310,20 @@ void ArrayObject::sort(ExecutionState& state, int64_t length, const std::functio
                 return true;
             });
 
-            for (int64_t i = 0; i < length; i++) {
-                m_fastModeData[i] = tempBuffer[i];
+            if (UNLIKELY(arrayLength(state) != length)) {
+                // array length could be changed due to the compare function executed in the previous merge sort
+                setArrayLength(state, length);
+            }
+
+            if (LIKELY(isFastModeArray())) {
+                for (uint64_t i = 0; i < length; i++) {
+                    m_fastModeData[i] = tempBuffer[i];
+                }
+            } else {
+                // fast-mode could be changed due to the compare function executed in the previous merge sort
+                for (uint64_t i = 0; i < length; i++) {
+                    setIndexedPropertyThrowsException(state, Value(i), tempBuffer[i]);
+                }
             }
 
             if (!canUseStack) {
@@ -324,15 +336,18 @@ void ArrayObject::sort(ExecutionState& state, int64_t length, const std::functio
     }
 }
 
-ArrayObject* ArrayObject::toSorted(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
+void ArrayObject::toSorted(ExecutionState& state, Object* target, uint64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
+    ASSERT(target && target->isArrayObject() && target->length(state) == length);
+    ArrayObject* arr = target->asArrayObject();
+
     if (length) {
         if (isFastModeArray()) {
             size_t byteLength = sizeof(Value) * length;
             bool canUseStack = byteLength <= 1024;
             Value* tempBuffer = canUseStack ? (Value*)alloca(byteLength) : CustomAllocator<Value>().allocate(length);
 
-            for (int64_t i = 0; i < length; i++) {
+            for (uint64_t i = 0; i < length; i++) {
                 // toSorted handles all hole elements as undefined values
                 Value v = m_fastModeData[i];
                 tempBuffer[i] = v.isEmpty() ? Value() : v;
@@ -345,24 +360,26 @@ ArrayObject* ArrayObject::toSorted(ExecutionState& state, int64_t length, const 
                 return true;
             });
 
-            ArrayObject* arr = new ArrayObject(state, static_cast<uint64_t>(length));
-            ASSERT(arr->isFastModeArray());
-            for (int64_t i = 0; i < length; i++) {
-                arr->m_fastModeData[i] = tempBuffer[i];
+            ASSERT(arr->arrayLength(state) == length);
+            if (LIKELY(arr->isFastModeArray())) {
+                for (uint64_t i = 0; i < length; i++) {
+                    arr->m_fastModeData[i] = tempBuffer[i];
+                }
+            } else {
+                // fast-mode could be changed due to the compare function executed in the previous merge sort
+                for (uint64_t i = 0; i < length; i++) {
+                    arr->setIndexedPropertyThrowsException(state, Value(i), tempBuffer[i]);
+                }
             }
 
             if (!canUseStack) {
                 GC_FREE(tempSpace);
                 GC_FREE(tempBuffer);
             }
-
-            return arr;
         } else {
-            return Object::toSorted(state, length, comp);
+            Object::toSorted(state, arr, length, comp);
         }
     }
-
-    return new ArrayObject(state);
 }
 
 void* ArrayObject::operator new(size_t size)

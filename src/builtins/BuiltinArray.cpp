@@ -507,7 +507,7 @@ static Value builtinArraySort(ExecutionState& state, Value thisValue, size_t arg
     bool defaultSort = (argc == 0) || cmpfn.isUndefined();
 
     Object* thisObject = thisValue.toObject(state);
-    int64_t len = thisObject->length(state);
+    uint64_t len = thisObject->length(state);
 
     thisObject->sort(state, len, [defaultSort, &cmpfn, &state](const Value& a, const Value& b) -> bool {
         if (a.isEmpty() && b.isUndefined())
@@ -790,9 +790,10 @@ static Value builtinArrayToSorted(ExecutionState& state, Value thisValue, size_t
     bool defaultSort = (argc == 0) || cmpfn.isUndefined();
 
     Object* thisObject = thisValue.toObject(state);
-    int64_t len = thisObject->length(state);
+    uint64_t len = thisObject->length(state);
 
-    return thisObject->toSorted(state, len, [defaultSort, &cmpfn, &state](const Value& a, const Value& b) -> bool {
+    ArrayObject* arr = new ArrayObject(state, len);
+    thisObject->toSorted(state, arr, len, [defaultSort, &cmpfn, &state](const Value& a, const Value& b) -> bool {
         if (a.isEmpty() && b.isUndefined())
             return false;
         if (a.isUndefined() && b.isEmpty())
@@ -810,6 +811,8 @@ static Value builtinArrayToSorted(ExecutionState& state, Value thisValue, size_t
             Value ret = Object::call(state, cmpfn, Value(), 2, arg);
             return (ret.toNumber(state) < 0);
         } });
+
+    return arr;
 }
 
 static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
