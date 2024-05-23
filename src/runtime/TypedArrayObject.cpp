@@ -121,13 +121,13 @@ void TypedArrayObject::enumeration(ExecutionState& state, bool (*callback)(Execu
     Object::enumeration(state, callback, data, shouldSkipSymbolKey);
 }
 
-void TypedArrayObject::sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
+void TypedArrayObject::sort(ExecutionState& state, uint64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
     if (length) {
         Value* tempBuffer = (Value*)GC_MALLOC(sizeof(Value) * length);
 
-        for (int64_t i = 0; i < length; i++) {
-            tempBuffer[i] = integerIndexedElementGet(state, i).value(state, this);
+        for (uint64_t i = 0; i < length; i++) {
+            tempBuffer[i] = getIndexedProperty(state, Value(i)).value(state, this);
         }
 
         TightVector<Value, GCUtil::gc_malloc_allocator<Value>> tempSpace;
@@ -137,18 +137,41 @@ void TypedArrayObject::sort(ExecutionState& state, int64_t length, const std::fu
             return true;
         });
 
-        for (int64_t i = 0; i < length; i++) {
-            integerIndexedElementSet(state, i, tempBuffer[i]);
+        for (uint64_t i = 0; i < length; i++) {
+            setIndexedProperty(state, Value(i), tempBuffer[i], this);
         }
         GC_FREE(tempBuffer);
+    }
+}
 
-        return;
+void TypedArrayObject::toSorted(ExecutionState& state, Object* target, uint64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
+{
+    ASSERT(target && (target->isArrayObject() || target->isTypedArrayObject()));
+
+    if (length) {
+        Value* tempBuffer = (Value*)GC_MALLOC(sizeof(Value) * length);
+
+        for (uint64_t i = 0; i < length; i++) {
+            tempBuffer[i] = getIndexedProperty(state, Value(i)).value(state, this);
+        }
+
+        TightVector<Value, GCUtil::gc_malloc_allocator<Value>> tempSpace;
+        tempSpace.resizeWithUninitializedValues(length);
+        mergeSort(tempBuffer, length, tempSpace.data(), [&](const Value& a, const Value& b, bool* lessOrEqualp) -> bool {
+            *lessOrEqualp = comp(a, b);
+            return true;
+        });
+
+        for (uint64_t i = 0; i < length; i++) {
+            target->setIndexedProperty(state, Value(i), tempBuffer[i], target);
+        }
+        GC_FREE(tempBuffer);
     }
 }
 
 ArrayBuffer* TypedArrayObject::validateTypedArray(ExecutionState& state, const Value& O)
 {
-    if (!O.isObject() || !O.asObject()->isTypedArrayObject()) {
+    if (UNLIKELY(!O.isObject() || !O.asObject()->isTypedArrayObject())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
     }
 
@@ -160,7 +183,7 @@ ArrayBuffer* TypedArrayObject::validateTypedArray(ExecutionState& state, const V
 // https://www.ecma-international.org/ecma-262/10.0/#sec-integerindexedelementget
 ObjectGetResult TypedArrayObject::integerIndexedElementGet(ExecutionState& state, double index)
 {
-    if (buffer()->isDetachedBuffer() || !Value(Value::DoubleToIntConvertibleTestNeeds, index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength()) {
+    if (UNLIKELY(buffer()->isDetachedBuffer() || !Value(Value::DoubleToIntConvertibleTestNeeds, index).isInteger(state) || index == Value::MinusZeroIndex || index < 0 || index >= arrayLength())) {
         return ObjectGetResult();
     }
 

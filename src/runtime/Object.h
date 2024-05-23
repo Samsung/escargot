@@ -964,8 +964,8 @@ public:
     static void nextIndexForward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t len, int64_t& nextIndex);
     static void nextIndexBackward(ExecutionState& state, Object* obj, const int64_t cur, const int64_t end, int64_t& nextIndex);
 
-    virtual void sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp);
-    virtual ArrayObject* toSorted(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp);
+    virtual void sort(ExecutionState& state, uint64_t length, const std::function<bool(const Value& a, const Value& b)>& comp);
+    virtual void toSorted(ExecutionState& state, Object* target, uint64_t length, const std::function<bool(const Value& a, const Value& b)>& comp);
 
     virtual bool isInlineCacheable()
     {

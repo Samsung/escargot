@@ -6387,7 +6387,6 @@
     <test id="built-ins/TypedArray/prototype/some/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/sort/BigInt/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/sort/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/sort/sort-tonumber"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/toLocaleString/BigInt/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/toLocaleString/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/toReversed/ignores-species"><reason>TODO</reason></test>
@@ -6397,13 +6396,6 @@
     <test id="built-ins/TypedArray/prototype/toReversed/metadata/name"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/toReversed/metadata/property-descriptor"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/toReversed/not-a-constructor"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/toSorted/ignores-species"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/toSorted/immutable"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/toSorted/length-property-ignored"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/toSorted/metadata/length"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/toSorted/metadata/name"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/toSorted/metadata/property-descriptor"><reason>TODO</reason></test>
-    <test id="built-ins/TypedArray/prototype/toSorted/not-a-constructor"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/values/BigInt/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArray/prototype/values/return-abrupt-from-this-out-of-bounds"><reason>TODO</reason></test>
     <test id="built-ins/TypedArrayConstructors/ctors/no-species"><reason>TODO</reason></test>

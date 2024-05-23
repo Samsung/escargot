@@ -1781,14 +1781,14 @@ void Object::nextIndexBackward(ExecutionState& state, Object* obj, const int64_t
     nextIndex = std::min(ret, cur - 1);
 }
 
-void Object::sort(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
+void Object::sort(ExecutionState& state, uint64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
     ValueVectorWithInlineStorage64 selected;
 
     int64_t n = 0;
     int64_t k = 0;
 
-    while (k < length) {
+    while (k < (int64_t)length) {
         Value idx = Value(k);
         auto hasResult = hasProperty(state, ObjectPropertyName(state, idx));
         if (hasResult) {
@@ -1797,7 +1797,7 @@ void Object::sort(ExecutionState& state, int64_t length, const std::function<boo
             k++;
         } else {
             int64_t result;
-            nextIndexForward(state, this, k, length, result);
+            nextIndexForward(state, this, k, (int64_t)length, result);
             k = result;
         }
     }
@@ -1815,28 +1815,29 @@ void Object::sort(ExecutionState& state, int64_t length, const std::function<boo
 
     int64_t i;
     for (i = 0; i < n; i++) {
-        setThrowsException(state, ObjectPropertyName(state, Value(i)), selected[i], this);
+        setIndexedPropertyThrowsException(state, Value(i), selected[i]);
     }
 
-    while (i < length) {
+    while (i < (int64_t)length) {
         Value idx = Value(i);
         if (hasOwnProperty(state, ObjectPropertyName(state, idx))) {
             deleteOwnProperty(state, ObjectPropertyName(state, Value(i)));
             i++;
         } else {
             int64_t result;
-            nextIndexForward(state, this, i, length, result);
+            nextIndexForward(state, this, i, (int64_t)length, result);
             i = result;
         }
     }
 }
 
-ArrayObject* Object::toSorted(ExecutionState& state, int64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
+void Object::toSorted(ExecutionState& state, Object* target, uint64_t length, const std::function<bool(const Value& a, const Value& b)>& comp)
 {
-    ArrayObject* arr = new ArrayObject(state, static_cast<uint64_t>(length));
+    ASSERT(target && target->isArrayObject() && target->length(state) == length);
+    ArrayObject* arr = target->asArrayObject();
 
     ValueVectorWithInlineStorage64 selected;
-    for (int64_t i = 0; i < length; i++) {
+    for (uint64_t i = 0; i < length; i++) {
         // toSorted should be read-through-holes
         selected.push_back(get(state, ObjectPropertyName(state, Value(i)), this).value(state, this));
     }
@@ -1851,11 +1852,9 @@ ArrayObject* Object::toSorted(ExecutionState& state, int64_t length, const std::
         });
     }
 
-    for (int64_t i = 0; i < length; i++) {
+    for (uint64_t i = 0; i < length; i++) {
         arr->setIndexedPropertyThrowsException(state, Value(i), selected[i]);
     }
-
-    return arr;
 }
 
 Value Object::getOwnPropertyUtilForObjectAccCase(ExecutionState& state, size_t idx, const Value& receiver)
