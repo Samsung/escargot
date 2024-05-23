@@ -72,7 +72,8 @@ Value builtinArrayConstructor(ExecutionState& state, Value thisValue, size_t arg
             } else {
                 Value val = argv[0];
                 for (size_t idx = 0; idx < argc; idx++) {
-                    array->defineOwnProperty(state, ObjectPropertyName(state, idx), ObjectPropertyDescriptor(argv[idx], ObjectPropertyDescriptor::AllPresent));
+                    array->setIndexedProperty(state, Value(idx), argv[idx], array);
+                    //array->defineOwnProperty(state, ObjectPropertyName(state, idx), ObjectPropertyDescriptor(argv[idx], ObjectPropertyDescriptor::AllPresent));
                 }
             }
         }
@@ -549,22 +550,14 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
     // If relativeStart is negative, let actualStart be max((len + relativeStart),0); else let actualStart be min(relativeStart, len).
     int64_t actualStart = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
 
-    int64_t insertCount;
-    int64_t actualDeleteCount;
+    int64_t insertCount = 0;
+    int64_t actualDeleteCount = 0;
 
-    // If the number of actual arguments is 0, then
-    if (argc == 0) {
-        // Let insertCount be 0.
-        insertCount = 0;
-        // Let actualDeleteCount be 0.
-        actualDeleteCount = 0;
-    } else if (argc == 1) {
-        // Else if the number of actual arguments is 1, then
-        // Let insertCount be 0.
-        insertCount = 0;
-        // Let actualDeleteCount be len – actualStart.
+    if (argc == 1) {
+        // Else if deleteCount is not present, then
+        // Let actualDeleteCount be len - actualStart.
         actualDeleteCount = len - actualStart;
-    } else {
+    } else if (argc > 1) {
         // Else,
         // Let insertCount be the number of actual arguments minus 2.
         insertCount = argc - 2;
@@ -573,6 +566,7 @@ static Value builtinArraySplice(ExecutionState& state, Value thisValue, size_t a
         // Let actualDeleteCount be min(max(dc,0), len – actualStart).
         actualDeleteCount = std::min(std::max(dc, 0.0), (double)(len - actualStart));
     }
+
     // If len+insertCount−actualDeleteCount > 2^53-1, throw a TypeError exception.
     CHECK_ARRAY_LENGTH(len + insertCount - actualDeleteCount > Value::maximumLength());
     // Let A be ArraySpeciesCreate(O, actualDeleteCount).
@@ -813,6 +807,71 @@ static Value builtinArrayToSorted(ExecutionState& state, Value thisValue, size_t
         } });
 
     return arr;
+}
+
+static Value builtinArrayToSpliced(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Object* O = thisValue.toObject(state);
+
+    int64_t len = O->length(state);
+
+    // Let relativeStart be ToInteger(start).
+    double relativeStart = argv[0].toInteger(state);
+
+    // If relativeStart is negative, let actualStart be max((len + relativeStart),0); else let actualStart be min(relativeStart, len).
+    int64_t actualStart = (relativeStart < 0) ? std::max(len + relativeStart, 0.0) : std::min(relativeStart, (double)len);
+
+    int64_t insertCount = 0;
+    int64_t actualSkipCount = 0;
+
+    if (argc == 1) {
+        // Else if deleteCount is not present, then
+        // Let actualSkipCount be len - actualStart.
+        actualSkipCount = len - actualStart;
+    } else if (argc > 1) {
+        // Else,
+        // Let insertCount be the number of actual arguments minus 2.
+        insertCount = argc - 2;
+        // Let dc be ToInteger(deleteCount).
+        double dc = argv[1].toInteger(state);
+        // Let actualSkipCount be min(max(dc,0), len – actualStart).
+        actualSkipCount = std::min(std::max(dc, 0.0), (double)(len - actualStart));
+    }
+
+    // Let newLen be len + insertCount - actualSkipCount.
+    int64_t newLen = len + insertCount - actualSkipCount;
+    CHECK_ARRAY_LENGTH(newLen > Value::maximumLength());
+
+    // Let A be ? ArrayCreate(newLen).
+    ArrayObject* A = new ArrayObject(state, static_cast<uint64_t>(newLen));
+
+    // Let i be 0.
+    int64_t i = 0;
+    // Let r be actualStart + actualSkipCount.
+    int64_t r = actualStart + actualSkipCount;
+
+    // Repeat, while i < actualStart,
+    while (i < actualStart) {
+        // Perform ! CreateDataPropertyOrThrow(A, Pi, iValue).
+        A->setIndexedProperty(state, Value(i), O->getIndexedProperty(state, Value(i), O).value(state, O), A);
+        i++;
+    }
+
+    // For each element E of items, do
+    for (int64_t k = 0; k < insertCount; k++) {
+        A->setIndexedProperty(state, Value(i), argv[k + 2], A);
+        i++;
+    }
+
+    // Repeat, while i < newLen,
+    while (i < newLen) {
+        Value fromValue = O->getIndexedProperty(state, Value(r), O).value(state, O);
+        A->setIndexedProperty(state, Value(i), fromValue, A);
+        i++;
+        r++;
+    }
+
+    return A;
 }
 
 static Value builtinArrayForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -1870,7 +1929,7 @@ static Value builtinArrayWith(ExecutionState& state, Value thisValue, size_t arg
             fromValue = O->getIndexedProperty(state, Value(k)).value(state, O);
         }
 
-        arr->setIndexedPropertyThrowsException(state, Value(k), fromValue);
+        arr->setIndexedProperty(state, Value(k), fromValue, arr);
         k++;
     }
 
@@ -2050,6 +2109,8 @@ void GlobalObject::installArray(ExecutionState& state)
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().slice, builtinArraySlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toSorted),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toSorted, builtinArrayToSorted, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toSpliced),
+                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toSpliced, builtinArrayToSpliced, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().every),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().every, builtinArrayEvery, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_arrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().fill),

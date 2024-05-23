@@ -460,6 +460,7 @@ namespace Escargot {
     F(toPrecision)                \
     F(toPrimitive)                \
     F(toSorted)                   \
+    F(toSpliced)                  \
     F(toString)                   \
     F(toStringTag)                \
     F(toTimeString)               \
