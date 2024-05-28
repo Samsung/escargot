@@ -272,7 +272,7 @@ cmake --build build/out_tizen_%{rpm}
 CXXFLAGS+=' -DESCARGOT_ENABLE_TEST '
 %endif
 
-g++ src/shell/Shell.cpp -std=c++11 -Lbuild/out_tizen_%{rpm} -Isrc/ -Ithird_party/GCutil -Ithird_party/GCutil/bdwgc/include -o build/out_tizen_%{rpm}/escargot -O2 -DNDEBUG -Wl,-rpath=\$ORIGIN ${CXXFLAGS} -lescargot -lpthread
+g++ src/shell/Shell.cpp -std=c++11 -Lbuild/out_tizen_%{rpm} -Isrc/ -Ithird_party/GCutil -Ithird_party/GCutil/bdwgc/include -o build/out_tizen_%{rpm}/escargot -O2 -DNDEBUG -Wl,-rpath=\$ORIGIN -Wl,-rpath=%{_libdir}/escargot ${CXXFLAGS} -lescargot -lpthread
 g++ tools/test/test-data-runner/test-data-runner.cpp -o build/out_tizen_%{rpm}/test-data-runner -std=c++11 ${CXXFLAGS} -lpthread
 %endif
 
