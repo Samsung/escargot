@@ -151,7 +151,7 @@ jobs:
     #   run: |
     #     set GC_FREE_SPACE_DIVISOR=1
     #     pip install chardet
-    #     python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --extra-arg="--skip Temporal --skip intl402 --skip Atomics"
+    #     python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics"
     #   shell: cmd
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
@@ -198,7 +198,7 @@ jobs:
       run: |
         set GC_FREE_SPACE_DIVISOR=1
         pip install chardet
-        python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --extra-arg="--skip Temporal --skip intl402 --skip Atomics"
+        python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics"
       shell: cmd
     - name: Run octane
       run: |
@@ -396,7 +396,7 @@ jobs:
         cmake --build ./out/
     - name: Test
       run: |
-        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --engine="${{ github.workspace }}/out/escargot" --extra-arg="--skip intl402" new-es v8 spidermonkey chakracore test262
+        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402" new-es v8 spidermonkey chakracore test262
 
   build-test-on-self-hosted-arm64-linux:
     runs-on: [self-hosted, linux, arm64]
@@ -411,7 +411,7 @@ jobs:
         cmake --build ./out/
     - name: Test
       run: |
-        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --engine="${{ github.workspace }}/out/escargot" --extra-arg="--skip intl402" test262 chakracore spidermonkey v8 new-es
+        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402" test262 chakracore spidermonkey v8 new-es
 
   build-test-debugger:
     runs-on: ubuntu-latest

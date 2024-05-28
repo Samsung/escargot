@@ -187,8 +187,8 @@ def run_test262(engine, arch, extra_arg):
     args = ['python3', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
          '--summary']
-    if len(extra_arg):
-        args.extend(extra_arg.split(" "))
+    if len(extra_arg["test262_extra_arg"]):
+        args.extend(extra_arg["test262_extra_arg"].split(" "))
     stdout = run(args,
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
@@ -209,8 +209,8 @@ def run_test262_strict(engine, arch, extra_arg):
          '--command', engine,
          '--full-summary',
          '--strict_only'],
-    if len(extra_arg):
-        args.extend(extra_arg.split(" "))
+    if len(extra_arg["test262_extra_arg"]):
+        args.extend(extra_arg["test262_extra_arg"].split(" "))
     run(args,
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
@@ -239,8 +239,8 @@ def run_test262_nonstrict(engine, arch, extra_arg):
          '--command', engine,
         '--full-summary',
          '--non_strict_only'],
-    if len(extra_arg):
-        args.extend(extra_arg.split(" "))
+    if len(extra_arg["test262_extra_arg"]):
+        args.extend(extra_arg["test262_extra_arg"].split(" "))
     run(args,
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific'},
@@ -258,10 +258,12 @@ def run_test262_nonstrict(engine, arch, extra_arg):
 
         print('test262-nonstrict: All tests passed')
 
-def compile_test_data_runner():
+def compile_test_data_runner(extra_arg):
+    if extra_arg["skip_build_test_data_runner"]:
+        return
     run(['g++', "./tools/test/test-data-runner/test-data-runner.cpp", "-o", "./tools/test/test-data-runner/test-data-runner", "-g3", "-std=c++11", "-lpthread"],
-        cwd=PROJECT_SOURCE_DIR,
-        stdout=PIPE)
+    cwd=PROJECT_SOURCE_DIR,
+    stdout=PIPE)
 
 @runner('test262-dump', default=False)
 def run_test262_dump(engine, arch, extra_arg):
@@ -271,8 +273,8 @@ def run_test262_dump(engine, arch, extra_arg):
     args = ['python3', join('tools', 'packaging', 'test262.py'),
          '--command', engine,
          '--summary']
-    if len(extra_arg):
-        args.extend(extra_arg.split(" "))
+    if len(extra_arg["test262_extra_arg"]):
+        args.extend(extra_arg["test262_extra_arg"].split(" "))
     stdout = run(args,
         cwd=TEST262_DIR,
         env={'TZ': 'US/Pacific', 'ESCARGOT_DUMP262DATA': '1'},
@@ -285,9 +287,9 @@ def run_test262_dump(engine, arch, extra_arg):
 
 @runner('test262-dump-run', default=False)
 def run_test262_dump_run(engine, arch, extra_arg):
-    compile_test_data_runner()
+    compile_test_data_runner(extra_arg)
 
-    stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
+    stdout = run([extra_arg["test_data_runner_path"], "--shell", engine,
                   "--test", "test262", "--test-data", join(PROJECT_SOURCE_DIR, 'test', 'test262', 'test262_data')],
         cwd=join(PROJECT_SOURCE_DIR, 'test', 'test262'),
         stdout=PIPE)
@@ -358,10 +360,10 @@ def run_spidermonkey_dump(engine, arch, extra_arg):
 
 @runner('spidermonkey-dump-run', default=False)
 def run_spidermonkey_dump_run(engine, arch, extra_arg):
-    compile_test_data_runner()
+    compile_test_data_runner(extra_arg)
 
     SPIDERMONKEY_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'spidermonkey')
-    stdout = run(['./tools/test/test-data-runner/test-data-runner', '--test-data', join(SPIDERMONKEY_OVERRIDE_DIR, '%s.data.txt' % arch),
+    stdout = run([extra_arg["test_data_runner_path"], '--test-data', join(SPIDERMONKEY_OVERRIDE_DIR, '%s.data.txt' % arch),
                   "--shell", engine, "--env", "LOCALE=en_US"],
         cwd=PROJECT_SOURCE_DIR,
         stdout=PIPE)
@@ -407,9 +409,9 @@ def run_jsc_stress_dump_run(engine, arch, extra_arg):
     JSC_DIR = join('test', 'vendortest', 'driver')
     data_path = join(JSC_DIR, 'jsc.stress.%s.data.txt' % arch)
 
-    compile_test_data_runner()
+    compile_test_data_runner(extra_arg)
 
-    stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
+    stdout = run([extra_arg["test_data_runner_path"], "--shell", engine,
                   "--test-data", data_path, "--env", "GC_FREE_SPACE_DIVISOR=1"],
         cwd=PROJECT_SOURCE_DIR,
         stdout=PIPE)
@@ -578,10 +580,10 @@ def run_chakracore_dump(engine, arch, extra_arg):
 
 @runner('chakracore-dump-run', default=False)
 def run_chakracore_dump_run(engine, arch, extra_arg):
-    compile_test_data_runner()
+    compile_test_data_runner(extra_arg)
 
     CHAKRACORE_OVERRIDE_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'chakracore')
-    stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
+    stdout = run([extra_arg["test_data_runner_path"], "--shell", engine,
                 "--test-data", join(CHAKRACORE_OVERRIDE_DIR, 'chakracore.%s.data.txt' % arch),
                 "--env", "GC_FREE_SPACE_DIVISOR=1 TZ=US/Pacific",
                 "--treat-global-tostring-as-object"],
@@ -644,7 +646,7 @@ def run_v8(engine, arch, extra_arg):
 
 @runner('v8-dump', default=False)
 def run_v8_dump(engine, arch, extra_arg):
-    stdout = run_v8(engine, arch)
+    stdout = run_v8(engine, arch, extra_arg)
     stdout = stdout.decode("utf-8").split("\n")
 
     TOOL_V8_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'v8')
@@ -674,10 +676,10 @@ def run_v8_dump(engine, arch, extra_arg):
 
 @runner('v8-dump-run', default=False)
 def run_v8_dump_run(engine, arch, extra_arg):
-    compile_test_data_runner()
+    compile_test_data_runner(extra_arg)
 
     TOOL_V8_DIR = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'v8')
-    stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
+    stdout = run([extra_arg["test_data_runner_path"], "--shell", engine,
                 "--test-data", join(TOOL_V8_DIR, '%s.data.txt' % arch), "--env", "GC_FREE_SPACE_DIVISOR=1"],
         cwd=join(PROJECT_SOURCE_DIR),
         stdout=PIPE)
@@ -786,9 +788,9 @@ def run_escargot_test_dump(engine, arch, extra_arg):
 
 @runner('escargot-test-dump-run', default=False)
 def run_escargot_test_dump_run(engine, arch, extra_arg):
-    compile_test_data_runner()
+    compile_test_data_runner(extra_arg)
 
-    stdout = run([PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner', "--shell", engine,
+    stdout = run([extra_arg["test_data_runner_path"], "--shell", engine,
                   "--test-data", join(PROJECT_SOURCE_DIR, 'test', 'vendortest', 'Escargot', 'data.txt')],
         cwd=join(PROJECT_SOURCE_DIR),
         stdout=PIPE)
@@ -948,13 +950,13 @@ def run_web_tooling_benchmark(engine, arch, extra_arg):
 def run_dump_all(engine, arch, extra_arg):
     for test in RUNNERS:
         if test.endswith("-dump"):
-            RUNNERS[test](engine, arch)
+            RUNNERS[test](engine, arch, extra_arg)
 
 @runner('dump-run-all', default=False)
 def run_dump_run_all(engine, arch, extra_arg):
     for test in RUNNERS:
         if test.endswith("-dump-run"):
-            RUNNERS[test](engine, arch)
+            RUNNERS[test](engine, arch, extra_arg)
 
 def main():
     parser = ArgumentParser(description='Escargot Test Suite Runner')
@@ -962,8 +964,12 @@ def main():
                         help='path to the engine to be tested (default: %(default)s)')
     parser.add_argument('--arch', metavar='NAME', choices=['x86', 'x86_64'], default='x86_64',
                         help='architecture the engine was built for (%(choices)s; default: %(default)s)')
-    parser.add_argument('--extra-arg', default='',
-                        help='extra argument variable to drivers')
+    parser.add_argument('--test262-extra-arg', default='',
+                        help='extra argument variable to test262')
+    parser.add_argument('--test-data-runner-path', metavar='PATH', default=(PROJECT_SOURCE_DIR + '/tools/test/test-data-runner/test-data-runner'),
+                        help='test-data-runner executable path')
+    parser.add_argument('--skip-build-test-data-runner', default=False, action="store_true",
+                        help='Skip build test-data-runner executable')
     parser.add_argument('suite', metavar='SUITE', nargs='*', default=sorted(DEFAULT_RUNNERS),
                         help='test suite to run (%s; default: %s)' % (', '.join(sorted(RUNNERS.keys())), ' '.join(sorted(DEFAULT_RUNNERS))))
     args = parser.parse_args()
@@ -973,11 +979,15 @@ def main():
             parser.error('invalid test suite: %s' % suite)
 
     success, fail = [], []
-
+    extra_arg = {
+        'test262_extra_arg' : args.test262_extra_arg,
+        'skip_build_test_data_runner' : args.skip_build_test_data_runner,
+        'test_data_runner_path' : args.test_data_runner_path
+                 }
     for suite in args.suite:
         print(COLOR_PURPLE + 'running test suite: ' + suite + COLOR_RESET)
         try:
-            RUNNERS[suite](args.engine, args.arch, args.extra_arg)
+            RUNNERS[suite](args.engine, args.arch, extra_arg)
             success += [suite]
         except Exception as e:
             print('\n'.join(COLOR_YELLOW + line + COLOR_RESET for line in traceback.format_exc().splitlines()))
