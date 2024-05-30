@@ -206,8 +206,11 @@ public:
 
 #if defined(ENABLE_TCO)
     static Value tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, ByteCodeBlock* byteCodeBlock, const Value& callee, Value* registerFile);
-    static Value prepareTailCallOptimization(ExecutionState* state, TailCall* code, ScriptFunctionObject* callee, ByteCodeBlock*& callerBlock, size_t& programCounter, const Value* registerFile);
+    static Value prepareTailCallOptimization(ExecutionState*& state, TailCall* code, ScriptFunctionObject* callee, ByteCodeBlock*& callerBlock, size_t& programCounter, const Value* registerFile);
     static Value tailCallSlowCase(ExecutionState& state, TailCall* code, const Value& callee, Value* registerFile);
+#if defined(ENABLE_TCO_DEBUG)
+    static ExecutionState* createExecutionStateForTailCall(ExecutionState* state, ScriptFunctionObject* callee, ByteCodeBlock* callerByteBlock);
+#endif
 #endif
 
 private:
@@ -1556,6 +1559,14 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             }
 
             if (UNLIKELY(!state->inTCO())) {
+#if defined(ENABLE_TCO_DEBUG)
+                ExecutionState* newState = InterpreterSlowPath::createExecutionStateForTailCall(state, callee.asPointerValue()->asScriptFunctionObject(), byteCodeBlock);
+                // copy the current programCounter info
+                state->m_programCounter = (size_t*)GC_MALLOC(sizeof(size_t));
+                *state->m_programCounter = programCounter;
+                newState->m_programCounter = &programCounter;
+                state = newState;
+#endif
                 // At the start of tail call, we need to allocate a buffer for arguments
                 // because recursive tail call reuses this buffer
                 state->initTCOWithBuffer(Interpreter::tcoBuffer);
@@ -5035,7 +5046,7 @@ NEVER_INLINE Value InterpreterSlowPath::tailRecursionSlowCase(ExecutionState& st
     return callee.asPointerValue()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 }
 
-NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionState* state, TailCall* code, ScriptFunctionObject* callee, ByteCodeBlock*& callerByteBlock, size_t& programCounter, const Value* registerFile)
+NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionState*& state, TailCall* code, ScriptFunctionObject* callee, ByteCodeBlock*& callerByteBlock, size_t& programCounter, const Value* registerFile)
 {
     ASSERT(!callee->isScriptArrowFunctionObject() && !!callerByteBlock);
     ASSERT(state->m_programCounter == &programCounter);
@@ -5057,6 +5068,21 @@ NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionSta
         bool isStrict = calleeBlock->isStrict();
         bool isTailRecursion = (calleeByteBlock == callerByteBlock) && (!callerByteBlock->codeBlock()->isTailRecursionDisabled());
 
+#if defined(ENABLE_TCO_DEBUG)
+        // allocate a new ExecutionState for debugging purpose
+        ExecutionState* newState = createExecutionStateForTailCall(state, callee, callerByteBlock);
+
+        // copy the current programCounter info
+        state->m_programCounter = (size_t*)GC_MALLOC(sizeof(size_t));
+        *state->m_programCounter = programCounter;
+        newState->m_programCounter = &programCounter;
+        state = newState;
+
+        if (isTailRecursion) {
+            // convert to fast tail recursion
+            code->changeOpcode(Opcode::TailRecursionOpcode);
+        }
+#else
         // tail recursion reuses environment structures
         if (isTailRecursion) {
             // convert to fast tail recursion
@@ -5088,7 +5114,7 @@ NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionSta
             newState->m_programCounter = &programCounter;
             ASSERT(state == newState);
         }
-
+#endif
 
         if (!state->inTCO()) {
             // At the start of tail call, we need to set a buffer for arguments
@@ -5138,5 +5164,27 @@ NEVER_INLINE Value InterpreterSlowPath::tailCallSlowCase(ExecutionState& state, 
     const Value& receiver = (code->m_receiverIndex == REGISTER_LIMIT) ? Value() : registerFile[code->m_receiverIndex];
     return callee.asPointerValue()->call(state, receiver, code->m_argumentCount, &registerFile[code->m_argumentsStartIndex]);
 }
+
+#if defined(ENABLE_TCO_DEBUG)
+ExecutionState* InterpreterSlowPath::createExecutionStateForTailCall(ExecutionState* state, ScriptFunctionObject* callee, ByteCodeBlock* callerByteBlock)
+{
+    ASSERT(!callee->isScriptArrowFunctionObject());
+
+    InterpretedCodeBlock* calleeBlock = callee->interpretedCodeBlock();
+    FunctionEnvironmentRecord* record = nullptr;
+    LexicalEnvironment* lexEnv = nullptr;
+    if (!calleeBlock->canAllocateEnvironmentOnStack()) {
+        ASSERT(!callee->isScriptSimpleFunctionObject());
+        record = FunctionObjectProcessCallGenerator::createFunctionEnvironmentRecord<ScriptFunctionObject, false, false>(*state, callee, calleeBlock);
+        lexEnv = new LexicalEnvironment(record, callee->outerEnvironment());
+    } else if (callerByteBlock->codeBlock()->canAllocateEnvironmentOnStack()) {
+        ASSERT(state->lexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->isFunctionEnvironmentRecordOnStack());
+        record = new FunctionEnvironmentRecordOnStack<false, false>(callee);
+        lexEnv = new LexicalEnvironment(record, callee->outerEnvironment(), false);
+    }
+
+    return new ExecutionState(calleeBlock->context(), state, lexEnv, 0, nullptr, calleeBlock->isStrict());
+}
+#endif
 #endif
 } // namespace Escargot
