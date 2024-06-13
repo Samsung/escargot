@@ -336,7 +336,7 @@ def run_spidermonkey_dump(engine, arch, extra_arg):
 
     log_path = join(SPIDERMONKEY_OVERRIDE_DIR, '%s.log.txt' % arch)
     if not os.path.exists(log_path):
-        run_spidermonkey(engine, arch)
+        run_spidermonkey(engine, arch, extra_arg)
 
     log = sorted(readfile(log_path))
     for idx, x in enumerate(log):
@@ -392,7 +392,7 @@ def run_jsc_stress_dump(engine, arch, extra_arg):
 
     log_path = join(JSC_DIR, 'jsc.stress.%s.gen.txt' % arch)
     if not os.path.exists(log_path):
-        run_jsc_stress(engine, arch)
+        run_jsc_stress(engine, arch, extra_arg)
 
     log = readfile(log_path)
     with open(join(JSC_DIR, 'jsc.stress.%s.data.txt' % arch), "w") as output:
