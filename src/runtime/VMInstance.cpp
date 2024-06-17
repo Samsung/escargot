@@ -215,10 +215,7 @@ void vmMarkStartCallback(void* data)
 
         auto& v = self->compiledByteCodeBlocks();
         for (size_t i = 0; i < v.size(); i++) {
-            auto cb = v[i]->m_codeBlock;
-            if (LIKELY(!cb->isAsync() && !cb->isGenerator())) {
-                v[i]->m_codeBlock->setByteCodeBlock(nullptr);
-            }
+            v[i]->m_codeBlock->setByteCodeBlock(nullptr);
         }
     }
 #endif
@@ -248,10 +245,7 @@ void vmReclaimEndCallback(void* data)
             currentCodeSizeTotal = 0;
             auto& v = self->compiledByteCodeBlocks();
             for (size_t i = 0; i < v.size(); i++) {
-                auto cb = v[i]->m_codeBlock;
-                if (UNLIKELY(!cb->isAsync() && !cb->isGenerator())) {
-                    v[i]->m_codeBlock->setByteCodeBlock(v[i]);
-                }
+                v[i]->m_codeBlock->setByteCodeBlock(v[i]);
                 ASSERT(v[i]->m_codeBlock->byteCodeBlock() == v[i]);
 
                 currentCodeSizeTotal += v[i]->memoryAllocatedSize();
