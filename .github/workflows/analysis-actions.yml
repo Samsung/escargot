@@ -71,10 +71,10 @@ jobs:
         sudo locale-gen en_US.UTF-8
         export LANG=en_US.UTF-8
         locale
-        tools/run-tests.py --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/coverage/escargot" new-es test262
+        tools/run-tests.py --arch=x86_64 --engine="$GITHUB_WORKSPACE/out/coverage/escargot" new-es regression-tests test262
     - name: Generate coverage report
       run: |
-        gcovr --gcov-ignore-parse-errors --exclude-unreachable-branches --exclude-throw-branches --exclude third_party --exclude src/api -r . --xml coverage.xml
+        gcovr --gcov-ignore-parse-errors --exclude-unreachable-branches --exclude-throw-branches --exclude '.*third_party/' --exclude '.*api/' -r . --xml coverage.xml
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4
       with:
