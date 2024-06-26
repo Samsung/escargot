@@ -1,0 +1,10 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 1%
+
+ignore:
+  - "third_party"
+  - "src/api"
