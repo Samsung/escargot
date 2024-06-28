@@ -606,6 +606,13 @@ StringRef* StringRef::createFromUTF8ToCompressibleString(VMInstanceRef* instance
     return nullptr;
 }
 
+StringRef* StringRef::createFromUTF16ToCompressibleString(VMInstanceRef* instance, const char16_t* s, size_t len)
+{
+    ESCARGOT_LOG_ERROR("If you want to use this function, you should enable string compression");
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
 StringRef* StringRef::createFromASCIIToCompressibleString(VMInstanceRef* instance, const char* s, size_t len)
 {
     ESCARGOT_LOG_ERROR("If you want to use this function, you should enable string compression");
