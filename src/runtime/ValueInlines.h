@@ -968,6 +968,20 @@ inline uint64_t Value::toLength(ExecutionState& state) const
     }
     return std::min(len, maximumLength());
 }
+
+inline Value Value::toCanonicalizeKeyedCollectionKey(ExecutionState&) const
+{
+    if (isDouble()) {
+        double d = asDouble();
+        // convert -0.0 into 0.0
+        // in c++, d = -0.0, d == 0.0 is true
+        if (d == 0.0) {
+            return Value(0);
+        }
+    }
+    return *this;
+}
+
 } // namespace Escargot
 
 #endif

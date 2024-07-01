@@ -593,17 +593,6 @@
     <test id="built-ins/Map/groupBy/negativeZero"><reason>TODO</reason></test>
     <test id="built-ins/Map/groupBy/toPropertyKey"><reason>TODO</reason></test>
     <test id="built-ins/Object/freeze/proxy-with-defineProperty-handler"><reason>TODO</reason></test>
-    <test id="built-ins/Object/groupBy/callback-arg"><reason>TODO</reason></test>
-    <test id="built-ins/Object/groupBy/callback-throws"><reason>TODO</reason></test>
-    <test id="built-ins/Object/groupBy/emptyList"><reason>TODO</reason></test>
-    <test id="built-ins/Object/groupBy/evenOdd"><reason>TODO</reason></test>
-    <test id="built-ins/Object/groupBy/groupLength"><reason>TODO</reason></test>
-    <test id="built-ins/Object/groupBy/invalid-property-key"><reason>TODO</reason></test>
-    <test id="built-ins/Object/groupBy/iterator-next-throws"><reason>TODO</reason></test>
-    <test id="built-ins/Object/groupBy/length"><reason>TODO</reason></test>
-    <test id="built-ins/Object/groupBy/name"><reason>TODO</reason></test>
-    <test id="built-ins/Object/groupBy/null-prototype"><reason>TODO</reason></test>
-    <test id="built-ins/Object/groupBy/toPropertyKey"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-array-builtin"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-map-builtin"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-set-builtin"><reason>TODO</reason></test>
