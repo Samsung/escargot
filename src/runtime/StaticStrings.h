@@ -274,6 +274,7 @@ namespace Escargot {
     F(global)                     \
     F(globalThis)                 \
     F(groups)                     \
+    F(groupBy)                    \
     F(grow)                       \
     F(growable)                   \
     F(has)                        \
