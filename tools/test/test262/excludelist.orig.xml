@@ -581,17 +581,6 @@
     <test id="built-ins/JSON/parse/reviver-call-order"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/value-bigint-tojson-receiver"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/value-string-escape-unicode"><reason>TODO</reason></test>
-    <test id="built-ins/Map/groupBy/callback-arg"><reason>TODO</reason></test>
-    <test id="built-ins/Map/groupBy/callback-throws"><reason>TODO</reason></test>
-    <test id="built-ins/Map/groupBy/emptyList"><reason>TODO</reason></test>
-    <test id="built-ins/Map/groupBy/evenOdd"><reason>TODO</reason></test>
-    <test id="built-ins/Map/groupBy/groupLength"><reason>TODO</reason></test>
-    <test id="built-ins/Map/groupBy/iterator-next-throws"><reason>TODO</reason></test>
-    <test id="built-ins/Map/groupBy/length"><reason>TODO</reason></test>
-    <test id="built-ins/Map/groupBy/map-instance"><reason>TODO</reason></test>
-    <test id="built-ins/Map/groupBy/name"><reason>TODO</reason></test>
-    <test id="built-ins/Map/groupBy/negativeZero"><reason>TODO</reason></test>
-    <test id="built-ins/Map/groupBy/toPropertyKey"><reason>TODO</reason></test>
     <test id="built-ins/Object/freeze/proxy-with-defineProperty-handler"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-array-builtin"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-map-builtin"><reason>TODO</reason></test>
