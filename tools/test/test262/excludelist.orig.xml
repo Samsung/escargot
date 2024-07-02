@@ -587,10 +587,6 @@
     <test id="built-ins/Object/prototype/toString/symbol-tag-set-builtin"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-string-builtin"><reason>TODO</reason></test>
     <test id="built-ins/Object/seal/proxy-with-defineProperty-handler"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/withResolvers/ctx-ctor"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/withResolvers/promise"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/withResolvers/resolvers"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/withResolvers/result"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/duplicate-flags"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/duplicate-named-capturing-groups-syntax"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/lookBehind/alternations"><reason>TODO</reason></test>
