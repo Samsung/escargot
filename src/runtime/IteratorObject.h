@@ -105,6 +105,17 @@ public:
     // https://www.ecma-international.org/ecma-262/10.0/#sec-iterabletolist
     static ValueVectorWithInlineStorage iterableToList(ExecutionState& state, const Value& items, Optional<Value> method = Optional<Value>());
     static ValueVector iterableToListOfType(ExecutionState& state, const Value items, const String* elementTypes);
+    // https://tc39.es/ecma262/multipage/abstract-operations.html#sec-groupby
+    enum GroupByKeyCoercion {
+        Property,
+        Collection
+    };
+    struct KeyedGroup : public gc {
+        Value key;
+        ValueVector elements;
+    };
+    typedef Vector<KeyedGroup*, GCUtil::gc_malloc_allocator<KeyedGroup*>> KeyedGroupVector;
+    static KeyedGroupVector groupBy(ExecutionState& state, const Value& items, const Value& callbackfn, GroupByKeyCoercion keyCoercion);
 };
 } // namespace Escargot
 

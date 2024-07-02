@@ -231,4 +231,99 @@ ValueVector IteratorObject::iterableToListOfType(ExecutionState& state, const Va
     return values;
 }
 
+// https://tc39.es/ecma262/multipage/abstract-operations.html#sec-add-value-to-keyed-group
+static void addValueToKeyedGroup(ExecutionState& state, IteratorObject::KeyedGroupVector& groups, const Value& key, const Value& value)
+{
+    // For each Record { [[Key]], [[Elements]] } g of groups, do
+    for (size_t i = 0; i < groups.size(); i++) {
+        // If SameValue(g.[[Key]], key) is true, then
+        if (groups[i]->key.equalsToByTheSameValueAlgorithm(state, key)) {
+            // Assert: Exactly one element of groups meets this criterion.
+            // Append value to g.[[Elements]].
+            groups[i]->elements.pushBack(value);
+            // Return UNUSED.
+            return;
+        }
+    }
+    // Let group be the Record { [[Key]]: key, [[Elements]]: « value » }.
+    // Append group to groups.
+    IteratorObject::KeyedGroup* kg = new IteratorObject::KeyedGroup();
+    kg->key = key;
+    kg->elements.pushBack(value);
+    groups.pushBack(kg);
+    // Return UNUSED.
+    return;
+}
+
+IteratorObject::KeyedGroupVector IteratorObject::groupBy(ExecutionState& state, const Value& items, const Value& callbackfn, GroupByKeyCoercion keyCoercion)
+{
+    // Perform ? RequireObjectCoercible(items).
+    if (items.isUndefinedOrNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "GroupBy called on undefined or null");
+    }
+    // If IsCallable(callbackfn) is false, throw a TypeError exception.
+    if (!callbackfn.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "GroupBy called on non-callable value");
+    }
+    // Let groups be a new empty List.
+    KeyedGroupVector groups;
+    // Let iteratorRecord be ? GetIterator(items, SYNC).
+    IteratorRecord* iteratorRecord = IteratorObject::getIterator(state, items, true);
+    // Let k be 0.
+    int64_t k = 0;
+
+    // Repeat,
+    while (true) {
+        // a. If k ≥ 2**53 - 1, then
+        if (k >= ((1LL << 53LL) - 1LL)) {
+            // Let error be ThrowCompletion(a newly created TypeError object).
+            Value error = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("Too many result on GroupBy function"));
+            // Return ? IteratorClose(iteratorRecord, error).
+            IteratorObject::iteratorClose(state, iteratorRecord, error, true);
+            ASSERT_NOT_REACHED();
+        }
+
+        // Let next be ? IteratorStepValue(iteratorRecord).
+        Optional<Object*> next = IteratorObject::iteratorStep(state, iteratorRecord);
+        // If next is DONE, then
+        if (!next) {
+            // Return groups.
+            return groups;
+        }
+
+        // Let value be next.
+        Value value = IteratorObject::iteratorValue(state, next.value());
+        // Let key be Completion(Call(callbackfn, undefined, « value, 𝔽(k) »)).
+        Value key;
+        try {
+            Value argv[2] = { value, Value(k) };
+            key = Object::call(state, callbackfn, Value(), 2, argv);
+        } catch (const Value& error) {
+            // IfAbruptCloseIterator(key, iteratorRecord).
+            IteratorObject::iteratorClose(state, iteratorRecord, error, true);
+            ASSERT_NOT_REACHED();
+        }
+        // If keyCoercion is PROPERTY, then
+        if (keyCoercion == GroupByKeyCoercion::Property) {
+            // Set key to Completion(ToPropertyKey(key)).
+            try {
+                key = key.toPropertyKey(state);
+            } catch (const Value& error) {
+                // IfAbruptCloseIterator(key, iteratorRecord).
+                IteratorObject::iteratorClose(state, iteratorRecord, error, true);
+                ASSERT_NOT_REACHED();
+            }
+        } else {
+            // Assert: keyCoercion is COLLECTION.
+            ASSERT(keyCoercion == GroupByKeyCoercion::Collection);
+            // Set key to CanonicalizeKeyedCollectionKey(key).
+            key = key.toCanonicalizeKeyedCollectionKey(state);
+        }
+        // Perform AddValueToKeyedGroup(groups, key, value).
+        addValueToKeyedGroup(state, groups, key, value);
+        // Set k to k + 1.
+        k = k + 1;
+    }
+}
+
 } // namespace Escargot

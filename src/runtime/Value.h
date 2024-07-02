@@ -269,6 +269,9 @@ public:
     inline uint32_t tryToUseAsIndex32(ExecutionState& ec) const;
     inline uint32_t tryToUseAsIndexProperty(ExecutionState& ec) const;
 
+    // https://tc39.es/ecma262/multipage/keyed-collections.html#sec-canonicalizekeyedcollectionkey
+    Value toCanonicalizeKeyedCollectionKey(ExecutionState& state) const;
+
     inline bool abstractEqualsTo(ExecutionState& ec, const Value& val) const;
     bool abstractEqualsToSlowCase(ExecutionState& ec, const Value& val) const;
     inline bool equalsTo(ExecutionState& ec, const Value& val) const;

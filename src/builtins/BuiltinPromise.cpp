@@ -741,6 +741,34 @@ static Value builtinPromiseAny(ExecutionState& state, Value thisValue, size_t ar
     return result;
 }
 
+// https://tc39.es/ecma262/multipage/control-abstraction-objects.html#sec-promise.withResolvers
+static Value builtinPromiseWithResolvers(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let C be the this value.
+    const Value& C = thisValue;
+    // Let promiseCapability be ? NewPromiseCapability(C).
+    if (!C.isObject()) {
+        // NOTE: isConstructor will be checked on PromiseObject::newPromiseCapability function
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
+    }
+    auto promiseCapability = PromiseObject::newPromiseCapability(state, C.asObject());
+    // Let obj be OrdinaryObjectCreate(%Object.prototype%).
+    Object* obj = new Object(state);
+
+    StaticStrings* strings = &state.context()->staticStrings();
+    // Perform ! CreateDataPropertyOrThrow(obj, "promise", promiseCapability.[[Promise]]).
+    obj->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->lazyPromise()),
+                                          ObjectPropertyDescriptor(promiseCapability.m_promise, ObjectPropertyDescriptor::AllPresent));
+    // Perform ! CreateDataPropertyOrThrow(obj, "resolve", promiseCapability.[[Resolve]]).
+    obj->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->resolve),
+                                          ObjectPropertyDescriptor(promiseCapability.m_resolveFunction, ObjectPropertyDescriptor::AllPresent));
+    // Perform ! CreateDataPropertyOrThrow(obj, "reject", promiseCapability.[[Reject]]).
+    obj->defineOwnPropertyThrowsException(state, ObjectPropertyName(strings->reject),
+                                          ObjectPropertyDescriptor(promiseCapability.m_rejectFunction, ObjectPropertyDescriptor::AllPresent));
+    // Return obj.
+    return obj;
+}
+
 void GlobalObject::initializePromise(ExecutionState& state)
 {
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
@@ -817,6 +845,11 @@ void GlobalObject::installPromise(ExecutionState& state)
     m_promiseAny = new NativeFunctionObject(state, NativeFunctionInfo(strings->any, builtinPromiseAny, 1, NativeFunctionInfo::Strict));
     m_promise->directDefineOwnProperty(state, ObjectPropertyName(strings->any),
                                        ObjectPropertyDescriptor(m_promiseAny,
+                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // Promise.withResolvers()
+    m_promise->directDefineOwnProperty(state, ObjectPropertyName(strings->withResolvers),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->withResolvers, builtinPromiseWithResolvers, 0, NativeFunctionInfo::Strict)),
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 

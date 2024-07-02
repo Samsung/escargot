@@ -743,6 +743,24 @@ static Value builtinLookupSetter(ExecutionState& state, Value thisValue, size_t 
     return Value();
 }
 
+// https://tc39.es/ecma262/multipage/fundamental-objects.html#sec-object.groupby
+static Value builtinObjectGroupBy(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let groups be ? GroupBy(items, callbackfn, PROPERTY).
+    auto groups = IteratorObject::groupBy(state, argv[0], argv[1], IteratorObject::GroupByKeyCoercion::Property);
+    // Let obj be OrdinaryObjectCreate(null).
+    auto obj = new Object(state, Object::PrototypeIsNull);
+    // For each Record { [[Key]], [[Elements]] } g of groups, do
+    for (size_t i = 0; i < groups.size(); i++) {
+        // Let elements be CreateArrayFromList(g.[[Elements]]).
+        // Perform ! CreateDataPropertyOrThrow(obj, g.[[Key]], elements).
+        obj->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, groups[i]->key),
+                                              ObjectPropertyDescriptor(Object::createArrayFromList(state, groups[i]->elements), ObjectPropertyDescriptor::AllPresent));
+    }
+    // Return obj.
+    return obj;
+}
+
 void GlobalObject::initializeObject(ExecutionState& state)
 {
     // Object should be installed at the start time
@@ -876,6 +894,10 @@ void GlobalObject::installObject(ExecutionState& state)
     // Object.hasOwn
     m_object->directDefineOwnProperty(state, ObjectPropertyName(strings.hasOwn),
                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings.hasOwn, builtinObjectHasOwn, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // Object.groupBy
+    m_object->directDefineOwnProperty(state, ObjectPropertyName(strings.groupBy),
+                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings.groupBy, builtinObjectGroupBy, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // $19.1.3.2 Object.prototype.hasOwnProperty(V)
     m_objectPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings.hasOwnProperty),

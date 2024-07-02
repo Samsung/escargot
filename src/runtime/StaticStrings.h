@@ -274,6 +274,7 @@ namespace Escargot {
     F(global)                     \
     F(globalThis)                 \
     F(groups)                     \
+    F(groupBy)                    \
     F(grow)                       \
     F(growable)                   \
     F(has)                        \
@@ -485,6 +486,7 @@ namespace Escargot {
     F(values)                     \
     F(var)                        \
     F(with)                       \
+    F(withResolvers)              \
     F(writable)                   \
     F(yield)
 
@@ -682,6 +684,7 @@ namespace Escargot {
     F(ObjectRegExpToString, "[object RegExp]")       \
     F(ObjectStringToString, "[object String]")       \
     F(ObjectUndefinedToString, "[object Undefined]") \
+    F(Promise, "promise")                            \
     F(Reason, "reason")                              \
     F(Rejected, "rejected")                          \
     F(Status, "status")                              \

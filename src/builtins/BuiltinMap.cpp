@@ -22,6 +22,7 @@
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
 #include "runtime/MapObject.h"
+#include "runtime/ArrayObject.h"
 #include "runtime/IteratorObject.h"
 #include "runtime/NativeFunctionObject.h"
 
@@ -194,6 +195,24 @@ static Value builtinMapIteratorNext(ExecutionState& state, Value thisValue, size
     return iter->next(state);
 }
 
+// https://tc39.es/ecma262/multipage/keyed-collections.html#sec-map.groupby
+static Value builtinMapGroupBy(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let groups be ? GroupBy(items, callbackfn, COLLECTION).
+    auto groups = IteratorObject::groupBy(state, argv[0], argv[1], IteratorObject::GroupByKeyCoercion::Collection);
+    // Let map be ! Construct(%Map%).
+    auto map = new MapObject(state);
+    // For each Record { [[Key]], [[Elements]] } g of groups, do
+    for (size_t i = 0; i < groups.size(); i++) {
+        // Let elements be CreateArrayFromList(g.[[Elements]]).
+        // Let entry be the Record { [[Key]]: g.[[Key]], [[Value]]: elements }.
+        // Append entry to map.[[MapData]].
+        map->set(state, groups[i]->key, Value(Object::createArrayFromList(state, groups[i]->elements)));
+    }
+    // Return map.
+    return map;
+}
+
 void GlobalObject::initializeMap(ExecutionState& state)
 {
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
@@ -219,6 +238,10 @@ void GlobalObject::installMap(ExecutionState& state)
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_map->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().species), desc);
     }
+
+    // Map.groupBy
+    m_map->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groupBy),
+                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().groupBy, builtinMapGroupBy, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_mapPrototype = new MapObject(state, m_objectPrototype);
     m_mapPrototype->setGlobalIntrinsicObject(state, true);
