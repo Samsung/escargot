@@ -1575,6 +1575,36 @@ static Value builtinStringIncludes(ExecutionState& state, Value thisValue, size_
     return Value(true);
 }
 
+// https://tc39.es/ecma262/multipage/text-processing.html#sec-string.prototype.iswellformed
+static Value builtinStringIsWellFormed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be ? RequireObjectCoercible(this value).
+    // Let S be ? ToString(O).
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, isWellFormed);
+    // Return IsStringWellFormedUnicode(S)
+    return Value(S->isWellFormed());
+}
+
+// https://tc39.es/ecma262/multipage/text-processing.html#sec-string.prototype.towellformed
+static Value builtinStringToWellFormed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be ? RequireObjectCoercible(this value).
+    // Let S be ? ToString(O).
+    RESOLVE_THIS_BINDING_TO_STRING(S, String, toWellFormed);
+    // Let strLen be the length of S.
+    // Let k be 0.
+    // Let result be the empty String.
+    // Repeat, while k < strLen,
+    //   Let cp be CodePointAt(S, k).
+    //   If cp.[[IsUnpairedSurrogate]] is true, then
+    //     Set result to the string-concatenation of result and 0xFFFD (REPLACEMENT CHARACTER).
+    //   Else,
+    //     Set result to the string-concatenation of result and UTF16EncodeCodePoint(cp.[[CodePoint]]).
+    //   Set k to k + cp.[[CodeUnitCount]].
+    // Return result.
+    return S->toWellFormed();
+}
+
 static Value builtinStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isStringIteratorObject()) {
@@ -1743,6 +1773,14 @@ void GlobalObject::installString(ExecutionState& state)
 
     m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->at),
                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->at, builtinStringAt, 1, NativeFunctionInfo::Strict)),
+                                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->isWellFormed),
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->isWellFormed, builtinStringIsWellFormed, 0, NativeFunctionInfo::Strict)),
+                                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_stringPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toWellFormed),
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toWellFormed, builtinStringToWellFormed, 0, NativeFunctionInfo::Strict)),
                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 #define DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fnName, argLength)                                                                                                                                           \

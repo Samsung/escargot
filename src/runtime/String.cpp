@@ -359,6 +359,30 @@ size_t utf32ToUtf16(char32_t i, char16_t* u)
     }
 }
 
+bool isWellFormed(const char16_t*& utf16, const char16_t* bufferEnd)
+{
+    if (utf16[0] >= 0xd800 && utf16[0] <= 0xdbff) {
+        if (utf16 + 1 < bufferEnd) {
+            if (utf16[1] >= 0xdc00 && utf16[1] <= 0xdfff) {
+                utf16 += 2;
+                return true;
+            } else {
+                utf16 += 1;
+                return false;
+            }
+        } else {
+            utf16 += 1;
+            return false;
+        }
+    } else if (utf16[0] >= 0xdc00 && utf16[0] <= 0xdfff) {
+        utf16 += 1;
+        return false;
+    } else {
+        utf16 += 1;
+        return true;
+    }
+}
+
 bool StringBufferAccessData::equals16Bit(const char16_t* c1, const char* c2, size_t len)
 {
     while (len > 0) {
@@ -842,6 +866,45 @@ uint32_t String::tryToUseAsIndex32() const
 uint32_t String::tryToUseAsIndexProperty() const
 {
     return tryToUseAsIndex32();
+}
+
+bool String::isWellFormed() const
+{
+    auto bad = bufferAccessData();
+    if (bad.has8BitContent) {
+        return true;
+    }
+    auto utf16 = bad.bufferAs16Bit;
+    auto end = bad.bufferAs16Bit + bad.length;
+    while (utf16 < end) {
+        if (!::Escargot::isWellFormed(utf16, end)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+String* String::toWellFormed()
+{
+    if (isWellFormed()) {
+        return this;
+    }
+    auto bad = bufferAccessData();
+    auto utf16 = bad.bufferAs16Bit;
+    auto end = bad.bufferAs16Bit + bad.length;
+    UTF16StringData result;
+    while (utf16 < end) {
+        auto start = utf16;
+        if (::Escargot::isWellFormed(utf16, end)) {
+            while (start < utf16) {
+                result.pushBack(*start);
+                start++;
+            }
+        } else {
+            result.pushBack(0xfffd);
+        }
+    }
+    return new UTF16String(std::move(result));
 }
 
 size_t String::find(String* str, size_t pos) const

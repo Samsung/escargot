@@ -62,6 +62,7 @@ ASCIIStringData utf16StringToASCIIString(const char16_t* buf, const size_t len);
 ASCIIStringDataNonGCStd dtoa(double number);
 size_t utf32ToUtf8(char32_t uc, char* UTF8);
 size_t utf32ToUtf16(char32_t i, char16_t* u);
+bool isWellFormed(const char16_t*& utf16, const char16_t* bufferEnd);
 
 // these functions only care ascii range(0~127)
 bool islower(char32_t ch);
@@ -533,6 +534,9 @@ public:
     {
         return has8BitContent();
     }
+
+    bool isWellFormed() const;
+    String* toWellFormed();
 
     template <typename Any>
     const Any* characters() const

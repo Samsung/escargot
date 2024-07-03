@@ -303,6 +303,7 @@ namespace Escargot {
     F(isPrototypeOf)              \
     F(isSafeInteger)              \
     F(isSealed)                   \
+    F(isWellFormed)               \
     F(isView)                     \
     F(italics)                    \
     F(iterator)                   \
@@ -468,6 +469,7 @@ namespace Escargot {
     F(toTimeString)               \
     F(toUTCString)                \
     F(toUpperCase)                \
+    F(toWellFormed)               \
     F(transfer)                   \
     F(trim)                       \
     F(trimEnd)                    \
