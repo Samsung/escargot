@@ -62,11 +62,6 @@ public:
         RELEASE_ASSERT_NOT_REACHED();
     }
 
-    virtual size_t elementSize()
-    {
-        RELEASE_ASSERT_NOT_REACHED();
-    }
-
     virtual String* typedArrayName(ExecutionState& state)
     {
         RELEASE_ASSERT_NOT_REACHED();

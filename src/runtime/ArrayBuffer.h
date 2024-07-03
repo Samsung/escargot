@@ -193,6 +193,11 @@ public:
         return true;
     }
 
+    virtual size_t elementSize()
+    {
+        return 1;
+    }
+
     void* operator new(size_t size)
     {
         static MAY_THREAD_LOCAL bool typeInited = false;
@@ -225,9 +230,9 @@ private:
             self->m_arrayLength = self->m_byteLength = self->m_byteOffset = 0;
         } else if (self->m_auto) {
             // auto mode within boundary
-            size_t elementSize = self->m_arrayLength ? self->m_byteLength / self->m_arrayLength : SIZE_MAX;
             self->m_byteLength = newByteLength - self->m_byteOffset;
-            self->m_arrayLength = elementSize == SIZE_MAX ? 0 : self->m_byteLength / elementSize;
+            ASSERT(self->elementSize());
+            self->m_arrayLength = self->m_byteLength / self->elementSize();
         }
 
         self->updateCachedAddress(newAddress);
