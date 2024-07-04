@@ -178,7 +178,7 @@ void* VMInstance::operator new(size_t size)
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_defaultPrivateMemberStructure));
         markHashSet(desc, GC_WORD_OFFSET(VMInstance, m_rootedObjectStructure));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_onVMInstanceDestroyData));
-        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_toStringRecursionPreventer.m_registeredItems));
+        GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_toStringRecursionPreventer));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_regexpOptionStringCache));
         GC_set_bit(desc, GC_WORD_OFFSET(VMInstance, m_cachedUTC));
@@ -351,7 +351,17 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     , m_promiseHookPublic(nullptr)
     , m_promiseRejectCallback(nullptr)
     , m_promiseRejectCallbackPublic(nullptr)
+    , m_toStringRecursionPreventer(nullptr)
+    , m_regexpCache(nullptr)
+    , m_regexpOptionStringCache(nullptr)
+#ifdef ENABLE_ICU
+    , m_calendar(nullptr)
+#endif
     , m_cachedUTC(nullptr)
+    , m_jobQueue(nullptr)
+#if defined(ENABLE_CODE_CACHE)
+    , m_codeCache(nullptr)
+#endif
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         VMInstance* self = (VMInstance*)obj;
@@ -364,6 +374,8 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
         ASSERT(!!String::emptyString && String::emptyString->isAtomicStringSource());
     }
     m_staticStrings.initStaticStrings();
+
+    m_toStringRecursionPreventer = new ToStringRecursionPreventer();
 
     m_regexpCache = new (GC) RegExpCacheMap();
     m_regexpOptionStringCache = (ASCIIString**)GC_MALLOC(64 * sizeof(ASCIIString*));
