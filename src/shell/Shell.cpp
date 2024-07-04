@@ -1066,6 +1066,7 @@ int main(int argc, char* argv[])
     bool runShell = true;
     bool seenModule = false;
     std::string fileName;
+    int exitCode = 0;
 
     for (int i = 1; i < argc; i++) {
         if (strlen(argv[i]) >= 2 && argv[i][0] == '-') { // parse command line option
@@ -1097,8 +1098,11 @@ int main(int argc, char* argv[])
                         if (!clientSourceRef) {
                             break;
                         }
-                        if (!evalScript(context, clientSourceRef, sourceName, false, false))
-                            return 3;
+                        if (!evalScript(context, clientSourceRef, sourceName, false, false)) {
+                            runShell = false;
+                            exitCode = 3;
+                            break;
+                        }
                         runShell = false;
                     }
                     continue;
@@ -1112,8 +1116,11 @@ int main(int argc, char* argv[])
                     runShell = false;
                     i++;
                     StringRef* src = StringRef::createFromUTF8(argv[i], strlen(argv[i]));
-                    if (!evalScript(context, src, StringRef::createFromASCII("shell input"), false, false))
-                        return 3;
+                    if (!evalScript(context, src, StringRef::createFromASCII("shell input"), false, false)) {
+                        runShell = false;
+                        exitCode = 3;
+                        break;
+                    }
                     continue;
                 }
                 if (strcmp(argv[i], "-f") == 0) {
@@ -1121,7 +1128,6 @@ int main(int argc, char* argv[])
                 }
             }
             fprintf(stderr, "Cannot recognize option `%s`", argv[i]);
-            // return 3;
             continue;
         }
 
@@ -1141,7 +1147,9 @@ int main(int argc, char* argv[])
             }
 
             if (!evalScript(context, src, StringRef::createFromUTF8(fileName.data(), fileName.length()), false, seenModule)) {
-                return 3;
+                runShell = false;
+                exitCode = 3;
+                break;
             }
             seenModule = false;
             fileName.clear();
@@ -1168,7 +1176,8 @@ int main(int argc, char* argv[])
         printf("escargot> ");
         if (!fgets(buf, sizeof buf, stdin)) {
             printf("ERROR: Cannot read interactive shell input\n");
-            return 3;
+            exitCode = 3;
+            break;
         }
         StringRef* str = Escargot::StringRef::createFromUTF8(buf, strlen(buf));
         evalScript(context, str, StringRef::emptyString(), true, false);
@@ -1207,5 +1216,5 @@ int main(int argc, char* argv[])
     ProfilerStop();
 #endif
 
-    return 0;
+    return exitCode;
 }
