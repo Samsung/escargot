@@ -178,8 +178,6 @@
     <test id="built-ins/AsyncFromSyncIteratorPrototype/return/return-null"><reason>TODO</reason></test>
     <test id="built-ins/AsyncGeneratorPrototype/next/request-queue-await-order"><reason>TODO</reason></test>
     <test id="built-ins/AsyncGeneratorPrototype/return/return-suspendedStart-broken-promise"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/waitAsync/bigint/good-views"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/waitAsync/good-views"><reason>TODO</reason></test>
     <test id="built-ins/BigInt/constructor-coercion"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-length"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-offset"><reason>TODO</reason></test>

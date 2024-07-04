@@ -325,7 +325,8 @@ class TestCase(object):
         self.suite.GetInclude("cth.js") + \
         self.suite.GetInclude("assert.js")
 
-    if self.IsAsyncTest():
+    # Escargot: some async test are does not returns True for self.IsAsyncTest()
+    if self.IsAsyncTest() or "Atomics" in self.GetFeatureList():
       source = source + \
                self.suite.GetInclude("timer.js") + \
                self.suite.GetInclude("doneprintHandle.js").replace('print', self.suite.print_handle)
