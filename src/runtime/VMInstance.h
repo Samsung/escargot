@@ -178,11 +178,6 @@ public:
 
     void somePrototypeObjectDefineIndexedProperty(ExecutionState& state);
 
-    ToStringRecursionPreventer& toStringRecursionPreventer()
-    {
-        return m_toStringRecursionPreventer;
-    }
-
     JobQueue* jobQueue()
     {
         return m_jobQueue;
@@ -463,7 +458,7 @@ private:
     PromiseRejectCallback m_promiseRejectCallback;
     void* m_promiseRejectCallbackPublic;
 
-    ToStringRecursionPreventer m_toStringRecursionPreventer;
+    ToStringRecursionPreventer* m_toStringRecursionPreventer;
 
     // regexp object data
     RegExpCacheMap* m_regexpCache;
