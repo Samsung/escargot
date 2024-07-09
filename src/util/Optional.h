@@ -102,6 +102,19 @@ public:
         return !operator==(other);
     }
 
+    T* operator->()
+    {
+        ASSERT(hasValue());
+        return &m_value;
+    }
+
+    const T* operator->() const
+    {
+        ASSERT(hasValue());
+        return &m_value;
+    }
+
+
 protected:
     bool m_hasValue;
     T m_value;

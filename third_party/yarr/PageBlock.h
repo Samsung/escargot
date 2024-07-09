@@ -36,7 +36,6 @@ WTF_EXPORT_PRIVATE size_t pageSize();
 WTF_EXPORT_PRIVATE size_t pageMask();
 inline bool isPageAligned(void* address) { return !(reinterpret_cast<intptr_t>(address) & (pageSize() - 1)); }
 inline bool isPageAligned(size_t size) { return !(size & (pageSize() - 1)); }
-inline bool isPowerOfTwo(size_t size) { return !(size & (size - 1)); }
 class PageBlock {
 public:
     PageBlock();
@@ -76,6 +75,5 @@ inline PageBlock::PageBlock(void* base, size_t size, bool hasGuardPages)
 using WTF::pageSize;
 using WTF::isPageAligned;
 using WTF::isPageAligned;
-using WTF::isPowerOfTwo;
 
 #endif // PageBlock_h

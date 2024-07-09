@@ -242,6 +242,11 @@ public:
         pushBack(val);
     }
 
+    void append(const T& val)
+    {
+        pushBack(val);
+    }
+
     void insert(size_t pos, const T& val)
     {
         ASSERT(pos <= m_size);

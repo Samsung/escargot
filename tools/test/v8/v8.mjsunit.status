@@ -802,6 +802,8 @@
   ## 16. Etc
   # Stackoverflow error not occured with some compiler
   'json-parser-recursive': [SKIP],
+  # Yarr support number in { } uint32 range
+  'regress/regress-126412': [SKIP],
 
 }],  # 'escargot == True'
 

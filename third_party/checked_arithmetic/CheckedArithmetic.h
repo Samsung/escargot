@@ -679,6 +679,44 @@ public:
         return !(*this == rhs);
     }
 
+    operator T() const
+    {
+        if (UNLIKELY(this->hasOverflowed())) {
+            CRASH();
+        }
+        return m_value;
+    }
+
+    template <typename U = T>
+    U value() const
+    {
+        if (UNLIKELY(this->hasOverflowed())) {
+            CRASH();
+        }
+        return static_cast<U>(m_value);
+    }
+
+    // Other comparisons
+    template <typename V> bool operator<(Checked<T, V> rhs) const
+    {
+        return value() < rhs.value();
+    }
+
+    template <typename V> bool operator<=(Checked<T, V> rhs) const
+    {
+        return value() <= rhs.value();
+    }
+
+    template <typename V> bool operator>(Checked<T, V> rhs) const
+    {
+        return value() > rhs.value();
+    }
+
+    template <typename V> bool operator>=(Checked<T, V> rhs) const
+    {
+        return value() >= rhs.value();
+    }
+
 private:
     // Disallow implicit conversion of floating point to integer types
     Checked(float);

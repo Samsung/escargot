@@ -50,12 +50,14 @@ class RegExpObject : public DerivedObject {
 public:
     enum Option ENSURE_ENUM_UNSIGNED {
         None = 0 << 0,
-        Global = 1 << 0,
-        IgnoreCase = 1 << 1,
-        MultiLine = 1 << 2,
-        Sticky = 1 << 3,
-        Unicode = 1 << 4,
-        DotAll = 1 << 5,
+        HasIndices = 1 << 0,
+        Global = 1 << 1,
+        IgnoreCase = 1 << 2,
+        MultiLine = 1 << 3,
+        DotAll = 1 << 4,
+        Unicode = 1 << 5,
+        UnicodeSets = 1 << 6,
+        Sticky = 1 << 7,
     };
 
     struct RegExpCacheKey {
