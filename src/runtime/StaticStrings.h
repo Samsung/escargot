@@ -278,6 +278,7 @@ namespace Escargot {
     F(grow)                       \
     F(growable)                   \
     F(has)                        \
+    F(hasIndices)                 \
     F(hasInstance)                \
     F(hasOwn)                     \
     F(hasOwnProperty)             \
@@ -480,6 +481,7 @@ namespace Escargot {
     F(undefined)                  \
     F(unescape)                   \
     F(unicode)                    \
+    F(unicodeSets)                \
     F(unregister)                 \
     F(unscopables)                \
     F(unshift)                    \

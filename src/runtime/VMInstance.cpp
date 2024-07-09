@@ -378,8 +378,8 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     m_toStringRecursionPreventer = new ToStringRecursionPreventer();
 
     m_regexpCache = new (GC) RegExpCacheMap();
-    m_regexpOptionStringCache = (ASCIIString**)GC_MALLOC(64 * sizeof(ASCIIString*));
-    memset(m_regexpOptionStringCache, 0, 64 * sizeof(ASCIIString*));
+    m_regexpOptionStringCache = (ASCIIString**)GC_MALLOC(256 * sizeof(ASCIIString*));
+    memset(m_regexpOptionStringCache, 0, 256 * sizeof(ASCIIString*));
 
 #if defined(ENABLE_ICU)
     m_calendar = nullptr;

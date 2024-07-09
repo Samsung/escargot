@@ -26,40 +26,59 @@
 #pragma once
 
 namespace JSC {
+
+class CallFrame;
+class JSGlobalObject;
+class JSObject;
+
 namespace Yarr {
 
-enum class ErrorCode : unsigned {
+enum class ErrorCode : uint8_t {
     NoError = 0,
     PatternTooLarge,
     QuantifierOutOfOrder,
     QuantifierWithoutAtom,
     QuantifierTooLarge,
-    QuantifierUnmatched,
+    QuantifierIncomplete,
+    CantQuantifyAtom,
     MissingParentheses,
+    BracketUnmatched,
     ParenthesesUnmatched,
     ParenthesesTypeInvalid,
     InvalidGroupName,
     DuplicateGroupName,
     CharacterClassUnmatched,
-    CharacterClassInvalid,
-    CharacterClassOutOfOrder,
+    CharacterClassRangeOutOfOrder,
+    CharacterClassRangeInvalid,
+    ClassStringDisjunctionUnmatched,
     EscapeUnterminated,
     InvalidUnicodeEscape,
-    InvalidClassEscape,
+    InvalidUnicodeCodePointEscape,
     InvalidBackreference,
+    InvalidNamedBackReference,
     InvalidIdentityEscape,
+    InvalidOctalEscape,
+    InvalidControlLetterEscape,
     InvalidUnicodePropertyExpression,
-    InvalidDecimalEscape,
-    InvalidQuantifier,
     TooManyDisjunctions,
     OffsetTooLarge,
     InvalidRegularExpressionFlags,
+    InvalidClassSetOperation,
+    NegatedClassSetMayContainStrings,
+    InvalidClassSetCharacter,
 };
 
-JS_EXPORT_PRIVATE const char* errorMessage(ErrorCode);
+JS_EXPORT_PRIVATE ASCIILiteral errorMessage(ErrorCode);
 inline bool hasError(ErrorCode errorCode)
 {
     return errorCode != ErrorCode::NoError;
 }
+
+inline bool hasHardError(ErrorCode errorCode)
+{
+    // TooManyDisjunctions means that we ran out stack compiling.
+    // All other errors are due to problems in the expression.
+    return hasError(errorCode) && errorCode != ErrorCode::TooManyDisjunctions;
 }
-} // namespace JSC::Yarr
+
+} } // namespace JSC::Yarr

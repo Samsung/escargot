@@ -29,10 +29,7 @@
 #include "Yarr.h"
 #include "YarrPattern.h"
 
-using namespace WTF;
-
-namespace JSC {
-namespace Yarr {
+namespace JSC { namespace Yarr {
 
 struct HashIndex {
     int16_t value;
@@ -52,13 +49,31 @@ struct HashTable {
 
     ALWAYS_INLINE int entry(WTF::String& key) const
     {
-        for (int i = 0; i < numberOfValues; i++) {
-            if (key.impl()->equals(values[i].key, strlen(values[i].key)))
-                return values[i].index;
-        }
-        return -1;
+        int indexEntry = key.hash() & indexMask;
+        int valueIndex = index[indexEntry].value;
+
+        if (valueIndex == -1)
+            return -1;
+
+        while (true) {
+            const char* keyStr = values[valueIndex].key;
+
+            // assume max length is 1024
+            ASSERT(strlen(keyStr) < 1024);
+            Escargot::Latin1StringFromExternalMemory str((const unsigned char*)keyStr, strnlen(keyStr, 1024));
+            if (key.equals(&str)) {
+                return values[valueIndex].index;
+            }
+
+            indexEntry = index[indexEntry].next;
+            if (indexEntry == -1)
+                return -1;
+            valueIndex = index[indexEntry].value;
+            ASSERT(valueIndex != -1);
+        };
     }
 };
+
 
 #if defined(ENABLE_ICU)
 #include "UnicodePatternTables.h"
@@ -66,53 +81,55 @@ struct HashTable {
 
 Optional<BuiltInCharacterClassID> unicodeMatchPropertyValue(WTF::String unicodePropertyName, WTF::String unicodePropertyValue)
 {
-#if defined(ENABLE_ICU)
     int propertyIndex = -1;
-
+#if defined(ENABLE_ICU)
     if (unicodePropertyName == "Script" || unicodePropertyName == "sc")
         propertyIndex = scriptHashTable.entry(unicodePropertyValue);
     else if (unicodePropertyName == "Script_Extensions" || unicodePropertyName == "scx")
         propertyIndex = scriptExtensionHashTable.entry(unicodePropertyValue);
     else if (unicodePropertyName == "General_Category" || unicodePropertyName == "gc")
         propertyIndex = generalCategoryHashTable.entry(unicodePropertyValue);
-
+#endif
     if (propertyIndex == -1)
         return nullptr;
 
     return Optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + propertyIndex));
-#else
-    return nullptr;
-#endif
 }
 
-Optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String unicodePropertyValue)
+Optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String unicodePropertyValue, CompileMode compileMode)
 {
-#if defined(ENABLE_ICU)
     int propertyIndex = -1;
-
+#if defined(ENABLE_ICU)
     propertyIndex = binaryPropertyHashTable.entry(unicodePropertyValue);
     if (propertyIndex == -1)
         propertyIndex = generalCategoryHashTable.entry(unicodePropertyValue);
-
+    if (propertyIndex == -1 && compileMode == CompileMode::UnicodeSets)
+        propertyIndex = sequencePropertyHashTable.entry(unicodePropertyValue);
+#endif
     if (propertyIndex == -1)
         return nullptr;
 
     return Optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + propertyIndex));
-#else
-    return nullptr;
-#endif
 }
 
 std::unique_ptr<CharacterClass> createUnicodeCharacterClassFor(BuiltInCharacterClassID unicodeClassID)
 {
-#if defined(ENABLE_ICU)
     unsigned unicodePropertyIndex = static_cast<unsigned>(unicodeClassID) - static_cast<unsigned>(BuiltInCharacterClassID::BaseUnicodePropertyID);
-
-    return createFunctions[unicodePropertyIndex]();
+#if defined(ENABLE_ICU)
+    return createCharacterClassFunctions[unicodePropertyIndex]();
 #else
-    RELEASE_ASSERT_NOT_REACHED();
     return nullptr;
 #endif
 }
+
+bool characterClassMayContainStrings(BuiltInCharacterClassID unicodeClassID)
+{
+    unsigned unicodePropertyIndex = static_cast<unsigned>(unicodeClassID) - static_cast<unsigned>(BuiltInCharacterClassID::BaseUnicodePropertyID);
+#if defined(ENABLE_ICU)
+    return unicodeCharacterClassMayContainStrings(unicodePropertyIndex);
+#else
+    return false;
+#endif
 }
-} // namespace JSC::Yarr
+
+} } // namespace JSC::Yarr
