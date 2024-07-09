@@ -2193,8 +2193,22 @@ public:
     {
         if (m_pattern.ignoreCase()) {
 #if defined(ENABLE_ICU)
-            char32_t lo = u_tolower(ch);
-            char32_t hi = u_toupper(ch);
+            char32_t lo;
+            char32_t hi;
+            if (ch < 128) {
+                lo = tolower(ch);
+                hi = toupper(ch);
+            } else {
+                // if ch is ALPHABETIC like latin or greek, we should not apply u_tolower or u_toupper (print('iI\u0130'.replace(/\u0130/gi, '#')))
+                auto v = u_getIntPropertyValue(ch, UProperty::UCHAR_ALPHABETIC);
+                if (v) {
+                    lo = ch;
+                    hi = ch;
+                } else {
+                    lo = u_tolower(ch);
+                    hi = u_toupper(ch);
+                }
+            }
 #else
             char32_t lo = tolower(ch);
             char32_t hi = toupper(ch);
