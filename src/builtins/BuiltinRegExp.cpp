@@ -200,6 +200,25 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
     }
 
+    Optional<Object*> proto = thisValue.asObject()->getPrototypeObject(state);
+    Context* calleeContext = state.resolveCallee()->codeBlock()->context();
+
+    bool match = false;
+    while (proto) {
+        Value c = proto->getOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, proto.value());
+        if (c.isFunction()) {
+            if (c.asFunction()->codeBlock()->context() == calleeContext) {
+                match = true;
+                break;
+            }
+        }
+        proto = proto->getPrototypeObject(state);
+    }
+
+    if (!match) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot use compile function with another Realm");
+    }
+
     if (argv[0].isObject() && argv[0].asObject()->isRegExpObject()) {
         if (!argv[1].isUndefined()) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Cannot supply flags when constructing one RegExp from another");
@@ -216,9 +235,9 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
     }
 
     RegExpObject* retVal = thisValue.asPointerValue()->asObject()->asRegExpObject();
-    String* pattern_str = argv[0].isUndefined() ? String::emptyString : argv[0].toString(state);
-    String* flags_str = argv[1].isUndefined() ? String::emptyString : argv[1].toString(state);
-    retVal->init(state, pattern_str, flags_str);
+    String* patternStr = argv[0].isUndefined() ? String::emptyString : argv[0].toString(state);
+    String* flagsStr = argv[1].isUndefined() ? String::emptyString : argv[1].toString(state);
+    retVal->init(state, patternStr, flagsStr);
     return retVal;
 }
 static Value builtinRegExpSearch(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
