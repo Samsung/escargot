@@ -2111,15 +2111,13 @@ private:
     inline bool isUnicodeSetsCompilation() const { return compileMode == CompileMode::UnicodeSets; }
     inline bool isEitherUnicodeCompilation() const { return isUnicodeCompilation() || isUnicodeSetsCompilation(); }
 
-    // inline bool isSafeToRecurse() { return m_stackCheck.isSafeToRecurse(); }
-    // TODO
-    inline bool isSafeToRecurse() { return true; }
+    inline bool isSafeToRecurse() { return m_stackCheck.isSafeToRecurse(); }
 
     BytecodePattern* pattern;
     CompileMode compileMode;
     unsigned* output;
     InputStream input;
-    // StackCheck m_stackCheck;
+    StackCheck m_stackCheck;
     WTF::BumpPointerPool* allocatorPool { nullptr };
     unsigned startOffset;
     unsigned remainingMatchCount;
@@ -2722,14 +2720,11 @@ public:
     }
 
 private:
-    // TODO
-    // inline bool isSafeToRecurse() { return m_stackCheck.isSafeToRecurse(); }
-    inline bool isSafeToRecurse() { return true; }
+    inline bool isSafeToRecurse() { return m_stackCheck.isSafeToRecurse(); }
 
     YarrPattern& m_pattern;
     std::unique_ptr<ByteDisjunction> m_bodyDisjunction;
-    // TODO
-    // StackCheck m_stackCheck;
+    StackCheck m_stackCheck;
     unsigned m_currentAlternativeIndex { 0 };
     Vector<ParenthesesStackEntry> m_parenthesesStack;
     Vector<std::unique_ptr<ByteDisjunction>> m_allParenthesesInfo;

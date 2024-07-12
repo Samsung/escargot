@@ -2044,8 +2044,7 @@ private:
         return m_parenthesisContext.matchDirection();
     }
 
-    // inline bool isSafeToRecurse() { return m_stackCheck.isSafeToRecurse(); }
-    inline bool isSafeToRecurse() { return true; }
+    inline bool isSafeToRecurse() { return m_stackCheck.isSafeToRecurse(); }
 
     YarrPattern& m_pattern;
     PatternAlternative* m_alternative;
@@ -2053,8 +2052,7 @@ private:
     CharacterClassConstructor* m_currentCharacterClassConstructor;
     Vector<CharacterClassConstructor> m_characterClassStack;
     Vector<UnresolvedForwardReference> m_forwardReferencesInLookbehind;
-    // TODO
-    // StackCheck m_stackCheck;
+    StackCheck m_stackCheck;
     ErrorCode m_error { ErrorCode::NoError };
     bool m_invertCharacterClass;
     ParenthesisContext m_parenthesisContext;

@@ -208,14 +208,9 @@ public:
     {
         ASSERT(escargotContext != nullptr);
 
-        this->stackLimit = ThreadLocal::stackLimit();
-
         // Use more stack for computing loc on stack-overflow situation
-#ifdef STACK_GROWS_DOWN
-        this->stackLimit = this->stackLimit + STACK_FREESPACE_FROM_LIMIT / 2;
-#else
-        this->stackLimit = this->stackLimit - STACK_FREESPACE_FROM_LIMIT / 2;
-#endif
+        this->stackLimit = ThreadLocal::extendedStackLimit();
+
         this->escargotContext = escargotContext;
         this->stringArguments = escargotContext->staticStrings().arguments;
         this->currentBlockContext = nullptr;
