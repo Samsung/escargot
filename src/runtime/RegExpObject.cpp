@@ -233,6 +233,16 @@ RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, String* op
                 ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 's' flags");
             tempOption = (Option)(tempOption | Option::DotAll);
             break;
+        case 'v':
+            if (tempOption & Option::UnicodeSets)
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'v' flags");
+            tempOption = (Option)(tempOption | Option::UnicodeSets);
+            break;
+        case 'd':
+            if (tempOption & Option::HasIndices)
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'd' flags");
+            tempOption = (Option)(tempOption | Option::HasIndices);
+            break;
         default:
             ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has invalid flag");
         }
