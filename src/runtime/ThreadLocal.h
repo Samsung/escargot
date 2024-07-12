@@ -118,6 +118,16 @@ public:
         return g_stackLimit;
     }
 
+    // Use this limit if you want to use more stack
+    static size_t extendedStackLimit()
+    {
+#ifdef STACK_GROWS_DOWN
+        return stackLimit() + STACK_FREESPACE_FROM_LIMIT / 2;
+#else
+        return stackLimit() - STACK_FREESPACE_FROM_LIMIT / 2;
+#endif
+    }
+
     static std::mt19937& randEngine()
     {
         ASSERT(inited && !!g_randEngine);

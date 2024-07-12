@@ -285,7 +285,6 @@ extern "C" {
 
 #ifdef ENABLE_ICU
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
-typedef unsigned char LChar;
 #include "RuntimeICUBinder.h"
 #include "ICUPolyfill.h"
 #else
@@ -574,6 +573,10 @@ typedef uint16_t LexicalBlockIndex;
 #endif
 
 #include <tsl/robin_set.h>
+#include <tsl/robin_map.h>
+
+namespace Escargot {
+
 template <class Key, class Hash = std::hash<Key>,
           class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<Key>,
@@ -581,13 +584,14 @@ template <class Key, class Hash = std::hash<Key>,
           class GrowthPolicy = tsl::rh::power_of_two_growth_policy<2>>
 using HashSet = tsl::robin_set<Key, Hash, KeyEqual, Allocator, StoreHash, GrowthPolicy>;
 
-#include <tsl/robin_map.h>
 template <class Key, class T, class Hash = std::hash<Key>,
           class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<std::pair<Key, T>>,
           bool StoreHash = false,
           class GrowthPolicy = tsl::rh::power_of_two_growth_policy<2>>
 using HashMap = tsl::robin_map<Key, T, Hash, KeyEqual, Allocator, StoreHash, GrowthPolicy>;
+
+} // namespace Escargot
 
 
 #include "EscargotInfo.h"

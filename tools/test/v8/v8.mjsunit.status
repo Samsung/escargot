@@ -804,7 +804,8 @@
   'json-parser-recursive': [SKIP],
   # Yarr support number in { } uint32 range
   'regress/regress-126412': [SKIP],
-
+  # Stackoverflow occured when paring RegExp
+  'regress/regress-148378': [SKIP],
 }],  # 'escargot == True'
 
 ]
