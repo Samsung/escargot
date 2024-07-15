@@ -814,9 +814,6 @@ def run_wasm_js(engine, arch, extra_arg):
     WASM_TEST_MJS = join(WASM_TEST_ROOT, 'mjsunit.js')
     WASM_TEST_HARNESS = join(WASM_TEST_ROOT, 'testharness.js')
 
-    copy(join(PROJECT_SOURCE_DIR, 'tools', 'test', 'wasm-js', 'grow-part.any.js'), join(WASM_TEST_DIR, 'memory', 'grow-part.any.js'))
-
-
     EXCLUDE_LIST_FILE = join(PROJECT_SOURCE_DIR, 'tools', 'test', 'wasm-js', 'exclude_list.txt')
     exclude_list = []
     with open(EXCLUDE_LIST_FILE) as f:
