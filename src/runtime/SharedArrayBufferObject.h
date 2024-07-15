@@ -34,6 +34,7 @@ public:
     SharedArrayBufferObject(ExecutionState& state, Object* proto, SharedDataBlockInfo* sharedInfo);
 
     static SharedArrayBufferObject* allocateSharedArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength, Optional<uint64_t> maxByteLength);
+    static SharedArrayBufferObject* allocateExternalSharedArrayBuffer(ExecutionState& state, void* dataBlock, size_t byteLength);
 
     virtual bool isSharedArrayBufferObject() const override
     {
@@ -47,6 +48,8 @@ public:
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
+
+    size_t byteLengthRMW(size_t newByteLength);
 };
 } // namespace Escargot
 

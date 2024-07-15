@@ -129,9 +129,9 @@ public:
         return m_platform->onMallocArrayBufferObjectDataBuffer(sizeInByte);
     }
 
-    virtual void onFreeArrayBufferObjectDataBuffer(void* buffer, size_t sizeInByte) override
+    virtual void onFreeArrayBufferObjectDataBuffer(void* buffer, size_t sizeInByte, void* deleterData) override
     {
-        m_platform->onFreeArrayBufferObjectDataBuffer(buffer, sizeInByte);
+        m_platform->onFreeArrayBufferObjectDataBuffer(buffer, sizeInByte, deleterData);
     }
 
     virtual void* onReallocArrayBufferObjectDataBuffer(void* oldBuffer, size_t oldSizeInByte, size_t newSizeInByte) override
