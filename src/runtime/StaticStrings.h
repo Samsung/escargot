@@ -288,6 +288,7 @@ namespace Escargot {
     F(implements)                 \
     F(imul)                       \
     F(includes)                   \
+    F(indices)                    \
     F(index)                      \
     F(indexOf)                    \
     F(input)                      \
@@ -1002,6 +1003,7 @@ public:
     AtomicString getFlags;
     AtomicString getFormat;
     AtomicString getGlobal;
+    AtomicString getHasIndices;
     AtomicString getHourCycle;
     AtomicString getHourCycles;
     AtomicString getIgnoreCase;

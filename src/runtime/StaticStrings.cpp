@@ -97,6 +97,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(getFlags, "get flags");
     INIT_STATIC_STRING(getFormat, "get format");
     INIT_STATIC_STRING(getGlobal, "get global");
+    INIT_STATIC_STRING(getHasIndices, "get hasIndices");
     INIT_STATIC_STRING(getHourCycle, "get hourCycle");
     INIT_STATIC_STRING(getHourCycles, "get hourCycles");
     INIT_STATIC_STRING(getIgnoreCase, "get ignoreCase");
