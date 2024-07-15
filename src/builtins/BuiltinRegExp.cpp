@@ -639,6 +639,11 @@ static Value builtinRegExpMultiLineGetter(ExecutionState& state, Value thisValue
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::MultiLine);
 }
 
+static Value builtinRegExpHasIndicesGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::HasIndices);
+}
+
 static Value builtinRegExpSourceGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject()) {
@@ -885,6 +890,13 @@ void GlobalObject::installRegExp(ExecutionState& state)
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->multiline), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getHasIndices, builtinRegExpHasIndicesGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->hasIndices), desc);
     }
 
     {

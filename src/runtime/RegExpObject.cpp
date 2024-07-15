@@ -182,6 +182,7 @@ bool RegExpObject::defineOwnProperty(ExecutionState& state, const ObjectProperty
                 || name->equals(state.context()->staticStrings().sticky.string())
                 || name->equals(state.context()->staticStrings().dotAll.string())
                 || name->equals(state.context()->staticStrings().source.string())
+                || name->equals(state.context()->staticStrings().hasIndices.string())
                 || name->equals(state.context()->staticStrings().flags.string())) {
                 m_hasOwnPropertyWhichHasDefinedFromRegExpPrototype = true;
             }
@@ -472,6 +473,40 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
             } else {
                 arr->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value(new StringView(input, result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end)));
             }
+        }
+    }
+
+    if (option() & HasIndices) {
+        ArrayObject* indices = new ArrayObject(state, len);
+        arr->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().indices), ObjectPropertyDescriptor(Value(indices), ObjectPropertyDescriptor::AllPresent));
+
+        size_t idx = 0;
+        for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
+            for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
+                if (result.m_matchResults[i][j].m_start == std::numeric_limits<unsigned>::max()) {
+                    indices->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value());
+                } else {
+                    ArrayObject* pair = new ArrayObject(state, 2);
+                    pair->defineOwnIndexedPropertyWithoutExpanding(state, 0, Value(result.m_matchResults[i][j].m_start));
+                    pair->defineOwnIndexedPropertyWithoutExpanding(state, 1, Value(result.m_matchResults[i][j].m_end));
+
+                    indices->defineOwnIndexedPropertyWithoutExpanding(state, idx++, Value(pair));
+                }
+            }
+        }
+
+        if (m_yarrPattern->m_namedGroupToParenIndices.empty()) {
+            indices->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(), ObjectPropertyDescriptor::AllPresent));
+        } else {
+            Object* groups = new Object(state, Object::PrototypeIsNull);
+            for (auto it = m_yarrPattern->m_captureGroupNames.begin(); it != m_yarrPattern->m_captureGroupNames.end(); ++it) {
+                auto foundMapElement = m_yarrPattern->m_namedGroupToParenIndices.find(*it);
+                if (foundMapElement != m_yarrPattern->m_namedGroupToParenIndices.end()) {
+                    groups->directDefineOwnProperty(state, ObjectPropertyName(state, it->impl()),
+                                                    ObjectPropertyDescriptor(indices->getOwnProperty(state, ObjectPropertyName(state, foundMapElement->second[0])).value(state, this), ObjectPropertyDescriptor::AllPresent));
+                }
+            }
+            indices->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
         }
     }
 
