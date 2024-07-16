@@ -203,6 +203,10 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
     Optional<Object*> proto = thisValue.asObject()->getPrototypeObject(state);
     Context* calleeContext = state.resolveCallee()->codeBlock()->context();
 
+    if (!proto || !proto->isRegExpPrototypeObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotRegExpObject);
+    }
+
     bool match = false;
     while (proto) {
         Value c = proto->getOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor)).value(state, proto.value());
