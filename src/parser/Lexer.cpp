@@ -1984,7 +1984,11 @@ void Scanner::scanRegExp(Scanner::ScannerResult* token)
 
     String* body = this->scanRegExpBody();
     String* flags = this->scanRegExpFlags();
-    // const value = this->testRegExp(body.value, flags.value);
+
+    auto error = RegExpObject::checkRegExpSyntax(body, flags);
+    if (UNLIKELY(error)) {
+        ErrorHandler::throwError(this->index, this->lineNumber, this->index - this->lineStart + 1, error.value(), ErrorCode::SyntaxError);
+    }
 
     ScanRegExpResult result;
     result.body = body;
