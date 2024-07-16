@@ -31,7 +31,6 @@
     <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-ko-KR"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
     <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-zh-TW"><reason>ICU 67 returns wrong result with -0.0001</reason></test>
 
-    <test id="annexB/built-ins/RegExp/prototype/compile/this-subclass-instance"><reason>TODO</reason></test>
     <test id="annexB/language/comments/multi-line-html-close"><reason>TODO</reason></test>
     <test id="annexB/language/eval-code/direct/script-decl-lex-collision-in-sloppy-mode"><reason>TODO</reason></test>
     <test id="annexB/language/function-code/block-decl-func-skip-arguments"><reason>TODO</reason></test>
