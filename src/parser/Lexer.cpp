@@ -1003,7 +1003,7 @@ void Scanner::scanPunctuator(Scanner::ScannerResult* token, char16_t ch)
 
     case '.':
         kind = Period;
-        if (this->peekChar() == '.' && this->sourceCharAt(this->index + 1) == '.') {
+        if (this->peekChar() == '.' && this->peekChar(this->index + 1) == '.') {
             // Spread operator "..."
             this->index += 2;
             kind = PeriodPeriodPeriod;
@@ -2354,8 +2354,16 @@ void Scanner::lex(Scanner::ScannerResult* token)
     }
 
     if (isIdentifierStart(cp)) {
-        goto ScanID;
+        this->scanIdentifier(token, cp);
+        return;
     }
+
+    // common cases : `(` and `)` and `;`
+    if (cp == 0x28 || cp == 0x29 || cp == 0x3B) {
+        this->scanPunctuator(token, cp);
+        return;
+    }
+
     // String literal starts with single quote (U+0027) or double quote (U+0022).
     if (cp == 0x27 || cp == 0x22) {
         this->scanStringLiteral(token);
@@ -2364,8 +2372,12 @@ void Scanner::lex(Scanner::ScannerResult* token)
 
     // Dot (.) U+002E can also start a floating-point number, hence the need
     // to check the next character.
-    if (UNLIKELY(cp == 0x2E) && isDecimalDigit(this->sourceCharAt(this->index + 1))) {
-        this->scanNumericLiteral(token);
+    if (cp == 0x2E) {
+        if (UNLIKELY(isDecimalDigit(this->peekChar(this->index + 1)))) {
+            this->scanNumericLiteral(token);
+            return;
+        }
+        this->scanPunctuator(token, cp);
         return;
     }
 
@@ -2374,21 +2386,19 @@ void Scanner::lex(Scanner::ScannerResult* token)
         return;
     }
 
-    if (UNLIKELY(cp == '`')) {
+    if (UNLIKELY(cp == 0x60)) {
         ++this->index;
         this->scanTemplate(token, true);
         return;
     }
+
     // Possible identifier start in a surrogate pair.
-    if (UNLIKELY(cp >= 0xD800 && cp < 0xDFFF) && isIdentifierStart(this->codePointAt(this->index))) {
-        goto ScanID;
+    if (UNLIKELY(cp >= 0xD800 && cp < 0xDFFF && isIdentifierStart(this->codePointAt(this->index)))) {
+        this->scanIdentifier(token, cp);
+        return;
     }
 
     this->scanPunctuator(token, cp);
-    return;
-
-ScanID:
-    this->scanIdentifier(token, cp);
     return;
 }
 } // namespace Escargot

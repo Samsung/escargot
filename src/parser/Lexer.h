@@ -583,6 +583,7 @@ public:
 
     ALWAYS_INLINE char16_t sourceCharAt(const size_t idx) const
     {
+        ASSERT(idx < this->length);
         return sourceCodeAccessData.charAt(idx);
     }
 
@@ -597,20 +598,20 @@ public:
     {
         bool start = (this->index == 0);
         while (LIKELY(!this->eof())) {
-            char16_t ch = this->sourceCharAt(this->index);
+            char16_t ch = this->peekCharWithoutEOF();
 
             if (isWhiteSpace(ch)) {
                 ++this->index;
             } else if (isLineTerminator(ch)) {
                 ++this->index;
-                if (ch == 0x0D && this->sourceCharAt(this->index) == 0x0A) {
+                if (ch == 0x0D && this->peekChar(this->index) == 0x0A) {
                     ++this->index;
                 }
                 ++this->lineNumber;
                 this->lineStart = this->index;
                 start = true;
             } else if (ch == 0x2F) { // U+002F is '/'
-                ch = this->sourceCharAt(this->index + 1);
+                ch = this->peekChar(this->index + 1);
                 if (ch == 0x2F) {
                     this->index += 2;
                     this->skipSingleLineComment();
@@ -621,29 +622,24 @@ public:
                 } else {
                     break;
                 }
-            } else if (start && ch == 0x2D) { // U+002D is '-'
+            } else if (start && ch == 0x2D && !this->isModule) { // U+002D is '-'
                 // U+003E is '>'
-                if (!this->isModule && (this->sourceCharAt(this->index + 1) == 0x2D) && (this->sourceCharAt(this->index + 2) == 0x3E)) {
+                if ((this->peekChar(this->index + 1) == 0x2D) && (this->peekChar(this->index + 2) == 0x3E)) {
                     // '-->' is a single-line comment
                     this->index += 3;
                     this->skipSingleLineComment();
                 } else {
                     break;
                 }
-            } else if (ch == 0x3C) { // U+003C is '<'
-                if (!this->isModule && this->length > this->index + 4) {
-                    if (this->sourceCharAt(this->index + 1) == '!'
-                        && this->sourceCharAt(this->index + 2) == '-'
-                        && this->sourceCharAt(this->index + 3) == '-') {
-                        this->index += 4; // `<!--`
-                        this->skipSingleLineComment();
-                    } else {
-                        break;
-                    }
+            } else if (ch == 0x3C && !this->isModule) { // U+003C is '<'
+                if (this->peekChar(this->index + 1) == '!'
+                    && this->peekChar(this->index + 2) == '-'
+                    && this->peekChar(this->index + 3) == '-') {
+                    this->index += 4; // `<!--`
+                    this->skipSingleLineComment();
                 } else {
                     break;
                 }
-
             } else {
                 break;
             }
@@ -690,12 +686,19 @@ public:
 private:
     ALWAYS_INLINE char16_t peekCharWithoutEOF()
     {
+        ASSERT(!this->eof());
         return this->sourceCharAt(this->index);
     }
 
     ALWAYS_INLINE char16_t peekChar()
     {
         return UNLIKELY(this->eof()) ? 0 : this->sourceCharAt(this->index);
+    }
+
+    ALWAYS_INLINE char16_t peekChar(size_t idx)
+    {
+        // check EOF
+        return UNLIKELY(idx >= this->length) ? 0 : this->sourceCharAt(idx);
     }
 
     char32_t scanHexEscape(char prefix);
