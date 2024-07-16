@@ -94,6 +94,24 @@ public:
     constexpr iterator begin() const { return m_storage; }
     constexpr iterator end() const { return 0; }
 
+    void add(OptionSet optionSet)
+    {
+        m_storage |= optionSet.m_storage;
+    }
+
+    void remove(OptionSet optionSet)
+    {
+        m_storage &= ~optionSet.m_storage;
+    }
+
+    void set(OptionSet optionSet, bool value)
+    {
+        if (value)
+            add(optionSet);
+        else
+            remove(optionSet);
+    }
+
     constexpr bool contains(OptionSet optionSet) const
     {
         return m_storage & optionSet.m_storage;

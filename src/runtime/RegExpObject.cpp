@@ -28,6 +28,7 @@
 #include "Yarr.h"
 #include "YarrPattern.h"
 #include "YarrInterpreter.h"
+#include "YarrSyntaxChecker.h"
 
 namespace Escargot {
 
@@ -576,6 +577,16 @@ Value RegExpObject::regexpFlagsValue(ExecutionState& state, Object* obj)
     } else {
         return obj->get(state, state.context()->staticStrings().flags).value(state, obj);
     }
+}
+
+Optional<String*> RegExpObject::checkRegExpSyntax(String* pattern, String* flags)
+{
+    JSC::Yarr::ErrorCode errorCode = JSC::Yarr::checkSyntax(pattern, flags);
+    if (errorCode != JSC::Yarr::ErrorCode::NoError) {
+        auto str = JSC::Yarr::errorMessage(errorCode);
+        return String::fromASCII(str, strlen(str));
+    }
+    return nullptr;
 }
 
 String* RegExpObject::computeRegExpOptionString(ExecutionState& state, Object* obj)

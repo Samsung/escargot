@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2019 Sony Interactive Entertainment Inc.
- * Copyright (C) 2021 Apple Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,32 +23,39 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma once
+#include "WTFBridge.h"
+#include "YarrFlags.h"
 
 namespace JSC { namespace Yarr {
 
-// Flags must be ordered in alphabet ordering.
-#define JSC_REGEXP_FLAGS(macro) \
-    macro('d', HasIndices, hasIndices, 0) \
-    macro('g', Global, global, 1) \
-    macro('i', IgnoreCase, ignoreCase, 2) \
-    macro('m', Multiline, multiline, 3) \
-    macro('s', DotAll, dotAll, 4) \
-    macro('u', Unicode, unicode, 5) \
-    macro('v', UnicodeSets, unicodeSets, 6) \
-    macro('y', Sticky, sticky, 7) \
+Optional<OptionSet<Flags>> parseFlags(StringView string)
+{
+    OptionSet<Flags> flags;
 
-#define JSC_COUNT_REGEXP_FLAG(key, name, lowerCaseName, index) + 1
-static constexpr unsigned numberOfFlags = 0 JSC_REGEXP_FLAGS(JSC_COUNT_REGEXP_FLAG);
-#undef JSC_COUNT_REGEXP_FLAG
+    for (size_t i = 0; i < string.length(); i ++) {
+        char16_t character = string[i];
+        switch (character) {
+#define JSC_HANDLE_REGEXP_FLAG(key, name, lowerCaseName, _) \
+        case key: \
+            if (flags.contains(Flags::name)) \
+                return nullptr; \
+            flags.add(Flags::name); \
+            break;
 
-enum class Flags : uint16_t {
-#define JSC_DEFINE_REGEXP_FLAG(key, name, lowerCaseName, index) name = 1 << index,
-    JSC_REGEXP_FLAGS(JSC_DEFINE_REGEXP_FLAG)
-#undef JSC_DEFINE_REGEXP_FLAG
-    DeletedValue = 1 << numberOfFlags,
-};
+        JSC_REGEXP_FLAGS(JSC_HANDLE_REGEXP_FLAG)
 
-JS_EXPORT_PRIVATE Optional<OptionSet<Flags>> parseFlags(StringView);
+#undef JSC_HANDLE_REGEXP_FLAG
+
+        default:
+            return nullptr;
+        }
+    }
+
+    // Can only specify one of 'u' and 'v' flags.
+    if (flags.contains(Flags::Unicode) && flags.contains(Flags::UnicodeSets))
+        return nullptr;
+
+    return flags;
+}
 
 } } // namespace JSC::Yarr

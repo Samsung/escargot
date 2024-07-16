@@ -173,6 +173,8 @@ public:
     static String* computeRegExpOptionString(ExecutionState& state, Object* obj);
     static String* regexpSourceValue(ExecutionState& state, Object* obj);
     static Value regexpFlagsValue(ExecutionState& state, Object* obj);
+    // returns error string if there is error
+    static Optional<String*> checkRegExpSyntax(String* pattern, String* flags);
 
 protected:
     explicit RegExpObject(ExecutionState& state, Object* proto, bool hasLastIndex = true);
