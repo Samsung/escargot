@@ -689,8 +689,6 @@
     <test id="built-ins/ShadowRealm/prototype/importValue/throws-typeerror-import-throws"><reason>TODO</reason></test>
     <test id="built-ins/ShadowRealm/prototype/importValue/validates-realm-object"><reason>TODO</reason></test>
     <test id="built-ins/ShadowRealm/prototype/proto"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/match/duplicate-named-groups-properties"><reason>TODO</reason></test>
-    <test id="built-ins/String/prototype/match/duplicate-named-indices-groups-properties"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/argument-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/from/calendar-case-insensitive"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Calendar/from/calendar-number"><reason>TODO</reason></test>

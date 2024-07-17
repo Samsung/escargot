@@ -866,7 +866,7 @@ Scanner::ScanIDResult Scanner::getIdentifier()
             // Blackslash (U+005C) marks Unicode escape sequence.
             this->index = start;
             return this->getComplexIdentifier();
-        } else if (UNLIKELY(ch >= 0xD800 && ch < 0xDFFF)) {
+        } else if (UNLIKELY(ch >= 0xD800 && ch <= 0xDFFF)) {
             // Need to handle surrogate pairs.
             this->index = start;
             return this->getComplexIdentifier();
@@ -887,7 +887,7 @@ Scanner::ScanIDResult Scanner::getIdentifier()
 
 Scanner::ScanIDResult Scanner::getComplexIdentifier()
 {
-    char16_t cp = this->codePointAt(this->index);
+    char32_t cp = this->codePointAt(this->index);
     ParserCharPiece piece = ParserCharPiece(cp);
     UTF16StringDataNonGCStd id(piece.data, piece.length);
     this->index += id.length();
@@ -902,14 +902,17 @@ Scanner::ScanIDResult Scanner::getComplexIdentifier()
         if (this->peekChar() == '{') {
             ++this->index;
             ch = this->scanUnicodeCodePointEscape();
+            id.erase(id.length() - 1);
         } else {
             ch = this->scanHexEscape('u');
+            id.erase(id.length() - 1);
             cp = ch;
             if (ch == EMPTY_CODE_POINT || ch == '\\' || !isIdentifierStart(cp)) {
                 this->throwUnexpectedToken();
             }
         }
-        id = ch;
+        piece = ParserCharPiece(ch);
+        id += UTF16StringDataNonGCStd(piece.data, piece.length);
     }
 
     while (!this->eof()) {
@@ -2282,7 +2285,7 @@ static ALWAYS_INLINE KeywordKind getKeyword(const StringBufferAccessData& data)
     return NotKeyword;
 }
 
-ALWAYS_INLINE void Scanner::scanIdentifier(Scanner::ScannerResult* token, char16_t ch0)
+ALWAYS_INLINE void Scanner::scanIdentifier(Scanner::ScannerResult* token, char32_t ch0)
 {
     ASSERT(token != nullptr);
     Token type = Token::IdentifierToken;
@@ -2341,13 +2344,15 @@ void Scanner::lex(Scanner::ScannerResult* token)
         return;
     }
 
-    char16_t cp = this->peekCharWithoutEOF();
+    char32_t cp = this->peekCharWithoutEOF();
 
-    if (UNLIKELY(cp >= 0xD800 && cp < 0xDFFF)) {
+    if (UNLIKELY(cp >= 0xD800 && cp <= 0xDFFF)) {
         ++this->index;
         char32_t ch2 = this->peekChar();
         if (U16_IS_TRAIL(ch2)) {
-            cp = U16_GET_SUPPLEMENTARY(cp, ch2);
+            cp = (cp - 0xd800) << 10;
+            cp += (ch2 - 0xdc00) + 0x10000UL;
+            this->index--;
         } else {
             this->throwUnexpectedToken();
         }

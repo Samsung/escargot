@@ -726,7 +726,7 @@ private:
     void scanStringLiteral(Scanner::ScannerResult* token);
 
     // ECMA-262 11.6 Names and Keywords
-    ALWAYS_INLINE void scanIdentifier(Scanner::ScannerResult* token, char16_t ch0);
+    ALWAYS_INLINE void scanIdentifier(Scanner::ScannerResult* token, char32_t ch0);
 
     String* scanRegExpBody();
     String* scanRegExpFlags();
