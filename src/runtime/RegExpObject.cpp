@@ -503,8 +503,17 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
             for (auto it = m_yarrPattern->m_captureGroupNames.begin(); it != m_yarrPattern->m_captureGroupNames.end(); ++it) {
                 auto foundMapElement = m_yarrPattern->m_namedGroupToParenIndices.find(*it);
                 if (foundMapElement != m_yarrPattern->m_namedGroupToParenIndices.end()) {
+                    Value value;
+                    for (size_t i = 0; i < foundMapElement->second.size(); i++) {
+                        Value indexValue = indices->getOwnProperty(state,
+                                                                   ObjectPropertyName(state, foundMapElement->second[i]))
+                                               .value(state, indices);
+                        if (!indexValue.isUndefinedOrNull()) {
+                            value = indexValue;
+                        }
+                    }
                     groups->directDefineOwnProperty(state, ObjectPropertyName(state, it->impl()),
-                                                    ObjectPropertyDescriptor(indices->getOwnProperty(state, ObjectPropertyName(state, foundMapElement->second[0])).value(state, this), ObjectPropertyDescriptor::AllPresent));
+                                                    ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
                 }
             }
             indices->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
@@ -518,8 +527,30 @@ ArrayObject* RegExpObject::createRegExpMatchedArray(ExecutionState& state, const
         for (auto it = m_yarrPattern->m_captureGroupNames.begin(); it != m_yarrPattern->m_captureGroupNames.end(); ++it) {
             auto foundMapElement = m_yarrPattern->m_namedGroupToParenIndices.find(*it);
             if (foundMapElement != m_yarrPattern->m_namedGroupToParenIndices.end()) {
+                Value value;
+                for (size_t i = 0; i < foundMapElement->second.size(); i++) {
+                    Value indexValue;
+                    size_t index = foundMapElement->second[i];
+                    size_t indicesIndex = 0;
+                    for (unsigned i = 0; i < result.m_matchResults.size(); i++) {
+                        for (unsigned j = 0; j < result.m_matchResults[i].size(); j++) {
+                            if (indicesIndex == index) {
+                                if (result.m_matchResults[i][j].m_start != std::numeric_limits<unsigned>::max()) {
+                                    indexValue = new StringView(input, result.m_matchResults[i][j].m_start, result.m_matchResults[i][j].m_end);
+                                }
+                                break;
+                            }
+                            indicesIndex++;
+                        }
+                    }
+
+                    if (!indexValue.isUndefinedOrNull()) {
+                        value = indexValue;
+                    }
+                }
+
                 groups->directDefineOwnProperty(state, ObjectPropertyName(state, it->impl()),
-                                                ObjectPropertyDescriptor(arr->getOwnProperty(state, ObjectPropertyName(state, foundMapElement->second[0])).value(state, this), ObjectPropertyDescriptor::AllPresent));
+                                                ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
             }
         }
         arr->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().groups), ObjectPropertyDescriptor(Value(groups), ObjectPropertyDescriptor::AllPresent));
