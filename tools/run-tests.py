@@ -699,6 +699,7 @@ def run_new_es(engine, arch, extra_arg):
     files = glob(join(NEW_ES_DIR, '*.js'))
     files.remove(NEW_ES_ASSERT_JS)
     fail_total = 0
+    fail_files = []
     for file in files:
         proc = Popen([engine, NEW_ES_ASSERT_JS, file], stdout=PIPE)
         out, _ = proc.communicate()
@@ -709,11 +710,15 @@ def run_new_es(engine, arch, extra_arg):
             print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, file, COLOR_RESET))
             print(out.decode("utf-8"))
             fail_total += 1
+            fail_files.append(file)
+
 
     tests_total = len(files)
     print('TOTAL: %d' % (tests_total))
     print('%sPASS : %d%s' % (COLOR_GREEN, tests_total - fail_total, COLOR_RESET))
     print('%sFAIL : %d%s' % (COLOR_RED, fail_total, COLOR_RESET))
+    for fail in fail_files:
+        print('%sFAIL : %s%s' % (COLOR_RED, fail, COLOR_RESET))
 
     if fail_total > 0:
         raise Exception('new-es tests failed')
@@ -832,6 +837,7 @@ def run_wasm_js(engine, arch, extra_arg):
     WPT_ROOT = "/wasm/jsapi/"
     META_SCRIPT_REGEXP = re.compile(r"META:\s*script=(.*)")
     fail_total = 0
+    fail_files = []
     for file in files:
         source = ""
         with open(file) as f:
@@ -846,23 +852,25 @@ def run_wasm_js(engine, arch, extra_arg):
             script_files.append(script)
 
         script_files.append(file)
-        proc = Popen([engine, WASM_TEST_MJS, WASM_TEST_HARNESS] + script_files, stdout=PIPE)
-        out, _ = proc.communicate()
-        
-        if not proc.returncode:
-            print('%sOK: %s%s' % (COLOR_GREEN, file, COLOR_RESET))
-        else:
-            print('%sFAIL(%d): %s%s' % (COLOR_RED, proc.returncode, file, COLOR_RESET))
-            print(out.decode("utf-8"))
+
+        stdout = run([engine, WASM_TEST_MJS, WASM_TEST_HARNESS] + script_files, stdout=PIPE)
+        out = stdout.decode("utf-8")
+
+        if out.find("FAIL") >= 0:
             fail_total += 1
+            fail_files.append(file)
+        else:
+            print('%sOK: %s%s' % (COLOR_GREEN, file, COLOR_RESET))
 
     tests_total = len(files)
     print('TOTAL: %d' % (tests_total))
     print('%sPASS : %d%s' % (COLOR_GREEN, tests_total - fail_total, COLOR_RESET))
     print('%sFAIL : %d%s' % (COLOR_RED, fail_total, COLOR_RESET))
+    for fail in fail_files:
+        print('%sFAIL : %s%s' % (COLOR_RED, fail, COLOR_RESET))
 
     if fail_total > 0:
-        raise Exception('new-es tests failed')
+        raise Exception('wasm-js tests failed')
 
 @runner('cctest', default=False)
 def run_cctest(engine, arch, extra_arg):
