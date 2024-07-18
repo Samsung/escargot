@@ -106,10 +106,10 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
     if (regexp->matchNonGlobally(state, str, result, false, lastIndex)) {
         int e = result.m_matchResults[0][0].m_end;
         if (option & RegExpObject::Option::Unicode) {
-            char16_t utfRes = str->charAt(e);
+            char16_t utfRes = (static_cast<size_t>(e) == str->length()) ? 0 : str->charAt(e);
             const char* buf = reinterpret_cast<const char*>(&utfRes);
             size_t len = strnlen(buf, 2);
-            size_t eUTF = str->find(buf, len, 0);
+            size_t eUTF = len == 0 ? str->length() : (str->find(buf, len, 0));
             if (eUTF >= str->length()) {
                 e = str->length();
             } else if ((int)eUTF > e || e == (int)str->length()) {
