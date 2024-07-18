@@ -27,6 +27,7 @@
 #include "runtime/BackingStore.h"
 #include "wasm/WASMObject.h"
 #include "wasm/WASMValueConverter.h"
+#include "wasm/ExportedFunctionObject.h"
 
 // represent ownership of each object
 // object marked with 'own' should be deleted in the current context
@@ -158,19 +159,16 @@ void* WASMMemoryObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wasm_memory_t* memory)
+WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wasm_memory_t* memaddr)
 {
-    ASSERT(!!memory);
+    ASSERT(!!memaddr);
 
-    wasm_ref_t* memref = wasm_memory_as_ref(memory);
+    wasm_ref_t* memref = wasm_memory_as_ref(memaddr);
 
     // Let map be the surrounding agent's associated Memory object cache.
-    WASMMemoryMap& map = state.context()->wasmCache()->memoryMap;
-    for (auto iter = map.begin(); iter != map.end(); iter++) {
-        wasm_ref_t* ref = iter->first;
-        if (wasm_ref_same(memref, ref)) {
-            return iter->second;
-        }
+    WASMMemoryObject* memory = state.context()->wasmCache()->findMemory(memref);
+    if (memory) {
+        return memory;
     }
 
     // Let memory be a new Memory.
@@ -179,22 +177,22 @@ WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wa
 
     // Note) wasm_memory_data with zero size returns null pointer
     // predefined temporal address is allocated for this case
-    void* dataBlock = wasm_memory_size(memory) == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memory);
+    void* dataBlock = wasm_memory_size(memaddr) == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memaddr);
 
     // Init BackingStore with empty deleter
-    BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, wasm_memory_data_size(memory),
+    BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, wasm_memory_data_size(memaddr),
                                                                            [](void* data, size_t length, void* deleterData) {}, nullptr);
     buffer->attachBuffer(backingStore);
 
     // Set memory.[[Memory]] to memory.
     // Set memory.[[BufferObject]] to buffer.
-    WASMMemoryObject* memoryObj = new WASMMemoryObject(state, memory, buffer);
+    memory = new WASMMemoryObject(state, memaddr, buffer);
 
     // Set map[memory] to memory.
-    map.pushBack(std::make_pair(memref, memoryObj));
+    state.context()->wasmCache()->appendMemory(memref, memory);
 
     //  Return memory.
-    return memoryObj;
+    return memory;
 }
 
 ArrayBufferObject* WASMMemoryObject::buffer() const
@@ -248,20 +246,17 @@ WASMTableObject* WASMTableObject::createTableObject(ExecutionState& state, wasm_
 
     // Let map be the surrounding agent's associated Table object cache.
     // If map[tableaddr] exists,
-    WASMTableMap& map = state.context()->wasmCache()->tableMap;
-    for (auto iter = map.begin(); iter != map.end(); iter++) {
-        wasm_ref_t* ref = iter->first;
-        if (wasm_ref_same(tableref, ref)) {
-            return iter->second;
-        }
+    WASMTableObject* table = state.context()->wasmCache()->findTable(tableref);
+    if (table) {
+        return table;
     }
 
     // Let table be a new Table.
-    WASMTableObject* table = new WASMTableObject(state, tableaddr);
+    table = new WASMTableObject(state, tableaddr);
 
     // Initialize table from tableaddr.
     // Set map[tableaddr] to table.
-    map.pushBack(std::make_pair(tableref, table));
+    state.context()->wasmCache()->appendTable(tableref, table);
 
     // Return table.
     return table;
@@ -306,21 +301,17 @@ WASMGlobalObject* WASMGlobalObject::createGlobalObject(ExecutionState& state, wa
 
     // Let map be the current agent's associated Global object cache.
     // If map[globaladdr] exists,
-    WASMGlobalMap& map = state.context()->wasmCache()->globalMap;
-    for (auto iter = map.begin(); iter != map.end(); iter++) {
-        wasm_ref_t* ref = iter->first;
-        if (wasm_ref_same(globalref, ref)) {
-            // Return map[globaladdr].
-            return iter->second;
-        }
+    WASMGlobalObject* global = state.context()->wasmCache()->findGlobal(globalref);
+    if (global) {
+        return global;
     }
 
     // Let global be a new Global.
-    WASMGlobalObject* global = new WASMGlobalObject(state, globaladdr);
+    global = new WASMGlobalObject(state, globaladdr);
 
     // Initialize global from globaladdr.
     // Set map[globaladdr] to global.
-    map.pushBack(std::make_pair(globalref, global));
+    state.context()->wasmCache()->appendGlobal(globalref, global);
 
     // Return global.
     return global;
@@ -338,6 +329,170 @@ Value WASMGlobalObject::getGlobalValue(ExecutionState& state) const
 
     // Return ToJSValue(value).
     return WASMValueConverter::wasmToJSValue(state, value);
+}
+
+void WASMCacheMap::appendMemory(wasm_ref_t* ref, WASMMemoryObject* memoryObj)
+{
+    ASSERT(!!ref);
+    ASSERT(!findMemory(ref));
+    m_memoryMap.pushBack(std::make_pair(ref, memoryObj));
+}
+
+void WASMCacheMap::appendTable(wasm_ref_t* ref, WASMTableObject* tableObj)
+{
+    ASSERT(!!ref);
+    ASSERT(!findTable(ref));
+    m_tableMap.pushBack(std::make_pair(ref, tableObj));
+}
+
+void WASMCacheMap::appendGlobal(wasm_ref_t* ref, WASMGlobalObject* globalObj)
+{
+    ASSERT(!!ref);
+    ASSERT(!findGlobal(ref));
+    m_globalMap.pushBack(std::make_pair(ref, globalObj));
+}
+
+void WASMCacheMap::appendFunction(wasm_ref_t* ref, ExportedFunctionObject* funcObj)
+{
+    ASSERT(!!ref);
+    ASSERT(!findFunction(ref));
+    m_functionMap.pushBack(std::make_pair(ref, funcObj));
+}
+
+wasm_ref_t* WASMCacheMap::insertRefByValue(const Value& value)
+{
+    ASSERT(value.isObject());
+    Object* val = value.asObject();
+    wasm_ref_t* result = nullptr;
+
+    if (val->isWASMMemoryObject()) {
+        result = wasm_memory_as_ref(val->asWASMMemoryObject()->memory());
+        appendMemory(result, val->asWASMMemoryObject());
+    } else if (val->isWASMTableObject()) {
+        result = wasm_table_as_ref(val->asWASMTableObject()->table());
+        appendTable(result, val->asWASMTableObject());
+    } else if (val->isWASMGlobalObject()) {
+        result = wasm_global_as_ref(val->asWASMGlobalObject()->global());
+        appendGlobal(result, val->asWASMGlobalObject());
+    } else if (val->isExportedFunctionObject()) {
+        result = wasm_func_as_ref(val->asExportedFunctionObject()->function());
+        appendFunction(result, val->asExportedFunctionObject());
+    } else {
+        ASSERT_NOT_REACHED();
+    }
+
+    return result;
+}
+
+WASMMemoryObject* WASMCacheMap::findMemory(wasm_ref_t* ref)
+{
+    for (auto iter = m_memoryMap.begin(); iter != m_memoryMap.end(); iter++) {
+        if (wasm_ref_same(iter->first, ref)) {
+            return iter->second;
+        }
+    }
+    return nullptr;
+}
+
+WASMTableObject* WASMCacheMap::findTable(wasm_ref_t* ref)
+{
+    for (auto iter = m_tableMap.begin(); iter != m_tableMap.end(); iter++) {
+        if (wasm_ref_same(iter->first, ref)) {
+            return iter->second;
+        }
+    }
+    return nullptr;
+}
+
+WASMGlobalObject* WASMCacheMap::findGlobal(wasm_ref_t* ref)
+{
+    for (auto iter = m_globalMap.begin(); iter != m_globalMap.end(); iter++) {
+        if (wasm_ref_same(iter->first, ref)) {
+            return iter->second;
+        }
+    }
+    return nullptr;
+}
+
+ExportedFunctionObject* WASMCacheMap::findFunction(wasm_ref_t* ref)
+{
+    for (auto iter = m_functionMap.begin(); iter != m_functionMap.end(); iter++) {
+        if (wasm_ref_same(iter->first, ref)) {
+            return iter->second;
+        }
+    }
+    return nullptr;
+}
+
+wasm_ref_t* WASMCacheMap::findRefByValue(const Value& value)
+{
+    ASSERT(value.isObject());
+    Object* val = value.asObject();
+    wasm_ref_t* ref = nullptr;
+
+    if (val->isWASMMemoryObject()) {
+        ref = wasm_memory_as_ref(val->asWASMMemoryObject()->memory());
+        for (auto iter = m_memoryMap.begin(); iter != m_memoryMap.end(); iter++) {
+            if (wasm_ref_same(iter->first, ref)) {
+                return ref;
+            }
+        }
+        return nullptr;
+    } else if (val->isWASMTableObject()) {
+        ref = wasm_table_as_ref(val->asWASMTableObject()->table());
+        for (auto iter = m_tableMap.begin(); iter != m_tableMap.end(); iter++) {
+            if (wasm_ref_same(iter->first, ref)) {
+                return ref;
+            }
+        }
+        return nullptr;
+    } else if (val->isWASMGlobalObject()) {
+        ref = wasm_global_as_ref(val->asWASMGlobalObject()->global());
+        for (auto iter = m_globalMap.begin(); iter != m_globalMap.end(); iter++) {
+            if (wasm_ref_same(iter->first, ref)) {
+                return ref;
+            }
+        }
+        return nullptr;
+    } else if (val->isExportedFunctionObject()) {
+        ref = wasm_func_as_ref(val->asExportedFunctionObject()->function());
+        for (auto iter = m_functionMap.begin(); iter != m_functionMap.end(); iter++) {
+            if (wasm_ref_same(iter->first, ref)) {
+                return ref;
+            }
+        }
+        return nullptr;
+    } else {
+        ASSERT_NOT_REACHED();
+        return nullptr;
+    }
+}
+
+Value WASMCacheMap::findValueByRef(wasm_ref_t* ref)
+{
+    ASSERT(!!ref);
+
+    Object* result = nullptr;
+
+    if ((result = findFunction(ref))) {
+        return result;
+    }
+
+    if ((result = findGlobal(ref))) {
+        return result;
+    }
+
+    if ((result = findMemory(ref))) {
+        return result;
+    }
+
+    if ((result = findTable(ref))) {
+        return result;
+    }
+
+    // Assert: map[externaddr] exists.
+    ASSERT_NOT_REACHED();
+    return result;
 }
 } // namespace Escargot
 

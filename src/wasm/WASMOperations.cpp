@@ -27,7 +27,6 @@
 #include "runtime/ArrayBufferObject.h"
 #include "runtime/PromiseObject.h"
 #include "runtime/TypedArrayObject.h"
-#include "runtime/NativeFunctionObject.h"
 #include "runtime/ExtendedNativeFunctionObject.h"
 #include "wasm/WASMObject.h"
 #include "wasm/ExportedFunctionObject.h"

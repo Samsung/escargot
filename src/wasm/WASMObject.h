@@ -186,11 +186,30 @@ typedef Vector<std::pair<wasm_ref_t*, WASMGlobalObject*>, GCUtil::gc_malloc_allo
 class ExportedFunctionObject;
 typedef Vector<std::pair<wasm_ref_t*, ExportedFunctionObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, ExportedFunctionObject*>>> WASMFunctionMap;
 
-struct WASMCacheMap : public gc {
-    WASMMemoryMap memoryMap;
-    WASMTableMap tableMap;
-    WASMGlobalMap globalMap;
-    WASMFunctionMap functionMap;
+class WASMCacheMap : public gc {
+public:
+    WASMCacheMap() {}
+
+    void appendMemory(wasm_ref_t* ref, WASMMemoryObject* memoryObj);
+    void appendTable(wasm_ref_t* ref, WASMTableObject* tableObj);
+    void appendGlobal(wasm_ref_t* ref, WASMGlobalObject* globalObj);
+    void appendFunction(wasm_ref_t* ref, ExportedFunctionObject* funcObj);
+
+    wasm_ref_t* insertRefByValue(const Value& value);
+
+    WASMMemoryObject* findMemory(wasm_ref_t* ref);
+    WASMTableObject* findTable(wasm_ref_t* ref);
+    WASMGlobalObject* findGlobal(wasm_ref_t* ref);
+    ExportedFunctionObject* findFunction(wasm_ref_t* ref);
+
+    wasm_ref_t* findRefByValue(const Value& value);
+    Value findValueByRef(wasm_ref_t* ref);
+
+private:
+    WASMMemoryMap m_memoryMap;
+    WASMTableMap m_tableMap;
+    WASMGlobalMap m_globalMap;
+    WASMFunctionMap m_functionMap;
 };
 } // namespace Escargot
 #endif // __EscargotWASMObject__

@@ -22,6 +22,8 @@
 #ifndef __EscargotExportedFunctionObject__
 #define __EscargotExportedFunctionObject__
 
+#include "runtime/NativeFunctionObject.h"
+
 struct wasm_func_t;
 
 namespace Escargot {
