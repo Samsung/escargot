@@ -39,7 +39,7 @@ class ASTAllocator;
 class Debugger;
 
 #if defined(ENABLE_WASM)
-struct WASMCacheMap;
+class WASMCacheMap;
 struct WASMHostFunctionEnvironment;
 typedef Vector<WASMHostFunctionEnvironment*, GCUtil::gc_malloc_allocator<WASMHostFunctionEnvironment*>> WASMHostFunctionEnvironmentVector;
 #endif

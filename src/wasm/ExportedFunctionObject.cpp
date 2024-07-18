@@ -140,12 +140,9 @@ ExportedFunctionObject* ExportedFunctionObject::createExportedFunction(Execution
 
     // Let map be the surrounding agent's associated Exported Function cache.
     // If map[funcaddr] exists, Return map[funcaddr].
-    WASMFunctionMap& map = state.context()->wasmCache()->functionMap;
-    for (auto iter = map.begin(); iter != map.end(); iter++) {
-        wasm_ref_t* ref = iter->first;
-        if (wasm_ref_same(funcref, ref)) {
-            return iter->second;
-        }
+    ExportedFunctionObject* function = state.context()->wasmCache()->findFunction(funcref);
+    if (function) {
+        return function;
     }
 
     // Let steps be "call the Exported Function funcaddr with arguments."
@@ -167,10 +164,10 @@ ExportedFunctionObject* ExportedFunctionObject::createExportedFunction(Execution
     // Let realm be the current Realm.
     // Let function be CreateBuiltinFunction(realm, steps, %FunctionPrototype%, ? [[FunctionAddress]] ?).
     // Set function.[[FunctionAddress]] to funcaddr.
-    ExportedFunctionObject* function = new ExportedFunctionObject(state, NativeFunctionInfo(name, callExportedFunction, arity, NativeFunctionInfo::Strict), funcaddr);
+    function = new ExportedFunctionObject(state, NativeFunctionInfo(name, callExportedFunction, arity, NativeFunctionInfo::Strict), funcaddr);
 
     // Set map[funcaddr] to function.
-    map.pushBack(std::make_pair(funcref, function));
+    state.context()->wasmCache()->appendFunction(funcref, function);
 
     // Return function.
     return function;

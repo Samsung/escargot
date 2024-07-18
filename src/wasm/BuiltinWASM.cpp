@@ -25,7 +25,6 @@
 #include "runtime/Context.h"
 #include "runtime/ThreadLocal.h"
 #include "runtime/VMInstance.h"
-#include "runtime/NativeFunctionObject.h"
 #include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
@@ -143,7 +142,7 @@ static Value builtinWASMCompile(ExecutionState& state, Value thisValue, size_t a
 static Value builtinWASMInstantiate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value firstArg = argv[0];
-    Value importObj = argv[1];
+    Value importObj = argc > 1 ? argv[1] : Value();
 
     if (firstArg.isObject() && (firstArg.asObject()->isArrayBufferObject() || firstArg.asObject()->isTypedArrayObject())) {
         // Let stableBytes be a copy of the bytes held by the buffer bytes.
@@ -431,17 +430,6 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     wasm_ref_t* memref = wasm_memory_as_ref(memaddr);
 
     // Let map be the surrounding agent's associated Memory object cache.
-    // Assert: map[memaddr] doesn’t exist.
-    WASMMemoryMap& map = state.context()->wasmCache()->memoryMap;
-
-#ifndef NDEBUG
-    for (auto iter = map.begin(); iter != map.end(); iter++) {
-        wasm_ref_t* ref = iter->first;
-        if (wasm_ref_same(memref, ref)) {
-            ASSERT_NOT_REACHED();
-        }
-    }
-#endif
 
     // Create a memory buffer from memaddr
     ArrayBufferObject* buffer = new ArrayBufferObject(state);
@@ -462,7 +450,7 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     WASMMemoryObject* memoryObj = new WASMMemoryObject(state, proto, memaddr, buffer);
 
     // Set map[memaddr] to memory.
-    map.pushBack(std::make_pair(memref, memoryObj));
+    state.context()->wasmCache()->appendMemory(memref, memoryObj);
 
     return memoryObj;
 }
@@ -499,21 +487,7 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
 
     // Let map be the surrounding agent's associated Memory object cache.
     // Assert: map[memaddr] exists.
-#ifndef NDEBUG
-    {
-        WASMMemoryMap& map = state.context()->wasmCache()->memoryMap;
-        wasm_ref_t* memref = wasm_memory_as_ref(memaddr);
-        bool cached = false;
-        for (auto iter = map.begin(); iter != map.end(); iter++) {
-            wasm_ref_t* ref = iter->first;
-            if (wasm_ref_same(memref, ref)) {
-                cached = true;
-                break;
-            }
-        }
-        ASSERT(cached);
-    }
-#endif
+    ASSERT(state.context()->wasmCache()->findMemory(wasm_memory_as_ref(memaddr)));
 
     // Perform ! DetachArrayBuffer(memory.[[BufferObject]], "WebAssembly.Memory").
     memoryObj->buffer()->detachArrayBuffer();
@@ -624,16 +598,6 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
     wasm_ref_t* tableref = wasm_table_as_ref(tableaddr);
 
     // Let map be the surrounding agent's associated Table object cache.
-    // Assert: map[tableaddr] doesn’t exist.
-    WASMTableMap& map = state.context()->wasmCache()->tableMap;
-#ifndef NDEBUG
-    for (auto iter = map.begin(); iter != map.end(); iter++) {
-        wasm_ref_t* ref = iter->first;
-        if (wasm_ref_same(tableref, ref)) {
-            ASSERT_NOT_REACHED();
-        }
-    }
-#endif
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyTablePrototype%").
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
@@ -644,7 +608,7 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
     WASMTableObject* tableObj = new WASMTableObject(state, proto, tableaddr);
 
     // Set map[tableaddr] to table.
-    map.pushBack(std::make_pair(tableref, tableObj));
+    state.context()->wasmCache()->appendTable(tableref, tableObj);
 
     return tableObj;
 }
@@ -697,35 +661,33 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
     // Let tableaddr be this.[[Table]].
     wasm_table_t* tableaddr = thisValue.asObject()->asWASMTableObject()->table();
 
-    // If result is error, throw a RangeError exception.
-    // FIXME check the error by comparing the size in advance
-    if (index >= wasm_table_size(tableaddr)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_RangeError);
-    }
-
     // Let result be table_read(store, tableaddr, index).
     own wasm_ref_t* result = wasm_table_get(tableaddr, index);
 
-    // FIXME wasm_table_get returns nullptr for the empty function and error case both
+    // If result is error, throw a RangeError exception.
+    // FIXME
     if (!result) {
-        return Value(Value::Null);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
-    // FIXME result mush be cached in FunctionMap (this might be wrong)
-    // Let function be the result of creating a new Exported Function from result.
-    // ExportedFunctionObject* function = ExportedFunctionObject::createExportedFunction(state, wasm_ref_as_func(result));
-    WASMFunctionMap& map = state.context()->wasmCache()->functionMap;
-    for (auto iter = map.begin(); iter != map.end(); iter++) {
-        wasm_ref_t* ref = iter->first;
-        if (wasm_ref_same(result, ref)) {
-            wasm_ref_delete(result);
-            return iter->second;
-        }
-    }
+    own wasm_tabletype_t* tabletype = wasm_table_type(tableaddr);
+    wasm_valkind_t elementType = wasm_valtype_kind(wasm_tabletype_element(tabletype));
+    wasm_tabletype_delete(tabletype);
 
-    ASSERT_NOT_REACHED();
+    // Return ToJSValue(result).
+    wasm_val_t resultVal;
+    if (elementType == WASM_ANYREF) {
+        resultVal.kind = WASM_ANYREF;
+        resultVal.of.ref = result;
+    } else {
+        ASSERT(elementType == WASM_FUNCREF);
+        resultVal.kind = WASM_FUNCREF;
+        resultVal.of.ref = result;
+    }
+    Value resultValue = WASMValueConverter::wasmToJSValue(state, resultVal);
     wasm_ref_delete(result);
-    return Value();
+
+    return resultValue;
 }
 
 static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -742,11 +704,41 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
     }
 
     wasm_table_size_t index = indexValue.asUInt32();
-    Value value = argv[1];
 
     // Let tableaddr be this.[[Table]].
     wasm_table_t* tableaddr = thisValue.asObject()->asWASMTableObject()->table();
 
+    // Let (limits, elementType) be table_type(tableaddr).
+    own wasm_tabletype_t* tabletype = wasm_table_type(tableaddr);
+    wasm_valkind_t elementType = wasm_valtype_kind(wasm_tabletype_element(tabletype));
+    wasm_tabletype_delete(tabletype);
+
+    ASSERT(elementType == WASM_ANYREF || elementType == WASM_FUNCREF);
+
+    wasm_ref_t* ref = nullptr;
+    // If value is missing,
+    // Let ref be DefaultValue(elementType).
+    // FIXME invoke wasmDefaultValue ?
+    if (argc > 1) {
+        // Let ref be ? ToWebAssemblyValue(value, elementType).
+        wasm_val_t value = WASMValueConverter::wasmToWebAssemblyValue(state, argv[1], elementType);
+        ASSERT(value.kind == WASM_ANYREF || value.kind == WASM_FUNCREF);
+        ref = value.of.ref;
+    }
+
+    // Let store be table_write(store, tableaddr, index, ref).
+    bool result = wasm_table_set(tableaddr, index, ref);
+    // If store is error, throw a RangeError exception.
+    if (!result) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_RangeError);
+    }
+
+    // Return undefined.
+    return Value();
+
+    /*
+
+    // Value value = argv[1];
     // FIXME If value is null, let funcaddr be an empty function element.
     wasm_ref_t* funcaddr = nullptr;
     if (!value.isNull()) {
@@ -767,6 +759,7 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
 
     // Return undefined.
     return Value();
+    */
 }
 
 static Value builtinWASMTableLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -844,16 +837,6 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     wasm_ref_t* globalref = wasm_global_as_ref(globaladdr);
 
     // Let map be the surrounding agent's associated Global object cache.
-    // Assert: map[globaladdr] doesn't exist.
-    WASMGlobalMap& map = state.context()->wasmCache()->globalMap;
-#ifndef NDEBUG
-    for (auto iter = map.begin(); iter != map.end(); iter++) {
-        wasm_ref_t* ref = iter->first;
-        if (wasm_ref_same(globalref, ref)) {
-            ASSERT_NOT_REACHED();
-        }
-    }
-#endif
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyGlobalPrototype%").
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
@@ -864,7 +847,7 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
     WASMGlobalObject* globalObj = new WASMGlobalObject(state, proto, globaladdr);
 
     // Set map[globaladdr] to global.
-    map.pushBack(std::make_pair(globalref, globalObj));
+    state.context()->wasmCache()->appendGlobal(globalref, globalObj);
 
     return globalObj;
 }
@@ -977,7 +960,7 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
 
     // WebAssembly.instantiate()
     wasm->defineOwnProperty(state, ObjectPropertyName(strings->instantiate),
-                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->instantiate, builtinWASMInstantiate, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->instantiate, builtinWASMInstantiate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
 
     // WebAssembly.Module
@@ -1076,7 +1059,7 @@ void GlobalObject::installWebAssembly(ExecutionState& state)
                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->get, builtinWASMTableGet, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
     m_wasmTablePrototype->defineOwnProperty(state, ObjectPropertyName(strings->set),
-                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->set, builtinWASMTableSet, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->set, builtinWASMTableSet, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
 
     {
         JSGetterSetter gs(
