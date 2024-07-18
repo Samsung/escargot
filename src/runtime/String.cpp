@@ -1030,37 +1030,63 @@ String* String::substring(size_t from, size_t to)
     return builder.finalize();
 }
 
-// https://www.ecma-international.org/ecma-262/6.0/#sec-advancestringindex
+// https://tc39.es/ecma262/multipage/text-processing.html#sec-advancestringindex
 uint64_t String::advanceStringIndex(uint64_t index, bool unicode)
 {
-    ASSERT(isString());
+    // Assert: index ≤ 2**53 - 1.
     ASSERT(index <= (1ULL << 53) - 1);
 
     // If unicode is false, return index + 1.
     if (!unicode) {
         return index + 1;
     }
-    // Let length be the number of code units in S.
+
+    // Let length be the length of S.
     size_t length = this->length();
-    // If index + 1 >= legnth, return index + 1.
+
+    // If index + 1 ≥ length, return index + 1.
     if (index + 1 >= length) {
         return index + 1;
     }
 
-    // Let first be the code unit value at index `index` in S.
-    char16_t first = this->charAt(index);
-    // If first < 0xD800 or first > 0xDBFF, return index + 1.
-    if (first < 0xD800 || first > 0xDBFF) {
-        return index + 1;
+    // Let cp be CodePointAt(S, index).
+    auto cp = codePointAt(index);
+    // Return index + cp.[[CodeUnitCount]].
+    return index + cp.codeUnitCount;
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-source-code.html#sec-codepointat
+String::CodePointAtResult String::codePointAt(size_t position)
+{
+    auto bad = bufferAccessData();
+    // Let size be the length of string.
+    const auto& size = bad.length;
+    // Assert: position ≥ 0 and position < size.
+    // Let first be the code unit at index position within string.
+    char16_t first = bad.charAt(position);
+    // Let cp be the code point whose numeric value is the numeric value of first.
+    char32_t cp = first;
+    // If first is neither a leading surrogate nor a trailing surrogate, then
+    if (!U16_IS_LEAD(cp) && !U16_IS_TRAIL(cp)) {
+        // Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 1, [[IsUnpairedSurrogate]]: false }.
+        return { cp, 1, false };
     }
-    // Let second be the code unit value at index `index + 1` in S.
-    char16_t second = this->charAt(index + 1);
-    // If second < 0xDC00 or second > 0xDFFF, return index + 1.
-    if (second < 0xDC00 || second > 0xDFFF) {
-        return index + 1;
+    // If first is a trailing surrogate or position + 1 = size, then
+    if (U16_IS_TRAIL(first) || (position + 1) == size) {
+        // Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 1, [[IsUnpairedSurrogate]]: true }.
+        return { cp, 1, true };
     }
-    // Return index + 2.
-    return index + 2;
+    // Let second be the code unit at index position + 1 within string.
+    char16_t second = bad.charAt(position + 1);
+    // If second is not a trailing surrogate, then
+    if (!U16_IS_TRAIL(second)) {
+        // Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 1, [[IsUnpairedSurrogate]]: true }.
+        return { cp, 1, true };
+    }
+    // Set cp to UTF16SurrogatePairToCodePoint(first, second).
+    cp = U16_GET_SUPPLEMENTARY(first, second);
+    // Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 2, [[IsUnpairedSurrogate]]: false }.
+    return { cp, 2, false };
 }
 
 bool String::isAllSpecialCharacters(bool (*fn)(char))

@@ -561,6 +561,13 @@ public:
 
     uint64_t advanceStringIndex(uint64_t index, bool unicode);
 
+    struct CodePointAtResult {
+        char32_t codePoint;
+        unsigned codeUnitCount;
+        bool isUnpairedSurrogate;
+    };
+    CodePointAtResult codePointAt(size_t position);
+
     bool isAllSpecialCharacters(bool (*fn)(char));
 
     enum StringTrimWhere : unsigned {
