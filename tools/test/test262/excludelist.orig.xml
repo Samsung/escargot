@@ -579,16 +579,7 @@
     <test id="built-ins/Object/prototype/toString/symbol-tag-set-builtin"><reason>TODO</reason></test>
     <test id="built-ins/Object/prototype/toString/symbol-tag-string-builtin"><reason>TODO</reason></test>
     <test id="built-ins/Object/seal/proxy-with-defineProperty-handler"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/Symbol.match/builtin-infer-unicode"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/Symbol.match/flags-tostring-error"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/Symbol.match/get-flags-err"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/Symbol.match/get-unicode-error"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/Symbol.replace/flags-tostring-error"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/Symbol.replace/get-flags-err"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/Symbol.replace/get-unicode-error"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/Symbol.search/u-lastindex-advance"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/Symbol.split/u-lastindex-adv-thru-match"><reason>TODO</reason></test>
-    <test id="built-ins/RegExp/prototype/exec/u-lastindex-adv"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/source/value-line-terminator"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/unicodeSets/cross-realm"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/prototype/unicodeSets/length"><reason>TODO</reason></test>
