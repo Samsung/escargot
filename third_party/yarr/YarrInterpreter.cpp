@@ -1661,6 +1661,15 @@ public:
                                 BACKTRACK();
                         }
                         MATCH_NEXT();
+#if defined(ENABLE_ICU)
+                    } else if (U16_IS_SURROGATE(currentTerm().atom.patternCharacter)) {
+                        // Escargot update
+                        for (unsigned matchAmount = 0; matchAmount < currentTerm().atom.quantityMaxCount; ++matchAmount) {
+                            if (!checkCharacter(currentTerm(), currentTerm().inputPosition - matchAmount))
+                                BACKTRACK();
+                        }
+                        MATCH_NEXT();
+#endif
                     }
                 }
 
@@ -1685,6 +1694,18 @@ public:
                                 BACKTRACK();
                         }
                         MATCH_NEXT();
+#if defined(ENABLE_ICU)
+                    } else if (U16_IS_SURROGATE(currentTerm().atom.patternCharacter)) {
+                        // Escargot update
+                        for (unsigned matchAmount = 0; matchAmount < currentTerm().atom.quantityMaxCount; ++matchAmount) {
+                            auto inputPosition = term.inputPosition + 2 * matchAmount;
+                            if (input.getPos() < inputPosition)
+                                BACKTRACK();
+                            if (!checkCharacter(term, inputPosition))
+                                BACKTRACK();
+                        }
+                        MATCH_NEXT();
+#endif
                     }
                 }
 
@@ -2197,6 +2218,7 @@ public:
                 lo = tolower(ch);
                 hi = toupper(ch);
             } else {
+                // Escargot update
                 // if ch is ALPHABETIC like latin or greek, we should not apply u_tolower or u_toupper (print('iI\u0130'.replace(/\u0130/gi, '#')))
                 auto v = u_getIntPropertyValue(ch, UProperty::UCHAR_ALPHABETIC);
                 if (v) {
