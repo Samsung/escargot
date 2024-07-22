@@ -1023,6 +1023,7 @@ public:
     AtomicString getTextInfo;
     AtomicString getTimeZones;
     AtomicString getUnicode;
+    AtomicString getUnicodeSets;
     AtomicString getWeekInfo;
     AtomicString get__proto__;
     AtomicString getbyteLength;

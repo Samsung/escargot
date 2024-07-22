@@ -223,6 +223,8 @@ RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, String* op
         case 'u':
             if (tempOption & Option::Unicode)
                 ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'u' flags");
+            if (tempOption & Option::UnicodeSets)
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp already have 'v' flag");
             tempOption = (Option)(tempOption | Option::Unicode);
             break;
         case 'y':
@@ -238,6 +240,8 @@ RegExpObject::Option RegExpObject::parseOption(ExecutionState& state, String* op
         case 'v':
             if (tempOption & Option::UnicodeSets)
                 ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp has multiple 'v' flags");
+            if (tempOption & Option::Unicode)
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "RegExp already have 'u' flag");
             tempOption = (Option)(tempOption | Option::UnicodeSets);
             break;
         case 'd':

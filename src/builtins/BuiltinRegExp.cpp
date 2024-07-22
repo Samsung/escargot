@@ -679,6 +679,11 @@ static Value builtinRegExpUnicodeGetter(ExecutionState& state, Value thisValue, 
     return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::Unicode);
 }
 
+static Value builtinRegExpUnicodeSetsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return builtinRegExpOptionGetterHelper(state, thisValue, RegExpObject::Option::UnicodeSets);
+}
+
 
 // Legacy RegExp Features (non-standard)
 static Value builtinRegExpInputGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -926,6 +931,13 @@ void GlobalObject::installRegExp(ExecutionState& state)
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->unicode), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getUnicodeSets, builtinRegExpUnicodeSetsGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->unicodeSets), desc);
     }
 
     m_regexpPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(m_regexp, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
