@@ -117,6 +117,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(getTextInfo, "get textInfo");
     INIT_STATIC_STRING(getTimeZones, "get timeZones");
     INIT_STATIC_STRING(getUnicode, "get unicode");
+    INIT_STATIC_STRING(getUnicodeSets, "get unicodeSets");
     INIT_STATIC_STRING(getWeekInfo, "get weekInfo");
     INIT_STATIC_STRING(get__proto__, "get __proto__");
     INIT_STATIC_STRING(getbyteLength, "get byteLength");
