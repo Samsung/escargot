@@ -94,10 +94,10 @@ constexpr const char32_t* unicodeCharacterSetInfo[UNICODE_CANONICALIZATION_SETS]
 };
 
 #if defined(COMPILER_MSVC)
-const size_t UNICODE_CANONICALIZATION_RANGES = 534;
+const size_t UNICODE_CANONICALIZATION_RANGES = 540;
 const CanonicalizationRange unicodeRangeInfo[UNICODE_CANONICALIZATION_RANGES] = {
 #else
-constexpr size_t UNICODE_CANONICALIZATION_RANGES = 534;
+constexpr size_t UNICODE_CANONICALIZATION_RANGES = 540;
 constexpr CanonicalizationRange unicodeRangeInfo[UNICODE_CANONICALIZATION_RANGES] = {
 #endif
     { 0x0000, 0x0040, 0x0000, CanonicalizeUnique },
@@ -273,7 +273,7 @@ constexpr CanonicalizationRange unicodeRangeInfo[UNICODE_CANONICALIZATION_RANGES
     { 0x038c, 0x038c, 0x0040, CanonicalizeRangeLo },
     { 0x038d, 0x038d, 0x0000, CanonicalizeUnique },
     { 0x038e, 0x038f, 0x003f, CanonicalizeRangeLo },
-    { 0x0390, 0x0390, 0x0000, CanonicalizeUnique },
+    { 0x0390, 0x0390, 0x1c43, CanonicalizeRangeLo },
     { 0x0391, 0x0391, 0x0020, CanonicalizeRangeLo },
     { 0x0392, 0x0392, 0x0007, CanonicalizeSet },
     { 0x0393, 0x0394, 0x0020, CanonicalizeRangeLo },
@@ -296,7 +296,7 @@ constexpr CanonicalizationRange unicodeRangeInfo[UNICODE_CANONICALIZATION_RANGES
     { 0x03aa, 0x03ab, 0x0020, CanonicalizeRangeLo },
     { 0x03ac, 0x03ac, 0x0026, CanonicalizeRangeHi },
     { 0x03ad, 0x03af, 0x0025, CanonicalizeRangeHi },
-    { 0x03b0, 0x03b0, 0x0000, CanonicalizeUnique },
+    { 0x03b0, 0x03b0, 0x1c33, CanonicalizeRangeLo },
     { 0x03b1, 0x03b1, 0x0020, CanonicalizeRangeHi },
     { 0x03b2, 0x03b2, 0x0007, CanonicalizeSet },
     { 0x03b3, 0x03b4, 0x0020, CanonicalizeRangeHi },
@@ -481,12 +481,16 @@ constexpr CanonicalizationRange unicodeRangeInfo[UNICODE_CANONICALIZATION_RANGES
     { 0x1fcc, 0x1fcc, 0x0009, CanonicalizeRangeHi },
     { 0x1fcd, 0x1fcf, 0x0000, CanonicalizeUnique },
     { 0x1fd0, 0x1fd1, 0x0008, CanonicalizeRangeLo },
-    { 0x1fd2, 0x1fd7, 0x0000, CanonicalizeUnique },
+    { 0x1fd2, 0x1fd2, 0x0000, CanonicalizeUnique },
+    { 0x1fd3, 0x1fd3, 0x1c43, CanonicalizeRangeHi },
+    { 0x1fd4, 0x1fd7, 0x0000, CanonicalizeUnique },
     { 0x1fd8, 0x1fd9, 0x0008, CanonicalizeRangeHi },
     { 0x1fda, 0x1fdb, 0x0064, CanonicalizeRangeHi },
     { 0x1fdc, 0x1fdf, 0x0000, CanonicalizeUnique },
     { 0x1fe0, 0x1fe1, 0x0008, CanonicalizeRangeLo },
-    { 0x1fe2, 0x1fe4, 0x0000, CanonicalizeUnique },
+    { 0x1fe2, 0x1fe2, 0x0000, CanonicalizeUnique },
+    { 0x1fe3, 0x1fe3, 0x1c33, CanonicalizeRangeHi },
+    { 0x1fe4, 0x1fe4, 0x0000, CanonicalizeUnique },
     { 0x1fe5, 0x1fe5, 0x0007, CanonicalizeRangeLo },
     { 0x1fe6, 0x1fe7, 0x0000, CanonicalizeUnique },
     { 0x1fe8, 0x1fe9, 0x0008, CanonicalizeRangeHi },
@@ -593,7 +597,9 @@ constexpr CanonicalizationRange unicodeRangeInfo[UNICODE_CANONICALIZATION_RANGES
     { 0xab53, 0xab53, 0x03a0, CanonicalizeRangeHi },
     { 0xab54, 0xab6f, 0x0000, CanonicalizeUnique },
     { 0xab70, 0xabbf, 0x97d0, CanonicalizeRangeHi },
-    { 0xabc0, 0xff20, 0x0000, CanonicalizeUnique },
+    { 0xabc0, 0xfb04, 0x0000, CanonicalizeUnique },
+    { 0xfb05, 0xfb06, 0x0000, CanonicalizeAlternatingUnaligned },
+    { 0xfb07, 0xff20, 0x0000, CanonicalizeUnique },
     { 0xff21, 0xff3a, 0x0020, CanonicalizeRangeLo },
     { 0xff3b, 0xff40, 0x0000, CanonicalizeUnique },
     { 0xff41, 0xff5a, 0x0020, CanonicalizeRangeHi },
