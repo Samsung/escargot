@@ -84,10 +84,25 @@ void RegExpObject::initRegExpObject(ExecutionState& state, bool hasLastIndex)
     }
 }
 
-static String* escapeSlashInPattern(String* patternStr)
+static String* escapePattern(String* patternStr)
 {
     if (patternStr->length() == 0) {
         return patternStr;
+    }
+
+    // replace \n into \\n
+    if (patternStr->contains("\n")) {
+        StringBuilder builder;
+        auto accessData = patternStr->bufferAccessData();
+        for (size_t i = 0; i < accessData.length; i++) {
+            if (accessData.charAt(i) == '\n' && (i == 0 || accessData.charAt(i - 1) != '\\')) {
+                builder.appendChar('\\');
+                builder.appendChar('n');
+            } else {
+                builder.appendChar(accessData.charAt(i));
+            }
+        }
+        patternStr = builder.finalize();
     }
 
     auto accessData = patternStr->bufferAccessData();
@@ -148,7 +163,7 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, Option op
 
     setOptionValueForGC(option);
     m_source = source->length() ? source : defaultRegExpString;
-    m_source = escapeSlashInPattern(m_source);
+    m_source = escapePattern(m_source);
 
     auto& entry = getCacheEntryAndCompileIfNeeded(state, m_source, this->option());
     if (entry.m_yarrError) {
