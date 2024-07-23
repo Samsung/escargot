@@ -61,7 +61,7 @@ static Value builtinBigIntConstructor(ExecutionState& state, Value thisValue, si
         return new BigInt((int64_t)numValue);
     } else {
         // Otherwise, return ? ToBigInt(value).
-        return argv[0].toBigInt(state);
+        return prim.toBigInt(state);
     }
 }
 

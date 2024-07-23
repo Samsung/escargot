@@ -44,6 +44,13 @@ public:
         return true;
     }
 
+    void throwTypeErrorIfDetached(ExecutionState& state)
+    {
+        if (UNLIKELY(rawBuffer() == nullptr)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
+        }
+    }
+
     // https://www.ecma-international.org/ecma-262/#sec-getviewvalue
     Value getViewValue(ExecutionState& state, Value index, Value _isLittleEndian, TypedArrayType type)
     {
@@ -52,10 +59,9 @@ public:
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
 
-        bool isLittleEndian = _isLittleEndian.toBoolean();
-        ArrayBuffer* buffer = this->buffer();
-        buffer->throwTypeErrorIfDetached(state);
+        throwTypeErrorIfDetached(state);
 
+        bool isLittleEndian = _isLittleEndian.toBoolean();
         size_t viewOffset = byteOffset();
         size_t viewSize = byteLength();
         size_t elementSize = TypedArrayHelper::elementSize(type);
@@ -65,11 +71,11 @@ public:
         }
 
         size_t bufferIndex = numberIndex + viewOffset;
-        return buffer->getValueFromBuffer(state, bufferIndex, type, isLittleEndian);
+        return buffer()->getValueFromBuffer(state, bufferIndex, type, isLittleEndian);
     }
 
     // https://www.ecma-international.org/ecma-262/#sec-setviewvalue
-    Value setViewValue(ExecutionState& state, Value index, Value _isLittleEndian, TypedArrayType type, Value val)
+    void setViewValue(ExecutionState& state, Value index, Value _isLittleEndian, TypedArrayType type, Value val)
     {
         double numberIndex = index.toIndex(state);
         if (numberIndex == Value::InvalidIndexValue) {
@@ -80,8 +86,7 @@ public:
         UNUSED_VARIABLE(numericValue);
 
         bool isLittleEndian = _isLittleEndian.toBoolean();
-        ArrayBuffer* buffer = this->buffer();
-        buffer->throwTypeErrorIfDetached(state);
+        throwTypeErrorIfDetached(state);
 
         size_t viewOffset = byteOffset();
         size_t viewSize = byteLength();
@@ -92,8 +97,7 @@ public:
         }
 
         size_t bufferIndex = numberIndex + viewOffset;
-        buffer->setValueInBuffer(state, bufferIndex, type, val, isLittleEndian);
-        return Value();
+        buffer()->setValueInBuffer(state, bufferIndex, type, val, isLittleEndian);
     }
 };
 } // namespace Escargot

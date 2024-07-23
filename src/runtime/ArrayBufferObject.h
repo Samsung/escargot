@@ -32,7 +32,8 @@ public:
     explicit ArrayBufferObject(ExecutionState& state);
     explicit ArrayBufferObject(ExecutionState& state, Object* proto);
 
-    static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength, Optional<uint64_t> maxByteLength = Optional<uint64_t>());
+    static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength,
+                                                  Optional<uint64_t> maxByteLength = Optional<uint64_t>(), bool resizeable = true);
     static ArrayBufferObject* cloneArrayBuffer(ExecutionState& state, ArrayBuffer* srcBuffer, size_t srcByteOffset, uint64_t srcLength, Object* constructor);
 
     void allocateBuffer(ExecutionState& state, size_t bytelength);

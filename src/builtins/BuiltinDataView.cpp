@@ -116,10 +116,11 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
                                            ErrorObject::Messages::GlobalObject_ThisNotDataViewObject);                                   \
         }                                                                                                                                \
         if (argc < 3) {                                                                                                                  \
-            return thisObject->asDataViewObject()->setViewValue(state, argv[0], Value(false), TypedArrayType::Name, argv[1]);            \
+            thisObject->asDataViewObject()->setViewValue(state, argv[0], Value(false), TypedArrayType::Name, argv[1]);                   \
         } else {                                                                                                                         \
-            return thisObject->asDataViewObject()->setViewValue(state, argv[0], argv[2], TypedArrayType::Name, argv[1]);                 \
+            thisObject->asDataViewObject()->setViewValue(state, argv[0], argv[2], TypedArrayType::Name, argv[1]);                        \
         }                                                                                                                                \
+        return Value();                                                                                                                  \
     }
 
 FOR_EACH_DATAVIEW_TYPES(DECLARE_DATAVIEW_GETTER);
