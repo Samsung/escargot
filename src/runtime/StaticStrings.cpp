@@ -92,6 +92,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(getCollation, "get collation");
     INIT_STATIC_STRING(getCollations, "get collations");
     INIT_STATIC_STRING(getCompare, "get compare");
+    INIT_STATIC_STRING(getDetached, "get detached");
     INIT_STATIC_STRING(getDescription, "get description");
     INIT_STATIC_STRING(getDotAll, "get dotAll");
     INIT_STATIC_STRING(getFlags, "get flags");

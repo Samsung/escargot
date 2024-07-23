@@ -228,6 +228,7 @@ private:
         if (reset) {
             // reset to 0
             self->m_arrayLength = self->m_byteLength = self->m_byteOffset = 0;
+            newAddress = nullptr;
         } else if (self->m_auto) {
             // auto mode within boundary
             self->m_byteLength = newByteLength - self->m_byteOffset;

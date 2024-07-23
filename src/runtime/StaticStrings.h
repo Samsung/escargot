@@ -153,6 +153,7 @@ namespace Escargot {
     F(as)                         \
     F(await)                      \
     F(baseName)                   \
+    F(detached)                   \
     F(big)                        \
     F(bigint)                     \
     F(bind)                       \
@@ -473,6 +474,7 @@ namespace Escargot {
     F(toUpperCase)                \
     F(toWellFormed)               \
     F(transfer)                   \
+    F(transferToFixedLength)      \
     F(trim)                       \
     F(trimEnd)                    \
     F(trimLeft)                   \
@@ -999,6 +1001,7 @@ public:
     AtomicString getCollations;
     AtomicString getCompare;
     AtomicString getDescription;
+    AtomicString getDetached;
     AtomicString getDotAll;
     AtomicString getFlags;
     AtomicString getFormat;

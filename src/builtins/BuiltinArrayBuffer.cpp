@@ -113,6 +113,13 @@ static Value builtinArrayBufferResizableGetter(ExecutionState& state, Value this
     return Value(obj->isResizableArrayBuffer());
 }
 
+static Value builtinArrayBufferDetachedGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, getDetached);
+
+    return Value(obj->isDetachedBuffer());
+}
+
 static Value builtinArrayBufferResize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, resize);
@@ -137,17 +144,40 @@ static Value builtinArrayBufferTransfer(ExecutionState& state, Value thisValue, 
     RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, transfer);
     obj->throwTypeErrorIfDetached(state);
 
-    double newByteLength = obj->byteLength();
+    uint64_t newByteLength = obj->byteLength();
     if (argc > 0 && !argv[0].isUndefined()) {
-        newByteLength = argv[0].toInteger(state);
+        newByteLength = argv[0].toIndex(state);
     }
 
-    Value arguments[] = { Value(Value::DoubleToIntConvertibleTestNeeds, newByteLength) };
-    ArrayBuffer* newValue = Object::construct(state, state.context()->globalObject()->arrayBuffer(), 1, arguments).asObject()->asArrayBuffer();
+    Optional<uint64_t> maxLength;
+    if (obj->isResizableArrayBuffer()) {
+        maxLength = obj->maxByteLength();
+    }
+    ArrayBuffer* newValue = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), newByteLength, maxLength);
 
     // Let copyLength be min(newByteLength, O.[[ArrayBufferByteLength]]).
     // Perform CopyDataBlockBytes(toBlock, 0, fromBlock, 0, copyLength).
-    newValue->fillData(obj->data(), std::min(newByteLength, static_cast<double>(obj->byteLength())));
+    newValue->fillData(obj->data(), std::min(newByteLength, static_cast<uint64_t>(obj->byteLength())));
+
+    obj->asArrayBufferObject()->detachArrayBuffer();
+
+    return newValue;
+}
+
+static Value builtinArrayBufferTransferToFixedLength(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ARRAYBUFFER(obj, ArrayBuffer, transferToFixedLength);
+    obj->throwTypeErrorIfDetached(state);
+
+    uint64_t newByteLength = obj->byteLength();
+    if (argc > 0 && !argv[0].isUndefined()) {
+        newByteLength = argv[0].toIndex(state);
+    }
+
+    ArrayBuffer* newValue = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), newByteLength, newByteLength, false);
+    // Let copyLength be min(newByteLength, O.[[ArrayBufferByteLength]]).
+    // Perform CopyDataBlockBytes(toBlock, 0, fromBlock, 0, copyLength).
+    newValue->fillData(obj->data(), std::min(newByteLength, static_cast<uint64_t>(obj->byteLength())));
 
     obj->asArrayBufferObject()->detachArrayBuffer();
 
@@ -244,6 +274,12 @@ void GlobalObject::installArrayBuffer(ExecutionState& state)
             Value(Value::EmptyValue));
         ObjectPropertyDescriptor resizableDesc(resizableGS, ObjectPropertyDescriptor::ConfigurablePresent);
         m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->resizable), resizableDesc);
+
+        JSGetterSetter detachedGS(
+            new NativeFunctionObject(state, NativeFunctionInfo(strings->getDetached, builtinArrayBufferDetachedGetter, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor detachedDesc(detachedGS, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->detached), detachedDesc);
     }
 
     m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->resize),
@@ -251,6 +287,9 @@ void GlobalObject::installArrayBuffer(ExecutionState& state)
 
     m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->transfer),
                                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->transfer, builtinArrayBufferTransfer, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->transferToFixedLength),
+                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->transferToFixedLength, builtinArrayBufferTransferToFixedLength, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_arrayBufferPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->slice),
                                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->slice, builtinArrayBufferSlice, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -27,7 +27,7 @@ namespace Escargot {
 
 unsigned TypedArrayHelper::elementSizeTable[11] = { 1, 2, 4, 1, 2, 4, 1, 4, 8, 8, 8 };
 
-ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength, Optional<uint64_t> maxByteLength)
+ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength, Optional<uint64_t> maxByteLength, bool resizable)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-allocatearraybuffer
     Object* proto = Object::getPrototypeFromConstructor(state, constructor, [](ExecutionState& state, Context* constructorRealm) -> Object* {
@@ -48,7 +48,11 @@ ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state,
         }
 
         // allocate default resizable non-shared BackingStore
-        obj->allocateResizableBuffer(state, byteLength, maxLength);
+        if (resizable) {
+            obj->allocateResizableBuffer(state, byteLength, maxLength);
+        } else {
+            obj->allocateBuffer(state, byteLength);
+        }
         return obj;
     }
 

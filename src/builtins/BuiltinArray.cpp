@@ -2196,6 +2196,9 @@ void GlobalObject::installArray(ExecutionState& state)
     blackList->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().includes), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().flat), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
     blackList->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().flatMap), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toReversed), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toSorted), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
+    blackList->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().toSpliced), ObjectPropertyDescriptor(Value(true), ObjectPropertyDescriptor::AllPresent));
 
     FunctionObject* values = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinArrayValues, 0, NativeFunctionInfo::Strict));
     // Well-Known Intrinsic Objects : %ArrayProto_values%
