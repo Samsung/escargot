@@ -848,7 +848,7 @@ def run_wasm_js(engine, arch, extra_arg):
             if (script.startswith(WPT_ROOT)):
                 script = join(WASM_TEST_DIR, script[len(WPT_ROOT):])
             else:
-                script = join(WASM_TEST_DIR, script)
+                script = join(os.path.dirname(file), script)
             script_files.append(script)
 
         script_files.append(file)

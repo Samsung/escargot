@@ -67,7 +67,45 @@ namespace Escargot {
     result.kind = WASM_ANYREF; \
     result.of.ref = nullptr;
 
-Value WASMValueConverter::wasmToJSValue(ExecutionState& state, const wasm_val_t& value)
+wasm_val_t WASMValueConverter::defaultValue(ExecutionState& state, wasm_valkind_t type)
+{
+    WASM_INIT_VAL(result);
+    switch (type) {
+    case WASM_I32: {
+        WASM_I32_VAL(result, 0);
+        break;
+    }
+    case WASM_I64: {
+        WASM_I64_VAL(result, 0);
+        break;
+    }
+    case WASM_F32: {
+        WASM_F32_VAL(result, 0);
+        break;
+    }
+    case WASM_F64: {
+        WASM_F64_VAL(result, 0);
+        break;
+    }
+    case WASM_ANYREF: {
+        // return ToWebAssemblyValue(undefined, valuetype).
+        WASM_REF_VAL(result, toWebAssemblyValue(state, Value(), type).of.ref);
+        break;
+    }
+    case WASM_FUNCREF: {
+        WASM_FUNC_VAL(result, nullptr);
+        break;
+    }
+    default: {
+        ASSERT_NOT_REACHED();
+        break;
+    }
+    }
+
+    return result;
+}
+
+Value WASMValueConverter::toJSValue(ExecutionState& state, const wasm_val_t& value)
 {
     Value result;
     switch (value.kind) {
@@ -88,12 +126,20 @@ Value WASMValueConverter::wasmToJSValue(ExecutionState& state, const wasm_val_t&
         break;
     }
     case WASM_ANYREF: {
-        result = state.context()->wasmCache()->findValueByRef(value.of.ref);
+        if (!value.of.ref) {
+            result = Value(Value::Null);
+        } else {
+            result = state.context()->wasmCache()->findValueByRef(value.of.ref);
+        }
         break;
     }
     case WASM_FUNCREF: {
-        // FIXME set parameter index as 0, need to be fixed
-        result = ExportedFunctionObject::createExportedFunction(state, wasm_ref_as_func(value.of.ref), 0);
+        if (!value.of.ref) {
+            result = Value(Value::Null);
+        } else {
+            // FIXME set parameter index as 0, need to be fixed
+            result = ExportedFunctionObject::createExportedFunction(state, wasm_ref_as_func(value.of.ref), 0);
+        }
         break;
     }
     default: {
@@ -105,7 +151,35 @@ Value WASMValueConverter::wasmToJSValue(ExecutionState& state, const wasm_val_t&
     return result;
 }
 
-wasm_val_t WASMValueConverter::wasmToWebAssemblyValue(ExecutionState& state, const Value& value, wasm_valkind_t type)
+wasm_valkind_t WASMValueConverter::toValueType(ExecutionState& state, const Value& valTypeValue)
+{
+    const StaticStrings* strings = &state.context()->staticStrings();
+
+    if (!valTypeValue.isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+
+    if (valTypeValue.asString()->equals(strings->i32.string())) {
+        return WASM_I32;
+    } else if (valTypeValue.asString()->equals(strings->i64.string())) {
+        return WASM_I64;
+    } else if (valTypeValue.asString()->equals(strings->f32.string())) {
+        return WASM_F32;
+    } else if (valTypeValue.asString()->equals(strings->f64.string())) {
+        return WASM_F64;
+    } else if (valTypeValue.asString()->equals(strings->v128.string())) {
+        return WASM_V128;
+    } else if (valTypeValue.asString()->equals(strings->anyfunc.string())) {
+        return WASM_FUNCREF;
+    } else if (valTypeValue.asString()->equals(strings->externref.string())) {
+        return WASM_ANYREF;
+    }
+
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    return WASM_ANYREF;
+}
+
+wasm_val_t WASMValueConverter::toWebAssemblyValue(ExecutionState& state, const Value& value, wasm_valkind_t type)
 {
     WASM_INIT_VAL(result);
     switch (type) {
@@ -178,42 +252,5 @@ wasm_val_t WASMValueConverter::wasmToWebAssemblyValue(ExecutionState& state, con
     return result;
 }
 
-wasm_val_t WASMValueConverter::wasmDefaultValue(wasm_valkind_t type)
-{
-    WASM_INIT_VAL(result);
-    switch (type) {
-    case WASM_I32: {
-        WASM_I32_VAL(result, 0);
-        break;
-    }
-    case WASM_I64: {
-        WASM_I64_VAL(result, 0);
-        break;
-    }
-    case WASM_F32: {
-        WASM_F32_VAL(result, 0);
-        break;
-    }
-    case WASM_F64: {
-        WASM_F64_VAL(result, 0);
-        break;
-    }
-    case WASM_ANYREF: {
-        // FIXME return ToWebAssemblyValue(undefined, valuetype).
-        WASM_REF_VAL(result, nullptr);
-        break;
-    }
-    case WASM_FUNCREF: {
-        WASM_FUNC_VAL(result, nullptr);
-        break;
-    }
-    default: {
-        ASSERT_NOT_REACHED();
-        break;
-    }
-    }
-
-    return result;
-}
 } // namespace Escargot
 #endif // ENABLE_WASM

@@ -328,7 +328,7 @@ Value WASMGlobalObject::getGlobalValue(ExecutionState& state) const
     wasm_global_get(globaladdr, &value);
 
     // Return ToJSValue(value).
-    return WASMValueConverter::wasmToJSValue(state, value);
+    return WASMValueConverter::toJSValue(state, value);
 }
 
 void WASMCacheMap::appendMemory(wasm_ref_t* ref, WASMMemoryObject* memoryObj)
@@ -359,27 +359,43 @@ void WASMCacheMap::appendFunction(wasm_ref_t* ref, ExportedFunctionObject* funcO
     m_functionMap.pushBack(std::make_pair(ref, funcObj));
 }
 
+void WASMCacheMap::appendOther(wasm_ref_t* ref, const Value& value)
+{
+    ASSERT(!!ref && isOtherExternAddr(ref));
+    ASSERT(!findOther(ref).first);
+    m_otherMap.pushBack(std::make_pair(ref, value));
+}
+
 wasm_ref_t* WASMCacheMap::insertRefByValue(const Value& value)
 {
-    ASSERT(value.isObject());
-    Object* val = value.asObject();
     wasm_ref_t* result = nullptr;
 
-    if (val->isWASMMemoryObject()) {
-        result = wasm_memory_as_ref(val->asWASMMemoryObject()->memory());
-        appendMemory(result, val->asWASMMemoryObject());
-    } else if (val->isWASMTableObject()) {
-        result = wasm_table_as_ref(val->asWASMTableObject()->table());
-        appendTable(result, val->asWASMTableObject());
-    } else if (val->isWASMGlobalObject()) {
-        result = wasm_global_as_ref(val->asWASMGlobalObject()->global());
-        appendGlobal(result, val->asWASMGlobalObject());
-    } else if (val->isExportedFunctionObject()) {
-        result = wasm_func_as_ref(val->asExportedFunctionObject()->function());
-        appendFunction(result, val->asExportedFunctionObject());
-    } else {
-        ASSERT_NOT_REACHED();
+    if (value.isObject()) {
+        Object* val = value.asObject();
+        if (val->isWASMMemoryObject()) {
+            result = wasm_memory_as_ref(val->asWASMMemoryObject()->memory());
+            appendMemory(result, val->asWASMMemoryObject());
+            return result;
+        } else if (val->isWASMTableObject()) {
+            result = wasm_table_as_ref(val->asWASMTableObject()->table());
+            appendTable(result, val->asWASMTableObject());
+            return result;
+        } else if (val->isWASMGlobalObject()) {
+            result = wasm_global_as_ref(val->asWASMGlobalObject()->global());
+            appendGlobal(result, val->asWASMGlobalObject());
+            return result;
+        } else if (val->isExportedFunctionObject()) {
+            result = wasm_func_as_ref(val->asExportedFunctionObject()->function());
+            appendFunction(result, val->asExportedFunctionObject());
+            return result;
+        }
     }
+
+    // Let extern address externaddr be the smallest address such that map[externaddr] exists is false.
+    // Set map[externaddr] to v.
+    result = getOtherExternAddr();
+    ASSERT(isOtherExternAddr(result));
+    appendOther(result, value);
 
     return result;
 }
@@ -424,76 +440,116 @@ ExportedFunctionObject* WASMCacheMap::findFunction(wasm_ref_t* ref)
     return nullptr;
 }
 
+std::pair<bool, Value> WASMCacheMap::findOther(wasm_ref_t* ref)
+{
+    ASSERT(isOtherExternAddr(ref));
+    for (auto iter = m_otherMap.begin(); iter != m_otherMap.end(); iter++) {
+        if (iter->first == ref) {
+            return std::make_pair(true, iter->second);
+        }
+    }
+    return std::make_pair(false, Value());
+}
+
 wasm_ref_t* WASMCacheMap::findRefByValue(const Value& value)
 {
-    ASSERT(value.isObject());
-    Object* val = value.asObject();
-    wasm_ref_t* ref = nullptr;
-
-    if (val->isWASMMemoryObject()) {
-        ref = wasm_memory_as_ref(val->asWASMMemoryObject()->memory());
-        for (auto iter = m_memoryMap.begin(); iter != m_memoryMap.end(); iter++) {
-            if (wasm_ref_same(iter->first, ref)) {
-                return ref;
+    if (value.isObject()) {
+        wasm_ref_t* ref = nullptr;
+        Object* val = value.asObject();
+        if (val->isWASMMemoryObject()) {
+            ref = wasm_memory_as_ref(val->asWASMMemoryObject()->memory());
+            for (auto iter = m_memoryMap.begin(); iter != m_memoryMap.end(); iter++) {
+                if (wasm_ref_same(iter->first, ref)) {
+                    ASSERT(iter->second == val->asWASMMemoryObject());
+                    return ref;
+                }
             }
-        }
-        return nullptr;
-    } else if (val->isWASMTableObject()) {
-        ref = wasm_table_as_ref(val->asWASMTableObject()->table());
-        for (auto iter = m_tableMap.begin(); iter != m_tableMap.end(); iter++) {
-            if (wasm_ref_same(iter->first, ref)) {
-                return ref;
+            return nullptr;
+        } else if (val->isWASMTableObject()) {
+            ref = wasm_table_as_ref(val->asWASMTableObject()->table());
+            for (auto iter = m_tableMap.begin(); iter != m_tableMap.end(); iter++) {
+                if (wasm_ref_same(iter->first, ref)) {
+                    ASSERT(iter->second == val->asWASMTableObject());
+                    return ref;
+                }
             }
-        }
-        return nullptr;
-    } else if (val->isWASMGlobalObject()) {
-        ref = wasm_global_as_ref(val->asWASMGlobalObject()->global());
-        for (auto iter = m_globalMap.begin(); iter != m_globalMap.end(); iter++) {
-            if (wasm_ref_same(iter->first, ref)) {
-                return ref;
+            return nullptr;
+        } else if (val->isWASMGlobalObject()) {
+            ref = wasm_global_as_ref(val->asWASMGlobalObject()->global());
+            for (auto iter = m_globalMap.begin(); iter != m_globalMap.end(); iter++) {
+                if (wasm_ref_same(iter->first, ref)) {
+                    ASSERT(iter->second == val->asWASMGlobalObject());
+                    return ref;
+                }
             }
-        }
-        return nullptr;
-    } else if (val->isExportedFunctionObject()) {
-        ref = wasm_func_as_ref(val->asExportedFunctionObject()->function());
-        for (auto iter = m_functionMap.begin(); iter != m_functionMap.end(); iter++) {
-            if (wasm_ref_same(iter->first, ref)) {
-                return ref;
+            return nullptr;
+        } else if (val->isExportedFunctionObject()) {
+            ref = wasm_func_as_ref(val->asExportedFunctionObject()->function());
+            for (auto iter = m_functionMap.begin(); iter != m_functionMap.end(); iter++) {
+                if (wasm_ref_same(iter->first, ref)) {
+                    ASSERT(iter->second == val->asExportedFunctionObject());
+                    return ref;
+                }
             }
+            return nullptr;
         }
-        return nullptr;
-    } else {
-        ASSERT_NOT_REACHED();
-        return nullptr;
     }
+
+    for (auto iter = m_otherMap.begin(); iter != m_otherMap.end(); iter++) {
+        if (iter->second == value) {
+            return iter->first;
+        }
+    }
+    return nullptr;
 }
 
 Value WASMCacheMap::findValueByRef(wasm_ref_t* ref)
 {
+    // should find a value in WASMCacheMap
     ASSERT(!!ref);
 
-    Object* result = nullptr;
+    if (UNLIKELY(isOtherExternAddr(ref))) {
+        auto result = findOther(ref);
+        ASSERT(result.first);
+        return result.second;
+    } else {
+        Object* result = nullptr;
+        if ((result = findFunction(ref))) {
+            return result;
+        }
 
-    if ((result = findFunction(ref))) {
-        return result;
-    }
+        if ((result = findGlobal(ref))) {
+            return result;
+        }
 
-    if ((result = findGlobal(ref))) {
-        return result;
-    }
+        if ((result = findMemory(ref))) {
+            return result;
+        }
 
-    if ((result = findMemory(ref))) {
-        return result;
-    }
-
-    if ((result = findTable(ref))) {
-        return result;
+        if ((result = findTable(ref))) {
+            return result;
+        }
     }
 
     // Assert: map[externaddr] exists.
     ASSERT_NOT_REACHED();
+    return Value();
+}
+
+bool WASMCacheMap::isOtherExternAddr(wasm_ref_t* ref)
+{
+    return ((size_t)ref & OTHER_EXTERN_REF_TAG);
+}
+
+wasm_ref_t* WASMCacheMap::getOtherExternAddr()
+{
+    ASSERT((m_otherExternAddrIndex << OTHER_EXTERN_REF_TAG) < std::numeric_limits<size_t>::max());
+
+    wasm_ref_t* result = reinterpret_cast<wasm_ref_t*>((m_otherExternAddrIndex << OTHER_EXTERN_REF_TAG) | OTHER_EXTERN_REF_TAG);
+    m_otherExternAddrIndex++;
     return result;
 }
+
 } // namespace Escargot
 
 #endif // ENABLE_WASM

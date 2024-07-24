@@ -62,7 +62,7 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
     // For each arg of arguments,
     for (size_t i = 0; i < argSize; i++) {
         // Append ! ToJSValue(arg) to jsArguments.
-        jsArguments[i] = WASMValueConverter::wasmToJSValue(state, args->data[i]);
+        jsArguments[i] = WASMValueConverter::toJSValue(state, args->data[i]);
     }
 
     // Let ret be ? Call(func, undefined, jsArguments).
@@ -104,7 +104,7 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
     Value ret = result.result;
     if (resultsSize == 1) {
         // Otherwise, if resultsSize is 1, return << ToWebAssemblyValue(ret, results[0]) >>
-        results->data[0] = WASMValueConverter::wasmToWebAssemblyValue(state, ret, wasm_valtype_kind(res->data[0]));
+        results->data[0] = WASMValueConverter::toWebAssemblyValue(state, ret, wasm_valtype_kind(res->data[0]));
     } else {
         // Otherwise,
         // Let method be ? GetMethod(ret, @@iterator).
@@ -124,7 +124,7 @@ static own wasm_trap_t* callbackHostFunction(void* env, const wasm_val_vec_t* ar
         // For each value and resultType in values and results, paired linearly,
         // Append ToWebAssemblyValue(value, resultType) to wasmValues.
         for (size_t i = 0; i < resultsSize; i++) {
-            results->data[i] = WASMValueConverter::wasmToWebAssemblyValue(state, values[i], wasm_valtype_kind(res->data[i]));
+            results->data[i] = WASMValueConverter::toWebAssemblyValue(state, values[i], wasm_valtype_kind(res->data[i]));
         }
     }
 
@@ -456,7 +456,7 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
 
                 // Let value be ToWebAssemblyValue(v, valtype).
                 // Note) value should not have any reference in itself, so we don't have to call `wasm_val_delete`
-                own wasm_val_t value = WASMValueConverter::wasmToWebAssemblyValue(state, v, wasm_valtype_kind(valtype));
+                own wasm_val_t value = WASMValueConverter::toWebAssemblyValue(state, v, wasm_valtype_kind(valtype));
 
                 // Let (store, globaladdr) be global_alloc(store, const valtype, value).
                 // FIXME globaltype

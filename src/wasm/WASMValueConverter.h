@@ -26,9 +26,10 @@ namespace Escargot {
 
 class WASMValueConverter {
 public:
-    static Value wasmToJSValue(ExecutionState& state, const wasm_val_t& value);
-    static wasm_val_t wasmToWebAssemblyValue(ExecutionState& state, const Value& value, wasm_valkind_t type);
-    static wasm_val_t wasmDefaultValue(wasm_valkind_t type);
+    static wasm_val_t defaultValue(ExecutionState& state, wasm_valkind_t type);
+    static Value toJSValue(ExecutionState& state, const wasm_val_t& value);
+    static wasm_valkind_t toValueType(ExecutionState& state, const Value& desc);
+    static wasm_val_t toWebAssemblyValue(ExecutionState& state, const Value& value, wasm_valkind_t type);
 };
 } // namespace Escargot
 #endif // __EscargotWASMValueConverter__

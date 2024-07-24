@@ -550,13 +550,12 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
 
     Value desc = argv[0];
 
-    // check 'element' property from the first argument
-    {
-        Value elemValue = wasmGetValueFromObjectProperty(state, desc, strings->element, strings->toString).second;
-        // element property should be 'anyfunc'
-        if (UNLIKELY(!elemValue.isString() || !elemValue.asString()->equals(strings->anyfunc.string()))) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
-        }
+    // Let elementType be ToValueType(descriptor["element"]).
+    wasm_valkind_t elementType = WASMValueConverter::toValueType(state, wasmGetValueFromObjectProperty(state, desc, strings->element, strings->toString).second);
+    // If elementType is not a reftype,
+    if (UNLIKELY(elementType != WASM_FUNCREF && elementType != WASM_ANYREF)) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
     // check and get 'initial' property from the first argument
@@ -586,19 +585,34 @@ static Value builtinWASMTableConstructor(ExecutionState& state, Value thisValue,
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssembly.string(), false, strings->Table.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
+    // If value is missing,
+    // Let ref be DefaultValue(elementType).
+    ASSERT(elementType == WASM_ANYREF || elementType == WASM_FUNCREF);
+    wasm_ref_t* ref = nullptr;
+    wasm_val_t value;
+    if (argc > 1) {
+        // Let ref be ? ToWebAssemblyValue(value, elementType).
+        value = WASMValueConverter::toWebAssemblyValue(state, argv[1], elementType);
+    } else {
+        // If value is missing,
+        // Let ref be DefaultValue(elementType).
+        value = WASMValueConverter::defaultValue(state, elementType);
+    }
+    ASSERT(value.kind == WASM_ANYREF || value.kind == WASM_FUNCREF);
+    ref = value.of.ref;
+
     // Let type be the table type {min n, max maximum} anyfunc.
     wasm_limits_t limits = { initial, maximum };
     // wasm_valtype_t is deleted inside wasm_tabletype_t constructor
-    own wasm_tabletype_t* tabletype = wasm_tabletype_new(wasm_valtype_new(WASM_FUNCREF), &limits);
+    own wasm_tabletype_t* tabletype = wasm_tabletype_new(wasm_valtype_new(elementType), &limits);
 
-    // Let (store, tableaddr) be table_alloc(store, type).
-    own wasm_table_t* tableaddr = wasm_table_new(ThreadLocal::wasmStore(), tabletype, nullptr);
+    // Let (store, tableaddr) be table_alloc(store, type, ref).
+    own wasm_table_t* tableaddr = wasm_table_new(ThreadLocal::wasmStore(), tabletype, ref);
     wasm_tabletype_delete(tabletype);
 
     wasm_ref_t* tableref = wasm_table_as_ref(tableaddr);
 
     // Let map be the surrounding agent's associated Table object cache.
-
     // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyTablePrototype%").
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
         return constructorRealm->globalObject()->wasmTablePrototype();
@@ -633,8 +647,28 @@ static Value builtinWASMTableGrow(ExecutionState& state, Value thisValue, size_t
     wasm_table_t* tableaddr = thisValue.asObject()->asWASMTableObject()->table();
     wasm_table_size_t initialSize = wasm_table_size(tableaddr);
 
-    // Let result be table_grow(store, tableaddr, delta).
-    bool result = wasm_table_grow(tableaddr, delta, nullptr);
+    // Let (limits, elementType) be table_type(tableaddr).
+    own wasm_tabletype_t* tabletype = wasm_table_type(tableaddr);
+    wasm_valkind_t elementType = wasm_valtype_kind(wasm_tabletype_element(tabletype));
+    wasm_tabletype_delete(tabletype);
+    ASSERT(elementType == WASM_ANYREF || elementType == WASM_FUNCREF);
+
+    wasm_ref_t* ref = nullptr;
+    wasm_val_t value;
+    if (argc > 1) {
+        // Let ref be ? ToWebAssemblyValue(value, elementType).
+        value = WASMValueConverter::toWebAssemblyValue(state, argv[1], elementType);
+    } else {
+        // If value is missing,
+        // Let ref be DefaultValue(elementType).
+        value = WASMValueConverter::defaultValue(state, elementType);
+    }
+    ASSERT(value.kind == WASM_ANYREF || value.kind == WASM_FUNCREF);
+    ref = value.of.ref;
+
+
+    // Let result be table_grow(store, tableaddr, delta, ref).
+    bool result = wasm_table_grow(tableaddr, delta, ref);
     // If result is error, throw a RangeError exception.
     if (!result) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_RangeError);
@@ -661,14 +695,12 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
     // Let tableaddr be this.[[Table]].
     wasm_table_t* tableaddr = thisValue.asObject()->asWASMTableObject()->table();
 
-    // Let result be table_read(store, tableaddr, index).
-    own wasm_ref_t* result = wasm_table_get(tableaddr, index);
-
     // If result is error, throw a RangeError exception.
-    // FIXME
-    if (!result) {
+    if (UNLIKELY(index >= wasm_table_size(tableaddr))) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->get.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
+    // Let result be table_read(store, tableaddr, index).
+    own wasm_ref_t* result = wasm_table_get(tableaddr, index);
 
     own wasm_tabletype_t* tabletype = wasm_table_type(tableaddr);
     wasm_valkind_t elementType = wasm_valtype_kind(wasm_tabletype_element(tabletype));
@@ -684,8 +716,11 @@ static Value builtinWASMTableGet(ExecutionState& state, Value thisValue, size_t 
         resultVal.kind = WASM_FUNCREF;
         resultVal.of.ref = result;
     }
-    Value resultValue = WASMValueConverter::wasmToJSValue(state, resultVal);
-    wasm_ref_delete(result);
+    Value resultValue = WASMValueConverter::toJSValue(state, resultVal);
+    if (result && !WASMCacheMap::isOtherExternAddr(result)) {
+        // result could be nullptr (ref.null)
+        wasm_ref_delete(result);
+    }
 
     return resultValue;
 }
@@ -716,15 +751,17 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
     ASSERT(elementType == WASM_ANYREF || elementType == WASM_FUNCREF);
 
     wasm_ref_t* ref = nullptr;
-    // If value is missing,
-    // Let ref be DefaultValue(elementType).
-    // FIXME invoke wasmDefaultValue ?
+    wasm_val_t value;
     if (argc > 1) {
         // Let ref be ? ToWebAssemblyValue(value, elementType).
-        wasm_val_t value = WASMValueConverter::wasmToWebAssemblyValue(state, argv[1], elementType);
-        ASSERT(value.kind == WASM_ANYREF || value.kind == WASM_FUNCREF);
-        ref = value.of.ref;
+        value = WASMValueConverter::toWebAssemblyValue(state, argv[1], elementType);
+    } else {
+        // If value is missing,
+        // Let ref be DefaultValue(elementType).
+        value = WASMValueConverter::defaultValue(state, elementType);
     }
+    ASSERT(value.kind == WASM_ANYREF || value.kind == WASM_FUNCREF);
+    ref = value.of.ref;
 
     // Let store be table_write(store, tableaddr, index, ref).
     bool result = wasm_table_set(tableaddr, index, ref);
@@ -735,31 +772,6 @@ static Value builtinWASMTableSet(ExecutionState& state, Value thisValue, size_t 
 
     // Return undefined.
     return Value();
-
-    /*
-
-    // Value value = argv[1];
-    // FIXME If value is null, let funcaddr be an empty function element.
-    wasm_ref_t* funcaddr = nullptr;
-    if (!value.isNull()) {
-        // If value does not have a [[FunctionAddress]] internal slot, throw a TypeError exception.
-        if (!value.isObject() || !value.asObject()->isExportedFunctionObject()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
-        }
-        // Let funcaddr be value.[[FunctionAddress]].
-        funcaddr = wasm_func_as_ref(value.asObject()->asExportedFunctionObject()->function());
-    }
-
-    // Let store be table_write(store, tableaddr, index, funcaddr).
-    bool result = wasm_table_set(tableaddr, index, funcaddr);
-    // If store is error, throw a RangeError exception.
-    if (!result) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotTable.string(), false, strings->set.string(), ErrorObject::Messages::GlobalObject_RangeError);
-    }
-
-    // Return undefined.
-    return Value();
-    */
 }
 
 static Value builtinWASMTableLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -795,39 +807,25 @@ static Value builtinWASMGlobalConstructor(ExecutionState& state, Value thisValue
         mut = mutValue.toBoolean() ? WASM_VAR : WASM_CONST;
     }
 
-    // check and get 'value' property from the first argument
-    wasm_valkind_t valuetype = WASM_ANYREF;
-    {
-        // Let valuetype be ToValueType(descriptor["value"]).
-        Value valTypeValue = wasmGetValueFromObjectProperty(state, desc, strings->value, strings->toString).second;
-        if (!valTypeValue.isString()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
-        }
-        if (valTypeValue.asString()->equals(strings->i32.string())) {
-            valuetype = WASM_I32;
-        } else if (valTypeValue.asString()->equals(strings->i64.string())) {
-            valuetype = WASM_I64;
-        } else if (valTypeValue.asString()->equals(strings->f32.string())) {
-            valuetype = WASM_F32;
-        } else if (valTypeValue.asString()->equals(strings->f64.string())) {
-            valuetype = WASM_F64;
-        } else {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
-        }
+    // Let valuetype be ToValueType(descriptor["value"]).
+    wasm_valkind_t valuetype = WASMValueConverter::toValueType(state, wasmGetValueFromObjectProperty(state, desc, strings->value, strings->toString).second);
+    // If valuetype is v128,
+    if (valuetype == WASM_V128) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Global.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
     }
 
-    Value valueArg = argc > 1 ? argv[1] : Value();
-    own wasm_val_t value;
-    if (valueArg.isUndefined()) {
-        // let value be DefaultValue(valuetype).
-        value = WASMValueConverter::wasmDefaultValue(valuetype);
-    } else {
+    wasm_val_t value;
+    if (argc > 1 && !argv[1].isUndefined()) {
         // Let value be ToWebAssemblyValue(v, valuetype).
-        value = WASMValueConverter::wasmToWebAssemblyValue(state, valueArg, valuetype);
+        value = WASMValueConverter::toWebAssemblyValue(state, argv[1], valuetype);
+    } else {
+        // If v is missing,
+        // Let value be DefaultValue(valuetype).
+        value = WASMValueConverter::defaultValue(state, valuetype);
     }
 
     // If mutable is true, let globaltype be var valuetype; otherwise, let globaltype be const valuetype.
-    // Note) value should not have any reference in itself, so we don't have to call `wasm_val_delete`
     own wasm_globaltype_t* globaltype = wasm_globaltype_new(wasm_valtype_new(valuetype), mut);
 
     // Let (store, globaladdr) be global_alloc(store, globaltype, value).
@@ -888,7 +886,7 @@ static Value builtinWASMGlobalValueSetter(ExecutionState& state, Value thisValue
 
     // Let value be ToWebAssemblyValue(the given value, valuetype).
     // Note) value should not have any reference in itself, so we don't have to call `wasm_val_delete`
-    own wasm_val_t value = WASMValueConverter::wasmToWebAssemblyValue(state, argv[0], valuetype);
+    own wasm_val_t value = WASMValueConverter::toWebAssemblyValue(state, argv[0], valuetype);
 
     // Let store be global_write(store, globaladdr, value).
     // TODO If store is error, throw a RangeError exception.

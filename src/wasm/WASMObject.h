@@ -182,18 +182,25 @@ private:
 typedef Vector<std::pair<wasm_ref_t*, WASMMemoryObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, WASMMemoryObject*>>> WASMMemoryMap;
 typedef Vector<std::pair<wasm_ref_t*, WASMTableObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, WASMTableObject*>>> WASMTableMap;
 typedef Vector<std::pair<wasm_ref_t*, WASMGlobalObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, WASMGlobalObject*>>> WASMGlobalMap;
+typedef Vector<std::pair<wasm_ref_t*, Value>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, Value>>> WASMOtherMap;
 
 class ExportedFunctionObject;
 typedef Vector<std::pair<wasm_ref_t*, ExportedFunctionObject*>, GCUtil::gc_malloc_allocator<std::pair<wasm_ref_t*, ExportedFunctionObject*>>> WASMFunctionMap;
 
 class WASMCacheMap : public gc {
 public:
-    WASMCacheMap() {}
+    static const size_t OTHER_EXTERN_REF_TAG = 1;
+
+    WASMCacheMap()
+        : m_otherExternAddrIndex(0)
+    {
+    }
 
     void appendMemory(wasm_ref_t* ref, WASMMemoryObject* memoryObj);
     void appendTable(wasm_ref_t* ref, WASMTableObject* tableObj);
     void appendGlobal(wasm_ref_t* ref, WASMGlobalObject* globalObj);
     void appendFunction(wasm_ref_t* ref, ExportedFunctionObject* funcObj);
+    void appendOther(wasm_ref_t* ref, const Value& value);
 
     wasm_ref_t* insertRefByValue(const Value& value);
 
@@ -201,15 +208,23 @@ public:
     WASMTableObject* findTable(wasm_ref_t* ref);
     WASMGlobalObject* findGlobal(wasm_ref_t* ref);
     ExportedFunctionObject* findFunction(wasm_ref_t* ref);
+    std::pair<bool, Value> findOther(wasm_ref_t* ref);
 
     wasm_ref_t* findRefByValue(const Value& value);
     Value findValueByRef(wasm_ref_t* ref);
 
+    static bool isOtherExternAddr(wasm_ref_t* ref);
+
 private:
+    wasm_ref_t* getOtherExternAddr();
+
     WASMMemoryMap m_memoryMap;
     WASMTableMap m_tableMap;
     WASMGlobalMap m_globalMap;
     WASMFunctionMap m_functionMap;
+    WASMOtherMap m_otherMap;
+
+    size_t m_otherExternAddrIndex; // used as a arbitrary extern address for WASMOtherMap
 };
 } // namespace Escargot
 #endif // __EscargotWASMObject__
