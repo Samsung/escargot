@@ -152,10 +152,6 @@
     <test id="built-ins/Array/fromAsync/thisarg-primitive-sloppy"><reason>TODO</reason></test>
     <test id="built-ins/Array/fromAsync/thisarg-primitive-strict"><reason>TODO</reason></test>
     <test id="built-ins/ArrayBuffer/prototype/resizable/detached-buffer"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncFromSyncIteratorPrototype/next/absent-value-not-passed"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncFromSyncIteratorPrototype/return/return-null"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncGeneratorPrototype/next/request-queue-await-order"><reason>TODO</reason></test>
     <test id="built-ins/AsyncGeneratorPrototype/return/return-suspendedStart-broken-promise"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-length"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-offset"><reason>TODO</reason></test>
@@ -6641,12 +6637,6 @@
     <test id="language/expressions/async-generator/eval-var-scope-syntax-err"><reason>TODO</reason></test>
     <test id="language/expressions/async-generator/generator-created-after-decl-inst"><reason>TODO</reason></test>
     <test id="language/expressions/async-generator/named-eval-var-scope-syntax-err"><reason>TODO</reason></test>
-    <test id="language/expressions/async-generator/named-no-strict-reassign-fn-name-in-body"><reason>TODO</reason></test>
-    <test id="language/expressions/async-generator/named-no-strict-reassign-fn-name-in-body-in-arrow"><reason>TODO</reason></test>
-    <test id="language/expressions/async-generator/named-no-strict-reassign-fn-name-in-body-in-eval"><reason>TODO</reason></test>
-    <test id="language/expressions/async-generator/named-strict-error-reassign-fn-name-in-body"><reason>TODO</reason></test>
-    <test id="language/expressions/async-generator/named-strict-error-reassign-fn-name-in-body-in-arrow"><reason>TODO</reason></test>
-    <test id="language/expressions/async-generator/named-strict-error-reassign-fn-name-in-body-in-eval"><reason>TODO</reason></test>
     <test id="language/expressions/await/await-awaits-thenable-not-callable"><reason>TODO</reason></test>
     <test id="language/expressions/await/await-awaits-thenables"><reason>TODO</reason></test>
     <test id="language/expressions/await/await-awaits-thenables-that-throw"><reason>TODO</reason></test>
@@ -6728,8 +6718,6 @@
     <test id="language/expressions/dynamic-import/assignment-expression/yield-expr"><reason>TODO</reason></test>
     <test id="language/expressions/dynamic-import/assignment-expression/yield-identifier"><reason>TODO</reason></test>
     <test id="language/expressions/dynamic-import/custom-primitive"><reason>TODO</reason></test>
-    <test id="language/expressions/dynamic-import/for-await-resolution-and-error-agen"><reason>TODO</reason></test>
-    <test id="language/expressions/dynamic-import/for-await-resolution-and-error-agen-yield"><reason>TODO</reason></test>
     <test id="language/expressions/dynamic-import/import-attributes/2nd-param-get-with-error"><reason>TODO</reason></test>
     <test id="language/expressions/dynamic-import/import-attributes/2nd-param-with-enumeration-abrupt"><reason>TODO</reason></test>
     <test id="language/expressions/dynamic-import/import-attributes/2nd-param-with-enumeration-enumerable"><reason>TODO</reason></test>
@@ -6871,7 +6859,6 @@
     <test id="language/statements/class/subclass/default-constructor-spread-override"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/async-func-decl-dstr-array-elem-target-simple-strict"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/head-lhs-async"><reason>TODO</reason></test>
-    <test id="language/statements/for-await-of/iterator-close-non-throw-get-method-is-null"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/iterator-close-throw-get-method-abrupt"><reason>TODO</reason></test>
     <test id="language/statements/for-await-of/iterator-close-throw-get-method-non-callable"><reason>TODO</reason></test>
     <test id="language/statements/for-in/dstr/array-elem-nested-array-invalid"><reason>TODO</reason></test>
