@@ -115,16 +115,18 @@ static String* escapePattern(String* patternStr)
         for (i = 0; start + i < len; i++) {
             if (UNLIKELY(accessData.charAt(start + i) == '/') && (i > 0 || len == 1)) {
                 size_t backSlashCount = 0;
-                size_t s = start + i - 1;
-                while (true) {
-                    if (accessData.charAt(s) == '\\') {
-                        backSlashCount++;
-                        if (s == 0) {
+                if (i > 0) {
+                    size_t s = start + i - 1;
+                    while (true) {
+                        if (accessData.charAt(s) == '\\') {
+                            backSlashCount++;
+                            if (s == 0) {
+                                break;
+                            }
+                            s--;
+                        } else {
                             break;
                         }
-                        s--;
-                    } else {
-                        break;
                     }
                 }
                 if (backSlashCount % 2 == 0) {
