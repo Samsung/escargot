@@ -160,10 +160,6 @@
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-length"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-offset"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-valid-by-offset"><reason>TODO</reason></test>
-    <test id="built-ins/DataView/prototype/byteLength/resizable-array-buffer-auto"><reason>TODO</reason></test>
-    <test id="built-ins/DataView/prototype/byteLength/resizable-array-buffer-fixed"><reason>TODO</reason></test>
-    <test id="built-ins/DataView/prototype/byteOffset/resizable-array-buffer-auto"><reason>TODO</reason></test>
-    <test id="built-ins/DataView/prototype/byteOffset/resizable-array-buffer-fixed"><reason>TODO</reason></test>
     <test id="built-ins/Date/UTC/fp-evaluation-order"><reason>TODO</reason></test>
     <test id="built-ins/Date/parse/year-zero"><reason>TODO</reason></test>
     <test id="built-ins/Date/year-zero"><reason>TODO</reason></test>

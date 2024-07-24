@@ -176,16 +176,11 @@ public:
         m_arrayLength = arrayLength;
         m_auto = isAuto;
 
-        updateCachedAddress((m_buffer && m_buffer->data()) ? m_buffer->data() : nullptr);
+        updateBufferCallback((m_buffer && m_buffer->data()) ? m_buffer->data() : nullptr);
 
         if (m_buffer) {
             m_buffer->addObserver(this, arrayBufferObserver);
         }
-    }
-
-    ALWAYS_INLINE void setBuffer(ArrayBuffer* bo, size_t byteOffset, size_t byteLength)
-    {
-        setBuffer(bo, byteOffset, byteLength, 0);
     }
 
     virtual bool isArrayBufferView() const override
@@ -213,18 +208,18 @@ public:
     }
     void* operator new[](size_t size) = delete;
 
-private:
-    void updateCachedAddress(void* bufferStartAddress)
+protected:
+    virtual void updateBufferCallback(void* bufferStartAddress)
     {
         m_cachedRawBufferAddress = bufferStartAddress ? static_cast<uint8_t*>(bufferStartAddress) + m_byteOffset : nullptr;
     }
 
+private:
     static void arrayBufferObserver(Object* from, void* newAddress, size_t newByteLength)
     {
         ArrayBufferView* self = reinterpret_cast<ArrayBufferView*>(from);
 
         bool reset = self->m_auto ? newByteLength < self->m_byteOffset : self->m_byteOffset + self->m_byteLength > newByteLength;
-
         if (reset) {
             // reset to 0
             self->m_arrayLength = self->m_byteLength = self->m_byteOffset = 0;
@@ -236,7 +231,7 @@ private:
             self->m_arrayLength = self->m_byteLength / self->elementSize();
         }
 
-        self->updateCachedAddress(newAddress);
+        self->updateBufferCallback(newAddress);
     }
 
     ArrayBuffer* m_buffer;
