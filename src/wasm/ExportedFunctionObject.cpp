@@ -85,7 +85,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
         Value arg = (argc > i) ? argv[i] : Value();
 
         // Append ToWebAssemblyValue(arg, t) to args.
-        args.data[i] = WASMValueConverter::wasmToWebAssemblyValue(state, arg, wasm_valtype_kind(parameters->data[i]));
+        args.data[i] = WASMValueConverter::toWebAssemblyValue(state, arg, wasm_valtype_kind(parameters->data[i]));
     }
 
     wasm_val_t* retBuffer = ALLOCA(results->size * sizeof(wasm_val_t), wasm_val_t);
@@ -114,7 +114,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
         return Value();
     } else if (outArity == 1) {
         // Otherwise, if outArity is 1, return ToJSValue(ret[0]).
-        return WASMValueConverter::wasmToJSValue(state, ret.data[0]);
+        return WASMValueConverter::toJSValue(state, ret.data[0]);
     }
 
     // Otherwise,
@@ -125,7 +125,7 @@ static Value callExportedFunction(ExecutionState& state, Value thisValue, size_t
     // For each r of ret,
     // Append ToJSValue(r) to values.
     for (size_t i = 0; i < ret.size; i++) {
-        values[i] = WASMValueConverter::wasmToJSValue(state, ret.data[i]);
+        values[i] = WASMValueConverter::toJSValue(state, ret.data[i]);
     }
 
     // Return CreateArrayFromList(values).

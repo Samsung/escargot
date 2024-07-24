@@ -1,8 +1,3 @@
 limits.any.js
 memory/grow.any.js
 module/customSections.any.js
-constructor/instantiate-bad-imports.any.js
-instance/constructor-bad-imports.any.js
-table/constructor.any.js
-table/get-set.any.js
-table/grow.any.js

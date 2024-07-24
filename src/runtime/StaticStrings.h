@@ -509,6 +509,7 @@ namespace Escargot {
     F(customSections)                  \
     F(element)                         \
     F(exports)                         \
+    F(externref)                       \
     F(f32)                             \
     F(f64)                             \
     F(i32)                             \
@@ -522,6 +523,7 @@ namespace Escargot {
     F(memory)                          \
     F(module)                          \
     F(table)                           \
+    F(v128)                            \
     F(validate)
 #else
 #define FOR_EACH_STATIC_WASM_STRING(F)
