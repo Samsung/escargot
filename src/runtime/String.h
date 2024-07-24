@@ -156,6 +156,7 @@ struct StringBufferAccessData {
 
     char16_t charAt(size_t idx) const
     {
+        ASSERT(idx < length);
         if (has8BitContent) {
             return ((LChar*)buffer)[idx];
         } else {

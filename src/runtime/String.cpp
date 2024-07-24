@@ -1205,14 +1205,12 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
             } else if (temp == '<' && !namedCapture.isUndefined()) {
                 size_t namedCaptureEnd = i + 1;
                 bool ValidNamedCapturedGroup = false;
-                char16_t temp2 = replacement->charAt(namedCaptureEnd);
                 while (namedCaptureEnd < replacement->length()) {
-                    if (temp2 == '>') {
+                    if (replacement->charAt(namedCaptureEnd) == '>') {
                         ValidNamedCapturedGroup = true;
                         break;
                     }
                     namedCaptureEnd++;
-                    temp2 = replacement->charAt(namedCaptureEnd);
                 }
                 if (ValidNamedCapturedGroup && namedCaptureObj) {
                     String* groupName = replacement->substring((i + 2), (namedCaptureEnd));
