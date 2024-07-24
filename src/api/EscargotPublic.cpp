@@ -4044,7 +4044,7 @@ void ArrayBufferViewRef::setBuffer(ArrayBufferRef* bo, size_t byteOffset, size_t
 
 void ArrayBufferViewRef::setBuffer(ArrayBufferRef* bo, size_t byteOffset, size_t byteLength)
 {
-    toImpl(this)->setBuffer(toImpl(bo), byteOffset, byteLength);
+    toImpl(this)->setBuffer(toImpl(bo), byteOffset, byteLength, 0);
 }
 
 uint8_t* ArrayBufferViewRef::rawBuffer()

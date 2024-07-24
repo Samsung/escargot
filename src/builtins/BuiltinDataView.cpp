@@ -81,7 +81,7 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
         return constructorRealm->globalObject()->dataViewPrototype();
     });
     ArrayBufferView* obj = new DataViewObject(state, proto);
-    obj->setBuffer(buffer, byteOffset, byteLength);
+    obj->setBuffer(buffer, byteOffset, byteLength, 0, argc < 3);
 
     if (obj->buffer()->isDetachedBuffer()) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
@@ -140,7 +140,8 @@ static Value builtinDataViewBufferGetter(ExecutionState& state, Value thisValue,
 
 static Value builtinDataViewByteLengthGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject() && thisValue.asObject()->asDataViewObject()->buffer() && !thisValue.asObject()->asDataViewObject()->buffer()->isDetachedBuffer())) {
+    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject() && thisValue.asObject()->asDataViewObject()->buffer())) {
+        thisValue.asObject()->asDataViewObject()->throwTypeErrorIfDetached(state);
         return Value(thisValue.asObject()->asArrayBufferView()->byteLength());
     }
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get DataView.prototype.byteLength called on incompatible receiver");
@@ -149,7 +150,8 @@ static Value builtinDataViewByteLengthGetter(ExecutionState& state, Value thisVa
 
 static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject() && thisValue.asObject()->asDataViewObject()->buffer() && !thisValue.asObject()->asDataViewObject()->buffer()->isDetachedBuffer())) {
+    if (LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isDataViewObject() && thisValue.asObject()->asDataViewObject()->buffer())) {
+        thisValue.asObject()->asDataViewObject()->throwTypeErrorIfDetached(state);
         return Value(thisValue.asObject()->asArrayBufferView()->byteOffset());
     }
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get DataView.prototype.byteOffset called on incompatible receiver");

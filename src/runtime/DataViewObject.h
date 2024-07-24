@@ -39,7 +39,7 @@ public:
     {
     }
 
-    virtual bool isDataViewObject() const
+    virtual bool isDataViewObject() const override
     {
         return true;
     }
@@ -49,6 +49,14 @@ public:
         if (UNLIKELY(rawBuffer() == nullptr)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
         }
+    }
+
+    virtual void updateBufferCallback(void* bufferStartAddress) override
+    {
+        if (buffer() && buffer()->byteLength() < byteLength()) {
+            bufferStartAddress = nullptr;
+        }
+        ArrayBufferView::updateBufferCallback(bufferStartAddress);
     }
 
     // https://www.ecma-international.org/ecma-262/#sec-getviewvalue
