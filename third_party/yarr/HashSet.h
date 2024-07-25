@@ -57,6 +57,39 @@ public:
     }
 };
 
+template <typename Key, typename Allocator = GCUtil::gc_malloc_allocator<Key>>
+class GCHashSet : public Escargot::HashSet<Key, std::hash<Key>, std::equal_to<Key>, Allocator> {
+public:
+    struct AddResult {
+        bool isNewEntry;
+    };
+    AddResult add(const Key& k)
+    {
+        AddResult r;
+        r.isNewEntry = Escargot::HashSet<Key, std::hash<Key>, std::equal_to<Key>, Allocator>::insert(k).second;
+        return r;
+    }
+
+    template<typename Other>
+    void formUnion(const Other& other)
+    {
+        for (const auto& value: other) {
+            add(value);
+        }
+    }
+
+    bool contains(const Key& k)
+    {
+        return Escargot::HashSet<Key, std::hash<Key>, std::equal_to<Key>, Allocator>::find(k) != Escargot::HashSet<Key, std::hash<Key>, std::equal_to<Key>, Allocator>::end();
+    }
+
+    bool isEmpty()
+    {
+        return Escargot::HashSet<Key, std::hash<Key>, std::equal_to<Key>, Allocator>::empty();
+    }
+};
+
 } // namespace WTF
 
 using WTF::HashSet;
+using WTF::GCHashSet;
