@@ -26,7 +26,7 @@ namespace Escargot {
 
 class ExtendedNativeFunctionObject : public NativeFunctionObject {
 public:
-    virtual bool isExtendedNativeFunctionObject() const
+    virtual bool isExtendedNativeFunctionObject() const override
     {
         return true;
     }

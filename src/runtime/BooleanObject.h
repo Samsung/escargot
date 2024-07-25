@@ -39,7 +39,7 @@ public:
         m_primitiveValue = val;
     }
 
-    virtual bool isBooleanObject() const
+    virtual bool isBooleanObject() const override
     {
         return true;
     }

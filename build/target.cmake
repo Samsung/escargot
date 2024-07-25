@@ -60,10 +60,14 @@ ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
         -fvisibility=hidden
         -fno-fast-math -fno-unsafe-math-optimizations -fdenormal-fp-math=ieee
         -Wno-type-limits -Wno-unused-result -Wno-unused-variable -Wno-invalid-offsetof -Wno-unused-function
-        -Wno-deprecated-declarations -Wno-unsupported-floating-point-opt -Wno-parentheses-equality -Wno-dynamic-class-memaccess -Wno-deprecated-register
+        -Wno-deprecated-declarations -Wno-parentheses-equality -Wno-dynamic-class-memaccess -Wno-deprecated-register
         -Wno-expansion-to-defined -Wno-return-type -Wno-overloaded-virtual -Wno-unused-private-field -Wno-deprecated-copy -Wno-atomic-alignment
         -Wno-ambiguous-reversed-operator -Wno-deprecated-enum-enum-conversion -Wno-deprecated-enum-float-conversion -Wno-braced-scalar-init -Wno-unused-parameter
     )
+    IF (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 10)
+        # this feature supported after clang version 11
+        SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -Wno-unsupported-floating-point-opt)
+    endif()
     SET (ESCARGOT_CXXFLAGS_DEBUG -O0 -Wall -Wextra -Werror)
     SET (ESCARGOT_CXXFLAGS_RELEASE -O2 -fno-stack-protector -fno-omit-frame-pointer)
     SET (ESCARGOT_THIRDPARTY_CFLAGS -w -g3 -fdata-sections -ffunction-sections -fno-omit-frame-pointer -fvisibility=hidden)

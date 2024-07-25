@@ -54,7 +54,7 @@ public:
     explicit FinalizationRegistryObject(ExecutionState& state, Object* cleanupCallback, Context* realm);
     explicit FinalizationRegistryObject(ExecutionState& state, Object* proto, Object* cleanupCallback, Context* realm);
 
-    virtual bool isFinalizationRegistryObject() const
+    virtual bool isFinalizationRegistryObject() const override
     {
         return true;
     }

@@ -39,7 +39,7 @@ public:
     explicit WeakMapObject(ExecutionState& state);
     explicit WeakMapObject(ExecutionState& state, Object* proto);
 
-    virtual bool isWeakMapObject() const
+    virtual bool isWeakMapObject() const override
     {
         return true;
     }

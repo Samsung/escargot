@@ -55,7 +55,7 @@ public:
     explicit IteratorObject(ExecutionState& state);
     explicit IteratorObject(ExecutionState& state, Object* proto);
 
-    virtual bool isIteratorObject() const
+    virtual bool isIteratorObject() const override
     {
         return true;
     }

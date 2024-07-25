@@ -42,7 +42,7 @@ public:
         m_primitiveValue = data;
     }
 
-    virtual bool isNumberObject() const
+    virtual bool isNumberObject() const override
     {
         return true;
     }

@@ -76,7 +76,7 @@ public:
         return IS_VALID_TIME(m_primitiveValue);
     }
 
-    virtual bool isDateObject() const
+    virtual bool isDateObject() const override
     {
         return true;
     }
