@@ -296,7 +296,7 @@ public:
         ASSERT(setter.isEmpty() || setter.isCallable() || setter.isUndefined());
     }
 
-    virtual bool isJSGetterSetter() const
+    virtual bool isJSGetterSetter() const override
     {
         return true;
     }

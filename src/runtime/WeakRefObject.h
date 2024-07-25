@@ -32,7 +32,7 @@ public:
     explicit WeakRefObject(ExecutionState& state, PointerValue* target);
     explicit WeakRefObject(ExecutionState& state, Object* proto, PointerValue* target);
 
-    virtual bool isWeakRefObject() const
+    virtual bool isWeakRefObject() const override
     {
         return true;
     }

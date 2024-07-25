@@ -31,7 +31,7 @@ public:
     explicit WeakSetObject(ExecutionState& state);
     explicit WeakSetObject(ExecutionState& state, Object* proto);
 
-    virtual bool isWeakSetObject() const
+    virtual bool isWeakSetObject() const override
     {
         return true;
     }

@@ -174,7 +174,7 @@ public:
     ErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
     void updateStackTraceData(ExecutionState& state);
 
-    virtual bool isErrorObject() const
+    virtual bool isErrorObject() const override
     {
         return true;
     }

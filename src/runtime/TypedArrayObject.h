@@ -44,7 +44,7 @@ public:
     {
     }
 
-    virtual bool isTypedArrayPrototypeObject() const
+    virtual bool isTypedArrayPrototypeObject() const override
     {
         return true;
     }
