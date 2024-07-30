@@ -39,6 +39,11 @@ ninja
 
 ## Build Android version
 
+Build prerequisites on Ubuntu:
+```sh
+sudo apt install openjdk-17-jdk # require java 17
+```
+
 ```sh
 git clone https://github.com/Samsung/escargot.git
 cd escargot
@@ -46,10 +51,13 @@ git submodule update --init third_party
 export ANDROID_SDK_ROOT=.... # set your android SDK root first
 cd build/android/
 ./gradlew bundleReleaseAar # build escargot AAR
+./gradlew bundleHostJar # bundle jar for host
+./gradlew javadocJar # create java doc
+./gradlew sourcesJar # create sources jar
+
 ./gradlew assembleDebug # build debug test shell
 ./gradlew :escargot:connectedDebugAndroidTest # run escargot-jni tests on android device
 ./gradlew :escargot:testDebugUnitTest # run escargot-jni tests on host
-./gradlew bundleHostJar # bundle jar for host
 ```
 
 ## Build Windows version
