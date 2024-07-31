@@ -1,0 +1,99 @@
+name: Android-Release
+
+on:
+  schedule:
+    # scheduled to run UTC 22:00 (07:00 in South Korea), Every 1st of the month
+    - cron: '0 22 1 * *'
+  workflow_dispatch:
+
+jobs:
+  build-android-on-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Set up JDK
+      uses: actions/setup-java@v4.1.0
+      with:
+        distribution: "zulu"
+        java-version: 17
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+    - name: Build with Gradle
+      working-directory: ./build/android
+      run: |
+        ./gradlew bundleHostJar
+        ./gradlew javadocJar
+        ./gradlew sourcesJar
+        ./gradlew :escargot:testDebugUnitTest
+        mv ./escargot/build/libs/escargot.jar ./escargot/build/libs/escargot-ubuntu.jar
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifact-ubuntu
+        path: |
+          ./build/android/escargot/build/**/escargot-*.aar
+          ./build/android/escargot/build/**/escargot-*.jar
+          !./build/android/escargot/build/**/escargot-*Shell.aar
+        if-no-files-found: error
+        overwrite: true
+
+  build-android-on-macos:
+    runs-on: macos-12
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Set up JDK
+      uses: actions/setup-java@v4.1.0
+      with:
+        distribution: "zulu"
+        java-version: 17
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+    - name: Build with Gradle
+      working-directory: ./build/android
+      run: |
+        ./gradlew bundleHostJar
+        ./gradlew :escargot:testDebugUnitTest
+        mv ./escargot/build/libs/escargot.jar ./escargot/build/libs/escargot-mac.jar
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifact-mac
+        path: |
+          ./build/android/escargot/build/libs/escargot-mac.jar
+        if-no-files-found: error
+        overwrite: true
+
+  merge-upload-release:
+    needs: [build-android-on-ubuntu, build-android-on-macos]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        pattern: build-artifact-*
+        merge-multiple: true
+    - name: Set release date
+      run: |
+        echo "RELEASE_DATE=$(date --rfc-3339=date)" >> $GITHUB_ENV
+    - name: Merge build artifacts
+      working-directory: ./artifacts
+      run: |
+        ls -R ./
+        echo ${RELEASE_DATE}
+        find . -type f -name "escargot-*.aar" -exec mv {} . \;
+        find . -type f -name "escargot-*.jar" -exec mv {} . \;
+        ls -R ./
+    - name: Upload final artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Android-Release-${{ env.RELEASE_DATE }}
+        path: |
+          ./artifacts/escargot-*.aar
+          ./artifacts/escargot-*.jar
+        if-no-files-found: error
+        overwrite: true
