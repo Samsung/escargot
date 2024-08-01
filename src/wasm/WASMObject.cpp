@@ -24,6 +24,7 @@
 #include "runtime/Context.h"
 #include "runtime/Object.h"
 #include "runtime/ArrayBufferObject.h"
+#include "runtime/SharedArrayBufferObject.h"
 #include "runtime/BackingStore.h"
 #include "wasm/WASMObject.h"
 #include "wasm/WASMValueConverter.h"
@@ -125,12 +126,12 @@ void* WASMInstanceObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-WASMMemoryObject::WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBufferObject* buffer)
+WASMMemoryObject::WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBuffer* buffer)
     : WASMMemoryObject(state, state.context()->globalObject()->wasmMemoryPrototype(), memory, buffer)
 {
 }
 
-WASMMemoryObject::WASMMemoryObject(ExecutionState& state, Object* proto, wasm_memory_t* memory, ArrayBufferObject* buffer)
+WASMMemoryObject::WASMMemoryObject(ExecutionState& state, Object* proto, wasm_memory_t* memory, ArrayBuffer* buffer)
     : DerivedObject(state, proto)
     , m_memory(memory)
     , m_buffer(buffer)
@@ -140,7 +141,9 @@ WASMMemoryObject::WASMMemoryObject(ExecutionState& state, Object* proto, wasm_me
     addFinalizer([](PointerValue* obj, void* data) {
         WASMMemoryObject* self = (WASMMemoryObject*)obj;
         wasm_memory_delete(self->memory());
-        self->buffer()->detachArrayBuffer();
+        if (!self->buffer()->isSharedArrayBufferObject()) {
+            self->buffer()->asArrayBufferObject()->detachArrayBuffer();
+        }
     },
                  nullptr);
 }
@@ -171,20 +174,24 @@ WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wa
         return memory;
     }
 
-    // Let memory be a new Memory.
-    // Initialize memory from memory.
-    ArrayBufferObject* buffer = new ArrayBufferObject(state);
-
     // Note) wasm_memory_data with zero size returns null pointer
     // predefined temporal address is allocated for this case
     void* dataBlock = wasm_memory_size(memaddr) == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memaddr);
 
-    // Init BackingStore with empty deleter
-    BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, wasm_memory_data_size(memaddr),
-                                                                           [](void* data, size_t length, void* deleterData) {}, nullptr);
-    buffer->attachBuffer(backingStore);
+    ArrayBuffer* buffer = nullptr;
+    if (wasm_memory_is_shared(memaddr)) {
+        buffer = SharedArrayBufferObject::allocateExternalSharedArrayBuffer(state, dataBlock, wasm_memory_data_size(memaddr));
+    } else {
+        buffer = ArrayBufferObject::allocateExternalArrayBuffer(state, dataBlock, wasm_memory_data_size(memaddr));
+    }
 
-    // Set memory.[[Memory]] to memory.
+    // Let status be the result of calling SetIntegrityLevel(buffer, "frozen").
+    // If status is false, a TypeError is thrown.
+    if (!Object::setIntegrityLevel(state, buffer, false)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+
+    // Set memory.[[Memory]] to memaddr.
     // Set memory.[[BufferObject]] to buffer.
     memory = new WASMMemoryObject(state, memaddr, buffer);
 
@@ -195,13 +202,13 @@ WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wa
     return memory;
 }
 
-ArrayBufferObject* WASMMemoryObject::buffer() const
+ArrayBuffer* WASMMemoryObject::buffer() const
 {
     ASSERT(!!m_buffer && !m_buffer->isDetachedBuffer());
     return m_buffer;
 }
 
-void WASMMemoryObject::setBuffer(ArrayBufferObject* buffer)
+void WASMMemoryObject::setBuffer(ArrayBuffer* buffer)
 {
     ASSERT(!!buffer && !buffer->isDetachedBuffer());
     m_buffer = buffer;

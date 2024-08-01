@@ -260,7 +260,7 @@ if (f.type == Type::B) { puts("failed in msvc."); }
 #endif
 
 // FIXME arm devices raise SIGBUS when using unaligned address to __atomic_* functions
-#if (defined(COMPILER_GCC) || defined(COMPILER_CLANG)) && !defined(CPU_ARM32) && !defined(CPU_ARM64)
+#if defined(COMPILER_GCC) && !defined(CPU_ARM32) && !defined(CPU_ARM64)
 #define HAVE_BUILTIN_ATOMIC_FUNCTIONS
 #endif
 
