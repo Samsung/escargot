@@ -1779,7 +1779,7 @@ void Scanner::scanTemplate(Scanner::ScannerResult* token, bool head)
                         }
                         break;
                     }
-                    auto endIndex = this->index;
+                    auto endIndex = this->eof() ? this->length : this->index;
                     for (size_t i = currentIndex; i < endIndex; i++) {
                         raw += this->sourceCharAt(i);
                     }
