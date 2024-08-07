@@ -69,6 +69,7 @@ namespace Escargot {
     F(Int32Array)                 \
     F(Int8Array)                  \
     F(Intl)                       \
+    F(Iterator)                   \
     F(JSON)                       \
     F(LN10)                       \
     F(LN2)                        \

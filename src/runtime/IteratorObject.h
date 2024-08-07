@@ -29,6 +29,7 @@ class StringIteratorObject;
 class RegExpStringIteratorObject;
 class MapIteratorObject;
 class SetIteratorObject;
+class IteratorHelperObject;
 class IteratorObject;
 
 class IteratorRecord : public PointerValue {
@@ -90,6 +91,12 @@ public:
         return (SetIteratorObject*)this;
     }
 
+    IteratorHelperObject* asIteratorHelperObject()
+    {
+        ASSERT(isIteratorHelperObject());
+        return (IteratorHelperObject*)this;
+    }
+
     Value next(ExecutionState& state);
 
     virtual std::pair<Value, bool> advance(ExecutionState& state) = 0;
@@ -100,6 +107,8 @@ public:
     static Value iteratorValue(ExecutionState& state, Object* iterResult);
     // this function return empty Optional value instead of Value(false)
     static Optional<Object*> iteratorStep(ExecutionState& state, IteratorRecord* iteratorRecord);
+    // return null option value when iterator done
+    static Optional<Value> iteratorStepValue(ExecutionState& state, IteratorRecord* iteratorRecord);
     static Value iteratorClose(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType);
     static Object* createIterResultObject(ExecutionState& state, const Value& value, bool done);
     // https://www.ecma-international.org/ecma-262/10.0/#sec-iterabletolist
@@ -117,6 +126,61 @@ public:
     typedef Vector<KeyedGroup*, GCUtil::gc_malloc_allocator<KeyedGroup*>> KeyedGroupVector;
     static KeyedGroupVector groupBy(ExecutionState& state, const Value& items, const Value& callbackfn, GroupByKeyCoercion keyCoercion);
 };
+
+class IteratorHelperObject : public IteratorObject {
+public:
+    typedef std::pair<Value, bool> (*IteratorHelperObjectCallback)(ExecutionState& state, IteratorHelperObject* obj, void* data);
+    IteratorHelperObject(ExecutionState& state, IteratorHelperObjectCallback callback, IteratorRecord* underlyingIterator, void* data);
+
+    virtual bool isIteratorHelperObject() const override
+    {
+        return true;
+    }
+
+    virtual std::pair<Value, bool> advance(ExecutionState& state) override;
+
+    void* operator new(size_t size);
+    void* operator new[](size_t size) = delete;
+
+    bool isRunning() const
+    {
+        return m_isRunning;
+    }
+
+    IteratorRecord* underlyingIterator() const
+    {
+        return m_underlyingIterator;
+    }
+
+private:
+    bool m_isRunning;
+    IteratorHelperObjectCallback m_callback;
+    IteratorRecord* m_underlyingIterator;
+    void* m_data;
+};
+
+class WrapForValidIteratorObject : public DerivedObject {
+public:
+    explicit WrapForValidIteratorObject(ExecutionState& state, Object* proto, IteratorRecord* iterated)
+        : DerivedObject(state, proto)
+        , m_iterated(iterated)
+    {
+    }
+
+    virtual bool isWrapForValidIteratorObject() const override
+    {
+        return true;
+    }
+
+    IteratorRecord* iterated() const
+    {
+        return m_iterated;
+    }
+
+private:
+    IteratorRecord* m_iterated;
+};
+
 } // namespace Escargot
 
 #endif

@@ -242,6 +242,10 @@ class FunctionObject;
     F(finalizationRegistryPrototype, Object, objName)
 #define GLOBALOBJECT_BUILTIN_TEMPORAL(F, objName) \
     F(temporal, Object, objName)
+#define GLOBALOBJECT_BUILTIN_ITERATOR(F, objName)     \
+    F(iterator, FunctionObject, objName)              \
+    F(wrapForValidIteratorPrototype, Object, objName) \
+    F(iteratorHelperPrototype, Object, objName)
 
 #if defined(ENABLE_THREADING)
 #define GLOBALOBJECT_BUILTIN_ATOMICS(F, objName) \
@@ -282,9 +286,11 @@ class FunctionObject;
     F(DATAVIEW, DataView, ARG)                           \
     F(DATE, Date, ARG)                                   \
     F(ERROR, Error, ARG)                                 \
+    F(FINALIZATIONREGISTRY, FinalizationRegistry, ARG)   \
     F(FUNCTION, Function, ARG)                           \
     F(GENERATOR, Generator, ARG)                         \
     F(INTL, Intl, ARG)                                   \
+    F(ITERATOR, Iterator, ARG)                           \
     F(JSON, JSON, ARG)                                   \
     F(MAP, Map, ARG)                                     \
     F(MATH, Math, ARG)                                   \
@@ -305,7 +311,6 @@ class FunctionObject;
     F(WEAKMAP, WeakMap, ARG)                             \
     F(WEAKSET, WeakSet, ARG)                             \
     F(WEAKREF, WeakRef, ARG)                             \
-    F(FINALIZATIONREGISTRY, FinalizationRegistry, ARG)   \
     F(WASM, WebAssembly, ARG)
 
 
