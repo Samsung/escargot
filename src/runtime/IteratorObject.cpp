@@ -135,6 +135,31 @@ Optional<Object*> IteratorObject::iteratorStep(ExecutionState& state, IteratorRe
     return done ? nullptr : result;
 }
 
+// https://tc39.es/ecma262/#sec-iteratorstepvalue
+Optional<Value> IteratorObject::iteratorStepValue(ExecutionState& state, IteratorRecord* iteratorRecord)
+{
+    // Let result be ? IteratorStep(iteratorRecord).
+    auto result = iteratorStep(state, iteratorRecord);
+    // If result is done, then
+    if (!result) {
+        // Return done.
+        return nullptr;
+    }
+
+    Value value;
+    // Let value be Completion(IteratorValue(result)).
+    try {
+        value = iteratorValue(state, result.value());
+    } catch (const Value& e) {
+        // If value is a throw completion, then
+        // Set iteratorRecord.[[Done]] to true.
+        iteratorRecord->m_done = true;
+        throw e;
+    }
+    // Return ? value.
+    return value;
+}
+
 // https://www.ecma-international.org/ecma-262/10.0/#sec-iteratorclose
 Value IteratorObject::iteratorClose(ExecutionState& state, IteratorRecord* iteratorRecord, const Value& completionValue, bool hasThrowOnCompletionType)
 {
@@ -324,6 +349,55 @@ IteratorObject::KeyedGroupVector IteratorObject::groupBy(ExecutionState& state, 
         // Set k to k + 1.
         k = k + 1;
     }
+}
+
+IteratorHelperObject::IteratorHelperObject(ExecutionState& state, IteratorHelperObjectCallback callback,
+                                           IteratorRecord* underlyingIterator, void* data)
+    : IteratorObject(state, state.context()->globalObject()->iteratorHelperPrototype())
+    , m_isRunning(false)
+    , m_callback(callback)
+    , m_underlyingIterator(underlyingIterator)
+    , m_data(data)
+{
+}
+
+void* IteratorHelperObject::operator new(size_t size)
+{
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word obj_bitmap[GC_BITMAP_SIZE(IteratorHelperObject)] = { 0 };
+        IteratorObject::fillGCDescriptor(obj_bitmap);
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(IteratorHelperObject, m_data));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(IteratorHelperObject, m_underlyingIterator));
+        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(IteratorHelperObject));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+}
+
+std::pair<Value, bool> IteratorHelperObject::advance(ExecutionState& state)
+{
+    struct IteratorHelperObjectRunningStateChanger {
+        IteratorHelperObject& obj;
+        IteratorHelperObjectRunningStateChanger(IteratorHelperObject& obj)
+            : obj(obj)
+        {
+            ASSERT(!obj.m_isRunning);
+            obj.m_isRunning = true;
+        }
+        ~IteratorHelperObjectRunningStateChanger()
+        {
+            obj.m_isRunning = false;
+        }
+    };
+
+    if (m_isRunning) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "You cannot call Iterator helper advance function recursively");
+    }
+
+    IteratorHelperObjectRunningStateChanger changeRunningState(*this);
+    return m_callback(state, this, m_data);
 }
 
 } // namespace Escargot

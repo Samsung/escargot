@@ -59,6 +59,7 @@ class DoubleInEncodedValue;
 class JSGetterSetter;
 class IteratorRecord;
 class IteratorObject;
+class WrapForValidIteratorObject;
 class GenericIteratorObject;
 class MapObject;
 class SetObject;
@@ -471,7 +472,17 @@ public:
         return false;
     }
 
+    virtual bool isWrapForValidIteratorObject() const
+    {
+        return false;
+    }
+
     virtual bool isGenericIteratorObject() const
+    {
+        return false;
+    }
+
+    virtual bool isIteratorHelperObject() const
     {
         return false;
     }
@@ -917,6 +928,12 @@ public:
     {
         ASSERT(isIteratorObject());
         return (IteratorObject*)this;
+    }
+
+    WrapForValidIteratorObject* asWrapForValidIteratorObject()
+    {
+        ASSERT(isWrapForValidIteratorObject());
+        return (WrapForValidIteratorObject*)this;
     }
 
     GenericIteratorObject* asGenericIteratorObject()
