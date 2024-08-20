@@ -513,8 +513,8 @@ static Value fastTypedArrayIndexSearch(TypedArrayObject* arr, size_t k, size_t l
 
     uint8_t* buffer = arr->rawBuffer();
     auto elementSize = arr->elementSize();
-    int64_t byteK = static_cast<int64_t>(k * elementSize);
-    int64_t byteLength = static_cast<int64_t>(len * elementSize);
+    int64_t byteK = static_cast<int64_t>(k) * elementSize;
+    int64_t byteLength = static_cast<int64_t>(len) * elementSize;
 
     auto compFn = [](int64_t byteK, int64_t byteLength) -> bool {
         if (isForward) {
