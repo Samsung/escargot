@@ -463,8 +463,10 @@ std::pair<bool, size_t> InterpretedCodeBlock::tryCaptureIdentifiersFromChildCode
     }
 
 
-    if (blockIndex < m_functionBodyBlockIndex) {
-        if (!isParameterName(name)) {
+    if (UNLIKELY(blockIndex < m_functionBodyBlockIndex)) {
+        // case for functions located in parameters
+        if (!isParameterName(name) && name != m_context->staticStrings().arguments) {
+            // it's possible to access parameter or arguemnts object of upper function
             return std::make_pair(false, SIZE_MAX);
         }
     }
