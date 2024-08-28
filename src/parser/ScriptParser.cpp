@@ -176,57 +176,42 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
         AtomicString arguments = ctx->staticStrings().arguments;
 
         for (size_t i = 0; i < scopeCtx->m_childBlockScopes.size(); i++) {
-            for (size_t j = 0; j < scopeCtx->m_childBlockScopes[i]->m_usingNames.size(); j++) {
-                AtomicString uname = scopeCtx->m_childBlockScopes[i]->m_usingNames[j];
-                auto blockIndex = scopeCtx->m_childBlockScopes[i]->m_blockIndex;
+            ASTBlockContext* childBlockContext = scopeCtx->m_childBlockScopes[i];
+
+            for (size_t j = 0; j < childBlockContext->m_usingNames.size(); j++) {
+                AtomicString uname = childBlockContext->m_usingNames[j];
+                auto blockIndex = childBlockContext->m_blockIndex;
+
                 if (uname == arguments) {
-                    if (UNLIKELY(codeBlock->hasParameterName(arguments))) {
-                        continue;
-                    } else {
-                        bool hasKindOfArgumentsHolderOnAncestors = false;
-
-                        InterpretedCodeBlock* argumentsObjectHolder = codeBlock;
-                        while (argumentsObjectHolder) {
-                            if (argumentsObjectHolder->isKindOfFunction() && !argumentsObjectHolder->isArrowFunctionExpression()) {
-                                hasKindOfArgumentsHolderOnAncestors = true;
-                                break;
-                            }
-                            argumentsObjectHolder = argumentsObjectHolder->parent();
+                    // handle `arguments` object
+                    bool needToCaptureArguments = false;
+                    InterpretedCodeBlock* argumentsObjectHolder = codeBlock;
+                    while (argumentsObjectHolder && !argumentsObjectHolder->isGlobalCodeBlock()) {
+                        if (UNLIKELY(argumentsObjectHolder->hasParameterName(arguments))) {
+                            // no need to create arguments object since it has a parameter of which name is `arguments`
+                            break;
                         }
+                        if (argumentsObjectHolder->isKindOfFunction() && !argumentsObjectHolder->isArrowFunctionExpression()) {
+                            // find the target function of arguments object
+                            needToCaptureArguments = true;
+                            break;
+                        }
+                        argumentsObjectHolder = argumentsObjectHolder->parent();
+                    }
 
-                        if (hasKindOfArgumentsHolderOnAncestors && !argumentsObjectHolder->hasParameterName(arguments)) {
-                            InterpretedCodeBlock* argumentsVariableHolder = nullptr;
-                            InterpretedCodeBlock* c = codeBlock->parent();
-                            while (c && !c->isGlobalCodeBlock()) {
-                                if (c->hasParameterName(arguments)) {
-                                    argumentsVariableHolder = c;
-                                    break;
-                                } else if (!c->isArrowFunctionExpression()) {
-                                    argumentsVariableHolder = c;
-                                    break;
-                                }
-                                c = c->parent();
-                            }
+                    if (needToCaptureArguments) {
+                        ASSERT(argumentsObjectHolder->isKindOfFunction() && !argumentsObjectHolder->isArrowFunctionExpression());
+                        argumentsObjectHolder->captureArguments();
 
-                            if (LIKELY(!codeBlock->isArrowFunctionExpression())) {
-                                codeBlock->captureArguments();
-                                continue;
-                            } else {
-                                InterpretedCodeBlock* p = codeBlock;
-                                while (p) {
-                                    if (!p->isArrowFunctionExpression()) {
-                                        break;
-                                    }
-                                    p->m_usesArgumentsObject = true;
-                                    p = p->parent();
-                                }
-                                if (argumentsVariableHolder) {
-                                    argumentsVariableHolder->captureArguments();
-                                }
-                                if (!codeBlock->isKindOfFunction() || codeBlock->isArrowFunctionExpression()) {
-                                    codeBlock->markHeapAllocatedEnvironmentFromHere(blockIndex, argumentsVariableHolder);
-                                }
+                        if (UNLIKELY(!codeBlock->isKindOfFunction() || codeBlock->isArrowFunctionExpression())) {
+                            InterpretedCodeBlock* p = codeBlock;
+                            while (p != argumentsObjectHolder) {
+                                // mark all eval code or arrow function located to the target argumentsObjectHolder to use ArgumentsObject
+                                p->m_usesArgumentsObject = true;
+                                p = p->parent();
                             }
+                            ASSERT(p == argumentsObjectHolder);
+                            codeBlock->markHeapAllocatedEnvironmentFromHere(blockIndex, argumentsObjectHolder);
                         }
                     }
                 }
