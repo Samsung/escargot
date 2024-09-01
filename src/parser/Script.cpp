@@ -602,24 +602,27 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
     if (isEvalCodeOnFunction && m_topCodeBlock->usesArgumentsObject()) {
         AtomicString arguments = state.context()->staticStrings().arguments;
 
-        FunctionEnvironmentRecord* fnRecord = nullptr;
-        {
-            LexicalEnvironment* env = state.lexicalEnvironment();
-            while (env) {
-                if (env->record()->isDeclarativeEnvironmentRecord() && env->record()->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord()) {
-                    fnRecord = env->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-                    break;
-                }
-                env = env->outerEnvironment();
-            }
-        }
-        ASSERT(!!fnRecord);
+        FunctionEnvironmentRecord* funcRecord = nullptr;
+        ScriptFunctionObject* funcObject = nullptr;
 
-        FunctionObject* callee = state.resolveCallee();
-        if (fnRecord->hasBinding(newState, arguments).m_index == SIZE_MAX && callee->isScriptFunctionObject()) {
+        // find the most nearest lexical function which is not an arrow function
+        ExecutionState* es = &state;
+        while (es) {
+            EnvironmentRecord* record = es->lexicalEnvironment()->record();
+            if (record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord() && !record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isScriptArrowFunctionObject()) {
+                funcRecord = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+                funcObject = funcRecord->functionObject()->asScriptFunctionObject();
+                break;
+            }
+            es = es->parent();
+        }
+        ASSERT(!!funcRecord && !!funcObject && !funcObject->isScriptArrowFunctionObject());
+
+        if (funcRecord->hasBinding(newState, arguments).m_index == SIZE_MAX) {
+            // If eval code uses the arguments object but not yet created in outer function, generate it
             // FIXME check if formal parameters does not contain a rest parameter, any binding patterns, or any initializers.
-            bool isMapped = !callee->codeBlock()->asInterpretedCodeBlock()->hasParameterOtherThanIdentifier() && !inStrict;
-            callee->asScriptFunctionObject()->generateArgumentsObject(newState, state.argc(), state.argv(), fnRecord, nullptr, isMapped);
+            bool isMapped = !funcObject->interpretedCodeBlock()->hasParameterOtherThanIdentifier() && !inStrict;
+            funcObject->generateArgumentsObject(newState, es->argc(), es->argv(), funcRecord, nullptr, isMapped);
         }
     }
 

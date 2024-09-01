@@ -847,7 +847,7 @@ public:
     // You can use this function on ScriptParser only
     void computeVariables();
     // You can use this function on ScriptParser only
-    void captureArguments();
+    void captureArguments(bool needToAllocateOnStack);
 
     // You can use this function on ScriptParser only
     /* capture ok, block vector index(if not block variable, returns SIZE_MAX) */

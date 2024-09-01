@@ -4964,10 +4964,24 @@ NEVER_INLINE void InterpreterSlowPath::setObjectOpcodeSlowCase(ExecutionState& s
 
 NEVER_INLINE void InterpreterSlowPath::ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile)
 {
-    auto functionRecord = state.mostNearestFunctionLexicalEnvironment()->record()->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
-    auto functionObject = functionRecord->functionObject()->asScriptFunctionObject();
-    bool isMapped = functionObject->interpretedCodeBlock()->shouldHaveMappedArguments();
-    functionObject->generateArgumentsObject(state, state.argc(), state.argv(), functionRecord, registerFile + byteCodeBlock->m_requiredOperandRegisterNumber, isMapped);
+    FunctionEnvironmentRecord* funcRecord = nullptr;
+    ScriptFunctionObject* funcObject = nullptr;
+
+    // find the most nearest lexical function which is not an arrow function
+    ExecutionState* es = &state;
+    while (es) {
+        EnvironmentRecord* record = es->lexicalEnvironment()->record();
+        if (record->isDeclarativeEnvironmentRecord() && record->asDeclarativeEnvironmentRecord()->isFunctionEnvironmentRecord() && !record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord()->functionObject()->isScriptArrowFunctionObject()) {
+            funcRecord = record->asDeclarativeEnvironmentRecord()->asFunctionEnvironmentRecord();
+            funcObject = funcRecord->functionObject()->asScriptFunctionObject();
+            break;
+        }
+        es = es->parent();
+    }
+
+    ASSERT(!!funcRecord && !!funcObject && !funcObject->isScriptArrowFunctionObject());
+    bool isMapped = funcObject->interpretedCodeBlock()->shouldHaveMappedArguments();
+    funcObject->generateArgumentsObject(state, es->argc(), es->argv(), funcRecord, registerFile + byteCodeBlock->m_requiredOperandRegisterNumber, isMapped);
 }
 
 NEVER_INLINE int InterpreterSlowPath::evaluateImportAssertionOperation(ExecutionState& state, const Value& options)
