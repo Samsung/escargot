@@ -409,20 +409,23 @@ void InterpretedCodeBlock::recordFunctionParsingInfo(ASTScopeContext* scopeCtx, 
     initBlockScopeInformation(scopeCtx);
 }
 
-void InterpretedCodeBlock::captureArguments()
+void InterpretedCodeBlock::captureArguments(bool needToAllocateOnStack)
 {
     AtomicString arguments = m_context->staticStrings().arguments;
     ASSERT(!hasParameterName(arguments));
-    ASSERT(!isGlobalCodeBlock() && !isArrowFunctionExpression());
+    ASSERT(!isGlobalCodeBlock() && !isArrowFunctionExpression() && isKindOfFunction());
 
     if (m_usesArgumentsObject) {
+        size_t idx = findVarName(arguments);
+        ASSERT(idx != SIZE_MAX);
+        m_identifierInfos[idx].m_needToAllocateOnStack &= needToAllocateOnStack;
         return;
     }
 
     m_usesArgumentsObject = true;
     if (findVarName(arguments) == SIZE_MAX) {
         IdentifierInfo info;
-        info.m_needToAllocateOnStack = true;
+        info.m_needToAllocateOnStack = needToAllocateOnStack;
         info.m_isMutable = true;
         info.m_isParameterName = false;
         info.m_isExplicitlyDeclaredOrParameterName = false;
@@ -466,7 +469,7 @@ std::pair<bool, size_t> InterpretedCodeBlock::tryCaptureIdentifiersFromChildCode
     if (UNLIKELY(blockIndex < m_functionBodyBlockIndex)) {
         // case for functions located in parameters
         if (!isParameterName(name) && name != m_context->staticStrings().arguments) {
-            // it's possible to access parameter or arguemnts object of upper function
+            // it's possible to access parameter or arguments object of upper function
             return std::make_pair(false, SIZE_MAX);
         }
     }

@@ -174,7 +174,6 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
         }
 
         AtomicString arguments = ctx->staticStrings().arguments;
-
         for (size_t i = 0; i < scopeCtx->m_childBlockScopes.size(); i++) {
             ASTBlockContext* childBlockContext = scopeCtx->m_childBlockScopes[i];
 
@@ -201,7 +200,8 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
 
                     if (needToCaptureArguments) {
                         ASSERT(argumentsObjectHolder->isKindOfFunction() && !argumentsObjectHolder->isArrowFunctionExpression());
-                        argumentsObjectHolder->captureArguments();
+                        // if argumentsObjectHolder and codeBlock are not same, arguments should be allocated on the heap
+                        argumentsObjectHolder->captureArguments(argumentsObjectHolder == codeBlock);
 
                         if (UNLIKELY(!codeBlock->isKindOfFunction() || codeBlock->isArrowFunctionExpression())) {
                             InterpretedCodeBlock* p = codeBlock;
@@ -213,6 +213,9 @@ InterpretedCodeBlock* ScriptParser::generateCodeBlockTreeFromASTWalker(Context* 
                             ASSERT(p == argumentsObjectHolder);
                             codeBlock->markHeapAllocatedEnvironmentFromHere(blockIndex, argumentsObjectHolder);
                         }
+
+                        // arguments captured, so continue to the next
+                        continue;
                     }
                 }
 

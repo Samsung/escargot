@@ -163,6 +163,9 @@ Value ScriptFunctionObject::construct(ExecutionState& state, const size_t argc, 
 
 void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Value* stackStorage, bool isMapped)
 {
+    // arrow function should not create an ArgumentsObject
+    ASSERT(!isScriptArrowFunctionObject());
+
     if (environmentRecordWillArgumentsObjectBeLocatedIn->m_argumentsObject->isArgumentsObject()) {
         return;
     }
