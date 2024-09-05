@@ -21,7 +21,7 @@ Escargot is an open-source project that allows developers to contribute to its d
 ## Contents 📋
 * [Building](#Building-)
   * [Linux](#Linux)
-  * [Mac OS](#Mac-OS)
+  * [macOS](#macOS)
   * [Android](#Android)
   * [Windows](#Windows)
 * [Testing](#Testing-)
@@ -31,30 +31,33 @@ Escargot is an open-source project that allows developers to contribute to its d
 
 ## Building 🛠️
 
-#### Build Options
+### Supported Platforms and Architectures
+| **OS** | **Architecture** |
+|-|-|
+| **Linux(Ubuntu)** | x86/x64/arm/aarch64 |
+| macOS | x64 |
+| Windows | x86 |
+| Android | x86/x64/arm/aarch64 |
+
+### Build Options
 
 The following build options are supported when generating ninja rules using cmake.
 
-* -DESCARGOT_HOST=[ linux | tizen_obs | darwin | android | windows ]<br>
-  Compile Escargot for Linux, Tizen, macOS, or Windows platform
-* -DESCARGOT_ARCH=[ x64 | x86 | arm | i686 | aarch64 ]<br>
-  Compile Escargot for each architecture
-* -DESCARGOT_MODE=[ debug | release ]<br>
-  Compile Escargot for either release or debug mode
-* -DESCARGOT_OUTPUT=[ shared_lib | static_lib | shell | cctest ]<br>
-  Define target output type
-* -DESCARGOT_LIBICU_SUPPORT=[ ON | OFF ]<br>
-  Enable libicu library if set ON. (Optional, default = ON)
-* -DESCARGOT_THREADING=[ ON | OFF ]<br>
-  Enable Threading support. (Optional, default = OFF)
-* -DESCARGOT_CODE_CACHE=[ ON | OFF ]<br>
-  Enable Code cache support. (Optional, default = OFF)
-* -DESCARGOT_WASM=[ ON | OFF ]<br>
-  Enable WASM support. (Optional, default = OFF)
-* -DESCARGOT_SMALL_CONFIG=[ ON | OFF ]<br>
-  Enable Options for small devices. (Optional, default = OFF)
+| **Option** | **Description** | **Flag** | **Value** | **Default** |
+|-|-|-|-|-|
+| **HOST** | Choose target platform | -DESCARGOT_HOST | linux/darwin/android/windows | |
+| **ARCH** | Choose target architecture | -DESCARGOT_ARCH | x64/x86/arm/aarch64 | |
+| **MODE** | Choose release/debug mode | -DESCARGOT_MODE | release/debug | release |
+| **OUTPUT** | Choose build output type | -DESCARGOT_OUTPUT | shared_lib/static_lib/shell/cctest | shell |
+| **LIBICU** | Include libicu library | -DESCARGOT_LIBICU_SUPPORT | ON/OFF | ON |
+| **THREADING** | Enable threading features (e.g. Atomics, SharedArrayBuffer) | -DESCARGOT_THREADING | ON/OFF | OFF |
+| **WASM** | Enable WebAssembly support | -DESCARGOT_WASM | ON/OFF | OFF |
+| **CODE_CACHE** | Enable code cache | -DESCARGOT_CODE_CACHE | ON/OFF | OFF |
+| **TCO** | Enable tail call optimization | -DESCARGOT_TCO | ON/OFF | OFF |
+| **SMALL_CONFIG** | Enable aggressive memory optimizations for tiny devices | -DESCARGOT_SMALL_CONFIG | ON/OFF | OFF |
+| **TEST** | Enable additional features used only for testing | -DESCARGOT_TEST | ON/OFF | OFF |
 
-#### Linux
+### Linux
 
 General build prerequisites:
 ```sh
@@ -74,7 +77,7 @@ cmake -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
 ninja
 ```
 
-#### Mac OS
+### macOS
 
 General build prerequisites:
 ```sh
@@ -88,7 +91,7 @@ cmake -DESCARGOT_MODE=release -DESCARGOT_OUTPUT=shell -GNinja
 ninja
 ```
 
-#### Android
+### Android
 
 Build prerequisites on Ubuntu:
 ```sh
@@ -110,7 +113,7 @@ cd build/android/
 ./gradlew :escargot:testDebugUnitTest # run escargot-jni tests on host
 ```
 
-#### Windows
+### Windows
 
 Install VS2022 with cmake and ninja.
 Open [ x86 Native Tools Command Prompt for VS 2022 | x64 Native Tools Command Prompt for VS 2022 ]
@@ -147,7 +150,7 @@ tools/run-tests.py --engine=./out/linux/x64/release/escargot spidermonkey test26
 Escargot welcomes contributions from developers in any form, wheter it's code, documentation, bug reports, or suggestions. By contributing to the project, you agree to license your contributions under the [LGPL-2.1](https://github.com/Samsung/escargot/blob/master/LICENSE) license.
 
 #### ❗ Vulnerability Reporting
-⚠️ If you identify any vulnerabilities, please report them through the [Issues page](https://github.com/Samsung/escargot/issues). *We may not accept reports through any other channels*. Please note that our project assumes the execution of valid JavaScript source code only. Handling of invalid source code is not within the scope of this project.
+⚠️ If you identify any vulnerabilities, please report them through the [Issues page](https://github.com/Samsung/escargot/issues). *Reports sent via other channels may not be considered or may be processed with delays*. Please note that our project assumes the execution of valid JavaScript source code only. Handling of invalid source code is not within the main scope of this project and might not be addressed.
 
 ## Research Papers 📝
 * [Dynamic code compression for JavaScript engine](https://doi.org/10.1002/spe.3186)  
