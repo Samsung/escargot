@@ -218,6 +218,8 @@ struct PatternTerm {
         patternCharacter = ch;
         quantityType = QuantifierType::FixedCount;
         quantityMinCount = quantityMaxCount = 1;
+        inputPosition = 0;
+        frameLocation = 0;
     }
 
     PatternTerm(CharacterClass* charClass, bool invert, MatchDirection matchDirection = Forward)
@@ -229,6 +231,8 @@ struct PatternTerm {
         characterClass = charClass;
         quantityType = QuantifierType::FixedCount;
         quantityMinCount = quantityMaxCount = 1;
+        inputPosition = 0;
+        frameLocation = 0;
     }
 
     PatternTerm(Type type, unsigned subpatternId, PatternDisjunction* disjunction, bool capture = false, bool invert = false, MatchDirection matchDirection = Forward)
@@ -243,6 +247,8 @@ struct PatternTerm {
         parentheses.isTerminal = false;
         quantityType = QuantifierType::FixedCount;
         quantityMinCount = quantityMaxCount = 1;
+        inputPosition = 0;
+        frameLocation = 0;
     }
 
     PatternTerm(Type type, bool invert = false)
@@ -253,6 +259,8 @@ struct PatternTerm {
     {
         quantityType = QuantifierType::FixedCount;
         quantityMinCount = quantityMaxCount = 1;
+        inputPosition = 0;
+        frameLocation = 0;
     }
 
     PatternTerm(unsigned spatternId)
@@ -264,6 +272,8 @@ struct PatternTerm {
         backReferenceSubpatternId = spatternId;
         quantityType = QuantifierType::FixedCount;
         quantityMinCount = quantityMaxCount = 1;
+        inputPosition = 0;
+        frameLocation = 0;
     }
 
     PatternTerm(bool bolAnchor, bool eolAnchor)
@@ -276,6 +286,8 @@ struct PatternTerm {
         anchors.eolAnchor = eolAnchor;
         quantityType = QuantifierType::FixedCount;
         quantityMinCount = quantityMaxCount = 1;
+        inputPosition = 0;
+        frameLocation = 0;
     }
 
     static PatternTerm ForwardReference()
@@ -360,6 +372,7 @@ struct PatternAlternative {
 public:
     PatternAlternative(PatternDisjunction* disjunction, unsigned firstSubpatternId, MatchDirection matchDirection = Forward)
         : m_parent(disjunction)
+        , m_minimumSize(0)
         , m_firstSubpatternId(firstSubpatternId)
         , m_lastSubpatternId(0)
         , m_direction(matchDirection)
@@ -436,6 +449,8 @@ struct PatternDisjunction {
 public:
     PatternDisjunction(PatternAlternative* parent = nullptr)
         : m_parent(parent)
+        , m_minimumSize(0)
+        , m_callFrameSize(0)
         , m_hasFixedSize(false)
     {
     }

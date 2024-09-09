@@ -982,7 +982,10 @@ class YarrPatternConstructor {
 public:
     YarrPatternConstructor(YarrPattern& pattern)
         : m_pattern(pattern)
+        , m_alternative(nullptr)
         , m_baseCharacterClassConstructor(pattern.ignoreCase(), pattern.compileMode())
+        , m_currentCharacterClassConstructor(nullptr)
+        , m_invertCharacterClass(false)
     {
         m_currentCharacterClassConstructor = &m_baseCharacterClassConstructor;
         auto body = makeUnique<PatternDisjunction>();
