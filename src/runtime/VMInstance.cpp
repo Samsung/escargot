@@ -215,7 +215,10 @@ void vmMarkStartCallback(void* data)
 
         auto& v = self->compiledByteCodeBlocks();
         for (size_t i = 0; i < v.size(); i++) {
-            v[i]->m_codeBlock->setByteCodeBlock(nullptr);
+            // ByteCodeBlock of top CodeBlock should be remove by Script class
+            if (v[i]->m_codeBlock->parent()) {
+                v[i]->m_codeBlock->setByteCodeBlock(nullptr);
+            }
         }
     }
 #endif
@@ -245,8 +248,10 @@ void vmReclaimEndCallback(void* data)
             currentCodeSizeTotal = 0;
             auto& v = self->compiledByteCodeBlocks();
             for (size_t i = 0; i < v.size(); i++) {
-                v[i]->m_codeBlock->setByteCodeBlock(v[i]);
-                ASSERT(v[i]->m_codeBlock->byteCodeBlock() == v[i]);
+                if (v[i]->m_codeBlock->parent()) {
+                    v[i]->m_codeBlock->setByteCodeBlock(v[i]);
+                    ASSERT(v[i]->m_codeBlock->byteCodeBlock() == v[i]);
+                }
 
                 currentCodeSizeTotal += v[i]->memoryAllocatedSize();
             }
