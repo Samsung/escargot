@@ -161,6 +161,15 @@ Value ScriptFunctionObject::construct(ExecutionState& state, const size_t argc, 
     return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, true, true, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, ScriptFunctionObjectNewTargetBinderWithConstruct, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();
 }
 
+void ScriptFunctionObject::callConstructor(ExecutionState& state, Object* receiver, const size_t argc, Value* argv, Object* newTarget)
+{
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->objectPrototype();
+    });
+    receiver->setPrototype(state, proto);
+    FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, true, true, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, ScriptFunctionObjectNewTargetBinderWithConstruct, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, receiver, argc, argv, newTarget);
+}
+
 void ScriptFunctionObject::generateArgumentsObject(ExecutionState& state, size_t argc, Value* argv, FunctionEnvironmentRecord* environmentRecordWillArgumentsObjectBeLocatedIn, Value* stackStorage, bool isMapped)
 {
     // arrow function should not create an ArgumentsObject

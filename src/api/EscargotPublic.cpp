@@ -2420,6 +2420,21 @@ void ObjectRef::setLength(ExecutionStateRef* pState, uint64_t newLength)
     toImpl(this)->set(state, state.context()->staticStrings().length, Value(newLength), toImpl(this));
 }
 
+IteratorObjectRef* ObjectRef::values(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->values(*toImpl(state)));
+}
+
+IteratorObjectRef* ObjectRef::keys(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->keys(*toImpl(state)));
+}
+
+IteratorObjectRef* ObjectRef::entries(ExecutionStateRef* state)
+{
+    return toRef(toImpl(this)->entries(*toImpl(state)));
+}
+
 bool ObjectRef::isExtensible(ExecutionStateRef* state)
 {
     return toImpl(this)->isExtensible(*toImpl(state));
@@ -3522,6 +3537,21 @@ ValueRef* ValueRef::construct(ExecutionStateRef* state, const size_t argc, Value
     return toRef(Object::construct(*toImpl(state), o, argc, newArgv));
 }
 
+void ValueRef::callConstructor(ExecutionStateRef* state, ObjectRef* receiver, const size_t argc, ValueRef** argv)
+{
+    auto impl = toImpl(this);
+    if (UNLIKELY(!impl.isObject())) {
+        ErrorObject::throwBuiltinError(*toImpl(state), ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
+    }
+    Object* o = impl.asObject();
+    Value* newArgv = ALLOCA(sizeof(Value) * argc, Value);
+    for (size_t i = 0; i < argc; i++) {
+        newArgv[i] = toImpl(argv[i]);
+    }
+
+    Object::callConstructor(*toImpl(state), o, toImpl(receiver), argc, newArgv);
+}
+
 ValueRef* ValueRef::create(bool value)
 {
     return reinterpret_cast<ValueRef*>(EncodedValue(Value(value)).payload());
@@ -3723,19 +3753,6 @@ ArrayObjectRef* ArrayObjectRef::create(ExecutionStateRef* state, ValueVectorRef*
     }
 
     return toRef(ret);
-}
-
-IteratorObjectRef* ArrayObjectRef::values(ExecutionStateRef* state)
-{
-    return toRef(toImpl(this)->values(*toImpl(state)));
-}
-IteratorObjectRef* ArrayObjectRef::keys(ExecutionStateRef* state)
-{
-    return toRef(toImpl(this)->keys(*toImpl(state)));
-}
-IteratorObjectRef* ArrayObjectRef::entries(ExecutionStateRef* state)
-{
-    return toRef(toImpl(this)->entries(*toImpl(state)));
 }
 
 COMPILE_ASSERT((int)ErrorCode::None == (int)ErrorObjectRef::Code::None, "");
@@ -4258,21 +4275,6 @@ size_t SetObjectRef::size(ExecutionStateRef* state)
     return toImpl(this)->size(*toImpl(state));
 }
 
-IteratorObjectRef* SetObjectRef::values(ExecutionStateRef* state)
-{
-    return toRef(toImpl(this)->values(*toImpl(state)));
-}
-
-IteratorObjectRef* SetObjectRef::keys(ExecutionStateRef* state)
-{
-    return toRef(toImpl(this)->keys(*toImpl(state)));
-}
-
-IteratorObjectRef* SetObjectRef::entries(ExecutionStateRef* state)
-{
-    return toRef(toImpl(this)->entries(*toImpl(state)));
-}
-
 WeakSetObjectRef* WeakSetObjectRef::create(ExecutionStateRef* state)
 {
     return toRef(new WeakSetObject(*toImpl(state)));
@@ -4336,21 +4338,6 @@ bool MapObjectRef::has(ExecutionStateRef* state, ValueRef* key)
 size_t MapObjectRef::size(ExecutionStateRef* state)
 {
     return toImpl(this)->size(*toImpl(state));
-}
-
-IteratorObjectRef* MapObjectRef::values(ExecutionStateRef* state)
-{
-    return toRef(toImpl(this)->values(*toImpl(state)));
-}
-
-IteratorObjectRef* MapObjectRef::keys(ExecutionStateRef* state)
-{
-    return toRef(toImpl(this)->keys(*toImpl(state)));
-}
-
-IteratorObjectRef* MapObjectRef::entries(ExecutionStateRef* state)
-{
-    return toRef(toImpl(this)->entries(*toImpl(state)));
 }
 
 WeakMapObjectRef* WeakMapObjectRef::create(ExecutionStateRef* state)

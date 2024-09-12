@@ -1034,6 +1034,8 @@ public:
     bool instanceOf(ExecutionStateRef* state, const ValueRef* other) const;
     ValueRef* call(ExecutionStateRef* state, ValueRef* receiver, const size_t argc, ValueRef** argv);
     ValueRef* construct(ExecutionStateRef* state, const size_t argc, ValueRef** argv); // same with new expression in js
+    // call constrictor with already created object
+    void callConstructor(ExecutionStateRef* state, ObjectRef* receiver, const size_t argc, ValueRef** argv);
 };
 
 class ESCARGOT_EXPORT ValueVectorRef {
@@ -1416,6 +1418,10 @@ public:
     uint64_t length(ExecutionStateRef* state);
     void setLength(ExecutionStateRef* state, uint64_t newLength);
 
+    IteratorObjectRef* values(ExecutionStateRef* state);
+    IteratorObjectRef* keys(ExecutionStateRef* state);
+    IteratorObjectRef* entries(ExecutionStateRef* state);
+
     bool isExtensible(ExecutionStateRef* state);
     bool preventExtensions(ExecutionStateRef* state);
     bool setIntegrityLevel(ExecutionStateRef* state, bool isSealed);
@@ -1611,9 +1617,6 @@ public:
     static ArrayObjectRef* create(ExecutionStateRef* state);
     static ArrayObjectRef* create(ExecutionStateRef* state, const uint64_t size);
     static ArrayObjectRef* create(ExecutionStateRef* state, ValueVectorRef* source);
-    IteratorObjectRef* values(ExecutionStateRef* state);
-    IteratorObjectRef* keys(ExecutionStateRef* state);
-    IteratorObjectRef* entries(ExecutionStateRef* state);
 };
 
 class ESCARGOT_EXPORT ErrorObjectRef : public ObjectRef {
@@ -1907,9 +1910,6 @@ public:
     bool deleteOperation(ExecutionStateRef* state, ValueRef* key);
     bool has(ExecutionStateRef* state, ValueRef* key);
     size_t size(ExecutionStateRef* state);
-    IteratorObjectRef* values(ExecutionStateRef* state);
-    IteratorObjectRef* keys(ExecutionStateRef* state);
-    IteratorObjectRef* entries(ExecutionStateRef* state);
 };
 
 class ESCARGOT_EXPORT WeakSetObjectRef : public ObjectRef {
@@ -1929,9 +1929,6 @@ public:
     bool has(ExecutionStateRef* state, ValueRef* key);
     void set(ExecutionStateRef* state, ValueRef* key, ValueRef* value);
     size_t size(ExecutionStateRef* state);
-    IteratorObjectRef* values(ExecutionStateRef* state);
-    IteratorObjectRef* keys(ExecutionStateRef* state);
-    IteratorObjectRef* entries(ExecutionStateRef* state);
 };
 
 class ESCARGOT_EXPORT WeakMapObjectRef : public ObjectRef {

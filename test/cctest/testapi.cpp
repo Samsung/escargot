@@ -669,6 +669,32 @@ TEST(FunctionObject, Consturct)
                        fn);
 }
 
+TEST(FunctionObject, CallConsturctor)
+{
+    eval(g_context.get(), StringRef::createFromASCII("function callconstructortestFunction() {}  this.testFunction = callconstructortestFunction;"));
+    eval(g_context.get(), StringRef::createFromASCII("class callconstructortest{};  this.testClass = callconstructortest;"));
+    eval(g_context.get(), StringRef::createFromASCII("class callconstructortest2 extends callconstructortest{ #pri; constructor() { super(); this.#pri = 123; } read() { return this.#pri; } }; this.testClass2 = callconstructortest2;"));
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        auto testClass = state->context()->globalObject()->get(state, StringRef::createFromASCII("testClass"));
+        ObjectRef* obj = ObjectRef::create(state);
+        testClass->callConstructor(state, obj, 0, nullptr);
+        EXPECT_TRUE(obj->instanceOf(state, testClass));
+
+        auto testClass2 = state->context()->globalObject()->get(state, StringRef::createFromASCII("testClass2"));
+        ObjectRef* obj2 = ObjectRef::create(state);
+        testClass2->callConstructor(state, obj2, 0, nullptr);
+        EXPECT_TRUE(obj2->instanceOf(state, testClass2));
+        EXPECT_TRUE(obj2->get(state, StringRef::createFromASCII("read"))->call(state, obj2, 0, nullptr)->asNumber() == 123);
+
+        auto testFunction = state->context()->globalObject()->get(state, StringRef::createFromASCII("testFunction"));
+        ObjectRef* obj3 = ObjectRef::create(state);
+        testFunction->callConstructor(state, obj3, 0, nullptr);
+        EXPECT_TRUE(obj3->instanceOf(state, testFunction));
+
+        return ValueRef::createUndefined();
+    });
+}
+
 TEST(ObjectTemplate, Basic1)
 {
     ObjectTemplateRef* tpl = ObjectTemplateRef::create();

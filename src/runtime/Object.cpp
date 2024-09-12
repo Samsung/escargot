@@ -1346,6 +1346,18 @@ Value Object::construct(ExecutionState& state, const Value& constructor, const s
     return constructor.asPointerValue()->construct(state, argc, argv, newTarget);
 }
 
+void Object::callConstructor(ExecutionState& state, const Value& constructor, Object* receiver, const size_t argc, Value* argv, Object* newTarget)
+{
+    if (newTarget == nullptr) {
+        newTarget = constructor.asObject();
+    }
+
+    ASSERT(constructor.isConstructor());
+    ASSERT(newTarget->isConstructor());
+
+    return constructor.asPointerValue()->callConstructor(state, receiver, argc, argv, newTarget);
+}
+
 // https://www.ecma-international.org/ecma-262/#sec-setintegritylevel
 bool Object::setIntegrityLevel(ExecutionState& state, Object* O, bool isSealed)
 {

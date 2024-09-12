@@ -149,6 +149,19 @@ Value ScriptClassConstructorFunctionObject::construct(ExecutionState& state, con
                                                            ScriptClassConstructorFunctionObjectNewTargetBinderWithConstruct, ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct>(state, this, thisArgument, argc, argv, newTarget);
 }
 
+void ScriptClassConstructorFunctionObject::callConstructor(ExecutionState& state, Object* receiver, const size_t argc, Value* argv, Object* newTarget)
+{
+    ConstructorKind kind = constructorKind();
+    if (kind == ConstructorKind::Base) {
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {
+            return constructorRealm->globalObject()->objectPrototype();
+        });
+        receiver->setPrototype(state, proto);
+    }
+    FunctionObjectProcessCallGenerator::processCall<ScriptClassConstructorFunctionObject, true, true, true, ScriptClassConstructorFunctionObjectThisValueBinder,
+                                                    ScriptClassConstructorFunctionObjectNewTargetBinderWithConstruct, ScriptClassConstructorFunctionObjectReturnValueBinderWithConstruct>(state, this, receiver, argc, argv, newTarget);
+}
+
 void ScriptClassConstructorFunctionObject::initInstanceFieldMembers(ExecutionState& state, Object* instance)
 {
     size_t s = m_instanceFieldInitData.size();

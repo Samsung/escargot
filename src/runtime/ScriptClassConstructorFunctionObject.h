@@ -61,7 +61,7 @@ public:
     friend class FunctionObjectProcessCallGenerator;
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv) override;
     virtual Value construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget) override;
-
+    virtual void callConstructor(ExecutionState& state, Object* receiver, const size_t argc, Value* argv, Object* newTarget) override;
     bool isConstructor() const override
     {
         return true;

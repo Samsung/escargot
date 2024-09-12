@@ -67,4 +67,9 @@ Value PointerValue::construct(ExecutionState& state, const size_t argc, Value* a
     // never get here. but I add return statement for removing compile warning
     return Value();
 }
+
+void PointerValue::callConstructor(ExecutionState& state, Object* receiver, const size_t argc, Value* argv, Object* newTarget)
+{
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
+}
 } // namespace Escargot
