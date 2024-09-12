@@ -4159,7 +4159,19 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         }
 
         // Let result be Construct(func, argList, newTarget).
-        Value result = Object::construct(state, registerFile[code->m_calleeIndex], argc, argv, newTarget);
+        Value result;
+        Value* stackStorage = registerFile + byteCodeBlock->m_requiredOperandRegisterNumber;
+        // below if-statement is not spec
+        // using this value on stack is trick for callConstructor util
+        if (stackStorage[0].isPointerValue() && stackStorage[0].asPointerValue()) {
+            result = stackStorage[0].asObject();
+            Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {
+                return constructorRealm->globalObject()->objectPrototype();
+            });
+            result.asObject()->setPrototype(state, proto);
+        } else {
+            result = Object::construct(state, registerFile[code->m_calleeIndex], argc, argv, newTarget);
+        }
 
         // Let thisER be GetThisEnvironment( ).
         // Return thisER.BindThisValue(result).

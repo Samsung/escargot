@@ -1119,6 +1119,7 @@ protected:
 
     virtual Value call(ExecutionState& state, const Value& thisValue, const size_t argc, Value* argv);
     virtual Value construct(ExecutionState& state, const size_t argc, Value* argv, Object* newTarget);
+    virtual void callConstructor(ExecutionState& state, Object* receiver, const size_t argc, Value* argv, Object* newTarget);
 
     // tag values for fast type check
     // these values actually have unique virtual table address of each object class
