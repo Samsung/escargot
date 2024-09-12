@@ -831,7 +831,7 @@ bool InterpretedCodeBlock::needsToLoadThisBindingFromEnvironment()
     if (isArrowFunctionExpression()) {
         InterpretedCodeBlock* cb = m_parent;
         while (cb) {
-            if (cb->isArrowFunctionExpression()) {
+            if (cb->isArrowFunctionExpression() || cb->isEvalCode()) {
                 // pass through
             } else if (cb->isClassConstructor()) {
                 return true;
