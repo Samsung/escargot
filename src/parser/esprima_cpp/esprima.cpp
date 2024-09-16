@@ -2465,7 +2465,6 @@ public:
         if (this->context->inFunctionBody && this->matchKeyword(SuperKeyword)) {
             throwIfSuperOperationIsNotAllowed();
             this->currentScopeContext->m_hasSuperOrNewTarget = true;
-
             exprNode = this->finishSuperExpression(builder, this->createNode(), this->lookahead.valuePunctuatorKind == LeftParenthesis);
         } else if (UNLIKELY(this->matchKeyword(NewKeyword))) {
             exprNode = this->inheritCoverGrammar(builder, &Parser::parseNewExpression<ASTBuilder>);
@@ -2477,86 +2476,65 @@ public:
             exprNode = this->inheritCoverGrammar(builder, &Parser::parsePrimaryExpression<ASTBuilder>);
         }
 
-        bool seenOptionalExpression = false;
+        bool hasOptional = false;
         while (true) {
-            bool isPunctuatorTokenLookahead = this->lookahead.type == Token::PunctuatorToken;
-            if (isPunctuatorTokenLookahead) {
-                if (this->lookahead.valuePunctuatorKind == Period) {
-                    this->context->isBindingElement = false;
-                    this->context->isAssignmentTarget = !seenOptionalExpression;
-                    this->nextToken();
-                    exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode);
-                } else if (this->lookahead.valuePunctuatorKind == LeftParenthesis) {
-                    bool asyncArrow = maybeAsync && (startToken->lineNumber == this->lookahead.lineNumber);
-                    this->context->isBindingElement = false;
-                    this->context->isAssignmentTarget = false;
-                    ASTNodeList args = asyncArrow ? this->parseAsyncArguments(builder) : this->parseArguments(builder);
-                    // check callee of CallExpressionNode
-                    if (exprNode->isIdentifier() && exprNode->asIdentifier()->name() == escargotContext->staticStrings().eval) {
-                        this->currentScopeContext->m_hasEval = true;
-                    }
-                    exprNode = this->finalize(this->startNode(startToken), builder.createCallExpressionNode(exprNode, args, false));
-                    if (asyncArrow && this->match(Arrow)) {
-                        for (ASTSentinelNode arg = args.begin(); arg != args.end(); arg = arg->next()) {
-                            arg->setASTNode(builder.reinterpretExpressionAsPattern(arg->astNode()));
-                        }
-                        exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(args, true));
-                    }
-                } else if (this->lookahead.valuePunctuatorKind == LeftSquareBracket) {
-                    this->context->isBindingElement = false;
-                    this->context->isAssignmentTarget = !seenOptionalExpression;
-                    this->nextToken();
-                    ASTNode property = this->isolateCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
-                    exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode, property, false));
-                    this->expect(RightSquareBracket);
-                } else if (this->lookahead.valuePunctuatorKind == GuessDot) {
-                    bool oldBindingElement = this->context->isBindingElement;
-                    bool oldAssignmentTarget = this->context->isAssignmentTarget;
-                    Marker startMarker = this->startMarker;
+            bool optional = false;
+            if (this->match(GuessDot)) {
+                Marker startMarker = this->startMarker;
+                bool oldBindingElement = this->context->isBindingElement;
+                bool oldAssignmentTarget = this->context->isAssignmentTarget;
 
-                    this->context->isBindingElement = false;
-                    this->context->isAssignmentTarget = false;
-                    this->nextToken();
-                    if (this->match(PunctuatorKind::LeftSquareBracket)) {
-                        seenOptionalExpression = true;
-                        this->nextToken();
-                        ASTNode property = this->isolateCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
-                        exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode, property, false, true));
-                        this->expect(RightSquareBracket);
-                        if (this->lookahead.type == Token::TemplateToken) {
-                            this->throwUnexpectedToken(this->lookahead);
-                        }
-                    } else if (this->lookahead.type == Token::IdentifierToken || this->match(PunctuatorKind::Hash)) {
-                        seenOptionalExpression = true;
-                        exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode, true);
-                        if (this->lookahead.type == Token::TemplateToken) {
-                            this->throwUnexpectedToken(this->lookahead);
-                        }
-                    } else if (this->match(PunctuatorKind::LeftParenthesis)) {
-                        seenOptionalExpression = true;
-                        ASTNodeList args = this->parseArguments(builder);
-                        // check callee of CallExpressionNode
-                        if (exprNode->isIdentifier() && exprNode->asIdentifier()->name() == escargotContext->staticStrings().eval) {
-                            this->currentScopeContext->m_hasEval = true;
-                        }
-                        exprNode = this->finalize(this->startNode(startToken), builder.createCallExpressionNode(exprNode, args, true));
-                    } else {
-                        this->context->isBindingElement = oldBindingElement;
-                        this->context->isAssignmentTarget = oldAssignmentTarget;
-                        this->scanner->index = startMarker.index;
-                        this->scanner->lineNumber = startMarker.lineNumber;
-                        this->scanner->lineStart = startMarker.lineStart;
-                        this->nextToken();
-                        ASSERT(this->match(PunctuatorKind::GuessDot));
+                optional = true;
+                hasOptional = true;
+                this->nextToken();
 
-                        this->scanner->index--;
-                        this->lookahead.valuePunctuatorKind = GuessMark;
-                        break;
-                    }
-                } else {
+                if (this->lookahead.type == Token::NumericLiteralToken) {
+                    // not an optional chainining, GuessMark followed by a number e.g) ?.30
+                    // roll back to the start point of GuessDot
+                    this->context->isBindingElement = oldBindingElement;
+                    this->context->isAssignmentTarget = oldAssignmentTarget;
+                    this->scanner->index = startMarker.index;
+                    this->scanner->lineNumber = startMarker.lineNumber;
+                    this->scanner->lineStart = startMarker.lineStart;
+                    this->nextToken();
+                    ASSERT(this->match(PunctuatorKind::GuessDot));
+
+                    this->scanner->index--;
+                    this->lookahead.valuePunctuatorKind = GuessMark;
+                    hasOptional = false;
+                    optional = false;
                     break;
                 }
+            }
+
+            if (this->match(LeftParenthesis)) {
+                bool asyncArrow = maybeAsync && (startToken->lineNumber == this->lookahead.lineNumber);
+                this->context->isBindingElement = false;
+                this->context->isAssignmentTarget = false;
+                ASTNodeList args = asyncArrow ? this->parseAsyncArguments(builder) : this->parseArguments(builder);
+                // check callee of CallExpressionNode
+                if (exprNode->isIdentifier() && exprNode->asIdentifier()->name() == escargotContext->staticStrings().eval) {
+                    this->currentScopeContext->m_hasEval = true;
+                }
+                exprNode = this->finalize(this->startNode(startToken), builder.createCallExpressionNode(exprNode, args, optional));
+                if (asyncArrow && this->match(Arrow)) {
+                    for (ASTSentinelNode arg = args.begin(); arg != args.end(); arg = arg->next()) {
+                        arg->setASTNode(builder.reinterpretExpressionAsPattern(arg->astNode()));
+                    }
+                    exprNode = this->finalize(this->createNode(), builder.createArrowParameterPlaceHolderNode(args, true));
+                }
+            } else if (this->match(LeftSquareBracket)) {
+                this->context->isBindingElement = false;
+                this->context->isAssignmentTarget = !hasOptional;
+                this->expect(LeftSquareBracket);
+                ASTNode property = this->isolateCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
+                this->expect(RightSquareBracket);
+                exprNode = this->finalize(this->startNode(startToken), builder.createMemberExpressionNode(exprNode, property, false, optional));
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
+                if (hasOptional) {
+                    this->throwUnexpectedToken(this->lookahead);
+                }
+
                 ASTNode quasi = this->parseTemplateLiteral(builder, true);
                 ASTNode convertedNode = builder.convertTaggedTemplateExpressionToCallExpression(quasi, exprNode, this->taggedTemplateExpressionIndex, this->currentScopeContext, escargotContext->staticStrings().raw);
                 if (builder.willGenerateByteCode()) {
@@ -2566,13 +2544,23 @@ public:
                 // CodeBlock should allocate a RareData for caching
                 this->currentScopeContext->m_needRareData = true;
                 exprNode = this->finalize(this->startNode(startToken), builder.createTaggedTemplateExpressionNode(exprNode, quasi, convertedNode));
+            } else if (this->match(Period)) {
+                ASSERT(!optional);
+                this->context->isBindingElement = false;
+                this->context->isAssignmentTarget = !hasOptional;
+                this->nextToken();
+                exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode, optional);
+            } else if (optional) {
+                this->context->isBindingElement = false;
+                this->context->isAssignmentTarget = !hasOptional;
+                exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, this->startNode(startToken), exprNode, optional);
             } else {
                 break;
             }
         }
-        this->context->allowIn = previousAllowIn;
 
-        if (seenOptionalExpression) {
+        this->context->allowIn = previousAllowIn;
+        if (hasOptional) {
             ASSERT(exprNode->type() == MemberExpression || exprNode->type() == CallExpression);
             exprNode->setStartOfOptionalChaining();
         }
@@ -2656,20 +2644,19 @@ public:
         }
 
         MetaNode node = this->startNode(&this->lookahead);
-        bool seenOptionalExpression = false;
+
         while (true) {
+            if (this->match(GuessDot)) {
+                this->throwUnexpectedToken(this->lookahead);
+            }
+
             if (this->match(LeftSquareBracket)) {
                 this->context->isBindingElement = false;
-                this->context->isAssignmentTarget = !seenOptionalExpression;
+                this->context->isAssignmentTarget = false;
                 this->nextToken();
                 ASTNode property = this->isolateCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
-                exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, false));
                 this->expect(RightSquareBracket);
-            } else if (this->match(Period)) {
-                this->context->isBindingElement = false;
-                this->context->isAssignmentTarget = !seenOptionalExpression;
-                this->nextToken();
-                exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, node, exprNode);
+                exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, false));
             } else if (this->lookahead.type == Token::TemplateToken && this->lookahead.valueTemplate->head) {
                 ASTNode quasi = this->parseTemplateLiteral(builder, true);
                 ASTNode convertedNode = builder.convertTaggedTemplateExpressionToCallExpression(quasi, exprNode, this->taggedTemplateExpressionIndex, this->currentScopeContext, escargotContext->staticStrings().raw);
@@ -2680,52 +2667,14 @@ public:
                 // CodeBlock should allocate a RareData for caching
                 this->currentScopeContext->m_needRareData = true;
                 exprNode = this->finalize(node, builder.createTaggedTemplateExpressionNode(exprNode, quasi, convertedNode));
-            } else if (this->lookahead.type == Token::PunctuatorToken && this->lookahead.valuePunctuatorKind == GuessDot) {
-                bool oldBindingElement = this->context->isBindingElement;
-                bool oldAssignmentTarget = this->context->isAssignmentTarget;
-                Marker startMarker = this->startMarker;
-
+            } else if (this->match(Period)) {
                 this->context->isBindingElement = false;
                 this->context->isAssignmentTarget = false;
                 this->nextToken();
-                if (this->match(PunctuatorKind::LeftSquareBracket)) {
-                    seenOptionalExpression = true;
-                    this->nextToken();
-                    ASTNode property = this->isolateCoverGrammar(builder, &Parser::parseExpression<ASTBuilder>);
-                    exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, false, true));
-                    this->expect(RightSquareBracket);
-                    if (this->lookahead.type == Token::TemplateToken) {
-                        this->throwUnexpectedToken(this->lookahead);
-                    }
-                } else if (this->lookahead.type == Token::IdentifierToken) {
-                    seenOptionalExpression = true;
-                    TrackUsingNameBlocker blocker(this);
-                    ASTNode property = this->parseIdentifierName(builder);
-                    exprNode = this->finalize(node, builder.createMemberExpressionNode(exprNode, property, true, true));
-                    if (this->lookahead.type == Token::TemplateToken) {
-                        this->throwUnexpectedToken(this->lookahead);
-                    }
-                } else {
-                    this->context->isBindingElement = oldBindingElement;
-                    this->context->isAssignmentTarget = oldAssignmentTarget;
-                    this->scanner->index = startMarker.index;
-                    this->scanner->lineNumber = startMarker.lineNumber;
-                    this->scanner->lineStart = startMarker.lineStart;
-                    this->nextToken();
-                    ASSERT(this->match(PunctuatorKind::GuessDot));
-
-                    this->scanner->index--;
-                    this->lookahead.valuePunctuatorKind = GuessMark;
-                    break;
-                }
+                exprNode = parseMemberExpressionPreComputedCase<ASTBuilder>(builder, node, exprNode);
             } else {
                 break;
             }
-        }
-
-        if (seenOptionalExpression) {
-            ASSERT(exprNode->type() == MemberExpression);
-            exprNode->setStartOfOptionalChaining();
         }
 
         return exprNode;
