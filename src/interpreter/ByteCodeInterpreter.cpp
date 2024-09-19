@@ -4165,10 +4165,14 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         // using this value on stack is trick for callConstructor util
         if (stackStorage[0].isPointerValue() && stackStorage[0].asPointerValue()) {
             result = stackStorage[0].asObject();
-            Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {
-                return constructorRealm->globalObject()->objectPrototype();
-            });
-            result.asObject()->setPrototype(state, proto);
+            if (registerFile[code->m_calleeIndex].isObject() && registerFile[code->m_calleeIndex].asObject()->isScriptClassConstructorFunctionObject()) {
+                Object::callConstructor(state, registerFile[code->m_calleeIndex], result.asObject(), argc, argv, newTarget);
+            } else {
+                Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {
+                    return constructorRealm->globalObject()->objectPrototype();
+                });
+                result.asObject()->setPrototype(state, proto);
+            }
         } else {
             result = Object::construct(state, registerFile[code->m_calleeIndex], argc, argv, newTarget);
         }
