@@ -693,6 +693,20 @@ TEST(FunctionObject, CallConsturctor)
 
         return ValueRef::createUndefined();
     });
+
+    eval(g_context.get(), StringRef::createFromASCII("class callconstructortest3 extends Number { constructor() { super(); this.baseProperty = 123 } };"));
+    eval(g_context.get(), StringRef::createFromASCII("class callconstructortest4 extends callconstructortest3{ #pri; constructor() { super(); this.#pri = 123; } read() { return this.#pri + this.baseProperty; } }; this.testClass = callconstructortest4;"));
+
+    Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
+        auto testClass = state->context()->globalObject()->get(state, StringRef::createFromASCII("testClass"));
+        ObjectRef* obj = ObjectRef::create(state);
+        testClass->callConstructor(state, obj, 0, nullptr);
+        EXPECT_TRUE(obj->get(state, StringRef::createFromASCII("read"))->call(state, obj, 0, nullptr)->asNumber() == 123 * 2);
+        EXPECT_TRUE(obj->instanceOf(state, testClass));
+        EXPECT_TRUE(obj->instanceOf(state, state->context()->globalObject()->number()));
+
+        return ValueRef::createUndefined();
+    });
 }
 
 TEST(ObjectTemplate, Basic1)
