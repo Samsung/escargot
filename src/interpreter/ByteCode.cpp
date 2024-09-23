@@ -187,7 +187,7 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
         fillLOCData(c, locData);
     }
 
-    size_t index = 0;
+    size_t index = SIZE_MAX;
     for (size_t i = 0; i < locData->size(); i++) {
         if ((*locData)[i].first == codePosition) {
             index = (*locData)[i].second;
@@ -198,8 +198,13 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOCFromByteCode(Context* c, size_t cod
         }
     }
 
-    ASSERT(index >= cb->functionStart().index);
-    size_t indexRelatedWithScript = index;
+    size_t indexRelatedWithScript = 0;
+    if (index == SIZE_MAX) {
+        indexRelatedWithScript = cb->functionStart().index;
+    } else {
+        ASSERT(index >= cb->functionStart().index);
+        indexRelatedWithScript = index;
+    }
     index -= cb->functionStart().index;
 
     auto result = computeNodeLOC(cb->src(), cb->functionStart(), index);
