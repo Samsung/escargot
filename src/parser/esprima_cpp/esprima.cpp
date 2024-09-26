@@ -67,8 +67,10 @@
 
 #define BEGIN_FUNCTION_SCANNING(name)                                                              \
     NEW_FUNCTION_AST_BUILDER()                                                                     \
+    auto oldInParameterParsing = this->context->inParameterParsing;                                \
     auto oldSubCodeBlockIndex = ++this->subCodeBlockIndex;                                         \
     auto oldScopeContext = pushScopeContext(name);                                                 \
+    this->context->inParameterParsing = false;                                                     \
     if (UNLIKELY(this->currentClassInfo != nullptr)) {                                             \
         if (this->currentClassInfo->m_firstMethod                                                  \
             && this->currentScopeContext == this->currentClassInfo->m_lastMethod->m_nextSibling) { \
@@ -91,7 +93,8 @@
     this->lexicalBlockCount = lexicalBlockCountBefore;                                         \
     this->currentScopeContext->m_lexicalBlockIndexFunctionLocatedIn = lexicalBlockIndexBefore; \
     popScopeContext(oldScopeContext);                                                          \
-    this->subCodeBlockIndex = oldSubCodeBlockIndex;
+    this->subCodeBlockIndex = oldSubCodeBlockIndex;                                            \
+    this->context->inParameterParsing = oldInParameterParsing;
 
 using namespace Escargot::EscargotLexer;
 
@@ -3558,6 +3561,8 @@ public:
     template <class ASTBuilder>
     ASTNode parseStatementListItem(ASTBuilder& builder)
     {
+        checkRecursiveLimit();
+
         ASTNode statement = nullptr;
         this->context->isAssignmentTarget = true;
         this->context->isBindingElement = true;
