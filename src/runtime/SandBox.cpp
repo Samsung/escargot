@@ -399,7 +399,7 @@ void StackTraceData::buildStackTrace(Context* context, StringBuilder& builder)
             builder.appendString(String::fromDouble(loc.column));
 
             String* src = block->m_codeBlock->script()->sourceCode();
-            if (src->length()) {
+            if (src->length() && loc.index != SIZE_MAX) {
                 const size_t preLineMax = 40;
                 const size_t afterLineMax = 40;
 
