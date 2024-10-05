@@ -526,6 +526,7 @@ namespace Escargot {
     F(memory)                          \
     F(module)                          \
     F(table)                           \
+    F(shared)                          \
     F(v128)                            \
     F(validate)
 #else
