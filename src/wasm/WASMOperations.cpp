@@ -404,7 +404,6 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
         Value v = o.asObject()->get(state, ObjectPropertyName(state, compNameValue)).value(state, o);
 
         bool throwLinkError = false;
-        size_t externFuncCount = 0;
         switch (wasm_externtype_kind(externtype)) {
         case WASM_EXTERN_FUNC: {
             // If externtype is of the form func functype,
@@ -425,7 +424,6 @@ void WASMOperations::readImportsOfModule(ExecutionState& state, wasm_module_t* m
                 funcaddr = wasmCreateHostFunction(state, v.asObject(), wasm_externtype_as_functype(externtype));
 
                 // TODO Let index be the number of external functions in imports. This value index is known as the index of the host function funcaddr.
-                externFuncCount++;
             }
 
             // Let externfunc be the external value func funcaddr.
