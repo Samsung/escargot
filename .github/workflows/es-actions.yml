@@ -25,7 +25,7 @@ jobs:
       run: tools/check_tidy.py
 
   build-on-macos:
-    runs-on: macos-12
+    runs-on: macos-13
     steps:
     - uses: actions/checkout@v4
       with:
@@ -33,21 +33,21 @@ jobs:
     - name: Install Packages
       run: |
         brew update
-        brew install cmake ninja pkg-config
+        brew install cmake ninja pkg-config icu4c
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         cmake -H. -Bout/debug/ -DESCARGOT_MODE=debug $BUILD_OPTIONS
         ninja -Cout/debug/
-        ./tools/run-tests.py --engine="./out/debug/escargot" new-es
+        $RUNNER --engine="./out/debug/escargot" new-es
         cmake -H. -Bout/release/ -DESCARGOT_MODE=release $BUILD_OPTIONS
         ninja -Cout/release/
         cp test/octane/*.js .
         ./out/release/escargot run.js
 
   build-test-on-android:
-    runs-on: macos-12
+    runs-on: macos-13
     strategy:
       matrix:
         arch: [x86, x86_64]
@@ -99,7 +99,7 @@ jobs:
       run: |
         CC=clang CXX=clang++ cmake -H. -Bout/clang/x64 $BUILD_OPTIONS
         ninja -Cout/clang/x64
-        ./tools/run-tests.py --engine="./out/clang/x64/escargot" new-es
+        $RUNNER --engine="./out/clang/x64/escargot" new-es
 
   test-on-windows-clang-cl:
     runs-on: windows-2022
@@ -378,9 +378,9 @@ jobs:
         cmake --build build/out_linux64_release/
     - name: Test
       run: |
-        LD_LIBRARY_PATH=/usr/icu32/lib/ GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release/escargot" test262
-        LD_LIBRARY_PATH=/usr/icu32/lib/ GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${{ github.workspace }}/backtrace-hooking-32.so tools/run-tests.py --arch=x86 --engine="${{ github.workspace }}/build/out_linux/escargot" test262
-        LD_LIBRARY_PATH=/usr/icu64/lib/ GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu32/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu32/lib/ GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${{ github.workspace }}/backtrace-hooking-32.so $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu64/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release/escargot" test262
         LD_LIBRARY_PATH=/usr/icu64/lib/ python tools/kangax/run-kangax.py --engine="${{ github.workspace }}/build/out_linux64/escargot"
 
   build-test-on-self-hosted-arm-linux:
@@ -396,7 +396,7 @@ jobs:
         cmake --build ./out/
     - name: Test
       run: |
-        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402" new-es v8 spidermonkey chakracore test262
+        GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402" new-es v8 spidermonkey chakracore test262
 
   build-test-on-self-hosted-arm64-linux:
     runs-on: [self-hosted, linux, arm64]
@@ -411,7 +411,7 @@ jobs:
         cmake --build ./out/
     - name: Test
       run: |
-        GC_FREE_SPACE_DIVISOR=1 tools/run-tests.py --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402" test262 chakracore spidermonkey v8 new-es
+        GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402" test262 chakracore spidermonkey v8 new-es
 
   build-test-debugger:
     runs-on: ubuntu-latest

@@ -549,7 +549,6 @@ void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockI
     ASSERT(bi != nullptr);
 
     size_t heapIndex = 0;
-    size_t stackSize = 0;
     for (size_t i = 0; i < bi->identifiers().size(); i++) {
         if (!m_canAllocateVariablesOnStack) {
             bi->identifiers()[i].m_needToAllocateOnStack = false;
@@ -557,7 +556,6 @@ void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockI
 
         if (bi->identifiers()[i].m_needToAllocateOnStack) {
             bi->identifiers()[i].m_indexForIndexedStorage = currentStackAllocatedVariableIndex;
-            stackSize++;
             currentStackAllocatedVariableIndex++;
             maxStackAllocatedVariableDepth = std::max(maxStackAllocatedVariableDepth, currentStackAllocatedVariableIndex);
         } else {
