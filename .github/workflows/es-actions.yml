@@ -38,6 +38,36 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
+        # check cpu
+        sysctl -a | grep machdep.cpu
+        # add icu path to pkg_config_path
+        export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
+        cmake -H. -Bout/debug/ -DESCARGOT_MODE=debug $BUILD_OPTIONS
+        ninja -Cout/debug/
+        $RUNNER --engine="./out/debug/escargot" new-es
+        cmake -H. -Bout/release/ -DESCARGOT_MODE=release $BUILD_OPTIONS
+        ninja -Cout/release/
+        cp test/octane/*.js .
+        ./out/release/escargot run.js
+
+  build-on-macos-arm64:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: Install Packages
+      run: |
+        brew update
+        brew install cmake ninja pkg-config icu4c
+    - name: Build arm64
+      env:
+        BUILD_OPTIONS: -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+      run: |
+        # check cpu
+        sysctl -a | grep machdep.cpu
+        # add icu path to pkg_config_path
+        export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
         cmake -H. -Bout/debug/ -DESCARGOT_MODE=debug $BUILD_OPTIONS
         ninja -Cout/debug/
         $RUNNER --engine="./out/debug/escargot" new-es
@@ -365,7 +395,7 @@ jobs:
         submodules: true
     - name: Build
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+        BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         LDFLAGS=" -L/usr/icu32/lib/ -Wl,-rpath=/usr/icu32/lib/" PKG_CONFIG_PATH="/usr/icu32/lib/pkgconfig/" cmake -H./ -Bbuild/out_linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
         LDFLAGS=" -L/usr/icu32/lib/ -Wl,-rpath=/usr/icu32/lib/" PKG_CONFIG_PATH="/usr/icu32/lib/pkgconfig/" cmake -H./ -Bbuild/out_linux_release -DESCARGOT_ARCH=x86 $BUILD_OPTIONS

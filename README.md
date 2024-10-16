@@ -35,7 +35,7 @@ Escargot is an open-source project that allows developers to contribute to its d
 | **OS** | **Architecture** |
 |-|-|
 | **Linux(Ubuntu)** | x86/x64/arm/aarch64 |
-| macOS | x64 |
+| macOS | x64/aarch64 |
 | Windows | x86 |
 | Android | x86/x64/arm/aarch64 |
 
@@ -82,6 +82,11 @@ ninja
 General build prerequisites:
 ```sh
 brew install autoconf automake cmake icu4c libtool ninja pkg-config
+
+# add icu path to pkg_config_path (x64)
+export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
+# add icu path to pkg_config_path (arm64)
+export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
 ```
 
 Build Escargot:
