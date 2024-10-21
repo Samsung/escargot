@@ -162,6 +162,7 @@ public:
                 if (!(p->key()->isIdentifier() && !p->computed())) {
                     p->key()->iterateChildrenIdentifier(fn);
                 }
+                p->value()->iterateChildrenIdentifier(fn);
             }
         }
     }
