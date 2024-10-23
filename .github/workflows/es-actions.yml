@@ -5,6 +5,7 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  workflow_dispatch:
 
 env:
   RUNNER: tools/run-tests.py
@@ -33,7 +34,7 @@ jobs:
     - name: Install Packages
       run: |
         brew update
-        brew install cmake ninja pkg-config icu4c
+        brew install cmake ninja pkg-config icu4c@75
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
@@ -41,7 +42,8 @@ jobs:
         # check cpu
         sysctl -a | grep machdep.cpu
         # add icu path to pkg_config_path
-        export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
+        brew --prefix icu4c@75
+        export PKG_CONFIG_PATH="/usr/local/opt/icu4c@75/lib/pkgconfig:$PKG_CONFIG_PATH"
         cmake -H. -Bout/debug/ -DESCARGOT_MODE=debug $BUILD_OPTIONS
         ninja -Cout/debug/
         $RUNNER --engine="./out/debug/escargot" new-es
@@ -59,7 +61,7 @@ jobs:
     - name: Install Packages
       run: |
         brew update
-        brew install cmake ninja pkg-config icu4c
+        brew install cmake ninja pkg-config icu4c@75
     - name: Build arm64
       env:
         BUILD_OPTIONS: -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
@@ -67,7 +69,8 @@ jobs:
         # check cpu
         sysctl -a | grep machdep.cpu
         # add icu path to pkg_config_path
-        export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c/lib/pkgconfig:$PKG_CONFIG_PATH"
+        brew --prefix icu4c@75
+        export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c@75/lib/pkgconfig:$PKG_CONFIG_PATH"
         cmake -H. -Bout/debug/ -DESCARGOT_MODE=debug $BUILD_OPTIONS
         ninja -Cout/debug/
         $RUNNER --engine="./out/debug/escargot" new-es

@@ -26,7 +26,7 @@ jobs:
         tar xzf cov-analysis-linux64.tar.gz --strip 1 -C cov-analysis-linux64
     - name: Build
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_CODE_CACHE=ON -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+        BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_CODE_CACHE=ON -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         export PATH=$GITHUB_WORKSPACE/cov-analysis-linux64/bin:$PATH
         cmake -H. -Bout/coverity_scan $BUILD_OPTIONS
@@ -59,7 +59,7 @@ jobs:
         sudo apt-get install -y pypy ninja-build libicu-dev gcovr
     - name: Build x64
       env:
-        BUILD_OPTIONS: -DESCARGOT_HOST=linux -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_COVERAGE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+        BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_COVERAGE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         cmake -H. -Bout/coverage $BUILD_OPTIONS
         ninja -Cout/coverage

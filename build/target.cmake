@@ -157,6 +157,8 @@ ELSEIF (${ESCARGOT_HOST} STREQUAL "darwin")
     IF ((NOT ${ESCARGOT_ARCH} STREQUAL "x64") AND (NOT ${ESCARGOT_ARCH} STREQUAL "aarch64"))
         MESSAGE (FATAL_ERROR ${ESCARGOT_ARCH} " is unsupported")
     ENDIF()
+    # recent macOS supports only ICU version 75 that requires c++17 or above
+    SET (ESCARGOT_CXXFLAGS ${ESCARGOT_CXXFLAGS} -std=c++17)
     SET (ESCARGOT_LDFLAGS -lpthread -Wl,-dead_strip)
     SET (ESCARGOT_BUILD_64BIT_LARGE ON)
     # bdwgc mac cannot support pthread_getattr_np
