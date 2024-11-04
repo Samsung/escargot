@@ -19,14 +19,14 @@ jobs:
     - name: Install Packages
       run: |
         brew update
-        brew install ninja icu4c@75
+        brew install ninja icu4c
     - name: Build x64
       run: |
         # check cpu
         sysctl -a | grep machdep.cpu
         # add icu path to pkg_config_path
-        brew --prefix icu4c@75
-        export PKG_CONFIG_PATH="/usr/local/opt/icu4c@75/lib/pkgconfig:$PKG_CONFIG_PATH"
+        export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
+        echo $PKG_CONFIG_PATH
         cmake -H. -Bout/ $BUILD_OPTIONS
         ninja -Cout/
     - name: Check
@@ -50,14 +50,14 @@ jobs:
     - name: Install Packages
       run: |
         brew update
-        brew install ninja icu4c@75
+        brew install ninja icu4c
     - name: Build arm64
       run: |
         # check cpu
         sysctl -a | grep machdep.cpu
         # add icu path to pkg_config_path
-        brew --prefix icu4c@75
-        export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c@75/lib/pkgconfig:$PKG_CONFIG_PATH"
+        export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
+        echo $PKG_CONFIG_PATH
         cmake -H. -Bout/ $BUILD_OPTIONS
         ninja -Cout/
     - name: Check
