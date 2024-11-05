@@ -38,7 +38,7 @@ jobs:
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: mac64-result
+        name: build-artifact-mac64
         path: out/escargot-mac64
 
   build-mac64arm:
@@ -69,7 +69,7 @@ jobs:
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: mac64arm-result
+        name: build-artifact-mac64arm
         path: out/escargot-mac64arm
 
   build-windows:
@@ -115,7 +115,7 @@ jobs:
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: win-${{ matrix.arch }}-result
+        name: build-artifact-win-${{ matrix.arch }}
         path: out\escargot-win-${{ matrix.arch }}.exe
 
   build-linux:
@@ -155,38 +155,19 @@ jobs:
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: linux-result
+        name: build-artifact-linux
         path: out/escargot-linux-*
 
   update-release:
     needs: [build-mac64, build-mac64arm, build-windows, build-linux]
     runs-on: ubuntu-latest
     steps:
-    - name: Download mac64 result
+    - name: Download build artifacts
       uses: actions/download-artifact@v4
       with:
-        name: mac64-result
         path: artifacts
-    - name: Download mac64arm result
-      uses: actions/download-artifact@v4
-      with:
-        name: mac64arm-result
-        path: artifacts
-    - name: Download win32 result
-      uses: actions/download-artifact@v4
-      with:
-        name: win-x86-result
-        path: artifacts
-    - name: Download win64 result
-      uses: actions/download-artifact@v4
-      with:
-        name: win-x64-result
-        path: artifacts
-    - name: Download linux result
-      uses: actions/download-artifact@v4
-      with:
-        name: linux-result
-        path: artifacts
+        pattern: build-artifact-*
+        merge-multiple: true
     - name: Upload to release
       uses: softprops/action-gh-release@v2
       with:

@@ -110,8 +110,17 @@ task buildCMakeNativeNoNDK(type: Exec) {
             }
             os.toString().trim()
         }
-        environment("PKG_CONFIG_PATH", "/usr/local/opt/icu4c/lib/pkgconfig")
-        commandLine "/usr/bin/env", "cmake", "-DESCARGOT_HOST=darwin", "-DESCARGOT_ARCH=x64", "-DESCARGOT_OUTPUT=static_lib", "-DUNDER_NDK=OFF", "-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF",
+        var icu4cPath = new ByteArrayOutputStream().withStream { os ->
+            exec {
+                commandLine "sh", "-c", "brew --prefix icu4c"
+                standardOutput = os
+            }
+            os.toString().trim()
+        }
+        var pkgConfigPath = icu4cPath + "/lib/pkgconfig"
+        environment("PKG_CONFIG_PATH", pkgConfigPath)
+        commandLine "/usr/bin/env", "cmake", "-DESCARGOT_HOST=darwin", "-DESCARGOT_ARCH=x64", "-DESCARGOT_OUTPUT=static_lib", "-DUNDER_NDK=OFF",
+                "-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF",
                 "-DJAVA_HOME=" + javaHome, "-DJAVA_INCLUDE_PATH=" + javaHome + "/include",
                 "-DJAVA_INCLUDE_PATH2=" + javaHome + "/include/darwin", "-DJAVA_AWT_INCLUDE_PATH=" + javaHome + "/include",
                 srcForNativeNoNDK.absolutePath

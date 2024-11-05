@@ -1,10 +1,9 @@
 name: Android-Release
 
 on:
-  schedule:
-    # scheduled to run UTC 22:00 (07:00 in South Korea), Every 1st of the month
-    - cron: '0 22 1 * *'
-  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
 
 jobs:
   build-android-on-ubuntu:
@@ -37,7 +36,6 @@ jobs:
           ./build/android/escargot/build/**/escargot-*.jar
           !./build/android/escargot/build/**/escargot-*Shell.aar
         if-no-files-found: error
-        overwrite: true
 
   build-android-on-macos:
     runs-on: macos-13
@@ -45,6 +43,10 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
+    - name: Install Packages
+      run: |
+        brew update
+        brew install ninja pkg-config icu4c
     - name: Set up JDK
       uses: actions/setup-java@v4.1.0
       with:
@@ -65,9 +67,8 @@ jobs:
         path: |
           ./build/android/escargot/build/libs/escargot-mac.jar
         if-no-files-found: error
-        overwrite: true
 
-  merge-upload-release:
+  merge-update-release:
     needs: [build-android-on-ubuntu, build-android-on-macos]
     runs-on: ubuntu-latest
     steps:
@@ -88,12 +89,9 @@ jobs:
         find . -type f -name "escargot-*.aar" -exec mv {} . \;
         find . -type f -name "escargot-*.jar" -exec mv {} . \;
         ls -R ./
-    - name: Upload final artifacts
-      uses: actions/upload-artifact@v4
+        find ./ -type f -name "escargot-*.aar" -o -name "escargot-*.jar" | zip Android-Release-${{ env.RELEASE_DATE }}.zip -@
+    - name: Upload to release
+      uses: softprops/action-gh-release@v2
       with:
-        name: Android-Release-${{ env.RELEASE_DATE }}
-        path: |
-          ./artifacts/escargot-*.aar
-          ./artifacts/escargot-*.jar
-        if-no-files-found: error
-        overwrite: true
+        files: |
+          artifacts/Android-Release-${{ env.RELEASE_DATE }}.zip
