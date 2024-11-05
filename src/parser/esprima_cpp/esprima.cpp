@@ -2964,10 +2964,19 @@ public:
 
         ASTNode expr = this->inheritCoverGrammar(builder, &Parser::parseExponentiationExpression<ASTBuilder>);
 
+        bool allowAndOr = true;
+        bool allowNullishCoalescing = true;
         ALLOC_TOKEN(token);
         *token = this->lookahead;
         int prec = this->binaryPrecedence(token);
         if (prec > 0) {
+            if (token->type == Token::PunctuatorToken) {
+                if (token->valuePunctuatorKind == PunctuatorKind::LogicalAnd || token->valuePunctuatorKind == PunctuatorKind::LogicalOr) {
+                    allowNullishCoalescing = false;
+                } else if (token->valuePunctuatorKind == PunctuatorKind::NullishCoalescing) {
+                    allowAndOr = false;
+                }
+            }
             this->nextToken();
 
             token->prec = prec;
@@ -2993,6 +3002,20 @@ public:
                 prec = this->binaryPrecedence(&this->lookahead);
                 if (prec <= 0) {
                     break;
+                }
+
+                if (this->lookahead.type == Token::PunctuatorToken) {
+                    if (!allowAndOr && (this->lookahead.valuePunctuatorKind == PunctuatorKind::LogicalAnd || this->lookahead.valuePunctuatorKind == PunctuatorKind::LogicalOr)) {
+                        this->throwError(Messages::CannotChainLogicalWithNullish);
+                    } else if (!allowNullishCoalescing && (this->lookahead.valuePunctuatorKind == PunctuatorKind::NullishCoalescing)) {
+                        this->throwError(Messages::CannotChainLogicalWithNullish);
+                    }
+
+                    if (this->lookahead.valuePunctuatorKind == PunctuatorKind::LogicalAnd || this->lookahead.valuePunctuatorKind == PunctuatorKind::LogicalOr) {
+                        allowNullishCoalescing = false;
+                    } else if (this->lookahead.valuePunctuatorKind == PunctuatorKind::NullishCoalescing) {
+                        allowAndOr = false;
+                    }
                 }
 
                 // Reduce: make a binary expression from the three topmost entries.
@@ -3084,9 +3107,6 @@ public:
             case LogicalAnd:
                 return builder.createBinaryExpressionLogicalAndNode(left, right);
             case NullishCoalescing:
-                if (left->isLogicalOperation() || right->isLogicalOperation()) {
-                    this->throwError(Messages::CannotChainLogicalWithNullish);
-                }
                 return builder.createBinaryExpressionNullishCoalescingNode(left, right);
             default:
                 RELEASE_ASSERT_NOT_REACHED();
