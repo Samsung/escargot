@@ -1,10 +1,11 @@
 plugins {
     id 'com.android.library'
     id 'jacoco'
+    id 'maven-publish'
 }
 
 ext {
-    force64Option = System.getProperty("ESCARGOT_BUILD_64BIT_FORCE_LARGE", "OFF")
+    force64Option = System.getProperty("ESCARGOT_BUILD_64BIT_FORCE_LARGE", "ON")
 }
 
 android {
@@ -86,6 +87,33 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    publishing {
+        singleVariant("release") {
+            // if you don't want sources/javadoc, remove these lines
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
+}
+
+publishing {
+    publications {
+        release(MavenPublication) {
+            afterEvaluate {
+                from components.release
+            }
+            artifactId "escargot-android"
+            groupId "com.samsung.lwe.escargot"
+            version "X.X.X.20XXXXXX.X.XXXXXXXX"
+        }
+    }
+
+    repositories {
+        maven {
+            url "/XXXXXX/android/releases/"
+        }
     }
 }
 
