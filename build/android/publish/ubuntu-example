@@ -1,0 +1,2 @@
+./gradlew bundleHostJar
+MAVEN_OPTS="-Dmaven.repo.local=${MAVEN_LOCAL_PATH}/ubuntu/releases/" mvn install:install-file -Dfile=${PWD}/escargot/build/libs/escargot.jar -DgroupId=com.samsung.lwe.escargot -DartifactId=escargot-ubuntu -Dversion=X.X.X.20XXXXXX.X.XXXXXXX  -Dpackaging=jar
