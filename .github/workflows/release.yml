@@ -7,11 +7,14 @@ on:
 
 env:
   RUNNER: tools/run-tests.py
-  BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+  BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_DEPLOY=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
 
 jobs:
-  build-mac64:
-    runs-on: macos-13
+  build-macOS:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-13, macos-latest]
     steps:
     - uses: actions/checkout@v4
       with:
@@ -19,7 +22,7 @@ jobs:
     - name: Install Packages
       run: |
         brew update
-        brew install ninja icu4c
+        brew install ninja icu4c zip
     - name: Build x64
       run: |
         # check cpu
@@ -33,44 +36,130 @@ jobs:
       run: |
         file out/escargot
         strip out/escargot
-        $RUNNER --engine="$GITHUB_WORKSPACE/out/escargot" new-es
-        mv out/escargot out/escargot-mac64
-    - name: Upload
+
+        # set deploy directory
+        mkdir -p deploy
+
+        # set escargot
+        cp out/escargot ./deploy/.
+        LIBS=$(otool -L ./deploy/escargot | grep "icu" | awk '{print $1}')
+        for LIB in $LIBS; do
+          BASENAME=$(basename "$LIB")
+          install_name_tool -change "$LIB" "@executable_path/$BASENAME" deploy/escargot
+        done
+
+        # set icu libs
+        ICU_LIBS=("libicuuc" "libicui18n" "libicudata")
+        ICU_SOURCE_PATH="$(brew --prefix icu4c)/lib"
+        ICU_VERSION=$(find "$ICU_SOURCE_PATH" -name "libicuuc.*.dylib" | grep -oE '\.[0-9]+\.' | head -n 1 | tr -d '.')
+
+        if [ -z "$ICU_VERSION" ]; then
+          echo "ICU version could not be detected."
+          exit 1
+        else
+          echo "Detected ICU Version: $ICU_VERSION"
+        fi
+
+        for LIB in "${ICU_LIBS[@]}"; do
+          cp -a $ICU_SOURCE_PATH/$LIB.*.dylib ./deploy/.
+          install_name_tool -id "@loader_path/$LIB.$ICU_VERSION.dylib" "./deploy/$LIB.$ICU_VERSION.dylib"
+        done
+
+        # check results
+        echo "Check results..."
+        ls ./deploy
+        otool -L ./deploy/escargot
+        otool -L ./deploy/libicu*.dylib
+
+        # run test
+        $RUNNER --engine="$GITHUB_WORKSPACE/deploy/escargot" new-es
+
+        # zip results
+        if [ "${{ matrix.os }}" == "macos-13" ]; then
+          zip -j escargot-mac64.zip deploy/*
+        elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+          zip -j escargot-mac64arm.zip deploy/*
+        fi
+    - name: Upload mac64
+      if: ${{ matrix.os == 'macos-13' }}
       uses: actions/upload-artifact@v4
       with:
         name: build-artifact-mac64
-        path: out/escargot-mac64
+        path: ./escargot-mac64.zip
+    - name: Upload mac64arm
+      if: ${{ matrix.os == 'macos-latest' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifact-mac64arm
+        path: ./escargot-mac64arm.zip
 
-  build-mac64arm:
-    runs-on: macos-latest
+  build-linux:
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Install Packages
       run: |
-        brew update
-        brew install ninja icu4c
-    - name: Build arm64
+        # for i386 ICU
+        sudo dpkg --add-architecture i386
+        sudo apt-get update
+        sudo apt-get install -y ninja-build libicu-dev gcc-multilib g++-multilib zip patchelf
+        sudo apt-get install -y libicu-dev:i386 # install i386 ICU
+    - name: Build x86/x64
       run: |
-        # check cpu
-        sysctl -a | grep machdep.cpu
-        # add icu path to pkg_config_path
-        export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
-        echo $PKG_CONFIG_PATH
-        cmake -H. -Bout/ $BUILD_OPTIONS
-        ninja -Cout/
+        cmake -H. -Bout/x86 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_TEMPORAL=ON $BUILD_OPTIONS
+        cmake -H. -Bout/x64 -DESCARGOT_TEMPORAL=ON $BUILD_OPTIONS
+        ninja -Cout/x86
+        ninja -Cout/x64
     - name: Check
       run: |
-        file out/escargot
-        strip out/escargot
-        $RUNNER --engine="$GITHUB_WORKSPACE/out/escargot" new-es
-        mv out/escargot out/escargot-mac64arm
+        file out/x86/escargot
+        file out/x64/escargot
+        strip out/x86/escargot
+        strip out/x64/escargot
+        # set locale
+        sudo locale-gen en_US.UTF-8
+        export LANG=en_US.UTF-8
+        locale
+
+        # set deploy directory and copy escargot binary
+        mkdir -p deploy-x86
+        mkdir -p deploy-x64
+        cp out/x86/escargot ./deploy-x86/.
+        cp out/x64/escargot ./deploy-x64/.
+
+        # set icu libs
+        ldd deploy-x86/escargot | grep "icu" | grep "=>" | awk '{print $3}' | xargs -I '{}' cp '{}' deploy-x86/
+        ldd deploy-x64/escargot | grep "icu" | grep "=>" | awk '{print $3}' | xargs -I '{}' cp '{}' deploy-x64/
+        for LIB in ./deploy-x86/libicu*; do
+          patchelf --set-rpath '$ORIGIN' "$LIB"
+        done
+        for LIB in ./deploy-x64/libicu*; do
+          patchelf --set-rpath '$ORIGIN' "$LIB"
+        done
+
+        # check results
+        echo "Check results..."
+        ls ./deploy-x86
+        ldd deploy-x86/escargot
+        ldd deploy-x86/libicu*
+        ls ./deploy-x64
+        ldd deploy-x64/escargot
+        ldd deploy-x64/libicu*
+
+        # run test
+        $RUNNER --engine="$GITHUB_WORKSPACE/deploy-x86/escargot" new-es
+        $RUNNER --engine="$GITHUB_WORKSPACE/deploy-x64/escargot" new-es
+
+        # zip results
+        zip -j escargot-linux-x86.zip deploy-x86/*
+        zip -j escargot-linux-x64.zip deploy-x64/*
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: build-artifact-mac64arm
-        path: out/escargot-mac64arm
+        name: build-artifact-linux
+        path: escargot-linux-*.zip
 
   build-windows:
     runs-on: windows-2022
@@ -103,6 +192,11 @@ jobs:
       with:
         arch: ${{ matrix.arch }}
         sdk: "10.0.20348.0"
+    - name: Install zip if not available
+      run: |
+        if (-Not (Get-Command zip -ErrorAction SilentlyContinue)) {
+          choco install zip -y
+        }
     - name: Build ${{ matrix.arch }}
       run: |
         CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DESCARGOT_ARCH=${{ matrix.arch }} -Bout/ -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
@@ -111,55 +205,83 @@ jobs:
       run: |
         python tools\run-tests.py --engine=%cd%\out\escargot.exe new-es
         rename out\escargot.exe escargot-win-${{ matrix.arch }}.exe
+        zip -j escargot-win-${{ matrix.arch}}.zip out\escargot-win-${{ matrix.arch }}.exe
       shell: cmd
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
         name: build-artifact-win-${{ matrix.arch }}
-        path: out\escargot-win-${{ matrix.arch }}.exe
+        path: escargot-win-${{ matrix.arch }}.zip
 
-  build-linux:
-    runs-on: ubuntu-22.04
+  check-build-mac64:
+    needs: [build-macOS]
+    runs-on: macos-13
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - name: Install Packages
-      run: |
-        # for i386 ICU
-        sudo dpkg --add-architecture i386
-        sudo apt-get update
-        sudo apt-get install -y ninja-build libicu-dev gcc-multilib g++-multilib
-        sudo apt-get install -y libicu-dev:i386 # install i386 ICU
-    - name: Build x86/x64
-      run: |
-        cmake -H. -Bout/x86 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_TEMPORAL=ON $BUILD_OPTIONS
-        cmake -H. -Bout/x64 -DESCARGOT_TEMPORAL=ON $BUILD_OPTIONS
-        ninja -Cout/x86
-        ninja -Cout/x64
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        pattern: build-artifact-mac64
+        merge-multiple: true
     - name: Check
       run: |
-        file out/x86/escargot
-        file out/x64/escargot
-        strip out/x86/escargot
-        strip out/x64/escargot
-        # set locale
-        sudo locale-gen en_US.UTF-8
-        export LANG=en_US.UTF-8
-        locale
-        # run test
-        $RUNNER --engine="$GITHUB_WORKSPACE/out/x86/escargot" new-es
-        $RUNNER --engine="$GITHUB_WORKSPACE/out/x64/escargot" new-es
-        mv out/x86/escargot out/escargot-linux-x86
-        mv out/x64/escargot out/escargot-linux-x64
-    - name: Upload
-      uses: actions/upload-artifact@v4
+        unzip artifacts/escargot-mac64.zip -d artifacts
+        otool -L artifacts/escargot
+        otool -L artifacts/*.dylib
+        $RUNNER --engine="$GITHUB_WORKSPACE/artifacts/escargot" new-es
+
+  check-build-mac64arm:
+    needs: [build-macOS]
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
       with:
-        name: build-artifact-linux
-        path: out/escargot-linux-*
+        submodules: true
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        pattern: build-artifact-mac64arm
+        merge-multiple: true
+    - name: Check
+      run: |
+        unzip artifacts/escargot-mac64arm.zip -d artifacts
+        otool -L artifacts/escargot
+        otool -L artifacts/*.dylib
+        $RUNNER --engine="$GITHUB_WORKSPACE/artifacts/escargot" new-es
+
+  check-build-linux:
+    needs: [build-linux]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        pattern: build-artifact-linux
+        merge-multiple: true
+    - name: Check
+      run: |
+        dpkg -l | grep libicu-dev
+        mkdir -p result-x86
+        mkdir -p result-x64
+        unzip artifacts/escargot-linux-x86.zip -d result-x86
+        unzip artifacts/escargot-linux-x64.zip -d result-x64
+        ldd result-x86/escargot
+        ldd result-x86/libicu*
+        ldd result-x64/escargot
+        ldd result-x64/libicu*
+        $RUNNER --engine="$GITHUB_WORKSPACE/result-x86/escargot" new-es
+        $RUNNER --engine="$GITHUB_WORKSPACE/result-x64/escargot" new-es
 
   update-release:
-    needs: [build-mac64, build-mac64arm, build-windows, build-linux]
+    needs: [check-build-mac64, check-build-mac64arm, check-build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
     - name: Download build artifacts
