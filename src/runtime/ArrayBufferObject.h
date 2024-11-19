@@ -31,9 +31,11 @@ class ArrayBufferObject : public ArrayBuffer {
 public:
     explicit ArrayBufferObject(ExecutionState& state);
     explicit ArrayBufferObject(ExecutionState& state, Object* proto);
+    explicit ArrayBufferObject(ExecutionState& state, BackingStore* backingStore);
 
     static ArrayBufferObject* allocateArrayBuffer(ExecutionState& state, Object* constructor, uint64_t byteLength,
                                                   Optional<uint64_t> maxByteLength = Optional<uint64_t>(), bool resizeable = true);
+    static ArrayBufferObject* allocateExternalArrayBuffer(ExecutionState& state, void* dataBlock, size_t byteLength);
     static ArrayBufferObject* cloneArrayBuffer(ExecutionState& state, ArrayBuffer* srcBuffer, size_t srcByteOffset, uint64_t srcLength, Object* constructor);
 
     void allocateBuffer(ExecutionState& state, size_t bytelength);

@@ -99,8 +99,8 @@ private:
 
 class WASMMemoryObject : public DerivedObject {
 public:
-    explicit WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBufferObject* buffer);
-    explicit WASMMemoryObject(ExecutionState& state, Object* proto, wasm_memory_t* memory, ArrayBufferObject* buffer);
+    explicit WASMMemoryObject(ExecutionState& state, wasm_memory_t* memory, ArrayBuffer* buffer);
+    explicit WASMMemoryObject(ExecutionState& state, Object* proto, wasm_memory_t* memory, ArrayBuffer* buffer);
 
     virtual bool isWASMMemoryObject() const override
     {
@@ -118,12 +118,12 @@ public:
         return m_memory;
     }
 
-    ArrayBufferObject* buffer() const;
-    void setBuffer(ArrayBufferObject* buffer);
+    ArrayBuffer* buffer() const;
+    void setBuffer(ArrayBuffer* buffer);
 
 private:
     wasm_memory_t* m_memory;
-    ArrayBufferObject* m_buffer;
+    ArrayBuffer* m_buffer;
 };
 
 class WASMTableObject : public DerivedObject {
