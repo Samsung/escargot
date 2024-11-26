@@ -34,7 +34,7 @@ jobs:
     - name: Install Packages
       run: |
         brew update
-        brew install ninja pkg-config icu4c
+        brew install ninja icu4c
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
@@ -61,7 +61,7 @@ jobs:
     - name: Install Packages
       run: |
         brew update
-        brew install ninja pkg-config icu4c
+        brew install ninja icu4c
     - name: Build arm64
       env:
         BUILD_OPTIONS: -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
@@ -92,7 +92,6 @@ jobs:
     - name: Install Packages
       run: |
         brew update
-        brew install pkg-config
     - name: Set up JDK
       uses: actions/setup-java@v4.1.0
       with:
