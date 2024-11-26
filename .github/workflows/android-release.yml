@@ -46,7 +46,7 @@ jobs:
     - name: Install Packages
       run: |
         brew update
-        brew install ninja pkg-config icu4c
+        brew install ninja icu4c
     - name: Set up JDK
       uses: actions/setup-java@v4.1.0
       with:
