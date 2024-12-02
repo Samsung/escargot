@@ -336,11 +336,15 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
             WTF::BumpPointerAllocator* bumpAlloc = ThreadLocal::bumpPointerAllocator();
             JSC::Yarr::ErrorCode errorCode = JSC::Yarr::ErrorCode::NoError;
             std::unique_ptr<JSC::Yarr::BytecodePattern> ownedBytecode = JSC::Yarr::byteCompile(*m_yarrPattern, bumpAlloc, errorCode);
+            if (errorCode != JSC::Yarr::ErrorCode::NoError) {
+                return false;
+            }
             m_bytecodePattern = ownedBytecode.release();
             entry.m_bytecodePattern = m_bytecodePattern;
         }
     }
 
+    ASSERT(!!m_bytecodePattern);
     unsigned subPatternNum = m_bytecodePattern->m_body->m_numSubpatterns;
     matchResult.m_subPatternNum = (int)subPatternNum;
     size_t length = str->length();
@@ -349,7 +353,8 @@ bool RegExpObject::match(ExecutionState& state, String* str, RegexMatchResult& m
     bool isGlobal = option() & RegExpObject::Option::Global;
     bool isSticky = option() & RegExpObject::Option::Sticky;
     bool gotResult = false;
-    unsigned* outputBuf = ALLOCA(sizeof(unsigned) * 2 * (subPatternNum + 1), unsigned int);
+    unsigned outputBufLength = std::max((2 * (subPatternNum + 1)), m_bytecodePattern->m_offsetsSize);
+    unsigned* outputBuf = ALLOCA(sizeof(unsigned) * outputBufLength, unsigned int);
     outputBuf[1] = start;
     do {
         start = outputBuf[1];
