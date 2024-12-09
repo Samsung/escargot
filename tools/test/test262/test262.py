@@ -328,7 +328,7 @@ class TestCase(object):
     # Escargot: some async test are does not returns True for self.IsAsyncTest()
     if self.IsAsyncTest() or "Atomics" in self.GetFeatureList() or "async-iteration" in self.GetFeatureList():
       source = source + \
-               self.suite.GetInclude("timer.js") + \
+               self.suite.GetInclude("atomicsHelper.js") + \
                self.suite.GetInclude("doneprintHandle.js").replace('print', self.suite.print_handle)
 
     source = source + \
@@ -386,7 +386,7 @@ class TestCase(object):
 
       is_timeout_expired = False
       try:
-        code = process.wait(60 * 10)
+        code = process.wait(60 * 5)
       except subprocess.TimeoutExpired:
         is_timeout_expired = True
         process.kill()
