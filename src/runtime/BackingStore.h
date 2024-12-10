@@ -136,7 +136,7 @@ class BackingStore : public gc, public BufferAddressObserverManager<BackingStore
 public:
     static BackingStore* createDefaultNonSharedBackingStore(size_t byteLength);
     static BackingStore* createDefaultResizableNonSharedBackingStore(size_t byteLength, size_t maxByteLength);
-    static BackingStore* createNonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData);
+    static BackingStore* createNonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback deleter, void* callbackData);
 
 #if defined(ENABLE_THREADING)
     static BackingStore* createDefaultSharedBackingStore(size_t byteLength);
@@ -152,6 +152,12 @@ public:
     virtual size_t maxByteLength() const = 0;
     virtual void* deleterData() const = 0;
     virtual bool isResizable() const = 0;
+
+    virtual size_t byteLengthRMW(size_t newByteLength) // special function used only for WASMMemoryObject
+    {
+        ASSERT_NOT_REACHED();
+        return 0;
+    }
 
     virtual SharedDataBlockInfo* sharedDataBlockInfo() const
     {
@@ -221,8 +227,8 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData, bool isAllocatedByPlatform);
-    NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, size_t maxByteLength, bool isAllocatedByPlatform);
+    NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback deleter, void* callbackData, bool isAllocatedByPlatform);
+    NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback deleter, size_t maxByteLength, bool isAllocatedByPlatform);
 
     void* m_data;
     size_t m_byteLength;
@@ -238,11 +244,13 @@ private:
 #if defined(ENABLE_THREADING)
 class SharedDataBlockInfo {
 public:
-    SharedDataBlockInfo(void* data, size_t byteLength)
+    SharedDataBlockInfo(void* data, size_t byteLength, BackingStoreDeleterCallback deleter)
         : m_data(data)
         , m_byteLength(byteLength)
         , m_refCount(0)
+        , m_deleter(deleter)
     {
+        ASSERT(!!deleter);
     }
 
     virtual ~SharedDataBlockInfo() {}
@@ -276,6 +284,12 @@ public:
         return m_byteLength.load();
     }
 
+    size_t byteLengthRMW(size_t newByteLength)
+    {
+        ASSERT(hasValidReference());
+        return m_byteLength.exchange(newByteLength);
+    }
+
     void ref()
     {
         m_refCount++;
@@ -293,12 +307,13 @@ protected:
     // defined as atomic value to not to use a lock
     std::atomic<size_t> m_byteLength;
     std::atomic<size_t> m_refCount;
+    BackingStoreDeleterCallback m_deleter;
 };
 
 class GrowableSharedDataBlockInfo : public SharedDataBlockInfo {
 public:
-    GrowableSharedDataBlockInfo(void* data, size_t byteLength, size_t maxByteLength)
-        : SharedDataBlockInfo(data, byteLength)
+    GrowableSharedDataBlockInfo(void* data, size_t byteLength, size_t maxByteLength, BackingStoreDeleterCallback deleter)
+        : SharedDataBlockInfo(data, byteLength, deleter)
         , m_maxByteLength(maxByteLength)
     {
     }
@@ -366,6 +381,11 @@ public:
     virtual bool isResizable() const override
     {
         return m_sharedDataBlockInfo->isGrowable();
+    }
+
+    virtual size_t byteLengthRMW(size_t newByteLength) override
+    {
+        return m_sharedDataBlockInfo->byteLengthRMW(newByteLength);
     }
 
     virtual void resize(size_t newByteLength) override;
