@@ -87,11 +87,11 @@ String* TemporalObject::dateTimeUnitString(ExecutionState& state, DateTimeUnits 
     case SECOND_UNIT:
         return strings.lazySecond().string();
     case MILLISECOND_UNIT:
-        return strings.lazymillisecond().string();
+        return strings.lazyMillisecond().string();
     case MICROSECOND_UNIT:
-        return strings.lazymicrosecond().string();
+        return strings.lazyMicrosecond().string();
     case NANOSECOND_UNIT:
-        return strings.lazynanosecond().string();
+        return strings.lazyNanosecond().string();
     default:
         return String::emptyString;
     }
@@ -683,7 +683,7 @@ TemporalPlainTimeObject::TemporalPlainTimeObject(ExecutionState& state, Object* 
 
 Value TemporalObject::toRelativeTemporalObject(ExecutionState& state, Object* options)
 {
-    auto value = options->get(state, ObjectPropertyName(state.context()->staticStrings().lazyrelativeTo())).value(state, options);
+    auto value = options->get(state, ObjectPropertyName(state.context()->staticStrings().lazyRelativeTo())).value(state, options);
 
     if (value.isUndefined()) {
         return value;
@@ -713,20 +713,20 @@ Value TemporalObject::toRelativeTemporalObject(ExecutionState& state, Object* op
         calendar = TemporalCalendarObject::getTemporalCalendarWithISODefault(state, value);
         ValueVector values = { Value(state.context()->staticStrings().lazyDay().string()),
                                Value(state.context()->staticStrings().lazyHour().string()),
-                               Value(state.context()->staticStrings().lazymicrosecond().string()),
-                               Value(state.context()->staticStrings().lazymillisecond().string()),
+                               Value(state.context()->staticStrings().lazyMicrosecond().string()),
+                               Value(state.context()->staticStrings().lazyMillisecond().string()),
                                Value(state.context()->staticStrings().lazyMinute().string()),
                                Value(state.context()->staticStrings().lazyMonth().string()),
-                               Value(state.context()->staticStrings().lazymonthCode().string()),
-                               Value(state.context()->staticStrings().lazynanosecond().string()),
+                               Value(state.context()->staticStrings().lazyMonthCode().string()),
+                               Value(state.context()->staticStrings().lazyNanosecond().string()),
                                Value(state.context()->staticStrings().lazySecond().string()),
                                Value(state.context()->staticStrings().lazyYear().string()) };
         ValueVector fieldNames = TemporalCalendarObject::calendarFields(state, calendar, values);
         Value fields = Temporal::prepareTemporalFields(state, value, fieldNames, ValueVector());
         result = TemporalPlainDateTimeObject::interpretTemporalDateTimeFields(state, calendar, fields, options);
 
-        offsetString = valueObject->get(state, ObjectPropertyName(state.context()->staticStrings().lazyoffset())).value(state, value);
-        timeZone = valueObject->get(state, ObjectPropertyName(state.context()->staticStrings().lazyoffset())).value(state, value);
+        offsetString = valueObject->get(state, ObjectPropertyName(state.context()->staticStrings().lazyOffset())).value(state, value);
+        timeZone = valueObject->get(state, ObjectPropertyName(state.context()->staticStrings().lazyOffset())).value(state, value);
 
         if (!timeZone.isUndefined()) {
             timeZone = TemporalTimeZoneObject::toTemporalTimeZone(state, timeZone);
@@ -775,7 +775,7 @@ Value TemporalObject::toRelativeTemporalObject(ExecutionState& state, Object* op
             offsetNanoseconds = TemporalInstantObject::offsetStringToNanoseconds(state, offsetString.asString());
         }
 
-        auto epochNanoseconds = TemporalZonedDateTimeObject::interpretISODateTimeOffset(state, result, offsetBehaviour, offsetNanoseconds, timeZone, Value(state.context()->staticStrings().lazycompatible().string()), Value(state.context()->staticStrings().reject.string()), matchBehaviour);
+        auto epochNanoseconds = TemporalZonedDateTimeObject::interpretISODateTimeOffset(state, result, offsetBehaviour, offsetNanoseconds, timeZone, Value(state.context()->staticStrings().lazyCompatible().string()), Value(state.context()->staticStrings().reject.string()), matchBehaviour);
         return TemporalZonedDateTimeObject::createTemporalZonedDateTime(state, *epochNanoseconds.asBigInt(), timeZone.asObject()->asTemporalTimeZoneObject(), calendar.asObject()->asTemporalCalendarObject());
     }
 
@@ -791,7 +791,7 @@ Object* TemporalObject::mergeLargestUnitOption(ExecutionState& state, const Valu
         merged->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, nextKey.toPropertyKey(state).asString()), ObjectPropertyDescriptor(propValue));
     }
 
-    merged->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().lazylargestUnit().string()), ObjectPropertyDescriptor(dateTimeUnitString(state, largestUnit)));
+    merged->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, state.context()->staticStrings().lazyLargestUnit().string()), ObjectPropertyDescriptor(dateTimeUnitString(state, largestUnit)));
 
     return merged;
 }
@@ -976,10 +976,10 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalPlainTimeObject::toTemporal
     TemporalObject::DateTimeUnits temporalTimeLikeProp[6] = { TemporalObject::HOUR_UNIT, TemporalObject::MICROSECOND_UNIT, TemporalObject::MILLISECOND_UNIT, TemporalObject::MINUTE_UNIT, TemporalObject::NANOSECOND_UNIT, TemporalObject::SECOND_UNIT };
 
     ValueVector values = { Value(state.context()->staticStrings().lazyHour().string()),
-                           Value(state.context()->staticStrings().lazymicrosecond().string()),
-                           Value(state.context()->staticStrings().lazymillisecond().string()),
+                           Value(state.context()->staticStrings().lazyMicrosecond().string()),
+                           Value(state.context()->staticStrings().lazyMillisecond().string()),
                            Value(state.context()->staticStrings().lazyMinute().string()),
-                           Value(state.context()->staticStrings().lazynanosecond().string()),
+                           Value(state.context()->staticStrings().lazyNanosecond().string()),
                            Value(state.context()->staticStrings().lazySecond().string()) };
     Value partial = TemporalCalendarObject::prepareTemporalFields(state, temporalTimeLike, values, {});
 
@@ -1265,7 +1265,7 @@ Value TemporalCalendarObject::defaultMergeFields(ExecutionState& state, const Va
     auto originalKeys = Object::enumerableOwnProperties(state, fields.asObject(), EnumerableOwnPropertiesType::Key);
 
     for (auto& nextKey : originalKeys) {
-        if (!nextKey.asString()->equals(strings.lazyMonth().string()) || !nextKey.asString()->equals(strings.lazymonthCode().string())) {
+        if (!nextKey.asString()->equals(strings.lazyMonth().string()) || !nextKey.asString()->equals(strings.lazyMonthCode().string())) {
             Value propValue;
             fields.asObject()->get(state, AtomicString(state, nextKey.asString()), propValue);
 
@@ -1280,7 +1280,7 @@ Value TemporalCalendarObject::defaultMergeFields(ExecutionState& state, const Va
     for (unsigned int i = 0; i < newKeys.size(); ++i) {
         Value nextKey = originalKeys[i];
 
-        if (!nextKey.asString()->equals(strings.lazyMonth().string()) || !nextKey.asString()->equals(strings.lazymonthCode().string())) {
+        if (!nextKey.asString()->equals(strings.lazyMonth().string()) || !nextKey.asString()->equals(strings.lazyMonthCode().string())) {
             containsMonth = true;
         }
 
@@ -1322,7 +1322,7 @@ Value TemporalCalendarObject::getTemporalCalendarWithISODefault(ExecutionState& 
 
 ValueVector TemporalCalendarObject::calendarFields(ExecutionState& state, const Value& calendar, const ValueVector& fieldNames)
 {
-    Value fields = Object::getMethod(state, calendar.asObject(), ObjectPropertyName(state.context()->staticStrings().lazyfields()));
+    Value fields = Object::getMethod(state, calendar.asObject(), ObjectPropertyName(state.context()->staticStrings().lazyFields()));
     Value fieldsArray = Object::createArrayFromList(state, fieldNames);
 
     if (!fields.isUndefined()) {
@@ -1355,7 +1355,7 @@ Value TemporalCalendarObject::calendarMonth(ExecutionState& state, Object* calen
 
 Value TemporalCalendarObject::calendarMonthCode(ExecutionState& state, Object* calendar, const Value& dateLike)
 {
-    return TemporalCalendarObject::getterHelper(state, calendar->get(state, state.context()->staticStrings().lazymonthCode()).value(state, calendar), calendar, const_cast<Value*>(&dateLike));
+    return TemporalCalendarObject::getterHelper(state, calendar->get(state, state.context()->staticStrings().lazyMonthCode()).value(state, calendar), calendar, const_cast<Value*>(&dateLike));
 }
 
 Value TemporalCalendarObject::calendarDay(ExecutionState& state, Object* calendar, const Value& dateLike)
@@ -1365,49 +1365,49 @@ Value TemporalCalendarObject::calendarDay(ExecutionState& state, Object* calenda
 
 Value TemporalCalendarObject::calendarDayOfWeek(ExecutionState& state, Object* calendar, const Value& dateLike)
 {
-    Value dayOfWeek = calendar->get(state, state.context()->staticStrings().lazydayOfWeek()).value(state, calendar);
+    Value dayOfWeek = calendar->get(state, state.context()->staticStrings().lazyDayOfWeek()).value(state, calendar);
     return Object::call(state, dayOfWeek, calendar, 1, const_cast<Value*>(&dateLike));
 }
 
 Value TemporalCalendarObject::calendarDayOfYear(ExecutionState& state, Object* calendar, const Value& dateLike)
 {
-    Value dayOfYear = calendar->get(state, state.context()->staticStrings().lazydayOfYear()).value(state, calendar);
+    Value dayOfYear = calendar->get(state, state.context()->staticStrings().lazyDayOfYear()).value(state, calendar);
     return Object::call(state, dayOfYear, calendar, 1, const_cast<Value*>(&dateLike));
 }
 
 Value TemporalCalendarObject::calendarWeekOfYear(ExecutionState& state, Object* calendar, const Value& dateLike)
 {
-    Value weekOfYear = calendar->get(state, state.context()->staticStrings().lazyweekOfYear()).value(state, calendar);
+    Value weekOfYear = calendar->get(state, state.context()->staticStrings().lazyWeekOfYear()).value(state, calendar);
     return Object::call(state, weekOfYear, calendar, 1, const_cast<Value*>(&dateLike));
 }
 
 Value TemporalCalendarObject::calendarDaysInWeek(ExecutionState& state, Object* calendar, const Value& dateLike)
 {
-    Value daysInWeek = calendar->get(state, state.context()->staticStrings().lazydaysInWeek()).value(state, calendar);
+    Value daysInWeek = calendar->get(state, state.context()->staticStrings().lazyDaysInWeek()).value(state, calendar);
     return Object::call(state, daysInWeek, calendar, 1, const_cast<Value*>(&dateLike));
 }
 
 Value TemporalCalendarObject::calendarDaysInMonth(ExecutionState& state, Object* calendar, const Value& dateLike)
 {
-    Value daysInMonth = calendar->get(state, state.context()->staticStrings().lazydaysInMonth()).value(state, calendar);
+    Value daysInMonth = calendar->get(state, state.context()->staticStrings().lazyDaysInMonth()).value(state, calendar);
     return Object::call(state, daysInMonth, calendar, 1, const_cast<Value*>(&dateLike));
 }
 
 Value TemporalCalendarObject::calendarDaysInYear(ExecutionState& state, Object* calendar, const Value& dateLike)
 {
-    Value daysInYear = calendar->get(state, state.context()->staticStrings().lazydaysInYear()).value(state, calendar);
+    Value daysInYear = calendar->get(state, state.context()->staticStrings().lazyDaysInYear()).value(state, calendar);
     return Object::call(state, daysInYear, calendar, 1, const_cast<Value*>(&dateLike));
 }
 
 Value TemporalCalendarObject::calendarMonthsInYear(ExecutionState& state, Object* calendar, const Value& dateLike)
 {
-    Value monthsInYear = calendar->get(state, state.context()->staticStrings().lazymonthsInYear()).value(state, calendar);
+    Value monthsInYear = calendar->get(state, state.context()->staticStrings().lazyMonthsInYear()).value(state, calendar);
     return Object::call(state, monthsInYear, calendar, 1, const_cast<Value*>(&dateLike));
 }
 
 Value TemporalCalendarObject::calendarInLeapYear(ExecutionState& state, Object* calendar, const Value& dateLike)
 {
-    Value inLeapYear = calendar->get(state, state.context()->staticStrings().lazyinLeapYear()).value(state, calendar);
+    Value inLeapYear = calendar->get(state, state.context()->staticStrings().lazyInLeapYear()).value(state, calendar);
     return Object::call(state, inLeapYear, calendar, 1, const_cast<Value*>(&dateLike));
 }
 
@@ -1415,7 +1415,7 @@ Value TemporalCalendarObject::dateFromFields(ExecutionState& state, const Value&
 {
     ASSERT(calendar.isObject());
     ASSERT(fields.isObject());
-    Value dateFromFields = calendar.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazydateFromFields())).value(state, calendar);
+    Value dateFromFields = calendar.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyDateFromFields())).value(state, calendar);
     Value argv[2] = { fields, options };
     return Object::call(state, dateFromFields, calendar, 2, argv);
 }
@@ -1441,7 +1441,7 @@ Value TemporalCalendarObject::calendarDateAdd(ExecutionState& state, const Value
     ASSERT(options.isObject() || options.isUndefined());
 
     if (dateAdd.isUndefined()) {
-        dateAdd = Object::getMethod(state, calendar, state.context()->staticStrings().lazydateAdd());
+        dateAdd = Object::getMethod(state, calendar, state.context()->staticStrings().lazyDateAdd());
     }
 
     Value argv[3] = { date, duration, options };
@@ -1453,7 +1453,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalCalendarObject::ISODateFrom
     ASSERT(fields.isObject());
 
     auto overflow = Temporal::toTemporalOverflow(state, options);
-    ValueVector fieldNames = { Value(state.context()->staticStrings().lazyDay().string()), Value(state.context()->staticStrings().lazyMonth().string()), Value(state.context()->staticStrings().lazymonthCode().string()), Value(state.context()->staticStrings().lazyYear().string()) };
+    ValueVector fieldNames = { Value(state.context()->staticStrings().lazyDay().string()), Value(state.context()->staticStrings().lazyMonth().string()), Value(state.context()->staticStrings().lazyMonthCode().string()), Value(state.context()->staticStrings().lazyYear().string()) };
     ValueVector requiredFields = { Value(state.context()->staticStrings().lazyDay().string()), Value(state.context()->staticStrings().lazyYear().string()) };
     fields = Temporal::prepareTemporalFields(state, fields, fieldNames, requiredFields);
     auto year = fields.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazyYear().string())).value(state, fields);
@@ -1477,7 +1477,7 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalCalendarObject::ISODateFrom
 int TemporalCalendarObject::resolveISOMonth(ExecutionState& state, const Value& fields)
 {
     auto month = fields.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazyMonth().string())).value(state, fields);
-    auto monthCode = fields.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazymonthCode().string())).value(state, fields);
+    auto monthCode = fields.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazyMonthCode().string())).value(state, fields);
 
     if (monthCode.isUndefined()) {
         if (!month.isInt32()) {
@@ -1519,7 +1519,7 @@ int TemporalCalendarObject::resolveISOMonth(ExecutionState& state, const Value& 
 Value TemporalCalendarObject::calendarYearMonthFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options)
 {
     Value argv[] = { fields, options };
-    return Object::call(state, Object::getMethod(state, calendar, ObjectPropertyName(state.context()->staticStrings().lazyyearMonthFromFields())), calendar, 2, argv);
+    return Object::call(state, Object::getMethod(state, calendar, ObjectPropertyName(state.context()->staticStrings().lazyYearMonthFromFields())), calendar, 2, argv);
 }
 
 bool TemporalCalendarObject::calendarEquals(const TemporalCalendarObject& firstCalendar, const TemporalCalendarObject& secondCalendar)
@@ -1541,7 +1541,7 @@ bool TemporalCalendarObject::operator!=(const TemporalCalendarObject& rhs) const
 Value TemporalCalendarObject::calendarMonthDayFromFields(ExecutionState& state, const Value& calendar, const Value& fields, const Value& options)
 {
     Value argv[] = { fields, options };
-    return Object::call(state, Object::getMethod(state, calendar, ObjectPropertyName(state.context()->staticStrings().lazymonthDayFromFields())), calendar, 2, argv);
+    return Object::call(state, Object::getMethod(state, calendar, ObjectPropertyName(state.context()->staticStrings().lazyMonthDayFromFields())), calendar, 2, argv);
 }
 
 Value TemporalCalendarObject::calendarDateUntil(ExecutionState& state, const Value& calendar, const Value& first, const Value& second, const Value& options, Value dateUntil)
@@ -1549,7 +1549,7 @@ Value TemporalCalendarObject::calendarDateUntil(ExecutionState& state, const Val
     ASSERT(calendar.isObject());
 
     if (dateUntil.isUndefined()) {
-        dateUntil = Object::getMethod(state, calendar, ObjectPropertyName(state, state.context()->staticStrings().lazydateUntil().string()));
+        dateUntil = Object::getMethod(state, calendar, ObjectPropertyName(state, state.context()->staticStrings().lazyDateUntil().string()));
     }
 
     Value argv[] = { first, second, options };
@@ -1628,7 +1628,7 @@ Value TemporalPlainDateObject::toTemporalDate(ExecutionState& state, const Value
         ValueVector requiredFields{
             Value(state.context()->staticStrings().lazyDay().string()),
             Value(state.context()->staticStrings().lazyMonth().string()),
-            Value(state.context()->staticStrings().lazymonthCode().string()),
+            Value(state.context()->staticStrings().lazyMonthCode().string()),
             Value(state.context()->staticStrings().lazyYear().string())
         };
         ValueVector fieldNames = TemporalCalendarObject::calendarFields(state, calendar, ValueVector());
@@ -1814,12 +1814,12 @@ Value TemporalPlainDateTimeObject::toTemporalDateTime(ExecutionState& state, con
         calendar = TemporalCalendarObject::getTemporalCalendarWithISODefault(state, item);
         ValueVector values = { Value(state.context()->staticStrings().lazyDay().string()),
                                Value(state.context()->staticStrings().lazyHour().string()),
-                               Value(state.context()->staticStrings().lazymicrosecond().string()),
-                               Value(state.context()->staticStrings().lazymillisecond().string()),
+                               Value(state.context()->staticStrings().lazyMicrosecond().string()),
+                               Value(state.context()->staticStrings().lazyMillisecond().string()),
                                Value(state.context()->staticStrings().lazyMinute().string()),
                                Value(state.context()->staticStrings().lazyMonth().string()),
-                               Value(state.context()->staticStrings().lazymonthCode().string()),
-                               Value(state.context()->staticStrings().lazynanosecond().string()),
+                               Value(state.context()->staticStrings().lazyMonthCode().string()),
+                               Value(state.context()->staticStrings().lazyNanosecond().string()),
                                Value(state.context()->staticStrings().lazySecond().string()),
                                Value(state.context()->staticStrings().lazyYear().string()) };
         ValueVector fieldNames = TemporalCalendarObject::calendarFields(state, calendar, values);
@@ -1930,20 +1930,20 @@ Value TemporalZonedDateTimeObject::toTemporalZonedDateTime(ExecutionState& state
         calendar = TemporalCalendarObject::getTemporalCalendarWithISODefault(state, item).asObject()->asTemporalCalendarObject();
         ValueVector values = { Value(state.context()->staticStrings().lazyDay().string()),
                                Value(state.context()->staticStrings().lazyHour().string()),
-                               Value(state.context()->staticStrings().lazymicrosecond().string()),
-                               Value(state.context()->staticStrings().lazymillisecond().string()),
+                               Value(state.context()->staticStrings().lazyMicrosecond().string()),
+                               Value(state.context()->staticStrings().lazyMillisecond().string()),
                                Value(state.context()->staticStrings().lazyMinute().string()),
                                Value(state.context()->staticStrings().lazyMonth().string()),
-                               Value(state.context()->staticStrings().lazymonthCode().string()),
-                               Value(state.context()->staticStrings().lazynanosecond().string()),
+                               Value(state.context()->staticStrings().lazyMonthCode().string()),
+                               Value(state.context()->staticStrings().lazyNanosecond().string()),
                                Value(state.context()->staticStrings().lazySecond().string()),
                                Value(state.context()->staticStrings().lazyYear().string()) };
         auto fieldNames = TemporalCalendarObject::calendarFields(state, calendar, values);
-        fieldNames.push_back(Value(state.context()->staticStrings().lazytimeZone().string()));
-        fieldNames.push_back(Value(state.context()->staticStrings().lazyoffset().string()));
-        auto fields = Temporal::prepareTemporalFields(state, item, fieldNames, { Value(state.context()->staticStrings().lazytimeZone().string()) });
-        timeZone = TemporalTimeZoneObject::toTemporalTimeZone(state, fields.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazytimeZone())).value(state, fields)).asObject()->asTemporalTimeZoneObject();
-        auto offsetStringValue = fields.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyoffset())).value(state, fields);
+        fieldNames.push_back(Value(state.context()->staticStrings().lazyTimeZone().string()));
+        fieldNames.push_back(Value(state.context()->staticStrings().lazyOffset().string()));
+        auto fields = Temporal::prepareTemporalFields(state, item, fieldNames, { Value(state.context()->staticStrings().lazyTimeZone().string()) });
+        timeZone = TemporalTimeZoneObject::toTemporalTimeZone(state, fields.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyTimeZone())).value(state, fields)).asObject()->asTemporalTimeZoneObject();
+        auto offsetStringValue = fields.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyOffset())).value(state, fields);
 
         if (offsetStringValue.isUndefined()) {
             offsetBehaviour = TemporalZonedDateTimeObject::WALL;
@@ -1997,11 +1997,11 @@ Value TemporalZonedDateTimeObject::interpretISODateTimeOffset(ExecutionState& st
     auto calendar = TemporalCalendarObject::getISO8601Calendar(state).asObject()->asTemporalCalendarObject();
     auto dateTimeObject = TemporalPlainDateTimeObject::createTemporalDateTime(state, dateTime[TemporalObject::YEAR_UNIT], dateTime[TemporalObject::MONTH_UNIT], dateTime[TemporalObject::DAY_UNIT], dateTime[TemporalObject::HOUR_UNIT], dateTime[TemporalObject::MINUTE_UNIT], dateTime[TemporalObject::SECOND_UNIT], dateTime[TemporalObject::MILLISECOND_UNIT], dateTime[TemporalObject::MICROSECOND_UNIT], dateTime[TemporalObject::NANOSECOND_UNIT], calendar, nullptr);
 
-    if (offsetBehaviour == TemporalZonedDateTimeObject::WALL || offsetOption.toString(state)->equals(state.context()->staticStrings().lazyignore().string())) {
+    if (offsetBehaviour == TemporalZonedDateTimeObject::WALL || offsetOption.toString(state)->equals(state.context()->staticStrings().lazyIgnore().string())) {
         return TemporalTimeZoneObject::builtinTimeZoneGetInstantFor(state, timeZone, dateTimeObject, disambiguation).asObject()->asTemporalInstantObject()->getNanoseconds();
     }
 
-    if (offsetBehaviour == TemporalZonedDateTimeObject::EXACT || offsetOption.toString(state)->equals(state.context()->staticStrings().lazyuse().string())) {
+    if (offsetBehaviour == TemporalZonedDateTimeObject::EXACT || offsetOption.toString(state)->equals(state.context()->staticStrings().lazyUse().string())) {
         time64_t epochNanoseconds = TemporalPlainDateTimeObject::getEpochFromISOParts(state, dateTime[TemporalObject::YEAR_UNIT], dateTime[TemporalObject::MONTH_UNIT], dateTime[TemporalObject::DAY_UNIT], dateTime[TemporalObject::HOUR_UNIT], dateTime[TemporalObject::MINUTE_UNIT], dateTime[TemporalObject::SECOND_UNIT], dateTime[TemporalObject::MILLISECOND_UNIT], dateTime[TemporalObject::MICROSECOND_UNIT], dateTime[TemporalObject::NANOSECOND_UNIT]) - offsetNanoseconds;
 
         if (!TemporalInstantObject::isValidEpochNanoseconds(Value(epochNanoseconds))) {
@@ -2012,7 +2012,7 @@ Value TemporalZonedDateTimeObject::interpretISODateTimeOffset(ExecutionState& st
     }
 
     ASSERT(offsetBehaviour == TemporalZonedDateTimeObject::OPTION);
-    ASSERT(offsetOption.toString(state)->equals(state.context()->staticStrings().lazyprefer().string()) || offsetOption.toString(state)->equals(state.context()->staticStrings().reject.string()));
+    ASSERT(offsetOption.toString(state)->equals(state.context()->staticStrings().lazyPrefer().string()) || offsetOption.toString(state)->equals(state.context()->staticStrings().reject.string()));
 
     auto possibleInstants = TemporalTimeZoneObject::getPossibleInstantsFor(state, timeZone, dateTimeObject);
     for (auto& candidate : possibleInstants) {
@@ -2064,7 +2064,7 @@ BigInt* TemporalZonedDateTimeObject::addZonedDateTime(ExecutionState& state, con
     auto dateDuration = TemporalDurationObject::createTemporalDuration(state, duration[TemporalObject::YEAR_UNIT], duration[TemporalObject::MONTH_UNIT], duration[TemporalObject::WEEK_UNIT], duration[TemporalObject::DAY_UNIT], 0, 0, 0, 0, 0, 0);
     auto addedDate = TemporalCalendarObject::calendarDateAdd(state, calendar, datePart, dateDuration, options).asObject()->asTemporalPlainDateObject();
     auto intermediateDateTime = TemporalPlainDateTimeObject::createTemporalDateTime(state, addedDate->year(), addedDate->month(), addedDate->day(), temporalDateTime->getHour(), temporalDateTime->getMinute(), temporalDateTime->getSecond(), temporalDateTime->getMillisecond(), temporalDateTime->getMicrosecond(), temporalDateTime->getNanosecond(), calendar);
-    auto intermediateInstant = TemporalTimeZoneObject::builtinTimeZoneGetInstantFor(state, timeZone, intermediateDateTime, Value(state.context()->staticStrings().lazycompatible().string()));
+    auto intermediateInstant = TemporalTimeZoneObject::builtinTimeZoneGetInstantFor(state, timeZone, intermediateDateTime, Value(state.context()->staticStrings().lazyCompatible().string()));
 
     return TemporalInstantObject::addInstant(state, intermediateInstant.asObject()->asTemporalInstantObject()->getNanoseconds(), duration);
 }
@@ -2346,7 +2346,7 @@ Value TemporalTimeZoneObject::builtinTimeZoneGetPlainDateTimeFor(ExecutionState&
 
 int64_t TemporalTimeZoneObject::getOffsetNanosecondsFor(ExecutionState& state, const Value& timeZone, const Value& instant)
 {
-    Value getOffsetNanosecondsFor = Object::getMethod(state, timeZone, ObjectPropertyName(state.context()->staticStrings().lazygetOffsetNanosecondsFor()));
+    Value getOffsetNanosecondsFor = Object::getMethod(state, timeZone, ObjectPropertyName(state.context()->staticStrings().lazyGetOffsetNanosecondsFor()));
     Value offsetNanoseconds = Object::call(state, getOffsetNanosecondsFor, timeZone, 1, const_cast<Value*>(&instant));
 
     if (!offsetNanoseconds.isNumber()) {
@@ -2655,7 +2655,7 @@ ValueVector TemporalTimeZoneObject::getPossibleInstantsFor(ExecutionState& state
 {
     ASSERT(dateTime.asObject()->isTemporalPlainDateTimeObject());
     Value argument[1] = { dateTime };
-    auto possibleInstants = Object::call(state, timeZone.asObject()->get(state, state.context()->staticStrings().lazygetPossibleInstantsFor()).value(state, timeZone), timeZone, 1, argument);
+    auto possibleInstants = Object::call(state, timeZone.asObject()->get(state, state.context()->staticStrings().lazyGetPossibleInstantsFor()).value(state, timeZone), timeZone, 1, argument);
     auto iteratorRecord = IteratorObject::getIterator(state, possibleInstants, true);
     ValueVector list = {};
     Optional<Object*> next;
@@ -2684,11 +2684,11 @@ Value TemporalTimeZoneObject::disambiguatePossibleInstants(ExecutionState& state
     }
 
     if (!possibleInstants.empty()) {
-        if (disambiguation.asString()->equals(state.context()->staticStrings().lazyearlier().string()) || disambiguation.asString()->equals(state.context()->staticStrings().lazycompatible().string())) {
+        if (disambiguation.asString()->equals(state.context()->staticStrings().lazyEarlier().string()) || disambiguation.asString()->equals(state.context()->staticStrings().lazyCompatible().string())) {
             return possibleInstants[0];
         }
 
-        if (disambiguation.asString()->equals(state.context()->staticStrings().lazylater().string())) {
+        if (disambiguation.asString()->equals(state.context()->staticStrings().lazyLater().string())) {
             return possibleInstants[possibleInstants.size() - 1];
         }
 
@@ -2722,7 +2722,7 @@ Value TemporalTimeZoneObject::disambiguatePossibleInstants(ExecutionState& state
     int64_t offsetAfter = TemporalTimeZoneObject::getOffsetNanosecondsFor(state, timeZone, dayAfter);
     int64_t nanoseconds = offsetAfter - offsetBefore;
 
-    if (disambiguation.asString()->equals(state.context()->staticStrings().lazyearlier().string())) {
+    if (disambiguation.asString()->equals(state.context()->staticStrings().lazyEarlier().string())) {
         std::map<TemporalObject::DateTimeUnits, int> dateTimeMap = { { TemporalObject::YEAR_UNIT, dateTime->getYear() }, { TemporalObject::MONTH_UNIT, dateTime->getMonth() }, { TemporalObject::DAY_UNIT, dateTime->getDay() }, { TemporalObject::HOUR_UNIT, dateTime->getHour() }, { TemporalObject::MINUTE_UNIT, dateTime->getMinute() }, { TemporalObject::SECOND_UNIT, dateTime->getSecond() }, { TemporalObject::MILLISECOND_UNIT, dateTime->getMillisecond() }, { TemporalObject::MICROSECOND_UNIT, dateTime->getMicrosecond() }, { TemporalObject::NANOSECOND_UNIT, dateTime->getNanosecond() } };
         std::map<TemporalObject::DateTimeUnits, int> durationMap = { { TemporalObject::YEAR_UNIT, 0 }, { TemporalObject::MONTH_UNIT, 0 }, { TemporalObject::DAY_UNIT, 0 }, { TemporalObject::HOUR_UNIT, 0 }, { TemporalObject::MINUTE_UNIT, 0 }, { TemporalObject::SECOND_UNIT, 0 }, { TemporalObject::MILLISECOND_UNIT, 0 }, { TemporalObject::MICROSECOND_UNIT, 0 }, { TemporalObject::NANOSECOND_UNIT, -nanoseconds } };
         auto earlier = TemporalPlainDateTimeObject::addDateTime(state, dateTimeMap, dateTime->getCalendar(), durationMap, nullptr);
@@ -2736,7 +2736,7 @@ Value TemporalTimeZoneObject::disambiguatePossibleInstants(ExecutionState& state
         return possibleInstants[0];
     }
 
-    ASSERT(disambiguation.asString()->equals(state.context()->staticStrings().lazylater().string()) || disambiguation.asString()->equals(state.context()->staticStrings().lazycompatible().string()));
+    ASSERT(disambiguation.asString()->equals(state.context()->staticStrings().lazyLater().string()) || disambiguation.asString()->equals(state.context()->staticStrings().lazyCompatible().string()));
 
     std::map<TemporalObject::DateTimeUnits, int> dateTimeMap = { { TemporalObject::YEAR_UNIT, dateTime->getYear() }, { TemporalObject::MONTH_UNIT, dateTime->getMonth() }, { TemporalObject::DAY_UNIT, dateTime->getDay() }, { TemporalObject::HOUR_UNIT, dateTime->getHour() }, { TemporalObject::MINUTE_UNIT, dateTime->getMinute() }, { TemporalObject::SECOND_UNIT, dateTime->getSecond() }, { TemporalObject::MILLISECOND_UNIT, dateTime->getMillisecond() }, { TemporalObject::MICROSECOND_UNIT, dateTime->getMicrosecond() }, { TemporalObject::NANOSECOND_UNIT, dateTime->getNanosecond() } };
     std::map<TemporalObject::DateTimeUnits, int> durationMap = { { TemporalObject::YEAR_UNIT, 0 }, { TemporalObject::MONTH_UNIT, 0 }, { TemporalObject::DAY_UNIT, 0 }, { TemporalObject::HOUR_UNIT, 0 }, { TemporalObject::MINUTE_UNIT, 0 }, { TemporalObject::SECOND_UNIT, 0 }, { TemporalObject::MILLISECOND_UNIT, 0 }, { TemporalObject::MICROSECOND_UNIT, 0 }, { TemporalObject::NANOSECOND_UNIT, nanoseconds } };
@@ -2800,7 +2800,7 @@ Value TemporalPlainYearMonthObject::toTemporalYearMonth(ExecutionState& state, c
 
         StaticStrings& strings = state.context()->staticStrings();
         auto calendar = TemporalCalendarObject::getTemporalCalendarWithISODefault(state, item);
-        auto fieldNames = TemporalCalendarObject::calendarFields(state, calendar, { strings.lazyMonth().string(), strings.lazymonthCode().string(), strings.lazyYear().string() });
+        auto fieldNames = TemporalCalendarObject::calendarFields(state, calendar, { strings.lazyMonth().string(), strings.lazyMonthCode().string(), strings.lazyYear().string() });
         auto fields = Temporal::prepareTemporalFields(state, item, fieldNames, {});
         return TemporalCalendarObject::calendarYearMonthFromFields(state, calendar, fields, options);
     }
@@ -2824,7 +2824,7 @@ Value TemporalPlainYearMonthObject::addDurationToOrSubtractDurationFromPlainYear
     std::map<TemporalObject::DateTimeUnits, int> tmp = { { TemporalObject::DAY_UNIT, duration->getDay() }, { TemporalObject::HOUR_UNIT, duration->getHour() }, { TemporalObject::MINUTE_UNIT, duration->getMinute() }, { TemporalObject::SECOND_UNIT, duration->getSecond() }, { TemporalObject::MILLISECOND_UNIT, duration->getMillisecond() }, { TemporalObject::MICROSECOND_UNIT, duration->getMicrosecond() }, { TemporalObject::NANOSECOND_UNIT, duration->getNanosecond() } };
     std::map<TemporalObject::DateTimeUnits, int> balanceResult = TemporalDurationObject::balanceDuration(state, tmp, TemporalObject::DAY_UNIT);
     Value optionsObject = Temporal::getOptionsObject(state, options);
-    ValueVector fieldNames = TemporalCalendarObject::calendarFields(state, yearMonth->getCalendar(), { Value(state.context()->staticStrings().lazymonthCode().string()), Value(state.context()->staticStrings().lazyYear().string()) });
+    ValueVector fieldNames = TemporalCalendarObject::calendarFields(state, yearMonth->getCalendar(), { Value(state.context()->staticStrings().lazyMonthCode().string()), Value(state.context()->staticStrings().lazyYear().string()) });
     Value fields = Temporal::prepareTemporalFields(state, yearMonth, fieldNames, {});
     int durationArray[] = { duration->getYear(), duration->getMonth(), duration->getWeek(), balanceResult[TemporalObject::DAY_UNIT], 0, 0, 0, 0, 0, 0 };
     int sign = TemporalDurationObject::durationSign(durationArray);
@@ -3023,12 +3023,12 @@ std::map<TemporalObject::DateTimeUnits, int> TemporalDurationObject::addDuration
         Value calendar = dateTime->getCalendar();
         Value dateDuration1 = TemporalDurationObject::createTemporalDuration(state, first[TemporalObject::YEAR_UNIT], first[TemporalObject::MONTH_UNIT], first[TemporalObject::WEEK_UNIT], first[TemporalObject::DAY_UNIT], 0, 0, 0, 0, 0, 0);
         Value dateDuration2 = TemporalDurationObject::createTemporalDuration(state, second[TemporalObject::YEAR_UNIT], second[TemporalObject::MONTH_UNIT], second[TemporalObject::WEEK_UNIT], second[TemporalObject::DAY_UNIT], 0, 0, 0, 0, 0, 0);
-        Value dateAdd = Object::getMethod(state, calendar, ObjectPropertyName(state, state.context()->staticStrings().lazydateAdd().string()));
+        Value dateAdd = Object::getMethod(state, calendar, ObjectPropertyName(state, state.context()->staticStrings().lazyDateAdd().string()));
         Value intermediate = TemporalCalendarObject::calendarDateAdd(state, calendar, relativeTo, dateDuration1, Value(), dateAdd);
         Value end = TemporalCalendarObject::calendarDateAdd(state, calendar, intermediate, dateDuration2, Value(), dateAdd);
         auto dateLargestUnit = TemporalObject::DAY_UNIT > largestUnit ? TemporalObject::DAY_UNIT : largestUnit;
         auto differenceOptions = new Object(state, Object::PrototypeIsNull);
-        differenceOptions->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazylargestUnit()), ObjectPropertyDescriptor(TemporalObject::dateTimeUnitString(state, dateLargestUnit), ObjectPropertyDescriptor::AllPresent));
+        differenceOptions->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyLargestUnit()), ObjectPropertyDescriptor(TemporalObject::dateTimeUnitString(state, dateLargestUnit), ObjectPropertyDescriptor::AllPresent));
         auto dateDifference = TemporalCalendarObject::calendarDateUntil(state, calendar, relativeTo, end, differenceOptions).asObject()->asTemporalDurationObject();
         duration[TemporalObject::DAY_UNIT] = dateDifference->getDay();
         auto result = TemporalDurationObject::balanceDuration(state, duration, largestUnit);
@@ -3237,10 +3237,10 @@ Value TemporalPlainMonthDayObject::toTemporalMonthDay(ExecutionState& state, con
         calendar = TemporalCalendarObject::toTemporalCalendarWithISODefault(state, calendarLike).asObject()->asTemporalCalendarObject();
     }
 
-    ValueVector fieldNames = TemporalCalendarObject::calendarFields(state, calendar, { strings.lazyDay().string(), strings.lazyMonth().string(), strings.lazymonthCode().string(), strings.lazyYear().string() });
+    ValueVector fieldNames = TemporalCalendarObject::calendarFields(state, calendar, { strings.lazyDay().string(), strings.lazyMonth().string(), strings.lazyMonthCode().string(), strings.lazyYear().string() });
     Value fields = Temporal::prepareTemporalFields(state, item, fieldNames, {});
     Value month = fields.asObject()->get(state, strings.lazyMonth()).value(state, fields);
-    Value monthCode = fields.asObject()->get(state, strings.lazymonthCode()).value(state, fields);
+    Value monthCode = fields.asObject()->get(state, strings.lazyMonthCode()).value(state, fields);
     Value year = fields.asObject()->get(state, strings.lazyYear()).value(state, fields);
 
     if (calendarAbsent && month.isUndefined() && monthCode.isUndefined() && year.isUndefined()) {
