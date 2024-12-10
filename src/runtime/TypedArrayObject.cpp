@@ -216,114 +216,114 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
     return true;
 }
 
-#define DECLARE_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                         \
-    TypedArrayObject* TYPE##ArrayObject::allocateTypedArray(ExecutionState& state, Object* newTarget, size_t length)                            \
-    {                                                                                                                                           \
-        ASSERT(!!newTarget);                                                                                                                    \
-        Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* { \
-            return constructorRealm->globalObject()->type##ArrayPrototype();                                                                    \
-        });                                                                                                                                     \
-        TypedArrayObject* obj = new TYPE##ArrayObject(state, proto);                                                                            \
-        if (length == std::numeric_limits<size_t>::max()) {                                                                                     \
-            obj->setBuffer(nullptr, 0, 0, 0);                                                                                                   \
-        } else {                                                                                                                                \
-            auto buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), length * siz);          \
-            obj->setBuffer(buffer, 0, length* siz, length);                                                                                     \
-        }                                                                                                                                       \
-        return obj;                                                                                                                             \
-    }                                                                                                                                           \
-                                                                                                                                                \
-    template <const bool isLittleEndian>                                                                                                        \
-    Value TYPE##ArrayObject::getDirectValueFromBuffer(ExecutionState& state, size_t byteindex)                                                  \
-    {                                                                                                                                           \
-        typedef typename TYPE##Adaptor::Type Type;                                                                                              \
-        ASSERT(byteLength());                                                                                                                   \
-        size_t elementSize = sizeof(Type);                                                                                                      \
-        ASSERT(byteindex + elementSize <= byteLength());                                                                                        \
-        auto bufferAddress = rawBuffer();                                                                                                       \
-        if (UNLIKELY(bufferAddress == nullptr)) {                                                                                               \
-            return Value();                                                                                                                     \
-        }                                                                                                                                       \
-        uint8_t* rawStart = bufferAddress + byteindex;                                                                                          \
-        Type res;                                                                                                                               \
-        if (isLittleEndian) {                                                                                                                   \
-            res = *((Type*)rawStart);                                                                                                           \
-        } else {                                                                                                                                \
-            for (size_t i = 0; i < elementSize; i++) {                                                                                          \
-                ((uint8_t*)&res)[elementSize - i - 1] = rawStart[i];                                                                            \
-            }                                                                                                                                   \
-        }                                                                                                                                       \
-        if (std::is_same<int64_t, nativeType>::value) {                                                                                         \
-            return Value(new BigInt((int64_t)res));                                                                                             \
-        } else if (std::is_same<uint64_t, nativeType>::value) {                                                                                 \
-            return Value(new BigInt((uint64_t)res));                                                                                            \
-        } else if (std::is_same<uint8_t, nativeType>::value) {                                                                                  \
-            return Value((uint8_t)res);                                                                                                         \
-        } else if (std::is_same<uint16_t, nativeType>::value) {                                                                                 \
-            return Value((uint16_t)res);                                                                                                        \
-        } else if (std::is_same<uint32_t, nativeType>::value) {                                                                                 \
-            return Value((uint32_t)res);                                                                                                        \
-        } else if (std::is_same<int8_t, nativeType>::value) {                                                                                   \
-            return Value((int8_t)res);                                                                                                          \
-        } else if (std::is_same<int16_t, nativeType>::value) {                                                                                  \
-            return Value((int16_t)res);                                                                                                         \
-        } else if (std::is_same<int32_t, nativeType>::value) {                                                                                  \
-            return Value((int32_t)res);                                                                                                         \
-        }                                                                                                                                       \
-        return Value(Value::DoubleToIntConvertibleTestNeeds, res);                                                                              \
-    }                                                                                                                                           \
-    template <const bool isLittleEndian>                                                                                                        \
-    void TYPE##ArrayObject::setDirectValueInBuffer(ExecutionState& state, size_t byteindex, const Value& val)                                   \
-    {                                                                                                                                           \
-        typedef typename TYPE##Adaptor::Type Type;                                                                                              \
-        Type littleEndianVal = TYPE##Adaptor::toNative(state, val);                                                                             \
-        ASSERT(byteLength());                                                                                                                   \
-        size_t elementSize = siz;                                                                                                               \
-        ASSERT(byteindex + elementSize <= byteLength());                                                                                        \
-        auto bufferAddress = rawBuffer();                                                                                                       \
-        uint8_t* rawStart = bufferAddress + byteindex;                                                                                          \
-                                                                                                                                                \
-        if (isLittleEndian) {                                                                                                                   \
-            *((Type*)rawStart) = littleEndianVal;                                                                                               \
-        } else {                                                                                                                                \
-            for (size_t i = 0; i < elementSize; i++) {                                                                                          \
-                rawStart[i] = ((uint8_t*)&littleEndianVal)[elementSize - i - 1];                                                                \
-            }                                                                                                                                   \
-        }                                                                                                                                       \
-    }                                                                                                                                           \
-                                                                                                                                                \
-    ObjectGetResult TYPE##ArrayObject::getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver)                  \
-    {                                                                                                                                           \
-        if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength())) {                                                       \
-            if (UNLIKELY(buffer()->isDetachedBuffer())) {                                                                                       \
-                return ObjectGetResult();                                                                                                       \
-            }                                                                                                                                   \
-            size_t indexedPosition = property.asUInt32() * siz;                                                                                 \
-            return ObjectGetResult(getDirectValueFromBuffer(state, indexedPosition), true, true, false);                                        \
-        }                                                                                                                                       \
-        return get(state, ObjectPropertyName(state, property), receiver);                                                                       \
-    }                                                                                                                                           \
-                                                                                                                                                \
-    Value TYPE##ArrayObject::getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver)                       \
-    {                                                                                                                                           \
-        if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength())) {                                                       \
-            if (UNLIKELY(buffer()->isDetachedBuffer())) {                                                                                       \
-                return Value();                                                                                                                 \
-            }                                                                                                                                   \
-            size_t indexedPosition = property.asUInt32() * siz;                                                                                 \
-            return getDirectValueFromBuffer(state, indexedPosition);                                                                            \
-        }                                                                                                                                       \
-        return get(state, ObjectPropertyName(state, property), receiver).value(state, receiver);                                                \
-    }                                                                                                                                           \
-                                                                                                                                                \
-    bool TYPE##ArrayObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver)         \
-    {                                                                                                                                           \
-        if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength() && !buffer()->isDetachedBuffer())) {                      \
-            size_t indexedPosition = property.asUInt32() * siz;                                                                                 \
-            setDirectValueInBuffer(state, indexedPosition, value);                                                                              \
-            return true;                                                                                                                        \
-        }                                                                                                                                       \
-        return set(state, ObjectPropertyName(state, property), value, receiver);                                                                \
+#define DECLARE_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                           \
+    TypedArrayObject* TYPE##ArrayObject::allocateTypedArray(ExecutionState& state, Object* newTarget, size_t length)                              \
+    {                                                                                                                                             \
+        ASSERT(!!newTarget);                                                                                                                      \
+        Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {   \
+            return constructorRealm->globalObject()->type##ArrayPrototype();                                                                      \
+        });                                                                                                                                       \
+        TypedArrayObject* obj = new TYPE##ArrayObject(state, proto);                                                                              \
+        if (length == std::numeric_limits<size_t>::max()) {                                                                                       \
+            obj->setBuffer(nullptr, 0, 0, 0);                                                                                                     \
+        } else {                                                                                                                                  \
+            auto buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), length * siz);            \
+            obj->setBuffer(buffer, 0, length* siz, length);                                                                                       \
+        }                                                                                                                                         \
+        return obj;                                                                                                                               \
+    }                                                                                                                                             \
+                                                                                                                                                  \
+    template <const bool isLittleEndian>                                                                                                          \
+    Value TYPE##ArrayObject::getDirectValueFromBuffer(ExecutionState& state, size_t byteindex)                                                    \
+    {                                                                                                                                             \
+        typedef typename TYPE##Adaptor::Type Type;                                                                                                \
+        ASSERT(byteLength());                                                                                                                     \
+        size_t elementSize = sizeof(Type);                                                                                                        \
+        ASSERT(byteindex + elementSize <= byteLength());                                                                                          \
+        auto bufferAddress = rawBuffer();                                                                                                         \
+        if (UNLIKELY(bufferAddress == nullptr)) {                                                                                                 \
+            return Value();                                                                                                                       \
+        }                                                                                                                                         \
+        uint8_t* rawStart = bufferAddress + byteindex;                                                                                            \
+        Type res;                                                                                                                                 \
+        if (isLittleEndian) {                                                                                                                     \
+            res = *((Type*)rawStart);                                                                                                             \
+        } else {                                                                                                                                  \
+            for (size_t i = 0; i < elementSize; i++) {                                                                                            \
+                ((uint8_t*)&res)[elementSize - i - 1] = rawStart[i];                                                                              \
+            }                                                                                                                                     \
+        }                                                                                                                                         \
+        if (std::is_same<int64_t, nativeType>::value) {                                                                                           \
+            return Value(new BigInt((int64_t)res));                                                                                               \
+        } else if (std::is_same<uint64_t, nativeType>::value) {                                                                                   \
+            return Value(new BigInt((uint64_t)res));                                                                                              \
+        } else if (std::is_same<uint8_t, nativeType>::value) {                                                                                    \
+            return Value((uint8_t)res);                                                                                                           \
+        } else if (std::is_same<uint16_t, nativeType>::value) {                                                                                   \
+            return Value((uint16_t)res);                                                                                                          \
+        } else if (std::is_same<uint32_t, nativeType>::value) {                                                                                   \
+            return Value((uint32_t)res);                                                                                                          \
+        } else if (std::is_same<int8_t, nativeType>::value) {                                                                                     \
+            return Value((int8_t)res);                                                                                                            \
+        } else if (std::is_same<int16_t, nativeType>::value) {                                                                                    \
+            return Value((int16_t)res);                                                                                                           \
+        } else if (std::is_same<int32_t, nativeType>::value) {                                                                                    \
+            return Value((int32_t)res);                                                                                                           \
+        }                                                                                                                                         \
+        return Value(Value::DoubleToIntConvertibleTestNeeds, res);                                                                                \
+    }                                                                                                                                             \
+    template <const bool isLittleEndian>                                                                                                          \
+    void TYPE##ArrayObject::setDirectValueInBuffer(ExecutionState& state, size_t byteindex, const Value& val)                                     \
+    {                                                                                                                                             \
+        typedef typename TYPE##Adaptor::Type Type;                                                                                                \
+        Type littleEndianVal = TYPE##Adaptor::toNative(state, val);                                                                               \
+        ASSERT(byteLength());                                                                                                                     \
+        size_t elementSize = siz;                                                                                                                 \
+        ASSERT(byteindex + elementSize <= byteLength());                                                                                          \
+        auto bufferAddress = rawBuffer();                                                                                                         \
+        uint8_t* rawStart = bufferAddress + byteindex;                                                                                            \
+                                                                                                                                                  \
+        if (isLittleEndian) {                                                                                                                     \
+            *((Type*)rawStart) = littleEndianVal;                                                                                                 \
+        } else {                                                                                                                                  \
+            for (size_t i = 0; i < elementSize; i++) {                                                                                            \
+                rawStart[i] = ((uint8_t*)&littleEndianVal)[elementSize - i - 1];                                                                  \
+            }                                                                                                                                     \
+        }                                                                                                                                         \
+    }                                                                                                                                             \
+                                                                                                                                                  \
+    ObjectGetResult TYPE##ArrayObject::getIndexedProperty(ExecutionState& state, const Value& property, const Value& receiver)                    \
+    {                                                                                                                                             \
+        if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength())) {                                                         \
+            if (UNLIKELY(buffer()->isDetachedBuffer())) {                                                                                         \
+                return ObjectGetResult();                                                                                                         \
+            }                                                                                                                                     \
+            size_t indexedPosition = property.asUInt32() * siz;                                                                                   \
+            return ObjectGetResult(getDirectValueFromBuffer(state, indexedPosition), true, true, false);                                          \
+        }                                                                                                                                         \
+        return get(state, ObjectPropertyName(state, property), receiver);                                                                         \
+    }                                                                                                                                             \
+                                                                                                                                                  \
+    Value TYPE##ArrayObject::getIndexedPropertyValue(ExecutionState& state, const Value& property, const Value& receiver)                         \
+    {                                                                                                                                             \
+        if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength())) {                                                         \
+            if (UNLIKELY(buffer()->isDetachedBuffer())) {                                                                                         \
+                return Value();                                                                                                                   \
+            }                                                                                                                                     \
+            size_t indexedPosition = property.asUInt32() * siz;                                                                                   \
+            return getDirectValueFromBuffer(state, indexedPosition);                                                                              \
+        }                                                                                                                                         \
+        return get(state, ObjectPropertyName(state, property), receiver).value(state, receiver);                                                  \
+    }                                                                                                                                             \
+                                                                                                                                                  \
+    bool TYPE##ArrayObject::setIndexedProperty(ExecutionState& state, const Value& property, const Value& value, const Value& receiver)           \
+    {                                                                                                                                             \
+        if (LIKELY(property.isUInt32() && (size_t)property.asUInt32() < arrayLength() && !buffer()->isDetachedBuffer() && value.isPrimitive())) { \
+            size_t indexedPosition = property.asUInt32() * siz;                                                                                   \
+            setDirectValueInBuffer(state, indexedPosition, value);                                                                                \
+            return true;                                                                                                                          \
+        }                                                                                                                                         \
+        return set(state, ObjectPropertyName(state, property), value, receiver);                                                                  \
     }
 
 FOR_EACH_TYPEDARRAY_TYPES(DECLARE_TYPEDARRAY)
