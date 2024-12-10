@@ -763,20 +763,20 @@ static Value builtinTypedArraySet(ExecutionState& state, Value thisValue, size_t
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->TypedArray.string(), true, strings->set.string(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
         }
 
-        size_t targetByteIndex = targetOffset * targetElementSize + targetByteOffset;
         size_t k = 0;
-        size_t limit = targetByteIndex + targetElementSize * srcLength;
-        while (targetByteIndex < limit) {
+        size_t targetByteIndex = targetOffset * targetElementSize + targetByteOffset;
+        while (k < srcLength) {
             Value value = src->get(state, ObjectPropertyName(state, Value(k))).value(state, src);
+
             if (UNLIKELY(isBigIntArray)) {
                 value = value.toBigInt(state);
             } else {
                 value = Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state));
             }
-            targetBuffer->throwTypeErrorIfDetached(state);
 
-            // Perform SetValueInBuffer(targetBuffer, targetByteIndex, targetType, value, true, "Unordered").
-            targetBuffer->setValueInBuffer(state, targetByteIndex, target->typedArrayType(), value);
+            if (LIKELY(!targetBuffer->isDetachedBuffer() && targetByteIndex + targetElementSize <= targetBuffer->byteLength())) {
+                targetBuffer->setValueInBuffer(state, targetByteIndex, target->typedArrayType(), value);
+            }
 
             k++;
             targetByteIndex += targetElementSize;
