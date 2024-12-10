@@ -128,7 +128,7 @@ public:
         }
         auto options = normalizedOptions.toObject(state);
         Value matcherValues[2] = { state.context()->staticStrings().lazyConstrain().string(), state.context()->staticStrings().reject.string() };
-        return Intl::getOption(state, options, state.context()->staticStrings().lazyoverflow().string(), Intl::StringValue, matcherValues, 2, matcherValues[0]);
+        return Intl::getOption(state, options, state.context()->staticStrings().lazyOverflow().string(), Intl::StringValue, matcherValues, 2, matcherValues[0]);
     }
 
     static Value toTemporalDisambiguation(ExecutionState& state, const Value& options)
@@ -137,8 +137,8 @@ public:
             return state.context()->staticStrings().lazyConstrain().string();
         }
 
-        Value matcherValues[4] = { state.context()->staticStrings().lazyConstrain().string(), state.context()->staticStrings().lazyearlier().string(), state.context()->staticStrings().lazylater().string(), state.context()->staticStrings().reject.string() };
-        return Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazydisambiguation().string(), Intl::StringValue, matcherValues, 4, matcherValues[0]);
+        Value matcherValues[4] = { state.context()->staticStrings().lazyConstrain().string(), state.context()->staticStrings().lazyEarlier().string(), state.context()->staticStrings().lazyLater().string(), state.context()->staticStrings().reject.string() };
+        return Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyDisambiguation().string(), Intl::StringValue, matcherValues, 4, matcherValues[0]);
     }
 
     static Value toTemporalOffset(ExecutionState& state, const Value& options, const Value& fallback)
@@ -147,8 +147,8 @@ public:
             return fallback;
         }
 
-        Value matcherValues[4] = { state.context()->staticStrings().lazyprefer().string(), state.context()->staticStrings().lazyuse().string(), state.context()->staticStrings().lazyignore().string(), state.context()->staticStrings().reject.string() };
-        return Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyoffset().string(), Intl::StringValue, matcherValues, 4, fallback);
+        Value matcherValues[4] = { state.context()->staticStrings().lazyPrefer().string(), state.context()->staticStrings().lazyUse().string(), state.context()->staticStrings().lazyIgnore().string(), state.context()->staticStrings().reject.string() };
+        return Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyOffset().string(), Intl::StringValue, matcherValues, 4, fallback);
     }
 
     static Value prepareTemporalFields(ExecutionState& state, const Value& fields, const ValueVector& fieldNames, const ValueVector& requiredFields)
@@ -197,7 +197,7 @@ public:
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, new ASCIIString("Object has calendar property"));
         }
 
-        if (!object.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazytimeZone().string())).value(state, object).isUndefined()) {
+        if (!object.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazyTimeZone().string())).value(state, object).isUndefined()) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, new ASCIIString("Object has timezone property"));
         }
     }

@@ -138,8 +138,6 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(symbolReplace, "[Symbol.replace]");
     INIT_STATIC_STRING(symbolSearch, "[Symbol.search]");
     INIT_STATIC_STRING(symbolSplit, "[Symbol.split]");
-    INIT_STATIC_STRING(temporalDotNow, "Temporal.Now");
-    INIT_STATIC_STRING(temporalDotPlainDate, "Temporal.PlainDate");
 
 #if defined(ENABLE_WASM)
     INIT_STATIC_STRING(getExports, "get exports");
