@@ -22,10 +22,11 @@
 #define __EscargotTemporalObject__
 
 #include "Escargot.h"
+#include "Context.h"
 #include "runtime/Object.h"
 #include "runtime/GlobalObject.h"
-#include "runtime/Temporal.h"
 #include "runtime/DateObject.h"
+#include "intl/Intl.h"
 
 namespace Escargot {
 
@@ -103,7 +104,7 @@ enum UnsignedRoundingMode {
 static UnsignedRoundingMode positiveUnsignedRoundingMode[] = { INF, ZERO, INF, ZERO, HALF_INF, HALF_ZERO, HALF_INF, HALF_ZERO };
 static UnsignedRoundingMode negativeUnsignedRoundingMode[] = { ZERO, INF, INF, ZERO, HALF_ZERO, HALF_INF, HALF_INF, HALF_ZERO };
 
-class TemporalObject : public Temporal {
+class TemporalObject : public DerivedObject {
 public:
     class TimeZone : public gc {
     public:
@@ -146,50 +147,88 @@ public:
 
     explicit TemporalObject(ExecutionState& state);
     explicit TemporalObject(ExecutionState& state, Object* proto);
+
+    virtual bool isTemporalObject() const override
+    {
+        return true;
+    }
+
     virtual bool hasCalendar() const
     {
         return false;
     }
-    bool isTemporalObject() const
-    {
-        return true;
-    }
+
     virtual TemporalCalendarObject* getCalendar() const
     {
         return nullptr;
     }
+
     static Value toISODateTime(ExecutionState& state, DateObject& d);
     static Value toISODate(ExecutionState& state, DateObject& d);
     static Value toISOTime(ExecutionState& state, DateObject& d);
 
-    static String* dateTimeUnitString(ExecutionState& state, DateTimeUnits unit);
-
-    static TemporalObject::DateTime parseValidIso8601String(ExecutionState& state, std::string isoString, bool parseTimeZone);
-    static TemporalObject::DateTime parseTemporalInstantString(ExecutionState& state, const std::string& isoString);
-    static TemporalObject::DateTime parseTemporalZonedDateTimeString(ExecutionState& state, const std::string& isoString);
-    static TemporalObject::DateTime parseTemporalDateString(ExecutionState& state, const std::string& isoString);
-    static TemporalObject::DateTime parseTemporalDateTimeString(ExecutionState& state, const std::string& isoString);
-    static std::map<TemporalObject::DateTimeUnits, int> parseTemporalDurationString(ExecutionState& state, const std::string& isoString);
-    static TemporalObject::DateTime parseTemporalYearMonthString(ExecutionState& state, const std::string& isoString);
-    static TemporalObject::DateTime parseTemporalMonthDayString(ExecutionState& state, const std::string& isoString);
-    static TemporalObject::TimeZone parseTemporalTimeZoneString(ExecutionState& state, const std::string& isoString);
-    static std::string getNNumberFromString(ExecutionState& state, std::string& isoString, int n, unsigned int& index);
-    static std::map<TemporalObject::DateTimeUnits, int> getSeconds(ExecutionState& state, std::string& isoString, unsigned int& index);
     static std::string offset(ExecutionState& state, std::string& isoString, unsigned int& index);
-    static std::string tzComponent(ExecutionState& state, std::string& isoString, unsigned int& index);
-    static TemporalObject::TimeZone parseTimeZoneOffset(ExecutionState& state, std::string& isoString, unsigned int& index);
-    static bool isNumber(const std::string& s)
+
+    static Value getOptionsObject(ExecutionState& state, const Value& options)
     {
-        return !s.empty() && std::find_if(s.begin(), s.end(), [](unsigned char c) { return !std::isdigit(c); }) == s.end();
+        if (options.isObject()) {
+            return options;
+        }
+
+        if (!options.isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "options must be object");
+        }
+
+        return {};
     }
 
-    static Value toRelativeTemporalObject(ExecutionState& state, Object* options);
-    static Object* mergeLargestUnitOption(ExecutionState& state, const Value& option, TemporalObject::DateTimeUnits largestUnit);
-    static UnsignedRoundingMode getUnsignedRoundingMode(ExecutionState& state, RoundingMode roundingMode, bool isNegative);
-    static BigInt* roundNumberToIncrementAsIfPositive(ExecutionState& state, BigInt* x, int64_t increment, RoundingMode roundingMode);
-    static BigInt* applyUnsignedRoundingMode(ExecutionState& state, BigInt* x, BigInt* r1, BigInt* r2, UnsignedRoundingMode unsignedRoundingMode);
-    static int64_t floor(double num);
-    static int64_t modulo(int64_t num1, int64_t num2);
+    static Value toTemporalOverflow(ExecutionState& state, const Value& normalizedOptions)
+    {
+        if (normalizedOptions.isUndefined()) {
+            return state.context()->staticStrings().lazyConstrain().string();
+        }
+        auto options = normalizedOptions.toObject(state);
+        Value matcherValues[2] = { state.context()->staticStrings().lazyConstrain().string(), state.context()->staticStrings().reject.string() };
+        return Intl::getOption(state, options, state.context()->staticStrings().lazyOverflow().string(), Intl::StringValue, matcherValues, 2, matcherValues[0]);
+    }
+
+    static Value toTemporalDisambiguation(ExecutionState& state, const Value& options)
+    {
+        if (options.isUndefined()) {
+            return state.context()->staticStrings().lazyConstrain().string();
+        }
+
+        Value matcherValues[4] = { state.context()->staticStrings().lazyConstrain().string(), state.context()->staticStrings().lazyEarlier().string(), state.context()->staticStrings().lazyLater().string(), state.context()->staticStrings().reject.string() };
+        return Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyDisambiguation().string(), Intl::StringValue, matcherValues, 4, matcherValues[0]);
+    }
+
+    static Value toTemporalOffset(ExecutionState& state, const Value& options, const Value& fallback)
+    {
+        if (options.isUndefined()) {
+            return fallback;
+        }
+
+        Value matcherValues[4] = { state.context()->staticStrings().lazyPrefer().string(), state.context()->staticStrings().lazyUse().string(), state.context()->staticStrings().lazyIgnore().string(), state.context()->staticStrings().reject.string() };
+        return Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyOffset().string(), Intl::StringValue, matcherValues, 4, fallback);
+    }
+
+
+    static void rejectObjectWithCalendarOrTimeZone(ExecutionState& state, const Value& object)
+    {
+        ASSERT(object.isObject());
+
+        if (object.asObject()->isTemporalPlainDateObject() || object.asObject()->isTemporalPlainDateTimeObject() || object.asObject()->isTemporalPlainTimeObject() || object.asObject()->isTemporalZonedDateTimeObject() || object.asObject()->isTemporalPlainYearMonthObject() || object.asObject()->isTemporalMonthDayObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, new ASCIIString("Invalid type of Object"));
+        }
+
+        if (!object.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().calendar.string())).value(state, object).isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, new ASCIIString("Object has calendar property"));
+        }
+
+        if (!object.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lazyTimeZone().string())).value(state, object).isUndefined()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, new ASCIIString("Object has timezone property"));
+        }
+    }
 };
 
 class TemporalCalendarObject : public TemporalObject {

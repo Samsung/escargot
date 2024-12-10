@@ -240,8 +240,24 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_FINALIZATIONREGISTRY(F, objName) \
     F(finalizationRegistry, FunctionObject, objName)          \
     F(finalizationRegistryPrototype, Object, objName)
-#define GLOBALOBJECT_BUILTIN_TEMPORAL(F, objName) \
-    F(temporal, Object, objName)
+
+#if defined(ENABLE_TEMPORAL)
+#define GLOBALOBJECT_BUILTIN_TEMPORAL(F, objName)       \
+    F(temporal, Object, objName)                        \
+    F(temporalCalendarPrototype, Object, objName)       \
+    F(temporalDurationPrototype, Object, objName)       \
+    F(temporalInstantPrototype, Object, objName)        \
+    F(temporalPlainDatePrototype, Object, objName)      \
+    F(temporalPlainDateTimePrototype, Object, objName)  \
+    F(temporalPlainMonthDayPrototype, Object, objName)  \
+    F(temporalPlainTimePrototype, Object, objName)      \
+    F(temporalPlainYearMonthPrototype, Object, objName) \
+    F(temporalTimeZonePrototype, Object, objName)       \
+    F(temporalZonedDateTimePrototype, Object, objName)
+#else
+#define GLOBALOBJECT_BUILTIN_TEMPORAL(F, objName)
+#endif
+
 #define GLOBALOBJECT_BUILTIN_ITERATOR(F, objName)     \
     F(iterator, FunctionObject, objName)              \
     F(wrapForValidIteratorPrototype, Object, objName) \
