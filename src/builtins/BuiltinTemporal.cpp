@@ -158,7 +158,7 @@ static Value builtinTemporalPlainDateFrom(ExecutionState& state, Value thisValue
     }
 
     if (argv[0].isObject() && argv[0].asObject()->isTemporalPlainDateObject()) {
-        Temporal::toTemporalOverflow(state, argc > 1 ? Value(argv[1].asObject()) : Value());
+        TemporalObject::toTemporalOverflow(state, argc > 1 ? Value(argv[1].asObject()) : Value());
         TemporalPlainDateObject* plainDate = argv[0].asObject()->asTemporalPlainDateObject();
         return TemporalPlainDateObject::createTemporalDate(state, plainDate->year(), plainDate->month(), plainDate->day(), plainDate->getCalendar());
     }
@@ -248,7 +248,7 @@ static Value builtinTemporalPlainDatePrototypeAdd(ExecutionState& state, Value t
     CHECK_TEMPORAL_PLAIN_DATE(state, thisValue);
 
     auto duration = TemporalDurationObject::toTemporalDuration(state, argv[0]);
-    auto options = Temporal::getOptionsObject(state, argc > 2 ? argv[1] : Value());
+    auto options = TemporalObject::getOptionsObject(state, argc > 2 ? argv[1] : Value());
     return TemporalCalendarObject::calendarDateAdd(state, thisValue.asObject()->asTemporalPlainDateObject()->getCalendar(), thisValue, duration, options);
 }
 
@@ -257,7 +257,7 @@ static Value builtinTemporalPlainDatePrototypeSubtract(ExecutionState& state, Va
     CHECK_TEMPORAL_PLAIN_DATE(state, thisValue);
 
     auto duration = TemporalDurationObject::createNegatedTemporalDuration(state, TemporalDurationObject::toTemporalDuration(state, argv[0]));
-    auto options = Temporal::getOptionsObject(state, argc > 2 ? argv[1] : Value());
+    auto options = TemporalObject::getOptionsObject(state, argc > 2 ? argv[1] : Value());
     return TemporalCalendarObject::calendarDateAdd(state, thisValue.asObject()->asTemporalPlainDateObject()->getCalendar(), thisValue, duration, options);
 }
 
@@ -279,8 +279,8 @@ static Value builtinTemporalPlainTimeConstructor(ExecutionState& state, Value th
 
 static Value builtinTemporalPlainTimeFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value options = Temporal::getOptionsObject(state, argc > 1 ? argv[1] : Value());
-    options = Temporal::toTemporalOverflow(state, options);
+    Value options = TemporalObject::getOptionsObject(state, argc > 1 ? argv[1] : Value());
+    options = TemporalObject::toTemporalOverflow(state, options);
 
     if (argv[0].isObject() && argv[0].asObject()->isTemporalPlainTimeObject()) {
         TemporalPlainTimeObject* item = argv[0].asObject()->asTemporalPlainTimeObject();
@@ -365,11 +365,11 @@ static Value builtinTemporalPlainTimeWith(ExecutionState& state, Value thisValue
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "temporalTimeLike is not an Object");
     }
 
-    Temporal::rejectObjectWithCalendarOrTimeZone(state, argv[0]);
+    TemporalObject::rejectObjectWithCalendarOrTimeZone(state, argv[0]);
 
     auto partialTime = TemporalPlainTimeObject::toPartialTime(state, argv[0]);
 
-    Value overFlow = Temporal::toTemporalOverflow(state, Temporal::getOptionsObject(state, argc > 1 ? argv[1] : Value()));
+    Value overFlow = TemporalObject::toTemporalOverflow(state, TemporalObject::getOptionsObject(state, argc > 1 ? argv[1] : Value()));
 
     auto result = TemporalPlainTimeObject::regulateTime(state,
                                                         partialTime[TemporalObject::HOUR_UNIT].isUndefined() ? partialTime[TemporalObject::HOUR_UNIT].asInt32() : temporalTime->getHour(),
@@ -443,7 +443,7 @@ static Value builtinTemporalPlainDateTimeFrom(ExecutionState& state, Value thisV
     }
 
     if (argv[0].isObject() && argv[0].asObject()->isTemporalPlainDateTimeObject()) {
-        Temporal::toTemporalOverflow(state, argc > 1 ? Value(argv[1].asObject()) : Value());
+        TemporalObject::toTemporalOverflow(state, argc > 1 ? Value(argv[1].asObject()) : Value());
         TemporalPlainDateTimeObject* plainDateTime = argv[0].asObject()->asTemporalPlainDateTimeObject();
         return TemporalPlainDateTimeObject::createTemporalDateTime(state, plainDateTime->getYear(), plainDateTime->getMonth(),
                                                                    plainDateTime->getDay(), plainDateTime->getHour(),
@@ -571,12 +571,12 @@ static Value builtinTemporalZonedDateTimeConstructor(ExecutionState& state, Valu
 
 static Value builtinTemporalZonedDateTimeFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    Value options = Temporal::getOptionsObject(state, argc > 1 ? argv[1] : Value());
+    Value options = TemporalObject::getOptionsObject(state, argc > 1 ? argv[1] : Value());
 
     if (argv[0].isObject() && argv[0].asObject()->isTemporalZonedDateTimeObject()) {
-        Temporal::toTemporalOverflow(state, options);
-        Temporal::toTemporalDisambiguation(state, options);
-        Temporal::toTemporalOffset(state, options, Value(state.context()->staticStrings().reject.string()));
+        TemporalObject::toTemporalOverflow(state, options);
+        TemporalObject::toTemporalDisambiguation(state, options);
+        TemporalObject::toTemporalOffset(state, options, Value(state.context()->staticStrings().reject.string()));
         auto item = argv[0].asObject()->asTemporalZonedDateTimeObject();
         return TemporalZonedDateTimeObject::createTemporalZonedDateTime(state, *(item->getNanoseconds()), item->getTimeZone(), item->getCalendar());
     }
@@ -954,10 +954,10 @@ static Value builtinTemporalPlainYearMonthConstructor(ExecutionState& state, Val
 
 static Value builtinTemporalPlainYearMonthFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    auto options = Temporal::getOptionsObject(state, argc == 2 ? argv[1] : Value());
+    auto options = TemporalObject::getOptionsObject(state, argc == 2 ? argv[1] : Value());
 
     if (argv[0].isObject() && argv[0].asObject()->isTemporalPlainYearMonthObject()) {
-        Temporal::toTemporalOverflow(state, options);
+        TemporalObject::toTemporalOverflow(state, options);
         auto item = argv[0].asObject()->asTemporalPlainYearMonthObject();
         return TemporalPlainYearMonthObject::createTemporalYearMonth(state, item->getIsoYear(), item->getIsoMonth(), item->getCalendar(), item->getReferenceIsoDay());
     }
@@ -1200,10 +1200,10 @@ static Value builtinTemporalPlainMonthDayConstructor(ExecutionState& state, Valu
 
 static Value builtinTemporalPlainMonthDayFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    auto options = Temporal::getOptionsObject(state, argc >= 2 ? argv[1] : Value());
+    auto options = TemporalObject::getOptionsObject(state, argc >= 2 ? argv[1] : Value());
 
     if (argv[0].isObject() && argv[0].asObject()->isTemporalPlainMonthDayObject()) {
-        Temporal::toTemporalOverflow(state, options);
+        TemporalObject::toTemporalOverflow(state, options);
         auto item = argv[0].asObject()->asTemporalPlainMonthDayObject();
         return TemporalPlainMonthDayObject::createTemporalMonthDay(state, item->getIsoMonth(), item->getIsoDay(), item->getCalendar(), item->getReferenceIsoYear());
     }
@@ -1629,96 +1629,96 @@ void GlobalObject::installTemporal(ExecutionState& state)
     auto temporalPlainDate = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDate(), builtinTemporalPlainDateConstructor, 4), NativeFunctionObject::__ForBuiltinConstructor__);
     temporalPlainDate->setGlobalIntrinsicObject(state);
 
-    auto temporalPlainDatePrototype = new PrototypeObject(state);
-    temporalPlainDatePrototype->setGlobalIntrinsicObject(state, true);
+    m_temporalPlainDatePrototype = new PrototypeObject(state);
+    m_temporalPlainDatePrototype->setGlobalIntrinsicObject(state, true);
 
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalPlainDate, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalPlainDate, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter dateCalendarGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->calendar, builtinTemporalPlainDateCalendar, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateCalendarDesc(dateCalendarGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), dateCalendarDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), dateCalendarDesc);
 
     JSGetterSetter dateYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyYear(), builtinTemporalPlainDateYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateYearDesc(dateYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYear()), dateYearDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYear()), dateYearDesc);
 
     JSGetterSetter dateMonthGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonth(), builtinTemporalPlainDateMonth, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateMonthDesc(dateMonthGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonth()), dateMonthDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonth()), dateMonthDesc);
 
     JSGetterSetter dateMonthCodeGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthCode(), builtinTemporalPlainDateMonthCode, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateMonthCodeDesc(dateMonthCodeGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), dateMonthCodeDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), dateMonthCodeDesc);
 
     JSGetterSetter dateDayGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDay(), builtinTemporalPlainDateDay, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateDayDesc(dateDayGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()), dateDayDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()), dateDayDesc);
 
     JSGetterSetter dateDayOfWeekGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDayOfWeek(), builtinTemporalPlainDateDayOfWeek, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateDayOfWeekDesc(dateDayOfWeekGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfWeek()), dateDayOfWeekDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfWeek()), dateDayOfWeekDesc);
 
     JSGetterSetter dateDayOfYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDayOfYear(), builtinTemporalPlainDateDayOfYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateDayOfYearDesc(dateDayOfYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfYear()), dateDayOfYearDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfYear()), dateDayOfYearDesc);
 
     JSGetterSetter dateWeekOfYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWeekOfYear(), builtinTemporalPlainDateWeekOfYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateWeekOfYearDesc(dateWeekOfYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWeekOfYear()), dateWeekOfYearDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWeekOfYear()), dateWeekOfYearDesc);
 
     JSGetterSetter dateDaysInWeekGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInWeek(), builtinTemporalPlainDateDaysInWeek, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateDaysInWeekDesc(dateDaysInWeekGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInWeek()), dateDaysInWeekDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInWeek()), dateDaysInWeekDesc);
 
     JSGetterSetter dateDaysInMonthGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInMonth(), builtinTemporalPlainDateDaysInMonth, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateDaysInMonthDesc(dateDaysInMonthGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInMonth()), dateDaysInMonthDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInMonth()), dateDaysInMonthDesc);
 
     JSGetterSetter dateDaysInYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInYear(), builtinTemporalPlainDateDaysInYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateDaysInYearDesc(dateDaysInYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInYear()), dateDaysInYearDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInYear()), dateDaysInYearDesc);
 
     JSGetterSetter dateMonthsInYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthsInYear(), builtinTemporalPlainDateMonthsInYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateMonthsInYearDesc(dateMonthsInYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthsInYear()), dateMonthsInYearDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthsInYear()), dateMonthsInYearDesc);
 
     JSGetterSetter dateInLeapYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyInLeapYear(), builtinTemporalPlainDateInLeapYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateInLeapYearDesc(dateInLeapYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyInLeapYear()), dateInLeapYearDesc);
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyInLeapYear()), dateInLeapYearDesc);
 
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainDatePrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainDatePrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalPlainDatePrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalPlainDatePrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalPlainDate->setFunctionPrototype(state, temporalPlainDatePrototype);
+    temporalPlainDate->setFunctionPrototype(state, m_temporalPlainDatePrototype);
 
     temporalPlainDate->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalPlainDateFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -1726,10 +1726,10 @@ void GlobalObject::installTemporal(ExecutionState& state)
     auto temporalPlainTime = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyTime(), builtinTemporalPlainTimeConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     temporalPlainTime->setGlobalIntrinsicObject(state);
 
-    auto temporalPlainTimePrototype = new PrototypeObject(state);
-    temporalPlainTimePrototype->setGlobalIntrinsicObject(state, true);
+    m_temporalPlainTimePrototype = new PrototypeObject(state);
+    m_temporalPlainTimePrototype->setGlobalIntrinsicObject(state, true);
 
-    temporalPlainTimePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalPlainTime, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->defineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalPlainTime, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     temporalPlainTime->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalPlainTimeFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -1741,158 +1741,158 @@ void GlobalObject::installTemporal(ExecutionState& state)
         new NativeFunctionObject(state, NativeFunctionInfo(strings->calendar, builtinTemporalPlainTimeCalendar, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor timeCalendarDesc(timeCalendarGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), timeCalendarDesc);
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), timeCalendarDesc);
 
     JSGetterSetter timeHourGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyHour(), builtinTemporalPlainTimeHour, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor timeHourDesc(timeHourGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyHour()), timeHourDesc);
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyHour()), timeHourDesc);
 
     JSGetterSetter timeMinuteGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMinute(), builtinTemporalPlainTimeMinute, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor timeMinuteDesc(timeMinuteGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMinute()), timeMinuteDesc);
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMinute()), timeMinuteDesc);
 
     JSGetterSetter timeSecondGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySecond(), builtinTemporalPlainTimeSecond, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor timeSecondDesc(timeSecondGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySecond()), timeSecondDesc);
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySecond()), timeSecondDesc);
 
     JSGetterSetter timeMilliSecondGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMillisecond(), builtinTemporalPlainTimeMilliSecond, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor timeMilliSecondDesc(timeMilliSecondGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMillisecond()), timeMilliSecondDesc);
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMillisecond()), timeMilliSecondDesc);
 
     JSGetterSetter timeMicroSecondGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMicrosecond(), builtinTemporalPlainTimeMicroSecond, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor timeMicroSecondDesc(timeMicroSecondGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMicrosecond()), timeMicroSecondDesc);
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMicrosecond()), timeMicroSecondDesc);
 
     JSGetterSetter timeNanoSecondGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyNanosecond(), builtinTemporalPlainTimeNanoSecond, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor timeNanoSecondDesc(timeNanoSecondGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyNanosecond()), timeNanoSecondDesc);
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyNanosecond()), timeNanoSecondDesc);
 
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainTimePrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainTimePrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalPlainTimePrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalPlainTimePrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->with),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->with, builtinTemporalPlainTimeWith, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->with),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->with, builtinTemporalPlainTimeWith, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalPlainTimeEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalPlainTimeEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetISOFields()),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetISOFields(), builtinTemporalPlainTimeGetISOFields, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetISOFields()),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetISOFields(), builtinTemporalPlainTimeGetISOFields, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToPlainDateTime()),
-                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToPlainDateTime(), builtinTemporalPlainTimeToPlainDateTime, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToPlainDateTime()),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToPlainDateTime(), builtinTemporalPlainTimeToPlainDateTime, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
-    temporalPlainTime->setFunctionPrototype(state, temporalPlainTimePrototype);
+    temporalPlainTime->setFunctionPrototype(state, m_temporalPlainTimePrototype);
 
     auto temporalPlainDateTime = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDateTime(), builtinTemporalPlainDateTimeConstructor, 3), NativeFunctionObject::__ForBuiltinConstructor__);
     temporalPlainDateTime->setGlobalIntrinsicObject(state);
 
-    auto temporalPlainDateTimePrototype = new PrototypeObject(state);
-    temporalPlainDateTimePrototype->setGlobalIntrinsicObject(state, true);
+    m_temporalPlainDateTimePrototype = new PrototypeObject(state);
+    m_temporalPlainDateTimePrototype->setGlobalIntrinsicObject(state, true);
 
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalPlainDateTime, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalPlainDateTime, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter dateTimeCalendarGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->calendar, builtinTemporalPlainDateTimeCalendar, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeCalendarDesc(dateTimeCalendarGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), dateTimeCalendarDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), dateTimeCalendarDesc);
 
     JSGetterSetter dateTimeYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyYear(), builtinTemporalPlainDateTimeYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeYearDesc(dateTimeYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYear()), dateTimeYearDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYear()), dateTimeYearDesc);
 
     JSGetterSetter dateTimeMonthGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonth(), builtinTemporalPlainDateTimeMonth, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeMonthDesc(dateTimeMonthGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonth()), dateTimeMonthDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonth()), dateTimeMonthDesc);
 
     JSGetterSetter dateTimeMonthCodeGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthCode(), builtinTemporalPlainDateTimeMonthCode, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeMonthCodeDesc(dateTimeMonthCodeGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), dateTimeMonthCodeDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), dateTimeMonthCodeDesc);
 
     JSGetterSetter dateTimeDayGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDay(), builtinTemporalPlainDateTimeDay, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeDayDesc(dateTimeDayGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()), dateTimeDayDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()), dateTimeDayDesc);
 
     JSGetterSetter dateTimeDayOfWeekGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDayOfWeek(), builtinTemporalPlainDateTimeDayOfWeek, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeDayOfWeekDesc(dateTimeDayOfWeekGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfWeek()), dateTimeDayOfWeekDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfWeek()), dateTimeDayOfWeekDesc);
 
     JSGetterSetter dateTimeDayOfYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDayOfYear(), builtinTemporalPlainDateTimeDayOfYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeDayOfYearDesc(dateTimeDayOfYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfYear()), dateTimeDayOfYearDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfYear()), dateTimeDayOfYearDesc);
 
     JSGetterSetter dateTimeWeekOfYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWeekOfYear(), builtinTemporalPlainDateTimeWeekOfYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeWeekOfYearDesc(dateTimeWeekOfYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWeekOfYear()), dateTimeWeekOfYearDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWeekOfYear()), dateTimeWeekOfYearDesc);
 
     JSGetterSetter dateTimeDaysInWeekGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInWeek(), builtinTemporalPlainDateTimeDaysInWeek, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeDaysInWeekDesc(dateTimeDaysInWeekGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInWeek()), dateTimeDaysInWeekDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInWeek()), dateTimeDaysInWeekDesc);
 
     JSGetterSetter dateTimeDaysInMonthGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInMonth(), builtinTemporalPlainDateTimeDaysInMonth, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeDaysInMonthDesc(dateTimeDaysInMonthGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInMonth()), dateTimeDaysInMonthDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInMonth()), dateTimeDaysInMonthDesc);
 
     JSGetterSetter dateTimeDaysInYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInYear(), builtinTemporalPlainDateTimeDaysInYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeDaysInYearDesc(dateTimeDaysInYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInYear()), dateTimeDaysInYearDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInYear()), dateTimeDaysInYearDesc);
 
     JSGetterSetter dateTimeMonthsInYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthsInYear(), builtinTemporalPlainDateTimeMonthsInYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeMonthsInYearDesc(dateTimeMonthsInYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthsInYear()), dateTimeMonthsInYearDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthsInYear()), dateTimeMonthsInYearDesc);
 
     JSGetterSetter dateTimeInLeapYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyInLeapYear(), builtinTemporalPlainDateTimeInLeapYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor dateTimeInLeapYearDesc(dateTimeInLeapYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyInLeapYear()), dateTimeInLeapYearDesc);
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyInLeapYear()), dateTimeInLeapYearDesc);
 
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
-                                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainDateTimePrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainDateTimePrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
-                                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalPlainDateTimePrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
+                                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalPlainDateTimePrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalPlainDateTime->setFunctionPrototype(state, temporalPlainDateTimePrototype);
+    temporalPlainDateTime->setFunctionPrototype(state, m_temporalPlainDateTimePrototype);
 
     temporalPlainDateTime->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalPlainDateTimeFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -1900,180 +1900,180 @@ void GlobalObject::installTemporal(ExecutionState& state)
     auto temporalZonedDateTime = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDateTime(), builtinTemporalZonedDateTimeConstructor, 3), NativeFunctionObject::__ForBuiltinConstructor__);
     temporalZonedDateTime->setGlobalIntrinsicObject(state);
 
-    auto temporalZonedDateTimePrototype = new PrototypeObject(state);
-    temporalZonedDateTimePrototype->setGlobalIntrinsicObject(state, true);
+    m_temporalZonedDateTimePrototype = new PrototypeObject(state);
+    m_temporalZonedDateTimePrototype->setGlobalIntrinsicObject(state, true);
 
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalZonedDateTime, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalZonedDateTime, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter zonedDateTimeCalendarGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->calendar, builtinTemporalZonedDateTimeCalendar, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeCalendarDesc(zonedDateTimeCalendarGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), zonedDateTimeCalendarDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), zonedDateTimeCalendarDesc);
 
     JSGetterSetter zonedDateTimeTimeZoneGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyTimeZone(), builtinTemporalZonedDateTimeTimeZone, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeTimeZoneDesc(zonedDateTimeTimeZoneGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyTimeZone()), zonedDateTimeTimeZoneDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyTimeZone()), zonedDateTimeTimeZoneDesc);
 
     JSGetterSetter zonedDateTimeYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyYear(), builtinTemporalZonedDateTimeYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeYearDesc(zonedDateTimeYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYear()), zonedDateTimeYearDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYear()), zonedDateTimeYearDesc);
 
     JSGetterSetter zonedDateTimeMonthGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonth(), builtinTemporalZonedDateTimeMonth, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeMonthDesc(zonedDateTimeMonthGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonth()), zonedDateTimeMonthDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonth()), zonedDateTimeMonthDesc);
 
     JSGetterSetter zonedDateTimeMonthCodeGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthCode(), builtinTemporalZonedDateTimeMonthCode, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeMonthCodeDesc(zonedDateTimeMonthCodeGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), zonedDateTimeMonthCodeDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), zonedDateTimeMonthCodeDesc);
 
     JSGetterSetter zonedDateTimeDayGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDay(), builtinTemporalZonedDateTimeDay, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeDayDesc(zonedDateTimeDayGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()), zonedDateTimeDayDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()), zonedDateTimeDayDesc);
 
     JSGetterSetter zonedDateTimeHourGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyHour(), builtinTemporalZonedDateTimeHour, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeHourDesc(zonedDateTimeHourGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyHour()), zonedDateTimeHourDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyHour()), zonedDateTimeHourDesc);
 
     JSGetterSetter zonedDateTimeMinuteGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMinute(), builtinTemporalZonedDateTimeMinute, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeMinuteDesc(zonedDateTimeMinuteGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMinute()), zonedDateTimeMinuteDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMinute()), zonedDateTimeMinuteDesc);
 
     JSGetterSetter zonedDateTimeSecondGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySecond(), builtinTemporalZonedDateTimeSecond, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeSecondDesc(zonedDateTimeSecondGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySecond()), zonedDateTimeSecondDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySecond()), zonedDateTimeSecondDesc);
 
     JSGetterSetter zonedDateTimeMillisecondGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMillisecond(), builtinTemporalZonedDateTimeMillisecond, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeMillisecondDesc(zonedDateTimeMillisecondGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMillisecond()), zonedDateTimeMillisecondDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMillisecond()), zonedDateTimeMillisecondDesc);
 
     JSGetterSetter zonedDateTimeMicrosecondGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMicrosecond(), builtinTemporalZonedDateTimeMicrosecond, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeMicrosecondDesc(zonedDateTimeMicrosecondGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMicrosecond()), zonedDateTimeMicrosecondDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMicrosecond()), zonedDateTimeMicrosecondDesc);
 
     JSGetterSetter zonedDateTimeNanosecondGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyNanosecond(), builtinTemporalZonedDateTimeNanosecond, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeNanosecondDesc(zonedDateTimeNanosecondGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyNanosecond()), zonedDateTimeNanosecondDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyNanosecond()), zonedDateTimeNanosecondDesc);
 
     JSGetterSetter zonedDateTimeEpochSecondGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEpochSeconds(), builtinTemporalZonedDateTimeEpochSeconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeEpochSecondsDesc(zonedDateTimeEpochSecondGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochSeconds()), zonedDateTimeEpochSecondsDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochSeconds()), zonedDateTimeEpochSecondsDesc);
 
     JSGetterSetter zonedDateTimeEpochMillisecondsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEpochMicroseconds(), builtinTemporalZonedDateTimeEpochMicroSeconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeEpochMillisecondsDesc(zonedDateTimeEpochMillisecondsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochMicroseconds()), zonedDateTimeEpochMillisecondsDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochMicroseconds()), zonedDateTimeEpochMillisecondsDesc);
 
     JSGetterSetter zonedDateTimeEpochMicrosecondsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEpochMilliseconds(), builtinTemporalZonedDateTimeEpochMilliSeconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeEpochMicrosecondsDesc(zonedDateTimeEpochMicrosecondsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochMilliseconds()), zonedDateTimeEpochMicrosecondsDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochMilliseconds()), zonedDateTimeEpochMicrosecondsDesc);
 
     JSGetterSetter zonedDateTimeEpochNanosecondsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEpochNanoseconds(), builtinTemporalZonedDateTimeEpochNanoSeconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeEpochNanosecondsDesc(zonedDateTimeEpochNanosecondsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochNanoseconds()), zonedDateTimeEpochNanosecondsDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochNanoseconds()), zonedDateTimeEpochNanosecondsDesc);
 
     JSGetterSetter zonedDateTimeDayOfWeekGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDayOfWeek(), builtinTemporalZonedDateTimeDayOfWeek, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeDayOfWeekDesc(zonedDateTimeDayOfWeekGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfWeek()), zonedDateTimeDayOfWeekDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfWeek()), zonedDateTimeDayOfWeekDesc);
 
     JSGetterSetter zonedDateTimeDayOfYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDayOfYear(), builtinTemporalZonedDateTimeDayOfYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeDayOfYearDesc(zonedDateTimeDayOfYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfYear()), zonedDateTimeDayOfYearDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfYear()), zonedDateTimeDayOfYearDesc);
 
     JSGetterSetter zonedDateTimeWeekOfYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWeekOfYear(), builtinTemporalZonedDateTimeWeekOfYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeWeekOfYearDesc(zonedDateTimeWeekOfYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWeekOfYear()), zonedDateTimeWeekOfYearDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWeekOfYear()), zonedDateTimeWeekOfYearDesc);
 
     JSGetterSetter zonedDateTimeHoursInDayGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyHoursInDay(), builtinTemporalZonedDateTimeHoursInDay, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeHoursInDayDesc(zonedDateTimeHoursInDayGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyHoursInDay()), zonedDateTimeHoursInDayDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyHoursInDay()), zonedDateTimeHoursInDayDesc);
 
     JSGetterSetter zonedDateTimeDaysInWeekGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInWeek(), builtinTemporalZonedDateTimeDaysInWeek, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeDaysInWeekDesc(zonedDateTimeDaysInWeekGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInWeek()), zonedDateTimeDaysInWeekDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInWeek()), zonedDateTimeDaysInWeekDesc);
 
     JSGetterSetter zonedDateTimeDaysInMonthGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInMonth(), builtinTemporalZonedDateTimeDaysInMonth, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeDaysInMonthDesc(zonedDateTimeDaysInMonthGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInMonth()), zonedDateTimeDaysInMonthDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInMonth()), zonedDateTimeDaysInMonthDesc);
 
     JSGetterSetter zonedDateTimeDaysInYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInYear(), builtinTemporalZonedDateTimeDaysInYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeDaysInYearDesc(zonedDateTimeDaysInYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInYear()), zonedDateTimeDaysInYearDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInYear()), zonedDateTimeDaysInYearDesc);
 
     JSGetterSetter zonedDateTimeMonthsInYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthsInYear(), builtinTemporalZonedDateTimeMonthsInYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeMonthsInYearDesc(zonedDateTimeMonthsInYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthsInYear()), zonedDateTimeMonthsInYearDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthsInYear()), zonedDateTimeMonthsInYearDesc);
 
     JSGetterSetter zonedDateTimeInLeapYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyInLeapYear(), builtinTemporalZonedDateTimeInLeapYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeInLeapYearDesc(zonedDateTimeInLeapYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyInLeapYear()), zonedDateTimeInLeapYearDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyInLeapYear()), zonedDateTimeInLeapYearDesc);
 
     JSGetterSetter zonedDateTimeOffsetNanosecondsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyOffsetNanoseconds(), builtinTemporalZonedDateTimeOffsetNanoseconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeOffsetNanosecondsDesc(zonedDateTimeOffsetNanosecondsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyOffsetNanoseconds()), zonedDateTimeOffsetNanosecondsDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyOffsetNanoseconds()), zonedDateTimeOffsetNanosecondsDesc);
 
     JSGetterSetter zonedDateTimeOffsetGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyOffset(), builtinTemporalZonedDateTimeOffset, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor zonedDateTimeOffsetDesc(zonedDateTimeOffsetGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyOffset()), zonedDateTimeOffsetDesc);
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyOffset()), zonedDateTimeOffsetDesc);
 
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
-                                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalZonedDateTimePrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalZonedDateTimePrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
-                                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalZonedDateTimePrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
+                                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalZonedDateTimePrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalZonedDateTime->setFunctionPrototype(state, temporalZonedDateTimePrototype);
+    temporalZonedDateTime->setFunctionPrototype(state, m_temporalZonedDateTimePrototype);
     temporalZonedDateTime->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalZonedDateTimeFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -2083,94 +2083,94 @@ void GlobalObject::installTemporal(ExecutionState& state)
     auto temporalDuration = new NativeFunctionObject(state, NativeFunctionInfo(strings->constructor, builtinTemporalDurationConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     temporalDuration->setGlobalIntrinsicObject(state);
 
-    auto temporalDurationPrototype = new PrototypeObject(state);
-    temporalDurationPrototype->setGlobalIntrinsicObject(state, true);
+    m_temporalDurationPrototype = new PrototypeObject(state);
+    m_temporalDurationPrototype->setGlobalIntrinsicObject(state, true);
 
     JSGetterSetter durationYearsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyYears(), builtinTemporalDurationPrototypeYears, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationYearsDesc(durationYearsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYears()), durationYearsDesc);
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYears()), durationYearsDesc);
 
     JSGetterSetter durationMonthsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonths(), builtinTemporalDurationPrototypeMonths, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationMonthsDesc(durationMonthsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonths()), durationMonthsDesc);
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonths()), durationMonthsDesc);
 
     JSGetterSetter durationWeeksGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWeeks(), builtinTemporalDurationPrototypeWeeks, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationWeeksDesc(durationWeeksGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWeeks()), durationWeeksDesc);
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWeeks()), durationWeeksDesc);
 
     JSGetterSetter durationDaysGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDays(), builtinTemporalDurationPrototypeDays, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationDaysDesc(durationDaysGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDays()), durationDaysDesc);
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDays()), durationDaysDesc);
 
     JSGetterSetter durationYHoursGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyHours(), builtinTemporalDurationPrototypeHours, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationHoursDesc(durationYHoursGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyHours()), durationHoursDesc);
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyHours()), durationHoursDesc);
 
     JSGetterSetter durationMinutesGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMinutes(), builtinTemporalDurationPrototypeMinutes, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationMinutesDesc(durationMinutesGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMinutes()), durationMinutesDesc);
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMinutes()), durationMinutesDesc);
 
     JSGetterSetter durationSecondsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySeconds(), builtinTemporalDurationPrototypeSeconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationSecondsDesc(durationSecondsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySeconds()), durationSecondsDesc);
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySeconds()), durationSecondsDesc);
 
     JSGetterSetter durationMilliSecondsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMilliseconds(), builtinTemporalDurationPrototypeMilliSeconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationMilliSecondsDesc(durationMilliSecondsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMilliseconds()), durationMilliSecondsDesc);
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMilliseconds()), durationMilliSecondsDesc);
 
     JSGetterSetter durationMicroSecondsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMicroseconds(), builtinTemporalDurationPrototypeMicroSeconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationMicroSecondsDesc(durationMicroSecondsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMicroseconds()), durationMicroSecondsDesc);
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMicroseconds()), durationMicroSecondsDesc);
 
     JSGetterSetter durationNanoSecondsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyNanoseconds(), builtinTemporalDurationPrototypeNanoSeconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationNanoSecondsDesc(durationNanoSecondsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyNanoseconds()), durationNanoSecondsDesc);
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyNanoseconds()), durationNanoSecondsDesc);
 
     JSGetterSetter durationSignGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->sign, builtinTemporalDurationPrototypeSign, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationSignDesc(durationSignGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->sign), durationSignDesc);
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->sign), durationSignDesc);
 
     JSGetterSetter durationBlankGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyBlank(), builtinTemporalDurationPrototypeBlank, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor durationBlankDesc(durationBlankGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyBlank()), durationBlankDesc);
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyBlank()), durationBlankDesc);
 
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalDurationPrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalDurationPrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalDurationPrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalDurationPrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->abs),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->abs, builtinTemporalDurationPrototypeAbs, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->abs),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->abs, builtinTemporalDurationPrototypeAbs, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyNegated()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyNegated(), builtinTemporalDurationPrototypeNegated, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyNegated()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyNegated(), builtinTemporalDurationPrototypeNegated, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalDuration->setFunctionPrototype(state, temporalDurationPrototype);
+    temporalDuration->setFunctionPrototype(state, m_temporalDurationPrototype);
 
     temporalDuration->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalDurationFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -2178,8 +2178,8 @@ void GlobalObject::installTemporal(ExecutionState& state)
     auto temporalPlainYearMonth = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyPlainYearMonth(), builtinTemporalPlainYearMonthConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__);
     temporalPlainYearMonth->setGlobalIntrinsicObject(state);
 
-    auto temporalPlainYearMonthPrototype = new PrototypeObject(state);
-    temporalPlainYearMonthPrototype->setGlobalIntrinsicObject(state, true);
+    m_temporalPlainYearMonthPrototype = new PrototypeObject(state);
+    m_temporalPlainYearMonthPrototype->setGlobalIntrinsicObject(state, true);
 
     temporalPlainYearMonth->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalPlainYearMonthFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -2191,92 +2191,92 @@ void GlobalObject::installTemporal(ExecutionState& state)
         new NativeFunctionObject(state, NativeFunctionInfo(strings->calendar, builtinTemporalPlainYearMonthCalendar, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthCalendarDesc(yearMonthCalendarGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), yearMonthCalendarDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), yearMonthCalendarDesc);
 
     JSGetterSetter yearMonthYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyYear(), builtinTemporalPlainYearMonthYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthYearDesc(yearMonthYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYear()), yearMonthYearDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYear()), yearMonthYearDesc);
 
     JSGetterSetter yearMonthMonthGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonth(), builtinTemporalPlainYearMonthMonth, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthMonthDesc(yearMonthMonthGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonth()), yearMonthMonthDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonth()), yearMonthMonthDesc);
 
     JSGetterSetter yearMonthMonthCodeGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthCode(), builtinTemporalPlainYearMonthMonthCode, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthMonthCodeDesc(yearMonthMonthCodeGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), yearMonthMonthCodeDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), yearMonthMonthCodeDesc);
 
     JSGetterSetter yearMonthDayGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDay(), builtinTemporalPlainYearMonthDay, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthDayDesc(yearMonthDayGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()), yearMonthDayDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()), yearMonthDayDesc);
 
     JSGetterSetter yearMonthDayOfWeekGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDayOfWeek(), builtinTemporalPlainYearMonthDayOfWeek, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthDayOfWeekDesc(yearMonthDayOfWeekGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfWeek()), yearMonthDayOfWeekDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfWeek()), yearMonthDayOfWeekDesc);
 
     JSGetterSetter yearMonthDayOfYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDayOfYear(), builtinTemporalPlainYearMonthDayOfYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthDayOfYearDesc(yearMonthDayOfYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfYear()), yearMonthDayOfYearDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfYear()), yearMonthDayOfYearDesc);
 
     JSGetterSetter yearMonthWeekOfYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWeekOfYear(), builtinTemporalPlainYearMonthWeekOfYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthWeekOfYearDesc(yearMonthWeekOfYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWeekOfYear()), yearMonthWeekOfYearDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWeekOfYear()), yearMonthWeekOfYearDesc);
 
     JSGetterSetter yearMonthDaysInWeekGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInWeek(), builtinTemporalPlainYearMonthDaysInWeek, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthDaysInWeekDesc(yearMonthDaysInWeekGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInWeek()), yearMonthDaysInWeekDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInWeek()), yearMonthDaysInWeekDesc);
 
     JSGetterSetter yearMonthDaysInMonthGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInMonth(), builtinTemporalPlainYearMonthDaysInMonth, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthDaysInMonthDesc(yearMonthDaysInMonthGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInMonth()), yearMonthDaysInMonthDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInMonth()), yearMonthDaysInMonthDesc);
 
     JSGetterSetter yearMonthDaysInYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInYear(), builtinTemporalPlainYearMonthDaysInYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthDaysInYearDesc(yearMonthDaysInYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInYear()), yearMonthDaysInYearDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInYear()), yearMonthDaysInYearDesc);
 
     JSGetterSetter yearMonthMonthsInYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthsInYear(), builtinTemporalPlainYearMonthMonthsInYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthMonthsInYearDesc(yearMonthMonthsInYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthsInYear()), yearMonthMonthsInYearDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthsInYear()), yearMonthMonthsInYearDesc);
 
     JSGetterSetter yearMonthInLeapYearGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyInLeapYear(), builtinTemporalPlainYearMonthInLeapYear, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor yearMonthInLeapYearDesc(yearMonthInLeapYearGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyInLeapYear()), yearMonthInLeapYearDesc);
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyInLeapYear()), yearMonthInLeapYearDesc);
 
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalPlainYearMonth, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalPlainYearMonth, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
-                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainYearMonthPrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainYearMonthPrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
-                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalPlainYearMonthPrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
+                                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalPlainYearMonthPrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalPlainYearMonthPrototypeEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalPlainYearMonthPrototypeEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalPlainYearMonth->setFunctionPrototype(state, temporalPlainYearMonthPrototype);
+    temporalPlainYearMonth->setFunctionPrototype(state, m_temporalPlainYearMonthPrototype);
 
     auto temporalInstant = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyInstant(), builtinTemporalInstantConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     temporalInstant->setGlobalIntrinsicObject(state);
@@ -2299,71 +2299,71 @@ void GlobalObject::installTemporal(ExecutionState& state)
     temporalInstant->directDefineOwnProperty(state, ObjectPropertyName(strings->compare),
                                              ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->compare, builtinTemporalInstantCompare, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    auto temporalInstantPrototype = new PrototypeObject(state);
-    temporalInstantPrototype->setGlobalIntrinsicObject(state, true);
+    m_temporalInstantPrototype = new PrototypeObject(state);
+    m_temporalInstantPrototype->setGlobalIntrinsicObject(state, true);
 
-    temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalInstant, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalInstant, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter instantSecondsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEpochSeconds(), builtinTemporalInstantPrototypeEpochSeconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor instantSecondsDesc(instantSecondsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochSeconds()), instantSecondsDesc);
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochSeconds()), instantSecondsDesc);
 
     JSGetterSetter instantMillisecondsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEpochMilliseconds(), builtinTemporalInstantPrototypeEpochMilliseconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor instantMillisecondsDesc(instantMillisecondsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochMilliseconds()), instantMillisecondsDesc);
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochMilliseconds()), instantMillisecondsDesc);
 
     JSGetterSetter instantMicrosecondsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEpochMicroseconds(), builtinTemporalInstantPrototypeEpochMicroseconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor instantMicrosecondsDesc(instantMicrosecondsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochMicroseconds()), instantMicrosecondsDesc);
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochMicroseconds()), instantMicrosecondsDesc);
 
     JSGetterSetter instantNanosecondsGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEpochNanoseconds(), builtinTemporalInstantPrototypeEpochNanoseconds, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor instantNanosecondsDesc(instantNanosecondsGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochNanoseconds()), instantNanosecondsDesc);
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochNanoseconds()), instantNanosecondsDesc);
 
-    temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()),
-                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalInstantPrototypeEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalInstantPrototypeEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
-                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalInstantPrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalInstantPrototypeAdd, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
-                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalInstantPrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalInstantPrototypeSubtract, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalInstant->setFunctionPrototype(state, temporalInstantPrototype);
+    temporalInstant->setFunctionPrototype(state, m_temporalInstantPrototype);
 
     auto temporalPlainMonthDay = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyPlainMonthDay(), builtinTemporalPlainMonthDayConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__);
     temporalPlainMonthDay->setGlobalIntrinsicObject(state);
 
-    auto temporalPlainMonthDayPrototype = new PrototypeObject(state);
-    temporalPlainMonthDayPrototype->setGlobalIntrinsicObject(state, true);
+    m_temporalPlainMonthDayPrototype = new PrototypeObject(state);
+    m_temporalPlainMonthDayPrototype->setGlobalIntrinsicObject(state, true);
 
-    temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalPlainMonthDay, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalPlainMonthDay, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter monthDayCalendarGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->calendar, builtinTemporalPlainMonthDayPrototypeCalendar, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor monthDayCalendarDesc(monthDayCalendarGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), monthDayCalendarDesc);
+    m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->calendar), monthDayCalendarDesc);
 
     JSGetterSetter monthDayMonthCodeGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthCode(), builtinTemporalPlainMonthDayPrototypeMonthCode, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor monthDayMonthCodeDesc(monthDayMonthCodeGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), monthDayMonthCodeDesc);
+    m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), monthDayMonthCodeDesc);
 
     JSGetterSetter monthDayDayGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDay(), builtinTemporalPlainMonthDayPrototypeDay, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor monthDayDayDesc(monthDayDayGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()), monthDayDayDesc);
+    m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()), monthDayDayDesc);
 
     temporalPlainMonthDay->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalPlainMonthDayFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -2374,53 +2374,53 @@ void GlobalObject::installTemporal(ExecutionState& state)
     temporalTimeZone->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalTimeZoneFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    auto temporalTimeZonePrototype = new PrototypeObject(state);
-    temporalTimeZonePrototype->setGlobalIntrinsicObject(state, true);
+    m_temporalTimeZonePrototype = new PrototypeObject(state);
+    m_temporalTimeZonePrototype->setGlobalIntrinsicObject(state, true);
 
-    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalTimeZone, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalTimeZone, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     JSGetterSetter timeZoneIDGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyId(), builtinTemporalTimeZonePrototypeId, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor timeZoneIDDesc(timeZoneIDGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyId()), timeZoneIDDesc);
+    m_temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyId()), timeZoneIDDesc);
 
-    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetOffsetNanosecondsFor()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetOffsetNanosecondsFor(), builtinTemporalTimeZonePrototypeGetOffsetNanosecondsFor, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetOffsetNanosecondsFor()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetOffsetNanosecondsFor(), builtinTemporalTimeZonePrototypeGetOffsetNanosecondsFor, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetOffsetStringFor()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetOffsetStringFor(), builtinTemporalTimeZonePrototypeGetOffsetStringFor, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetOffsetStringFor()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetOffsetStringFor(), builtinTemporalTimeZonePrototypeGetOffsetStringFor, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetPlainDateTimeFor()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetPlainDateTimeFor(), builtinTemporalTimeZonePrototypeGetPlainDateTimeFor, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetPlainDateTimeFor()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetPlainDateTimeFor(), builtinTemporalTimeZonePrototypeGetPlainDateTimeFor, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetPossibleInstantsFor()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetPossibleInstantsFor(), builtinTemporalTimeZonePrototypeGetPossibleInstantsFor, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetPossibleInstantsFor()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetPossibleInstantsFor(), builtinTemporalTimeZonePrototypeGetPossibleInstantsFor, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetNextTransition()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetNextTransition(), builtinTemporalTimeZonePrototypeGetNextTransition, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetNextTransition()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetNextTransition(), builtinTemporalTimeZonePrototypeGetNextTransition, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetPreviousTransition()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetPreviousTransition(), builtinTemporalTimeZonePrototypeGetPreviousTransition, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalTimeZonePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetPreviousTransition()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetPreviousTransition(), builtinTemporalTimeZonePrototypeGetPreviousTransition, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalTimeZone->setFunctionPrototype(state, temporalTimeZonePrototype);
+    temporalTimeZone->setFunctionPrototype(state, m_temporalTimeZonePrototype);
 
     auto temporalCalendar = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCalendar(), builtinTemporalCalendarConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     temporalCalendar->setGlobalIntrinsicObject(state);
 
-    auto temporalCalendarPrototype = new PrototypeObject(state);
-    temporalCalendarPrototype->setGlobalIntrinsicObject(state, true);
+    m_temporalCalendarPrototype = new PrototypeObject(state);
+    m_temporalCalendarPrototype->setGlobalIntrinsicObject(state, true);
 
     JSGetterSetter calendarIDGS(
         new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyId(), builtinTemporalCalendarPrototypeId, 0, NativeFunctionInfo::Strict)),
         Value(Value::EmptyValue));
     ObjectPropertyDescriptor calendarIDDesc(calendarIDGS, ObjectPropertyDescriptor::ConfigurablePresent);
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyId()), calendarIDDesc);
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyId()), calendarIDDesc);
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalCalendar, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->constructor), ObjectPropertyDescriptor(temporalCalendar, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
-    temporalCalendar->setFunctionPrototype(state, temporalCalendarPrototype);
+    temporalCalendar->setFunctionPrototype(state, m_temporalCalendarPrototype);
 
     temporalNow->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                          ObjectPropertyDescriptor(strings->lazyTemporalDotNow().string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -2443,59 +2443,59 @@ void GlobalObject::installTemporal(ExecutionState& state)
     temporalCalendar->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalCalendarFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDateFromFields()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDateFromFields(), builtinTemporalCalendarPrototypeDateFromFields, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDateFromFields()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDateFromFields(), builtinTemporalCalendarPrototypeDateFromFields, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYear()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyYear(), builtinTemporalCalendarPrototypeYear, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyYear()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyYear(), builtinTemporalCalendarPrototypeYear, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonth()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonth(), builtinTemporalCalendarPrototypeMonth, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonth()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonth(), builtinTemporalCalendarPrototypeMonth, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthCode(), builtinTemporalCalendarPrototypeMonthCode, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthCode(), builtinTemporalCalendarPrototypeMonthCode, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDay(), builtinTemporalCalendarPrototypeDay, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDay()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDay(), builtinTemporalCalendarPrototypeDay, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfWeek()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDayOfWeek(), builtinTemporalCalendarPrototypeDayOfWeek, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfWeek()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDayOfWeek(), builtinTemporalCalendarPrototypeDayOfWeek, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfYear()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDayOfYear(), builtinTemporalCalendarPrototypeDayOfYear, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDayOfYear()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDayOfYear(), builtinTemporalCalendarPrototypeDayOfYear, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWeekOfYear()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWeekOfYear(), builtinTemporalCalendarPrototypeWeekOfYear, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWeekOfYear()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWeekOfYear(), builtinTemporalCalendarPrototypeWeekOfYear, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInWeek()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInWeek(), builtinTemporalCalendarPrototypeDaysInWeek, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInWeek()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInWeek(), builtinTemporalCalendarPrototypeDaysInWeek, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInMonth()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInMonth(), builtinTemporalCalendarPrototypeDaysInMonth, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInMonth()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInMonth(), builtinTemporalCalendarPrototypeDaysInMonth, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInYear()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInYear(), builtinTemporalCalendarPrototypeDaysInYear, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyDaysInYear()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyDaysInYear(), builtinTemporalCalendarPrototypeDaysInYear, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthsInYear()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthsInYear(), builtinTemporalCalendarPrototypeMonthsInYear, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthsInYear()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMonthsInYear(), builtinTemporalCalendarPrototypeMonthsInYear, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyInLeapYear()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyInLeapYear(), builtinTemporalCalendarInLeapYear, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyInLeapYear()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyInLeapYear(), builtinTemporalCalendarInLeapYear, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMergeFields()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMergeFields(), builtinTemporalCalendarPrototypeMergeFields, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMergeFields()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyMergeFields(), builtinTemporalCalendarPrototypeMergeFields, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyFields()),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFields(), builtinTemporalCalendarFields, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyFields()),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFields(), builtinTemporalCalendarFields, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinTemporalCalendarToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinTemporalCalendarToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toJSON),
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toJSON, builtinTemporalCalendarToJSON, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalCalendarPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toJSON),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toJSON, builtinTemporalCalendarToJSON, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_temporal = new Temporal(state, temporalCalendar, temporalCalendarPrototype, temporalDurationPrototype, temporalPlainDatePrototype, temporalPlainTimePrototype, temporalPlainDateTimePrototype, temporalPlainYearMonthPrototype, temporalInstantPrototype, temporalPlainMonthDayPrototype, temporalTimeZonePrototype, temporalZonedDateTimePrototype);
+    m_temporal = new TemporalObject(state);
     m_temporal->setGlobalIntrinsicObject(state);
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
