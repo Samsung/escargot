@@ -316,7 +316,7 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         // setFullYear, setUTCFullYear case
         if (!(d->isValid())) {
             d->setTimeValue(DateObject::timeClip(state, 0));
-            d->setTimeValue(d->getTimezoneOffset(state) * const_Date_msPerMinute);
+            d->setTimeValue(d->getTimezoneOffset(state) * TimeConstant::MsPerMinute);
         }
         ASSERT(d->isValid());
     }
@@ -421,7 +421,7 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
 
     if (!(d->isValid())) {
         d->setTimeValue(DateObject::timeClip(state, 0));
-        d->setTimeValue(d->getTimezoneOffset(state) * const_Date_msPerMinute);
+        d->setTimeValue(d->getTimezoneOffset(state) * TimeConstant::MsPerMinute);
     }
     ASSERT(d->isValid());
 

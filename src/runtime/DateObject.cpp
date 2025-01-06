@@ -189,7 +189,7 @@ time64_t DateObject::currentTime()
 {
     struct timespec time;
     if (clock_gettime(CLOCK_REALTIME, &time) == 0) {
-        return time.tv_sec * const_Date_msPerSecond + time.tv_nsec / const_Date_nsPerMs;
+        return time.tv_sec * TimeConstant::MsPerSecond + time.tv_nsec / TimeConstant::NsPerMs;
     } else {
         return TIME64NAN;
     }
@@ -221,10 +221,10 @@ void DateObject::setTimeValue(ExecutionState& state, int year, int month,
                               int date, int hour, int minute, int64_t second,
                               int64_t millisecond, bool convertToUTC)
 {
-    int yearComputed = year + floor(month / (double)const_Date_monthsPerYear);
-    int monthComputed = month % const_Date_monthsPerYear;
+    int yearComputed = year + floor(month / (double)TimeConstant::MonthsPerYear);
+    int monthComputed = month % TimeConstant::MonthsPerYear;
     if (monthComputed < 0)
-        monthComputed = (monthComputed + const_Date_monthsPerYear) % const_Date_monthsPerYear;
+        monthComputed = (monthComputed + TimeConstant::MonthsPerYear) % TimeConstant::MonthsPerYear;
 
     time64_t primitiveValue = timeinfoToMs(state, yearComputed, monthComputed, date, hour, minute, second, millisecond);
 
@@ -324,7 +324,7 @@ time64_t DateObject::applyLocalTimezoneOffset(ExecutionState& state, time64_t t)
 
 time64_t DateObject::timeinfoToMs(ExecutionState& state, int year, int mon, int day, int hour, int minute, int64_t second, int64_t millisecond)
 {
-    return (daysToMs(year, mon, day) + hour * const_Date_msPerHour + minute * const_Date_msPerMinute + second * const_Date_msPerSecond + millisecond);
+    return (daysToMs(year, mon, day) + hour * TimeConstant::MsPerHour + minute * TimeConstant::MsPerMinute + second * TimeConstant::MsPerSecond + millisecond);
 }
 
 
@@ -864,7 +864,7 @@ static char* parseES5TimePortion(char* currentPosition, long& hours, long& minut
         if ((postParsePosition - currentPosition) != 2) {
             return 0;
         }
-        milliSeconds = intSeconds * const_Date_msPerSecond;
+        milliSeconds = intSeconds * TimeConstant::MsPerSecond;
         if (*postParsePosition == '.') {
             currentPosition = postParsePosition + 1;
 
@@ -958,7 +958,7 @@ time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bo
     haveTZ = true;
     const char* dateString = istr->toUTF8StringData().data();
 
-    static const long const_Date_daysPerMonth[12] = { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+    static const long DaysPerMonth[12] = { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
     // The year must be present, but the other fields may be omitted - see ES5.1 15.9.1.15.
     int year = 0;
@@ -999,7 +999,7 @@ time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bo
     if (month < 1 || month > 12) {
         return TIME64NAN;
     }
-    if (day < 1 || day > const_Date_daysPerMonth[month - 1]) {
+    if (day < 1 || day > DaysPerMonth[month - 1]) {
         return TIME64NAN;
     }
     if (month == 2 && day > 28 && daysInYear(year) != 366) {
@@ -1014,14 +1014,14 @@ time64_t DateObject::parseStringToDate_2(ExecutionState& state, String* istr, bo
     if (minutes < 0 || minutes > 59) {
         return TIME64NAN;
     }
-    if (milliSeconds < 0 || milliSeconds >= const_Date_msPerMinute + const_Date_msPerSecond) {
+    if (milliSeconds < 0 || milliSeconds >= TimeConstant::MsPerMinute + TimeConstant::MsPerSecond) {
         return TIME64NAN;
     }
-    if (milliSeconds > const_Date_msPerMinute) {
+    if (milliSeconds > TimeConstant::MsPerMinute) {
         // Discard leap seconds by clamping to the end of a minute.
-        milliSeconds = const_Date_msPerMinute;
+        milliSeconds = TimeConstant::MsPerMinute;
     }
-    time64_t date = timeinfoToMs(state, year, month - 1, day, hours, minutes, (int64_t)(milliSeconds / const_Date_msPerSecond), milliSeconds % const_Date_msPerSecond) - timeZoneSeconds * const_Date_msPerSecond;
+    time64_t date = timeinfoToMs(state, year, month - 1, day, hours, minutes, (int64_t)(milliSeconds / TimeConstant::MsPerSecond), milliSeconds % TimeConstant::MsPerSecond) - timeZoneSeconds * TimeConstant::MsPerSecond;
     return date;
 }
 
@@ -1040,7 +1040,7 @@ time64_t DateObject::parseStringToDate(ExecutionState& state, String* istr)
             if (!haveTZ) {
                 primitiveValue = applyLocalTimezoneOffset(state, primitiveValue);
             } else {
-                primitiveValue = primitiveValue - (offset * const_Date_msPerMinute);
+                primitiveValue = primitiveValue - (offset * TimeConstant::MsPerMinute);
             }
         }
     }
@@ -1056,13 +1056,13 @@ time64_t DateObject::parseStringToDate(ExecutionState& state, String* istr)
 int DateObject::daysInYear(int year)
 {
     if (year % 4 != 0) {
-        return const_Date_daysPerYear;
+        return TimeConstant::DaysPerYear;
     } else if (year % 100 != 0) {
-        return const_Date_daysPerLeapYear;
+        return TimeConstant::DaysPerLeapYear;
     } else if (year % 400 != 0) {
-        return const_Date_daysPerYear;
+        return TimeConstant::DaysPerYear;
     } else { // year % 400 == 0
-        return const_Date_daysPerLeapYear;
+        return TimeConstant::DaysPerLeapYear;
     }
 }
 
@@ -1085,12 +1085,12 @@ inline int DateObject::daysFromYear(int year)
 
 int DateObject::yearFromTime(time64_t t)
 {
-    int estimate = floor(t / const_Date_msPerDay / 365.2425) + 1970;
+    int estimate = floor(t / TimeConstant::MsPerDay / 365.2425) + 1970;
     time64_t yearAsMs = daysToMs(estimate, 0, 1);
     if (yearAsMs > t) {
         estimate--;
     }
-    if (yearAsMs + daysInYear(estimate) * const_Date_msPerDay <= t) {
+    if (yearAsMs + daysInYear(estimate) * TimeConstant::MsPerDay <= t) {
         estimate++;
     }
     return estimate;
@@ -1142,66 +1142,66 @@ int DateObject::dateFromTime(time64_t t)
 int DateObject::hourFromTime(time64_t t)
 {
     if (t >= 0) {
-        return (int)((t / const_Date_msPerHour) % const_Date_hoursPerDay);
+        return (int)((t / TimeConstant::MsPerHour) % TimeConstant::HoursPerDay);
     }
 
-    int hours = (int)(((t - (const_Date_msPerHour - 1)) / const_Date_msPerHour) % const_Date_hoursPerDay);
+    int hours = (int)(((t - (TimeConstant::MsPerHour - 1)) / TimeConstant::MsPerHour) % TimeConstant::HoursPerDay);
 
-    return hours == 0 ? 0 : const_Date_hoursPerDay + hours;
+    return hours == 0 ? 0 : TimeConstant::HoursPerDay + hours;
 }
 
 int DateObject::minFromTime(time64_t t)
 {
     if (t >= 0) {
-        return (int)((t / const_Date_msPerMinute) % const_Date_minutesPerHour);
+        return (int)((t / TimeConstant::MsPerMinute) % TimeConstant::MinutesPerHour);
     }
 
-    int minutes = (int)(((t - (const_Date_msPerMinute - 1)) / const_Date_msPerMinute) % const_Date_minutesPerHour);
+    int minutes = (int)(((t - (TimeConstant::MsPerMinute - 1)) / TimeConstant::MsPerMinute) % TimeConstant::MinutesPerHour);
 
-    return minutes == 0 ? 0 : const_Date_minutesPerHour + minutes;
+    return minutes == 0 ? 0 : TimeConstant::MinutesPerHour + minutes;
 }
 
 int DateObject::secFromTime(time64_t t)
 {
     if (t >= 0) {
-        return (int)(((t / const_Date_msPerSecond) % const_Date_secondsPerMinute));
+        return (int)(((t / TimeConstant::MsPerSecond) % TimeConstant::SecondsPerMinute));
     }
 
-    int seconds = (int)((t - (const_Date_msPerSecond - 1)) / const_Date_msPerSecond) % const_Date_secondsPerMinute;
+    int seconds = (int)((t - (TimeConstant::MsPerSecond - 1)) / TimeConstant::MsPerSecond) % TimeConstant::SecondsPerMinute;
 
-    return seconds == 0 ? 0 : const_Date_secondsPerMinute + seconds;
+    return seconds == 0 ? 0 : TimeConstant::SecondsPerMinute + seconds;
 }
 
 int DateObject::msFromTime(time64_t t)
 {
-    int milliseconds = (int)(t % const_Date_msPerSecond);
+    int milliseconds = (int)(t % TimeConstant::MsPerSecond);
 
-    return milliseconds >= 0 ? milliseconds : const_Date_msPerSecond + milliseconds;
+    return milliseconds >= 0 ? milliseconds : TimeConstant::MsPerSecond + milliseconds;
 }
 
 inline bool DateObject::inLeapYear(int year)
 {
     int days = daysInYear(year);
     // assume 'days' is 365 or 366
-    return (bool)(days - const_Date_daysPerYear);
+    return (bool)(days - TimeConstant::DaysPerYear);
 }
 
 
 void DateObject::getYMDFromTime(time64_t t, struct timeinfo& cachedLocal)
 {
-    int estimate = floor(t / const_Date_msPerDay / 365.2425) + 1970;
+    int estimate = floor(t / TimeConstant::MsPerDay / 365.2425) + 1970;
     time64_t yearAsMs = daysToMs(estimate, 0, 1);
     if (yearAsMs > t) {
         estimate--;
     }
-    if (yearAsMs + daysInYear(estimate) * const_Date_msPerDay <= t) {
+    if (yearAsMs + daysInYear(estimate) * TimeConstant::MsPerDay <= t) {
         estimate++;
     }
 
     cachedLocal.year = estimate;
 
     int dayWithinYear = daysFromTime(t) - daysFromYear(cachedLocal.year);
-    ASSERT(0 <= dayWithinYear && dayWithinYear < const_Date_daysPerLeapYear);
+    ASSERT(0 <= dayWithinYear && dayWithinYear < TimeConstant::DaysPerLeapYear);
 
     int leap = (int)inLeapYear(cachedLocal.year);
 
@@ -1227,9 +1227,9 @@ int DateObject::daysFromMonth(int year, int month)
 int DateObject::daysFromTime(time64_t t)
 {
     if (t < 0) {
-        t -= (const_Date_msPerDay - 1);
+        t -= (TimeConstant::MsPerDay - 1);
     }
-    return static_cast<int>(t / (double)const_Date_msPerDay);
+    return static_cast<int>(t / (double)TimeConstant::MsPerDay);
 }
 
 
@@ -1254,7 +1254,7 @@ void DateObject::resolveCache(ExecutionState& state)
 #endif
 
     m_cachedLocal.isdst = dstOffset == 0 ? 0 : 1;
-    m_cachedLocal.gmtoff = -1 * (stdOffset + dstOffset) / const_Date_msPerMinute;
+    m_cachedLocal.gmtoff = -1 * (stdOffset + dstOffset) / TimeConstant::MsPerMinute;
 
     t += (stdOffset + dstOffset);
     t -= msBetweenYears;
@@ -1262,17 +1262,17 @@ void DateObject::resolveCache(ExecutionState& state)
     getYMDFromTime(t, m_cachedLocal);
 
     int days = daysFromTime(t);
-    int timeInDay = static_cast<int>(t - days * const_Date_msPerDay);
+    int timeInDay = static_cast<int>(t - days * TimeConstant::MsPerDay);
 
     ASSERT(timeInDay >= 0);
 
-    int weekday = (days + 4) % const_Date_daysPerWeek;
-    m_cachedLocal.wday = weekday >= 0 ? weekday : weekday + const_Date_daysPerWeek;
-    // Do not cast const_Date_msPer[Hour|Minute|Second] into double
-    m_cachedLocal.hour = timeInDay / const_Date_msPerHour;
-    m_cachedLocal.min = (timeInDay / const_Date_msPerMinute) % const_Date_minutesPerHour;
-    m_cachedLocal.sec = (timeInDay / const_Date_msPerSecond) % const_Date_secondsPerMinute;
-    m_cachedLocal.millisec = (timeInDay) % const_Date_msPerSecond;
+    int weekday = (days + 4) % TimeConstant::DaysPerWeek;
+    m_cachedLocal.wday = weekday >= 0 ? weekday : weekday + TimeConstant::DaysPerWeek;
+    // Do not cast TimeConstant::MsPer[Hour|Minute|Second] into double
+    m_cachedLocal.hour = timeInDay / TimeConstant::MsPerHour;
+    m_cachedLocal.min = (timeInDay / TimeConstant::MsPerMinute) % TimeConstant::MinutesPerHour;
+    m_cachedLocal.sec = (timeInDay / TimeConstant::MsPerSecond) % TimeConstant::SecondsPerMinute;
+    m_cachedLocal.millisec = (timeInDay) % TimeConstant::MsPerSecond;
 
     m_isCacheDirty = false;
 }
@@ -1281,8 +1281,8 @@ void DateObject::resolveCache(ExecutionState& state)
 time64_t DateObject::daysToMs(int year, int month, int date)
 {
     ASSERT(0 <= month && month < 12);
-    time64_t t = timeFromYear(year) + daysFromMonth(year, month) * const_Date_msPerDay;
-    return t + (date - 1) * const_Date_msPerDay;
+    time64_t t = timeFromYear(year) + daysFromMonth(year, month) * TimeConstant::MsPerDay;
+    return t + (date - 1) * TimeConstant::MsPerDay;
 }
 
 
@@ -1309,8 +1309,8 @@ String* DateObject::toTimeString(ExecutionState& state)
     if (IS_VALID_TIME(m_primitiveValue)) {
         char buffer[256];
         int tzOffsetAsMin = -getTimezoneOffset(state); // 540
-        int tzOffsetHour = (tzOffsetAsMin / const_Date_minutesPerHour);
-        int tzOffsetMin = ((tzOffsetAsMin / (double)const_Date_minutesPerHour) - tzOffsetHour) * 60;
+        int tzOffsetHour = (tzOffsetAsMin / TimeConstant::MinutesPerHour);
+        int tzOffsetMin = ((tzOffsetAsMin / (double)TimeConstant::MinutesPerHour) - tzOffsetHour) * 60;
         tzOffsetHour *= 100;
         const std::string& timeZoneName = state.context()->vmInstance()->tzname(m_cachedLocal.isdst ? 1 : 0);
 #if defined(OS_WINDOWS)
@@ -1516,12 +1516,12 @@ int DateObject::getTimezoneOffset(ExecutionState& state)
     {                                                                                        \
         DateObject* cachedUTC = state.context()->vmInstance()->cachedUTC(state);             \
         time64_t primitiveValueUTC                                                           \
-            = m_primitiveValue + getTimezoneOffset(state) * const_Date_msPerMinute;          \
+            = m_primitiveValue + getTimezoneOffset(state) * TimeConstant::MsPerMinute;       \
         if (!(cachedUTC->isValid()) || cachedUTC->primitiveValue() != primitiveValueUTC) {   \
             cachedUTC->setTimeValue(primitiveValueUTC);                                      \
             if (UNLIKELY(cachedUTC->getTimezoneOffset(state) != getTimezoneOffset(state))) { \
                 primitiveValueUTC = m_primitiveValue                                         \
-                    + cachedUTC->getTimezoneOffset(state) * const_Date_msPerMinute;          \
+                    + cachedUTC->getTimezoneOffset(state) * TimeConstant::MsPerMinute;       \
                 cachedUTC->setTimeValue(primitiveValueUTC);                                  \
             }                                                                                \
         }                                                                                    \
@@ -1551,49 +1551,5 @@ void* DateObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-Value DateObject::makeDay(ExecutionState& state, const Value& year, const Value& month, const Value& day)
-{
-    if (!std::isfinite(year.asNumber()) && !std::isfinite(month.asNumber()) && !std::isfinite(day.asNumber())) {
-        return Value(Value::NanInit);
-    }
-
-    double y = year.asNumber();
-    double m = month.asNumber() - 1;
-    double dt = day.asNumber();
-
-    time64_t result = 0;
-
-    double ym = y + std::floor(m / const_Date_monthsPerYear);
-
-    if (!std::isfinite(ym)) {
-        return Value(Value::NanInit);
-    }
-
-    result += const_Date_msPerDay * DAYS_IN_YEAR * (ym - 1970) + const_Date_msPerMonth * ((int)m % const_Date_monthsPerYear);
-    return Value(Value::DoubleToIntConvertibleTestNeeds, std::floor(result / const_Date_msPerDay) + dt - 1);
-}
-
-Value DateObject::makeTime(ExecutionState& state, const Value& hour, const Value& minute, const Value& sec, const Value& ms)
-{
-    if (!std::isfinite(hour.asNumber()) && !std::isfinite(minute.asNumber()) && !std::isfinite(sec.asNumber()) && !std::isfinite(ms.asNumber())) {
-        return Value(Value::NanInit);
-    }
-
-    double h = hour.asNumber();
-    double m = minute.asNumber();
-    double s = sec.asNumber();
-    double milli = ms.asNumber();
-
-    return Value(Value::DoubleToIntConvertibleTestNeeds, h * const_Date_msPerHour + m * const_Date_msPerMinute + s * const_Date_msPerSecond + milli);
-}
-
-Value DateObject::makeDate(ExecutionState& state, const Value& day, const Value& time)
-{
-    if (!std::isfinite(day.asNumber()) && !std::isfinite(time.asNumber())) {
-        return Value(Value::NanInit);
-    }
-
-    return Value(day.toLength(state) * const_Date_msPerDay + time.toLength(state));
-}
 
 } // namespace Escargot

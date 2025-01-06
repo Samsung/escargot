@@ -45,9 +45,6 @@ public:
     enum OptionValueType {
         StringValue,
         BooleanValue,
-#if defined(ENABLE_TEMPORAL)
-        NumberValue
-#endif
     };
     static Value getOption(ExecutionState& state, Object* options, Value property, OptionValueType type, Value* values, size_t valuesLength, const Value& fallback);
     template <typename T>

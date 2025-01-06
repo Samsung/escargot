@@ -27,27 +27,29 @@ namespace Escargot {
 #define TIME64NAN (1LL << 63)
 #define IS_VALID_TIME(time) ((time != TIME64NAN) ? true : false)
 #define IS_IN_TIME_RANGE(millisec) \
-    (millisec <= const_Date_MaximumDatePrimitiveValue && millisec >= -const_Date_MaximumDatePrimitiveValue)
+    (millisec <= TimeConstant::MaximumDatePrimitiveValue && millisec >= -TimeConstant::MaximumDatePrimitiveValue)
 #define DAYS_IN_YEAR 365.2425
 
 typedef int64_t time64_t;
 
-static const int const_Date_daysPerWeek = 7;
-static const int const_Date_daysPerYear = 365;
-static const int const_Date_daysPerLeapYear = const_Date_daysPerYear + 1;
-static const int const_Date_monthsPerYear = 12;
-static const int64_t const_Date_MaximumDatePrimitiveValue = 8.64e15;
-static const int64_t const_Date_nsPerMs = 1e6;
-static const int64_t const_Date_hoursPerDay = 24;
-static const int64_t const_Date_minutesPerHour = 60;
-static const int64_t const_Date_secondsPerMinute = 60;
-static const int64_t const_Date_secondsPerHour = const_Date_secondsPerMinute * const_Date_minutesPerHour;
-static const int64_t const_Date_msPerSecond = 1000;
-static const int64_t const_Date_msPerMinute = const_Date_msPerSecond * const_Date_secondsPerMinute;
-static const int64_t const_Date_msPerHour = const_Date_msPerSecond * const_Date_secondsPerHour;
-static const int64_t const_Date_msPerDay = const_Date_msPerHour * const_Date_hoursPerDay;
-static const int64_t const_Date_msPerMonth = 2629743000;
-
+class TimeConstant {
+public:
+    static const int DaysPerWeek = 7;
+    static const int DaysPerYear = 365;
+    static const int DaysPerLeapYear = DaysPerYear + 1;
+    static const int MonthsPerYear = 12;
+    static const int64_t MaximumDatePrimitiveValue = 8.64e15;
+    static const int64_t NsPerMs = 1e6;
+    static const int64_t HoursPerDay = 24;
+    static const int64_t MinutesPerHour = 60;
+    static const int64_t SecondsPerMinute = 60;
+    static const int64_t SecondsPerHour = SecondsPerMinute * MinutesPerHour;
+    static const int64_t MsPerSecond = 1000;
+    static const int64_t MsPerMinute = MsPerSecond * SecondsPerMinute;
+    static const int64_t MsPerHour = MsPerSecond * SecondsPerHour;
+    static const int64_t MsPerDay = MsPerHour * HoursPerDay;
+    static const int64_t MsPerMonth = 2629743000;
+};
 
 class DateObject : public DerivedObject {
 public:
@@ -55,10 +57,6 @@ public:
     explicit DateObject(ExecutionState& state, Object* proto);
 
     static time64_t currentTime();
-
-    static Value makeDay(ExecutionState& state, const Value& year, const Value& month, const Value& day);
-    static Value makeTime(ExecutionState& state, const Value& hour, const Value& minute, const Value& sec, const Value& ms);
-    static Value makeDate(ExecutionState& state, const Value& day, const Value& time);
 
     double primitiveValue()
     {
@@ -92,7 +90,7 @@ public:
         }
     }
 
-    static int weekDay(time64_t t) { return (daysFromTime(t) + 4) % const_Date_daysPerWeek; }
+    static int weekDay(time64_t t) { return (daysFromTime(t) + 4) % TimeConstant::DaysPerWeek; }
     static int daysInYear(int year);
 
     void setTimeValue(time64_t t);
@@ -186,7 +184,7 @@ protected:
     static int daysFromYear(int year);
     static int daysFromTime(time64_t t); // return the number of days after 1970.1.1
     static time64_t daysToMs(int year, int month, int date);
-    static time64_t timeFromYear(int year) { return const_Date_msPerDay * daysFromYear(year); }
+    static time64_t timeFromYear(int year) { return TimeConstant::MsPerDay * daysFromYear(year); }
     static void getYMDFromTime(time64_t t, struct timeinfo& cachedLocal);
     static bool inLeapYear(int year);
 };
