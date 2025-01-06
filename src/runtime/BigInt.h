@@ -65,6 +65,10 @@ public:
     static void throwBFException(ExecutionState& state, int status);
 
     void* operator new(size_t size);
+    void* operator new(size_t, void* p)
+    {
+        return p;
+    }
     void* operator new[](size_t size) = delete;
 
     String* toString(int radix = 10);

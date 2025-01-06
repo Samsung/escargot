@@ -820,96 +820,12 @@ namespace Escargot {
 #endif
 
 #if defined(ENABLE_TEMPORAL)
-#define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)           \
-    F(Blank, "blank")                                     \
-    F(Compatible, "compatible")                           \
-    F(Calendar, "Calendar")                               \
-    F(DateAdd, "dateAdd")                                 \
-    F(DateFromFields, "dateFromFields")                   \
-    F(DateTime, "DateTime")                               \
-    F(DateUntil, "dateUntil")                             \
-    F(DayOfWeek, "dayOfWeek")                             \
-    F(DayOfYear, "dayOfYear")                             \
-    F(Days, "days")                                       \
-    F(DaysInMonth, "daysInMonth")                         \
-    F(DaysInWeek, "daysInWeek")                           \
-    F(DaysInYear, "daysInYear")                           \
-    F(Disambiguation, "disambiguation")                   \
-    F(Duration, "Duration")                               \
-    F(Earlier, "earlier")                                 \
-    F(EpochMicroseconds, "epochMicroseconds")             \
-    F(EpochMilliseconds, "epochMilliseconds")             \
-    F(EpochNanoseconds, "epochNanoseconds")               \
-    F(EpochSeconds, "epochSeconds")                       \
-    F(Equals, "equals")                                   \
-    F(Fields, "fields")                                   \
-    F(FromEpochMicroseconds, "fromEpochMicroseconds")     \
-    F(FromEpochMilliseconds, "fromEpochMilliseconds")     \
-    F(FromEpochNanoseconds, "fromEpochNanoseconds")       \
-    F(FromEpochSeconds, "fromEpochSeconds")               \
-    F(GetISOFields, "getISOFields")                       \
-    F(GetNextTransition, "getNextTransition")             \
-    F(GetOffsetNanosecondsFor, "getOffsetNanosecondsFor") \
-    F(GetOffsetStringFor, "getOffsetStringFor")           \
-    F(GetPlainDateTimeFor, "getPlainDateTimeFor")         \
-    F(GetPossibleInstantsFor, "getPossibleInstantsFor")   \
-    F(GetPreviousTransition, "getPreviousTransition")     \
-    F(Hours, "hours")                                     \
-    F(HoursInDay, "hoursInDay")                           \
-    F(ISO8601, "iso8601")                                 \
-    F(Id, "id")                                           \
-    F(Ignore, "ignore")                                   \
-    F(InLeapYear, "inLeapYear")                           \
-    F(IsoHour, "isoHour")                                 \
-    F(IsoMicrosecond, "isoMicrosecond")                   \
-    F(IsoMillisecond, "isoMillisecond")                   \
-    F(IsoMinute, "isoMinute")                             \
-    F(IsoNanosecond, "isoNanosecond")                     \
-    F(IsoSecond, "isoSecond")                             \
-    F(Instant, "Instant")                                 \
-    F(LargestUnit, "largestUnit")                         \
-    F(Later, "later")                                     \
-    F(MergeFields, "mergeFields")                         \
-    F(Microsecond, "microsecond")                         \
-    F(Microseconds, "microseconds")                       \
-    F(Millisecond, "millisecond")                         \
-    F(Milliseconds, "milliseconds")                       \
-    F(Minutes, "minutes")                                 \
-    F(MonthCode, "monthCode")                             \
-    F(MonthDayFromFields, "monthDayFromFields")           \
-    F(Months, "months")                                   \
-    F(MonthsInYear, "monthsInYear")                       \
-    F(Nanosecond, "nanosecond")                           \
-    F(Nanoseconds, "nanoseconds")                         \
-    F(Negated, "negated")                                 \
-    F(Now, "Now")                                         \
-    F(Offset, "offset")                                   \
-    F(OffsetNanoseconds, "offsetNanoseconds")             \
-    F(Overflow, "overflow")                               \
-    F(PlainMonthDay, "PlainMonthDay")                     \
-    F(PlainDate, "PlainDate")                             \
-    F(PlainDateISO, "plainDateISO")                       \
-    F(PlainDateTime, "PlainDateTime")                     \
-    F(PlainTime, "PlainTime")                             \
-    F(PlainTimeISO, "plainTimeISO")                       \
-    F(PlainYearMonth, "PlainYearMonth")                   \
-    F(PlainDateTimeISO, "plainDateTimeISO")               \
-    F(Prefer, "prefer")                                   \
-    F(RelativeTo, "relativeTo")                           \
-    F(Seconds, "seconds")                                 \
-    F(Subtract, "subtract")                               \
-    F(Temporal, "Temporal")                               \
-    F(TemporalDotNow, "Temporal.Now")                     \
-    F(TemporalDotPlainDate, "Temporal.PlainDate")         \
-    F(TemporalTimeZone, "TimeZone")                       \
-    F(ToPlainDateTime, "toPlainDateTime")                 \
-    F(Use, "use")                                         \
-    F(WeekOfYear, "weekOfYear")                           \
-    F(Weeks, "weeks")                                     \
-    F(YearMonthFromFields, "yearMonthFromFields")         \
-    F(Years, "years")                                     \
-    F(ZonedDateTime, "ZonedDateTime")                     \
-    F(ZonedDateTimeISO, "zonedDateTimeISO")
+#define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F) \
+    F(ISO8601, "iso8601")                       \
+    F(Overflow, "overflow")                     \
+    F(PlainDate, "PlainDate")                   \
+    F(Temporal, "Temporal")                     \
+    F(TemporalDotPlainDate, "Temporal.PlainDate")
 #else
 #define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)
 #endif

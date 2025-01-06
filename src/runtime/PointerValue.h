@@ -345,68 +345,6 @@ public:
         return false;
     }
 
-#if defined(ENABLE_TEMPORAL)
-    virtual bool isTemporalObject() const
-    {
-        return false;
-    }
-
-    virtual bool isTemporalCalendarObject() const
-    {
-        return false;
-    }
-
-    virtual bool isTemporalPlainDateObject() const
-    {
-        return false;
-    }
-
-    virtual bool isTemporalPlainTimeObject() const
-    {
-        return false;
-    }
-
-    virtual bool isTemporalPlainDateTimeObject() const
-    {
-        return false;
-    }
-
-    virtual bool isTemporalZonedDateTimeObject() const
-    {
-        return false;
-    }
-
-    virtual bool isTemporalInstantObject() const
-    {
-        return false;
-    }
-
-    virtual bool isTemporalPlainYearMonthObject() const
-    {
-        return false;
-    }
-
-    virtual bool isTemporalMonthDayObject() const
-    {
-        return false;
-    }
-
-    virtual bool isTemporalDurationObject() const
-    {
-        return false;
-    }
-
-    virtual bool isTemporalPlainMonthDayObject() const
-    {
-        return false;
-    }
-
-    virtual bool isTemporalTimeZoneObject() const
-    {
-        return false;
-    }
-#endif
-
     virtual bool isTypedArrayObject() const
     {
         return false;
@@ -589,6 +527,18 @@ public:
     }
 #endif
 
+#if defined(ENABLE_TEMPORAL)
+    virtual bool isTemporalObject() const
+    {
+        return false;
+    }
+
+    virtual bool isTemporalPlainDateObject() const
+    {
+        return false;
+    }
+#endif
+
 #if defined(ENABLE_WASM)
     virtual bool isWASMModuleObject() const
     {
@@ -680,74 +630,6 @@ public:
         ASSERT(isFunctionObject());
         return (FunctionObject*)this;
     }
-
-#if defined(ENABLE_TEMPORAL)
-    TemporalObject* asTemporalObject()
-    {
-        ASSERT(isTemporalObject());
-        return (TemporalObject*)this;
-    }
-
-    TemporalCalendarObject* asTemporalCalendarObject()
-    {
-        ASSERT(isTemporalCalendarObject());
-        return (TemporalCalendarObject*)this;
-    }
-
-    TemporalPlainDateObject* asTemporalPlainDateObject()
-    {
-        ASSERT(isTemporalPlainDateObject());
-        return (TemporalPlainDateObject*)this;
-    }
-
-    TemporalPlainTimeObject* asTemporalPlainTimeObject()
-    {
-        ASSERT(isTemporalPlainTimeObject());
-        return (TemporalPlainTimeObject*)this;
-    }
-
-    TemporalZonedDateTimeObject* asTemporalZonedDateTimeObject()
-    {
-        ASSERT(isTemporalZonedDateTimeObject());
-        return (TemporalZonedDateTimeObject*)this;
-    }
-
-    TemporalPlainDateTimeObject* asTemporalPlainDateTimeObject()
-    {
-        ASSERT(isTemporalPlainDateTimeObject());
-        return (TemporalPlainDateTimeObject*)this;
-    }
-
-    TemporalInstantObject* asTemporalInstantObject()
-    {
-        ASSERT(isTemporalInstantObject());
-        return (TemporalInstantObject*)this;
-    }
-
-    TemporalDurationObject* asTemporalDurationObject()
-    {
-        ASSERT(isTemporalDurationObject());
-        return (TemporalDurationObject*)this;
-    }
-
-    TemporalPlainYearMonthObject* asTemporalPlainYearMonthObject()
-    {
-        ASSERT(isTemporalPlainYearMonthObject());
-        return (TemporalPlainYearMonthObject*)this;
-    }
-
-    TemporalPlainMonthDayObject* asTemporalPlainMonthDayObject()
-    {
-        ASSERT(isTemporalPlainMonthDayObject());
-        return (TemporalPlainMonthDayObject*)this;
-    }
-
-    TemporalTimeZoneObject* asTemporalTimeZoneObject()
-    {
-        ASSERT(isTemporalTimeZoneObject());
-        return (TemporalTimeZoneObject*)this;
-    }
-#endif
 
     TypedArrayObject* asTypedArrayObject()
     {
@@ -1050,6 +932,20 @@ public:
     {
         ASSERT(isIntlListFormatObject());
         return (IntlListFormatObject*)this;
+    }
+#endif
+
+#if defined(ENABLE_TEMPORAL)
+    TemporalObject* asTemporalObject()
+    {
+        ASSERT(isTemporalObject());
+        return (TemporalObject*)this;
+    }
+
+    TemporalPlainDateObject* asTemporalPlainDateObject()
+    {
+        ASSERT(isTemporalPlainDateObject());
+        return (TemporalPlainDateObject*)this;
     }
 #endif
 
