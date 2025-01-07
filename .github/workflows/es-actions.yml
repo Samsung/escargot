@@ -12,7 +12,7 @@ env:
 
 jobs:
   check-tidy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
       with:
@@ -279,7 +279,7 @@ jobs:
       timeout-minutes: 15
 
   build-test-on-x86-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         tc: ['new-es octane', 'v8 chakracore spidermonkey', 'jetstream-only-simple-parallel-1', 'jetstream-only-simple-parallel-2 jsc-stress', 'jetstream-only-simple-parallel-3 jetstream-only-cdjs']
@@ -315,7 +315,7 @@ jobs:
       timeout-minutes: 15
 
   build-test-on-x64-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         tc: ['octane v8 web-tooling-benchmark', 'chakracore spidermonkey new-es']
