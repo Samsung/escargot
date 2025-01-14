@@ -76,8 +76,96 @@ struct ISODateTime {
     {
     }
 
+    MAKE_STACK_ALLOCATED();
+
     ISODate date;
     TimeRecord time;
+};
+
+struct YearWeek {
+    static const int UndefinedValue = std::numeric_limits<int>::max();
+
+    YearWeek(int w, int y)
+        : week(w)
+        , year(y)
+    {
+    }
+
+    Value weekValue() const
+    {
+        if (week == UndefinedValue) {
+            return Value();
+        }
+        return Value(week);
+    }
+
+    Value yearValue() const
+    {
+        if (year == UndefinedValue) {
+            return Value();
+        }
+        return Value(year);
+    }
+
+    int week = UndefinedValue;
+    int year = UndefinedValue;
+};
+
+struct CalendarDate {
+    static const int EraYearUndefinedValue = std::numeric_limits<int>::max();
+
+    CalendarDate(int y, int mon, String* monCode, int d, int dow, int doy, const YearWeek& yw, int diw, int dim, int diy, int miy, bool leapYear)
+        : era(nullptr)
+        , eraYear(EraYearUndefinedValue)
+        , year(y)
+        , month(mon)
+        , monthCode(monCode)
+        , day(d)
+        , dayOfWeek(dow)
+        , dayOfYear(doy)
+        , weekOfYear(yw)
+        , daysInWeek(diw)
+        , daysInMonth(dim)
+        , daysInYear(diy)
+        , monthsInYear(miy)
+        , inLeapYear(leapYear)
+    {
+    }
+
+    MAKE_STACK_ALLOCATED();
+
+    Value eraValue() const
+    {
+        if (!era) {
+            return Value();
+        }
+        return Value(era);
+    }
+
+    Value eraYearValue() const
+    {
+        if (eraYear == EraYearUndefinedValue) {
+            return Value();
+        }
+        return Value(eraYear);
+    }
+
+    // FIXME types of members could be changed to smaller types
+    // these members could be rearranged for better alignment as well
+    String* era = nullptr;
+    int eraYear = EraYearUndefinedValue;
+    int year = 0;
+    int month = 0;
+    String* monthCode = nullptr;
+    int day = 0;
+    int dayOfWeek = 0;
+    int dayOfYear = 0;
+    YearWeek weekOfYear;
+    int daysInWeek = 0;
+    int daysInMonth = 0;
+    int daysInYear = 0;
+    int monthsInYear = 0;
+    bool inLeapYear = false;
 };
 
 class Temporal {
@@ -109,8 +197,17 @@ public:
     };
     */
 
+    static double epochDayNumberForYear(const double year);
+    static int epochTimeToEpochYear(const double time);
+    static double epochTimeForYear(const double year);
+    static int mathematicalInLeapYear(const double time);
+    static int mathematicalDaysInYear(const int year);
+
     static bool isValidISODate(ExecutionState& state, const int year, const int month, const int day);
-    static int ISODaysInMonth(ExecutionState& state, const int year, const int month);
+    static int ISODayOfWeek(const ISODate& date);
+    static int ISODayOfYear(const ISODate& date);
+    static int ISODaysInMonth(const int year, const int month);
+    static YearWeek ISOWeekOfYear(const ISODate& date);
     static bool ISODateWithinLimits(ExecutionState& state, const ISODate& date);
     static bool ISODateTimeWithinLimits(ExecutionState& state, const ISODateTime& dateTime);
 
