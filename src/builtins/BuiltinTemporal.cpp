@@ -30,6 +30,32 @@ namespace Escargot {
 
 #if defined(ENABLE_TEMPORAL)
 
+
+#define RESOLVE_THIS_BINDING_TO_PLAINDATE(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                           \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainDateObject()) {                                                                                                                                                                                     \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyPlainDate().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                      \
+    TemporalPlainDateObject* NAME = thisValue.asObject()->asTemporalPlainDateObject();
+
+
+#define FOR_EACH_PLAINDATE_PROTOTYPE_CALENDARDATE_GETTER(F) \
+    F(Era, eraValue())                                      \
+    F(EraYear, eraYearValue())                              \
+    F(Year, year)                                           \
+    F(Month, month)                                         \
+    F(MonthCode, monthCode)                                 \
+    F(Day, day)                                             \
+    F(DayOfWeek, dayOfWeek)                                 \
+    F(DayOfYear, dayOfYear)                                 \
+    F(WeekOfYear, weekOfYear.weekValue())                   \
+    F(YearOfWeek, weekOfYear.yearValue())                   \
+    F(DaysInWeek, daysInWeek)                               \
+    F(DaysInMonth, daysInMonth)                             \
+    F(DaysInYear, daysInYear)                               \
+    F(MonthsInYear, monthsInYear)                           \
+    F(InLeapYear, inLeapYear)
+
+
 // abstract functions (helper)
 static int toIntegerWithTruncation(ExecutionState& state, const Value& arg)
 {
@@ -39,6 +65,34 @@ static int toIntegerWithTruncation(ExecutionState& state, const Value& arg)
     }
 
     return static_cast<int>(trunc(num));
+}
+
+static CalendarDate calendarISOToDate(ExecutionState& state, const String* calendar, const ISODate& date)
+{
+    ASSERT(date.month >= 0);
+    StaticStrings* strings = &state.context()->staticStrings();
+
+    if (calendar->equals(strings->lazyISO8601().string())) {
+        StringBuilder builder;
+        builder.appendChar('M');
+        String* monthPart = strings->dtoa(date.month);
+        if (monthPart->length() == 1) {
+            builder.appendChar('0');
+            builder.appendString(monthPart);
+        } else {
+            builder.appendSubString(monthPart, 0, 2);
+        }
+        String* monthCode = builder.finalize();
+
+        bool inLeapYear = true;
+        if (Temporal::mathematicalInLeapYear(Temporal::epochTimeForYear(date.year)) != 1) {
+            inLeapYear = false;
+        }
+
+        return CalendarDate(date.year, date.month, monthCode, date.day, Temporal::ISODayOfWeek(date), Temporal::ISODayOfYear(date), Temporal::ISOWeekOfYear(date), 7, Temporal::ISODaysInMonth(date.year, date.month), Temporal::mathematicalDaysInYear(date.year), 12, inLeapYear);
+    }
+
+    return calendarISOToDate(state, strings->lazyISO8601().string(), date);
 }
 
 // Temporal.PlainDate
@@ -84,6 +138,23 @@ static Value builtinTemporalPlainDateCompare(ExecutionState& state, Value thisVa
     return Value();
 }
 
+static Value builtinTemporalPlainDateCalendarId(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATE(temporalDate, CalendarId);
+    return temporalDate->calendar();
+}
+
+
+#define DEFINE_PLAINDATE_PROTOTYPE_CALENDARDATE_GETTER(NAME, PROP)                                                                             \
+    static Value builtinTemporalPlainDate##NAME(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) \
+    {                                                                                                                                          \
+        RESOLVE_THIS_BINDING_TO_PLAINDATE(plainDate, NAME);                                                                                    \
+        return Value(calendarISOToDate(state, plainDate->calendar(), plainDate->date()).PROP);                                                 \
+    }
+
+FOR_EACH_PLAINDATE_PROTOTYPE_CALENDARDATE_GETTER(DEFINE_PLAINDATE_PROTOTYPE_CALENDARDATE_GETTER)
+#undef DEFINE_PLAINDATE_PROTOTYPE_CALENDARDATE_GETTER
+
 
 void GlobalObject::initializeTemporal(ExecutionState& state)
 {
@@ -117,6 +188,26 @@ void GlobalObject::installTemporal(ExecutionState& state)
 
     m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                           ObjectPropertyDescriptor(Value(strings->lazyTemporalDotPlainDate().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    {
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinTemporalPlainDateCalendarId, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCalendarId()), desc);
+    }
+
+#define DEFINE_PLAINDATE_PROTOTYPE_CALENDARDATE_GETTER_PROPERTY(NAME, PROP)                                                                     \
+    {                                                                                                                                           \
+        JSGetterSetter gs(                                                                                                                      \
+            new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), builtinTemporalPlainDate##NAME, 0, NativeFunctionInfo::Strict)), \
+            Value(Value::EmptyValue));                                                                                                          \
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);                                                       \
+        m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazy##NAME()), desc);                          \
+    }
+
+    FOR_EACH_PLAINDATE_PROTOTYPE_CALENDARDATE_GETTER(DEFINE_PLAINDATE_PROTOTYPE_CALENDARDATE_GETTER_PROPERTY)
+#undef DEFINE_PLAINDATE_PROTOTYPE_CALENDARDATE_GETTER_PROPERTY
 
 
     m_temporalPlainDate->setFunctionPrototype(state, m_temporalPlainDatePrototype);

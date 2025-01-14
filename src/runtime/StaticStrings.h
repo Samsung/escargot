@@ -820,12 +820,24 @@ namespace Escargot {
 #endif
 
 #if defined(ENABLE_TEMPORAL)
-#define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F) \
-    F(ISO8601, "iso8601")                       \
-    F(Overflow, "overflow")                     \
-    F(PlainDate, "PlainDate")                   \
-    F(Temporal, "Temporal")                     \
-    F(TemporalDotPlainDate, "Temporal.PlainDate")
+#define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)   \
+    F(CalendarId, "calendarId")                   \
+    F(DayOfWeek, "dayOfWeek")                     \
+    F(DayOfYear, "dayOfYear")                     \
+    F(DaysInMonth, "daysInMonth")                 \
+    F(DaysInWeek, "daysInWeek")                   \
+    F(DaysInYear, "daysInYear")                   \
+    F(EraYear, "eraYear")                         \
+    F(InLeapYear, "inLeapYear")                   \
+    F(ISO8601, "iso8601")                         \
+    F(MonthCode, "monthCode")                     \
+    F(MonthsInYear, "monthsInYear")               \
+    F(Overflow, "overflow")                       \
+    F(PlainDate, "PlainDate")                     \
+    F(Temporal, "Temporal")                       \
+    F(TemporalDotPlainDate, "Temporal.PlainDate") \
+    F(WeekOfYear, "weekOfYear")                   \
+    F(YearOfWeek, "yearOfWeek")
 #else
 #define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)
 #endif

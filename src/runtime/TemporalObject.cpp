@@ -29,50 +29,6 @@ namespace Escargot {
 //////////////////
 // helper function
 //////////////////
-static int epochDayNumberForYear(const int year)
-{
-    return static_cast<int>(365 * (year - 1970) + std::floor((year - 1969) / 4) - std::floor((year - 1901) / 100) + std::floor((year - 1601) / 400));
-}
-
-static int epochTimeForYear(const int year)
-{
-    return TimeConstant::MsPerDay * epochDayNumberForYear(year);
-}
-
-static int epochTimeToEpochYear(const int time)
-{
-    return DateObject::yearFromTime(time);
-}
-
-static int mathematicalDaysInYear(const int year)
-{
-    if ((year % 4) != 0) {
-        return 365;
-    }
-
-    if ((year % 100) != 0) {
-        return 366;
-    }
-
-    if ((year % 400) != 0) {
-        return 365;
-    }
-
-    return 366;
-}
-
-static int mathematicalInLeapYear(const int time)
-{
-    int daysInYear = mathematicalDaysInYear(epochTimeToEpochYear(time));
-
-    if (daysInYear == 365) {
-        return 0;
-    } else {
-        ASSERT(daysInYear == 366);
-        return 1;
-    }
-}
-
 static Value getOption(ExecutionState& state, Object* options, Value property, bool isBool, Value* values, size_t valuesLength, const Value& defaultValue)
 {
     Value value = options->get(state, ObjectPropertyName(state, property)).value(state, options);
@@ -225,13 +181,57 @@ static double makeDate(double day, double time)
 ////////////////////////////
 // Temporal helper functions
 ////////////////////////////
+double Temporal::epochDayNumberForYear(const double year)
+{
+    return 365.0 * (year - 1970.0) + std::floor((year - 1969.0) / 4.0) - std::floor((year - 1901.0) / 100.0) + std::floor((year - 1601.0) / 400.0);
+}
+
+int Temporal::epochTimeToEpochYear(const double time)
+{
+    return DateObject::yearFromTime(time);
+}
+
+double Temporal::epochTimeForYear(const double year)
+{
+    return TimeConstant::MsPerDay * epochDayNumberForYear(year);
+}
+
+int Temporal::mathematicalInLeapYear(const double time)
+{
+    int daysInYear = mathematicalDaysInYear(epochTimeToEpochYear(time));
+
+    if (daysInYear == 365) {
+        return 0;
+    } else {
+        ASSERT(daysInYear == 366);
+        return 1;
+    }
+}
+
+int Temporal::mathematicalDaysInYear(const int year)
+{
+    if ((year % 4) != 0) {
+        return 365;
+    }
+
+    if ((year % 100) != 0) {
+        return 366;
+    }
+
+    if ((year % 400) != 0) {
+        return 365;
+    }
+
+    return 366;
+}
+
 bool Temporal::isValidISODate(ExecutionState& state, const int year, const int month, const int day)
 {
     if (month < 1 || month > 12) {
         return false;
     }
 
-    int daysInMonth = Temporal::ISODaysInMonth(state, year, month);
+    int daysInMonth = Temporal::ISODaysInMonth(year, month);
     if (day < 1 || day > daysInMonth) {
         return false;
     }
@@ -239,7 +239,7 @@ bool Temporal::isValidISODate(ExecutionState& state, const int year, const int m
     return true;
 }
 
-int Temporal::ISODaysInMonth(ExecutionState& state, const int year, const int month)
+int Temporal::ISODaysInMonth(const int year, const int month)
 {
     if (month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12) {
         return 31;
@@ -253,6 +253,65 @@ int Temporal::ISODaysInMonth(ExecutionState& state, const int year, const int mo
 
     // Return 28 + MathematicalInLeapYear(EpochTimeForYear(year)).
     return 28 + mathematicalInLeapYear(epochTimeForYear(year));
+}
+
+int Temporal::ISODayOfWeek(const ISODate& date)
+{
+    // Let epochDays be ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]]).
+    double epochDays = makeDay(date.year, date.month - 1, date.day);
+    int dayOfWeek = static_cast<int>(std::floor((epochDays * TimeConstant::MsPerDay) / TimeConstant::MsPerDay) + 4) % 7;
+
+    if (dayOfWeek == 0) {
+        return 7;
+    }
+
+    return dayOfWeek;
+}
+
+int Temporal::ISODayOfYear(const ISODate& date)
+{
+    // Let epochDays be ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]]).
+    double epochDays = makeDay(date.year, date.month - 1, date.day);
+    double t = epochDays * TimeConstant::MsPerDay;
+
+    return static_cast<int>(std::floor(t / TimeConstant::MsPerDay) - epochDayNumberForYear(DateObject::yearFromTime(t))) + 1;
+}
+
+YearWeek Temporal::ISOWeekOfYear(const ISODate& date)
+{
+    const int year = date.year;
+    const int wednesday = 3;
+    const int thursday = 4;
+    const int friday = 5;
+    const int saturday = 6;
+    const int daysInWeek = 7;
+    const int maxWeekNumber = 53;
+    const int dayOfYear = ISODayOfYear(date);
+    const int dayOfWeek = ISODayOfWeek(date);
+    const int week = static_cast<int>(std::floor((double)(dayOfYear + daysInWeek - dayOfWeek + wednesday) / daysInWeek));
+
+    if (week < 1) {
+        ISODate jan1st(year, 1, 1);
+        int dayOfJan1st = ISODayOfWeek(jan1st);
+        if (dayOfJan1st == friday) {
+            return YearWeek(maxWeekNumber, year - 1);
+        }
+        if ((dayOfJan1st == saturday) && (mathematicalInLeapYear(epochTimeForYear(year - 1)) == 1)) {
+            return YearWeek(maxWeekNumber, year - 1);
+        }
+        return YearWeek(maxWeekNumber - 1, year - 1);
+    }
+
+    if (week == maxWeekNumber) {
+        int daysInYear = mathematicalDaysInYear(year);
+        int daysLaterInYear = daysInYear - dayOfYear;
+        int daysAfterThursday = thursday - dayOfWeek;
+        if (daysLaterInYear < daysAfterThursday) {
+            return YearWeek(1, year + 1);
+        }
+    }
+
+    return YearWeek(week, year);
 }
 
 bool Temporal::ISODateWithinLimits(ExecutionState& state, const ISODate& date)
