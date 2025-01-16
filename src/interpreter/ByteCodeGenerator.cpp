@@ -210,11 +210,22 @@ ByteCodeBreakpointContext::ByteCodeBreakpointContext(Debugger* debugger, Interpr
     : m_lastBreakpointLineOffset(0)
     , m_lastBreakpointIndexOffset(0)
     , m_originSourceLineOffset(codeBlock->script()->originSourceLineOffset())
-    , m_breakpointLocations()
+    , m_breakpointLocations(nullptr)
+    , m_sharedWithDebugger(false)
 {
     m_breakpointLocations = new Debugger::BreakpointLocationsInfo(reinterpret_cast<Debugger::WeakCodeRef*>(codeBlock));
     if (debugger && codeBlock->markDebugging() && addBreakpointLocationsInfoToDebugger) {
         debugger->appendBreakpointLocations(m_breakpointLocations);
+        m_sharedWithDebugger = true;
+    }
+}
+
+ByteCodeBreakpointContext::~ByteCodeBreakpointContext()
+{
+    if (!m_sharedWithDebugger) {
+        // directly delete each BreakpointLocationsInfo
+        // because BreakpointLocationsInfo is not shared with Debugger
+        delete m_breakpointLocations;
     }
 }
 #endif /* ESCARGOT_DEBUGGER */

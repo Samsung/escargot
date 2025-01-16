@@ -870,6 +870,7 @@ public:
     // Base class for debugger callbacks
     class DebuggerClient {
     public:
+        virtual ~DebuggerClient(){};
         virtual void parseCompleted(StringRef* source, StringRef* srcName, std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>& breakpointLocationsVector) = 0;
         virtual void parseError(StringRef* source, StringRef* srcName, StringRef* error) = 0;
         virtual void codeReleased(WeakCodeRef* weakCodeRef) = 0;
@@ -900,6 +901,7 @@ public:
     void throwException(ValueRef* exceptionValue);
 
     bool initDebugger(DebuggerOperationsRef::DebuggerClient* debuggerClient);
+    bool disableDebugger();
     // available options(separator is ';')
     // "--port=6501", default for TCP debugger
     bool initDebuggerRemote(const char* options);

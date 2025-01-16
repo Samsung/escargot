@@ -1718,6 +1718,7 @@ public:
     virtual void consoleOut(String* output) override;
     virtual String* getClientSource(String** sourceName) override;
     virtual bool getWaitBeforeExitClient() override;
+    virtual void deleteClient() override;
 
     DebuggerC(DebuggerOperationsRef::DebuggerClient* debuggerClient, Context* context)
         : m_debuggerClient(debuggerClient)
@@ -1821,7 +1822,11 @@ void DebuggerC::stopAtBreakpoint(ByteCodeBlock* byteCodeBlock, uint32_t offset, 
 
 void DebuggerC::byteCodeReleaseNotification(ByteCodeBlock* byteCodeBlock)
 {
-    m_debuggerClient->codeReleased(reinterpret_cast<DebuggerOperationsRef::WeakCodeRef*>(byteCodeBlock));
+    if (m_debuggerClient) {
+        // Debugger could be removed earlier when this function called
+        // e.g. release global objects such as Context and VMInstance at the end of execution
+        m_debuggerClient->codeReleased(reinterpret_cast<DebuggerOperationsRef::WeakCodeRef*>(byteCodeBlock));
+    }
 }
 
 void DebuggerC::exceptionCaught(String* message, SavedStackTraceDataVector& exceptionTrace)
@@ -1845,6 +1850,15 @@ String* DebuggerC::getClientSource(String** sourceName)
 bool DebuggerC::getWaitBeforeExitClient()
 {
     return false;
+}
+
+void DebuggerC::deleteClient()
+{
+    if (m_debuggerClient) {
+        // delete DebuggerClient that was created and delivered from the user
+        delete m_debuggerClient;
+        m_debuggerClient = nullptr;
+    }
 }
 
 bool DebuggerC::processEvents(ExecutionState* state, Optional<ByteCodeBlock*> byteCodeBlock, bool isBlockingRequest)
@@ -3091,6 +3105,19 @@ bool ContextRef::initDebugger(DebuggerOperationsRef::DebuggerClient* debuggerCli
 #else /* !ESCARGOT_DEBUGGER */
     return false;
 #endif /* ESCARGOT_DEBUGGER */
+}
+
+bool ContextRef::disableDebugger()
+{
+#ifdef ESCARGOT_DEBUGGER
+    Context* context = toImpl(this);
+    if (context->debugger()) {
+        context->debugger()->deleteClient();
+    }
+    return true;
+#else
+    return false;
+#endif
 }
 
 bool ContextRef::initDebuggerRemote(const char* options)
