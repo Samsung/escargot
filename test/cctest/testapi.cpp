@@ -665,6 +665,7 @@ TEST(FunctionObject, Consturct)
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* fn) -> ValueRef* {
         ObjectRef* obj = fn->construct(state, 0, nullptr)->asObject();
         EXPECT_TRUE(obj->instanceOf(state, fn));
+        return ValueRef::createUndefined();
     },
                        fn);
 }
@@ -2873,6 +2874,8 @@ TEST(Debugger, Basic)
     EXPECT_EQ(debuggerParseErrorCount, 1);
     EXPECT_EQ(debuggerTest->stopAtBreakpointCount, 5);
 
+    context->disableDebugger();
+
     context.release();
     instance.release();
 }
@@ -2984,6 +2987,8 @@ TEST(Debugger, ObjectStore)
 
     source = StringRef::createFromUTF8(debuggerSourceString2, sizeof(debuggerSourceString2) - 1);
     evalScript(context, source, fileName, false);
+
+    context->disableDebugger();
 
     context.release();
     instance.release();

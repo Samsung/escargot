@@ -58,8 +58,12 @@ struct ByteCodeBreakpointContext {
     size_t m_originSourceLineOffset; // original source's start line offset
     Debugger::BreakpointLocationsInfo* m_breakpointLocations;
     bool m_parsingEnabled;
+    bool m_sharedWithDebugger;
 
     ByteCodeBreakpointContext(Debugger* debugger, InterpretedCodeBlock* codeBlock, bool addBreakpointLocationsInfoToDebugger = true);
+    ~ByteCodeBreakpointContext();
+
+    MAKE_STACK_ALLOCATED();
 };
 #endif /* ESCARGOT_DEBUGGER */
 

@@ -111,9 +111,11 @@ ByteCodeBlock::ByteCodeBlock()
 static void clearByteCodeBlock(ByteCodeBlock* self)
 {
 #ifdef ESCARGOT_DEBUGGER
-    Debugger* debugger = self->codeBlock()->context()->debugger();
-    if (debugger != nullptr && self->codeBlock()->markDebugging()) {
-        debugger->byteCodeReleaseNotification(self);
+    if (!self->m_isOwnerMayFreed) {
+        Debugger* debugger = self->codeBlock()->context()->debugger();
+        if (debugger != nullptr && self->codeBlock()->markDebugging()) {
+            debugger->byteCodeReleaseNotification(self);
+        }
     }
 #endif
     self->m_code.clear();

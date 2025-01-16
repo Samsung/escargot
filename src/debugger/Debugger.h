@@ -46,7 +46,7 @@ class InterpretedCodeBlock;
 
 class Debugger : public gc {
 public:
-    // The following code is the sam as in EscargotPublic.h
+    // The following code is the same as in EscargotPublic.h
     class WeakCodeRef;
 
     struct BreakpointLocation {
@@ -108,6 +108,10 @@ public:
 
     void clearParsingData()
     {
+        for (size_t i = 0; i < m_breakpointLocationsVector.size(); i++) {
+            // delete each shared Debugger::BreakpointLocationsInfo here
+            delete m_breakpointLocationsVector[i];
+        }
         m_breakpointLocationsVector.clear();
     }
 
@@ -163,6 +167,7 @@ public:
     virtual void consoleOut(String* output) = 0;
     virtual String* getClientSource(String** sourceName) = 0;
     virtual bool getWaitBeforeExitClient() = 0;
+    virtual void deleteClient() {}
     virtual bool skipSourceCode(String* srcName) const
     {
         return false;
