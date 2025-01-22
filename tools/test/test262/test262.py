@@ -330,6 +330,11 @@ class TestCase(object):
       source = source + \
                self.suite.GetInclude("atomicsHelper.js") + \
                self.suite.GetInclude("doneprintHandle.js").replace('print', self.suite.print_handle)
+    # Escargot: add doneprintHandle.js for 'async' flag
+    elif "flags" in self.testRecord:
+      if "async" in self.testRecord["flags"]:
+        source = source + \
+                 self.suite.GetInclude("doneprintHandle.js").replace('print', self.suite.print_handle)
 
     source = source + \
         self.GetAdditionalIncludes() + \
