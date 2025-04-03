@@ -29,7 +29,7 @@ jobs:
         BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_CODE_CACHE=ON -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
         export PATH=$GITHUB_WORKSPACE/cov-analysis-linux64/bin:$PATH
-        cmake -H. -Bout/coverity_scan $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverity_scan $BUILD_OPTIONS
         cov-build --dir cov-int ninja -Cout/coverity_scan
     - name: Submit
       env:
@@ -61,7 +61,7 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_COVERAGE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        cmake -H. -Bout/coverage $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/coverage $BUILD_OPTIONS
         ninja -Cout/coverage
     - name: Run test262 and collect coverage data
       # test262 is unstable in actions env, but coverage data will be accumulated

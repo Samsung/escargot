@@ -71,10 +71,10 @@ jobs:
         # add icu path to pkg_config_path
         export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
         echo $PKG_CONFIG_PATH
-        cmake -H. -Bout/debug/ -DESCARGOT_MODE=debug $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/debug/ -DESCARGOT_MODE=debug $BUILD_OPTIONS
         ninja -Cout/debug/
         $RUNNER --engine="./out/debug/escargot" new-es
-        cmake -H. -Bout/release/ -DESCARGOT_MODE=release $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/release/ -DESCARGOT_MODE=release $BUILD_OPTIONS
         ninja -Cout/release/
         cp test/octane/*.js .
         ./out/release/escargot run.js
@@ -123,13 +123,13 @@ jobs:
       env:
         BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        CC=clang CXX=clang++ cmake -H. -Bout/clang/x86 $BUILD_OPTIONS
+        CC=clang CXX=clang++ cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/clang/x86 $BUILD_OPTIONS
         ninja -Cout/clang/x86
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        CC=clang CXX=clang++ cmake -H. -Bout/clang/x64 $BUILD_OPTIONS
+        CC=clang CXX=clang++ cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/clang/x64 $BUILD_OPTIONS
         ninja -Cout/clang/x64
         $RUNNER --engine="./out/clang/x64/escargot" new-es
 
@@ -155,6 +155,8 @@ jobs:
       with:
         timezoneWindows: "Pacific Standard Time"
     - uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: "~3.25.0"
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
         sdk-version: 20348
@@ -206,6 +208,8 @@ jobs:
       with:
         timezoneWindows: "Pacific Standard Time"
     - uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: "~3.25.0"  # <--= optional, use most recent 3.25.x version
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
         sdk-version: 20348
@@ -252,6 +256,8 @@ jobs:
       with:
         submodules: true
     - uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: "~3.25.0"  # <--= optional, use most recent 3.25.x version
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
         sdk-version: 20348
@@ -263,7 +269,7 @@ jobs:
     - name: Build x64 UWP Release
       run: |
         CMake -G "Visual Studio 17 2022" -DCMAKE_SYSTEM_NAME=WindowsStore -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=x64 -Bout/win64_release_uwp/ -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_TEST=ON
-        cmake --build out\win64_release_uwp --config Release
+        CMake --build out\win64_release_uwp --config Release
       shell: cmd
     - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
@@ -304,7 +310,7 @@ jobs:
         export CXXFLAGS="-I$GITHUB_WORKSPACE/icu32/usr/include"
         export LDFLAGS="-L$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu -Wl,-rpath=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu"
         export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/icu32/usr/lib/i386-linux-gnu/pkgconfig
-        cmake -H. -Bout/release/x86 $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/release/x86 $BUILD_OPTIONS
         ninja -Cout/release/x86
     - name: Run release-x86 test
       env:
@@ -337,7 +343,7 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        cmake -H. -Bout/release/x64 $BUILD_OPTIONS ${{ matrix.build_opt }}
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/release/x64 $BUILD_OPTIONS ${{ matrix.build_opt }}
         ninja -Cout/release/x64
     - name: Run release-x64 test
       env:
@@ -370,8 +376,8 @@ jobs:
         BUILD_OPTIONS_X86: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_MODE=debug -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
         BUILD_OPTIONS_X64: -DESCARGOT_MODE=debug -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        cmake -H. -Bout/debug/x86 $BUILD_OPTIONS_X86
-        cmake -H. -Bout/debug/x64 $BUILD_OPTIONS_X64
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/debug/x86 $BUILD_OPTIONS_X86
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/debug/x64 $BUILD_OPTIONS_X64
         ninja -Cout/debug/x86
         ninja -Cout/debug/x64
     - name: Run debug-mode test
@@ -390,11 +396,11 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        LDFLAGS=" -L/usr/icu32/lib/ -Wl,-rpath=/usr/icu32/lib/" PKG_CONFIG_PATH="/usr/icu32/lib/pkgconfig/" cmake -H./ -Bbuild/out_linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
-        LDFLAGS=" -L/usr/icu32/lib/ -Wl,-rpath=/usr/icu32/lib/" PKG_CONFIG_PATH="/usr/icu32/lib/pkgconfig/" cmake -H./ -Bbuild/out_linux_release -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu32/lib/ -Wl,-rpath=/usr/icu32/lib/" PKG_CONFIG_PATH="/usr/icu32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu32/lib/ -Wl,-rpath=/usr/icu32/lib/" PKG_CONFIG_PATH="/usr/icu32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux_release -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
         gcc -shared -m32 -fPIC -o backtrace-hooking-32.so tools/test/test262/backtrace-hooking.c
-        LDFLAGS=" -L/usr/icu64/lib/ -Wl,-rpath=/usr/icu64/lib/" PKG_CONFIG_PATH="/usr/icu64/lib/pkgconfig/" cmake -H./ -Bbuild/out_linux64 -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
-        LDFLAGS=" -L/usr/icu64/lib/ -Wl,-rpath=/usr/icu64/lib/" PKG_CONFIG_PATH="/usr/icu64/lib/pkgconfig/" cmake -H./ -Bbuild/out_linux64_release -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu64/lib/ -Wl,-rpath=/usr/icu64/lib/" PKG_CONFIG_PATH="/usr/icu64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64 -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu64/lib/ -Wl,-rpath=/usr/icu64/lib/" PKG_CONFIG_PATH="/usr/icu64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64_release -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release $BUILD_OPTIONS
         cmake --build build/out_linux/
         cmake --build build/out_linux64/
         cmake --build build/out_linux_release/
@@ -415,7 +421,7 @@ jobs:
         submodules: true
     - name: Build
       run: |
-        cmake -H./ -Bout -DCMAKE_C_COMPILER=gcc-11 -DCMAKE_CXX_COMPILER=g++-11 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm32 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DCMAKE_C_COMPILER=gcc-11 -DCMAKE_CXX_COMPILER=g++-11 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm32 -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
         cmake --build ./out/
     - name: Test
       run: |
@@ -430,7 +436,7 @@ jobs:
         submodules: true
     - name: Build
       run: |
-        cmake -H./ -Bout -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bout -DESCARGOT_MODE=release -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
         cmake --build ./out/
     - name: Test
       run: |
@@ -474,7 +480,7 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_MODE=debug -DESCARGOT_DEBUGGER=1 -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        cmake -H. -Bout/debugger $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/debugger $BUILD_OPTIONS
         ninja -Cout/debugger
     - name: Debugger Test
       run: |
@@ -496,9 +502,9 @@ jobs:
         BUILD_OPTIONS_X86: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_MODE=debug -DESCARGOT_THREADING=ON -DESCARGOT_DEBUGGER=1 -DESCARGOT_USE_EXTENDED_API=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=cctest -GNinja
         BUILD_OPTIONS_X64: -DESCARGOT_MODE=debug -DESCARGOT_THREADING=1 -DESCARGOT_DEBUGGER=1 -DESCARGOT_USE_EXTENDED_API=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=cctest -GNinja
       run: |
-        cmake -H. -Bout/cctest/x86 $BUILD_OPTIONS_X86
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/cctest/x86 $BUILD_OPTIONS_X86
         ninja -Cout/cctest/x86
-        cmake -H. -Bout/cctest/x64 $BUILD_OPTIONS_X64
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/cctest/x64 $BUILD_OPTIONS_X64
         ninja -Cout/cctest/x64
     - name: Run Test
       run: |
@@ -522,19 +528,19 @@ jobs:
       env:
         BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_MODE=debug -DESCARGOT_CODE_CACHE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        cmake -H. -Bout/codecache/x86 $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/codecache/x86 $BUILD_OPTIONS
         ninja -Cout/codecache/x86
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_MODE=debug -DESCARGOT_CODE_CACHE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        cmake -H. -Bout/codecache/x64 $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/codecache/x64 $BUILD_OPTIONS
         ninja -Cout/codecache/x64
     - name: Build x64 Release Mode
       env:
         BUILD_OPTIONS: -DESCARGOT_MODE=release -DESCARGOT_CODE_CACHE=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        cmake -H. -Bout/codecache/release/x64 $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/codecache/release/x64 $BUILD_OPTIONS
         ninja -Cout/codecache/release/x64
     - name: Run x86 test
       run: |
@@ -585,13 +591,13 @@ jobs:
       env:
         BUILD_OPTIONS: -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        cmake -H. -Bout/wasm/x86 $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/wasm/x86 $BUILD_OPTIONS
         ninja -Cout/wasm/x86
     - name: Build x64
       env:
         BUILD_OPTIONS: -DESCARGOT_MODE=debug -DESCARGOT_WASM=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        cmake -H. -Bout/wasm/x64 $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/wasm/x64 $BUILD_OPTIONS
         ninja -Cout/wasm/x64
     - name: Run x86 test
       run: $RUNNER --arch=x86 --engine="$GITHUB_WORKSPACE/out/wasm/x86/escargot" wasm-js
