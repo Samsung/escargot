@@ -3995,8 +3995,12 @@ static Value callDynamicImportRejected(ExecutionState& state, Value thisValue, s
 {
     ExtendedNativeFunctionObject* self = state.resolveCallee()->asExtendedNativeFunctionObject();
     Script::ModuleData::ModulePromiseObject* promise = self->internalSlotAsPointer<Script::ModuleData::ModulePromiseObject>(0);
-    Script::ModuleData::ModulePromiseObject* outerPromise = (Script::ModuleData::ModulePromiseObject*)argv[0].asPointerValue()->asPromiseObject();
-    promise->reject(state, outerPromise->m_value);
+    if (argv[0].isObject() && argv[0].asObject()->isPromiseObject()) {
+        Script::ModuleData::ModulePromiseObject* outerPromise = (Script::ModuleData::ModulePromiseObject*)argv[0].asPointerValue()->asPromiseObject();
+        promise->reject(state, outerPromise->m_value);
+    } else {
+        promise->reject(state, argv[0]);
+    }
     return Value();
 }
 
