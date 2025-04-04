@@ -5899,9 +5899,11 @@ public:
                     kind = ClassElementNode::Kind::Field;
                     value = this->parseClassFieldInitializer(builder, debuggerLineStart);
                 }
-            } else if (this->match(SemiColon)) {
+            } else if (this->match(SemiColon) || this->match(RightBrace)) {
                 auto metaNode = this->createNode();
-                this->nextToken();
+                if (this->match(SemiColon)) {
+                    this->nextToken();
+                }
 
                 kind = ClassElementNode::Kind::Field;
                 value = this->finalize(metaNode, builder.createLiteralNode(Value()));
