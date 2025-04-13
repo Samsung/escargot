@@ -60,7 +60,7 @@ uint64_t fastTickCount()
 #if defined(CLOCK_MONOTONIC_COARSE)
     timespec ts;
     clock_gettime(CLOCK_MONOTONIC_COARSE, &ts);
-    return (uint64_t)ts.tv_sec * 1000UL + ts.tv_nsec / 1000000UL;
+    return static_cast<uint64_t>(ts.tv_sec * 1000UL + ts.tv_nsec / 1000000UL);
 #else
     return tickCount();
 #endif
@@ -70,34 +70,34 @@ uint64_t tickCount()
 {
     std::chrono::system_clock::duration d = std::chrono::system_clock::now().time_since_epoch();
     std::chrono::seconds s = std::chrono::duration_cast<std::chrono::seconds>(d);
-    return (uint64_t)s.count() * 1000UL + std::chrono::duration_cast<std::chrono::microseconds>(d - s).count() / 1000UL;
+    return static_cast<uint64_t>(s.count()) * 1000UL + std::chrono::duration_cast<std::chrono::microseconds>(d - s).count() / 1000UL;
 }
 
 uint64_t longTickCount()
 {
     std::chrono::system_clock::duration d = std::chrono::system_clock::now().time_since_epoch();
     std::chrono::seconds s = std::chrono::duration_cast<std::chrono::seconds>(d);
-    return (uint64_t)s.count() * 1000000UL + std::chrono::duration_cast<std::chrono::microseconds>(d - s).count();
+    return static_cast<uint64_t>(s.count()) * 1000000UL + std::chrono::duration_cast<std::chrono::microseconds>(d - s).count();
 }
 
 uint64_t timestamp()
 {
     std::chrono::system_clock::duration d = std::chrono::system_clock::now().time_since_epoch();
     std::chrono::seconds s = std::chrono::duration_cast<std::chrono::seconds>(d);
-    return (uint64_t)s.count() * 1000UL + std::chrono::duration_cast<std::chrono::microseconds>(d - s).count() / 1000UL;
+    return static_cast<uint64_t>(s.count()) * 1000UL + std::chrono::duration_cast<std::chrono::microseconds>(d - s).count() / 1000UL;
 }
 
 ProfilerTimer::~ProfilerTimer()
 {
     uint64_t end = longTickCount();
-    float time = (float)((end - m_start) / 1000.f);
+    float time = static_cast<float>((end - m_start) / 1000.f);
     ESCARGOT_LOG_INFO("did %s in %f ms\n", m_msg, time);
 }
 
 LongTaskFinder::~LongTaskFinder()
 {
     uint64_t end = longTickCount();
-    float time = (float)((end - m_start) / 1000.f);
+    float time = static_cast<float>((end - m_start) / 1000.f);
     if (time >= m_loggingTime) {
         ESCARGOT_LOG_INFO("found long task %s in %f ms\n", m_msg, time);
     }
