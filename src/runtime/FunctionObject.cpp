@@ -93,19 +93,19 @@ static String* createFunctionSource(ExecutionState& state, AtomicString function
     }
 
     // function name
-    src.appendString(functionName.string());
+    src.appendString(functionName.string(), &state);
 
     {
         // function parameters
-        parameters.appendString("(");
+        parameters.appendString("(", &state);
         for (size_t i = 0; i < argCount; i++) {
             String* p = argArray[i].toString(state);
-            parameters.appendString(p);
+            parameters.appendString(p, &state);
             if (i != argCount - 1) {
-                parameters.appendString(",");
+                parameters.appendString(",", &state);
             }
         }
-        parameters.appendString("\n)");
+        parameters.appendString("\n)", &state);
     }
 
     String* parameterStr = parameters.finalize(&state);
@@ -114,7 +114,7 @@ static String* createFunctionSource(ExecutionState& state, AtomicString function
 
 #if defined(ENABLE_RELOADABLE_STRING)
     if (UNLIKELY(originBodyStr->isReloadableString())) {
-        src.appendString(parameterStr);
+        src.appendString(parameterStr, &state);
         src.appendString(" {\n");
 
         String* headStr = src.finalize(&state);
@@ -191,9 +191,9 @@ static String* createFunctionSource(ExecutionState& state, AtomicString function
 #endif
     {
         StringBuilder body;
-        body.appendString(" {\n");
-        body.appendString(originBodyStr);
-        body.appendString("\n}");
+        body.appendString(" {\n", &state);
+        body.appendString(originBodyStr, &state);
+        body.appendString("\n}", &state);
         String* bodyStr = body.finalize(&state);
 
 #if defined(ESCARGOT_ENABLE_TEST)
@@ -220,8 +220,8 @@ static String* createFunctionSource(ExecutionState& state, AtomicString function
         }
 #endif
 
-        src.appendString(parameterStr);
-        src.appendString(bodyStr);
+        src.appendString(parameterStr, &state);
+        src.appendString(bodyStr, &state);
         scriptSource = src.finalize(&state);
     }
 

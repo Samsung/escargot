@@ -366,7 +366,8 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
         localeBuilder.appendChar('-');
         localeBuilder.appendChar(buildResult.extensions[extensionIndex].key);
         localeBuilder.appendChar('-');
-        localeBuilder.appendString(buildResult.extensions[extensionIndex].value.data());
+        localeBuilder.appendString(buildResult.extensions[extensionIndex].value.data(),
+                                   buildResult.extensions[extensionIndex].value.length());
     }
 
     if (newUnicodeExtension.size()) {
@@ -376,12 +377,14 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
         for (size_t i = 0; i < newUnicodeExtension.size(); i++) {
             if (newUnicodeExtension[i].first.length()) {
                 localeBuilder.appendChar('-');
-                localeBuilder.appendString(newUnicodeExtension[i].first.data());
+                localeBuilder.appendString(newUnicodeExtension[i].first.data(),
+                                           newUnicodeExtension[i].first.length());
             }
 
             if (newUnicodeExtension[i].second.length()) {
                 localeBuilder.appendChar('-');
-                localeBuilder.appendString(newUnicodeExtension[i].second.data());
+                localeBuilder.appendString(newUnicodeExtension[i].second.data(),
+                                           newUnicodeExtension[i].second.length());
             }
         }
     }
@@ -390,12 +393,14 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
         localeBuilder.appendChar('-');
         localeBuilder.appendChar(buildResult.extensions[extensionIndex].key);
         localeBuilder.appendChar('-');
-        localeBuilder.appendString(buildResult.extensions[extensionIndex].value.data());
+        localeBuilder.appendString(buildResult.extensions[extensionIndex].value.data(),
+                                   buildResult.extensions[extensionIndex].value.length());
     }
 
     if (buildResult.privateUse.length()) {
         localeBuilder.appendChar('-');
-        localeBuilder.appendString(buildResult.privateUse.data());
+        localeBuilder.appendString(buildResult.privateUse.data(),
+                                   buildResult.privateUse.length());
     }
 
     m_locale = localeBuilder.finalize();

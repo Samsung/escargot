@@ -484,7 +484,7 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
     for (size_t i = 0; i < strLen; i++) {
         char16_t t = uriString->charAt(i);
         if (t != '%') {
-            unescaped.appendChar(t);
+            unescaped.appendChar(t, &state);
         } else {
             size_t start = i;
             if (i + 2 >= strLen)
@@ -505,9 +505,9 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
                 // else, C is in reservedSet, Let S be the substring of string from position start to position k included.
                 const char16_t c = b & 0x7f;
                 if (noComponent && isURIReservedOrSharp(c)) {
-                    unescaped.appendSubString(uriString, start, start + 3);
+                    unescaped.appendSubString(uriString, start, start + 3, &state);
                 } else {
-                    unescaped.appendChar(c);
+                    unescaped.appendChar(c, &state);
                 }
             } else { // most significant bit in b is 1
                 unsigned char b_tmp = b;
@@ -554,11 +554,11 @@ static Value decode(ExecutionState& state, String* uriString, bool noComponent, 
                 if (v >= 0x10000) {
                     const char16_t l = (((v - 0x10000) & 0x3ff) + 0xdc00);
                     const char16_t h = ((((v - 0x10000) >> 10) & 0x3ff) + 0xd800);
-                    unescaped.appendChar(h);
-                    unescaped.appendChar(l);
+                    unescaped.appendChar(h, &state);
+                    unescaped.appendChar(l, &state);
                 } else {
                     const char16_t l = v & 0xFFFF;
-                    unescaped.appendChar(l);
+                    unescaped.appendChar(l, &state);
                 }
             }
         }

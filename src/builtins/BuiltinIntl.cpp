@@ -740,7 +740,7 @@ static Value builtinIntlLocaleRegionGetter(ExecutionState& state, Value thisValu
     return loc.asObject()->asIntlLocaleObject()->region();
 }
 
-static void icuLocleToBCP47Locale(char* buf, size_t len)
+static size_t icuLocleToBCP47Locale(char* buf, size_t len)
 {
     for (size_t i = 0; i < len; i++) {
         if (buf[i] == '_') {
@@ -769,6 +769,8 @@ static void icuLocleToBCP47Locale(char* buf, size_t len)
             }
         }
     }
+    ASSERT(buf[len] == 0);
+    return len;
 }
 
 static Value builtinIntlLocaleMaximize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -789,9 +791,9 @@ static Value builtinIntlLocaleMaximize(ExecutionState& state, Value thisValue, s
     char buf[128];
     int32_t len = uloc_addLikelySubtags(u8Locale.data(), buf, sizeof(buf), &status);
     if (U_SUCCESS(status)) {
-        icuLocleToBCP47Locale(buf, strlen(buf));
+        size_t newLen = icuLocleToBCP47Locale(buf, strlen(buf));
         StringBuilder sb;
-        sb.appendString(buf);
+        sb.appendString(buf, newLen);
         sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
         return new IntlLocaleObject(state, sb.finalize(), nullptr);
 
@@ -803,9 +805,9 @@ static Value builtinIntlLocaleMaximize(ExecutionState& state, Value thisValue, s
     uloc_addLikelySubtags(u8Locale.data(), newBuf, len + 1, &status);
     ASSERT(U_SUCCESS(status));
 
-    icuLocleToBCP47Locale(newBuf, strlen(newBuf));
+    size_t newLen = icuLocleToBCP47Locale(newBuf, strlen(newBuf));
     StringBuilder sb;
-    sb.appendString(newBuf);
+    sb.appendString(newBuf, newLen);
     sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
     return new IntlLocaleObject(state, sb.finalize(), nullptr);
 }
@@ -828,9 +830,9 @@ static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, s
     char buf[128];
     int32_t len = uloc_minimizeSubtags(u8Locale.data(), buf, sizeof(buf), &status);
     if (U_SUCCESS(status)) {
-        icuLocleToBCP47Locale(buf, len);
+        size_t newLen = icuLocleToBCP47Locale(buf, len);
         StringBuilder sb;
-        sb.appendString(buf);
+        sb.appendString(buf, newLen);
         sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
         return new IntlLocaleObject(state, sb.finalize(), nullptr);
     } else if (status != U_BUFFER_OVERFLOW_ERROR) {
@@ -841,9 +843,9 @@ static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, s
     len = uloc_minimizeSubtags(u8Locale.data(), newBuf, len + 1, &status);
     ASSERT(U_SUCCESS(status));
 
-    icuLocleToBCP47Locale(newBuf, len);
+    size_t newLen = icuLocleToBCP47Locale(newBuf, len);
     StringBuilder sb;
-    sb.appendString(newBuf);
+    sb.appendString(newBuf, newLen);
     sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
     return new IntlLocaleObject(state, sb.finalize(), nullptr);
 }

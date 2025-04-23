@@ -62,15 +62,15 @@ ErrorObject* ErrorObject::createBuiltinError(ExecutionState& state, ErrorCode co
 {
     StringBuilder replacerBuilder;
     if (objectName->length()) {
-        replacerBuilder.appendString(objectName);
+        replacerBuilder.appendString(objectName, &state);
     }
     if (prototype) {
-        replacerBuilder.appendChar('.');
-        replacerBuilder.appendString(state.context()->staticStrings().prototype.string());
+        replacerBuilder.appendChar('.', &state);
+        replacerBuilder.appendString(state.context()->staticStrings().prototype.string(), &state);
     }
     if (functionName->length()) {
-        replacerBuilder.appendChar('.');
-        replacerBuilder.appendString(functionName);
+        replacerBuilder.appendChar('.', &state);
+        replacerBuilder.appendString(functionName, &state);
     }
 
     String* errorMessage;

@@ -1065,8 +1065,8 @@ struct equal_to<Escargot::String*> {
 } // namespace std
 
 #include "runtime/RopeString.h"
-#include "runtime/StringBuilder.h"
 #include "runtime/StringView.h"
+#include "runtime/StringBuilder.h"
 
 namespace Escargot {
 typedef HashMap<std::string, String*, std::hash<std::string>, std::equal_to<std::string>, GCUtil::gc_malloc_allocator<std::pair<std::string const, String*>>> StringMapStd;

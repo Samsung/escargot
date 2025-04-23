@@ -1607,7 +1607,7 @@ Intl::CanonicalizedLangunageTag Intl::canonicalizeLanguageTag(const std::string&
     std::sort(result.variant.begin(), result.variant.end());
     for (size_t i = 0; i < result.variant.size(); i++) {
         canonical.appendChar('-');
-        canonical.appendString(result.variant[i].data());
+        canonical.appendString(result.variant[i].data(), result.variant[i].length());
     }
 
     // Check for extension.
@@ -1940,7 +1940,7 @@ static Optional<String*> unicodeExtensionValue(ExecutionState& state, String* ex
     // Let searchValue be the concatenation of "-", key, and "-".
     StringBuilder searchValueBuilder;
     searchValueBuilder.appendChar('-');
-    searchValueBuilder.appendString(key);
+    searchValueBuilder.appendString(key, 2);
     searchValueBuilder.appendChar('-');
     String* searchValue = searchValueBuilder.finalize();
 
@@ -1998,7 +1998,7 @@ static Optional<String*> unicodeExtensionValue(ExecutionState& state, String* ex
 
     // Let searchValue be the concatenation of "-" and key.
     searchValueBuilder.appendChar('-');
-    searchValueBuilder.appendString(key);
+    searchValueBuilder.appendString(key, 2);
     searchValue = searchValueBuilder.finalize();
     // Let pos be Call(%StringProto_indexOf%, extension, « searchValue »).
     pos = extension->find(searchValue);
@@ -2087,9 +2087,9 @@ StringMap Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUti
                         // Let supportedExtensionAddition be the concatenation of "-", key, "-", and value.
                         StringBuilder supportedExtensionAdditionBuilder;
                         supportedExtensionAdditionBuilder.appendChar('-');
-                        supportedExtensionAdditionBuilder.appendString(key);
+                        supportedExtensionAdditionBuilder.appendString(key, 2);
                         supportedExtensionAdditionBuilder.appendChar('-');
-                        supportedExtensionAdditionBuilder.appendString(value.data());
+                        supportedExtensionAdditionBuilder.appendString(value.data(), value.length());
                         supportedExtensionAddition = supportedExtensionAdditionBuilder.finalize();
                     }
                 } else if (stringVectorContains(keyLocaleData, "true")) {
@@ -2099,7 +2099,7 @@ StringMap Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUti
                     // Let supportedExtensionAddition be the concatenation of "-" and key.
                     StringBuilder supportedExtensionAdditionBuilder;
                     supportedExtensionAdditionBuilder.appendChar('-');
-                    supportedExtensionAdditionBuilder.appendString(key);
+                    supportedExtensionAdditionBuilder.appendString(key, 2);
                     supportedExtensionAddition = supportedExtensionAdditionBuilder.finalize();
                 }
             }

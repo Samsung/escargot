@@ -356,31 +356,31 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
     if (!hasDollar) {
         // flat replace
         int32_t matchCount = result.m_matchResults.size();
-        builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start);
+        builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start, &state);
         for (int32_t i = 0; i < matchCount; i++) {
             String* res = replaceString;
-            builder.appendString(res);
+            builder.appendString(res, &state);
             if (i < matchCount - 1) {
-                builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start);
+                builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start, &state);
             }
         }
-        builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
+        builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length(), &state);
     } else {
         // dollar replace
         int32_t matchCount = result.m_matchResults.size();
-        builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start);
+        builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start, &state);
         for (int32_t i = 0; i < matchCount; i++) {
             for (unsigned j = 0; j < replaceString->length(); j++) {
                 if (replaceString->charAt(j) == '$' && (j + 1) < replaceString->length()) {
                     char16_t c = replaceString->charAt(j + 1);
                     if (c == '$') {
-                        builder.appendChar(replaceString->charAt(j));
+                        builder.appendChar(replaceString->charAt(j), &state);
                     } else if (c == '&') {
-                        builder.appendSubString(string, result.m_matchResults[i][0].m_start, result.m_matchResults[i][0].m_end);
+                        builder.appendSubString(string, result.m_matchResults[i][0].m_start, result.m_matchResults[i][0].m_end, &state);
                     } else if (c == '\'') {
-                        builder.appendSubString(string, result.m_matchResults[i][0].m_end, string->length());
+                        builder.appendSubString(string, result.m_matchResults[i][0].m_end, string->length(), &state);
                     } else if (c == '`') {
-                        builder.appendSubString(string, 0, result.m_matchResults[i][0].m_start);
+                        builder.appendSubString(string, 0, result.m_matchResults[i][0].m_start, &state);
                     } else if ('0' <= c && c <= '9') {
                         size_t idx = c - '0';
                         bool usePeek = false;
@@ -394,33 +394,33 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
                         }
 
                         if (idx < result.m_matchResults[i].size() && idx != 0) {
-                            builder.appendSubString(string, result.m_matchResults[i][idx].m_start, result.m_matchResults[i][idx].m_end);
+                            builder.appendSubString(string, result.m_matchResults[i][idx].m_start, result.m_matchResults[i][idx].m_end, &state);
                             if (usePeek)
                                 j++;
                         } else {
                             idx = c - '0';
                             if (idx < result.m_matchResults[i].size() && idx != 0) {
-                                builder.appendSubString(string, result.m_matchResults[i][idx].m_start, result.m_matchResults[i][idx].m_end);
+                                builder.appendSubString(string, result.m_matchResults[i][idx].m_start, result.m_matchResults[i][idx].m_end, &state);
                             } else {
-                                builder.appendChar('$');
-                                builder.appendChar(c);
+                                builder.appendChar('$', &state);
+                                builder.appendChar(c, &state);
                             }
                         }
                     } else {
-                        builder.appendChar('$');
-                        builder.appendChar(c);
+                        builder.appendChar('$', &state);
+                        builder.appendChar(c, &state);
                     }
                     j++;
                 } else {
-                    builder.appendChar(replaceString->charAt(j));
+                    builder.appendChar(replaceString->charAt(j), &state);
                 }
             }
             if (i < matchCount - 1) {
-                builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start);
+                builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start, &state);
             }
         }
 
-        builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length());
+        builder.appendSubString(string, result.m_matchResults[matchCount - 1][0].m_end, string->length(), &state);
     }
 
     return builder.finalize(&state);
@@ -1289,7 +1289,7 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
         String* nextSeg = raw->get(state, ObjectPropertyName(state, Value(nextIndex))).value(state, raw).toString(state);
         // Append in order the code unit elements of nextSeg to the end of stringElements.
         for (size_t i = 0; i < nextSeg->length(); i++) {
-            stringElements.appendChar(nextSeg->charAt(i));
+            stringElements.appendChar(nextSeg->charAt(i), &state);
         }
         // If nextIndex + 1 = literalSegments, then
         if (nextIndex + 1 == literalSegments) {
@@ -1415,7 +1415,7 @@ static String* createHTML(ExecutionState& state, Value string, String* tag, Stri
             if (ch == 0x22) {
                 sb.appendString("&quot;");
             } else {
-                sb.appendChar(ch);
+                sb.appendChar(ch, &state);
             }
         }
         String* escapedV = sb.finalize(&state);

@@ -1168,16 +1168,16 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
         if (replacement->charAt(i) == '$' && (i + 1) < replacement->length()) {
             char16_t temp = replacement->charAt(i + 1);
             if (temp == '$') {
-                builder.appendChar('$');
+                builder.appendChar('$', &state);
             } else if (temp == '&') {
-                builder.appendSubString(matched, 0, matchLenght);
+                builder.appendSubString(matched, 0, matchLenght, &state);
             } else if (temp == '`') {
-                builder.appendSubString(str, 0, position);
+                builder.appendSubString(str, 0, position, &state);
             } else if (temp == '\'') {
                 if (tailPos >= stringLength) {
                     tailPos = stringLength;
                 }
-                builder.appendSubString(str, tailPos, stringLength);
+                builder.appendSubString(str, tailPos, stringLength, &state);
             } else if (temp >= '0' && temp <= '9') {
                 size_t n = temp - '0' - 1;
                 if (i + 2 < replacement->length() && replacement->charAt(i + 2) >= '0' && replacement->charAt(i + 2) <= '9') {
@@ -1193,14 +1193,14 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
                 }
                 if (n < m) {
                     String* capturesN = captures[n];
-                    builder.appendString(capturesN);
+                    builder.appendString(capturesN, &state);
                     if (twodigit) {
                         i++;
                         twodigit = false;
                     }
                 } else {
-                    builder.appendChar('$');
-                    builder.appendChar(temp);
+                    builder.appendChar('$', &state);
+                    builder.appendChar(temp, &state);
                 }
             } else if (temp == '<' && !namedCapture.isUndefined()) {
                 size_t namedCaptureEnd = i + 1;
@@ -1216,21 +1216,21 @@ String* String::getSubstitution(ExecutionState& state, String* matched, String* 
                     String* groupName = replacement->substring((i + 2), (namedCaptureEnd));
                     Value capture = namedCaptureObj->get(state, ObjectPropertyName(state, groupName)).value(state, Value(0));
                     if (!capture.isUndefined()) {
-                        builder.appendString(capture.toString(state));
+                        builder.appendString(capture.toString(state), &state);
                     }
                     i = namedCaptureEnd - 1;
                 } else {
-                    builder.appendChar('$');
-                    builder.appendChar(temp);
+                    builder.appendChar('$', &state);
+                    builder.appendChar(temp, &state);
                 }
 
             } else {
-                builder.appendChar('$');
-                builder.appendChar(temp);
+                builder.appendChar('$', &state);
+                builder.appendChar(temp, &state);
             }
             i++;
         } else {
-            builder.appendChar(replacement->charAt(i));
+            builder.appendChar(replacement->charAt(i), &state);
         }
     }
     return builder.finalize(&state);

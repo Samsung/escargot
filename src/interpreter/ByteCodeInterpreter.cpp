@@ -3071,19 +3071,19 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
     }
 }
 
-static Value createObjectPropertyFunctionName(ExecutionState& state, const Value& name, const char* prefix)
+static Value createObjectPropertyFunctionName(ExecutionState& state, const Value& name, const char* prefix, size_t prefixLength)
 {
     StringBuilder builder;
     if (name.isSymbol()) {
-        builder.appendString(prefix);
+        builder.appendString(prefix, prefixLength);
         if (name.asSymbol()->descriptionString()->length()) {
             // add symbol name if it is not an empty symbol
-            builder.appendString("[");
-            builder.appendString(name.asSymbol()->descriptionString());
-            builder.appendString("]");
+            builder.appendString("[", &state);
+            builder.appendString(name.asSymbol()->descriptionString(), &state);
+            builder.appendString("]", &state);
         }
     } else {
-        builder.appendString(prefix);
+        builder.appendString(prefix, prefixLength);
         builder.appendString(name.toString(state));
     }
     return builder.finalize(&state);
@@ -3135,7 +3135,7 @@ NEVER_INLINE void InterpreterSlowPath::createObjectPrepareOperation(ExecutionSta
         Value newValue = registerFile[code->m_valueIndex];
         if (UNLIKELY(code->m_needsToUpdateFunctionName)) {
             Value propertyStringOrSymbol(propertyName.isSymbol() ? Value(propertyName.symbol()) : Value(propertyName.toValue().toString(state)));
-            Value fnName = createObjectPropertyFunctionName(state, propertyStringOrSymbol, "");
+            Value fnName = createObjectPropertyFunctionName(state, propertyStringOrSymbol, "", 0);
             newValue.asFunction()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
         }
 
@@ -4439,7 +4439,7 @@ NEVER_INLINE void InterpreterSlowPath::objectDefineOwnPropertyOperation(Executio
 
     if (code->m_redefineFunctionOrClassName) {
         ASSERT(value.isFunction());
-        Value fnName = createObjectPropertyFunctionName(state, propertyStringOrSymbol, "");
+        Value fnName = createObjectPropertyFunctionName(state, propertyStringOrSymbol, "", 0);
         value.asFunction()->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
     }
 
@@ -4604,9 +4604,9 @@ NEVER_INLINE void InterpreterSlowPath::updateObjectGetterSetterFunctionName(Exec
 {
     Value fnName;
     if (isGetter) {
-        fnName = createObjectPropertyFunctionName(state, propertyName, "get ");
+        fnName = createObjectPropertyFunctionName(state, propertyName, "get ", 4);
     } else {
-        fnName = createObjectPropertyFunctionName(state, propertyName, "set ");
+        fnName = createObjectPropertyFunctionName(state, propertyName, "set ", 4);
     }
     fn->defineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(fnName));
 }

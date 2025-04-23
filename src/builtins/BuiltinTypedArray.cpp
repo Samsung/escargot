@@ -1407,21 +1407,18 @@ static Value builtinTypedArrayJoin(ExecutionState& state, Value thisValue, size_
     if (elem.isUndefinedOrNull()) {
         elem = String::emptyString;
     }
-    builder.appendString(elem.toString(state));
+    builder.appendString(elem.toString(state), &state);
 
     size_t curIndex = 1;
     while (curIndex < len) {
         if (sep->length() > 0) {
-            if (static_cast<double>(builder.contentLength()) > static_cast<double>(lenMax - sep->length())) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
-            }
-            builder.appendString(sep);
+            builder.appendString(sep, &state);
         }
         elem = O->getIndexedPropertyValue(state, Value(curIndex), O);
         if (elem.isUndefinedOrNull()) {
             elem = String::emptyString;
         }
-        builder.appendString(elem.toString(state));
+        builder.appendString(elem.toString(state), &state);
         curIndex++;
     }
 
@@ -1674,8 +1671,8 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
         if (k > 0) {
             // Set R to the string-concatenation of R and separator.
             StringBuilder builder;
-            builder.appendString(R);
-            builder.appendString(separator);
+            builder.appendString(R, &state);
+            builder.appendString(separator, &state);
             R = builder.finalize(&state);
         }
         // Let nextElement be ? Get(array, ! ToString(k)).
@@ -1687,8 +1684,8 @@ static Value builtinTypedArrayToLocaleString(ExecutionState& state, Value thisVa
         String* S = Object::call(state, func, nextElement, 0, nullptr).toString(state);
         // Set R to the string-concatenation of R and S.
         StringBuilder builder2;
-        builder2.appendString(R);
-        builder2.appendString(S);
+        builder2.appendString(R, &state);
+        builder2.appendString(S, &state);
         R = builder2.finalize(&state);
         // Increase k by 1.
         k++;
