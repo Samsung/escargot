@@ -181,14 +181,14 @@ static Value builtinRegExpToString(ExecutionState& state, Value thisValue, size_
     String* pattern = RegExpObject::regexpSourceValue(state, thisObject);
     Value flagsValue = RegExpObject::regexpFlagsValue(state, thisObject);
 
-    builder.appendString("/");
-    builder.appendString(pattern);
-    builder.appendString("/");
+    builder.appendString("/", &state);
+    builder.appendString(pattern, &state);
+    builder.appendString("/", &state);
 
     if (!flagsValue.isUndefined()) {
-        builder.appendString(flagsValue.toString(state));
+        builder.appendString(flagsValue.toString(state), &state);
     } else {
-        builder.appendString("\0");
+        builder.appendString("\0", &state);
     }
 
     return builder.finalize(&state);

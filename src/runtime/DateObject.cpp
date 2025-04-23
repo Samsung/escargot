@@ -1314,17 +1314,19 @@ String* DateObject::toTimeString(ExecutionState& state)
         tzOffsetHour *= 100;
         const std::string& timeZoneName = state.context()->vmInstance()->tzname(m_cachedLocal.isdst ? 1 : 0);
 #if defined(OS_WINDOWS)
-        snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin));
+        size_t len = snprintf(buffer, sizeof(buffer),
+                              "%02d:%02d:%02d GMT%s%04d", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin));
         StringBuilder sb;
-        sb.appendString(buffer);
+        sb.appendString(buffer, len);
         sb.appendChar(' ');
         sb.appendChar('(');
         sb.appendString(String::fromUTF8(timeZoneName.data(), timeZoneName.length()));
         sb.appendChar(')');
         return sb.finalize();
 #else
-        snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d (%s)", getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin), timeZoneName.data());
-        return String::fromUTF8(buffer, strnlen(buffer, sizeof(buffer)));
+        size_t len = snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d GMT%s%04d (%s)",
+                              getHours(state), getMinutes(state), getSeconds(state), (tzOffsetAsMin < 0) ? "-" : "+", std::abs(tzOffsetHour + tzOffsetMin), timeZoneName.data());
+        return String::fromUTF8(buffer, len);
 #endif
     } else {
         return new ASCIIString(invalidDate);

@@ -484,8 +484,8 @@ static void builtinJSONStringifyJO(ExecutionState& state, Object* value,
     String* stepback = indent;
     // 4
     StringBuilder newIndent;
-    newIndent.appendString(indent);
-    newIndent.appendString(gap);
+    newIndent.appendString(indent, &state);
+    newIndent.appendString(gap, &state);
     indent = newIndent.finalize(&state);
     // 5, 6
     ValueVectorWithInlineStorage k;
@@ -507,25 +507,25 @@ static void builtinJSONStringifyJO(ExecutionState& state, Object* value,
         if (strP) {
             if (first) {
                 if (gap->length()) {
-                    product.appendChar('\n');
-                    product.appendString(indent);
+                    product.appendChar('\n', &state);
+                    product.appendString(indent, &state);
                     StringBuilder seperatorBuilder;
-                    seperatorBuilder.appendChar(',');
-                    seperatorBuilder.appendChar('\n');
-                    seperatorBuilder.appendString(indent);
+                    seperatorBuilder.appendChar(',', &state);
+                    seperatorBuilder.appendChar('\n', &state);
+                    seperatorBuilder.appendString(indent, &state);
                     seperator = seperatorBuilder.finalize(&state);
                 }
                 first = false;
             } else {
-                product.appendString(seperator);
+                product.appendString(seperator, &state);
             }
 
             builtinJSONStringifyQuote(state, k[i], product);
-            product.appendChar(':');
+            product.appendChar(':', &state);
             if (gap->length() != 0) {
-                product.appendChar(' ');
+                product.appendChar(' ', &state);
             }
-            product.appendStringBuilder(subProduct);
+            product.appendStringBuilder(subProduct, &state);
             subProduct.clear();
         }
     }

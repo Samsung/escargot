@@ -376,19 +376,16 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
     int64_t curIndex = 0;
     while (curIndex < len) {
         if (curIndex != 0 && sep->length() > 0) {
-            if (static_cast<double>(builder.contentLength()) > static_cast<double>(STRING_MAXIMUM_LENGTH - (curIndex - prevIndex - 1) * (int64_t)sep->length())) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
-            }
             while (curIndex - prevIndex > 1) {
-                builder.appendString(sep);
+                builder.appendString(sep, &state);
                 prevIndex++;
             }
-            builder.appendString(sep);
+            builder.appendString(sep, &state);
         }
         Value elem = thisBinded->getIndexedPropertyValue(state, Value(curIndex), thisBinded);
 
         if (!elem.isUndefinedOrNull()) {
-            builder.appendString(elem.toString(state));
+            builder.appendString(elem.toString(state), &state);
         }
         prevIndex = curIndex;
         if (elem.isUndefined()) {
@@ -436,7 +433,7 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
         }
         while (curIndex - prevIndex > 1) {
-            builder.appendString(sep);
+            builder.appendString(sep, &state);
             prevIndex++;
         }
     }
@@ -1392,8 +1389,8 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
         if (k > 0) {
             // Set R to the string-concatenation of R and separator.
             StringBuilder builder;
-            builder.appendString(R);
-            builder.appendString(separator);
+            builder.appendString(R, &state);
+            builder.appendString(separator, &state);
             R = builder.finalize(&state);
         }
         // Let nextElement be ? Get(array, ! ToString(k)).
@@ -1405,8 +1402,8 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
             String* S = Object::call(state, func, nextElement, argc, argv).toString(state);
             // Set R to the string-concatenation of R and S.
             StringBuilder builder;
-            builder.appendString(R);
-            builder.appendString(S);
+            builder.appendString(R, &state);
+            builder.appendString(S, &state);
             R = builder.finalize(&state);
         }
         // Increase k by 1.

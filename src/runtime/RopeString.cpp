@@ -42,7 +42,7 @@ void* RopeString::operator new(size_t size, bool is8Bit)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState* state)
+String* RopeString::createRopeString(String* lstr, String* rstr, Optional<ExecutionState*> state)
 {
     size_t llen = lstr->length();
     if (llen == 0) {
@@ -65,14 +65,14 @@ String* RopeString::createRopeString(String* lstr, String* rstr, ExecutionState*
             return String::fromLatin1(result, len);
         } else {
             StringBuilder builder;
-            builder.appendString(lstr);
-            builder.appendString(rstr);
+            builder.appendString(lstr, state);
+            builder.appendString(rstr, state);
             return builder.finalize();
         }
     }
 
     if (state && UNLIKELY((llen + rlen) > STRING_MAXIMUM_LENGTH)) {
-        ErrorObject::throwBuiltinError(*state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
+        ErrorObject::throwBuiltinError(*state.value(), ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
     }
 
     bool l8bit = lstr->has8BitContent();

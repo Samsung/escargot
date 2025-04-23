@@ -21,13 +21,13 @@
 #define __EscargotRopeString__
 
 #include "runtime/String.h"
+#include "util/Optional.h"
 
 namespace Escargot {
 
 class ExecutionState;
 
 class RopeString : public String {
-public:
     RopeString()
         : String()
     {
@@ -38,11 +38,12 @@ public:
         m_bufferData.buffer = nullptr;
     }
 
+public:
     // this function not always create RopeString.
     // if (l+r).length() < ROPE_STRING_MIN_LENGTH
     // then create just normalString
     // provide ExecutionState if you need limit of string length(exception can be thrown only in ExecutionState area)
-    static String* createRopeString(String* lstr, String* rstr, ExecutionState* state = nullptr);
+    static String* createRopeString(String* lstr, String* rstr, Optional<ExecutionState*> state = nullptr);
 
     virtual UTF16StringData toUTF16StringData() const override;
     virtual UTF8StringData toUTF8StringData() const override;

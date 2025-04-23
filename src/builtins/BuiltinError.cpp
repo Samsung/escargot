@@ -203,9 +203,9 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
     }
 
     StringBuilder builder;
-    builder.appendString(nameStr);
-    builder.appendString(": ");
-    builder.appendString(messageStr);
+    builder.appendString(nameStr, &state);
+    builder.appendString(": ", &state);
+    builder.appendString(messageStr, &state);
     return builder.finalize(&state);
 }
 

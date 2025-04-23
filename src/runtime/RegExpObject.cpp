@@ -84,7 +84,7 @@ void RegExpObject::initRegExpObject(ExecutionState& state, bool hasLastIndex)
     }
 }
 
-static String* escapePattern(String* patternStr)
+static String* escapePattern(ExecutionState& state, String* patternStr)
 {
     if (patternStr->length() == 0) {
         return patternStr;
@@ -96,10 +96,10 @@ static String* escapePattern(String* patternStr)
         auto accessData = patternStr->bufferAccessData();
         for (size_t i = 0; i < accessData.length; i++) {
             if (accessData.charAt(i) == '\n' && (i == 0 || accessData.charAt(i - 1) != '\\')) {
-                builder.appendChar('\\');
-                builder.appendChar('n');
+                builder.appendChar('\\', &state);
+                builder.appendChar('n', &state);
             } else {
-                builder.appendChar(accessData.charAt(i));
+                builder.appendChar(accessData.charAt(i), &state);
             }
         }
         patternStr = builder.finalize();
@@ -131,9 +131,9 @@ static String* escapePattern(String* patternStr)
                 }
                 if (backSlashCount % 2 == 0) {
                     slashFlag = true;
-                    builder.appendSubString(patternStr, start, start + i);
-                    builder.appendChar('\\');
-                    builder.appendChar('/');
+                    builder.appendSubString(patternStr, start, start + i, &state);
+                    builder.appendChar('\\', &state);
+                    builder.appendChar('/', &state);
 
                     start = start + i + 1;
                     i = 0;
@@ -144,7 +144,7 @@ static String* escapePattern(String* patternStr)
         }
         if (start + i >= len) {
             if (UNLIKELY(slashFlag)) {
-                builder.appendSubString(patternStr, start, start + i);
+                builder.appendSubString(patternStr, start, start + i, &state);
             }
             break;
         }
@@ -152,7 +152,7 @@ static String* escapePattern(String* patternStr)
     if (!slashFlag) {
         return patternStr;
     } else {
-        return builder.finalize();
+        return builder.finalize(&state);
     }
 }
 
@@ -165,7 +165,7 @@ void RegExpObject::internalInit(ExecutionState& state, String* source, Option op
 
     setOptionValueForGC(option);
     m_source = source->length() ? source : defaultRegExpString;
-    m_source = escapePattern(m_source);
+    m_source = escapePattern(state, m_source);
 
     auto& entry = getCacheEntryAndCompileIfNeeded(state, m_source, this->option());
     if (entry.m_yarrError) {

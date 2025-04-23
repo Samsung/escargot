@@ -81,7 +81,7 @@ static Value builtinFunctionToString(ExecutionState& state, Value thisValue, siz
                     while (length > 0 && EscargotLexer::isWhiteSpaceOrLineTerminator(src[length - 1])) {
                         length--;
                     }
-                    builder.appendString(new StringView(src, 0, length));
+                    builder.appendString(new StringView(src, 0, length), &state);
                 } else {
                     ASSERT(fn->isNativeFunctionObject());
                     builder.appendString("function ");
