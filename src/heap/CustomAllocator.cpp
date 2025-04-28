@@ -336,7 +336,11 @@ void iterateSpecificKindOfObject(ExecutionState& state, HeapObjectKind kind, Hea
 
         HeapObjectIteratorData* data = (HeapObjectIteratorData*)cd;
         if (kind == data->kind) {
+#if defined(NDEBUG)
+            data->callback(data->state, obj);
+#else
             data->callback(data->state, GC_USR_PTR_FROM_BASE(obj));
+#endif
         }
     },
                                          (void*)(&data));
