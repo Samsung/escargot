@@ -254,6 +254,9 @@ CFLAGS+=' -Os '
 CXXFLAGS+=' -Os '
 %endif
 
+CFLAGS+=' -Wno-shadow '
+CXXFLAGS+=' -Wno-shadow '
+
 %if "%{?enable_test}" == "1"
 cmake CMakeLists.txt -H./ -Bbuild/out_tizen_%{rpm} -DLIBDIR=%{_libdir} -DINCLUDEDIR=%{_includedir} -DTIZEN_MAJOR_VERSION='%{tizen_version_major}' \
 -DESCARGOT_ARCH='%{tizen_arch}' -DESCARGOT_WASM='%{enable_wasm}' -DESCARGOT_DEBUGGER='%{enable_debugger}' \
@@ -272,7 +275,7 @@ cmake --build build/out_tizen_%{rpm}
 CXXFLAGS+=' -DESCARGOT_ENABLE_TEST '
 %endif
 
-g++ src/shell/Shell.cpp -std=c++11 -Lbuild/out_tizen_%{rpm} -Isrc/ -Ithird_party/GCutil -Ithird_party/GCutil/bdwgc/include -o build/out_tizen_%{rpm}/escargot -O2 -DNDEBUG -Wl,-rpath=\$ORIGIN -Wl,-rpath=%{_libdir}/escargot ${CXXFLAGS} -lescargot -lpthread
+g++ src/shell/Shell.cpp -std=c++11 -Lbuild/out_tizen_%{rpm} -Isrc/ -Ithird_party/GCutil -Ithird_party/GCutil/bdwgc/include/gc -o build/out_tizen_%{rpm}/escargot -O2 -DNDEBUG -Wl,-rpath=\$ORIGIN -Wl,-rpath=%{_libdir}/escargot ${CXXFLAGS} -lescargot -lpthread
 g++ tools/test/test-data-runner/test-data-runner.cpp -o build/out_tizen_%{rpm}/test-data-runner -std=c++11 ${CXXFLAGS} -lpthread
 %endif
 
@@ -323,6 +326,7 @@ cp packaging/escargot.conf %{buildroot}%{_sysconfdir}/ld.so.conf.d/
 %files profile_tv
 %manifest packaging/%{name}.manifest
 %{_libdir}/escargot/libescargot.so*
+%{_sysconfdir}/ld.so.conf.d/*.conf
 %license LICENSE.BSD-2-Clause LICENSE.LGPL-2.1+ LICENSE.MPL-2.0 LICENSE.Apache-2.0 LICENSE.BSD-3-Clause LICENSE.MIT LICENSE.BOEHM-GC
 %endif
 
@@ -330,6 +334,7 @@ cp packaging/escargot.conf %{buildroot}%{_sysconfdir}/ld.so.conf.d/
 %files profile_headless
 %manifest packaging/%{name}.manifest
 %{_libdir}/escargot/libescargot.so*
+%{_sysconfdir}/ld.so.conf.d/*.conf
 %license LICENSE.BSD-2-Clause LICENSE.LGPL-2.1+ LICENSE.MPL-2.0 LICENSE.Apache-2.0 LICENSE.BSD-3-Clause LICENSE.MIT LICENSE.BOEHM-GC
 %endif
 
