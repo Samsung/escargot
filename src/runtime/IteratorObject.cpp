@@ -248,7 +248,7 @@ ValueVector IteratorObject::iterableToListOfType(ExecutionState& state, const Va
         }
         Value nextValue = IteratorObject::iteratorValue(state, next->asObject());
         if (!nextValue.isString()) {
-            Value throwCompletion = ErrorObject::createError(state, ErrorCode::RangeError, new ASCIIString("Got invalid value"));
+            Value throwCompletion = ErrorObject::createError(state, ErrorCode::RangeError, new ASCIIStringFromExternalMemory("Got invalid value"));
             return { IteratorObject::iteratorClose(state, iteratorRecord, throwCompletion, true) };
         }
         values.pushBack(nextValue);
@@ -302,7 +302,7 @@ IteratorObject::KeyedGroupVector IteratorObject::groupBy(ExecutionState& state, 
         // a. If k ≥ 2**53 - 1, then
         if (k >= ((1LL << 53LL) - 1LL)) {
             // Let error be ThrowCompletion(a newly created TypeError object).
-            Value error = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("Too many result on GroupBy function"));
+            Value error = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIStringFromExternalMemory("Too many result on GroupBy function"));
             // Return ? IteratorClose(iteratorRecord, error).
             IteratorObject::iteratorClose(state, iteratorRecord, error, true);
             ASSERT_NOT_REACHED();

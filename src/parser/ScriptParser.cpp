@@ -289,7 +289,7 @@ void ScriptParser::generateCodeBlockTreeFromASTWalkerPostProcess(InterpretedCode
 
     cb->computeVariables();
     if (cb->m_identifierOnStackCount > VARIABLE_LIMIT || cb->m_identifierOnHeapCount > VARIABLE_LIMIT || cb->m_lexicalBlockStackAllocatedIdentifierMaximumDepth > VARIABLE_LIMIT) {
-        auto err = new esprima::Error(new ASCIIString("variable limit exceeded"));
+        auto err = new esprima::Error(new ASCIIStringFromExternalMemory("variable limit exceeded"));
         err->errorCode = ErrorCode::SyntaxError;
         err->lineNumber = cb->m_functionStart.line;
         err->column = cb->m_functionStart.column;

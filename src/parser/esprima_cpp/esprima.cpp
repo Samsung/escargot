@@ -624,7 +624,7 @@ public:
             }
             value = new StringView(this->scanner->sourceAsNormalView, token.start, token.end);
         } else {
-            value = new ASCIIString("ILLEGAL");
+            value = new ASCIIStringFromExternalMemory("ILLEGAL");
         }
 
         // msg = msg.replace('%0', value);
@@ -3899,7 +3899,7 @@ public:
             /* code end */
 
             if (!this->currentScopeContext->canDeclareName(name, blockIndex, kind == VarKeyword, isExplicitVariableDeclaration)) {
-                this->throwError(Messages::Redeclaration, new ASCIIString("Identifier"), name.string());
+                this->throwError(Messages::Redeclaration, new ASCIIStringFromExternalMemory("Identifier"), name.string());
             }
             if (kind == VarKeyword) {
                 this->currentScopeContext->insertVarName(name, blockIndex, true, true);
@@ -4176,7 +4176,7 @@ public:
 
                 if (declarationList.size() == 1 && this->matchKeyword(InKeyword)) {
                     if (std::get<0>(declarations) && (std::get<1>(declarations) || this->context->strict)) {
-                        this->throwError(Messages::ForInOfLoopInitializer, new ASCIIString("for-in"));
+                        this->throwError(Messages::ForInOfLoopInitializer, new ASCIIStringFromExternalMemory("for-in"));
                     }
                     if (seenAwait) {
                         this->throwUnexpectedToken(this->lookahead);
@@ -4637,7 +4637,7 @@ public:
             this->nextToken();
 
             if (hasLabel(name)) {
-                this->throwError(Messages::Redeclaration, new ASCIIString("Label"), name.string());
+                this->throwError(Messages::Redeclaration, new ASCIIStringFromExternalMemory("Label"), name.string());
             }
 
             this->context->labelSet.push_back(std::make_pair(name, false));
@@ -5204,7 +5204,7 @@ public:
                         isCatchClauseVariableName = true;
                         // try {} catch(e) { function e() {} }
                         if ((this->context->catchClauseSimplyDeclaredVariableNames[i].second + 1) == this->lexicalBlockIndex) {
-                            this->throwError(Messages::Redeclaration, new ASCIIString("Identifier"), fnName.string());
+                            this->throwError(Messages::Redeclaration, new ASCIIStringFromExternalMemory("Identifier"), fnName.string());
                         }
 
                         auto blockInfo = this->currentScopeContext->findBlockFromBackward(this->context->catchClauseSimplyDeclaredVariableNames[i].second);

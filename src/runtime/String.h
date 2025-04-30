@@ -653,14 +653,6 @@ public:
         initBufferAccessData(stringData);
     }
 
-    explicit ASCIIString(const char* str)
-        : String()
-    {
-        ASCIIStringData stringData;
-        stringData.append(str, strlen(str));
-        initBufferAccessData(stringData);
-    }
-
     ASCIIString(const char* str, size_t len)
         : String()
     {
@@ -735,6 +727,12 @@ public:
         m_bufferData.length = len;
         m_bufferData.hasSpecialImpl = false;
         m_bufferData.has8BitContent = true;
+    }
+
+    template <const size_t srcLen>
+    ASCIIStringFromExternalMemory(const char (&src)[srcLen])
+        : ASCIIStringFromExternalMemory(src, srcLen - 1)
+    {
     }
 
     virtual bool hasExternalMemory() override

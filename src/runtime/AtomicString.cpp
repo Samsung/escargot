@@ -33,11 +33,6 @@ AtomicString::AtomicString(ExecutionState& ec, const char* src, size_t len)
     init(ec.context()->m_atomicStringMap, src, len);
 }
 
-AtomicString::AtomicString(ExecutionState& ec, const char* src)
-{
-    init(ec.context()->m_atomicStringMap, src, strlen(src));
-}
-
 AtomicString::AtomicString(Context* c, const char* src, size_t len)
 {
     init(c->m_atomicStringMap, src, len);

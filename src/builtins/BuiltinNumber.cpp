@@ -251,18 +251,20 @@ static Value builtinNumberToString(ExecutionState& state, Value thisValue, size_
         bool minusFlag = (number < 0) ? 1 : 0;
         number = (number < 0) ? (-1 * number) : number;
         char buffer[256];
+        size_t len;
         if (minusFlag) {
             buffer[0] = '-';
-            itoa(static_cast<int64_t>(number), &buffer[1], radix);
+            len = itoa(static_cast<int64_t>(number), &buffer[1], radix);
+            len += 1;
         } else {
-            itoa(static_cast<int64_t>(number), buffer, radix);
+            len = itoa(static_cast<int64_t>(number), buffer, radix);
         }
-        return String::fromASCII(buffer, strlen(buffer));
+        return String::fromASCII(buffer, len);
     } else {
         ASSERT(Value(Value::DoubleToIntConvertibleTestNeeds, number).isDouble());
         NumberObject::RadixBuffer s;
         const char* str = NumberObject::toStringWithRadix(state, s, number, radix);
-        return String::fromASCII(str, strlen(str));
+        return String::fromASCII(str, strnlen(str, sizeof(NumberObject::RadixBuffer)));
     }
 }
 

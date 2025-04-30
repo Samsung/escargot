@@ -112,7 +112,7 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
             }
         } else {
             const char* valueAsString = (const char*)value.GetString();
-            size_t len = strlen(valueAsString);
+            size_t len = value.GetStringLength();
             if (isAllASCII(valueAsString, len)) {
                 return String::fromASCII(valueAsString, len);
             } else {

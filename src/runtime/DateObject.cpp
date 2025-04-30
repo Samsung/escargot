@@ -151,7 +151,7 @@ static constexpr int16_t firstDayOfMonth[2][13] = {
 static const char days[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 static const char months[12][4] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-static const char* invalidDate = "Invalid Date";
+static constexpr char invalidDate[] = "Invalid Date";
 static const int monthNumberHelper[] = { 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 };
 
 DateObject::DateObject(ExecutionState& state)
@@ -1292,14 +1292,15 @@ String* DateObject::toDateString(ExecutionState& state)
     if (IS_VALID_TIME(m_primitiveValue)) {
         char buffer[32];
         int year = getFullYear(state);
+        size_t len;
         if (year < 0) {
-            snprintf(buffer, sizeof(buffer), "%s %s %02d %05d", days[getDay(state)], months[getMonth(state)], getDate(state), year);
+            len = snprintf(buffer, sizeof(buffer), "%s %s %02d %05d", days[getDay(state)], months[getMonth(state)], getDate(state), year);
         } else {
-            snprintf(buffer, sizeof(buffer), "%s %s %02d %04d", days[getDay(state)], months[getMonth(state)], getDate(state), year);
+            len = snprintf(buffer, sizeof(buffer), "%s %s %02d %04d", days[getDay(state)], months[getMonth(state)], getDate(state), year);
         }
-        return new ASCIIString(buffer);
+        return new ASCIIString(buffer, len);
     } else {
-        return new ASCIIString(invalidDate);
+        return new ASCIIStringFromExternalMemory(invalidDate);
     }
 }
 
@@ -1329,7 +1330,7 @@ String* DateObject::toTimeString(ExecutionState& state)
         return String::fromUTF8(buffer, len);
 #endif
     } else {
-        return new ASCIIString(invalidDate);
+        return new ASCIIStringFromExternalMemory(invalidDate);
     }
 }
 
@@ -1342,7 +1343,7 @@ String* DateObject::toFullString(ExecutionState& state)
         builder.appendString(toTimeString(state));
         return builder.finalize();
     } else {
-        return new ASCIIString(invalidDate);
+        return new ASCIIStringFromExternalMemory(invalidDate);
     }
 }
 
@@ -1350,12 +1351,13 @@ String* DateObject::toISOString(ExecutionState& state)
 {
     if (IS_VALID_TIME(m_primitiveValue)) {
         char buffer[64];
+        size_t len;
         if (getUTCFullYear(state) >= 0 && getUTCFullYear(state) <= 9999) {
-            snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
+            len = snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
         } else {
-            snprintf(buffer, sizeof(buffer), "%+07d-%02d-%02dT%02d:%02d:%02d.%03dZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
+            len = snprintf(buffer, sizeof(buffer), "%+07d-%02d-%02dT%02d:%02d:%02d.%03dZ", getUTCFullYear(state), getUTCMonth(state) + 1, getUTCDate(state), getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state), getUTCMilliseconds(state));
         }
-        return new ASCIIString(buffer);
+        return new ASCIIString(buffer, len);
     } else {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().Date.string(), true, state.context()->staticStrings().toISOString.string(), ErrorObject::Messages::GlobalObject_InvalidDate);
     }
@@ -1368,18 +1370,19 @@ String* DateObject::toUTCString(ExecutionState& state, String* functionName)
     if (IS_VALID_TIME(m_primitiveValue)) {
         char buffer[64];
         int year = getUTCFullYear(state);
+        size_t len;
         if (year < 0) {
-            snprintf(buffer, sizeof(buffer), "%s, %02d %s %05d %02d:%02d:%02d GMT", days[getUTCDay(state)], getUTCDate(state),
-                     months[getUTCMonth(state)], year,
-                     getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state));
+            len = snprintf(buffer, sizeof(buffer), "%s, %02d %s %05d %02d:%02d:%02d GMT", days[getUTCDay(state)], getUTCDate(state),
+                           months[getUTCMonth(state)], year,
+                           getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state));
         } else {
-            snprintf(buffer, sizeof(buffer), "%s, %02d %s %04d %02d:%02d:%02d GMT", days[getUTCDay(state)], getUTCDate(state),
-                     months[getUTCMonth(state)], year,
-                     getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state));
+            len = snprintf(buffer, sizeof(buffer), "%s, %02d %s %04d %02d:%02d:%02d GMT", days[getUTCDay(state)], getUTCDate(state),
+                           months[getUTCMonth(state)], year,
+                           getUTCHours(state), getUTCMinutes(state), getUTCSeconds(state));
         }
-        return new ASCIIString(buffer);
+        return new ASCIIString(buffer, len);
     } else {
-        return new ASCIIString("Invalid Date");
+        return new ASCIIStringFromExternalMemory("Invalid Date");
     }
 }
 
@@ -1427,7 +1430,7 @@ String* DateObject::toLocaleDateString(ExecutionState& state)
         return toDateString(state);
 #endif
     } else {
-        return new ASCIIString(invalidDate);
+        return new ASCIIStringFromExternalMemory(invalidDate);
     }
 }
 
@@ -1440,7 +1443,7 @@ String* DateObject::toLocaleTimeString(ExecutionState& state)
         return toTimeString(state);
 #endif
     } else {
-        return new ASCIIString(invalidDate);
+        return new ASCIIStringFromExternalMemory(invalidDate);
     }
 }
 
@@ -1453,7 +1456,7 @@ String* DateObject::toLocaleFullString(ExecutionState& state)
         builder.appendString(toLocaleTimeString(state));
         return builder.finalize();
     } else {
-        return new ASCIIString(invalidDate);
+        return new ASCIIStringFromExternalMemory(invalidDate);
     }
 }
 
