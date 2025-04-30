@@ -69,7 +69,6 @@ public:
         : AtomicString(ec, src, srcLen - 1)
     {
     }
-    AtomicString(ExecutionState& ec, const char* src);
     AtomicString(Context* c, const char16_t* src, size_t len);
     AtomicString(Context* c, const LChar* src, size_t len);
     AtomicString(Context* c, const char* src, size_t len);
@@ -98,14 +97,14 @@ public:
     inline friend bool operator==(const AtomicString& a, const AtomicString& b);
     inline friend bool operator!=(const AtomicString& a, const AtomicString& b);
 
-    bool operator==(const char* src) const
+    template <const size_t srcLen>
+    bool operator==(const char (&src)[srcLen])
     {
-        size_t srcLen = strlen(src);
-        if (srcLen != m_string->length()) {
+        if ((srcLen - 1) != m_string->length()) {
             return false;
         }
 
-        for (size_t i = 0; i < srcLen; i++) {
+        for (size_t i = 0; i < (srcLen - 1); i++) {
             if (src[i] != m_string->charAt(i)) {
                 return false;
             }

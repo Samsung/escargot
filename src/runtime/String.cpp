@@ -639,7 +639,7 @@ ASCIIStringDataNonGCStd dtoa(double number)
 void String::initEmptyString()
 {
     ASSERT(!String::emptyString);
-    String* emptyStr = new (NoGC) ASCIIString("");
+    String* emptyStr = new (NoGC) ASCIIStringFromExternalMemory("");
     // mark empty string as AtomicString source
     // because empty string is the default string value of empty AtomicString
     emptyStr->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)emptyStr;

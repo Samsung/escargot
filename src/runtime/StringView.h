@@ -56,36 +56,6 @@ public:
         initBufferAccessData(String::emptyString, 0, 0);
     }
 
-    bool operator==(const char* src) const
-    {
-        size_t srcLen = strlen(src);
-        if (srcLen != length()) {
-            return false;
-        }
-
-        const auto& data = bufferAccessData();
-        if (data.has8BitContent) {
-            for (size_t i = 0; i < srcLen; i++) {
-                if (src[i] != ((const LChar*)data.buffer)[i]) {
-                    return false;
-                }
-            }
-        } else {
-            for (size_t i = 0; i < srcLen; i++) {
-                if (src[i] != ((const char16_t*)data.buffer)[i]) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    bool operator!=(const char* src) const
-    {
-        return !operator==(src);
-    }
-
     size_t start() const
     {
         return m_start;

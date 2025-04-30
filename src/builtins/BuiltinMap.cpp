@@ -66,7 +66,8 @@ static Value builtinMapConstructor(ExecutionState& state, Value thisValue, size_
 
         Value nextItem = IteratorObject::iteratorValue(state, next.value());
         if (!nextItem.isObject()) {
-            ErrorObject* errorobj = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("TypeError"));
+            ErrorObject* errorobj = ErrorObject::createError(state, ErrorCode::TypeError,
+                                                             new ASCIIStringFromExternalMemory("Invalid iterator value"));
             return IteratorObject::iteratorClose(state, iteratorRecord, errorobj, true);
         }
 

@@ -59,7 +59,8 @@ static Value builtinWeakMapConstructor(ExecutionState& state, Value thisValue, s
 
         Value nextItem = IteratorObject::iteratorValue(state, next.value());
         if (!nextItem.isObject()) {
-            ErrorObject* error = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("TypeError"));
+            ErrorObject* error = ErrorObject::createError(state, ErrorCode::TypeError,
+                                                          new ASCIIStringFromExternalMemory("Invalid iterator value"));
             return IteratorObject::iteratorClose(state, iteratorRecord, error, true);
         }
 

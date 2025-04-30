@@ -236,7 +236,7 @@ static Value builtinArrayFrom(ExecutionState& state, Value thisValue, size_t arg
             if (k >= ((1LL << 53LL) - 1LL)) {
                 // Let error be ThrowCompletion(a newly created TypeError object).
                 // Return ? IteratorClose(iteratorRecord, error).
-                Value throwCompletion = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("Got invalid index"));
+                Value throwCompletion = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIStringFromExternalMemory("Got invalid index"));
                 return IteratorObject::iteratorClose(state, iteratorRecord, throwCompletion, true);
             }
             // Let Pk be ! ToString(k).

@@ -309,7 +309,7 @@ static Value promiseResolveFunctions(ExecutionState& state, Value thisValue, siz
 
     Value resolutionValue = argv[0];
     if (resolutionValue == Value(promise)) {
-        promise->reject(state, ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIString("Self resolution error")));
+        promise->reject(state, ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIStringFromExternalMemory("Self resolution error")));
         return Value();
     }
 

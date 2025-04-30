@@ -219,7 +219,7 @@ static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, siz
 #define INTL_DATE_TIME_FORMAT_FORMAT(REQUIRED, DEFUALT)                                                                                         \
     double x = thisObject->primitiveValue();                                                                                                    \
     if (std::isnan(x)) {                                                                                                                        \
-        return new ASCIIString("Invalid Date");                                                                                                 \
+        return new ASCIIStringFromExternalMemory("Invalid Date");                                                                               \
     }                                                                                                                                           \
     Value locales, options;                                                                                                                     \
     if (argc >= 1) {                                                                                                                            \
