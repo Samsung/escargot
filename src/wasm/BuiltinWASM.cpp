@@ -28,6 +28,7 @@
 #include "runtime/ExtendedNativeFunctionObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/ArrayBufferObject.h"
+#include "runtime/SharedArrayBufferObject.h"
 #include "runtime/BackingStore.h"
 #include "runtime/PromiseObject.h"
 #include "runtime/Job.h"
@@ -382,6 +383,36 @@ static Value builtinWASMInstanceExportsGetter(ExecutionState& state, Value thisV
 }
 
 // WebAssembly.Memory
+
+static ArrayBuffer* createFixedLengthMemoryBuffer(ExecutionState& state, wasm_memory_t* memaddr, bool isShared)
+{
+    ASSERT(!!memaddr);
+
+    // Note) wasm_memory_data with zero size returns null pointer
+    // predefined temporal address is allocated for this case
+    void* dataBlock = wasm_memory_size(memaddr) == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memaddr);
+
+    ArrayBuffer* buffer = nullptr;
+    if (isShared) {
+        ASSERT(wasm_memory_is_shared(memaddr));
+        // Let block be a Shared Data Block which is identified with the underlying memory of memaddr.
+        // Let buffer be a new SharedArrayBuffer with the internal slots [[ArrayBufferData]] and [[ArrayBufferByteLength]].
+        buffer = SharedArrayBufferObject::allocateExternalSharedArrayBuffer(state, dataBlock, wasm_memory_data_size(memaddr));
+
+        // Perform ! SetIntegrityLevel(buffer, "frozen").
+        if (UNLIKELY(!Object::setIntegrityLevel(state, buffer, false))) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+        }
+    } else {
+        // Let block be a Data Block which is identified with the underlying memory of memaddr.
+        // Let buffer be a new ArrayBuffer with the internal slots [[ArrayBufferData]], [[ArrayBufferByteLength]], and [[ArrayBufferDetachKey]].
+        buffer = ArrayBufferObject::allocateExternalArrayBuffer(state, dataBlock, wasm_memory_data_size(memaddr));
+    }
+
+    // Return buffer.
+    return buffer;
+}
+
 static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
@@ -391,6 +422,7 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::Not_Invoked_With_New);
     }
 
+    bool isShared = false;
     Value desc = argv[0];
 
     // check and get 'initial' property from the first argument
@@ -406,12 +438,17 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     uint32_t maximum = wasm_limits_max_default;
     {
         auto maxResult = wasmGetValueFromObjectProperty(state, desc, strings->maximum, strings->valueOf);
+        auto sharedResult = wasmGetValueFromObjectProperty(state, desc, strings->shared, AtomicString());
+        isShared = sharedResult.first ? sharedResult.second.toBoolean() : false;
+
         if (maxResult.first) {
             Value maxValue = maxResult.second;
             if (!maxValue.isUInt32()) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
             }
             maximum = maxValue.asUInt32();
+        } else if (isShared) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->WebAssembly.string(), false, strings->Memory.string(), ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
         }
     }
 
@@ -424,21 +461,20 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     own wasm_memorytype_t* memtype = wasm_memorytype_new(&limits);
 
     // Let (store, memaddr) be mem_alloc(store, memtype). If allocation fails, throw a RangeError exception.
-    own wasm_memory_t* memaddr = wasm_memory_new(ThreadLocal::wasmStore(), memtype);
+    own wasm_memory_t* memaddr = nullptr;
+    if (isShared) {
+        memaddr = wasm_shared_memory_new(ThreadLocal::wasmStore(), memtype);
+    } else {
+        memaddr = wasm_memory_new(ThreadLocal::wasmStore(), memtype);
+    }
     wasm_memorytype_delete(memtype);
 
-    wasm_ref_t* memref = wasm_memory_as_ref(memaddr);
-
     // Let map be the surrounding agent's associated Memory object cache.
+    // Assert: map[memaddr] doesn’t exist.
+    ASSERT(!state.context()->wasmCache()->findMemory(wasm_memory_as_ref(memaddr)));
 
-    // Create a memory buffer from memaddr
-    ArrayBufferObject* buffer = new ArrayBufferObject(state);
-    // Note) wasm_memory_data with zero size returns null pointer
-    // predefined temporal address is allocated for this case
-    void* dataBlock = initial == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memaddr);
-    BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, wasm_memory_data_size(memaddr),
-                                                                           [](void* data, size_t length, void* deleterData) {}, nullptr);
-    buffer->attachBuffer(backingStore);
+    // Let buffer be the result of creating a fixed length memory buffer from memaddr.
+    ArrayBuffer* buffer = createFixedLengthMemoryBuffer(state, memaddr, isShared);
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, "%WebAssemblyMemoryPrototype%").
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
@@ -450,7 +486,7 @@ static Value builtinWASMMemoryConstructor(ExecutionState& state, Value thisValue
     WASMMemoryObject* memoryObj = new WASMMemoryObject(state, proto, memaddr, buffer);
 
     // Set map[memaddr] to memory.
-    state.context()->wasmCache()->appendMemory(memref, memoryObj);
+    state.context()->wasmCache()->appendMemory(wasm_memory_as_ref(memaddr), memoryObj);
 
     return memoryObj;
 }
@@ -471,8 +507,7 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
     wasm_memory_pages_t delta = deltaValue.asUInt32();
 
     // Let memaddr be this.[[Memory]].
-    WASMMemoryObject* memoryObj = thisValue.asObject()->asWASMMemoryObject();
-    wasm_memory_t* memaddr = memoryObj->memory();
+    wasm_memory_t* memaddr = thisValue.asObject()->asWASMMemoryObject()->memory();
 
     // Let ret be the mem_size(store, memaddr).
     // wasm_memory_pages_t maps to uint32_t
@@ -485,26 +520,27 @@ static Value builtinWASMMemoryGrow(ExecutionState& state, Value thisValue, size_
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, strings->WebAssemblyDotMemory.string(), false, strings->grow.string(), ErrorObject::Messages::GlobalObject_RangeError);
     }
 
+    // Refresh the memory buffer of memaddr.
     // Let map be the surrounding agent's associated Memory object cache.
     // Assert: map[memaddr] exists.
     ASSERT(state.context()->wasmCache()->findMemory(wasm_memory_as_ref(memaddr)));
 
-    // Perform ! DetachArrayBuffer(memory.[[BufferObject]], "WebAssembly.Memory").
-    memoryObj->buffer()->detachArrayBuffer();
+    // Let memory be map[memaddr].
+    WASMMemoryObject* memoryObj = state.context()->wasmCache()->findMemory(wasm_memory_as_ref(memaddr));
+    // Let buffer be memory.[[BufferObject]].
+    ArrayBuffer* buffer = memoryObj->buffer();
 
-    // Let buffer be a the result of creating a memory buffer from memaddr.
-    ArrayBufferObject* buffer = new ArrayBufferObject(state);
-    // Note) wasm_memory_data with zero size returns null pointer
-    // predefined temporal address is allocated for this case
-    size_t dataSize = wasm_memory_data_size(memaddr);
-    void* dataBlock = dataSize == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memaddr);
+    // If IsSharedArrayBuffer(buffer) is false,
+    // Perform ! DetachArrayBuffer(buffer, "WebAssembly.Memory").
+    bool isShared = buffer->isSharedArrayBufferObject();
+    if (!isShared) {
+        buffer->asArrayBufferObject()->detachArrayBuffer();
+    }
 
-    BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, dataSize,
-                                                                           [](void* data, size_t length, void* deleterData) {}, nullptr);
-    buffer->attachBuffer(backingStore);
-
-    // Set memory.[[BufferObject]] to buffer.
-    memoryObj->setBuffer(buffer);
+    // Let newBuffer be the result of creating a fixed length memory buffer from memaddr.
+    ArrayBuffer* newBuffer = createFixedLengthMemoryBuffer(state, memaddr, isShared);
+    // Set memory.[[BufferObject]] to newBuffer.
+    memoryObj->setBuffer(newBuffer);
 
     // Return ret.
     return Value(ret);
@@ -517,23 +553,27 @@ static Value builtinWASMMemoryBufferGetter(ExecutionState& state, Value thisValu
     }
 
     WASMMemoryObject* memoryObj = thisValue.asObject()->asWASMMemoryObject();
-    if (UNLIKELY(wasm_memory_data_size(memoryObj->memory()) != memoryObj->buffer()->byteLength())) {
-        // FIXME data block of memory has been changed by previous memory.grow operation, but not yet reflected
-        // So, we update the buffer here to reflect modifications on data block and its size.
-        // TODO Actually, this change should be applied immediately after memory.grow operation
-        memoryObj->buffer()->detachArrayBuffer();
+    wasm_memory_t* memaddr = memoryObj->memory();
 
-        ArrayBufferObject* buffer = new ArrayBufferObject(state);
-        size_t dataSize = wasm_memory_data_size(memoryObj->memory());
-        void* dataBlock = dataSize == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memoryObj->memory());
+    if (memoryObj->buffer()->isSharedArrayBufferObject()) {
+        // Let map be the surrounding agent's associated Memory object cache.
+        // Assert: map[memaddr] exists.
+        ASSERT(state.context()->wasmCache()->findMemory(wasm_memory_as_ref(memaddr)));
 
-        BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, dataSize,
-                                                                               [](void* data, size_t length, void* deleterData) {}, nullptr);
-        buffer->attachBuffer(backingStore);
+        // Let newMemory be map[memaddr].
+        WASMMemoryObject* newMemory = state.context()->wasmCache()->findMemory(wasm_memory_as_ref(memaddr));
+        // Let newBufferObject be newMemory.[[BufferObject]].
+        ArrayBuffer* newBufferObject = newMemory->buffer();
 
-        memoryObj->setBuffer(buffer);
+        // Set this.[[BufferObject]] to newBufferObject.
+        memoryObj->setBuffer(newBufferObject);
+
+        // Return newBufferObject.
+        ASSERT(wasm_memory_data_size(memoryObj->memory()) == memoryObj->buffer()->byteLength());
+        return newBufferObject;
     }
 
+    // Return this.[[BufferObject]].
     ASSERT(wasm_memory_data_size(memoryObj->memory()) == memoryObj->buffer()->byteLength());
     return memoryObj->buffer();
 }
