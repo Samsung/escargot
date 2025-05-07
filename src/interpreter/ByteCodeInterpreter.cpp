@@ -3034,7 +3034,8 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
 {
     if (code->m_dataRegisterIndex != REGISTER_LIMIT) {
         CreateObjectPrepare::CreateObjectData* data;
-        if (byteCodeBlock->codeBlock()->isAsyncOrGenerator()) {
+        bool isAsyncOrGenerator = byteCodeBlock->codeBlock()->isAsyncOrGenerator();
+        if (isAsyncOrGenerator) {
             data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(registerFile[code->m_dataRegisterIndex].payload());
         } else {
             data = reinterpret_cast<CreateObjectPrepare::CreateObjectData*>(&registerFile[code->m_dataRegisterIndex]);
@@ -3061,8 +3062,12 @@ NEVER_INLINE void InterpreterSlowPath::createObjectOperation(ExecutionState& sta
             }
         }
         obj->m_values.reset(data->m_values.takeBuffer());
-        // reset creation area prevent leak from stack
-        memset(data, 0, sizeof(CreateObjectPrepare::CreateObjectData));
+        if (isAsyncOrGenerator) {
+            GC_FREE(data);
+        } else {
+            // reset creation area prevent leak from stack
+            memset(data, 0, sizeof(CreateObjectPrepare::CreateObjectData));
+        }
     } else {
         registerFile[code->m_registerIndex] = new Object(state);
 #if defined(ESCARGOT_SMALL_CONFIG)
