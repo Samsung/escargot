@@ -1203,6 +1203,16 @@ void VMInstanceRef::unregisterPromiseRejectCallback()
     toImpl(this)->unregisterPromiseRejectCallback();
 }
 
+size_t VMInstanceRef::config()
+{
+    return toImpl(this)->config();
+}
+
+void VMInstanceRef::setConfig(size_t s)
+{
+    toImpl(this)->setConfig(s);
+}
+
 void VMInstanceRef::enterIdleMode()
 {
     toImpl(this)->enterIdleMode();

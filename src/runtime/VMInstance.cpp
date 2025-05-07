@@ -205,12 +205,13 @@ void vmMarkStartCallback(void* data)
     // in debugger mode, do not remove ByteCodeBlock
     VMInstance* self = (VMInstance*)data;
 
-    if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX || UNLIKELY(self->inIdleMode())) {
+    bool inIdleMode = self->inIdleMode();
+    if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX || UNLIKELY(inIdleMode)) {
         self->m_regexpCache->clear();
     }
 
     auto& currentCodeSizeTotal = self->compiledByteCodeSize();
-    if (currentCodeSizeTotal > self->maxCompiledByteCodeSize() || UNLIKELY(self->inIdleMode())) {
+    if ((currentCodeSizeTotal > self->maxCompiledByteCodeSize() && (self->m_config & (size_t)VMInstance::ConfigFlag::PruneCompiledByteCodesWhileGC)) || UNLIKELY(inIdleMode && (self->m_config & (size_t)VMInstance::ConfigFlag::PruneCompiledByteCodesEnterIdle))) {
         currentCodeSizeTotal = std::numeric_limits<size_t>::max();
 
         auto& v = self->compiledByteCodeBlocks();
@@ -228,14 +229,14 @@ void vmReclaimEndCallback(void* data)
 {
     VMInstance* self = (VMInstance*)data;
 
-#if defined(ENABLE_COMPRESSIBLE_STRING) || defined(ENABLE_WASM)
-    auto currentTick = fastTickCount();
 #if defined(ENABLE_COMPRESSIBLE_STRING)
+    auto currentTick = fastTickCount();
     if (currentTick - self->m_lastCompressibleStringsTestTime > ESCARGOT_COMPRESSIBLE_COMPRESS_GC_CHECK_INTERVAL) {
-        self->compressStringsIfNeeds(currentTick);
+        if (self->m_config & (size_t)VMInstance::ConfigFlag::CompressCompressibleStringsWhileGC) {
+            self->compressStringsIfNeeds(currentTick);
+        }
         self->m_lastCompressibleStringsTestTime = currentTick;
     }
-#endif
 #endif
 
     auto& currentCodeSizeTotal = self->compiledByteCodeSize();
@@ -338,6 +339,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     , m_isFinalized(false)
     , m_inIdleMode(false)
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
+    , m_config((size_t)ConfigFlag::Default)
     , m_compiledByteCodeSize(0)
     , m_maxCompiledByteCodeSize(SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX)
 #if defined(ENABLE_COMPRESSIBLE_STRING)
@@ -748,25 +750,29 @@ void VMInstance::enterIdleMode()
     }
 
 #if defined(ENABLE_COMPRESSIBLE_STRING)
-    // ESCARGOT_LOG_INFO("compressibleStringsUncomressedBufferSize before %lfKB\n", m_compressibleStringsUncomressedBufferSize/1024.f);
-    auto& currentAllocatedCompressibleStrings = compressibleStrings();
-    const size_t& currentAllocatedCompressibleStringsCount = currentAllocatedCompressibleStrings.size();
+    if (m_config & (size_t)VMInstance::ConfigFlag::CompressCompressibleStringsEnterIdle) {
+        // ESCARGOT_LOG_INFO("compressibleStringsUncomressedBufferSize before %lfKB\n", m_compressibleStringsUncomressedBufferSize/1024.f);
+        auto& currentAllocatedCompressibleStrings = compressibleStrings();
+        const size_t& currentAllocatedCompressibleStringsCount = currentAllocatedCompressibleStrings.size();
 
-    for (size_t i = 0; i < currentAllocatedCompressibleStringsCount; i++) {
-        if (!currentAllocatedCompressibleStrings[i]->isCompressed()) {
-            currentAllocatedCompressibleStrings[i]->compress();
+        for (size_t i = 0; i < currentAllocatedCompressibleStringsCount; i++) {
+            if (!currentAllocatedCompressibleStrings[i]->isCompressed()) {
+                currentAllocatedCompressibleStrings[i]->compress();
+            }
         }
+        // ESCARGOT_LOG_INFO("compressibleStringsUncomressedBufferSize after %lfKB\n", m_compressibleStringsUncomressedBufferSize/1024.f);
     }
-// ESCARGOT_LOG_INFO("compressibleStringsUncomressedBufferSize after %lfKB\n", m_compressibleStringsUncomressedBufferSize/1024.f);
 #endif
 
 #if defined(ENABLE_RELOADABLE_STRING)
-    auto& currentAllocatedReloadableStrings = reloadableStrings();
-    const size_t& currentAllocatedReloadableStringsCount = currentAllocatedReloadableStrings.size();
+    if (m_config & (size_t)VMInstance::ConfigFlag::UnloadReloadableStringsEnterIdle) {
+        auto& currentAllocatedReloadableStrings = reloadableStrings();
+        const size_t& currentAllocatedReloadableStringsCount = currentAllocatedReloadableStrings.size();
 
-    for (size_t i = 0; i < currentAllocatedReloadableStringsCount; i++) {
-        if (!currentAllocatedReloadableStrings[i]->isUnloaded()) {
-            currentAllocatedReloadableStrings[i]->unload();
+        for (size_t i = 0; i < currentAllocatedReloadableStringsCount; i++) {
+            if (!currentAllocatedReloadableStrings[i]->isUnloaded()) {
+                currentAllocatedReloadableStrings[i]->unload();
+            }
         }
     }
 #endif
