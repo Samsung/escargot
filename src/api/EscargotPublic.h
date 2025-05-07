@@ -694,10 +694,21 @@ public:
     void registerPromiseRejectCallback(PromiseRejectCallback);
     void unregisterPromiseRejectCallback();
 
+    enum class ConfigFlag {
+        CompressCompressibleStringsWhileGC = 1,
+        PruneCompiledByteCodesWhileGC = 1 << 1,
+
+        CompressCompressibleStringsEnterIdle = 1 << 3,
+        PruneCompiledByteCodesEnterIdle = 1 << 4,
+        UnloadReloadableStringsEnterIdle = 1 << 5,
+    };
+    size_t config();
+    void setConfig(size_t s);
+
     // this function enforce do gc,
-    // remove every compiled bytecodes,
+    // remove every compiled bytecodes(if enabled),
     // remove regexp cache,
-    // and compress every comressible strings if we can
+    // and compress every comressible strings(if enabled) if we can
     void enterIdleMode();
     // force clear every caches related with context
     // you can call this function if you don't want to use every alive contexts

@@ -94,6 +94,17 @@ public:
         PromiseResolveAfterResolved = 3,
     };
 
+    enum class ConfigFlag {
+        CompressCompressibleStringsWhileGC = 1,
+        PruneCompiledByteCodesWhileGC = 1 << 1,
+
+        CompressCompressibleStringsEnterIdle = 1 << 3,
+        PruneCompiledByteCodesEnterIdle = 1 << 4,
+        UnloadReloadableStringsEnterIdle = 1 << 5,
+
+        Default = CompressCompressibleStringsWhileGC | PruneCompiledByteCodesWhileGC | CompressCompressibleStringsEnterIdle | PruneCompiledByteCodesEnterIdle | UnloadReloadableStringsEnterIdle
+    };
+
     typedef void (*PromiseHook)(ExecutionState& state, PromiseHookType type, PromiseObject* promise, const Value& parent, void* hook);
     typedef void (*PromiseRejectCallback)(ExecutionState& state, PromiseObject* promise, const Value& value, PromiseRejectEvent event, void* callback);
 
@@ -102,6 +113,16 @@ public:
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
+
+    size_t config()
+    {
+        return m_config;
+    }
+
+    void setConfig(size_t s)
+    {
+        m_config = s;
+    }
 
     void enterIdleMode();
     void clearCachesRelatedWithContext();
@@ -405,6 +426,8 @@ private:
     bool m_inIdleMode;
     // this flag should affect VM-wide array object
     bool m_didSomePrototypeObjectDefineIndexedProperty;
+
+    size_t m_config;
 
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;
