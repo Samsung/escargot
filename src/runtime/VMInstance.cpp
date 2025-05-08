@@ -205,6 +205,8 @@ void vmMarkStartCallback(void* data)
     // in debugger mode, do not remove ByteCodeBlock
     VMInstance* self = (VMInstance*)data;
 
+    self->m_lastGCMarkStartTickCount = fastTickCount();
+
     bool inIdleMode = self->inIdleMode();
     if (self->m_regexpCache->size() > REGEXP_CACHE_SIZE_MAX || UNLIKELY(inIdleMode)) {
         self->m_regexpCache->clear();
@@ -340,6 +342,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     , m_inIdleMode(false)
     , m_didSomePrototypeObjectDefineIndexedProperty(false)
     , m_config((size_t)ConfigFlag::Default)
+    , m_lastGCMarkStartTickCount(fastTickCount())
     , m_compiledByteCodeSize(0)
     , m_maxCompiledByteCodeSize(SCRIPT_FUNCTION_OBJECT_BYTECODE_SIZE_MAX)
 #if defined(ENABLE_COMPRESSIBLE_STRING)
