@@ -533,7 +533,6 @@ public:
         }
 
         ParserStringView relatedSource(const ParserStringView& source) const;
-        StringView relatedSource(const StringView& source) const;
     };
 
     // ScannerResult should be allocated on the stack by ALLOCA

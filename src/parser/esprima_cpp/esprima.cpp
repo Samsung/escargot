@@ -1476,7 +1476,7 @@ public:
             param = this->parsePatternWithDefault(builder, params);
         }
         for (size_t i = 0; i < params.size(); i++) {
-            AtomicString as(this->escargotContext, params[i].relatedSource(this->scanner->sourceAsNormalView));
+            AtomicString as(this->escargotContext, params[i].relatedSource(this->scanner->source));
             this->validateParam(options, params[i], as);
         }
         options.params.push_back(builder.convertToParameterSyntaxNode(param));
@@ -4233,7 +4233,7 @@ public:
                             this->throwUnexpectedToken(this->lookahead);
                         }
                         this->nextToken();
-                        left = this->finalize(this->createNode(), builder.createIdentifierNode(AtomicString(this->escargotContext, keywordToken.relatedSource(this->scanner->sourceAsNormalView))));
+                        left = this->finalize(this->createNode(), builder.createIdentifierNode(AtomicString(this->escargotContext, keywordToken.relatedSource(this->scanner->source))));
                         init = nullptr;
                         type = statementTypeForIn;
                     } else {

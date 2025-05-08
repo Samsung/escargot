@@ -344,9 +344,10 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
 {
     ASSERT(string && replaceString);
 
+    auto replaceStringBad = replaceString->bufferAccessData();
     bool hasDollar = false;
-    for (size_t i = 0; i < replaceString->length(); i++) {
-        if (replaceString->charAt(i) == '$') {
+    for (size_t i = 0; i < replaceStringBad.length; i++) {
+        if (replaceStringBad.charAt(i) == '$') {
             hasDollar = true;
             break;
         }
@@ -358,8 +359,7 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
         int32_t matchCount = result.m_matchResults.size();
         builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start, &state);
         for (int32_t i = 0; i < matchCount; i++) {
-            String* res = replaceString;
-            builder.appendString(res, &state);
+            builder.appendString(replaceString, &state);
             if (i < matchCount - 1) {
                 builder.appendSubString(string, result.m_matchResults[i][0].m_end, result.m_matchResults[i + 1][0].m_start, &state);
             }
@@ -370,11 +370,11 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
         int32_t matchCount = result.m_matchResults.size();
         builder.appendSubString(string, 0, result.m_matchResults[0][0].m_start, &state);
         for (int32_t i = 0; i < matchCount; i++) {
-            for (unsigned j = 0; j < replaceString->length(); j++) {
-                if (replaceString->charAt(j) == '$' && (j + 1) < replaceString->length()) {
-                    char16_t c = replaceString->charAt(j + 1);
+            for (unsigned j = 0; j < replaceStringBad.length; j++) {
+                if (replaceStringBad.charAt(j) == '$' && (j + 1) < replaceStringBad.length) {
+                    char16_t c = replaceStringBad.charAt(j + 1);
                     if (c == '$') {
-                        builder.appendChar(replaceString->charAt(j), &state);
+                        builder.appendChar(replaceStringBad.charAt(j), &state);
                     } else if (c == '&') {
                         builder.appendSubString(string, result.m_matchResults[i][0].m_start, result.m_matchResults[i][0].m_end, &state);
                     } else if (c == '\'') {
@@ -384,8 +384,8 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
                     } else if ('0' <= c && c <= '9') {
                         size_t idx = c - '0';
                         bool usePeek = false;
-                        if (j + 2 < replaceString->length()) {
-                            int peek = replaceString->charAt(j + 2) - '0';
+                        if (j + 2 < replaceStringBad.length) {
+                            int peek = replaceStringBad.charAt(j + 2) - '0';
                             if (0 <= peek && peek <= 9) {
                                 idx *= 10;
                                 idx += peek;
@@ -412,7 +412,7 @@ static Value stringReplaceFastPathHelper(ExecutionState& state, String* string, 
                     }
                     j++;
                 } else {
-                    builder.appendChar(replaceString->charAt(j), &state);
+                    builder.appendChar(replaceStringBad.charAt(j), &state);
                 }
             }
             if (i < matchCount - 1) {
@@ -717,11 +717,18 @@ static Value builtinStringSplit(ExecutionState& state, Value thisValue, size_t a
     splitMatchUsingStr = [](String* S, int q, String* R) -> Value {
         int s = S->length();
         int r = R->length();
-        if (q + r > s)
+        if (q + r > s) {
             return Value(false);
-        for (int i = 0; i < r; i++)
-            if (S->charAt(q + i) != R->charAt(i))
+        }
+
+        auto sData = S->bufferAccessData();
+        auto rData = R->bufferAccessData();
+
+        for (int i = 0; i < r; i++) {
+            if (sData.charAt(q + i) != rData.charAt(i)) {
                 return Value(false);
+            }
+        }
         return Value(q + r);
     };
     if (s == 0) {
@@ -1410,8 +1417,9 @@ static String* createHTML(ExecutionState& state, Value string, String* tag, Stri
         // ReturnIfAbrupt(V).
         // Let escapedV be the String value that is the same as V except that each occurrence of the code unit 0x0022 (QUOTATION MARK) in V has been replaced with the six code unit sequence "&quot;".
         StringBuilder sb;
-        for (size_t i = 0; i < V->length(); i++) {
-            char16_t ch = V->charAt(i);
+        auto vData = V->bufferAccessData();
+        for (size_t i = 0; i < vData.length; i++) {
+            char16_t ch = vData.charAt(i);
             if (ch == 0x22) {
                 sb.appendString("&quot;");
             } else {
