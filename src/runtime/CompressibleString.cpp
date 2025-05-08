@@ -136,6 +136,17 @@ UTF16StringData CompressibleString::toUTF16StringData() const
     }
 }
 
+StringBufferAccessData CompressibleString::bufferAccessDataSpecialImpl()
+{
+    m_lastUsedTickcount = m_vmInstance->lastGCMarkStartTickCount();
+    if (isCompressed()) {
+        decompress();
+    }
+
+    // add refCount pointer to count its usage in StringBufferAccessData
+    return StringBufferAccessData(m_bufferData.has8BitContent, m_bufferData.length, const_cast<void*>(m_bufferData.buffer), &m_refCount);
+}
+
 void* CompressibleString::allocateStringDataBuffer(size_t byteLength)
 {
     return malloc(byteLength);

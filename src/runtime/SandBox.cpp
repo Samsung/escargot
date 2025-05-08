@@ -406,13 +406,14 @@ void StackTraceData::buildStackTrace(Context* context, StringBuilder& builder)
                 size_t preLineSoFar = 0;
                 size_t afterLineSoFar = 0;
 
+                auto bad = src->bufferAccessData();
                 size_t start = loc.index;
                 int64_t idx = (int64_t)start;
                 while (start - idx < preLineMax) {
                     if (idx == 0) {
                         break;
                     }
-                    if (src->charAt((size_t)idx) == '\r' || src->charAt((size_t)idx) == '\n') {
+                    if (bad.charAt((size_t)idx) == '\r' || bad.charAt((size_t)idx) == '\n') {
                         idx++;
                         break;
                     }
@@ -422,27 +423,26 @@ void StackTraceData::buildStackTrace(Context* context, StringBuilder& builder)
 
                 idx = start;
                 while (idx - start < afterLineMax) {
-                    if ((size_t)idx == src->length() - 1) {
+                    if ((size_t)idx == bad.length - 1) {
                         break;
                     }
-                    if (src->charAt((size_t)idx) == '\r' || src->charAt((size_t)idx) == '\n') {
+                    if (bad.charAt((size_t)idx) == '\r' || bad.charAt((size_t)idx) == '\n') {
                         break;
                     }
                     idx++;
                 }
                 afterLineSoFar = idx;
 
-                if (preLineSoFar <= afterLineSoFar && preLineSoFar <= src->length() && afterLineSoFar <= src->length()) {
-                    auto subSrc = src->substring(preLineSoFar, afterLineSoFar);
+                if (preLineSoFar <= afterLineSoFar && preLineSoFar <= bad.length && afterLineSoFar <= bad.length) {
                     builder.appendChar('\n');
-                    builder.appendString(subSrc);
+                    builder.appendSubString(src, preLineSoFar, afterLineSoFar);
                     builder.appendChar('\n');
                     std::string sourceCodePosition;
                     for (size_t i = preLineSoFar; i < start; i++) {
                         sourceCodePosition += " ";
                     }
                     sourceCodePosition += "^";
-                    builder.appendString(String::fromUTF8(sourceCodePosition.data(), sourceCodePosition.length()));
+                    builder.appendString(String::fromASCII(sourceCodePosition.data(), sourceCodePosition.length()));
                 }
             }
         }

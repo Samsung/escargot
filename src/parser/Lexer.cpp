@@ -487,19 +487,9 @@ ParserStringView Scanner::SmallScannerResult::relatedSource(const ParserStringVi
     return ParserStringView(source, this->start, this->end);
 }
 
-StringView Scanner::SmallScannerResult::relatedSource(const StringView& source) const
-{
-    return StringView(source, this->start, this->end);
-}
-
 ParserStringView Scanner::ScannerResult::relatedSource(const ParserStringView& source)
 {
     return ParserStringView(source, this->start, this->end);
-}
-
-StringView Scanner::ScannerResult::relatedSource(const StringView& source)
-{
-    return StringView(source, this->start, this->end);
 }
 
 Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance)

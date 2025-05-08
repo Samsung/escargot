@@ -61,16 +61,7 @@ public:
         return (const char16_t*)bufferAccessData().buffer;
     }
 
-    virtual StringBufferAccessData bufferAccessDataSpecialImpl() override
-    {
-        m_lastUsedTickcount = fastTickCount();
-        if (isCompressed()) {
-            decompress();
-        }
-
-        // add refCount pointer to count its usage in StringBufferAccessData
-        return StringBufferAccessData(m_bufferData.has8BitContent, m_bufferData.length, const_cast<void*>(m_bufferData.buffer), &m_refCount);
-    }
+    virtual StringBufferAccessData bufferAccessDataSpecialImpl() override;
 
     bool isCompressed()
     {

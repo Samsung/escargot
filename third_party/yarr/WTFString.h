@@ -35,11 +35,13 @@ class String {
 public:
     String()
         : m_impl()
+        , m_implBufferAccessData(Escargot::String::emptyString->bufferAccessData())
     {
     }
 
     String(::Escargot::String* impl)
         : m_impl(impl)
+        , m_implBufferAccessData(impl->bufferAccessData())
     {
     }
 
@@ -48,7 +50,7 @@ public:
         if (isNull()) {
             return 0;
         }
-        return m_impl->charAt(idx);
+        return m_implBufferAccessData.charAt(idx);
     }
 
     ALWAYS_INLINE size_t length() const
@@ -56,7 +58,7 @@ public:
         if (isNull()) {
             return 0;
         }
-        return m_impl->length();
+        return m_implBufferAccessData.length;
     }
 
     bool equals(const String& src) const
@@ -75,10 +77,10 @@ public:
         if (isNull()) {
             return 0;
         }
-        if (m_impl->is8Bit()) {
-            return StringHasher::computeHashAndMaskTop8Bits(m_impl->characters8(), m_impl->length());
+        if (m_implBufferAccessData.has8BitContent) {
+            return StringHasher::computeHashAndMaskTop8Bits(m_implBufferAccessData.bufferAs8Bit, m_implBufferAccessData.length);
         } else {
-            return StringHasher::computeHashAndMaskTop8Bits(m_impl->characters16(), m_impl->length());
+            return StringHasher::computeHashAndMaskTop8Bits(m_implBufferAccessData.bufferAs16Bit, m_implBufferAccessData.length);
         }
     }
 
@@ -87,8 +89,13 @@ public:
         if (isNull()) {
             return false;
         }
-        char b[2] = { c, 0x0 };
-        return m_impl->contains(b);
+
+        for (size_t i = 0; i < m_implBufferAccessData.length; i ++) {
+            if (m_implBufferAccessData.charAt(i) == c) {
+                return true;
+            }
+        }
+        return false;
     }
 
     bool isNull() const
@@ -101,7 +108,7 @@ public:
         if (isNull()) {
             return true;
         }
-        return m_impl->is8Bit();
+        return m_implBufferAccessData.has8BitContent;
     }
 
     template <typename Any>
@@ -111,9 +118,9 @@ public:
             return nullptr;
         }
         if (is8Bit()) {
-            return (Any*)m_impl->characters8();
+            return (Any*)m_implBufferAccessData.bufferAs8Bit;
         } else {
-            return (Any*)m_impl->characters16();
+            return (Any*)m_implBufferAccessData.bufferAs16Bit;
         }
     }
 
@@ -122,7 +129,7 @@ public:
         if (isNull()) {
             return nullptr;
         }
-        return m_impl->characters8();
+        return reinterpret_cast<const LChar*>(m_implBufferAccessData.bufferAs8Bit);
     }
 
     ALWAYS_INLINE const char16_t* characters16() const
@@ -130,7 +137,7 @@ public:
         if (isNull()) {
             return nullptr;
         }
-        return m_impl->characters16();
+        return m_implBufferAccessData.bufferAs16Bit;
     }
 
     ALWAYS_INLINE::Escargot::String* impl()
@@ -149,6 +156,7 @@ public:
 
 private:
     Optional<::Escargot::String*> m_impl;
+    ::Escargot::StringBufferAccessData m_implBufferAccessData;
 };
 
 using StringView = const String&;

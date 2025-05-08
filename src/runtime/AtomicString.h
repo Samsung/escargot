@@ -27,6 +27,7 @@
 
 namespace Escargot {
 
+class ParserStringView;
 typedef HashSet<String*, std::hash<String*>, std::equal_to<String*>, GCUtil::gc_malloc_allocator<String*>> AtomicStringMap;
 
 class AtomicString : public gc {
@@ -78,6 +79,7 @@ public:
     {
     }
     AtomicString(Context* c, const StringView& sv);
+    AtomicString(Context* c, const ParserStringView& sv);
     ALWAYS_INLINE AtomicString(Context* c, String* name)
     {
         // fast path
@@ -104,8 +106,9 @@ public:
             return false;
         }
 
+        auto bad = m_string->bufferAccessData();
         for (size_t i = 0; i < (srcLen - 1); i++) {
-            if (src[i] != m_string->charAt(i)) {
+            if (src[i] != bad.charAt(i)) {
                 return false;
             }
         }
