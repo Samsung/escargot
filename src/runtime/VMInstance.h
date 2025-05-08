@@ -119,6 +119,11 @@ public:
         return m_config;
     }
 
+    uint64_t lastGCMarkStartTickCount()
+    {
+        return m_lastGCMarkStartTickCount;
+    }
+
     void setConfig(size_t s)
     {
         m_config = s;
@@ -428,6 +433,8 @@ private:
     bool m_didSomePrototypeObjectDefineIndexedProperty;
 
     size_t m_config;
+
+    uint64_t m_lastGCMarkStartTickCount;
 
     ObjectStructure* m_defaultStructureForObject;
     ObjectStructure* m_defaultStructureForFunctionObject;
