@@ -287,19 +287,27 @@ public:
         ASSERT(end <= m_size);
 
         size_t c = end - start;
-        if (m_size - c) {
-            size_t oldC = m_capacity;
-            T* newBuffer = Allocator().allocate(m_size - c);
-            VectorCopier<T>::copy(newBuffer, m_buffer, start);
-            if (m_size > end) {
-                VectorCopier<T>::copy(&newBuffer[end - c], &m_buffer[end], m_size - end);
-            }
+        size_t newSize = m_size - c;
+        if (newSize) {
+            if (newSize < m_capacity / 2) {
+                size_t oldC = m_capacity;
+                T* newBuffer = Allocator().allocate(m_size - c);
+                VectorCopier<T>::copy(newBuffer, m_buffer, start);
+                if (m_size > end) {
+                    VectorCopier<T>::copy(&newBuffer[end - c], &m_buffer[end], m_size - end);
+                }
 
-            if (m_buffer)
-                Allocator().deallocate(m_buffer, oldC);
-            m_buffer = newBuffer;
-            m_size = m_size - c;
-            m_capacity = m_size;
+                if (m_buffer)
+                    Allocator().deallocate(m_buffer, oldC);
+                m_buffer = newBuffer;
+                m_size = newSize;
+                m_capacity = m_size;
+            } else {
+                if (m_size > end) {
+                    VectorCopier<T>::copy(&m_buffer[end - c], &m_buffer[end], m_size - end);
+                }
+                m_size = newSize;
+            }
         } else {
             clear();
         }
