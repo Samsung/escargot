@@ -20,6 +20,7 @@
 #include "Escargot.h"
 #include "AtomicString.h"
 #include "Context.h"
+#include "parser/ParserStringView.h"
 
 namespace Escargot {
 
@@ -280,6 +281,26 @@ AtomicString::AtomicString(Context* c, const StringView& sv)
     }
 }
 
+AtomicString::AtomicString(Context* c, const ParserStringView& sv)
+{
+    AtomicStringMap* ec = c->atomicStringMap();
+    auto iter = ec->find(&const_cast<ParserStringView&>(sv));
+    if (ec->end() == iter) {
+        String* newString;
+        auto buffer = sv.bufferAccessData();
+        if (buffer.has8BitContent) {
+            newString = String::fromLatin1(reinterpret_cast<const LChar*>(buffer.buffer), buffer.length);
+        } else {
+            newString = new UTF16String((const char16_t*)buffer.buffer, buffer.length);
+        }
+        ec->insert(newString);
+        ASSERT(ec->find(newString) != ec->end());
+        m_string = newString;
+    } else {
+        m_string = iter.operator*();
+    }
+}
+
 void AtomicString::initStaticString(AtomicStringMap* ec, String* name)
 {
     ASSERT(ec->find(name) == ec->end());
@@ -293,7 +314,7 @@ void AtomicString::init(Context* c, String* name)
     AtomicStringMap* ec = c->atomicStringMap();
     auto iter = ec->find(name);
     if (ec->end() == iter) {
-        if (name->isStringView()) {
+        if (name->isStringView() || name->isCompressibleString() || name->isReloadableString()) {
             auto buffer = name->bufferAccessData();
             if (buffer.has8BitContent) {
                 name = String::fromLatin1(reinterpret_cast<const LChar*>(buffer.buffer), buffer.length);
@@ -302,6 +323,8 @@ void AtomicString::init(Context* c, String* name)
             }
         }
         ASSERT(!name->isStringView());
+        ASSERT(!name->isCompressibleString());
+        ASSERT(!name->isReloadableString());
         ec->insert(name);
         ASSERT(ec->find(name) != ec->end());
         m_string = name;
