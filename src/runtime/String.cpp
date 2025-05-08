@@ -54,7 +54,6 @@
 #include "bignum-dtoa.h"
 
 namespace Escargot {
-
 MAY_THREAD_LOCAL String* String::emptyString;
 
 std::vector<std::string> split(const std::string& s, char seperator)

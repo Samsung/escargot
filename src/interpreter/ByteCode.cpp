@@ -220,12 +220,13 @@ ExtendedNodeLOC ByteCodeBlock::computeNodeLOC(StringView src, ExtendedNodeLOC so
     size_t line = sourceElementStart.line;
     size_t column = sourceElementStart.column;
     size_t srcLength = src.length();
+    auto bad = src.bufferAccessData();
     for (size_t i = 0; i < index && i < srcLength; i++) {
-        char16_t c = src.charAt(i);
+        char16_t c = bad.charAt(i);
         column++;
         if (EscargotLexer::isLineTerminator(c)) {
             // skip \r\n
-            if (c == 13 && (i + 1 < index) && src.charAt(i + 1) == 10) {
+            if (c == 13 && (i + 1 < index) && bad.charAt(i + 1) == 10) {
                 i++;
             }
             line++;

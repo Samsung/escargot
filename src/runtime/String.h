@@ -26,7 +26,6 @@
 #include <string>
 
 namespace Escargot {
-
 // A type to hold a single Latin-1 character.
 typedef unsigned char LChar;
 
@@ -416,8 +415,9 @@ public:
             return false;
         }
 
+        auto bad = bufferAccessData();
         for (size_t i = 0; i < srcLen; i++) {
-            if (src[i] != charAt(i)) {
+            if (src[i] != bad.charAt(i)) {
                 return false;
             }
         }

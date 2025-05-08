@@ -71,9 +71,10 @@ public:
         UTF16StringData ret;
         size_t len = length();
         ret.resizeWithUninitializedValues(len);
+        auto bad = bufferAccessData();
 
         for (size_t i = 0; i < len; i++) {
-            ret[i] = charAt(i);
+            ret[i] = bad.charAt(i);
         }
 
         return ret;
