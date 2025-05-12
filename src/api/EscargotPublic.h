@@ -152,7 +152,7 @@ public:
     static void* gcMallocUncollectable(size_t siz); // allocate memory it can hold gc-allocated pointer & it is never collect by gc
     static void* gcMallocAtomicUncollectable(size_t siz); // allocate memory it can not hold gc-allocated pointer & it is never collect by gc
     static void gcFree(void* ptr);
-    typedef void (*GCAllocatedMemoryFinalizer)(void* self);
+    typedef void (*GCAllocatedMemoryFinalizer)(void* self, void* callbackData);
 
     // gcRegisterFinalizer
     // 1. if you want to free memory explicitly, you must remove registered finalizer
@@ -162,10 +162,12 @@ public:
     //     ......
     //     gcRegisterFinalizer(gcPointer, nullptr); // this removes finalizer
     //     Memory::gcFree(gcPointer);
-    static void gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback);
+    static void gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback, void* data);
 
-    static void gcRegisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback);
-    static void gcUnregisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback);
+    static void gcRegisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback, void* data);
+    static void gcUnregisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback, void* data);
+    static bool gcHasFinalizer(ObjectRef* ptr);
+    static bool gcHasFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback, void* data);
 
     static void gc();
 

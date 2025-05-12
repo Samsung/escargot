@@ -351,32 +351,47 @@ void Memory::gcFree(void* ptr)
     GC_FREE(ptr);
 }
 
-void Memory::gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback)
+void Memory::gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback, void* data)
 {
     if (callback) {
-        GC_REGISTER_FINALIZER_NO_ORDER(ptr, [](void* obj, void* data) {
-            ((GCAllocatedMemoryFinalizer)data)(obj);
-        },
-                                       (void*)callback, nullptr, nullptr);
+        GC_REGISTER_FINALIZER_NO_ORDER(ptr, reinterpret_cast<GC_finalization_proc>(callback),
+                                       data, nullptr, nullptr);
     } else {
         GC_REGISTER_FINALIZER_NO_ORDER(ptr, nullptr, nullptr, nullptr, nullptr);
     }
 }
 
-static void ObjectRefFinalizer(PointerValue* self, void* fn)
+void Memory::gcRegisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback, void* data)
 {
-    Memory::GCAllocatedMemoryFinalizer cb = (Memory::GCAllocatedMemoryFinalizer)fn;
-    cb(self);
+    toImpl(ptr)->addFinalizer(reinterpret_cast<FinalizerFunction>(callback), data);
 }
 
-void Memory::gcRegisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback)
+void Memory::gcUnregisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback, void* data)
 {
-    toImpl(ptr)->addFinalizer(ObjectRefFinalizer, (void*)callback);
+    toImpl(ptr)->removeFinalizer(reinterpret_cast<FinalizerFunction>(callback), data);
 }
 
-void Memory::gcUnregisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback)
+bool Memory::gcHasFinalizer(ObjectRef* ptr)
 {
-    toImpl(ptr)->removeFinalizer(ObjectRefFinalizer, (void*)callback);
+    auto obj = toImpl(ptr);
+    if (obj->hasExtendedExtraData()) {
+        return !!obj->ensureExtendedExtraData()->m_finalizer.size();
+    }
+    return false;
+}
+
+bool Memory::gcHasFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback, void* data)
+{
+    auto obj = toImpl(ptr);
+    if (obj->hasExtendedExtraData()) {
+        auto& fs = obj->ensureExtendedExtraData()->m_finalizer;
+        for (auto& f : fs) {
+            if (f.first == reinterpret_cast<FinalizerFunction>(callback) && f.second == data) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void Memory::gc()

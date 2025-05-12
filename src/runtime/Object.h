@@ -996,6 +996,21 @@ public:
         return (m_prototype != nullptr && m_prototype->isObjectRareData());
     }
 
+    inline bool hasExtendedExtraData() const
+    {
+        return (hasRareData() && rareData()->m_hasExtendedExtraData);
+    }
+
+    ObjectExtendedExtraData* ensureExtendedExtraData()
+    {
+        auto rd = ensureRareData();
+        if (!rd->m_hasExtendedExtraData) {
+            rd->m_extendedExtraData = new ObjectExtendedExtraData(rd->m_extraData);
+            rd->m_hasExtendedExtraData = true;
+        }
+        return rd->m_extendedExtraData;
+    }
+
     virtual bool isEverSetAsPrototypeObject() const
     {
         if (LIKELY(!hasRareData())) {
@@ -1136,8 +1151,8 @@ public:
         m_values[idx] = newValue;
     }
 
-    virtual void addFinalizer(FinalizerFunction fn, void* data);
-    virtual bool removeFinalizer(FinalizerFunction fn, void* data);
+    virtual void addFinalizer(FinalizerFunction fn, void* data) override;
+    virtual bool removeFinalizer(FinalizerFunction fn, void* data) override;
 
     struct FastLookupSymbolResult {
         FastLookupSymbolResult()
@@ -1216,25 +1231,10 @@ protected:
         return (ObjectRareData*)m_prototype;
     }
 
-    inline bool hasExtendedExtraData() const
-    {
-        return (hasRareData() && rareData()->m_hasExtendedExtraData);
-    }
-
     ObjectExtendedExtraData* extendedExtraData()
     {
         ASSERT(hasExtendedExtraData());
         return rareData()->m_extendedExtraData;
-    }
-
-    ObjectExtendedExtraData* ensureExtendedExtraData()
-    {
-        auto rd = ensureRareData();
-        if (!rd->m_hasExtendedExtraData) {
-            rd->m_extendedExtraData = new ObjectExtendedExtraData(rd->m_extraData);
-            rd->m_hasExtendedExtraData = true;
-        }
-        return rd->m_extendedExtraData;
     }
 
     ObjectStructure* m_structure;
