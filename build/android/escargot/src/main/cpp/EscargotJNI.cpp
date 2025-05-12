@@ -330,7 +330,7 @@ ScriptObjectExtraData* ensureScriptObjectExtraData(ObjectRef* ref)
         data = new ScriptObjectExtraData;
         ref->setExtraData(data);
 
-        Memory::gcRegisterFinalizer(ref, [](void* self) {
+        Memory::gcRegisterFinalizer(ref, [](void* self, void* data) {
             ScriptObjectExtraData* extraData = reinterpret_cast<ScriptObjectExtraData*>(reinterpret_cast<ObjectRef*>(self)->extraData());
             auto env = fetchJNIEnvFromCallback();
             if (env) {
@@ -343,7 +343,7 @@ ScriptObjectExtraData* ensureScriptObjectExtraData(ObjectRef* ref)
                     extraData->userData = nullptr;
                 }
             }
-        });
+        }, nullptr);
 
     }
     return data;

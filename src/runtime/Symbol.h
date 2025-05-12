@@ -61,8 +61,8 @@ public:
     static Symbol* fromGlobalSymbolRegistry(VMInstance* vm, String* stringKey);
     static Value keyForSymbol(VMInstance* vm, Symbol* sym);
 
-    virtual void addFinalizer(FinalizerFunction fn, void* data);
-    virtual bool removeFinalizer(FinalizerFunction fn, void* data);
+    virtual void addFinalizer(FinalizerFunction fn, void* data) override;
+    virtual bool removeFinalizer(FinalizerFunction fn, void* data) override;
 
 private:
     SymbolFinalizerData* ensureFinalizerData();
