@@ -261,7 +261,7 @@ String* BigInt::toString(int radix)
     m_bf.sign = savedSign;
 
     if (UNLIKELY(!str)) {
-        return String::emptyString;
+        return String::emptyString();
     } else {
         String* ret = String::fromASCII(str, resultLen);
         bf_free(ThreadLocal::bfContext(), str);

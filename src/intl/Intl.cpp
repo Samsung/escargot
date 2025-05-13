@@ -1842,7 +1842,7 @@ static String* bestAvailableLocale(ExecutionState& state, const Vector<String*, 
         // Let pos be the character index of the last occurrence of "-" (U+002D) within candidate. If that character does not occur, return undefined.
         size_t pos = candidate->rfind(state.context()->staticStrings().asciiTable[(size_t)'-'].string(), candidate->length() - 1);
         if (pos == SIZE_MAX)
-            return String::emptyString;
+            return String::emptyString();
 
         // If pos ≥ 2 and the character "-" occurs at index pos-2 of candidate, then decrease pos by 2.
         if (pos >= 2 && candidate->charAt(pos - 2) == '-')
@@ -1852,7 +1852,7 @@ static String* bestAvailableLocale(ExecutionState& state, const Vector<String*, 
         candidate = candidate->substring(0, pos);
     }
 
-    return String::emptyString;
+    return String::emptyString();
 }
 
 static Intl::IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>> availableLocales, const ValueVector& requestedLocales)
@@ -1863,10 +1863,10 @@ static Intl::IntlMatcherResult lookupMatcher(ExecutionState& state, const Vector
     // Let len be the number of elements in requestedLocales.
     size_t len = requestedLocales.size();
     // Let availableLocale be undefined.
-    String* availableLocale = String::emptyString;
+    String* availableLocale = String::emptyString();
 
-    String* locale = String::emptyString;
-    String* noExtensionsLocale = String::emptyString;
+    String* locale = String::emptyString();
+    String* noExtensionsLocale = String::emptyString();
 
     // Repeat while i < len and availableLocale is undefined:
     while (i < len && availableLocale->length() == 0) {
@@ -2004,7 +2004,7 @@ static Optional<String*> unicodeExtensionValue(ExecutionState& state, String* ex
     pos = extension->find(searchValue);
     // If pos ≠ -1 and pos + 3 = size, then
     if (pos != SIZE_MAX && pos + 3 == size) {
-        return String::emptyString;
+        return String::emptyString();
     }
 
     return nullptr;
@@ -2069,7 +2069,7 @@ StringMap Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUti
         std::string value = keyLocaleData[0];
 
         // Let supportedExtensionAddition be "".
-        String* supportedExtensionAddition = String::emptyString;
+        String* supportedExtensionAddition = String::emptyString();
 
         // If r has an [[extension]] field, then
         if (r.extension->length()) {
@@ -2117,7 +2117,7 @@ StringMap Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUti
                     // Let value be optionsValue.
                     value = optionsValue->toNonGCUTF8StringData();
                     // Let supportedExtensionAddition be "".
-                    supportedExtensionAddition = String::emptyString;
+                    supportedExtensionAddition = String::emptyString();
                 }
             }
         }
@@ -2152,7 +2152,7 @@ StringMap Intl::resolveLocale(ExecutionState& state, const Vector<String*, GCUti
             String* preExtension = foundLocale->substring(0, len > r.extensionIndex ? r.extensionIndex : len);
 
             // Let postExtension be the substring of foundLocale from position extensionIndex to the end of the string.
-            String* postExtension = String::emptyString;
+            String* postExtension = String::emptyString();
             if (r.extensionIndex < len) {
                 postExtension = foundLocale->substring(r.extensionIndex, len);
             }
@@ -2554,7 +2554,7 @@ String* Intl::icuNumberFieldToString(ExecutionState& state, int32_t fieldName, d
         return state.context()->staticStrings().lazyCompact().string();
     default:
         ASSERT_NOT_REACHED();
-        return String::emptyString;
+        return String::emptyString();
     }
 }
 

@@ -37,7 +37,7 @@ static Value builtinSharedArrayBufferConstructor(ExecutionState& state, Value th
 
     uint64_t byteLength = argv[0].toIndex(state);
     if (byteLength == Value::InvalidIndexValue) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_FirstArgumentInvalidLength);
     }
 
     Optional<uint64_t> maxByteLength;
@@ -48,7 +48,7 @@ static Value builtinSharedArrayBufferConstructor(ExecutionState& state, Value th
         if (!maxLengthValue.isUndefined()) {
             maxByteLength = maxLengthValue.toIndex(state);
             if (UNLIKELY((maxByteLength.value() == Value::InvalidIndexValue) || (byteLength > maxByteLength.value()))) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayLength);
             }
         }
     }

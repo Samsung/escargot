@@ -43,7 +43,7 @@ void GlobalEnvironmentRecord::createBinding(ExecutionState& state, const AtomicS
 {
     for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
         if (m_globalDeclarativeRecord->at(i).m_name == name) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, name.string(), false, String::emptyString(), ErrorObject::Messages::DuplicatedIdentifier);
         }
     }
 
@@ -94,7 +94,7 @@ EnvironmentRecord::GetBindingValueResult GlobalEnvironmentRecord::getBindingValu
     for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
         if (m_globalDeclarativeRecord->at(i).m_name == name) {
             if (UNLIKELY(m_globalDeclarativeStorage->at(i).isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
             }
             return EnvironmentRecord::GetBindingValueResult(true, m_globalDeclarativeStorage->at(i));
         }
@@ -112,7 +112,7 @@ void GlobalEnvironmentRecord::setMutableBinding(ExecutionState& state, const Ato
     for (size_t i = 0; i < m_globalDeclarativeRecord->size(); i++) {
         if (m_globalDeclarativeRecord->at(i).m_name == name) {
             if (UNLIKELY(m_globalDeclarativeStorage->at(i).isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
             }
             m_globalDeclarativeStorage->at(i) = V;
             return;
@@ -128,7 +128,7 @@ void GlobalEnvironmentRecord::setMutableBindingByBindingSlot(ExecutionState& sta
     if (slot.m_index != SIZE_MAX - 1) {
         // TDZ check
         if (UNLIKELY(m_globalDeclarativeStorage->at(slot.m_index).isEmpty())) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
         }
 
         // Storing to const variable check
@@ -208,7 +208,7 @@ void DeclarativeEnvironmentRecordNotIndexed::createBinding(ExecutionState& state
     auto hasBindingResult = hasBinding(state, name);
     if (UNLIKELY(hasBindingResult.m_index != SIZE_MAX)) {
         if (!m_recordVector[hasBindingResult.m_index].m_isVarDeclaration || !isVarDeclaration) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, name.string(), false, String::emptyString(), ErrorObject::Messages::DuplicatedIdentifier);
         }
         return;
     }
@@ -231,7 +231,7 @@ EnvironmentRecord::GetBindingValueResult DeclarativeEnvironmentRecordNotIndexed:
     for (size_t i = 0; i < len; i++) {
         if (m_recordVector[i].m_name == name) {
             if (UNLIKELY(m_heapStorage[i].isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
             }
             return EnvironmentRecord::GetBindingValueResult(m_heapStorage[i]);
         }
@@ -245,7 +245,7 @@ void DeclarativeEnvironmentRecordNotIndexed::setMutableBinding(ExecutionState& s
     for (size_t i = 0; i < len; i++) {
         if (m_recordVector[i].m_name == name) {
             if (UNLIKELY(m_heapStorage[i].isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
             }
             if (UNLIKELY(!m_recordVector[i].m_isMutable)) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
@@ -261,7 +261,7 @@ void DeclarativeEnvironmentRecordNotIndexed::setMutableBindingByBindingSlot(Exec
 {
     // TDZ check
     if (UNLIKELY(m_heapStorage[slot.m_index].isEmpty())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
     }
 
     // Storing to const variable check
@@ -466,7 +466,7 @@ void ModuleEnvironmentRecord::createBinding(ExecutionState& state, const AtomicS
     auto hasBindingResult = hasBinding(state, name);
     if (UNLIKELY(hasBindingResult.m_index != SIZE_MAX)) {
         if (!m_moduleBindings[hasBindingResult.m_index].m_isVarDeclaration || !isVarDeclaration) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+            ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, name.string(), false, String::emptyString(), ErrorObject::Messages::DuplicatedIdentifier);
         }
         return;
     }

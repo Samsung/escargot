@@ -272,7 +272,7 @@ bool SandBox::createStackTrace(StackTraceDataOnStackVector& stackTraceDataVector
             builder.appendString("[native function]");
             builder.appendString(" } ");
             data.srcName = builder.finalize();
-            data.sourceCode = String::emptyString;
+            data.sourceCode = String::emptyString();
 
             data.functionName = cb->functionName().string();
             data.isEval = false;

@@ -40,7 +40,7 @@ struct ClassContextInformation {
         , m_prototypeIndex(SIZE_MAX)
         , m_superIndex(SIZE_MAX)
         , m_name()
-        , m_src(String::emptyString)
+        , m_src(String::emptyString())
     {
     }
 

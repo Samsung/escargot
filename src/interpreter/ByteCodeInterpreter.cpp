@@ -306,7 +306,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                     const EncodedValueVectorElement& val = ctx->globalDeclarativeStorage()->at(idx);
                     isCacheWork = true;
                     if (UNLIKELY(val.isEmpty())) {
-                        ErrorObject::throwBuiltinError(*state, ErrorCode::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                        ErrorObject::throwBuiltinError(*state, ErrorCode::ReferenceError, ctx->globalDeclarativeRecord()->at(idx).m_name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
                     }
                     registerFile[code->m_registerIndex] = val;
                 }
@@ -340,10 +340,10 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
                     const auto& record = ctx->globalDeclarativeRecord()->at(idx);
                     auto& storage = ctx->globalDeclarativeStorage()->at(idx);
                     if (UNLIKELY(storage.isEmpty())) {
-                        ErrorObject::throwBuiltinError(*state, ErrorCode::ReferenceError, record.m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                        ErrorObject::throwBuiltinError(*state, ErrorCode::ReferenceError, record.m_name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
                     }
                     if (UNLIKELY(!record.m_isMutable)) {
-                        ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, record.m_name.string(), false, String::emptyString, ErrorObject::Messages::AssignmentToConstantVariable);
+                        ErrorObject::throwBuiltinError(*state, ErrorCode::TypeError, record.m_name.string(), false, String::emptyString(), ErrorObject::Messages::AssignmentToConstantVariable);
                     }
                     storage = registerFile[code->m_registerIndex];
                 }
@@ -1759,7 +1759,7 @@ NEVER_INLINE EnvironmentRecord* InterpreterSlowPath::getBindedEnvironmentRecordB
         env = env->outerEnvironment();
     }
 
-    ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+    ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotDefined);
     return NULL;
 }
 
@@ -1780,7 +1780,7 @@ NEVER_INLINE Value InterpreterSlowPath::loadByName(ExecutionState& state, Lexica
     }
 
     if (throwException)
-        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotDefined);
 
     return Value();
 }
@@ -1796,7 +1796,7 @@ NEVER_INLINE void InterpreterSlowPath::storeByName(ExecutionState& state, Lexica
         env = env->outerEnvironment();
     }
     if (state.inStrictMode()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotDefined);
     }
     GlobalObject* o = state.context()->globalObject();
     o->setThrowsExceptionWhenStrictMode(state, name, value, o);
@@ -1817,7 +1817,7 @@ NEVER_INLINE void InterpreterSlowPath::initializeByName(ExecutionState& state, L
             }
             env = env->outerEnvironment();
         }
-        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotDefined);
     }
 }
 
@@ -1863,7 +1863,7 @@ NEVER_INLINE void InterpreterSlowPath::storeByNameWithAddress(ExecutionState& st
             if (idx == count) {
                 EnvironmentRecord::BindingSlot slot = env->record()->hasBinding(state, code->m_name);
                 if (slot.m_index == SIZE_MAX && state.inStrictMode()) {
-                    ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, code->m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+                    ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, code->m_name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotDefined);
                 }
                 env->record()->setMutableBindingByBindingSlot(state, slot, code->m_name, value);
                 return;
@@ -1873,7 +1873,7 @@ NEVER_INLINE void InterpreterSlowPath::storeByNameWithAddress(ExecutionState& st
         }
     }
     if (state.inStrictMode()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, code->m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, code->m_name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotDefined);
     }
     GlobalObject* o = state.context()->globalObject();
     o->setThrowsExceptionWhenStrictMode(state, code->m_name, value, o);
@@ -2199,7 +2199,7 @@ NEVER_INLINE void InterpreterSlowPath::deleteOperation(ExecutionState& state, Le
         const Value& o = state.makeSuperPropertyReference();
         Object* obj = o.toObject(state);
 
-        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.toObjectStructurePropertyName(state).toExceptionString(), false, String::emptyString, "ReferenceError: Unsupported reference to 'super'");
+        ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.toObjectStructurePropertyName(state).toExceptionString(), false, String::emptyString(), "ReferenceError: Unsupported reference to 'super'");
     } else {
         const Value& o = registerFile[code->m_srcIndex0];
         const Value& p = registerFile[code->m_srcIndex1];
@@ -2710,7 +2710,7 @@ NEVER_INLINE void InterpreterSlowPath::setObjectPreComputedCaseOperationCacheMis
     if (code->m_isLength && originalObject->isArrayObject()) {
         if (LIKELY(originalObject->asArrayObject()->isFastModeArray())) {
             if (!originalObject->asArrayObject()->setArrayLength(state, value) && state.inStrictMode()) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, code->m_propertyName.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, code->m_propertyName.toExceptionString(), false, String::emptyString(), ErrorObject::Messages::DefineProperty_NotWritable);
             }
         } else {
             originalObject->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, code->m_propertyName), value, willBeObject);
@@ -2931,7 +2931,7 @@ NEVER_INLINE Value InterpreterSlowPath::getGlobalVariableSlowCase(ExecutionState
             slot->m_cachedStructure = nullptr;
             auto v = (*state.context()->globalDeclarativeStorage())[i];
             if (UNLIKELY(v.isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
             }
             return v;
         }
@@ -2948,7 +2948,7 @@ NEVER_INLINE Value InterpreterSlowPath::getGlobalVariableSlowCase(ExecutionState
                 if (!virtialIdResult.isEmpty())
                     return virtialIdResult;
             }
-            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotDefined);
             ASSERT_NOT_REACHED();
             return Value(Value::EmptyValue);
         }
@@ -2981,7 +2981,7 @@ NEVER_INLINE void InterpreterSlowPath::setGlobalVariableSlowCase(ExecutionState&
             slot->m_cachedStructure = nullptr;
             auto& place = (*ctx->globalDeclarativeStorage())[i];
             if (UNLIKELY(place.isEmpty())) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
             }
             if (UNLIKELY(!records[i].m_isMutable)) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::AssignmentToConstantVariable, name);
@@ -2995,7 +2995,7 @@ NEVER_INLINE void InterpreterSlowPath::setGlobalVariableSlowCase(ExecutionState&
     auto findResult = go->structure()->findProperty(slot->m_propertyName);
     if (UNLIKELY(findResult.first == SIZE_MAX)) {
         if (UNLIKELY(state.inStrictMode())) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, slot->m_propertyName.string(), false, String::emptyString, ErrorObject::Messages::IsNotDefined);
+            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, slot->m_propertyName.string(), false, String::emptyString(), ErrorObject::Messages::IsNotDefined);
         }
         VirtualIdDisabler d(state.context());
         go->setThrowsExceptionWhenStrictMode(state, ObjectPropertyName(state, slot->m_propertyName), value, go);
@@ -3585,7 +3585,7 @@ NEVER_INLINE void InterpreterSlowPath::initializeClassOperation(ExecutionState& 
                                                                    outerClassConstructor, code->m_classSrc, name);
         } else {
             if (!heritagePresent) {
-                Value argv[] = { String::emptyString, String::emptyString };
+                Value argv[] = { String::emptyString(), String::emptyString() };
                 auto functionSource = FunctionObject::createDynamicFunctionScript(state, state.context()->staticStrings().constructor, 1, &argv[0], argv[1], true, false, false, false, true);
                 functionSource.codeBlock->setAsClassConstructor();
                 constructor = new ScriptClassConstructorFunctionObject(state, constructorParent.asObject(),
@@ -3709,7 +3709,7 @@ NEVER_INLINE void InterpreterSlowPath::complexSetObjectOperation(ExecutionState&
             // testing is strict mode || IsStrictReference(V)
             // IsStrictReference returns true if code is class method
             if (state.inStrictMode() || !state.resolveCallee()->codeBlock()->asInterpretedCodeBlock()->isObjectMethod()) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]).toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ObjectPropertyName(state, registerFile[code->m_propertyNameIndex]).toExceptionString(), false, String::emptyString(), ErrorObject::Messages::DefineProperty_NotWritable);
             }
         }
     } else {
@@ -4212,7 +4212,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
         auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
 
         // Let specifierString be ToString(specifier).
-        String* specifierString = String::emptyString;
+        String* specifierString = String::emptyString();
         // IfAbruptRejectPromise(specifierString, promiseCapability).
         try {
             specifierString = specifier.toString(state);
@@ -5051,12 +5051,12 @@ NEVER_INLINE int InterpreterSlowPath::evaluateImportAssertionOperation(Execution
             // Currently only "type" is supported
             if (!key.isString() || !key.asString()->equals("type")) {
                 String* asString = key.toStringWithoutException(state);
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, asString, false, String::emptyString, "unsupported import assertion key: %s");
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, asString, false, String::emptyString(), "unsupported import assertion key: %s");
             }
 
             if (!resultValue.isString() || !resultValue.asString()->equals("json")) {
                 String* asString = resultValue.toStringWithoutException(state);
-                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, asString, false, String::emptyString, "unsupported import assertion type: %s");
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, asString, false, String::emptyString(), "unsupported import assertion type: %s");
             }
         }
 

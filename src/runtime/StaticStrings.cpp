@@ -26,7 +26,7 @@ namespace Escargot {
 void StaticStrings::initStaticStrings()
 {
     AtomicStringMap* atomicStringMap = m_atomicStringMap;
-    atomicStringMap->insert(String::emptyString);
+    atomicStringMap->insert(String::emptyString());
 
 #define INIT_STATIC_STRING(name) name.initStaticString(atomicStringMap, new ASCIIStringFromExternalMemory(#name, sizeof(#name) - 1));
     FOR_EACH_STATIC_STRING(INIT_STATIC_STRING)
@@ -178,7 +178,7 @@ void StaticStrings::initStaticStrings()
 #define DECLARE_LAZY_STATIC_STRING(Name, stringContent)                                                                                 \
     AtomicString StaticStrings::lazy##Name()                                                                                            \
     {                                                                                                                                   \
-        if (UNLIKELY(m_lazy##Name.string() == String::emptyString)) {                                                                   \
+        if (UNLIKELY(m_lazy##Name.string() == String::emptyString())) {                                                                 \
             m_lazy##Name = AtomicString(m_atomicStringMap, stringContent, sizeof(stringContent) - 1, AtomicString::FromExternalMemory); \
         }                                                                                                                               \
         return m_lazy##Name;                                                                                                            \

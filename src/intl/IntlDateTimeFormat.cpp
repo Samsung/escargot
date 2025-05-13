@@ -125,7 +125,7 @@ static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneN
     UEnumeration* timeZones = ucal_openTimeZones(&status);
     ASSERT(U_SUCCESS(status));
 
-    String* canonical = String::emptyString;
+    String* canonical = String::emptyString();
     do {
         status = U_ZERO_ERROR;
         int32_t ianaTimeZoneLength;
@@ -301,7 +301,7 @@ static String* icuFieldTypeToPartName(ExecutionState& state, int32_t fieldName)
         return state.context()->staticStrings().lazyFractionalSecond().string();
     default:
         ASSERT_NOT_REACHED();
-        return String::emptyString;
+        return String::emptyString();
     }
 }
 
@@ -312,10 +312,10 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Value 
 
 IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options)
     : DerivedObject(state, proto)
-    , m_locale(String::emptyString)
-    , m_calendar(String::emptyString)
-    , m_numberingSystem(String::emptyString)
-    , m_timeZone(String::emptyString)
+    , m_locale(String::emptyString())
+    , m_calendar(String::emptyString())
+    , m_numberingSystem(String::emptyString())
+    , m_timeZone(String::emptyString())
     , m_icuDateFormat(nullptr)
 {
     // Let requestedLocales be ? CanonicalizeLocaleList(locales).

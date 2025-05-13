@@ -506,7 +506,7 @@ public:
         for (size_t i = 0; i < v.size(); i++) {
             if (!v[i].m_needToAllocateOnStack) {
                 if (cnt == idx) {
-                    ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, v[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+                    ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, v[i].m_name.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
                 }
                 cnt++;
             }
@@ -1257,7 +1257,7 @@ protected:
     void readCheck(ExecutionState& state, const size_t i)
     {
         if (UNLIKELY(m_moduleBindings[i].m_value.isEmpty())) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, m_moduleBindings[i].m_localName.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, m_moduleBindings[i].m_localName.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
         }
     }
 
@@ -1268,7 +1268,7 @@ protected:
         }
 
         if (UNLIKELY(!m_moduleBindings[i].m_isVarDeclaration && m_moduleBindings[i].m_value.isEmpty())) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, m_moduleBindings[i].m_localName.string(), false, String::emptyString, ErrorObject::Messages::IsNotInitialized);
+            ErrorObject::throwBuiltinError(state, ErrorCode::ReferenceError, m_moduleBindings[i].m_localName.string(), false, String::emptyString(), ErrorObject::Messages::IsNotInitialized);
         }
     }
 

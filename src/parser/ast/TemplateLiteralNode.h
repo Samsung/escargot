@@ -63,7 +63,7 @@ public:
                 codeBlock->m_stringLiteralData.push_back(str);
                 value = str;
             } else {
-                value = String::emptyString;
+                value = String::emptyString();
             }
         }
         codeBlock->pushCode(LoadLiteral(ByteCodeLOC(m_loc.index), dstRegister, value), context, this->m_loc.index);

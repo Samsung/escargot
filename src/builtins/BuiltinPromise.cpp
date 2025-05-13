@@ -36,13 +36,13 @@ static Value builtinPromiseConstructor(ExecutionState& state, Value thisValue, s
 {
     auto strings = &state.context()->staticStrings();
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Promise.string(), false, String::emptyString, "%s: Promise constructor should be called with new Promise()");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Promise.string(), false, String::emptyString(), "%s: Promise constructor should be called with new Promise()");
         return Value();
     }
 
     Value executor = argv[0];
     if (!executor.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Promise.string(), false, String::emptyString, "%s: Promise executor is not a function object");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Promise.string(), false, String::emptyString(), "%s: Promise executor is not a function object");
     }
 
     // Let promise be ? OrdinaryCreateFromConstructor(NewTarget, "%PromisePrototype%", « [[PromiseState]], [[PromiseResult]], [[PromiseFulfillReactions]], [[PromiseRejectReactions]], [[PromiseIsHandled]] »).

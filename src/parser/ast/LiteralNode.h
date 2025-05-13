@@ -46,7 +46,7 @@ public:
                     codeBlock->m_stringLiteralData.pushBack(m_value.asPointerValue()->asString());
                 } else {
                     // change the value as empty string
-                    m_value = String::emptyString;
+                    m_value = String::emptyString();
                 }
             } else {
                 ASSERT(m_value.asPointerValue()->isBigInt());

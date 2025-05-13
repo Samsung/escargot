@@ -679,7 +679,7 @@ StringRef* StringRef::createReloadableString(VMInstanceRef* instance, bool is8Bi
 
 StringRef* StringRef::emptyString()
 {
-    return toRef(String::emptyString);
+    return toRef(String::emptyString());
 }
 
 char16_t StringRef::charAt(size_t idx)
@@ -972,10 +972,10 @@ bool BigIntRef::isNegative()
 }
 
 Evaluator::StackTraceData::StackTraceData()
-    : srcName(toRef(String::emptyString))
-    , sourceCode(toRef(String::emptyString))
+    : srcName(toRef(String::emptyString()))
+    , sourceCode(toRef(String::emptyString()))
     , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-    , functionName(toRef(String::emptyString))
+    , functionName(toRef(String::emptyString()))
     , callee(nullptr)
     , isFunction(false)
     , isConstructor(false)

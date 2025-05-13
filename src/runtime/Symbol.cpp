@@ -26,7 +26,7 @@ namespace Escargot {
 
 String* Symbol::descriptionString() const
 {
-    return m_description ? const_cast<String*>(m_description.value()) : String::emptyString;
+    return m_description ? const_cast<String*>(m_description.value()) : String::emptyString();
 }
 
 Value Symbol::descriptionValue() const

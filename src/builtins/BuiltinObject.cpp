@@ -641,7 +641,7 @@ static Value builtinDefineGetter(ExecutionState& state, Value thisValue, size_t 
     Object* O = thisValue.toObject(state);
     // If IsCallable(getter) is false, throw a TypeError exception.
     if (!argv[1].isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, String::emptyString, true, state.context()->staticStrings().__defineGetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, String::emptyString(), true, state.context()->staticStrings().__defineGetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
     // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
     ObjectPropertyDescriptor desc(JSGetterSetter(argv[1].asObject(), Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
@@ -667,7 +667,7 @@ static Value builtinDefineSetter(ExecutionState& state, Value thisValue, size_t 
     Object* O = thisValue.toObject(state);
     // If IsCallable(getter) is false, throw a TypeError exception.
     if (!argv[1].isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, String::emptyString, true, state.context()->staticStrings().__defineSetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, String::emptyString(), true, state.context()->staticStrings().__defineSetter__.string(), ErrorObject::Messages::GlobalObject_CallbackNotCallable);
     }
     // Let desc be PropertyDescriptor{[[Get]]: getter, [[Enumerable]]: true, [[Configurable]]: true}.
     ObjectPropertyDescriptor desc(JSGetterSetter(Value(Value::EmptyValue), argv[1].asObject()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::EnumerablePresent | ObjectPropertyDescriptor::ConfigurablePresent));

@@ -27,8 +27,8 @@ namespace Escargot {
 
 class StringObject : public DerivedObject {
 public:
-    StringObject(ExecutionState& state, String* value = String::emptyString);
-    StringObject(ExecutionState& state, Object* proto, String* value = String::emptyString);
+    StringObject(ExecutionState& state, String* value = String::emptyString());
+    StringObject(ExecutionState& state, Object* proto, String* value = String::emptyString());
 
     String* primitiveValue()
     {

@@ -53,7 +53,7 @@ public:
     ALWAYS_INLINE StringView()
         : String()
     {
-        initBufferAccessData(String::emptyString, 0, 0);
+        initBufferAccessData(String::emptyString(), 0, 0);
     }
 
     size_t start() const

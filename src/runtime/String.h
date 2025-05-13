@@ -21,6 +21,7 @@
 #define __EscargotString__
 
 #include "runtime/PointerValue.h"
+#include "runtime/ThreadLocal.h"
 #include "util/BasicString.h"
 #include "util/Vector.h"
 #include <string>
@@ -229,6 +230,7 @@ struct StringBufferAccessData {
 
 class String : public PointerValue {
     friend class AtomicString;
+    friend class ThreadLocal;
 
 protected:
     String()
@@ -341,9 +343,17 @@ public:
         return false;
     }
 
-    // initialize String::emptyString value
+    // initialize String::emptyString() value
     // its called only once by VMInstance constructor
     static void initEmptyString();
+    static String* emptyString()
+    {
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
+        return ThreadLocal::emptyString();
+#else
+        return String::emptyStringInstance;
+#endif
+    }
 
     template <const size_t srcLen>
     static String* fromASCII(const char (&src)[srcLen])
@@ -525,8 +535,6 @@ public:
         return bufferAccessData().toUTF8String<UTF8StringDataNonGCStd>();
     }
 
-    static MAY_THREAD_LOCAL String* emptyString;
-
     uint64_t tryToUseAsIndex() const;
     uint32_t tryToUseAsIndex32() const;
     uint32_t tryToUseAsIndexProperty() const;
@@ -579,6 +587,8 @@ public:
     String* trim(StringTrimWhere where = StringTrimWhere::TrimBoth);
 
 private:
+    static MAY_THREAD_LOCAL String* emptyStringInstance;
+
     size_t m_typeTag;
 
 protected:
@@ -1076,7 +1086,7 @@ public:
         if (iter != end()) {
             return iter->second;
         }
-        return String::emptyString;
+        return String::emptyString();
     }
 
     void* operator new(size_t size) = delete;

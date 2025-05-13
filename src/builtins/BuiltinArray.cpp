@@ -131,7 +131,7 @@ static Object* arraySpeciesCreate(ExecutionState& state, Object* originalArray, 
     }
     // If IsConstructor(C) is false, throw a TypeError exception.
     if (!C.isConstructor()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotConstructor);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Array.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_ThisNotConstructor);
     }
     // Return Construct(C, <<length>>).
     Value argv[1] = { Value(length) };
@@ -367,7 +367,7 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
     }
 
     if (!state.context()->toStringRecursionPreventer()->canInvokeToString(thisBinded)) {
-        return String::emptyString;
+        return String::emptyString();
     }
     ToStringRecursionPreventerItemAutoHolder holder(state, thisBinded);
 
@@ -1367,7 +1367,7 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
     Object* array = thisValue.toObject(state);
 
     if (!state.context()->toStringRecursionPreventer()->canInvokeToString(array)) {
-        return String::emptyString;
+        return String::emptyString();
     }
     ToStringRecursionPreventerItemAutoHolder holder(state, array);
 
@@ -1378,7 +1378,7 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
     String* separator = state.context()->staticStrings().asciiTable[(size_t)','].string();
 
     // Let R be the empty String.
-    String* R = String::emptyString;
+    String* R = String::emptyString();
 
     // Let k be 0.
     uint64_t k = 0;

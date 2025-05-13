@@ -38,13 +38,13 @@ public:
         m_has8BitContent = true;
         m_internalStorageContentLength = 0;
         m_piecesInlineStorageUsage = 0;
-        m_processedString = String::emptyString;
+        m_processedString = String::emptyString();
     }
 
     void clear()
     {
         clearInternal();
-        m_processedString = String::emptyString;
+        m_processedString = String::emptyString();
     }
 
     struct StringBuilderPiece {

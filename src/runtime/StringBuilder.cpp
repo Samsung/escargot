@@ -92,7 +92,7 @@ String* StringBuilderBase::finalizeBase(StringBuilderPiece* piecesInlineStorage,
     auto length = contentLength();
     if (!length) {
         clear();
-        return String::emptyString;
+        return String::emptyString();
     }
 
     checkStringLengthLimit(state, length);

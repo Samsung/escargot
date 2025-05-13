@@ -45,7 +45,7 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
         return Value();
     }
     if (!(argv[0].isObject() && argv[0].asPointerValue()->isArrayBuffer())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_ThisNotArrayBufferObject);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_ThisNotArrayBufferObject);
     }
 
     ArrayBuffer* buffer = argv[0].asObject()->asArrayBuffer();
@@ -54,16 +54,16 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
         Value& val = argv[1];
         byteOffset = val.toIndex(state);
         if (byteOffset == Value::InvalidIndexValue) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
         }
     }
     if (buffer->isDetachedBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, "%s: ArrayBuffer is detached buffer");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), "%s: ArrayBuffer is detached buffer");
     }
     double bufferByteLength = buffer->byteLength();
 
     if (byteOffset > bufferByteLength) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
     }
     double byteLength = bufferByteLength - byteOffset;
 
@@ -72,7 +72,7 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
         if (!val.isUndefined()) {
             byteLength = val.toIndex(state);
             if (byteOffset + byteLength > bufferByteLength || byteLength == Value::InvalidIndexValue) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferOffset);
             }
         }
     }
@@ -84,7 +84,7 @@ static Value builtinDataViewConstructor(ExecutionState& state, Value thisValue, 
     obj->setBuffer(buffer, byteOffset, byteLength, 0, argc < 3);
 
     if (obj->buffer()->isDetachedBuffer()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_DetachedBuffer);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().DataView.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
     }
 
     return obj;

@@ -1960,7 +1960,7 @@ String* Scanner::scanRegExpFlags()
     }
 
     if (!flags.length()) {
-        return String::emptyString;
+        return String::emptyString();
     }
 
     if (isAllASCII(flags.data(), flags.length())) {

@@ -37,6 +37,7 @@ struct WASMContext {
 namespace Escargot {
 
 class ASTAllocator;
+class String;
 
 class GCEventListenerSet {
 public:
@@ -89,6 +90,10 @@ private:
 class ThreadLocal {
     friend class StackOverflowDisabler;
     static MAY_THREAD_LOCAL bool inited;
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
+    static size_t g_stackLimitTlsOffset;
+    static size_t g_emptyStringTlsOffset;
+#endif
 
     // Global data per thread
     static MAY_THREAD_LOCAL size_t g_stackLimit;
@@ -103,6 +108,49 @@ class ThreadLocal {
     // custom data allocated by user through Platform::allocateThreadLocalCustomData
     static MAY_THREAD_LOCAL void* g_customData;
 
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
+    static ALWAYS_INLINE char* tlsBaseAddress()
+    {
+#if defined(CPU_X86_64)
+        char* fs;
+        asm inline("mov %%fs:0, %0"
+                   : "=r"(fs));
+        return fs;
+#elif defined(CPU_X86)
+        char* gs;
+        asm inline("mov %%gs:0, %0"
+                   : "=r"(gs));
+        return gs;
+#elif defined(CPU_ARM32) || defined(CPU_ARM64)
+        return reinterpret_cast<char*>(__builtin_thread_pointer());
+#endif
+    }
+
+    static ALWAYS_INLINE char* tlsValueAddress(size_t offset)
+    {
+        return tlsBaseAddress() + offset;
+    }
+
+    static ALWAYS_INLINE size_t readTlsValue(size_t offset)
+    {
+#if defined(CPU_X86_64)
+        size_t value;
+        asm inline("mov %%fs:(%1), %0"
+                   : "=r"(value)
+                   : "r"(offset));
+        return value;
+#elif defined(CPU_X86)
+        size_t value;
+        asm inline("mov %%gs:(%1), %0"
+                   : "=r"(value)
+                   : "r"(offset));
+        return value;
+#elif defined(CPU_ARM32) || defined(CPU_ARM64)
+        return *(reinterpret_cast<size_t*>(tlsBaseAddress() + offset));
+#endif
+    }
+#endif
+
 public:
     static void initialize();
     static void finalize();
@@ -111,11 +159,23 @@ public:
         return inited;
     }
 
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
+    static ALWAYS_INLINE String* emptyString()
+    {
+        return reinterpret_cast<String*>(readTlsValue(g_emptyStringTlsOffset));
+    }
+#endif
+
     // Global data getter
-    static size_t stackLimit()
+    static ALWAYS_INLINE size_t stackLimit()
     {
         ASSERT(inited);
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
+        ASSERT(g_stackLimit == readTlsValue(g_stackLimitTlsOffset));
+        return readTlsValue(g_stackLimitTlsOffset);
+#else
         return g_stackLimit;
+#endif
     }
 
     // Use this limit if you want to use more stack
