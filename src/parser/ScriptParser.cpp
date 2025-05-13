@@ -76,7 +76,7 @@ ScriptParser::ScriptParser(Context* c)
 
 ScriptParser::InitializeScriptResult::InitializeScriptResult()
     : parseErrorCode(ErrorCode::None)
-    , parseErrorMessage(String::emptyString)
+    , parseErrorMessage(String::emptyString())
 {
 }
 

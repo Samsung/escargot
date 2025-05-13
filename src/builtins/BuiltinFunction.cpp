@@ -46,7 +46,7 @@ static Value builtinFunctionConstructor(ExecutionState& state, Value thisValue, 
     }
 
     size_t argumentVectorCount = argc > 1 ? argc - 1 : 0;
-    Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString);
+    Value sourceValue = argc >= 1 ? argv[argc - 1] : Value(String::emptyString());
     auto functionSource = FunctionObject::createDynamicFunctionScript(state, state.context()->staticStrings().anonymous, argumentVectorCount, argv, sourceValue, false, false, false, false);
 
     // Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
@@ -179,7 +179,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     Value targetName = target->get(state, ObjectPropertyName(state.context()->staticStrings().name)).value(state, target);
     // If Type(targetName) is not String, let targetName be the empty string.
     if (!targetName.isString()) {
-        targetName = String::emptyString;
+        targetName = String::emptyString();
     }
 
     StringBuilder builder;

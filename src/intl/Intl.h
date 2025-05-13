@@ -30,7 +30,7 @@ public:
     struct IntlMatcherResult {
         IntlMatcherResult()
         {
-            extension = locale = String::emptyString;
+            extension = locale = String::emptyString();
             extensionIndex = SIZE_MAX;
         }
 

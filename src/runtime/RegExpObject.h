@@ -96,7 +96,7 @@ public:
     RegExpObject(ExecutionState& state, String* source, unsigned int option);
     RegExpObject(ExecutionState& state, Object* proto, String* source, unsigned int option);
 
-    void init(ExecutionState& state, String* source, String* option = String::emptyString);
+    void init(ExecutionState& state, String* source, String* option = String::emptyString());
 
     uint64_t computedLastIndex(ExecutionState& state)
     {

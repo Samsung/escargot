@@ -35,7 +35,7 @@ class String {
 public:
     String()
         : m_impl()
-        , m_implBufferAccessData(Escargot::String::emptyString->bufferAccessData())
+        , m_implBufferAccessData(Escargot::String::emptyString()->bufferAccessData())
     {
     }
 

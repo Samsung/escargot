@@ -39,7 +39,7 @@ namespace Escargot {
 
 static Value builtinStringConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    String* s = String::emptyString;
+    String* s = String::emptyString();
     if (argc > 0) {
         Value value = argv[0];
         if (!newTarget.hasValue() && value.isSymbol()) {
@@ -203,7 +203,7 @@ static Value builtinStringMatch(ExecutionState& state, Value thisValue, size_t a
     }
 
     String* S = thisValue.toString(state);
-    RegExpObject* rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
+    RegExpObject* rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString() : regexp.toString(state), String::emptyString());
     Value func = rx->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().match)).value(state, rx);
     Value args[1] = { Value(S) };
     return Object::call(state, func, rx, 1, args);
@@ -232,7 +232,7 @@ static Value builtinStringMatchAll(ExecutionState& state, Value thisValue, size_
     String* S = thisValue.toString(state);
     StringBuilder builder;
     builder.appendChar('g');
-    RegExpObject* rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), builder.finalize());
+    RegExpObject* rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString() : regexp.toString(state), builder.finalize());
     Value func = rx->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().matchAll)).value(state, rx);
     Value args[1] = { Value(S) };
     return Object::call(state, func, rx, 1, args);
@@ -328,7 +328,7 @@ static Value builtinStringRepeat(ExecutionState& state, Value thisValue, size_t 
     }
 
     if (newStringLength == 0) {
-        return String::emptyString;
+        return String::emptyString();
     }
 
     repeatCount = static_cast<int32_t>(count);
@@ -545,7 +545,7 @@ static Value builtinStringReplace(ExecutionState& state, Value thisValue, size_t
         if (pos == SIZE_MAX) {
             return Value(string);
         }
-        String* replStr = String::emptyString;
+        String* replStr = String::emptyString();
         if (functionalReplace) {
             Value parameters[3] = { Value(matched), Value(pos), Value(string) };
             Value replValue = Object::call(state, replaceValue, Value(), 3, parameters);
@@ -612,7 +612,7 @@ static Value builtinStringReplaceAll(ExecutionState& state, Value thisValue, siz
     size_t endOfLastMatch = 0;
 
     StringBuilder builder;
-    String* replacement = String::emptyString;
+    String* replacement = String::emptyString();
     // For each element p of matchPositions, do
     for (size_t i = 0; i < matchPositions.size(); i++) {
         size_t p = matchPositions[i];
@@ -651,7 +651,7 @@ static Value builtinStringSearch(ExecutionState& state, Value thisValue, size_t 
     }
 
     String* string = thisValue.toString(state);
-    RegExpObject* rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString : regexp.toString(state), String::emptyString);
+    RegExpObject* rx = new RegExpObject(state, regexp.isUndefined() ? String::emptyString() : regexp.toString(state), String::emptyString());
     Value func = rx->get(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().search)).value(state, rx);
     Value args[1] = { Value(string) };
     return Object::call(state, func, rx, 1, args);
@@ -859,7 +859,7 @@ static Value builtinStringCharAt(ExecutionState& state, Value thisValue, size_t 
         char16_t c = str->charAt(position);
         return state.context()->staticStrings().charCodeToString(c);
     } else {
-        return String::emptyString;
+        return String::emptyString();
     }
 }
 
@@ -989,7 +989,7 @@ static Value builtinStringToLowerCase(ExecutionState& state, Value thisValue, si
     }
 
 #if defined(ENABLE_ICU)
-    return stringToLocaleConvertCase(state, str, String::emptyString, false);
+    return stringToLocaleConvertCase(state, str, String::emptyString(), false);
 #else
     size_t len = str->length();
     UTF16StringData newStr;
@@ -1074,7 +1074,7 @@ static Value builtinStringToUpperCase(ExecutionState& state, Value thisValue, si
     }
 
 #if defined(ENABLE_ICU)
-    return stringToLocaleConvertCase(state, str, String::emptyString, true);
+    return stringToLocaleConvertCase(state, str, String::emptyString(), true);
 #else
     size_t len = str->length();
     UTF16StringData newStr;
@@ -1283,7 +1283,7 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
     double literalSegments = raw->length(state);
     // If literalSegments ≤ 0, return the empty string.
     if (literalSegments <= 0) {
-        return String::emptyString;
+        return String::emptyString();
     }
     // Let stringElements be a new empty List.
     StringBuilder stringElements;
@@ -1309,7 +1309,7 @@ static Value builtinStringRaw(ExecutionState& state, Value thisValue, size_t arg
             next = argv[nextIndex + 1];
         } else {
             // Else, let next be the empty String.
-            next = String::emptyString;
+            next = String::emptyString();
         }
         // Let nextSub be ? ToString(next).
         String* nextSub = next.toString(state);
@@ -1481,7 +1481,7 @@ static Value builtinStringSubstr(ExecutionState& state, Value thisValue, size_t 
         intStart = std::max(size + intStart, 0.0);
     double resultLength = std::min(std::max(end, 0.0), size - intStart);
     if (resultLength <= 0)
-        return String::emptyString;
+        return String::emptyString();
 
     return str->substring(intStart, intStart + resultLength);
 }
@@ -1511,16 +1511,16 @@ static Value builtinStringAt(ExecutionState& state, Value thisValue, size_t argc
 DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(anchor, state.context()->staticStrings().asciiTable[(size_t)'a'].string(), state.context()->staticStrings().name.string(), argv[0])
 // String.prototype.big ()
 // Return CreateHTML(S, "big", "", "").
-DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(big, state.context()->staticStrings().big.string(), String::emptyString, String::emptyString)
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(big, state.context()->staticStrings().big.string(), String::emptyString(), String::emptyString())
 // String.prototype.blink ()
 // Return CreateHTML(S, "blink", "", "").
-DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(blink, state.context()->staticStrings().blink.string(), String::emptyString, String::emptyString)
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(blink, state.context()->staticStrings().blink.string(), String::emptyString(), String::emptyString())
 // String.prototype.bold ()
 // Return CreateHTML(S, "b", "", "").
-DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(bold, state.context()->staticStrings().asciiTable[(size_t)'b'].string(), String::emptyString, String::emptyString)
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(bold, state.context()->staticStrings().asciiTable[(size_t)'b'].string(), String::emptyString(), String::emptyString())
 // String.prototype.fixed ()
 // Return CreateHTML(S, "tt", "", "").
-DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fixed, String::fromASCII("tt"), String::emptyString, String::emptyString)
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fixed, String::fromASCII("tt"), String::emptyString(), String::emptyString())
 // String.prototype.fontcolor (color)
 // Return CreateHTML(S, "font", "color", color).
 DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fontcolor, String::fromASCII("font"), String::fromASCII("color"), argv[0])
@@ -1529,22 +1529,22 @@ DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fontcolor, String::fromASCII("font"), Str
 DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(fontsize, String::fromASCII("font"), state.context()->staticStrings().size.string(), argv[0])
 // String.prototype.italics ()
 // Return CreateHTML(S, "i", "", "").
-DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(italics, state.context()->staticStrings().asciiTable[(size_t)'i'].string(), String::emptyString, String::emptyString)
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(italics, state.context()->staticStrings().asciiTable[(size_t)'i'].string(), String::emptyString(), String::emptyString())
 // String.prototype.link (url)
 // Return CreateHTML(S, "a", "href", url).
 DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(link, state.context()->staticStrings().asciiTable[(size_t)'a'].string(), String::fromASCII("href"), argv[0])
 // String.prototype.small ()
 // Return CreateHTML(S, "small", "", "").
-DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(small, state.context()->staticStrings().small.string(), String::emptyString, String::emptyString)
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(small, state.context()->staticStrings().small.string(), String::emptyString(), String::emptyString())
 // String.prototype.strike ()
 // Return CreateHTML(S, "strike", "", "").
-DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(strike, state.context()->staticStrings().strike.string(), String::emptyString, String::emptyString)
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(strike, state.context()->staticStrings().strike.string(), String::emptyString(), String::emptyString())
 // String.prototype.sub ()
 // Return CreateHTML(S, "sub", "", "").
-DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(sub, state.context()->staticStrings().sub.string(), String::emptyString, String::emptyString)
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(sub, state.context()->staticStrings().sub.string(), String::emptyString(), String::emptyString())
 // String.prototype.sup ()
 // Return CreateHTML(S, "sup", "", "").
-DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(sup, state.context()->staticStrings().sup.string(), String::emptyString, String::emptyString)
+DEFINE_STRING_ADDITIONAL_HTML_FUNCTION(sup, state.context()->staticStrings().sup.string(), String::emptyString(), String::emptyString())
 
 #undef DEFINE_STRING_ADDITIONAL_HTML_FUNCTION
 
@@ -1651,7 +1651,7 @@ void GlobalObject::installString(ExecutionState& state)
     m_string = new NativeFunctionObject(state, NativeFunctionInfo(strings->String, builtinStringConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_string->setGlobalIntrinsicObject(state);
 
-    m_stringPrototype = new StringObject(state, m_objectPrototype, String::emptyString);
+    m_stringPrototype = new StringObject(state, m_objectPrototype, String::emptyString());
     m_stringPrototype->setGlobalIntrinsicObject(state, true);
     m_string->setFunctionPrototype(state, m_stringPrototype);
 

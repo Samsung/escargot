@@ -42,7 +42,7 @@ class AtomicString : public gc {
 
 public:
     inline AtomicString()
-        : m_string(String::emptyString)
+        : m_string(String::emptyString())
     {
     }
 

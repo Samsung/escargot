@@ -434,7 +434,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
             // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
             for (size_t j = 0; j < identifierVectorLen; j++) {
                 if (identifierVector[j].m_isVarDeclaration && identifierVector[j].m_name == globalDeclarativeRecord->at(i).m_name) {
-                    ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, globalDeclarativeRecord->at(i).m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+                    ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, globalDeclarativeRecord->at(i).m_name.string(), false, String::emptyString(), ErrorObject::Messages::DuplicatedIdentifier);
                 }
             }
         }
@@ -444,7 +444,7 @@ Value Script::execute(ExecutionState& state, bool isExecuteOnEvalFunction, bool 
             // If hasRestrictedGlobal is true, throw a SyntaxError exception.
             auto desc = context()->globalObject()->getOwnProperty(state, globalLexicalVector[i].m_name);
             if (desc.hasValue() && !desc.isConfigurable()) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, globalLexicalVector[i].m_name.string(), false, String::emptyString, "redeclaration of non-configurable global property %s");
+                ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, globalLexicalVector[i].m_name.string(), false, String::emptyString(), "redeclaration of non-configurable global property %s");
             }
         }
     }
@@ -553,7 +553,7 @@ Value Script::executeLocal(ExecutionState& state, Value thisValue, InterpretedCo
                 if (vec[i].m_isVarDeclaration) {
                     auto slot = e->record()->hasBinding(state, vec[i].m_name);
                     if (slot.m_isLexicallyDeclared && slot.m_index != SIZE_MAX) {
-                        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, vec[i].m_name.string(), false, String::emptyString, ErrorObject::Messages::DuplicatedIdentifier);
+                        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, vec[i].m_name.string(), false, String::emptyString(), ErrorObject::Messages::DuplicatedIdentifier);
                     }
                 }
             }

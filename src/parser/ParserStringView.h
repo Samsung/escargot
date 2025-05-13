@@ -53,7 +53,7 @@ public:
     ALWAYS_INLINE ParserStringView()
         : String()
     {
-        initBufferAccessData(String::emptyString->bufferAccessData(), 0, 0);
+        initBufferAccessData(String::emptyString()->bufferAccessData(), 0, 0);
     }
 
     template <const size_t srcLen>

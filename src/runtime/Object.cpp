@@ -1284,7 +1284,7 @@ Optional<Object*> Object::getMethod(ExecutionState& state, const ObjectPropertyN
     }
     // 5. If IsCallable(func) is false, throw a TypeError exception.
     if (!func.isCallable()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, String::emptyString, false, String::emptyString, "%s: return value of getMethod is not callable");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, String::emptyString(), false, String::emptyString(), "%s: return value of getMethod is not callable");
     }
     // 6. Return func.
     return Optional<Object*>(func.asObject());
@@ -1563,30 +1563,30 @@ bool Object::isCompatiblePropertyDescriptor(ExecutionState& state, bool extensib
 void Object::setThrowsException(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)
 {
     if (UNLIKELY(!set(state, P, v, receiver))) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString(), ErrorObject::Messages::DefineProperty_NotWritable);
     }
 }
 
 void Object::setThrowsExceptionWhenStrictMode(ExecutionState& state, const ObjectPropertyName& P, const Value& v, const Value& receiver)
 {
     if (UNLIKELY(!set(state, P, v, receiver)) && state.inStrictMode()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString(), ErrorObject::Messages::DefineProperty_NotWritable);
     }
 }
 
 void Object::throwCannotDefineError(ExecutionState& state, const ObjectStructurePropertyName& P)
 {
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_RedefineNotConfigurable);
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString(), ErrorObject::Messages::DefineProperty_RedefineNotConfigurable);
 }
 
 void Object::throwCannotWriteError(ExecutionState& state, const ObjectStructurePropertyName& P)
 {
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotWritable);
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString(), ErrorObject::Messages::DefineProperty_NotWritable);
 }
 
 void Object::throwCannotDeleteError(ExecutionState& state, const ObjectStructurePropertyName& P)
 {
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString, ErrorObject::Messages::DefineProperty_NotConfigurable);
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, P.toExceptionString(), false, String::emptyString(), ErrorObject::Messages::DefineProperty_NotConfigurable);
 }
 
 ArrayObject* Object::createArrayFromList(ExecutionState& state, const uint64_t& size, const Value* buffer)
@@ -1646,7 +1646,7 @@ ValueVector Object::createListFromArrayLike(ExecutionState& state, Value obj, ui
         }
 
         if (UNLIKELY(!validType)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->object.string(), false, String::emptyString, "%s: Type(next) is not an element of elementTypes");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->object.string(), false, String::emptyString(), "%s: Type(next) is not an element of elementTypes");
         }
 
         // Append next as the last element of list.
@@ -1708,7 +1708,7 @@ bool Object::isArray(ExecutionState& state)
     if (isProxyObject()) {
         ProxyObject* proxy = asProxyObject();
         if (proxy->handler() == nullptr) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Proxy.string(), false, String::emptyString, "%s: Proxy handler should not null.");
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Proxy.string(), false, String::emptyString(), "%s: Proxy handler should not null.");
             return false;
         }
         if (proxy->target() == nullptr) {

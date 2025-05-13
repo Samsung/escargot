@@ -843,7 +843,7 @@ public:
                 if (sd.size()) {
                     value = new UTF16String(std::move(sd));
                 } else {
-                    value = String::emptyString;
+                    value = String::emptyString();
                 }
             }
 
@@ -859,7 +859,7 @@ public:
                 if (sd.size()) {
                     value = new UTF16String(std::move(sd));
                 } else {
-                    value = String::emptyString;
+                    value = String::emptyString();
                 }
                 elements.append(m_allocator, new (m_allocator) LiteralNode(value));
             }

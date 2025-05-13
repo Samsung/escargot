@@ -110,7 +110,7 @@ public:
     };
 
     // create a script for dynamic function
-    static FunctionSource createDynamicFunctionScript(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource = false, String* sourceName = String::emptyString);
+    static FunctionSource createDynamicFunctionScript(ExecutionState& state, AtomicString functionName, size_t argCount, Value* argArray, Value bodyString, bool useStrict, bool isGenerator, bool isAsync, bool allowSuperCall, bool isInternalSource = false, String* sourceName = String::emptyString());
     // create a general function script which is not a dynamic function
     static ScriptParser::InitializeScriptResult createFunctionScript(ExecutionState& state, String* sourceName, AtomicString functionName, size_t argCount, Value* argArray, Value bodyString, bool useStrict);
 

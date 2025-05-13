@@ -102,12 +102,12 @@ namespace Escargot {
 namespace esprima {
 
 Error::Error(String* message)
-    : name(String::emptyString)
+    : name(String::emptyString())
     , message(message)
     , index(0)
     , lineNumber(0)
     , column(0)
-    , description(String::emptyString)
+    , description(String::emptyString())
     , errorCode(ErrorCode::SyntaxError)
 {
 }
@@ -528,7 +528,7 @@ public:
         return true;
     }
 
-    void throwError(const char* messageFormat, String* arg0 = String::emptyString, String* arg1 = String::emptyString, ErrorCode code = ErrorCode::SyntaxError)
+    void throwError(const char* messageFormat, String* arg0 = String::emptyString(), String* arg1 = String::emptyString(), ErrorCode code = ErrorCode::SyntaxError)
     {
         UTF16StringDataNonGCStd msg;
         if (arg0->length() && arg1->length()) {
@@ -935,7 +935,7 @@ public:
 #else
         if (UNLIKELY(currentStackBase > stackLimit)) {
 #endif
-            this->throwError("too many recursion in script", String::emptyString, String::emptyString, ErrorCode::RangeError);
+            this->throwError("too many recursion in script", String::emptyString(), String::emptyString(), ErrorCode::RangeError);
         }
     }
 
@@ -3641,7 +3641,7 @@ public:
     void openBlock(ParserBlockContext& ctx)
     {
         if (UNLIKELY(this->lexicalBlockCount == LEXICAL_BLOCK_INDEX_MAX - 1)) {
-            this->throwError("too many lexical blocks in script", String::emptyString, String::emptyString, ErrorCode::RangeError);
+            this->throwError("too many lexical blocks in script", String::emptyString(), String::emptyString(), ErrorCode::RangeError);
         }
 
         this->lastUsingName = AtomicString();
@@ -6173,7 +6173,7 @@ public:
         this->expect(RightBrace);
 
         if (UNLIKELY(fieldCount > std::numeric_limits<uint16_t>::max())) {
-            this->throwError("too many fields in class", String::emptyString, String::emptyString, ErrorCode::RangeError);
+            this->throwError("too many fields in class", String::emptyString(), String::emptyString(), ErrorCode::RangeError);
         }
 
         if (privateNames.size() && !this->isParsingSingleFunction) {

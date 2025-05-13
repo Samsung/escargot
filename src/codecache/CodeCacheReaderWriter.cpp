@@ -1012,7 +1012,7 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                 switch (info.relocType) {
                 case ByteCodeRelocType::RELOC_STRING: {
                     if (UNLIKELY(dataIndex == SIZE_MAX)) {
-                        bc->m_value = String::emptyString;
+                        bc->m_value = String::emptyString();
                     } else {
                         ASSERT(dataIndex < stringLiteralData.size());
                         String* string = stringLiteralData[dataIndex];
@@ -1135,7 +1135,7 @@ void CodeCacheReader::loadByteCodeStream(Context* context, ByteCodeBlock* block)
                     bodyStringForLoadRegExp = false;
                 } else {
                     if (info.dataOffset == SIZE_MAX) {
-                        bc->m_option = String::emptyString;
+                        bc->m_option = String::emptyString();
                     } else {
                         ASSERT(info.dataOffset < stringLiteralData.size());
                         bc->m_option = stringLiteralData[info.dataOffset];

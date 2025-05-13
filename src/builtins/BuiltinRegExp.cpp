@@ -31,8 +31,8 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
 {
     Value pattern = argv[0];
     Value flags = argv[1];
-    String* source = pattern.isUndefined() ? String::emptyString : pattern.toString(state);
-    String* option = flags.isUndefined() ? String::emptyString : flags.toString(state);
+    String* source = pattern.isUndefined() ? String::emptyString() : pattern.toString(state);
+    String* option = flags.isUndefined() ? String::emptyString() : flags.toString(state);
 
     // Let patternIsRegExp be IsRegExp(pattern).
     bool patternIsRegExp = argv[0].isObject() && argv[0].asObject()->isRegExp(state);
@@ -61,10 +61,10 @@ static Value builtinRegExpConstructor(ExecutionState& state, Value thisValue, si
         option = flags.isUndefined() ? RegExpObject::computeRegExpOptionString(state, patternRegExp) : flags.toString(state);
     } else if (patternIsRegExp) {
         Value P = pattern.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().source)).value(state, pattern);
-        source = P.isUndefined() ? String::emptyString : P.toString(state);
+        source = P.isUndefined() ? String::emptyString() : P.toString(state);
         if (flags.isUndefined()) {
             Value F = pattern.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().flags)).value(state, pattern);
-            option = F.isUndefined() ? String::emptyString : F.toString(state);
+            option = F.isUndefined() ? String::emptyString() : F.toString(state);
         }
     }
 
@@ -239,8 +239,8 @@ static Value builtinRegExpCompile(ExecutionState& state, Value thisValue, size_t
     }
 
     RegExpObject* retVal = thisValue.asPointerValue()->asObject()->asRegExpObject();
-    String* patternStr = argv[0].isUndefined() ? String::emptyString : argv[0].toString(state);
-    String* flagsStr = argv[1].isUndefined() ? String::emptyString : argv[1].toString(state);
+    String* patternStr = argv[0].isUndefined() ? String::emptyString() : argv[0].toString(state);
+    String* flagsStr = argv[1].isUndefined() ? String::emptyString() : argv[1].toString(state);
     retVal->init(state, patternStr, flagsStr);
     return retVal;
 }
@@ -422,7 +422,7 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
     size_t lengthStr = str->length();
     bool functionalReplace = replaceValue.isCallable();
     bool fullUnicode = false;
-    String* replacement = String::emptyString;
+    String* replacement = String::emptyString();
     size_t nextSourcePosition = 0;
     StringBuilder builder;
 
@@ -494,7 +494,7 @@ static Value builtinRegExpReplace(ExecutionState& state, Value thisValue, size_t
             if (!capN.isUndefined()) {
                 captures.push_back(capN.toString(state));
             } else {
-                captures.push_back(String::emptyString);
+                captures.push_back(String::emptyString());
             }
             if (functionalReplace) {
                 replacerArgs[n] = capN;
@@ -748,7 +748,7 @@ static Value builtinRegExpInputSetter(ExecutionState& state, Value thisValue, si
         if (!status.isValid()) {                                                                                                                    \
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::String_InvalidStringLength);                         \
         }                                                                                                                                           \
-        return (status.dollarCount < number) ? String::emptyString : new StringView(status.dollars[number - 1]);                                    \
+        return (status.dollarCount < number) ? String::emptyString() : new StringView(status.dollars[number - 1]);                                  \
     }
 
 REGEXP_LEGACY_FEATURES(DEFINE_LEGACY_FEATURE_GETTER);

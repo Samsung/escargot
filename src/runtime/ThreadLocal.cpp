@@ -42,6 +42,11 @@ namespace Escargot {
 
 MAY_THREAD_LOCAL bool ThreadLocal::inited;
 
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
+size_t ThreadLocal::g_stackLimitTlsOffset;
+size_t ThreadLocal::g_emptyStringTlsOffset;
+#endif
+
 MAY_THREAD_LOCAL size_t ThreadLocal::g_stackLimit;
 MAY_THREAD_LOCAL std::mt19937* ThreadLocal::g_randEngine;
 MAY_THREAD_LOCAL bf_context_t ThreadLocal::g_bfContext;
@@ -138,6 +143,25 @@ void ThreadLocal::initialize()
 {
     // initialize should be invoked only once in each thread
     RELEASE_ASSERT(!inited);
+
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
+    auto tlsBase = tlsBaseAddress();
+    if (!g_stackLimitTlsOffset) {
+        g_stackLimitTlsOffset = reinterpret_cast<char*>(&g_stackLimit) - tlsBase;
+    } else {
+        // runtime check
+        size_t newDistance = reinterpret_cast<char*>(&g_stackLimit) - tlsBase;
+        RELEASE_ASSERT(newDistance == g_stackLimitTlsOffset);
+    }
+
+    if (!g_emptyStringTlsOffset) {
+        g_emptyStringTlsOffset = reinterpret_cast<char*>(&String::emptyStringInstance) - tlsBase;
+    } else {
+        // runtime check
+        size_t newDistance = reinterpret_cast<char*>(&String::emptyStringInstance) - tlsBase;
+        RELEASE_ASSERT(newDistance == g_emptyStringTlsOffset);
+    }
+#endif
 
     // Heap is initialized for each thread
     Heap::initialize();

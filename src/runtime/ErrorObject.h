@@ -149,22 +149,22 @@ public:
 
     static void throwBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString)
     {
-        throwBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString);
+        throwBuiltinError(state, code, String::emptyString(), false, String::emptyString(), templateString);
     }
 
     static void throwBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString, AtomicString templateDataString)
     {
-        throwBuiltinError(state, code, templateDataString.string(), false, String::emptyString, templateString);
+        throwBuiltinError(state, code, templateDataString.string(), false, String::emptyString(), templateString);
     }
 
     static void throwBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString, String* templateDataString)
     {
-        throwBuiltinError(state, code, templateDataString, false, String::emptyString, templateString);
+        throwBuiltinError(state, code, templateDataString, false, String::emptyString(), templateString);
     }
 
     static ErrorObject* createBuiltinError(ExecutionState& state, ErrorCode code, const char* templateString, bool fillStackInfo = true)
     {
-        return createBuiltinError(state, code, String::emptyString, false, String::emptyString, templateString, fillStackInfo);
+        return createBuiltinError(state, code, String::emptyString(), false, String::emptyString(), templateString, fillStackInfo);
     }
 
     static ErrorObject* createError(ExecutionState& state, ErrorCode code, String* errorMessage, bool fillStackInfo = true);

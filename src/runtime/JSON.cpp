@@ -218,7 +218,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
     if (reviver.isCallable()) {
         Object* root = new Object(state);
         root->markThisObjectDontNeedStructureTransitionTable();
-        root->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString), ObjectPropertyDescriptor(unfiltered, ObjectPropertyDescriptor::AllPresent));
+        root->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString()), ObjectPropertyDescriptor(unfiltered, ObjectPropertyDescriptor::AllPresent));
         std::function<Value(Value, const ObjectPropertyName&)> Walk;
         Walk = [&](Value holder, const ObjectPropertyName& name) -> Value {
             CHECK_STACK_OVERFLOW(state);
@@ -284,7 +284,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
             Value arguments[] = { name.toPlainValue(), val };
             return Object::call(state, reviver, holder, 2, arguments);
         };
-        return Walk(root, ObjectPropertyName(state, String::emptyString));
+        return Walk(root, ObjectPropertyName(state, String::emptyString()));
     }
 
     // 5
@@ -691,7 +691,7 @@ Value JSON::stringify(ExecutionState& state, Value value, Value replacer, Value 
     auto strings = &state.context()->staticStrings();
 
     // 1, 2, 3
-    String* indent = String::emptyString;
+    String* indent = String::emptyString();
     ValueVectorWithInlineStorage stack;
     ValueVectorWithInlineStorage propertyList;
     bool propertyListTouched = false;
@@ -744,7 +744,7 @@ Value JSON::stringify(ExecutionState& state, Value value, Value replacer, Value 
     }
 
     // 6, 7, 8
-    String* gap = String::emptyString;
+    String* gap = String::emptyString();
     if (space.isNumber()) {
         int space_cnt = std::min(space.toInteger(state), 10.0);
         if (space_cnt >= 1) {
@@ -766,9 +766,9 @@ Value JSON::stringify(ExecutionState& state, Value value, Value replacer, Value 
     // 9
     Object* wrapper = new Object(state);
     // 10
-    wrapper->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
+    wrapper->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString()), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
     LargeStringBuilder product;
-    auto ret = builtinJSONStringifyStr(state, String::emptyString, wrapper, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList, product);
+    auto ret = builtinJSONStringifyStr(state, String::emptyString(), wrapper, strings, replacerFunc, stack, indent, gap, propertyListTouched, propertyList, product);
     if (ret) {
         return product.finalize(&state);
     }

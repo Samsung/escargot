@@ -54,9 +54,9 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
     });
 
 #if defined(ENABLE_EXTENDED_API)
-    ErrorObject* obj = new ErrorObject(state, proto, String::emptyString, true, state.context()->vmInstance()->isErrorCreationCallbackRegistered());
+    ErrorObject* obj = new ErrorObject(state, proto, String::emptyString(), true, state.context()->vmInstance()->isErrorCreationCallbackRegistered());
 #else
-    ErrorObject* obj = new ErrorObject(state, proto, String::emptyString);
+    ErrorObject* obj = new ErrorObject(state, proto, String::emptyString());
 #endif
 
     Value message = argv[0];
@@ -81,7 +81,7 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {                                                                                                 \
             return constructorRealm->globalObject()->lowerCaseErrorName##ErrorPrototype();                                                                                                                                                              \
         });                                                                                                                                                                                                                                             \
-        ErrorObject* obj = new errorName##ErrorObject(state, proto, String::emptyString, true, state.context()->vmInstance()->isErrorCreationCallbackRegistered());                                                                                     \
+        ErrorObject* obj = new errorName##ErrorObject(state, proto, String::emptyString(), true, state.context()->vmInstance()->isErrorCreationCallbackRegistered());                                                                                   \
         Value message = argv[0];                                                                                                                                                                                                                        \
         if (!message.isUndefined()) {                                                                                                                                                                                                                   \
             obj->defineOwnPropertyThrowsException(state, state.context()->staticStrings().message,                                                                                                                                                      \
@@ -101,7 +101,7 @@ static Value builtinErrorConstructor(ExecutionState& state, Value thisValue, siz
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {                                                                                                 \
             return constructorRealm->globalObject()->lowerCaseErrorName##ErrorPrototype();                                                                                                                                                              \
         });                                                                                                                                                                                                                                             \
-        ErrorObject* obj = new errorName##ErrorObject(state, proto, String::emptyString);                                                                                                                                                               \
+        ErrorObject* obj = new errorName##ErrorObject(state, proto, String::emptyString());                                                                                                                                                             \
         Value message = argv[0];                                                                                                                                                                                                                        \
         if (!message.isUndefined()) {                                                                                                                                                                                                                   \
             obj->defineOwnPropertyThrowsException(state, state.context()->staticStrings().message,                                                                                                                                                      \
@@ -132,9 +132,9 @@ static Value builtinAggregateErrorConstructor(ExecutionState& state, Value thisV
     });
 
 #if defined(ENABLE_EXTENDED_API)
-    ErrorObject* O = new AggregateErrorObject(state, proto, String::emptyString, true, state.context()->vmInstance()->isErrorCreationCallbackRegistered());
+    ErrorObject* O = new AggregateErrorObject(state, proto, String::emptyString(), true, state.context()->vmInstance()->isErrorCreationCallbackRegistered());
 #else
-    ErrorObject* O = new AggregateErrorObject(state, proto, String::emptyString);
+    ErrorObject* O = new AggregateErrorObject(state, proto, String::emptyString());
 #endif
 
     Value message = argv[1];
@@ -175,7 +175,7 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
     Object* o = thisValue.toObject(state);
 
     if (!state.context()->toStringRecursionPreventer()->canInvokeToString(o)) {
-        return String::emptyString;
+        return String::emptyString();
     }
     ToStringRecursionPreventerItemAutoHolder holder(state, o);
 
@@ -189,7 +189,7 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
     Value message = o->get(state, state.context()->staticStrings().message).value(state, o);
     String* messageStr;
     if (message.isUndefined()) {
-        messageStr = String::emptyString;
+        messageStr = String::emptyString();
     } else {
         messageStr = message.toString(state);
     }
@@ -253,7 +253,7 @@ void GlobalObject::installError(ExecutionState& state)
 
     m_errorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().constructor), ObjectPropertyDescriptor(m_error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_errorPrototype->directDefineOwnProperty(state, state.context()->staticStrings().message, ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_errorPrototype->directDefineOwnProperty(state, state.context()->staticStrings().message, ObjectPropertyDescriptor(String::emptyString(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_errorPrototype->directDefineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(state.context()->staticStrings().Error.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     auto errorToStringFn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().toString, builtinErrorToString, 0, NativeFunctionInfo::Strict));
     m_errorPrototype->directDefineOwnProperty(state, state.context()->staticStrings().toString, ObjectPropertyDescriptor(errorToStringFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -266,7 +266,7 @@ void GlobalObject::installError(ExecutionState& state)
     m_throwTypeError->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().length),
                                         ObjectPropertyDescriptor(Value(0), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
     m_throwTypeError->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().name),
-                                        ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
+                                        ObjectPropertyDescriptor(String::emptyString(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::NonWritablePresent | ObjectPropertyDescriptor::NonEnumerablePresent | ObjectPropertyDescriptor::NonConfigurablePresent)));
     m_throwTypeError->preventExtensions(state);
 
     m_throwerGetterSetterData = new JSGetterSetter(m_throwTypeError, m_throwTypeError);
@@ -277,7 +277,7 @@ void GlobalObject::installError(ExecutionState& state)
     m_##errorname##ErrorPrototype = new PrototypeObject(state, m_errorPrototype);                                                                                                                                                                                                                                                             \
     m_##errorname##ErrorPrototype->setGlobalIntrinsicObject(state, true);                                                                                                                                                                                                                                                                     \
     m_##errorname##ErrorPrototype->directDefineOwnProperty(state, state.context()->staticStrings().constructor, ObjectPropertyDescriptor(m_##errorname##Error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));                            \
-    m_##errorname##ErrorPrototype->directDefineOwnProperty(state, state.context()->staticStrings().message, ObjectPropertyDescriptor(String::emptyString, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));                                 \
+    m_##errorname##ErrorPrototype->directDefineOwnProperty(state, state.context()->staticStrings().message, ObjectPropertyDescriptor(String::emptyString(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));                               \
     m_##errorname##ErrorPrototype->directDefineOwnProperty(state, state.context()->staticStrings().name, ObjectPropertyDescriptor(state.context()->staticStrings().bname##Error.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent))); \
     m_##errorname##Error->setFunctionPrototype(state, m_##errorname##ErrorPrototype);                                                                                                                                                                                                                                                         \
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().bname##Error),                                                                                                                                                                                                                                             \

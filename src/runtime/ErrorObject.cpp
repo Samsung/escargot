@@ -142,7 +142,7 @@ static Value builtinErrorObjectStackInfoGet(ExecutionState& state, Value thisVal
 
     ErrorObject* obj = thisValue.asObject()->asErrorObject();
     if (!obj->stackTraceData()) {
-        return String::emptyString;
+        return String::emptyString();
     }
 
     auto stackTraceData = obj->stackTraceData().value();

@@ -103,7 +103,7 @@ public:
         bool valid;
 
         RegExpLegacyFeatures()
-            : input(String::emptyString)
+            : input(String::emptyString())
             , lastMatch()
             , lastParen()
             , leftContext()
@@ -120,7 +120,7 @@ public:
 
         void invalidate()
         {
-            input = String::emptyString;
+            input = String::emptyString();
             lastMatch = StringView();
             lastParen = StringView();
             leftContext = StringView();

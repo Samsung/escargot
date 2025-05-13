@@ -31,7 +31,7 @@ class RopeString : public String {
     RopeString()
         : String()
     {
-        m_left = String::emptyString;
+        m_left = String::emptyString();
         m_bufferData.has8BitContent = true;
         m_bufferData.hasSpecialImpl = true;
         m_bufferData.length = 0;

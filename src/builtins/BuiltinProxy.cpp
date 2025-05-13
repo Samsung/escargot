@@ -33,7 +33,7 @@ static Value builtinProxyConstructor(ExecutionState& state, Value thisValue, siz
     auto strings = &state.context()->staticStrings();
 
     if (!newTarget.hasValue()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString, "%s: calling a builtin Proxy constructor without new is forbidden");
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, strings->Proxy.string(), false, String::emptyString(), "%s: calling a builtin Proxy constructor without new is forbidden");
         return Value();
     }
 

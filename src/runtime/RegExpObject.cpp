@@ -52,7 +52,7 @@ RegExpObject::RegExpObject(ExecutionState& state, Object* proto, String* source,
     : RegExpObject(state, proto, true)
 {
     internalInit(state, source, (Option)option);
-    m_optionString = String::emptyString;
+    m_optionString = String::emptyString();
 }
 
 RegExpObject::RegExpObject(ExecutionState& state, Object* proto, bool hasLastIndex)

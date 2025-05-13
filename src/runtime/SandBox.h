@@ -42,10 +42,10 @@ struct StackTraceDataOnStack : public gc {
     bool isEval;
 
     StackTraceDataOnStack()
-        : srcName(String::emptyString)
-        , sourceCode(String::emptyString)
+        : srcName(String::emptyString())
+        , sourceCode(String::emptyString())
         , loc(SIZE_MAX, SIZE_MAX, SIZE_MAX)
-        , functionName(String::emptyString)
+        , functionName(String::emptyString())
 #ifdef ESCARGOT_DEBUGGER
         , executionStateDepth(0)
 #endif /* ESCARGOT_DEBUGGER */

@@ -90,14 +90,14 @@ SharedArrayBufferObject* SharedArrayBufferObject::allocateSharedArrayBuffer(Exec
     });
 
     if (UNLIKELY(byteLength >= ArrayBuffer::maxArrayBufferSize)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
     }
 
     if (UNLIKELY(maxByteLength.hasValue())) {
         ASSERT(byteLength <= maxByteLength.value());
         uint64_t maxLength = maxByteLength.value();
         if (UNLIKELY(maxLength >= ArrayBuffer::maxArrayBufferSize)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
         }
 
         return new SharedArrayBufferObject(state, proto, byteLength, maxLength);
