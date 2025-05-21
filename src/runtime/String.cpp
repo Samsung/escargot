@@ -47,6 +47,7 @@
 #include "String.h"
 #include "CompressibleString.h"
 #include "Value.h"
+#include "ThreadLocal.h"
 
 #include "parser/Lexer.h"
 
@@ -54,8 +55,6 @@
 #include "bignum-dtoa.h"
 
 namespace Escargot {
-MAY_THREAD_LOCAL String* String::emptyStringInstance;
-
 std::vector<std::string> split(const std::string& s, char seperator)
 {
     std::vector<std::string> output;
@@ -633,18 +632,6 @@ ASCIIStringDataNonGCStd dtoa(double number)
         buf++;
     }
     return str;
-}
-
-void String::initEmptyString()
-{
-    ASSERT(!String::emptyString());
-    String* emptyStr = new (NoGC) ASCIIStringFromExternalMemory("");
-    // mark empty string as AtomicString source
-    // because empty string is the default string value of empty AtomicString
-    emptyStr->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)emptyStr;
-
-    ASSERT(emptyStr->isAtomicStringSource());
-    String::emptyStringInstance = emptyStr;
 }
 
 #define LATIN1_LARGE_INLINE_BUFFER(F) \

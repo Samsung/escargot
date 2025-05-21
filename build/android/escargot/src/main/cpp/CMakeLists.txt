@@ -5,7 +5,8 @@ project(escargot-jni)
 option(UNDER_NDK "Build under the Android NDK" ON)
 option(ENABLE_SHELL "Enable shell" OFF)
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fexceptions -Wno-conversion-null")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fexceptions -Wno-conversion-null -fPIC -ftls-model=local-dynamic ")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -ftls-model=local-dynamic ")
 
 if (NOT UNDER_NDK)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -g3")
@@ -44,15 +45,16 @@ TARGET_LINK_LIBRARIES (escargot-jni PRIVATE escargot ${LOG_LIBRARY})
 
 if (ENABLE_SHELL)
     SET(CMAKE_EXE_LINKER_FLAGS -Wl,-export-dynamic) # export symbol of Shell.cpp
-    ADD_COMPILE_OPTIONS(-DNDEBUG -g3 -DESCARGOT_ENABLE_TEST)
+    ADD_COMPILE_OPTIONS(-DNDEBUG -g3 -DESCARGOT_ENABLE_TEST -fPIC)
     ADD_LINK_OPTIONS(-static-libstdc++)
     ADD_EXECUTABLE(escargot-shell ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../src/shell/Shell.cpp)
     TARGET_INCLUDE_DIRECTORIES(escargot-shell PRIVATE ADD_SUBDIRECTORY
         (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/GCutil/)
         (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/GCutil/bdwgc/include)
+        (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/GCutil/bdwgc/include/gc)
         (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../src))
     TARGET_LINK_LIBRARIES (escargot-shell PRIVATE escargot ${LOG_LIBRARY})
 
     ADD_EXECUTABLE(test-data-runner ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../tools/test/test-data-runner/test-data-runner.cpp)
-    TARGET_COMPILE_OPTIONS(test-data-runner PRIVATE -std=c++11)
+    TARGET_COMPILE_OPTIONS(test-data-runner PRIVATE -std=c++11 -fPIC)
 endif ()
