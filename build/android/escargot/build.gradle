@@ -6,6 +6,7 @@ plugins {
 
 ext {
     force64Option = System.getProperty("ESCARGOT_BUILD_64BIT_FORCE_LARGE", "ON")
+    pthreadKeyOption = System.getProperty("ESCARGOT_BUILD_ENABLE_TLS_ACCESS_BY_PTHREAD_KEY", "OFF")
 }
 
 android {
@@ -21,7 +22,7 @@ android {
         externalNativeBuild {
             cmake {
                 arguments "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DESCARGOT_HOST=android", "-DESCARGOT_OUTPUT=static_lib", "-DENABLE_SHELL=OFF",
-                        "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option
+                        "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option, "-DESCARGOT_ENABLE_TLS_ACCESS_BY_PTHREAD_KEY="+project.ext.pthreadKeyOption
             }
         }
 

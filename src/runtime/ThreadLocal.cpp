@@ -22,6 +22,7 @@
 #include "heap/Heap.h"
 #include "runtime/Global.h"
 #include "runtime/Platform.h"
+#include "runtime/String.h"
 #include "parser/ASTAllocator.h"
 #include "BumpPointerAllocator.h"
 #if defined(ENABLE_WASM)
@@ -38,16 +39,38 @@
 #include <pthread.h>
 #endif
 
+#if defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
+#include <limits.h> // for PTHREAD_KEYS_MAX
+#pragma message "ENABLE_TLS_ACCESS_BY_PTHREAD_KEY is enabled"
+#endif
+
 namespace Escargot {
 
 MAY_THREAD_LOCAL bool ThreadLocal::inited;
 
 #if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
 size_t ThreadLocal::g_stackLimitTlsOffset;
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
 size_t ThreadLocal::g_emptyStringTlsOffset;
 #endif
 
+#elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
+int ThreadLocal::g_stackLimitKeyOffset;
+pthread_key_t ThreadLocal::g_stackLimitKey;
+#endif
+
+#if !defined(ESCARGOT_USE_32BIT_IN_64BIT)
+static ASCIIStringFromExternalMemory g_emptyString("");
+#endif
+
 MAY_THREAD_LOCAL size_t ThreadLocal::g_stackLimit;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+MAY_THREAD_LOCAL String* ThreadLocal::g_emptyStringInstance;
+#else
+String* ThreadLocal::g_emptyStringInstance;
+#endif
+
 MAY_THREAD_LOCAL std::mt19937* ThreadLocal::g_randEngine;
 MAY_THREAD_LOCAL bf_context_t ThreadLocal::g_bfContext;
 #if defined(ENABLE_WASM)
@@ -139,10 +162,45 @@ static void genericGCEventListener(GC_EventType evtType)
     }
 }
 
+#if defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
+Optional<size_t*> checkPthreadKey(pthread_key_t key, char* tlsBase)
+{
+    pthread_setspecific(key, reinterpret_cast<void*>(0xbeefdead));
+    size_t* ptr = reinterpret_cast<size_t*>(tlsBase);
+    size_t* tcbMayEnd = reinterpret_cast<size_t*>(tlsBase + 1024 * 4);
+
+    while (ptr < tcbMayEnd) {
+        if (*ptr == 0xbeefdead) {
+            pthread_setspecific(key, nullptr);
+            return ptr;
+        }
+        ptr++;
+    }
+    pthread_setspecific(key, nullptr);
+    return nullptr;
+}
+#endif
+
 void ThreadLocal::initialize()
 {
     // initialize should be invoked only once in each thread
     RELEASE_ASSERT(!inited);
+
+    // Heap is initialized for each thread
+    Heap::initialize();
+
+    if (!ThreadLocal::g_emptyStringInstance) {
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+        String* emptyStr = new (NoGC) ASCIIStringFromExternalMemory("");
+#else
+        String* emptyStr = &g_emptyString;
+#endif
+        // mark empty string as AtomicString source
+        // because empty string is the default string value of empty AtomicString
+        emptyStr->m_typeTag = (size_t)POINTER_VALUE_STRING_TAG_IN_DATA | (size_t)emptyStr;
+        ASSERT(emptyStr->isAtomicStringSource());
+        ThreadLocal::g_emptyStringInstance = emptyStr;
+    }
 
 #if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
     auto tlsBase = tlsBaseAddress();
@@ -154,17 +212,47 @@ void ThreadLocal::initialize()
         RELEASE_ASSERT(newDistance == g_stackLimitTlsOffset);
     }
 
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     if (!g_emptyStringTlsOffset) {
-        g_emptyStringTlsOffset = reinterpret_cast<char*>(&String::emptyStringInstance) - tlsBase;
+        g_emptyStringTlsOffset = reinterpret_cast<char*>(&g_emptyStringInstance) - tlsBase;
     } else {
         // runtime check
-        size_t newDistance = reinterpret_cast<char*>(&String::emptyStringInstance) - tlsBase;
+        size_t newDistance = reinterpret_cast<char*>(&g_emptyStringInstance) - tlsBase;
         RELEASE_ASSERT(newDistance == g_emptyStringTlsOffset);
     }
 #endif
 
-    // Heap is initialized for each thread
-    Heap::initialize();
+#elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#error "Unimplemented since pthread version only enabled on android"
+#endif
+
+    int keyCreateReturn;
+    auto baseAddr = tlsBaseAddress();
+    if (!g_stackLimitKeyOffset) {
+        std::vector<pthread_key_t> dummyKey;
+        for (size_t i = 0; i < PTHREAD_KEYS_MAX / 4; i++) {
+            pthread_key_t key;
+            keyCreateReturn = pthread_key_create(&key, nullptr) == 0;
+            RELEASE_ASSERT(keyCreateReturn == 0);
+            dummyKey.push_back(key);
+        }
+
+        keyCreateReturn = pthread_key_create(&g_stackLimitKey, nullptr);
+        RELEASE_ASSERT(keyCreateReturn == 0);
+        auto ptr = checkPthreadKey(g_stackLimitKey, baseAddr);
+        RELEASE_ASSERT(ptr);
+
+        g_stackLimitKeyOffset = reinterpret_cast<size_t>(ptr.value()) - reinterpret_cast<size_t>(baseAddr);
+
+        for (auto k : dummyKey) {
+            pthread_key_delete(k);
+        }
+    }
+    size_t** ptr = reinterpret_cast<size_t**>(tlsBaseAddress() + g_stackLimitKeyOffset);
+    *ptr = &g_stackLimit;
+#endif
 
     // g_stackLimit
 #if defined(OS_WINDOWS)
@@ -242,6 +330,11 @@ void ThreadLocal::initialize()
 void ThreadLocal::finalize()
 {
     RELEASE_ASSERT(inited);
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    delete ThreadLocal::g_emptyStringInstance;
+    ThreadLocal::g_emptyStringInstance = nullptr;
+#endif
 
     // g_customData
     Global::platform()->deallocateThreadLocalCustomData();

@@ -379,10 +379,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     },
                                    nullptr, nullptr, nullptr);
 
-    if (!String::emptyString()) {
-        String::initEmptyString();
-        ASSERT(!!String::emptyString() && String::emptyString()->isAtomicStringSource());
-    }
     m_staticStrings.initStaticStrings();
 
     m_toStringRecursionPreventer = new ToStringRecursionPreventer();

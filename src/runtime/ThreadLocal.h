@@ -88,15 +88,28 @@ private:
 // ThreadLocal should be created for each thread
 // ThreadLocal is a non-GC global object which means that users who want to customize it should manage memory by themselves
 class ThreadLocal {
+    friend class String;
     friend class StackOverflowDisabler;
     static MAY_THREAD_LOCAL bool inited;
 #if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
     static size_t g_stackLimitTlsOffset;
+
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     static size_t g_emptyStringTlsOffset;
+#endif
+
+#elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
+    static int g_stackLimitKeyOffset;
+    static pthread_key_t g_stackLimitKey;
 #endif
 
     // Global data per thread
     static MAY_THREAD_LOCAL size_t g_stackLimit;
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    static MAY_THREAD_LOCAL String* g_emptyStringInstance;
+#else
+    static String* g_emptyStringInstance;
+#endif
     static MAY_THREAD_LOCAL std::mt19937* g_randEngine;
     static MAY_THREAD_LOCAL bf_context_t g_bfContext;
 #if defined(ENABLE_WASM)
@@ -108,7 +121,7 @@ class ThreadLocal {
     // custom data allocated by user through Platform::allocateThreadLocalCustomData
     static MAY_THREAD_LOCAL void* g_customData;
 
-#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS) || defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
     static ALWAYS_INLINE char* tlsBaseAddress()
     {
 #if defined(CPU_X86_64)
@@ -118,14 +131,31 @@ class ThreadLocal {
         return fs;
 #elif defined(CPU_X86)
         char* gs;
-        asm inline("mov %%gs:0, %0"
+        asm inline("movl %%gs:0, %0"
                    : "=r"(gs));
         return gs;
-#elif defined(CPU_ARM32) || defined(CPU_ARM64)
+#elif defined(CPU_ARM32)
+        char* result;
+        asm inline("mrc p15, 0, %0, c13, c0, 3"
+                   : "=r"(result));
+        return result;
+#elif defined(CPU_ARM64)
+        char* result;
+        asm inline("mrs %0, tpidr_el0"
+                   : "=r"(result));
+        return result;
+#elif defined(CPU_RISCV32) || defined(CPU_RISCV64)
+        char* result;
+        asm inline("mv %0, tp"
+                   : "=r"(result));
+        return result;
+#else
         return reinterpret_cast<char*>(__builtin_thread_pointer());
 #endif
     }
+#endif
 
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
     static ALWAYS_INLINE char* tlsValueAddress(size_t offset)
     {
         return tlsBaseAddress() + offset;
@@ -141,7 +171,7 @@ class ThreadLocal {
         return value;
 #elif defined(CPU_X86)
         size_t value;
-        asm inline("mov %%gs:(%1), %0"
+        asm inline("movl %%gs:(%1), %0"
                    : "=r"(value)
                    : "r"(offset));
         return value;
@@ -149,6 +179,7 @@ class ThreadLocal {
         return *(reinterpret_cast<size_t*>(tlsBaseAddress() + offset));
 #endif
     }
+
 #endif
 
 public:
@@ -159,12 +190,14 @@ public:
         return inited;
     }
 
-#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
     static ALWAYS_INLINE String* emptyString()
     {
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
         return reinterpret_cast<String*>(readTlsValue(g_emptyStringTlsOffset));
-    }
+#else
+        return g_emptyStringInstance;
 #endif
+    }
 
     // Global data getter
     static ALWAYS_INLINE size_t stackLimit()
@@ -173,6 +206,10 @@ public:
 #if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
         ASSERT(g_stackLimit == readTlsValue(g_stackLimitTlsOffset));
         return readTlsValue(g_stackLimitTlsOffset);
+#elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
+        auto base = tlsBaseAddress();
+        size_t** ptr = reinterpret_cast<size_t**>(base + g_stackLimitKeyOffset);
+        return **ptr;
 #else
         return g_stackLimit;
 #endif

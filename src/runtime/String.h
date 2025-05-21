@@ -345,14 +345,9 @@ public:
 
     // initialize String::emptyString() value
     // its called only once by VMInstance constructor
-    static void initEmptyString();
     static String* emptyString()
     {
-#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
         return ThreadLocal::emptyString();
-#else
-        return String::emptyStringInstance;
-#endif
     }
 
     template <const size_t srcLen>
@@ -587,8 +582,6 @@ public:
     String* trim(StringTrimWhere where = StringTrimWhere::TrimBoth);
 
 private:
-    static MAY_THREAD_LOCAL String* emptyStringInstance;
-
     size_t m_typeTag;
 
 protected:
