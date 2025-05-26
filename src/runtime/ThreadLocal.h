@@ -192,8 +192,18 @@ public:
 
     static ALWAYS_INLINE String* emptyString()
     {
-#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
+
+#if defined(ENABLE_TLS_ACCESS_BY_ADDRESS)
         return reinterpret_cast<String*>(readTlsValue(g_emptyStringTlsOffset));
+#elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
+        auto base = tlsBaseAddress();
+        String*** ptr = reinterpret_cast<String***>(base + g_stackLimitKeyOffset + sizeof(size_t));
+        return **ptr;
+#else
+        return g_emptyStringInstance;
+#endif
+
 #else
         return g_emptyStringInstance;
 #endif
