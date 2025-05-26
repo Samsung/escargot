@@ -40,9 +40,17 @@
 #endif
 
 #if defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
-#include <limits.h> // for PTHREAD_KEYS_MAX
-#pragma message "ENABLE_TLS_ACCESS_BY_PTHREAD_KEY is enabled"
+#include <unistd.h> // getpagesize
 #endif
+
+// we needs to define new macro here since wtfbridge redefine original macro
+#define ESCARGOT_RELEASE_ASSERT(assertion)                                         \
+    do {                                                                           \
+        if (!(assertion)) {                                                        \
+            ESCARGOT_LOG_ERROR("RELEASE_ASSERT at %s (%d)\n", __FILE__, __LINE__); \
+            abort();                                                               \
+        }                                                                          \
+    } while (0);
 
 namespace Escargot {
 
@@ -165,12 +173,20 @@ static void genericGCEventListener(GC_EventType evtType)
 #if defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
 Optional<size_t*> checkPthreadKey(pthread_key_t key, char* tlsBase)
 {
-    pthread_setspecific(key, reinterpret_cast<void*>(0xbeefdead));
+#if defined(ESCARGOT_32)
+    pthread_setspecific(key, (void*)(0xbeefdead));
+#else
+    pthread_setspecific(key, (void*)(0xbeefdeaddeadbeefull));
+#endif
     size_t* ptr = reinterpret_cast<size_t*>(tlsBase);
-    size_t* tcbMayEnd = reinterpret_cast<size_t*>(tlsBase + 1024 * 4);
+    size_t* tcbMayEnd = reinterpret_cast<size_t*>(tlsBase + getpagesize());
 
     while (ptr < tcbMayEnd) {
+#if defined(ESCARGOT_32)
         if (*ptr == 0xbeefdead) {
+#else
+        if (*ptr == 0xbeefdeaddeadbeefull) {
+#endif
             pthread_setspecific(key, nullptr);
             return ptr;
         }
@@ -184,7 +200,7 @@ Optional<size_t*> checkPthreadKey(pthread_key_t key, char* tlsBase)
 void ThreadLocal::initialize()
 {
     // initialize should be invoked only once in each thread
-    RELEASE_ASSERT(!inited);
+    ESCARGOT_RELEASE_ASSERT(!inited);
 
     // Heap is initialized for each thread
     Heap::initialize();
@@ -209,7 +225,7 @@ void ThreadLocal::initialize()
     } else {
         // runtime check
         size_t newDistance = reinterpret_cast<char*>(&g_stackLimit) - tlsBase;
-        RELEASE_ASSERT(newDistance == g_stackLimitTlsOffset);
+        ESCARGOT_RELEASE_ASSERT(newDistance == g_stackLimitTlsOffset);
     }
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
@@ -218,37 +234,21 @@ void ThreadLocal::initialize()
     } else {
         // runtime check
         size_t newDistance = reinterpret_cast<char*>(&g_emptyStringInstance) - tlsBase;
-        RELEASE_ASSERT(newDistance == g_emptyStringTlsOffset);
+        ESCARGOT_RELEASE_ASSERT(newDistance == g_emptyStringTlsOffset);
     }
 #endif
 
 #elif defined(ENABLE_TLS_ACCESS_BY_PTHREAD_KEY)
-
-#if defined(ESCARGOT_USE_32BIT_IN_64BIT)
-#error "Unimplemented since pthread version only enabled on android"
-#endif
-
     int keyCreateReturn;
     auto baseAddr = tlsBaseAddress();
     if (!g_stackLimitKeyOffset) {
-        std::vector<pthread_key_t> dummyKey;
-        for (size_t i = 0; i < PTHREAD_KEYS_MAX / 4; i++) {
-            pthread_key_t key;
-            keyCreateReturn = pthread_key_create(&key, nullptr) == 0;
-            RELEASE_ASSERT(keyCreateReturn == 0);
-            dummyKey.push_back(key);
-        }
-
         keyCreateReturn = pthread_key_create(&g_stackLimitKey, nullptr);
-        RELEASE_ASSERT(keyCreateReturn == 0);
+        ESCARGOT_RELEASE_ASSERT(keyCreateReturn == 0);
         auto ptr = checkPthreadKey(g_stackLimitKey, baseAddr);
-        RELEASE_ASSERT(ptr);
+        ESCARGOT_RELEASE_ASSERT(ptr);
 
         g_stackLimitKeyOffset = reinterpret_cast<size_t>(ptr.value()) - reinterpret_cast<size_t>(baseAddr);
-
-        for (auto k : dummyKey) {
-            pthread_key_delete(k);
-        }
+        ESCARGOT_RELEASE_ASSERT(g_stackLimitKeyOffset < getpagesize());
     }
     size_t** ptr = reinterpret_cast<size_t**>(tlsBaseAddress() + g_stackLimitKeyOffset);
     *ptr = &g_stackLimit;
@@ -329,7 +329,7 @@ void ThreadLocal::initialize()
 
 void ThreadLocal::finalize()
 {
-    RELEASE_ASSERT(inited);
+    ESCARGOT_RELEASE_ASSERT(inited);
 
 #if defined(ESCARGOT_USE_32BIT_IN_64BIT)
     delete ThreadLocal::g_emptyStringInstance;
