@@ -1007,6 +1007,9 @@ size_t String::rfind(String* str, size_t pos)
 
 String* String::substring(size_t from, size_t to)
 {
+    if (UNLIKELY(from >= to)) {
+        return String::emptyString();
+    }
 #if !defined(ESCARGOT_SMALL_CONFIG)
     if (to - from > STRING_SUB_STRING_MIN_VIEW_LENGTH) {
         StringView* str = new StringView(this, from, to);

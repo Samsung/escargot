@@ -535,12 +535,7 @@ Value Scanner::ScannerResult::valueStringLiteralToValue(Scanner* scannerInstance
         }
     }
 
-#if defined(ESCARGOT_SMALL_CONFIG)
-    constructStringLiteral(scannerInstance);
-    return this->valueStringLiteralData.m_stringIfNewlyAllocated;
-#else
     return new StringView(scannerInstance->sourceAsNormalView, start, end);
-#endif
 }
 
 ParserStringView Scanner::ScannerResult::valueStringLiteral(Scanner* scannerInstance)
