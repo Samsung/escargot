@@ -260,11 +260,11 @@ CXXFLAGS+=' -Wno-shadow '
 %if "%{?enable_test}" == "1"
 cmake CMakeLists.txt -H./ -Bbuild/out_tizen_%{rpm} -DLIBDIR=%{_libdir} -DINCLUDEDIR=%{_includedir} -DTIZEN_MAJOR_VERSION='%{tizen_version_major}' \
 -DESCARGOT_ARCH='%{tizen_arch}' -DESCARGOT_WASM='%{enable_wasm}' -DESCARGOT_DEBUGGER='%{enable_debugger}' \
--DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_MODE=release -DESCARGOT_HOST=tizen -DESCARGOT_OUTPUT=shared_lib -DESCARGOT_TEST=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_ENABLE_TLS_ACCESS_BY_ADDRESS=ON -G Ninja
+-DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_MODE=release -DESCARGOT_HOST=tizen -DESCARGOT_OUTPUT=shared_lib -DESCARGOT_TEST=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -G Ninja
 %else
 cmake CMakeLists.txt -H./ -Bbuild/out_tizen_%{rpm} -DLIBDIR=%{_libdir} -DINCLUDEDIR=%{_includedir} -DTIZEN_MAJOR_VERSION='%{tizen_version_major}' \
 -DESCARGOT_ARCH='%{tizen_arch}' -DESCARGOT_WASM='%{enable_wasm}' -DESCARGOT_DEBUGGER='%{enable_debugger}' \
--DESCARGOT_THREADING=ON -DESCARGOT_MODE=release -DESCARGOT_HOST=tizen -DESCARGOT_OUTPUT=shared_lib -DESCARGOT_ENABLE_TLS_ACCESS_BY_ADDRESS=ON -G Ninja
+-DESCARGOT_THREADING=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_MODE=release -DESCARGOT_HOST=tizen -DESCARGOT_OUTPUT=shared_lib -G Ninja
 %endif
 
 cmake --build build/out_tizen_%{rpm}
