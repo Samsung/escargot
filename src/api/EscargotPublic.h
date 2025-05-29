@@ -191,9 +191,39 @@ public:
     static void setGCFrequency(size_t value = 1);
 };
 
+class ESCARGOT_EXPORT PersistentRefHolderBase {
+public:
+    void setWeak();
+    void clearWeak();
+    bool isWeak();
+
+protected:
+    PersistentRefHolderBase()
+    {
+        m_holder = nullptr;
+    }
+
+    template <typename T>
+    void initHolderSpace(T* initialValue)
+    {
+        m_holder = reinterpret_cast<void**>(Memory::gcMallocUncollectable(sizeof(T*)));
+        *(reinterpret_cast<T**>(m_holder)) = initialValue;
+    }
+
+    void destoryHolderSpace()
+    {
+        if (m_holder) {
+            Memory::gcFree(m_holder);
+        }
+        m_holder = nullptr;
+    }
+
+    void** m_holder;
+};
+
 // NOTE only {stack, kinds of PersistentHolders} are root set. if you store the data you need on other space, you may lost your data
 template <typename T>
-class ESCARGOT_EXPORT PersistentRefHolder {
+class ESCARGOT_EXPORT PersistentRefHolder : public PersistentRefHolderBase {
 public:
     ~PersistentRefHolder()
     {
@@ -202,7 +232,6 @@ public:
 
     PersistentRefHolder()
     {
-        m_holder = nullptr;
     }
 
     PersistentRefHolder(T* ptr)
@@ -242,18 +271,22 @@ public:
 
     operator T*()
     {
-        return *m_holder;
+        return m_holder ? *(reinterpret_cast<T**>(m_holder)) : nullptr;
     }
 
     T* get()
     {
-        return *m_holder;
+        if (m_holder) {
+            return *(reinterpret_cast<T**>(m_holder));
+        } else {
+            return nullptr;
+        }
     }
 
     T* release()
     {
         if (m_holder) {
-            T* ptr = *m_holder;
+            T* ptr = *(reinterpret_cast<T**>(m_holder));
             destoryHolderSpace();
             return ptr;
         }
@@ -262,25 +295,8 @@ public:
 
     T* operator->()
     {
-        return *m_holder;
+        return *(reinterpret_cast<T**>(m_holder));
     }
-
-private:
-    void initHolderSpace(T* initialValue)
-    {
-        m_holder = (T**)Memory::gcMallocUncollectable(sizeof(T*));
-        *m_holder = initialValue;
-    }
-
-    void destoryHolderSpace()
-    {
-        if (m_holder) {
-            Memory::gcFree(m_holder);
-        }
-        m_holder = nullptr;
-    }
-
-    T** m_holder;
 };
 
 class PersistentValueRefMap {
