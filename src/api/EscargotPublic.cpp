@@ -479,6 +479,60 @@ bool Memory::removeGCEventListener(GCEventType type, OnGCEventListener l, void* 
     return false;
 }
 
+#define GC_ATOMIC_UNCOLLECTABLE_KIND 3 // see mark.c
+
+void PersistentRefHolderBase::setWeak()
+{
+    if (!m_holder) {
+        return;
+    }
+
+    int kind = GC_get_kind_and_size(m_holder, NULL);
+    if (kind == GC_ATOMIC_UNCOLLECTABLE_KIND) {
+        return;
+    }
+
+    void** newHolder = reinterpret_cast<void**>(GC_MALLOC_ATOMIC_UNCOLLECTABLE(sizeof(size_t)));
+    *newHolder = *m_holder;
+    GC_FREE(m_holder);
+    m_holder = newHolder;
+
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(m_holder, *m_holder);
+}
+
+void PersistentRefHolderBase::clearWeak()
+{
+    if (!m_holder) {
+        return;
+    }
+
+    GC_unregister_disappearing_link(m_holder);
+
+    int kind = GC_get_kind_and_size(m_holder, NULL);
+    if (kind != GC_ATOMIC_UNCOLLECTABLE_KIND) {
+        return;
+    }
+
+    void** newHolder = reinterpret_cast<void**>(GC_MALLOC_UNCOLLECTABLE(sizeof(size_t)));
+    *newHolder = *m_holder;
+    GC_FREE(m_holder);
+    m_holder = newHolder;
+}
+
+bool PersistentRefHolderBase::isWeak()
+{
+    if (!m_holder) {
+        return false;
+    }
+
+    int kind = GC_get_kind_and_size(m_holder, NULL);
+    if (kind == GC_ATOMIC_UNCOLLECTABLE_KIND) {
+        return true;
+    }
+
+    return false;
+}
+
 // I store ref count as EncodedValue. this can prevent what bdwgc can see ref count as address (EncodedValue store integer value as odd)
 using PersistentValueRefMapImpl = HashMap<ValueRef*, EncodedValue, std::hash<void*>, std::equal_to<void*>, GCUtil::gc_malloc_allocator<std::pair<ValueRef* const, EncodedValue>>>;
 

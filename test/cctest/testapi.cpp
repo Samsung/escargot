@@ -2993,3 +2993,47 @@ TEST(Debugger, ObjectStore)
     context.release();
     instance.release();
 }
+
+TEST(WeakPtr, Basic)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+
+    PersistentRefHolder<StringRef> weak = StringRef::createFromUTF8("asdf");
+    PersistentRefHolder<ObjectRef> weak2;
+
+    EXPECT_TRUE(weak2.get() == nullptr);
+
+    EXPECT_FALSE(weak.isWeak());
+    weak.setWeak();
+    EXPECT_TRUE(weak.isWeak());
+    weak.clearWeak();
+    EXPECT_FALSE(weak.isWeak());
+    weak.setWeak();
+    EXPECT_TRUE(weak.isWeak());
+
+    Evaluator::execute(context.get(), [](ExecutionStateRef* state, PersistentRefHolder<ObjectRef>* weak2) -> ValueRef* {
+        *weak2 = ObjectRef::create(state);
+        weak2->setWeak();
+        return weak2->get();
+    },
+                       &weak2);
+
+    EXPECT_TRUE(weak.get() != nullptr);
+    EXPECT_TRUE(weak2.get() != nullptr);
+
+    for (size_t i = 0; i < 100; i++) {
+        PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
+    }
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+
+    EXPECT_TRUE(weak.get() == nullptr);
+    EXPECT_TRUE(weak2.get() == nullptr);
+
+    context.release();
+    instance.release();
+}
