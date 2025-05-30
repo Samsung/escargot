@@ -34,14 +34,14 @@ endif ()
 
 if (UNDER_NDK)
     FIND_LIBRARY(LOG_LIBRARY log)
+    # enable 16KB page size (require version of Android NDK >= 27)
+    TARGET_LINK_OPTIONS(escargot PRIVATE "-Wl,-z,max-page-size=16384")
+    TARGET_LINK_OPTIONS(escargot-jni PRIVATE "-Wl,-z,max-page-size=16384")
 else ()
     FIND_PACKAGE(JNI REQUIRED)
     INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS})
 endif ()
 
-# enable 16KB page size (require version of Android NDK >= 27)
-TARGET_LINK_OPTIONS(escargot PRIVATE "-Wl,-z,max-page-size=16384")
-TARGET_LINK_OPTIONS(escargot-jni PRIVATE "-Wl,-z,max-page-size=16384")
 TARGET_LINK_LIBRARIES (escargot-jni PRIVATE escargot ${LOG_LIBRARY})
 
 if (ENABLE_SHELL)
