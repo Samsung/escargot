@@ -11,17 +11,18 @@ ext {
 
 android {
     namespace 'com.samsung.lwe.escargot'
-    compileSdk 34
+    compileSdk 36
+    ndkVersion '28.1.13356709'
 
     defaultConfig {
         minSdk 28
-        targetSdk 34
+        targetSdk 36
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
         externalNativeBuild {
             cmake {
-                arguments "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DESCARGOT_HOST=android", "-DESCARGOT_OUTPUT=static_lib", "-DENABLE_SHELL=OFF",
+                arguments "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON", "-DCMAKE_VERBOSE_MAKEFILE=ON", "-DESCARGOT_HOST=android", "-DESCARGOT_OUTPUT=static_lib", "-DENABLE_SHELL=OFF",
                         "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option, "-DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY="+project.ext.pthreadKeyOption
             }
         }
@@ -39,7 +40,6 @@ android {
 
         debug {
             testCoverageEnabled true
-            debuggable = true
             jniDebuggable = true
             ndk {
                 debuggable = true
@@ -57,7 +57,6 @@ android {
 
         releaseShell {
             initWith(buildTypes.release)
-            debuggable = true
             jniDebuggable = true
             ndk {
                 debuggable = true
