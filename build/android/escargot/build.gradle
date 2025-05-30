@@ -200,7 +200,7 @@ task clearHostJar(type: Delete) {
 task bundleHostJar(type: Jar) {
     dependsOn buildGMakeNativeNoNDK
     dependsOn assemble
-    from(zipTree('build/intermediates/aar_main_jar/debug/classes.jar'))
+    from(zipTree('build/intermediates/aar_main_jar/release/syncReleaseLibJars/classes.jar'))
     from(dirForNativeNoNDK.asFile.toString() + "/libescargot-jni.so")
     from(dirForNativeNoNDK.asFile.toString() + "/libescargot-jni.dylib")
     rename("libescargot-jni.dylib", "libescargot-jni.so")
