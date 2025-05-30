@@ -3,10 +3,11 @@
   <groupId>com.samsung.lwe.escargot</groupId>
   <artifactId>escargot-ubuntu</artifactId>
   <versioning>
-    <release>4.2.0.20241105.0.6d2dd5ec</release>
+    <release>4.2.0.20250530.0.62e6e01</release>
     <versions>
       <version>4.2.0.20241105.0.6d2dd5ec</version>
+      <version>4.2.0.20250530.0.62e6e01</version>
     </versions>
-    <lastUpdated>20241114065119</lastUpdated>
+    <lastUpdated>20250530080755</lastUpdated>
   </versioning>
 </metadata>
