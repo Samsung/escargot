@@ -1,0 +1,114 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.samsung.lwe.escargot",
+    "module": "escargot-android",
+    "version": "4.2.0.20250602.0.72205bb",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.11.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "escargot-android-4.2.0.20250602.0.72205bb.aar",
+          "url": "escargot-android-4.2.0.20250602.0.72205bb.aar",
+          "size": 6650360,
+          "sha512": "dea7b815a887d0e91e782c4d295f178f6e89c2e246a35342b046e14e0ac92287de824b23578243e29cfec466896af29be6bfafa9af17faa33303c6496e07f9a5",
+          "sha256": "957140a372fd1838de86574c38720598ef488dfc5341e3e109653bf76268585d",
+          "sha1": "ae04506fd2ffa04c45f9d6792d84177174dbbe00",
+          "md5": "7bec5a74661338490bb51f79eecccb7f"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "androidx.appcompat",
+          "module": "appcompat",
+          "version": {
+            "requires": "1.6.0"
+          }
+        },
+        {
+          "group": "com.google.android.material",
+          "module": "material",
+          "version": {
+            "requires": "1.7.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "escargot-android-4.2.0.20250602.0.72205bb.aar",
+          "url": "escargot-android-4.2.0.20250602.0.72205bb.aar",
+          "size": 6650360,
+          "sha512": "dea7b815a887d0e91e782c4d295f178f6e89c2e246a35342b046e14e0ac92287de824b23578243e29cfec466896af29be6bfafa9af17faa33303c6496e07f9a5",
+          "sha256": "957140a372fd1838de86574c38720598ef488dfc5341e3e109653bf76268585d",
+          "sha1": "ae04506fd2ffa04c45f9d6792d84177174dbbe00",
+          "md5": "7bec5a74661338490bb51f79eecccb7f"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseSourcePublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "escargot-android-4.2.0.20250602.0.72205bb-sources.jar",
+          "url": "escargot-android-4.2.0.20250602.0.72205bb-sources.jar",
+          "size": 13361,
+          "sha512": "0eb34ed2dff9b7865ad3267f02d743e13ae80087659048cbc83ab931f5ee8bb84edbea99e827b495ce05d736a760c3657ffcef964b160c65df56bef11bad1136",
+          "sha256": "04d43de048031632c756fe071e720e6487d5cb18f69882b1933dc226621a992a",
+          "sha1": "c6b9c9fb14106f903076898575ae71f812c85794",
+          "md5": "cca46663ae44fdf594cacde1c177381c"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseJavaDocPublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "escargot-android-4.2.0.20250602.0.72205bb-javadoc.jar",
+          "url": "escargot-android-4.2.0.20250602.0.72205bb-javadoc.jar",
+          "size": 400766,
+          "sha512": "e8585e57f226784bfb36403fbc07cfdb146e77e12531fbe76d06a9852241a92aa2217f4f2b80d70675e2d8414d5f24b996919e07753fe5aaefe0653b0b676881",
+          "sha256": "c0635df6d4216dc6b70506504b7deedaaa715550046ad6b1388699be6b9f3804",
+          "sha1": "743e34f8c668ab160cdc85c42c794caddce34c92",
+          "md5": "99712cd1369939e135431ecc1674eee7"
+        }
+      ]
+    }
+  ]
+}
