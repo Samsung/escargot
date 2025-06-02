@@ -920,15 +920,12 @@ void ByteCodeGenerator::printByteCode(Context* context, ByteCodeBlock* block)
         }
 
         size_t localStart = 0;
-        if (codeBlock->isFunctionExpression() && !codeBlock->isFunctionNameSaveOnHeap()) {
+        if (codeBlock->isFunctionNameSaveOnHeap() || codeBlock->isFunctionNameUsedBySelf()) {
             localStart = 1;
         }
         for (size_t i = localStart; i < codeBlock->identifierInfos().size(); i++) {
             if (codeBlock->identifierInfos()[i].m_needToAllocateOnStack) {
                 auto name = codeBlock->identifierInfos()[i].m_name.string()->toNonGCUTF8StringData();
-                if (i == 0 && codeBlock->isFunctionExpression()) {
-                    name += "(function name)";
-                }
                 printf("`r%d,var %s`,", (int)b++, name.data());
             }
         }
