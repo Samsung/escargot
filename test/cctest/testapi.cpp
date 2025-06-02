@@ -3037,3 +3037,74 @@ TEST(WeakPtr, Basic)
     context.release();
     instance.release();
 }
+
+static void finalizerTester(void* obj, void* data)
+{
+    (*((size_t*)data))++;
+}
+
+TEST(Finalizer, Basic)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+
+    PersistentRefHolder<StringRef> target = StringRef::createFromUTF8("asdf");
+    PersistentRefHolder<ObjectRef> target2;
+    PersistentRefHolder<SymbolRef> target3 = SymbolRef::create(nullptr);
+
+    Evaluator::execute(context.get(), [](ExecutionStateRef* state, PersistentRefHolder<ObjectRef>* target2) -> ValueRef* {
+        *target2 = ObjectRef::create(state);
+        return target2->get();
+    },
+                       &target2);
+
+    size_t counter = 0;
+    EXPECT_FALSE(Memory::gcHasFinalizer(target.get()));
+    Memory::gcRegisterFinalizer(target.get(), finalizerTester, &counter);
+    EXPECT_TRUE(Memory::gcHasFinalizer(target.get()));
+    Memory::gcUnregisterFinalizer(target.get(), finalizerTester, &counter);
+    EXPECT_FALSE(Memory::gcHasFinalizer(target.get()));
+    Memory::gcRegisterFinalizer(target.get(), finalizerTester, &counter);
+    Memory::gcRegisterFinalizer(target.get(), finalizerTester, &counter);
+    EXPECT_TRUE(Memory::gcHasFinalizer(target.get()));
+
+    EXPECT_FALSE(Memory::gcHasFinalizer(target2.get()));
+    Memory::gcRegisterFinalizer(target2.get(), finalizerTester, &counter);
+    EXPECT_TRUE(Memory::gcHasFinalizer(target2.get()));
+    Memory::gcUnregisterFinalizer(target2.get(), finalizerTester, &counter);
+    EXPECT_FALSE(Memory::gcHasFinalizer(target2.get()));
+    Memory::gcRegisterFinalizer(target2.get(), finalizerTester, &counter);
+    Memory::gcRegisterFinalizer(target2.get(), finalizerTester, &counter);
+    EXPECT_TRUE(Memory::gcHasFinalizer(target2.get()));
+
+    EXPECT_FALSE(Memory::gcHasFinalizer(target3.get()));
+    Memory::gcRegisterFinalizer(target3.get(), finalizerTester, &counter);
+    EXPECT_TRUE(Memory::gcHasFinalizer(target3.get()));
+    Memory::gcUnregisterFinalizer(target3.get(), finalizerTester, &counter);
+    EXPECT_FALSE(Memory::gcHasFinalizer(target3.get()));
+    Memory::gcRegisterFinalizer(target3.get(), finalizerTester, &counter);
+    Memory::gcRegisterFinalizer(target3.get(), finalizerTester, &counter);
+    EXPECT_TRUE(Memory::gcHasFinalizer(target3.get()));
+
+
+    target.setWeak();
+    target2.setWeak();
+    target3.setWeak();
+    for (size_t i = 0; i < 100; i++) {
+        PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
+    }
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+
+    EXPECT_TRUE(target.get() == nullptr);
+    EXPECT_TRUE(target2.get() == nullptr);
+    EXPECT_TRUE(target3.get() == nullptr);
+
+    EXPECT_TRUE(counter == 6);
+
+    context.release();
+    instance.release();
+}

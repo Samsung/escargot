@@ -2291,7 +2291,7 @@ void Object::tryToShrinkFinalizers()
     if (r->m_removedFinalizerCount > ((oldSize / 2) + 1)) {
         ASSERT(r->m_removedFinalizerCount <= oldSize);
         size_t newSize = oldSize - r->m_removedFinalizerCount;
-        TightVector<std::pair<FinalizerFunction, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<FinalizerFunction, void*>>> newFinalizer;
+        TightVector<std::pair<FinalizerFunction, void*>, GCUtil::gc_malloc_allocator<std::pair<FinalizerFunction, void*>>> newFinalizer;
         newFinalizer.resizeWithUninitializedValues(newSize);
 
         size_t j = 0;

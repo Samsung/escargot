@@ -351,13 +351,147 @@ void Memory::gcFree(void* ptr)
     GC_FREE(ptr);
 }
 
+typedef TightVector<std::pair<Memory::GCAllocatedMemoryFinalizer, void*>,
+                    GCUtil::gc_malloc_allocator<std::pair<Memory::GCAllocatedMemoryFinalizer, void*>>>
+    FinalizerData;
+
+static void generalPublicFinalizer(void* obj, void* clientData)
+{
+    FinalizerData* d = reinterpret_cast<FinalizerData*>(clientData);
+    for (auto item : *d) {
+        item.first(obj, item.second);
+    }
+}
+
 void Memory::gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback, void* data)
 {
-    if (callback) {
-        GC_REGISTER_FINALIZER_NO_ORDER(ptr, reinterpret_cast<GC_finalization_proc>(callback),
-                                       data, nullptr, nullptr);
+    GC_finalization_proc ofn = nullptr;
+    void* ocd = nullptr;
+
+    GC_REGISTER_FINALIZER_NO_ORDER(ptr, generalPublicFinalizer,
+                                   nullptr, &ofn, &ocd);
+
+    if (ofn != generalPublicFinalizer) {
+        FinalizerData* v = new FinalizerData;
+        v->push_back(std::make_pair(callback, data));
+
+        GC_REGISTER_FINALIZER_NO_ORDER(ptr, generalPublicFinalizer,
+                                       v, nullptr, nullptr);
     } else {
-        GC_REGISTER_FINALIZER_NO_ORDER(ptr, nullptr, nullptr, nullptr, nullptr);
+        FinalizerData* d = reinterpret_cast<FinalizerData*>(ocd);
+        d->push_back(std::make_pair(callback, data));
+        GC_REGISTER_FINALIZER_NO_ORDER(ptr, generalPublicFinalizer,
+                                       ocd, nullptr, nullptr);
+    }
+}
+
+void Memory::gcUnregisterFinalizer(void* ptr, Memory::GCAllocatedMemoryFinalizer callback, void* data)
+{
+    GC_finalization_proc ofn = nullptr;
+    void* ocd = nullptr;
+
+    GC_REGISTER_FINALIZER_NO_ORDER(ptr, nullptr,
+                                   nullptr, &ofn, &ocd);
+
+    if (ofn == generalPublicFinalizer) {
+        FinalizerData* d = reinterpret_cast<FinalizerData*>(ocd);
+        size_t i = 0;
+        for (auto item : *d) {
+            if (item.first == callback || item.second == data) {
+                d->erase(i);
+                break;
+            }
+            i++;
+        }
+    }
+
+    GC_REGISTER_FINALIZER_NO_ORDER(ptr, ofn,
+                                   ocd, nullptr, nullptr);
+}
+
+bool Memory::gcHasFinalizer(void* ptr)
+{
+    GC_finalization_proc ofn = nullptr;
+    void* ocd = nullptr;
+    GC_REGISTER_FINALIZER_NO_ORDER(ptr, nullptr,
+                                   nullptr, &ofn, &ocd);
+
+    if (ofn == generalPublicFinalizer) {
+        FinalizerData* d = reinterpret_cast<FinalizerData*>(ocd);
+        bool ret = !!d->size();
+        GC_REGISTER_FINALIZER_NO_ORDER(ptr, ofn,
+                                       ocd, nullptr, nullptr);
+        return ret;
+    }
+    return false;
+}
+
+bool Memory::gcHasFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback, void* data)
+{
+    GC_finalization_proc ofn = nullptr;
+    void* ocd = nullptr;
+    GC_REGISTER_FINALIZER_NO_ORDER(ptr, nullptr,
+                                   nullptr, &ofn, &ocd);
+
+    if (ofn == generalPublicFinalizer) {
+        FinalizerData* d = reinterpret_cast<FinalizerData*>(ocd);
+        bool ret = false;
+
+        for (auto item : *d) {
+            if (item.first == callback || item.second == data) {
+                ret = true;
+                break;
+            }
+        }
+
+        GC_REGISTER_FINALIZER_NO_ORDER(ptr, ofn,
+                                       ocd, nullptr, nullptr);
+        return ret;
+    }
+    return false;
+}
+
+void Memory::gcRegisterFinalizer(ValueRef* ptr, GCAllocatedMemoryFinalizer callback, void* data)
+{
+    if (ptr->isObject()) {
+        Memory::gcRegisterFinalizer(ptr->asObject(), callback, data);
+    } else if (ptr->isSymbol()) {
+        Memory::gcRegisterFinalizer(ptr->asSymbol(), callback, data);
+    } else {
+        Memory::gcRegisterFinalizer(reinterpret_cast<void*>(ptr), callback, data);
+    }
+}
+
+void Memory::gcUnregisterFinalizer(ValueRef* ptr, GCAllocatedMemoryFinalizer callback, void* data)
+{
+    if (ptr->isObject()) {
+        Memory::gcUnregisterFinalizer(ptr->asObject(), callback, data);
+    } else if (ptr->isSymbol()) {
+        Memory::gcUnregisterFinalizer(ptr->asSymbol(), callback, data);
+    } else {
+        Memory::gcUnregisterFinalizer(reinterpret_cast<void*>(ptr), callback, data);
+    }
+}
+
+bool Memory::gcHasFinalizer(ValueRef* ptr)
+{
+    if (ptr->isObject()) {
+        return Memory::gcHasFinalizer(ptr->asObject());
+    } else if (ptr->isSymbol()) {
+        return Memory::gcHasFinalizer(ptr->asSymbol());
+    } else {
+        return Memory::gcHasFinalizer(reinterpret_cast<void*>(ptr));
+    }
+}
+
+bool Memory::gcHasFinalizer(ValueRef* ptr, GCAllocatedMemoryFinalizer callback, void* data)
+{
+    if (ptr->isObject()) {
+        return Memory::gcHasFinalizer(ptr->asObject(), callback, data);
+    } else if (ptr->isSymbol()) {
+        return Memory::gcHasFinalizer(ptr->asSymbol(), callback, data);
+    } else {
+        return Memory::gcHasFinalizer(reinterpret_cast<void*>(ptr), callback, data);
     }
 }
 
@@ -375,7 +509,8 @@ bool Memory::gcHasFinalizer(ObjectRef* ptr)
 {
     auto obj = toImpl(ptr);
     if (obj->hasExtendedExtraData()) {
-        return !!obj->ensureExtendedExtraData()->m_finalizer.size();
+        auto* f = obj->ensureExtendedExtraData();
+        return f->m_finalizer.size() && f->m_finalizer.size() != f->m_removedFinalizerCount;
     }
     return false;
 }
@@ -385,6 +520,40 @@ bool Memory::gcHasFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback,
     auto obj = toImpl(ptr);
     if (obj->hasExtendedExtraData()) {
         auto& fs = obj->ensureExtendedExtraData()->m_finalizer;
+        for (auto& f : fs) {
+            if (f.first == reinterpret_cast<FinalizerFunction>(callback) && f.second == data) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void Memory::gcRegisterFinalizer(SymbolRef* ptr, GCAllocatedMemoryFinalizer callback, void* data)
+{
+    toImpl(ptr)->addFinalizer(reinterpret_cast<FinalizerFunction>(callback), data);
+}
+
+void Memory::gcUnregisterFinalizer(SymbolRef* ptr, GCAllocatedMemoryFinalizer callback, void* data)
+{
+    toImpl(ptr)->removeFinalizer(reinterpret_cast<FinalizerFunction>(callback), data);
+}
+
+bool Memory::gcHasFinalizer(SymbolRef* ptr)
+{
+    auto symbol = toImpl(ptr);
+    if (symbol->hasFinalizerData()) {
+        auto* f = symbol->finalizerData();
+        return f->m_finalizer.size() && f->m_finalizer.size() != f->m_removedFinalizerCount;
+    }
+    return false;
+}
+
+bool Memory::gcHasFinalizer(SymbolRef* ptr, GCAllocatedMemoryFinalizer callback, void* data)
+{
+    auto symbol = toImpl(ptr);
+    if (symbol->hasFinalizerData()) {
+        auto& fs = symbol->finalizerData()->m_finalizer;
         for (auto& f : fs) {
             if (f.first == reinterpret_cast<FinalizerFunction>(callback) && f.second == data) {
                 return true;

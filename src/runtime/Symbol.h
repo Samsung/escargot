@@ -35,7 +35,7 @@ struct SymbolFinalizerData : public gc {
     }
 
     size_t m_removedFinalizerCount;
-    TightVector<std::pair<FinalizerFunction, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<FinalizerFunction, void*>>> m_finalizer;
+    TightVector<std::pair<FinalizerFunction, void*>, GCUtil::gc_malloc_allocator<std::pair<FinalizerFunction, void*>>> m_finalizer;
 };
 
 class Symbol : public PointerValue {
@@ -43,17 +43,22 @@ public:
     explicit Symbol(Optional<String*> desc = nullptr)
         : m_typeTag(POINTER_VALUE_SYMBOL_TAG_IN_DATA)
         , m_description(desc)
-        , m_finalizerData(nullptr)
+        , m_finalizerData()
     {
     }
 
     String* descriptionString() const;
     Value descriptionValue() const;
 
-    SymbolFinalizerData* finalizerData() const
+    bool hasFinalizerData() const
     {
-        ASSERT(!!m_finalizerData);
-        return m_finalizerData;
+        return !!m_finalizerData;
+    }
+
+    SymbolFinalizerData* finalizerData()
+    {
+        ASSERT(m_finalizerData.hasValue());
+        return m_finalizerData.value();
     }
 
     String* symbolDescriptiveString() const;
@@ -70,7 +75,7 @@ private:
 
     size_t m_typeTag;
     Optional<String*> m_description; // nullptr of desc represents `undefined`
-    SymbolFinalizerData* m_finalizerData; // handle finalizer data of Symbol
+    Optional<SymbolFinalizerData*> m_finalizerData; // handle finalizer data of Symbol
 };
 } // namespace Escargot
 
