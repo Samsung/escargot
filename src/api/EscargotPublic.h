@@ -158,16 +158,30 @@ public:
     // 1. if you want to free memory explicitly, you must remove registered finalizer
     // if there was no finalizer, you can just free memory
     // ex) void* gcPointer;
-    //     gcRegisterFinalizer(gcPointer, ....);
+    //     Memory::gcRegisterFinalizer(gcPointer, callback...);
     //     ......
-    //     gcRegisterFinalizer(gcPointer, nullptr); // this removes finalizer
+    //     Memory::gcUnregisterFinalizer(gcPointer, callback...); // this removes finalizer
     //     Memory::gcFree(gcPointer);
+    // 2. the data parameter will be considered accessible by gc.
     static void gcRegisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback, void* data);
+    static void gcUnregisterFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback, void* data);
+    static bool gcHasFinalizer(void* ptr);
+    static bool gcHasFinalizer(void* ptr, GCAllocatedMemoryFinalizer callback, void* data);
+
+    static void gcRegisterFinalizer(ValueRef* ptr, GCAllocatedMemoryFinalizer callback, void* data);
+    static void gcUnregisterFinalizer(ValueRef* ptr, GCAllocatedMemoryFinalizer callback, void* data);
+    static bool gcHasFinalizer(ValueRef* ptr);
+    static bool gcHasFinalizer(ValueRef* ptr, GCAllocatedMemoryFinalizer callback, void* data);
 
     static void gcRegisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback, void* data);
     static void gcUnregisterFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback, void* data);
     static bool gcHasFinalizer(ObjectRef* ptr);
     static bool gcHasFinalizer(ObjectRef* ptr, GCAllocatedMemoryFinalizer callback, void* data);
+
+    static void gcRegisterFinalizer(SymbolRef* ptr, GCAllocatedMemoryFinalizer callback, void* data);
+    static void gcUnregisterFinalizer(SymbolRef* ptr, GCAllocatedMemoryFinalizer callback, void* data);
+    static bool gcHasFinalizer(SymbolRef* ptr);
+    static bool gcHasFinalizer(SymbolRef* ptr, GCAllocatedMemoryFinalizer callback, void* data);
 
     static void gc();
 

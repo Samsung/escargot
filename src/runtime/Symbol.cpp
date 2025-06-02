@@ -117,7 +117,7 @@ SymbolFinalizerData* Symbol::ensureFinalizerData()
 #endif
     }
 
-    return m_finalizerData;
+    return m_finalizerData.value();
 }
 
 void Symbol::addFinalizer(FinalizerFunction fn, void* data)
@@ -163,7 +163,7 @@ void Symbol::tryToShrinkFinalizers()
     if (finData->m_removedFinalizerCount > ((oldSize / 2) + 1)) {
         ASSERT(finData->m_removedFinalizerCount <= oldSize);
         size_t newSize = oldSize - finData->m_removedFinalizerCount;
-        TightVector<std::pair<FinalizerFunction, void*>, GCUtil::gc_malloc_atomic_allocator<std::pair<FinalizerFunction, void*>>> newFinalizer;
+        TightVector<std::pair<FinalizerFunction, void*>, GCUtil::gc_malloc_allocator<std::pair<FinalizerFunction, void*>>> newFinalizer;
         newFinalizer.resizeWithUninitializedValues(newSize);
 
         size_t j = 0;
