@@ -106,6 +106,20 @@ SharedArrayBufferObject* SharedArrayBufferObject::allocateSharedArrayBuffer(Exec
     return new SharedArrayBufferObject(state, proto, byteLength);
 }
 
+SharedArrayBufferObject* SharedArrayBufferObject::allocateExternalSharedArrayBuffer(ExecutionState& state, void* dataBlock, size_t byteLength)
+{
+    if (UNLIKELY(byteLength >= ArrayBuffer::maxArrayBufferSize)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().SharedArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+    }
+
+    // creating a fixed length memory buffer from memaddr.
+    // NOTE) deleter do nothing, dataBlock will be freed in external module
+    SharedDataBlockInfo* sharedInfo = new SharedDataBlockInfo(dataBlock, byteLength,
+                                                              [](void* data, size_t length, void* deleterData) {});
+
+    return new SharedArrayBufferObject(state, state.context()->globalObject()->sharedArrayBufferPrototype(), sharedInfo);
+}
+
 void* SharedArrayBufferObject::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
@@ -271,6 +285,12 @@ void SharedArrayBufferObject::setValueInBuffer(ExecutionState& state, size_t byt
         }
     }
 #endif
+}
+
+size_t SharedArrayBufferObject::byteLengthRMW(size_t newByteLength)
+{
+    ASSERT(m_backingStore.hasValue());
+    return m_backingStore->byteLengthRMW(newByteLength);
 }
 } // namespace Escargot
 

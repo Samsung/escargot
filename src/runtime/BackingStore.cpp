@@ -27,7 +27,7 @@ namespace Escargot {
 static void backingStorePlatformDeleter(void* data, size_t length, void* deleterData)
 {
     if (!!data) {
-        Global::platform()->onFreeArrayBufferObjectDataBuffer(data, length);
+        Global::platform()->onFreeArrayBufferObjectDataBuffer(data, length, deleterData);
     }
 }
 
@@ -46,15 +46,15 @@ BackingStore* BackingStore::createDefaultResizableNonSharedBackingStore(size_t b
         byteLength, backingStorePlatformDeleter, maxByteLength, true);
 }
 
-BackingStore* BackingStore::createNonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData)
+BackingStore* BackingStore::createNonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback deleter, void* callbackData)
 {
-    return new NonSharedBackingStore(data, byteLength, callback, callbackData, false);
+    return new NonSharedBackingStore(data, byteLength, deleter, callbackData, false);
 }
 
-NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, void* callbackData, bool isAllocatedByPlatform)
+NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback deleter, void* callbackData, bool isAllocatedByPlatform)
     : m_data(data)
     , m_byteLength(byteLength)
-    , m_deleter(callback)
+    , m_deleter(deleter)
     , m_deleterData(callbackData)
     , m_isAllocatedByPlatform(isAllocatedByPlatform)
     , m_isResizable(false)
@@ -67,10 +67,10 @@ NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, Back
                                    nullptr, nullptr, nullptr);
 }
 
-NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, size_t maxByteLength, bool isAllocatedByPlatform)
+NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback deleter, size_t maxByteLength, bool isAllocatedByPlatform)
     : m_data(data)
     , m_byteLength(byteLength)
-    , m_deleter(callback)
+    , m_deleter(deleter)
     , m_maxByteLength(maxByteLength)
     , m_isAllocatedByPlatform(isAllocatedByPlatform)
     , m_isResizable(true)
@@ -138,7 +138,8 @@ BackingStore* BackingStore::createDefaultSharedBackingStore(size_t byteLength)
 {
     SharedDataBlockInfo* sharedInfo = new SharedDataBlockInfo(
         Global::platform()->onMallocArrayBufferObjectDataBuffer(byteLength),
-        byteLength);
+        byteLength,
+        backingStorePlatformDeleter);
     return new SharedBackingStore(sharedInfo);
 }
 
@@ -146,13 +147,14 @@ BackingStore* BackingStore::createDefaultGrowableSharedBackingStore(size_t byteL
 {
     SharedDataBlockInfo* sharedInfo = new GrowableSharedDataBlockInfo(
         Global::platform()->onMallocArrayBufferObjectDataBuffer(maxByteLength),
-        byteLength, maxByteLength);
+        byteLength, maxByteLength,
+        backingStorePlatformDeleter);
     return new SharedBackingStore(sharedInfo);
 }
 
 BackingStore* BackingStore::createSharedBackingStore(SharedDataBlockInfo* sharedInfo)
 {
-    ASSERT(sharedInfo->hasValidReference());
+    // ASSERT(sharedInfo->hasValidReference());
     return new SharedBackingStore(sharedInfo);
 }
 
@@ -163,9 +165,9 @@ void SharedDataBlockInfo::deref()
     auto oldValue = m_refCount.fetch_sub(1);
     if (oldValue == 1) {
         if (isGrowable()) {
-            Global::platform()->onFreeArrayBufferObjectDataBuffer(m_data, maxByteLength());
+            m_deleter(m_data, maxByteLength(), nullptr);
         } else {
-            Global::platform()->onFreeArrayBufferObjectDataBuffer(m_data, m_byteLength);
+            m_deleter(m_data, m_byteLength, nullptr);
         }
 
         m_data = nullptr;

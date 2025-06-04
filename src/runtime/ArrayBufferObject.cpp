@@ -61,6 +61,20 @@ ArrayBufferObject* ArrayBufferObject::allocateArrayBuffer(ExecutionState& state,
     return obj;
 }
 
+ArrayBufferObject* ArrayBufferObject::allocateExternalArrayBuffer(ExecutionState& state, void* dataBlock, size_t byteLength)
+{
+    if (UNLIKELY(byteLength >= ArrayBuffer::maxArrayBufferSize)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, state.context()->staticStrings().ArrayBuffer.string(), false, String::emptyString, ErrorObject::Messages::GlobalObject_InvalidArrayBufferSize);
+    }
+
+    // creating a fixed length memory buffer from memaddr.
+    // NOTE) deleter do nothing, dataBlock will be freed in external module
+    BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, byteLength,
+                                                                           [](void* data, size_t length, void* deleterData) {}, nullptr);
+
+    return new ArrayBufferObject(state, backingStore);
+}
+
 ArrayBufferObject* ArrayBufferObject::cloneArrayBuffer(ExecutionState& state, ArrayBuffer* srcBuffer, size_t srcByteOffset, uint64_t srcLength, Object* constructor)
 {
     // https://www.ecma-international.org/ecma-262/10.0/#sec-clonearraybuffer
@@ -82,6 +96,15 @@ ArrayBufferObject::ArrayBufferObject(ExecutionState& state)
 ArrayBufferObject::ArrayBufferObject(ExecutionState& state, Object* proto)
     : ArrayBuffer(state, proto)
 {
+}
+
+ArrayBufferObject::ArrayBufferObject(ExecutionState& state, BackingStore* backingStore)
+    : ArrayBufferObject(state)
+{
+    // BackingStore should be valid and non-shared
+    ASSERT(!!backingStore && !backingStore->isShared());
+
+    updateBackingStore(backingStore);
 }
 
 void ArrayBufferObject::allocateBuffer(ExecutionState& state, size_t byteLength)
