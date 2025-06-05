@@ -110,9 +110,7 @@ static Value builtinRegExpExec(ExecutionState& state, Value thisValue, size_t ar
             const char* buf = reinterpret_cast<const char*>(&utfRes);
             size_t len = strnlen(buf, 2);
             size_t eUTF = len == 0 ? str->length() : (str->find(buf, len, 0));
-            if (eUTF >= str->length()) {
-                e = str->length();
-            } else if ((int)eUTF > e || e == (int)str->length()) {
+            if ((int)eUTF > e || e == (int)str->length()) {
                 e = eUTF;
             }
         }
