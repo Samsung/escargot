@@ -20,9 +20,7 @@
 #ifndef __EscargotStringBuilder__
 #define __EscargotStringBuilder__
 
-#include "Escargot.h"
 #include "runtime/String.h"
-#include "util/Optional.h"
 #include "util/Vector.h"
 
 namespace Escargot {
@@ -36,93 +34,74 @@ public:
     StringBuilderBase()
     {
         m_has8BitContent = true;
-        m_internalStorageContentLength = 0;
+        m_contentLength = 0;
         m_piecesInlineStorageUsage = 0;
-        m_processedString = String::emptyString();
     }
 
     void clear()
     {
-        clearInternal();
-        m_processedString = String::emptyString();
+        m_has8BitContent = true;
+        m_contentLength = 0;
+        m_piecesInlineStorageUsage = 0;
+        m_pieces.clear();
     }
-
-    struct StringBuilderPiece {
-        StringBuilderPiece()
-            : m_type(Char)
-            , m_start(0)
-            , m_length(0)
-            , m_string(nullptr)
-        {
-        }
-
-        enum Type : uint8_t {
-            Latin1StringPiece,
-            UTF16StringStringPiece,
-            UTF16StringStringButLatin1ContentPiece,
-            ConstChar,
-            Char,
-        };
-
-        Type m_type : 3;
-        size_t m_start;
-        size_t m_length;
-        union {
-            String* m_string;
-            const char* m_raw;
-            char16_t m_ch;
-        };
-    };
-
-    size_t contentLength() const { return m_internalStorageContentLength + m_processedString->length(); }
 
 protected:
     void checkStringLengthLimit(Optional<ExecutionState*> state, size_t extraLength = 0)
     {
-        if (state && UNLIKELY((contentLength() + extraLength) > STRING_MAXIMUM_LENGTH)) {
+        if (state && UNLIKELY((m_contentLength + extraLength) > STRING_MAXIMUM_LENGTH)) {
             throwStringLengthInvalidError(*state.value());
         }
     }
 
     void throwStringLengthInvalidError(ExecutionState& state);
 
-    void clearInternal()
-    {
-        m_has8BitContent = true;
-        m_internalStorageContentLength = 0;
-        m_piecesInlineStorageUsage = 0;
-    }
+    struct StringBuilderPiece {
+        StringBuilderPiece()
+            : m_type(Char)
+            , m_string(nullptr)
+            , m_start(0)
+            , m_end(0)
+        {
+        }
+
+        enum Type {
+            Latin1StringPiece,
+            UTF16StringStringPiece,
+            UTF16StringStringButLatin1ContentPiece,
+            ConstChar,
+            Char,
+        };
+        Type m_type;
+        union {
+            String* m_string;
+            const char* m_raw;
+            char16_t m_ch;
+        };
+        size_t m_start, m_end;
+    };
+
     String* finalizeBase(StringBuilderPiece* piecesInlineStorage, Optional<ExecutionState*> state);
-    void processInlineBufferAndMergeWithProcessedString(StringBuilderPiece* piecesInlineStorage);
 
     bool m_has8BitContent : 1;
     size_t m_piecesInlineStorageUsage;
-    size_t m_internalStorageContentLength;
-    String* m_processedString;
+    size_t m_contentLength;
+    Vector<StringBuilderPiece, GCUtil::gc_malloc_allocator<StringBuilderPiece>,
+           ComputeReservedCapacityFunctionWithLog2<200>>
+        m_pieces;
 };
 
 template <const size_t InlineStorageSize>
 class StringBuilderImpl : public StringBuilderBase {
-    void processInteralBufferIfNeeds()
+    void appendPiece(String* str, size_t s, size_t e, Optional<ExecutionState*> state = nullptr)
     {
-        if (m_piecesInlineStorageUsage == InlineStorageSize) {
-            processInlineBufferAndMergeWithProcessedString(m_piecesInlineStorage);
-            ASSERT(m_piecesInlineStorageUsage == 0);
-            ASSERT(m_internalStorageContentLength == 0);
-            ASSERT(m_has8BitContent);
-        }
-    }
-    void appendPiece(String* str, size_t s, size_t e, Optional<ExecutionState*> state)
-    {
-        size_t len = e - s;
-        if (len > 0) {
-            checkStringLengthLimit(state, len);
-            processInteralBufferIfNeeds();
+        if (e - s > 0) {
+            checkStringLengthLimit(state, e - s);
 
             StringBuilderPiece piece;
             piece.m_string = str;
             piece.m_start = s;
-            piece.m_length = len;
+            piece.m_end = e;
 
             const auto& data = str->bufferAccessData();
             if (!data.has8BitContent) {
@@ -145,37 +124,39 @@ class StringBuilderImpl : public StringBuilderBase {
                 piece.m_type = StringBuilderPiece::Type::Latin1StringPiece;
             }
 
-            m_internalStorageContentLength += len;
-            m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
+            m_contentLength += e - s;
+            if (m_piecesInlineStorageUsage < InlineStorageSize) {
+                m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
+            } else
+                m_pieces.push_back(piece);
         }
     }
 
-    void appendPiece(const char* str, size_t len, Optional<ExecutionState*> state)
+    void appendPiece(const char* str, size_t len, Optional<ExecutionState*> state = nullptr)
     {
-        if (!len) {
-            return;
-        }
-
         checkStringLengthLimit(state, len);
-        processInteralBufferIfNeeds();
 
         StringBuilderPiece piece;
         piece.m_start = 0;
-        piece.m_length = len;
+        piece.m_end = len;
         piece.m_raw = str;
         piece.m_type = StringBuilderPiece::Type::ConstChar;
-        m_internalStorageContentLength += len;
-        m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
+        if (piece.m_end) {
+            m_contentLength += piece.m_end;
+            if (m_piecesInlineStorageUsage < InlineStorageSize) {
+                m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
+            } else
+                m_pieces.push_back(piece);
+        }
     }
 
-    void appendPiece(char16_t ch, Optional<ExecutionState*> state)
+    void appendPiece(char16_t ch, Optional<ExecutionState*> state = nullptr)
     {
         checkStringLengthLimit(state, 1);
-        processInteralBufferIfNeeds();
 
         StringBuilderPiece piece;
         piece.m_start = 0;
-        piece.m_length = 1;
+        piece.m_end = 1;
         piece.m_ch = ch;
         piece.m_type = StringBuilderPiece::Type::Char;
 
@@ -183,8 +164,11 @@ class StringBuilderImpl : public StringBuilderBase {
             m_has8BitContent = false;
         }
 
-        m_internalStorageContentLength += 1;
-        m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
+        m_contentLength += 1;
+        if (m_piecesInlineStorageUsage < InlineStorageSize) {
+            m_piecesInlineStorage[m_piecesInlineStorageUsage++] = piece;
+        } else
+            m_pieces.push_back(piece);
     }
 
 public:
@@ -193,16 +177,17 @@ public:
     {
     }
 
-    // provide ExecutionState if you need limit of string length(exception can be thrown only in ExecutionState area)
+    size_t contentLength() const { return m_contentLength; }
+
     template <const size_t srcLen>
     void appendString(const char (&src)[srcLen], Optional<ExecutionState*> state = nullptr)
     {
-        appendPiece(src, srcLen - 1, state);
+        appendString(src, srcLen - 1, state);
     }
 
-    void appendString(const char* src, size_t len, Optional<ExecutionState*> state = nullptr)
+    void appendString(const char* str, size_t len, Optional<ExecutionState*> state = nullptr)
     {
-        appendPiece(src, len, state);
+        appendPiece(str, len, state);
     }
 
     void appendChar(char16_t ch, Optional<ExecutionState*> state = nullptr)
@@ -235,27 +220,30 @@ public:
         appendPiece(str, s, e, state);
     }
 
-    void appendStringPiece(const StringBuilderPiece& piece, Optional<ExecutionState*> state = nullptr)
-    {
-        if (piece.m_type == StringBuilderPiece::Type::Char) {
-            appendPiece(piece.m_ch, state);
-        } else if (piece.m_type == StringBuilderPiece::Type::ConstChar) {
-            appendPiece(piece.m_raw, piece.m_length, state);
-        } else {
-            appendSubString(piece.m_string, piece.m_start, piece.m_length, state);
-        }
-    }
-
     void appendStringBuilder(StringBuilderImpl<InlineStorageSize>& src, Optional<ExecutionState*> state = nullptr)
     {
-        appendString(src.m_processedString, state);
-
         for (size_t i = 0; i < src.m_piecesInlineStorageUsage; i++) {
-            appendStringPiece(src.m_piecesInlineStorage[i], state);
+            if (src.m_piecesInlineStorage[i].m_type == StringBuilderPiece::Type::Char) {
+                appendPiece(src.m_piecesInlineStorage[i].m_ch, state);
+            } else if (src.m_piecesInlineStorage[i].m_type == StringBuilderPiece::Type::ConstChar) {
+                appendPiece(src.m_piecesInlineStorage[i].m_raw, state);
+            } else {
+                appendSubString(src.m_piecesInlineStorage[i].m_string, src.m_piecesInlineStorage[i].m_start, src.m_piecesInlineStorage[i].m_end, state);
+            }
+        }
+
+        for (size_t i = 0; i < src.m_pieces.size(); i++) {
+            if (src.m_pieces[i].m_type == StringBuilderPiece::Type::Char) {
+                appendPiece(src.m_pieces[i].m_ch, state);
+            } else if (src.m_pieces[i].m_type == StringBuilderPiece::Type::ConstChar) {
+                appendPiece(src.m_pieces[i].m_raw, state);
+            } else {
+                appendSubString(src.m_pieces[i].m_string, src.m_pieces[i].m_start, src.m_pieces[i].m_end, state);
+            }
         }
     }
 
-    String* finalize(Optional<ExecutionState*> state = nullptr)
+    String* finalize(Optional<ExecutionState*> state = nullptr) // provide ExecutionState if you need limit of string length(exception can be thrown only in ExecutionState area)
     {
         return finalizeBase(m_piecesInlineStorage, state);
     }
