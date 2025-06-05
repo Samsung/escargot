@@ -4492,7 +4492,7 @@ public:
         MetaNode node = this->createNode();
         this->expectKeyword(ReturnKeyword);
 
-        bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && !this->hasLineTerminator && this->lookahead.type != EOFToken;
+        bool hasArgument = !this->match(SemiColon) && !this->match(RightBrace) && (this->lookahead.type == TemplateToken || !this->hasLineTerminator) && this->lookahead.type != EOFToken;
         ASTNode argument = nullptr;
         if (hasArgument) {
             argument = this->parseExpression(builder);
