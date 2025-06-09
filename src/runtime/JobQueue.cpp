@@ -33,13 +33,12 @@ void JobQueue::enqueueJob(Job* job)
 
 void JobQueue::clearJobRelatedWithSpecificContext(Context* context)
 {
-    auto iter = m_jobs.begin();
-    while (iter != m_jobs.end()) {
-        if ((*iter)->relatedContext() == context) {
-            iter = m_jobs.erase(iter);
-        } else {
-            iter++;
+    for (size_t i = 0; i < m_jobs.size();) {
+        if (m_jobs[i]->relatedContext() == context) {
+            m_jobs.erase(i);
+            continue;
         }
+        i++;
     }
 }
 } // namespace Escargot
