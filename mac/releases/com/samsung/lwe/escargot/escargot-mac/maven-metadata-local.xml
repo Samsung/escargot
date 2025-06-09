@@ -3,12 +3,13 @@
   <groupId>com.samsung.lwe.escargot</groupId>
   <artifactId>escargot-mac</artifactId>
   <versioning>
-    <release>4.2.0.20250602.0.72205bb</release>
+    <release>4.2.0.20250609.0.895052f</release>
     <versions>
       <version>4.2.0.20241105.0.6d2dd5ec</version>
       <version>4.2.0.20250530.0.62e6e01</version>
       <version>4.2.0.20250602.0.72205bb</version>
+      <version>4.2.0.20250609.0.895052f</version>
     </versions>
-    <lastUpdated>20250602042454</lastUpdated>
+    <lastUpdated>20250609072719</lastUpdated>
   </versioning>
 </metadata>
