@@ -128,7 +128,9 @@ task buildCMakeNativeNoNDK(type: Exec) {
     dependsOn createNativeNoNDK
     workingDir dirForNativeNoNDK
     if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
-        commandLine "/usr/bin/env", "cmake", "-DESCARGOT_HOST=linux", "-DESCARGOT_ARCH=x64", "-DESCARGOT_OUTPUT=static_lib", "-DUNDER_NDK=OFF", srcForNativeNoNDK.absolutePath
+        commandLine "/usr/bin/env", "cmake", "-DESCARGOT_HOST=linux", "-DESCARGOT_ARCH=x64", "-DESCARGOT_OUTPUT=static_lib",
+                "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option,
+                "-DUNDER_NDK=OFF", srcForNativeNoNDK.absolutePath
     } else if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
         var javaHome = new ByteArrayOutputStream().withStream { os ->
             exec {
@@ -148,6 +150,7 @@ task buildCMakeNativeNoNDK(type: Exec) {
         var pkgConfigPath = icu4cPath + "/lib/pkgconfig"
         environment("PKG_CONFIG_PATH", pkgConfigPath)
         commandLine "/usr/bin/env", "cmake", "-DESCARGOT_HOST=darwin", "-DESCARGOT_ARCH=x64", "-DESCARGOT_OUTPUT=static_lib", "-DUNDER_NDK=OFF",
+                "-DESCARGOT_BUILD_64BIT_FORCE_LARGE="+project.ext.force64Option,
                 "-DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF",
                 "-DJAVA_HOME=" + javaHome, "-DJAVA_INCLUDE_PATH=" + javaHome + "/include",
                 "-DJAVA_INCLUDE_PATH2=" + javaHome + "/include/darwin", "-DJAVA_AWT_INCLUDE_PATH=" + javaHome + "/include",
