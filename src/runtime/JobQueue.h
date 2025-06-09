@@ -39,13 +39,13 @@ public:
     Job* nextJob()
     {
         ASSERT(!m_jobs.empty());
-        Job* job = m_jobs.front();
-        m_jobs.pop_front();
+        Job* job = *m_jobs.begin();
+        m_jobs.erase(0);
         return job;
     }
 
 private:
-    std::list<Job*, gc_allocator<Job*>> m_jobs;
+    Vector<Job*, gc_allocator<Job*>> m_jobs;
 };
 } // namespace Escargot
 #endif // __EscargotJobQueue__
