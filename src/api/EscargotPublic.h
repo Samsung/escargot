@@ -1478,6 +1478,8 @@ public:
 
     void removeFromHiddenClassChain();
 
+    void preparePropertyStorageForPropertyAddition(size_t expandCount);
+
     // DEPRECATED! this function will be removed
     void removeFromHiddenClassChain(ExecutionStateRef* state);
 };

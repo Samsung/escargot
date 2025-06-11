@@ -1203,6 +1203,16 @@ public:
     // special util function for adding property in builtins
     void directDefineOwnProperty(ExecutionState& state, const ObjectPropertyName& P, const ObjectPropertyDescriptor& desc);
 
+    size_t ownPropertyCountOnStructure() const
+    {
+        return m_structure->propertyCount();
+    }
+
+    void preparePropertyStorage(size_t t)
+    {
+        m_values.expandBuffer(t);
+    }
+
 protected:
     static inline void fillGCDescriptor(GC_word* desc)
     {

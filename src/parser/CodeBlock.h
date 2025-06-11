@@ -937,6 +937,17 @@ public:
 
     void markHeapAllocatedEnvironmentFromHere(LexicalBlockIndex blockIndex = 0, InterpretedCodeBlock* to = nullptr);
 
+    void setConstructedObjectPropertyCount(size_t s)
+    {
+        // overflow is ok.
+        m_constructedObjectPropertyCount = s;
+    }
+
+    size_t constructedObjectPropertyCount() const
+    {
+        return m_constructedObjectPropertyCount;
+    }
+
 #ifndef NDEBUG
     ASTScopeContext* scopeContext()
     {
@@ -957,7 +968,9 @@ protected:
     AtomicStringTightVector m_parameterNames;
     IdentifierInfoVector m_identifierInfos;
     BlockInfo** m_blockInfos;
-    size_t m_blockInfosLength;
+    static constexpr size_t maxBlockInfosLength = ((1 << 24) - 1);
+    uint32_t m_blockInfosLength : 24;
+    uint16_t m_constructedObjectPropertyCount : 8;
 
     AtomicString m_functionName;
 

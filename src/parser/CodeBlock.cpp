@@ -22,6 +22,7 @@
 #include "parser/Script.h"
 #include "parser/ASTAllocator.h"
 #include "parser/ast/ASTContext.h"
+#include "parser/esprima_cpp/esprima.h"
 #include "interpreter/ByteCode.h"
 #include "runtime/Context.h"
 
@@ -146,6 +147,10 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTScopeContext* scopeCtx)
         }
     }
 
+    if (UNLIKELY(blockScopes.size() > maxBlockInfosLength)) {
+        auto err = new esprima::Error(new ASCIIStringFromExternalMemory("block limit exceeded"));
+        throw *err;
+    }
     m_blockInfosLength = blockScopes.size();
     m_blockInfos = (InterpretedCodeBlock::BlockInfo**)GC_MALLOC(sizeof(InterpretedCodeBlock::BlockInfo*) * m_blockInfosLength);
     for (size_t i = 0; i < m_blockInfosLength; i++) {
@@ -244,6 +249,7 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
     , m_children(nullptr)
     , m_blockInfos(nullptr)
     , m_blockInfosLength(0)
+    , m_constructedObjectPropertyCount(0)
     , m_functionName()
     , m_functionStart(SIZE_MAX, SIZE_MAX, SIZE_MAX)
 #if !(defined NDEBUG) || defined ESCARGOT_DEBUGGER

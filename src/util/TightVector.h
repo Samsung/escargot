@@ -489,14 +489,8 @@ public:
 
     void pushBack(const T& val, size_t newSize)
     {
-        T* newBuffer;
-        if (m_buffer == nullptr) {
-            newBuffer = GCAllocator().allocate(newSize);
-        } else {
-            newBuffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
-        }
-        newBuffer[newSize - 1] = val;
-        m_buffer = newBuffer;
+        expandBuffer(newSize);
+        m_buffer[newSize - 1] = val;
     }
 
     void push_back(const T& val, size_t newSize)
@@ -517,18 +511,10 @@ public:
     void resize(size_t oldSize, size_t newSize, const T& val = T())
     {
         if (newSize) {
-            T* newBuffer;
-            if (m_buffer == nullptr) {
-                newBuffer = GCAllocator().allocate(newSize);
-            } else {
-                newBuffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
-            }
-
+            expandBuffer(newSize);
             for (size_t i = oldSize; i < newSize; i++) {
-                newBuffer[i] = val;
+                m_buffer[i] = val;
             }
-
-            m_buffer = newBuffer;
         } else {
             clear();
         }
@@ -537,13 +523,7 @@ public:
     void resizeWithUninitializedValues(size_t oldSize, size_t newSize)
     {
         if (newSize) {
-            T* newBuffer;
-            if (m_buffer == nullptr) {
-                newBuffer = GCAllocator().allocate(newSize);
-            } else {
-                newBuffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
-            }
-            m_buffer = newBuffer;
+            expandBuffer(newSize);
         } else {
             GC_FREE(m_buffer);
             m_buffer = nullptr;
@@ -592,6 +572,20 @@ public:
         m_buffer = resetData;
     }
 
+    void expandBuffer(size_t newSize)
+    {
+        if (m_buffer == nullptr) {
+            m_buffer = GCAllocator().allocate(newSize);
+        } else {
+#if defined(NDEBUG)
+            if (GC_size(m_buffer) < newSize * sizeof(T)) {
+                m_buffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
+            }
+#else
+            m_buffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
+#endif
+        }
+    }
 
 protected:
     T* m_buffer;
