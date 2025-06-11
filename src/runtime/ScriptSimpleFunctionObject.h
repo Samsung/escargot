@@ -130,6 +130,9 @@ protected:
 
         CHECK_STACK_OVERFLOW(state);
 
+        ASSERT(codeBlock()->isInterpretedCodeBlock());
+        InterpretedCodeBlock* codeBlock = interpretedCodeBlock();
+
         // Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%ObjectPrototype%").
         Object* proto = Object::getPrototypeFromConstructor(state, newTarget, [](ExecutionState& state, Context* constructorRealm) -> Object* {
             return constructorRealm->globalObject()->objectPrototype();
@@ -137,9 +140,7 @@ protected:
 
         // Set the [[Prototype]] internal slot of obj to proto.
         Object* thisArgument = new Object(state, proto);
-
-        ASSERT(codeBlock()->isInterpretedCodeBlock());
-        InterpretedCodeBlock* codeBlock = interpretedCodeBlock();
+        thisArgument->preparePropertyStorage(codeBlock->constructedObjectPropertyCount());
 
         // prepare ByteCodeBlock if needed
         if (UNLIKELY(codeBlock->byteCodeBlock() == nullptr)) {
@@ -181,6 +182,9 @@ protected:
         if (shouldClearStack) {
             clearStack<512>();
         }
+
+        // store pre-allocated storage size later
+        codeBlock->setConstructedObjectPropertyCount(thisArgument->ownPropertyCountOnStructure());
         return returnValue.isObject() ? returnValue : thisArgument;
     }
 };

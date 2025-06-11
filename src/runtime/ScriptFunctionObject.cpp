@@ -121,6 +121,9 @@ class ScriptFunctionObjectReturnValueBinderWithConstruct {
 public:
     Value operator()(ExecutionState& callerState, ExecutionState& state, ScriptFunctionObject* self, const Value& interpreterReturnValue, const Value& thisArgument, FunctionEnvironmentRecord* record)
     {
+        // store pre-allocated storage size later
+        self->codeBlock()->asInterpretedCodeBlock()->setConstructedObjectPropertyCount(thisArgument.asObject()->ownPropertyCountOnStructure());
+
         // Let result be OrdinaryCallEvaluateBody(F, argumentsList).
         const Value& result = interpreterReturnValue;
         // If result.[[type]] is return, then
@@ -156,6 +159,7 @@ Value ScriptFunctionObject::construct(ExecutionState& state, const size_t argc, 
     });
     // Set the [[Prototype]] internal slot of obj to proto.
     Object* thisArgument = new Object(state, proto);
+    thisArgument->preparePropertyStorage(codeBlock()->asInterpretedCodeBlock()->constructedObjectPropertyCount());
 
     // ReturnIfAbrupt(thisArgument).
     return FunctionObjectProcessCallGenerator::processCall<ScriptFunctionObject, true, true, false, ScriptFunctionObjectObjectThisValueBinderWithConstruct, ScriptFunctionObjectNewTargetBinderWithConstruct, ScriptFunctionObjectReturnValueBinderWithConstruct>(state, this, Value(thisArgument), argc, argv, newTarget).asObject();

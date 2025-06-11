@@ -2745,6 +2745,11 @@ void ObjectRef::removeFromHiddenClassChain(ExecutionStateRef* state)
     toImpl(this)->markThisObjectDontNeedStructureTransitionTable();
 }
 
+void ObjectRef::preparePropertyStorageForPropertyAddition(size_t t)
+{
+    toImpl(this)->preparePropertyStorage(t + toImpl(this)->ownPropertyCountOnStructure());
+}
+
 void ObjectRef::enumerateObjectOwnProperties(ExecutionStateRef* state, const std::function<bool(ExecutionStateRef* state, ValueRef* propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>& cb, bool shouldSkipSymbolKey)
 {
     toImpl(this)->enumeration(*toImpl(state), [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
