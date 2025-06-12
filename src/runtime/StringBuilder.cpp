@@ -21,13 +21,104 @@
 #include "StringBuilder.h"
 #include "ExecutionState.h"
 #include "ErrorObject.h"
+#include "StringView.h"
 
 namespace Escargot {
+
+StringView* StringBuilderBase::initLongPiece(String* str, size_t s, size_t e)
+{
+    return new StringView(str, s, e);
+}
 
 void StringBuilderBase::throwStringLengthInvalidError(ExecutionState& state)
 {
     ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::String_InvalidStringLength);
 }
+
+static void processPiece(LChar* buffer, const StringBuilderBase::StringBuilderPiece& piece, size_t& currentLength)
+{
+    if (piece.m_type == StringBuilderBase::StringBuilderPiece::Type::Char) {
+        buffer[currentLength++] = (LChar)piece.m_ch;
+    } else if (piece.m_type == StringBuilderBase::StringBuilderPiece::Type::ConstChar) {
+        const char* data = piece.m_raw;
+        size_t l = piece.m_length;
+        memcpy(&buffer[currentLength], data, l);
+        currentLength += l;
+    } else if (piece.m_type == StringBuilderBase::StringBuilderPiece::Type::String) {
+        const auto& accessData = piece.m_string->bufferAccessData();
+        const auto& l = accessData.length;
+        if (accessData.has8BitContent) {
+            memcpy(&buffer[currentLength], accessData.bufferAs8Bit, l);
+            currentLength += l;
+        } else {
+            auto* b = accessData.bufferAs16Bit;
+            for (size_t k = 0; k < l; k++) {
+                buffer[currentLength++] = b[k];
+            }
+        }
+    } else {
+        String* data = piece.m_string;
+        size_t s = piece.m_start;
+        size_t e = piece.m_start + piece.m_length;
+        size_t l = piece.m_length;
+        const auto& accessData = data->bufferAccessData();
+        if (accessData.has8BitContent) {
+            memcpy(&buffer[currentLength], accessData.bufferAs8Bit + s, l);
+            currentLength += l;
+        } else {
+            auto* b = accessData.bufferAs16Bit;
+            for (size_t k = s; k < e; k++) {
+                buffer[currentLength++] = b[k];
+            }
+        }
+    }
+}
+
+static void processPiece(char16_t* buffer, const StringBuilderBase::StringBuilderPiece& piece, size_t& currentLength)
+{
+    if (piece.m_type == StringBuilderBase::StringBuilderPiece::Type::Char) {
+        buffer[currentLength++] = piece.m_ch;
+    } else if (piece.m_type == StringBuilderBase::StringBuilderPiece::Type::ConstChar) {
+        const char* data = piece.m_raw;
+        size_t l = piece.m_length;
+        for (size_t j = 0; j < l; j++) {
+            buffer[currentLength++] = data[j];
+        }
+    } else if (piece.m_type == StringBuilderBase::StringBuilderPiece::Type::String) {
+        String* data = piece.m_string;
+        size_t l = data->length();
+        if (data->has8BitContent()) {
+            auto ptr = data->characters8();
+            for (size_t j = 0; j < l; j++) {
+                buffer[currentLength++] = ptr[j];
+            }
+        } else {
+            auto ptr = data->characters16();
+            for (size_t j = 0; j < l; j++) {
+                buffer[currentLength++] = ptr[j];
+            }
+        }
+    } else {
+        String* data = piece.m_string;
+        size_t s = piece.m_start;
+        size_t e = piece.m_start + piece.m_length;
+        size_t l = piece.m_length;
+        if (data->has8BitContent()) {
+            auto ptr = data->characters8();
+            ptr += s;
+            for (size_t j = 0; j < l; j++) {
+                buffer[currentLength++] = ptr[j];
+            }
+        } else {
+            auto ptr = data->characters16();
+            ptr += s;
+            for (size_t j = 0; j < l; j++) {
+                buffer[currentLength++] = ptr[j];
+            }
+        }
+    }
+}
+
 
 String* StringBuilderBase::finalizeBase(StringBuilderPiece* piecesInlineStorage, Optional<ExecutionState*> state)
 {
@@ -47,56 +138,12 @@ String* StringBuilderBase::finalizeBase(StringBuilderPiece* piecesInlineStorage,
         size_t currentLength = 0;
         for (size_t i = 0; i < m_piecesInlineStorageUsage; i++) {
             const StringBuilderPiece& piece = piecesInlineStorage[i];
-            if (piece.m_type == StringBuilderPiece::Char) {
-                ret[currentLength++] = (LChar)piece.m_ch;
-            } else if (piece.m_type == StringBuilderPiece::ConstChar) {
-                const char* data = piece.m_raw;
-                size_t l = piece.m_end;
-                memcpy(&ret[currentLength], data, l);
-                currentLength += l;
-            } else {
-                String* data = piece.m_string;
-                size_t s = piece.m_start;
-                size_t e = piece.m_end;
-                size_t l = e - s;
-                const auto& accessData = data->bufferAccessData();
-                if (accessData.has8BitContent) {
-                    memcpy(&ret[currentLength], ((LChar*)accessData.buffer) + s, l);
-                    currentLength += l;
-                } else {
-                    char16_t* b = ((char16_t*)accessData.buffer);
-                    for (size_t k = s; k < e; k++) {
-                        ret[currentLength++] = b[k];
-                    }
-                }
-            }
+            processPiece(ret.data(), piece, currentLength);
         }
 
         for (size_t i = 0; i < m_pieces.size(); i++) {
             const StringBuilderPiece& piece = m_pieces[i];
-            if (piece.m_type == StringBuilderPiece::Char) {
-                ret[currentLength++] = (LChar)piece.m_ch;
-            } else if (piece.m_type == StringBuilderPiece::ConstChar) {
-                const char* data = piece.m_raw;
-                size_t l = piece.m_end;
-                memcpy(&ret[currentLength], data, l);
-                currentLength += l;
-            } else {
-                String* data = piece.m_string;
-                size_t s = piece.m_start;
-                size_t e = piece.m_end;
-                size_t l = e - s;
-                const auto& accessData = data->bufferAccessData();
-                if (accessData.has8BitContent) {
-                    memcpy(&ret[currentLength], ((LChar*)accessData.buffer) + s, l);
-                    currentLength += l;
-                } else {
-                    char16_t* b = ((char16_t*)accessData.buffer);
-                    for (size_t k = s; k < e; k++) {
-                        ret[currentLength++] = b[k];
-                    }
-                }
-            }
+            processPiece(ret.data(), piece, currentLength);
         }
 
         clear();
@@ -108,64 +155,12 @@ String* StringBuilderBase::finalizeBase(StringBuilderPiece* piecesInlineStorage,
         size_t currentLength = 0;
         for (size_t i = 0; i < m_piecesInlineStorageUsage; i++) {
             const StringBuilderPiece& piece = piecesInlineStorage[i];
-            if (piece.m_type == StringBuilderPiece::Char) {
-                ret[currentLength++] = piece.m_ch;
-            } else if (piece.m_type == StringBuilderPiece::ConstChar) {
-                const char* data = piece.m_raw;
-                size_t l = piece.m_end;
-                for (size_t j = 0; j < l; j++) {
-                    ret[currentLength++] = data[j];
-                }
-            } else {
-                String* data = piece.m_string;
-                size_t s = piece.m_start;
-                size_t e = piece.m_end;
-                size_t l = e - s;
-                if (data->has8BitContent()) {
-                    auto ptr = data->characters8();
-                    ptr += s;
-                    for (size_t j = 0; j < l; j++) {
-                        ret[currentLength++] = ptr[j];
-                    }
-                } else {
-                    auto ptr = data->characters16();
-                    ptr += s;
-                    for (size_t j = 0; j < l; j++) {
-                        ret[currentLength++] = ptr[j];
-                    }
-                }
-            }
+            processPiece(ret.data(), piece, currentLength);
         }
 
         for (size_t i = 0; i < m_pieces.size(); i++) {
             const StringBuilderPiece& piece = m_pieces[i];
-            if (piece.m_type == StringBuilderPiece::Char) {
-                ret[currentLength++] = piece.m_ch;
-            } else if (piece.m_type == StringBuilderPiece::ConstChar) {
-                const char* data = piece.m_raw;
-                size_t l = piece.m_end;
-                for (size_t j = 0; j < l; j++) {
-                    ret[currentLength++] = data[j];
-                }
-            } else {
-                String* data = piece.m_string;
-                size_t s = piece.m_start;
-                size_t e = piece.m_end;
-                size_t l = e - s;
-                if (data->has8BitContent()) {
-                    auto ptr = data->characters8();
-                    ptr += s;
-                    for (size_t j = 0; j < l; j++) {
-                        ret[currentLength++] = ptr[j];
-                    }
-                } else {
-                    auto ptr = data->characters16();
-                    ptr += s;
-                    for (size_t j = 0; j < l; j++) {
-                        ret[currentLength++] = ptr[j];
-                    }
-                }
-            }
+            processPiece(ret.data(), piece, currentLength);
         }
 
         clear();

@@ -525,8 +525,7 @@ static void builtinJSONStringifyJO(ExecutionState& state, Object* value,
             if (gap->length() != 0) {
                 product.appendChar(' ', &state);
             }
-            product.appendStringBuilder(subProduct, &state);
-            subProduct.clear();
+            product.appendString(subProduct.finalize(&state), &state);
         }
     }
 
