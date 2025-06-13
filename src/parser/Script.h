@@ -219,7 +219,7 @@ public:
     size_t sourceCodeHashValue()
     {
         if (UNLIKELY(m_sourceCodeHashValue == 0)) {
-            m_sourceCodeHashValue = m_sourceCode->hashValue();
+            m_sourceCodeHashValue = m_sourceCode->hashValue<0, false>();
         }
         return m_sourceCodeHashValue;
     }
