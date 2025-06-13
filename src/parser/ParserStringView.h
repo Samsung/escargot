@@ -110,6 +110,11 @@ public:
         return !operator==(src);
     }
 
+    bool operator==(ParserStringView src)
+    {
+        return String::equals(&src);
+    }
+
     virtual UTF16StringData toUTF16StringData() const override
     {
         UTF16StringData ret;
@@ -161,6 +166,10 @@ public:
 
     void* operator new(size_t size) = delete;
     void* operator new[](size_t size) = delete;
+    void* operator new(size_t size, void* p)
+    {
+        return p;
+    }
 
 protected:
     ALWAYS_INLINE void initBufferAccessData(const StringBufferAccessData& srcData, size_t start, size_t end)
