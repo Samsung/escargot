@@ -329,7 +329,7 @@ ScriptParser::InitializeScriptResult ScriptParser::initializeScript(String* orig
     if (cacheable) {
         ASSERT(!parentCodeBlock);
         // set m_functionIndex as SIZE_MAX for global code
-        cacheIndex = CodeCacheIndex(source->hashValue(), source->length(), SIZE_MAX);
+        cacheIndex = CodeCacheIndex(source->hashValue<0, false>(), source->length(), SIZE_MAX);
         auto result = codeCache->searchCache(cacheIndex);
         if (result.first) {
             GC_disable();

@@ -119,13 +119,22 @@ public:
 
     void pushBack(const T& val)
     {
-        T* newBuffer = Allocator().allocate(m_size + 1);
-        VectorCopier<T>::copy(newBuffer, m_buffer, m_size);
+        if (
+#if defined(NDEBUG)
+            GC_size(m_buffer) < (m_size + 1) * sizeof(T)
+#else
+            true
+#endif
+        ) {
+            T* newBuffer = Allocator().allocate(m_size + 1);
+            VectorCopier<T>::copy(newBuffer, m_buffer, m_size);
+            if (m_buffer) {
+                Allocator().deallocate(m_buffer, m_size);
+            }
+            m_buffer = newBuffer;
+        }
 
-        newBuffer[m_size] = val;
-        if (m_buffer)
-            Allocator().deallocate(m_buffer, m_size);
-        m_buffer = newBuffer;
+        m_buffer[m_size] = val;
         m_size++;
     }
 
@@ -356,13 +365,22 @@ public:
 
     void pushBack(const T& val, size_t newSize)
     {
-        T* newBuffer = Allocator().allocate(newSize);
-        VectorCopier<T>::copy(newBuffer, m_buffer, newSize - 1);
+        if (
+#if defined(NDEBUG)
+            GC_size(m_buffer) < newSize * sizeof(T)
+#else
+            true
+#endif
+        ) {
+            T* newBuffer = Allocator().allocate(newSize);
+            VectorCopier<T>::copy(newBuffer, m_buffer, newSize - 1);
+            if (m_buffer) {
+                Allocator().deallocate(m_buffer, newSize - 1);
+            }
+            m_buffer = newBuffer;
+        }
 
-        newBuffer[newSize - 1] = val;
-        if (m_buffer)
-            Allocator().deallocate(m_buffer);
-        m_buffer = newBuffer;
+        m_buffer[newSize - 1] = val;
     }
 
     void push_back(const T& val, size_t newSize)

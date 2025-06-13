@@ -193,13 +193,23 @@ public:
 
     struct ParseFormalParametersResult {
         VectorWithInlineStorage<8, SyntaxNode, std::allocator<SyntaxNode>> params;
-        VectorWithInlineStorage<8, AtomicString, std::allocator<AtomicString>> paramSet;
+        VectorWithInlineStorage<8, ParserStringView, std::allocator<ParserStringView>> paramSet;
         Scanner::SmallScannerResult stricted;
         Scanner::SmallScannerResult firstRestricted;
         const char* message;
+        bool hasDupName;
+
+        void clear()
+        {
+            message = nullptr;
+            hasDupName = false;
+            params.clear();
+            paramSet.clear();
+        }
 
         ParseFormalParametersResult()
             : message(nullptr)
+            , hasDupName(false)
         {
         }
     };
@@ -475,23 +485,16 @@ public:
         this->currentScopeContext->m_parameters.resizeWithUninitializedValues(paramNames.size());
         LexicalBlockIndex functionBodyBlockIndex = this->currentScopeContext->m_functionBodyBlockIndex;
         for (size_t i = 0; i < paramNames.size(); i++) {
-            ASSERT(paramNames[i].string()->length() > 0);
-            this->currentScopeContext->m_parameters[i] = paramNames[i];
-            this->currentScopeContext->insertVarName(paramNames[i], functionBodyBlockIndex, true, true, true);
+            ASSERT(paramNames[i].length() > 0);
+            AtomicString as(this->escargotContext, paramNames[i]);
+            this->currentScopeContext->m_parameters[i] = as;
+            this->currentScopeContext->insertVarName(as, functionBodyBlockIndex, true, true, true);
         }
 
         // Check if any identifier names are duplicated.
         if (hasParameterOtherThanIdentifier || this->context->inArrowFunction) {
-            if (paramNames.size() < 2) {
-                return;
-            }
-            for (size_t i = 0; i < paramNames.size() - 1; i++) {
-                // Note: using this inner for loop because std::find didn't work for some reason.
-                for (size_t j = i + 1; j < paramNames.size(); j++) {
-                    if (paramNames[i] == paramNames[j]) {
-                        this->throwError("duplicate argument names are not allowed in this context");
-                    }
-                }
+            if (paramsResult.hasDupName) {
+                this->throwError("duplicate argument names are not allowed in this context");
             }
         }
     }
@@ -1242,6 +1245,11 @@ public:
 
     void validateParam(ParseFormalParametersResult& options, const Scanner::SmallScannerResult& param, AtomicString name)
     {
+        validateParam(options, param, ParserStringView(name.string()));
+    }
+
+    void validateParam(ParseFormalParametersResult& options, const Scanner::SmallScannerResult& param, ParserStringView name)
+    {
         ASSERT(param);
         if (UNLIKELY(this->currentScopeContext->m_isGenerator && param.equalsToKeyword(YieldKeyword))) {
             this->throwUnexpectedToken(param, Messages::UnexpectedToken);
@@ -1249,12 +1257,13 @@ public:
             this->throwUnexpectedToken(param, Messages::UnexpectedToken);
         }
 
+        bool hasDupName = std::find(options.paramSet.begin(), options.paramSet.end(), name) != options.paramSet.end();
         if (this->context->strict) {
             if (param.isRestrictedWord()) {
                 options.stricted = param;
                 options.message = Messages::StrictParamName;
             }
-            if (std::find(options.paramSet.begin(), options.paramSet.end(), name) != options.paramSet.end()) {
+            if (hasDupName) {
                 options.stricted = param;
                 options.message = Messages::StrictParamDupe;
             }
@@ -1265,12 +1274,12 @@ public:
             } else if (param.isStrictModeReservedWord()) {
                 options.firstRestricted = param;
                 options.message = Messages::StrictReservedWord;
-            } else if (std::find(options.paramSet.begin(), options.paramSet.end(), name) != options.paramSet.end()) {
+            } else if (hasDupName) {
                 options.firstRestricted = param;
                 options.message = Messages::StrictParamDupe;
             }
         }
-
+        options.hasDupName |= hasDupName;
         options.paramSet.push_back(name);
     }
 
@@ -1476,8 +1485,7 @@ public:
             param = this->parsePatternWithDefault(builder, params);
         }
         for (size_t i = 0; i < params.size(); i++) {
-            AtomicString as(this->escargotContext, params[i].relatedSource(this->scanner->source));
-            this->validateParam(options, params[i], as);
+            this->validateParam(options, params[i], params[i].relatedSource(this->scanner->source));
         }
         options.params.push_back(builder.convertToParameterSyntaxNode(param));
 
@@ -1504,7 +1512,7 @@ public:
         }
 
         if (!this->match(RightParenthesis)) {
-            options.paramSet.clear();
+            options.clear();
             while (this->startMarker.index < this->scanner->length) {
                 this->parseFormalParameter(builder, options);
                 if (this->match(RightParenthesis)) {
