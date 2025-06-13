@@ -455,32 +455,39 @@ public:
 
     String* substring(size_t from, size_t to);
 
+    // fnv hash
+    // https://github.com/catb0t/fnv-hash
     template <typename T>
-    static inline size_t stringHash(T* src, size_t length)
+    static inline uint32_t stringHash(const T* src, const T* srcEnd)
     {
-        size_t hash = static_cast<size_t>(0xc70f6907UL);
-        for (; length; --length)
-            hash = (hash * 131) + *src++;
+        uint32_t hash = 0x811c9dc5;
+        while (src < srcEnd) {
+            // hash = hash xor octet_of_data
+            hash ^= *src++;
+            // hash = hash * FNV_prime
+            hash *= 0x01000193;
+        }
         return hash;
     }
 
+    template <const size_t maxLen = 32, const bool useMaxLen = true>
     size_t hashValue() const
     {
         const auto& data = bufferAccessData();
-        size_t len = data.length;
+        size_t len;
+        if (useMaxLen) {
+            len = std::min(maxLen, data.length);
+        } else {
+            len = data.length;
+        }
         size_t hash;
         if (LIKELY(data.has8BitContent)) {
-            auto ptr = (const LChar*)data.buffer;
-            hash = stringHash(ptr, len);
+            auto ptr = data.bufferAs8Bit;
+            hash = stringHash(ptr, ptr + len);
         } else {
-            auto ptr = (const char16_t*)data.buffer;
-            hash = stringHash(ptr, len);
+            auto ptr = data.bufferAs16Bit;
+            hash = stringHash(ptr, ptr + len);
         }
-
-        if (UNLIKELY((hash % sizeof(size_t)) == 0)) {
-            hash++;
-        }
-
         return hash;
     }
 
