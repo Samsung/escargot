@@ -59,7 +59,6 @@ enum HeapObjectKind : unsigned {
     ArrayBufferObjectKind,
     InterpretedCodeBlockKind,
     InterpretedCodeBlockWithRareDataKind,
-    WeakMapObjectDataItemKind,
     WeakRefObjectKind,
     FinalizationRegistryObjectItemKind,
 #endif

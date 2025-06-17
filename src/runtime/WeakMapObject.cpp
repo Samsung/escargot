@@ -32,14 +32,6 @@ WeakMapObject::WeakMapObject(ExecutionState& state)
 WeakMapObject::WeakMapObject(ExecutionState& state, Object* proto)
     : DerivedObject(state, proto)
 {
-    addFinalizer([](PointerValue* self, void* data) {
-        auto wm = self->asWeakMapObject();
-        for (size_t i = 0; i < wm->m_storage.size(); i++) {
-            wm->m_storage[i]->key->removeFinalizer(WeakMapObject::finalizer, wm);
-        }
-        wm->m_storage.clear();
-    },
-                 nullptr);
 }
 
 void* WeakMapObject::operator new(size_t size)
@@ -56,30 +48,13 @@ void* WeakMapObject::operator new(size_t size)
     return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
 }
 
-void* WeakMapObject::WeakMapObjectDataItem::operator new(size_t size)
-{
-#ifdef NDEBUG
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word desc[GC_BITMAP_SIZE(WeakMapObject::WeakMapObjectDataItem)] = { 0 };
-        GC_set_bit(desc, GC_WORD_OFFSET(WeakMapObject::WeakMapObjectDataItem, data));
-        descr = GC_make_descriptor(desc, GC_WORD_LEN(WeakMapObject::WeakMapObjectDataItem));
-        typeInited = true;
-    }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
-#else
-    return CustomAllocator<WeakMapObject::WeakMapObjectDataItem>().allocate(1);
-#endif
-}
-
 bool WeakMapObject::deleteOperation(ExecutionState& state, PointerValue* key)
 {
     ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
-        auto existingKey = m_storage[i]->key;
+        auto existingKey = m_storage[i]->key.unwrap();
         if (existingKey == key) {
-            key->removeFinalizer(finalizer, this);
+            GC_unregister_disappearing_link(reinterpret_cast<void**>(&m_storage[i]->key));
             m_storage.erase(i);
             return true;
         }
@@ -91,7 +66,7 @@ Value WeakMapObject::get(ExecutionState& state, PointerValue* key)
 {
     ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
-        auto existingKey = m_storage[i]->key;
+        auto existingKey = m_storage[i]->key.unwrap();
         if (existingKey == key) {
             return m_storage[i]->data;
         }
@@ -103,7 +78,7 @@ bool WeakMapObject::has(ExecutionState& state, PointerValue* key)
 {
     ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
-        auto existingKey = m_storage[i]->key;
+        auto existingKey = m_storage[i]->key.unwrap();
         if (existingKey == key) {
             return true;
         }
@@ -123,22 +98,20 @@ void WeakMapObject::set(ExecutionState& state, PointerValue* key, const Value& v
         }
     }
 
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        if (!m_storage[i]->key) {
+            m_storage[i]->key = key;
+            m_storage[i]->data = value;
+            GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&m_storage[i]->key), key);
+            return;
+        }
+    }
+
     auto newData = new WeakMapObjectDataItem();
     newData->key = key;
     newData->data = value;
     m_storage.pushBack(newData);
 
-    key->addFinalizer(WeakMapObject::finalizer, this);
-}
-
-void WeakMapObject::finalizer(PointerValue* self, void* data)
-{
-    WeakMapObject* s = (WeakMapObject*)data;
-    for (size_t i = 0; i < s->m_storage.size(); i++) {
-        if (s->m_storage[i]->key == self) {
-            s->m_storage.erase(i);
-            break;
-        }
-    }
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&newData->key), key);
 }
 } // namespace Escargot

@@ -56,7 +56,6 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    static void finalizer(PointerValue* self, void* data);
     Optional<PointerValue*> m_target;
 };
 } // namespace Escargot

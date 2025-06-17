@@ -27,11 +27,8 @@ namespace Escargot {
 class WeakMapObject : public DerivedObject {
 public:
     struct WeakMapObjectDataItem : public gc {
-        PointerValue* key; // should be Object or Symbol
+        Optional<PointerValue*> key; // should be Object or Symbol
         EncodedValue data;
-
-        void* operator new(size_t size);
-        void* operator new[](size_t size) = delete;
     };
 
     typedef Vector<WeakMapObjectDataItem*, GCUtil::gc_malloc_allocator<WeakMapObjectDataItem*>> WeakMapObjectData;
@@ -53,8 +50,6 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    static void finalizer(PointerValue* self, void* data);
-
     WeakMapObjectData m_storage;
 };
 } // namespace Escargot
