@@ -26,7 +26,16 @@ namespace Escargot {
 
 class WeakSetObject : public DerivedObject {
 public:
-    typedef Vector<PointerValue*, GCUtil::gc_malloc_atomic_allocator<PointerValue*>> WeakSetObjectData;
+    struct WeakSetObjectDataItem : public gc {
+        Optional<PointerValue*> key; // should be Object or Symbol
+
+        WeakSetObjectDataItem(PointerValue* key)
+            : key(key)
+        {
+        }
+    };
+
+    typedef Vector<WeakSetObjectDataItem*, GCUtil::gc_malloc_allocator<WeakSetObjectDataItem*>> WeakSetObjectData;
 
     explicit WeakSetObject(ExecutionState& state);
     explicit WeakSetObject(ExecutionState& state, Object* proto);
@@ -44,8 +53,6 @@ public:
     void* operator new[](size_t size) = delete;
 
 private:
-    static void finalizer(PointerValue* self, void* data);
-
     WeakSetObjectData m_storage;
 };
 } // namespace Escargot

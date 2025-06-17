@@ -32,14 +32,6 @@ WeakSetObject::WeakSetObject(ExecutionState& state)
 WeakSetObject::WeakSetObject(ExecutionState& state, Object* proto)
     : DerivedObject(state, proto)
 {
-    addFinalizer([](PointerValue* self, void* data) {
-        auto ws = self->asWeakSetObject();
-        for (size_t i = 0; i < ws->m_storage.size(); i++) {
-            ws->m_storage[i]->removeFinalizer(WeakSetObject::finalizer, ws);
-        }
-        ws->m_storage.clear();
-    },
-                 nullptr);
 }
 
 void* WeakSetObject::operator new(size_t size)
@@ -60,8 +52,8 @@ bool WeakSetObject::deleteOperation(ExecutionState& state, PointerValue* key)
 {
     ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
-        if (m_storage[i] == key) {
-            key->removeFinalizer(finalizer, this);
+        if (m_storage[i]->key.unwrap() == key) {
+            GC_unregister_disappearing_link(reinterpret_cast<void**>(&m_storage[i]->key));
             m_storage.erase(i);
             return true;
         }
@@ -73,34 +65,34 @@ void WeakSetObject::add(ExecutionState& state, PointerValue* key)
 {
     ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
-        if (m_storage[i] == key) {
+        if (m_storage[i]->key.unwrap() == key) {
             return;
         }
     }
 
-    key->addFinalizer(WeakSetObject::finalizer, this);
-    m_storage.pushBack(key);
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        if (!m_storage[i]->key) {
+            m_storage[i]->key = key;
+            GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&m_storage[i]->key), key);
+            return;
+        }
+    }
+
+    auto newData = new WeakSetObjectDataItem(key);
+    m_storage.pushBack(newData);
+
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&newData->key), key);
 }
 
 bool WeakSetObject::has(ExecutionState& state, PointerValue* key)
 {
     ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
-        if (m_storage[i] == key) {
+        if (m_storage[i]->key.unwrap() == key) {
             return true;
         }
     }
     return false;
 }
 
-void WeakSetObject::finalizer(PointerValue* self, void* data)
-{
-    WeakSetObject* s = (WeakSetObject*)data;
-    for (size_t i = 0; i < s->m_storage.size(); i++) {
-        if (s->m_storage[i] == self) {
-            s->m_storage.erase(i);
-            break;
-        }
-    }
-}
 } // namespace Escargot

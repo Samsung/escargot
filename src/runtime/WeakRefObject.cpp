@@ -35,22 +35,7 @@ WeakRefObject::WeakRefObject(ExecutionState& state, Object* proto, PointerValue*
 {
     ASSERT(m_target);
     ASSERT(m_target->isObject() || m_target->isSymbol());
-    m_target->addFinalizer(WeakRefObject::finalizer, this);
-    addFinalizer([](PointerValue* self, void* data) {
-        WeakRefObject* s = (WeakRefObject*)self;
-        if (s->m_target) {
-            s->m_target->removeFinalizer(WeakRefObject::finalizer, self);
-            s->m_target = nullptr;
-        }
-    },
-                 nullptr);
-}
-
-void WeakRefObject::finalizer(PointerValue* self, void* data)
-{
-    WeakRefObject* s = (WeakRefObject*)data;
-    ASSERT(s->m_target);
-    s->m_target = nullptr;
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&m_target), m_target.value());
 }
 
 void* WeakRefObject::operator new(size_t size)
@@ -73,7 +58,7 @@ void* WeakRefObject::operator new(size_t size)
 bool WeakRefObject::deleteOperation(ExecutionState& state)
 {
     if (m_target) {
-        m_target->removeFinalizer(WeakRefObject::finalizer, this);
+        GC_unregister_disappearing_link(reinterpret_cast<void**>(&m_target));
         m_target = nullptr;
         return true;
     }
