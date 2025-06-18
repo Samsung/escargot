@@ -30,9 +30,8 @@ template <typename BufferOwnerType>
 class BufferAddressObserverManager {
 public:
     BufferAddressObserverManager()
-        : m_removedObserverCount(0)
 #ifndef NDEBUG
-        , m_isUpdating(false)
+        : m_isUpdating(false)
 #endif
     {
     }
@@ -41,64 +40,37 @@ public:
     void addObserver(Object* from, BufferAddressObserverCallback cb)
     {
         ASSERT(!m_isUpdating && !!from);
-        from->addFinalizer(objectFinalizer, this);
 
-        if (m_removedObserverCount) {
-            // search backward
-            for (size_t i = 0; i < m_observerItems.size(); i++) {
-                if (m_observerItems[i].from == nullptr) {
-                    ASSERT(m_observerItems[i].callback == nullptr);
-                    m_observerItems[i].from = from;
-                    m_observerItems[i].callback = cb;
-                    m_removedObserverCount--;
-                    return;
-                }
+        for (size_t i = 0; i < m_observerItems.size(); i++) {
+            if (m_observerItems[i]->from.unwrap() == nullptr) {
+                m_observerItems[i]->from = from;
+                m_observerItems[i]->callback = cb;
+                GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&m_observerItems[i]->from), from);
+                return;
             }
-            ASSERT_NOT_REACHED();
         }
 
-        m_observerItems.pushBack(ObserverVectorItem(from, cb));
+        auto newData = new ObserverVectorItem(from, cb);
+        m_observerItems.pushBack(newData);
+        GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&newData->from), from);
     }
 
     void removeObserver(Object* from, BufferAddressObserverCallback callback)
     {
         ASSERT(!m_isUpdating);
-        from->removeFinalizer(objectFinalizer, this);
         for (size_t i = 0; i < m_observerItems.size(); i++) {
-            if (m_observerItems[i].from == from && m_observerItems[i].callback == callback) {
-                m_observerItems[i].from = nullptr;
-                m_observerItems[i].callback = nullptr;
-                m_removedObserverCount++;
+            if (m_observerItems[i]->from.unwrap() == from && m_observerItems[i]->callback == callback) {
+                GC_unregister_disappearing_link(reinterpret_cast<void**>(&m_observerItems[i]->from));
+                m_observerItems[i]->from = nullptr;
+                m_observerItems[i]->callback = nullptr;
                 break;
             }
         }
     }
 
 protected:
-    void dispose()
-    {
-        for (size_t i = 0; i < m_observerItems.size(); i++) {
-            if (m_observerItems[i].from) {
-                m_observerItems[i].from->removeFinalizer(objectFinalizer, this);
-            }
-        }
-        m_observerItems.clear();
-    }
-
-    static void objectFinalizer(PointerValue* obj, void* data)
-    {
-        BufferAddressObserverManager<BufferOwnerType>* self = reinterpret_cast<BufferAddressObserverManager<BufferOwnerType>*>(data);
-        for (size_t i = 0; i < self->m_observerItems.size(); i++) {
-            if (self->m_observerItems[i].from == obj) {
-                self->m_observerItems[i].from = nullptr;
-                self->m_observerItems[i].callback = nullptr;
-                self->m_removedObserverCount++;
-            }
-        }
-    }
-
-    struct ObserverVectorItem {
-        Object* from;
+    struct ObserverVectorItem : public gc {
+        Optional<Object*> from;
         BufferAddressObserverCallback callback;
 
         ObserverVectorItem(Object* from, BufferAddressObserverCallback callback)
@@ -108,8 +80,7 @@ protected:
         }
     };
 
-    size_t m_removedObserverCount;
-    TightVector<ObserverVectorItem, GCUtil::gc_malloc_atomic_allocator<ObserverVectorItem>> m_observerItems;
+    TightVector<ObserverVectorItem*, GCUtil::gc_malloc_allocator<ObserverVectorItem*>> m_observerItems;
 
 #ifndef NDEBUG
     bool m_isUpdating;
@@ -120,8 +91,8 @@ protected:
         m_isUpdating = true;
 #endif
         for (size_t i = 0; i < m_observerItems.size(); i++) {
-            if (LIKELY(!!m_observerItems[i].callback)) {
-                m_observerItems[i].callback(m_observerItems[i].from, newAddress, newByteLength);
+            if (LIKELY(!!m_observerItems[i]->from)) {
+                m_observerItems[i]->callback(m_observerItems[i]->from.value(), newAddress, newByteLength);
             }
         }
 #ifndef NDEBUG
