@@ -1210,7 +1210,8 @@ public:
 
     void preparePropertyStorage(size_t t)
     {
-        m_values.expandBuffer(t);
+        ASSERT(ownPropertyCountOnStructure() == 0);
+        m_values.expandBuffer(t, 0);
     }
 
 protected:

@@ -507,8 +507,9 @@ public:
 
     void pushBack(const T& val, size_t newSize)
     {
-        expandBuffer(newSize);
-        m_buffer[newSize - 1] = val;
+        auto oldSize = newSize - 1;
+        expandBuffer(newSize, oldSize);
+        m_buffer[oldSize] = val;
     }
 
     void push_back(const T& val, size_t newSize)
@@ -529,7 +530,7 @@ public:
     void resize(size_t oldSize, size_t newSize, const T& val = T())
     {
         if (newSize) {
-            expandBuffer(newSize);
+            expandBuffer(newSize, oldSize);
             for (size_t i = oldSize; i < newSize; i++) {
                 m_buffer[i] = val;
             }
@@ -541,7 +542,7 @@ public:
     void resizeWithUninitializedValues(size_t oldSize, size_t newSize)
     {
         if (newSize) {
-            expandBuffer(newSize);
+            expandBuffer(newSize, oldSize);
         } else {
             GC_FREE(m_buffer);
             m_buffer = nullptr;
@@ -590,14 +591,17 @@ public:
         m_buffer = resetData;
     }
 
-    void expandBuffer(size_t newSize)
+    void expandBuffer(size_t newSize, size_t oldSize)
     {
         if (m_buffer == nullptr) {
             m_buffer = GCAllocator().allocate(newSize);
         } else {
 #if defined(NDEBUG)
             if (GC_size(m_buffer) < newSize * sizeof(T)) {
-                m_buffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
+                auto newBuffer = GCAllocator().allocate(newSize);
+                VectorCopier<T>::copy(newBuffer, m_buffer, oldSize);
+                GC_FREE(m_buffer);
+                m_buffer = newBuffer;
             }
 #else
             m_buffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));

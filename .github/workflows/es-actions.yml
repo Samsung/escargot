@@ -330,9 +330,6 @@ jobs:
           # exclude octane, v8, web-tooling-benchmark due to low performance incurred by SMALL_CONFIG
           - tc: 'octane v8 web-tooling-benchmark'
             build_opt: '-DESCARGOT_SMALL_CONFIG=ON -DESCARGOT_USE_CUSTOM_LOGGING=ON'
-          # exclude spidermonkey due to regression with TCO
-          - tc: 'chakracore spidermonkey new-es'
-            build_opt: '-DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON'
     steps:
     - uses: actions/checkout@v4
       with:
