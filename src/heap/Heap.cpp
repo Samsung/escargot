@@ -37,6 +37,10 @@ void Heap::initialize()
     });
 #endif
 
+#if defined(NDEBUG)
+    GC_set_warn_proc(GC_ignore_warn_proc);
+#endif
+
     GC_set_force_unmap_on_gcollect(1);
     initializeCustomAllocators();
 
