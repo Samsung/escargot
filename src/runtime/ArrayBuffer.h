@@ -49,7 +49,6 @@ public:
         : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
         , BufferAddressObserverManager<ArrayBuffer>()
     {
-        addFinalizer(arrayBufferFinalizer, nullptr);
     }
 
     virtual bool isArrayBuffer() const override
@@ -114,12 +113,6 @@ public:
     void* operator new[](size_t size) = delete;
 
 protected:
-    static void arrayBufferFinalizer(PointerValue* obj, void* data)
-    {
-        ArrayBuffer* self = reinterpret_cast<ArrayBuffer*>(obj);
-        self->dispose();
-    }
-
     static void backingStoreObserver(Object* from, void* newAddress, size_t newByteLength)
     {
         reinterpret_cast<ArrayBuffer*>(from)->bufferUpdated(newAddress, newByteLength);
