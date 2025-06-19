@@ -118,7 +118,6 @@ ObjectRareData::ObjectRareData(Object* obj)
 #if defined(ESCARGOT_ENABLE_TEST)
     , m_isHTMLDDA(false)
 #endif
-    , m_arrayObjectFastModeBufferExpandCount(0)
     , m_extraData(nullptr)
     , m_prototype(obj ? obj->m_prototype : nullptr)
     , m_internalSlot(nullptr)

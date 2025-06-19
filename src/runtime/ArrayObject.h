@@ -97,10 +97,9 @@ protected:
     ArrayObject()
         : DerivedObject()
         , m_arrayLength(0)
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-        , m_fastModeData()
-#else
         , m_fastModeData(nullptr)
+#if !defined(NDEBUG)
+        , m_fastModeDataBufferLength(0)
 #endif
     {
         // default constructor
@@ -115,11 +114,7 @@ protected:
 private:
     ALWAYS_INLINE bool isFastModeArray()
     {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-        return (m_fastModeData.data() != &ArrayObject::DummyArrayElement);
-#else
         return (m_fastModeData != &ArrayObject::DummyArrayElement);
-#endif
     }
 
     bool isLengthPropertyWritable()
@@ -145,10 +140,10 @@ private:
     ObjectGetResult getVirtualValue(ExecutionState& state, const ObjectPropertyName& P);
 
     uint32_t m_arrayLength;
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    TightVectorWithNoSize<ObjectPropertyValue, CustomAllocator<ObjectPropertyValue>> m_fastModeData;
-#else
+
     ObjectPropertyValue* m_fastModeData;
+#if !defined(NDEBUG)
+    size_t m_fastModeDataBufferLength;
 #endif
 };
 

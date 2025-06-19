@@ -128,11 +128,8 @@ int getValidValueInArrayObject(void* ptr, GC_mark_custom_result* arr)
     arr[2].from = (GC_word*)&current->m_values;
     arr[2].to = (GC_word*)current->m_values.data();
     arr[3].from = (GC_word*)&current->m_fastModeData;
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    arr[3].to = (GC_word*)current->m_fastModeData.data();
-#else
     arr[3].to = (GC_word*)current->m_fastModeData;
-#endif
+
     return 0;
 }
 
