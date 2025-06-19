@@ -31,9 +31,6 @@
 #include "runtime/ReloadableString.h"
 #include "intl/Intl.h"
 #include "interpreter/ByteCode.h"
-#if defined(ENABLE_TCO)
-#include "interpreter/ByteCodeInterpreter.h"
-#endif
 #if defined(ENABLE_CODE_CACHE)
 #include "codecache/CodeCache.h"
 #endif
@@ -495,12 +492,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
     m_defaultPrivateMemberStructure = new ObjectPrivateMemberStructure();
 
     m_jobQueue = new JobQueue();
-
-#if defined(ENABLE_TCO)
-    if (!Interpreter::tcoBuffer) {
-        Interpreter::initTCOBuffer();
-    }
-#endif
 
 #if defined(ENABLE_CODE_CACHE)
     if (UNLIKELY(!baseCacheDir || strlen(baseCacheDir) == 0)) {

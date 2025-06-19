@@ -38,6 +38,7 @@ namespace Escargot {
 
 class ASTAllocator;
 class String;
+class Value;
 
 class GCEventListenerSet {
 public:
@@ -118,6 +119,9 @@ class ThreadLocal {
     static MAY_THREAD_LOCAL GCEventListenerSet* g_gcEventListenerSet;
     static MAY_THREAD_LOCAL ASTAllocator* g_astAllocator;
     static MAY_THREAD_LOCAL WTF::BumpPointerAllocator* g_bumpPointerAllocator;
+#if defined(ENABLE_TCO)
+    static MAY_THREAD_LOCAL Value* g_tcoBuffer;
+#endif
     // custom data allocated by user through Platform::allocateThreadLocalCustomData
     static MAY_THREAD_LOCAL void* g_customData;
 
@@ -272,6 +276,14 @@ public:
         ASSERT(inited && !!g_bumpPointerAllocator);
         return g_bumpPointerAllocator;
     }
+
+#if defined(ENABLE_TCO)
+    static Value* tcoBuffer()
+    {
+        ASSERT(inited && !!g_tcoBuffer);
+        return g_tcoBuffer;
+    }
+#endif
 
     static void* customData()
     {
