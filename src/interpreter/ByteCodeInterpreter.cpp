@@ -62,6 +62,13 @@ void Interpreter::initTCOBuffer()
     ASSERT(!Interpreter::tcoBuffer);
     Interpreter::tcoBuffer = (Value*)GC_MALLOC_UNCOLLECTABLE(sizeof(Value) * TCO_ARGUMENT_COUNT_LIMIT);
 }
+
+void Interpreter::destroyTCOBuffer()
+{
+    GC_FREE(Interpreter::tcoBuffer);
+    Interpreter::tcoBuffer = nullptr;
+}
+
 } // namespace Escargot
 #endif
 

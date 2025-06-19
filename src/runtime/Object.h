@@ -80,16 +80,12 @@ struct ObjectRareData : public PointerValue {
 #if defined(ESCARGOT_ENABLE_TEST)
     bool m_isHTMLDDA : 1;
 #endif
-    uint8_t m_arrayObjectFastModeBufferExpandCount : 8;
     union {
         void* m_extraData;
         ObjectExtendedExtraData* m_extendedExtraData;
     };
     Object* m_prototype;
-    union {
-        Object* m_internalSlot;
-        StorePositiveNumberAsOddNumber m_arrayObjectFastModeBufferCapacity;
-    };
+    Object* m_internalSlot;
     explicit ObjectRareData(Object* obj);
 
     void* operator new(size_t size);

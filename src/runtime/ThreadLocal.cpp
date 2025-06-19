@@ -23,6 +23,7 @@
 #include "runtime/Global.h"
 #include "runtime/Platform.h"
 #include "runtime/String.h"
+#include "interpreter/ByteCodeInterpreter.h"
 #include "parser/ASTAllocator.h"
 #include "BumpPointerAllocator.h"
 #if defined(ENABLE_WASM)
@@ -324,6 +325,12 @@ void ThreadLocal::initialize()
     // g_customData
     g_customData = Global::platform()->allocateThreadLocalCustomData();
 
+#if defined(ENABLE_TCO)
+    if (!Interpreter::tcoBuffer) {
+        Interpreter::initTCOBuffer();
+    }
+#endif
+
     inited = true;
 }
 
@@ -339,6 +346,10 @@ void ThreadLocal::finalize()
     // g_customData
     Global::platform()->deallocateThreadLocalCustomData();
     g_customData = nullptr;
+
+#if defined(ENABLE_TCO)
+    Interpreter::destroyTCOBuffer();
+#endif
 
     // full gc(Heap::finalize) should be invoked after g_customData deallocation
     // because g_customData might contain GC-object

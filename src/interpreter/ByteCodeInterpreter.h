@@ -43,6 +43,7 @@ public:
 
 #if defined(ENABLE_TCO)
     static void initTCOBuffer();
+    static void destroyTCOBuffer();
 
     static MAY_THREAD_LOCAL Value* tcoBuffer;
 #endif

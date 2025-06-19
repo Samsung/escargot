@@ -28,13 +28,21 @@ namespace Escargot {
 
 ObjectPropertyValue ArrayObject::DummyArrayElement;
 
+static ObjectPropertyValue* allocateFastModeDataBuffer(size_t bufferLength)
+{
+#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
+    return CustomAllocator<ObjectPropertyValue>().allocate(bufferLength);
+#else
+    return reinterpret_cast<ObjectPropertyValue*>(GC_MALLOC(sizeof(ObjectPropertyValue) * bufferLength));
+#endif
+}
+
 ArrayObject::ArrayObject(ExecutionState& state, ForSpreadArray)
     : DerivedObject(state, state.context()->globalObject()->arrayPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
     , m_arrayLength(0)
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    , m_fastModeData()
-#else
     , m_fastModeData(nullptr)
+#if !defined(NDEBUG)
+    , m_fastModeDataBufferLength(0)
 #endif
 {
     // SpreadArray should be fast mode
@@ -50,18 +58,13 @@ ArrayObject::ArrayObject(ExecutionState& state)
 ArrayObject::ArrayObject(ExecutionState& state, Object* proto)
     : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
     , m_arrayLength(0)
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    , m_fastModeData()
-#else
     , m_fastModeData(nullptr)
+#if !defined(NDEBUG)
+    , m_fastModeDataBufferLength(0)
 #endif
 {
     if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-        m_fastModeData.reset(&ArrayObject::DummyArrayElement);
-#else
         m_fastModeData = &ArrayObject::DummyArrayElement;
-#endif
     }
 }
 
@@ -77,11 +80,7 @@ ArrayObject::ArrayObject(ExecutionState& state, Object* proto, const uint64_t& s
         if (UNLIKELY(state.context()->vmInstance()->didSomePrototypeObjectDefineIndexedProperty())) {
             // m_fastModeData has the initial value `DummyArrayElement`
             // this could trigger an error while destructing of m_fastModeData when an exception thrown right after here
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-            m_fastModeData.reset();
-#else
             m_fastModeData = nullptr;
-#endif
         }
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_InvalidArrayLength);
     }
@@ -401,13 +400,8 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
 
     // convert to non-fast mode first because it could affect Object::defineOwnProperty
     // hold a temporal array until the end of non-fast mode conversion
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    TightVectorWithNoSize<ObjectPropertyValue, CustomAllocator<ObjectPropertyValue>> tempFastModeData(std::move(m_fastModeData));
-    m_fastModeData.reset(&ArrayObject::DummyArrayElement);
-#else
     ObjectPropertyValue* tempFastModeData = m_fastModeData;
     m_fastModeData = &ArrayObject::DummyArrayElement;
-#endif
 
     auto length = arrayLength(state);
     for (size_t i = 0; i < length; i++) {
@@ -417,11 +411,7 @@ void ArrayObject::convertIntoNonFastMode(ExecutionState& state)
     }
 
     // deallocate fast mode data
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-    tempFastModeData.resizeWithUninitializedValues(length, 0);
-#else
     GC_FREE(tempFastModeData);
-#endif
 }
 
 bool ArrayObject::setArrayLength(ExecutionState& state, const Value& newLength)
@@ -464,105 +454,45 @@ bool ArrayObject::setArrayLength(ExecutionState& state, const uint32_t newLength
         auto oldLength = arrayLength(state);
         if (LIKELY(oldLength != newLength)) {
             m_arrayLength = newLength;
-            if (useFitStorage || oldLength == 0 || newLength <= 128) {
-                bool hasRD = hasRareData();
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-                m_fastModeData.resizeWithUninitializedValues(oldLength, newLength);
-
-                if (oldLength < newLength) {
-                    memset(static_cast<void*>(m_fastModeData.data() + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
-                }
+#if defined(NDEBUG)
+            size_t oldBufferLength = m_fastModeData == &DummyArrayElement ? 0 : GC_size(m_fastModeData);
 #else
-                size_t oldCapacity = hasRD ? (size_t)rareData()->m_arrayObjectFastModeBufferCapacity : 0;
-                if (oldCapacity) {
-                    if (newLength > oldCapacity) {
-                        m_fastModeData = (EncodedValue*)GC_REALLOC(m_fastModeData, sizeof(EncodedValue) * newLength);
-
-                        if (oldLength < newLength) {
-                            memset(static_cast<void*>(m_fastModeData + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
-                        }
-
-                    } else {
-                        m_fastModeData = (EncodedValue*)GC_REALLOC(m_fastModeData, sizeof(EncodedValue) * newLength);
-                    }
-                } else {
-                    m_fastModeData = (EncodedValue*)GC_REALLOC(m_fastModeData, sizeof(EncodedValue) * newLength);
-
-                    if (oldLength < newLength) {
-                        memset(static_cast<void*>(m_fastModeData + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
-                    }
-                }
+            size_t oldBufferLength = m_fastModeDataBufferLength;
 #endif
-                if (hasRD) {
-                    rareData()->m_arrayObjectFastModeBufferCapacity = 0;
+            size_t oldCapacity = oldBufferLength / sizeof(ObjectPropertyValue);
+            if (useFitStorage || oldLength == 0 || newLength <= 128) {
+                if (newLength > oldCapacity) {
+                    auto newBuffer = allocateFastModeDataBuffer(newLength);
+#if !defined(NDEBUG)
+                    m_fastModeDataBufferLength = newLength * sizeof(ObjectPropertyValue);
+#endif
+                    if (oldBufferLength) {
+                        memcpy(newBuffer, m_fastModeData, oldBufferLength);
+                        GC_FREE(m_fastModeData);
+                    }
+                    m_fastModeData = newBuffer;
+                } else if (oldLength > newLength) {
+                    memset(static_cast<void*>(m_fastModeData + newLength), 0, sizeof(ObjectPropertyValue) * (oldLength - newLength));
                 }
             } else {
                 ASSERT(newLength > 128);
-
-                const size_t minExpandCountForUsingLog2Function = 3;
-                bool hasRD = hasRareData();
-                size_t oldCapacity = hasRD ? (size_t)rareData()->m_arrayObjectFastModeBufferCapacity : oldLength;
-
-#if defined(ESCARGOT_64) && defined(ESCARGOT_USE_32BIT_IN_64BIT)
-                auto rd = ensureRareData();
                 if (newLength > oldCapacity) {
-                    size_t newCapacity;
-                    if (rd->m_arrayObjectFastModeBufferExpandCount >= minExpandCountForUsingLog2Function) {
-                        ComputeReservedCapacityFunctionWithLog2<> f;
-                        newCapacity = f(newLength);
-                    } else {
-                        ComputeReservedCapacityFunctionWithPercent<130> f;
-                        newCapacity = f(newLength);
-                    }
-                    m_fastModeData.resizeWithUninitializedValues(oldLength, newCapacity);
-
-
-                    if (oldLength < newLength) {
-                        memset(static_cast<void*>(m_fastModeData.data() + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
-                    }
-
-                    rd->m_arrayObjectFastModeBufferCapacity = newCapacity;
-                    if (rd->m_arrayObjectFastModeBufferExpandCount < minExpandCountForUsingLog2Function) {
-                        rd->m_arrayObjectFastModeBufferExpandCount++;
-                    }
-                } else {
-                    if (oldLength < newLength) {
-                        memset(static_cast<void*>(m_fastModeData.data() + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
-                    }
-
-                    rd->m_arrayObjectFastModeBufferCapacity = oldCapacity;
-                }
-#else
-                auto rd = ensureRareData();
-                if (newLength > oldCapacity) {
-                    size_t newCapacity;
-                    if (rd->m_arrayObjectFastModeBufferExpandCount >= minExpandCountForUsingLog2Function) {
-                        ComputeReservedCapacityFunctionWithLog2<> f;
-                        newCapacity = f(newLength);
-                    } else {
-                        ComputeReservedCapacityFunctionWithPercent<130> f;
-                        newCapacity = f(newLength);
-                    }
-                    auto newFastModeData = (EncodedValue*)GC_MALLOC(sizeof(EncodedValue) * newCapacity);
-                    memcpy(newFastModeData, m_fastModeData, sizeof(EncodedValue) * oldLength);
-                    GC_FREE(m_fastModeData);
-                    m_fastModeData = newFastModeData;
-
-                    if (oldLength < newLength) {
-                        memset(static_cast<void*>(m_fastModeData + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
-                    }
-
-                    rd->m_arrayObjectFastModeBufferCapacity = newCapacity;
-                    if (rd->m_arrayObjectFastModeBufferExpandCount < minExpandCountForUsingLog2Function) {
-                        rd->m_arrayObjectFastModeBufferExpandCount++;
-                    }
-                } else {
-                    if (oldLength < newLength) {
-                        memset(static_cast<void*>(m_fastModeData + oldLength), 0, sizeof(ObjectPropertyValue) * (newLength - oldLength));
-                    }
-                    rd->m_arrayObjectFastModeBufferCapacity = oldCapacity;
-                }
+                    ComputeReservedCapacityFunctionWithLog2<> f;
+                    size_t newCapacity = f(newLength);
+#if !defined(NDEBUG)
+                    m_fastModeDataBufferLength = newLength * sizeof(ObjectPropertyValue);
 #endif
+                    if (oldCapacity) {
+                        auto newBuffer = allocateFastModeDataBuffer(newCapacity);
+                        memcpy(newBuffer, m_fastModeData, oldBufferLength);
+                        GC_FREE(m_fastModeData);
+                        m_fastModeData = newBuffer;
+                    } else {
+                        m_fastModeData = allocateFastModeDataBuffer(newCapacity);
+                    }
+                } else if (oldLength > newLength) {
+                    memset(static_cast<void*>(m_fastModeData + newLength), 0, sizeof(ObjectPropertyValue) * (oldLength - newLength));
+                }
             }
 
             if (UNLIKELY(!isLengthPropertyWritable())) {
