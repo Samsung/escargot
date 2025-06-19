@@ -23,6 +23,7 @@
 #include "runtime/Global.h"
 #include "runtime/Platform.h"
 #include "runtime/String.h"
+#include "runtime/Value.h"
 #include "parser/ASTAllocator.h"
 #include "BumpPointerAllocator.h"
 #if defined(ENABLE_WASM)
@@ -87,6 +88,9 @@ MAY_THREAD_LOCAL WASMContext ThreadLocal::g_wasmContext;
 MAY_THREAD_LOCAL GCEventListenerSet* ThreadLocal::g_gcEventListenerSet;
 MAY_THREAD_LOCAL ASTAllocator* ThreadLocal::g_astAllocator;
 MAY_THREAD_LOCAL WTF::BumpPointerAllocator* ThreadLocal::g_bumpPointerAllocator;
+#if defined(ENABLE_TCO)
+MAY_THREAD_LOCAL Value* ThreadLocal::g_tcoBuffer;
+#endif
 MAY_THREAD_LOCAL void* ThreadLocal::g_customData;
 
 GCEventListenerSet::EventListenerVector* GCEventListenerSet::ensureMarkStartListeners()
@@ -321,6 +325,11 @@ void ThreadLocal::initialize()
     // g_bumpPointerAllocator
     g_bumpPointerAllocator = new WTF::BumpPointerAllocator();
 
+#if defined(ENABLE_TCO)
+    // g_tcoBuffer
+    g_tcoBuffer = reinterpret_cast<Value*>(GC_MALLOC_UNCOLLECTABLE(sizeof(Value) * TCO_ARGUMENT_COUNT_LIMIT));
+#endif
+
     // g_customData
     g_customData = Global::platform()->allocateThreadLocalCustomData();
 
@@ -339,6 +348,12 @@ void ThreadLocal::finalize()
     // g_customData
     Global::platform()->deallocateThreadLocalCustomData();
     g_customData = nullptr;
+
+#if defined(ENABLE_TCO)
+    // g_tcoBuffer
+    GC_FREE(g_tcoBuffer);
+    g_tcoBuffer = nullptr;
+#endif
 
     // full gc(Heap::finalize) should be invoked after g_customData deallocation
     // because g_customData might contain GC-object

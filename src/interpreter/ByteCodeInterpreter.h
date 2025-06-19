@@ -40,12 +40,6 @@ public:
     };
 
     static Value interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock, size_t programCounter, Value* registerFile);
-
-#if defined(ENABLE_TCO)
-    static void initTCOBuffer();
-
-    static MAY_THREAD_LOCAL Value* tcoBuffer;
-#endif
 };
 } // namespace Escargot
 

@@ -53,16 +53,6 @@
 
 #if defined(ENABLE_TCO)
 #include "runtime/FunctionObjectInlines.h"
-
-namespace Escargot {
-MAY_THREAD_LOCAL Value* Interpreter::tcoBuffer;
-
-void Interpreter::initTCOBuffer()
-{
-    ASSERT(!Interpreter::tcoBuffer);
-    Interpreter::tcoBuffer = (Value*)GC_MALLOC_UNCOLLECTABLE(sizeof(Value) * TCO_ARGUMENT_COUNT_LIMIT);
-}
-} // namespace Escargot
 #endif
 
 #if defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER) && !defined(ESCARGOT_COMPUTED_GOTO_INTERPRETER_INIT_WITH_NULL)
@@ -1569,7 +1559,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
 #endif
                 // At the start of tail call, we need to allocate a buffer for arguments
                 // because recursive tail call reuses this buffer
-                state->initTCOWithBuffer(Interpreter::tcoBuffer);
+                state->initTCOWithBuffer(ThreadLocal::tcoBuffer());
             }
             state->m_argc = code->m_argumentCount;
 
@@ -3494,8 +3484,8 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
             // At the start of tail call, we need to allocate a buffer for arguments
             // because recursive tail call reuses this buffer
             if (UNLIKELY(!state->inTCO())) {
-                ASSERT(Interpreter::tcoBuffer);
-                state->initTCOWithBuffer(Interpreter::tcoBuffer);
+                ASSERT(ThreadLocal::tcoBuffer());
+                state->initTCOWithBuffer(ThreadLocal::tcoBuffer());
             }
             state->m_argc = argCount;
 
@@ -5089,7 +5079,7 @@ NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionSta
 {
     ASSERT(!callee->isScriptArrowFunctionObject() && !!callerByteBlock);
     ASSERT(state->m_programCounter == &programCounter);
-    ASSERT(Interpreter::tcoBuffer);
+    ASSERT(ThreadLocal::tcoBuffer());
     ASSERT(code->m_argumentCount <= TCO_ARGUMENT_COUNT_LIMIT);
 
     InterpretedCodeBlock* calleeBlock = callee->interpretedCodeBlock();
@@ -5158,7 +5148,7 @@ NEVER_INLINE Value InterpreterSlowPath::prepareTailCallOptimization(ExecutionSta
         if (!state->inTCO()) {
             // At the start of tail call, we need to set a buffer for arguments
             // because tail call reuses this buffer
-            state->initTCOWithBuffer(Interpreter::tcoBuffer);
+            state->initTCOWithBuffer(ThreadLocal::tcoBuffer());
         }
         state->m_argc = code->m_argumentCount;
 
