@@ -496,12 +496,6 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
 
     m_jobQueue = new JobQueue();
 
-#if defined(ENABLE_TCO)
-    if (!Interpreter::tcoBuffer) {
-        Interpreter::initTCOBuffer();
-    }
-#endif
-
 #if defined(ENABLE_CODE_CACHE)
     if (UNLIKELY(!baseCacheDir || strlen(baseCacheDir) == 0)) {
         const char* homeDir = getenv("HOME");
