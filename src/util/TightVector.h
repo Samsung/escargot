@@ -119,13 +119,9 @@ public:
 
     void pushBack(const T& val)
     {
-        if (
-#if defined(NDEBUG)
-            GC_size(m_buffer) < (m_size + 1) * sizeof(T)
-#else
-            true
-#endif
-        ) {
+        if (std::is_fundamental<T>::value && m_buffer) {
+            m_buffer = reinterpret_cast<T*>(GC_REALLOC_NO_SHRINK(m_buffer, (m_size + 1) * sizeof(T)));
+        } else {
             T* newBuffer = Allocator().allocate(m_size + 1);
             VectorCopier<T>::copy(newBuffer, m_buffer, m_size);
             if (m_buffer) {
@@ -365,13 +361,9 @@ public:
 
     void pushBack(const T& val, size_t newSize)
     {
-        if (
-#if defined(NDEBUG)
-            GC_size(m_buffer) < newSize * sizeof(T)
-#else
-            true
-#endif
-        ) {
+        if (std::is_fundamental<T>::value && m_buffer) {
+            m_buffer = reinterpret_cast<T*>(GC_REALLOC_NO_SHRINK(m_buffer, newSize * sizeof(T)));
+        } else {
             T* newBuffer = Allocator().allocate(newSize);
             VectorCopier<T>::copy(newBuffer, m_buffer, newSize - 1);
             if (m_buffer) {
@@ -591,25 +583,27 @@ public:
         m_buffer = resetData;
     }
 
+    void expandBuffer(size_t newSize)
+    {
+        if (m_buffer == nullptr) {
+            if (newSize) {
+                m_buffer = GCAllocator().allocate(newSize);
+            }
+        } else {
+            m_buffer = reinterpret_cast<T*>(GC_REALLOC_NO_SHRINK(m_buffer, newSize * sizeof(T)));
+        }
+    }
+
+protected:
     void expandBuffer(size_t newSize, size_t oldSize)
     {
         if (m_buffer == nullptr) {
             m_buffer = GCAllocator().allocate(newSize);
         } else {
-#if defined(NDEBUG)
-            if (GC_size(m_buffer) < newSize * sizeof(T)) {
-                auto newBuffer = GCAllocator().allocate(newSize);
-                VectorCopier<T>::copy(newBuffer, m_buffer, oldSize);
-                GC_FREE(m_buffer);
-                m_buffer = newBuffer;
-            }
-#else
-            m_buffer = (T*)GC_REALLOC(m_buffer, newSize * sizeof(T));
-#endif
+            m_buffer = reinterpret_cast<T*>(GC_REALLOC_NO_SHRINK(m_buffer, newSize * sizeof(T)));
         }
     }
 
-protected:
     T* m_buffer;
 };
 } // namespace Escargot
