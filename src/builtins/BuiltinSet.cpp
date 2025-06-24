@@ -154,6 +154,121 @@ static Value builtinSetForEach(ExecutionState& state, Value thisValue, size_t ar
     return Value();
 }
 
+// https://tc39.es/proposal-set-methods/#sec-getsetrecord
+struct SetRecord {
+    Object* set;
+    size_t size;
+    Value has;
+    Value keys;
+};
+
+static SetRecord getSetRecord(ExecutionState& state, const Value& objInput)
+{
+    // 1. If obj is not an Object, throw a TypeError exception.
+    if (!objInput.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_FirstArgumentNotObject);
+    }
+    Object* obj = objInput.asObject();
+    // 2. Let rawSize be ? Get(obj, "size").
+    auto rawSize = obj->get(state, ObjectPropertyName(state.context()->staticStrings().size)).value(state, obj);
+    // 3. Let numSize be ? ToNumber(rawSize).
+    // 4. NOTE: If rawSize is undefined, then numSize will be NaN.
+    auto numSize = rawSize.toNumber(state);
+    // 5. If numSize is NaN, throw a TypeError exception.
+    if (std::isnan(numSize)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid obj.size");
+    }
+    // 6. Let intSize be ! ToIntegerOrInfinity(numSize).
+    auto intSize = Value(Value::DoubleToIntConvertibleTestNeeds, numSize).toInteger(state);
+    // 7. If intSize < 0, throw a RangeError exception.
+    if (intSize < 0) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid obj.size");
+    }
+    // 8. Let has be ? Get(obj, "has").
+    auto has = obj->get(state, ObjectPropertyName(state.context()->staticStrings().has)).value(state, obj);
+    // 9. If IsCallable(has) is false, throw a TypeError exception.
+    if (!has.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "obj.has is not callable");
+    }
+    // 10. Let keys be ? Get(obj, "keys").
+    auto keys = obj->get(state, ObjectPropertyName(state.context()->staticStrings().keys)).value(state, obj);
+    // 11. If IsCallable(keys) is false, throw a TypeError exception.
+    if (!keys.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "obj.keys is not callable");
+    }
+    // 12. Return a new Set Record { [[Set]]: obj, [[Size]]: intSize, [[Has]]: has, [[Keys]]: keys }.
+    return { obj, static_cast<size_t>(intSize), has, keys };
+}
+
+// https://tc39.es/ecma262/#sec-setdataindex
+static size_t setDataIndex(ExecutionState& state, const SetObject::SetObjectData& setData, Value value)
+{
+    // 1. Set value to CanonicalizeKeyedCollectionKey(value).
+    value = value.toCanonicalizeKeyedCollectionKey(state);
+    // 2. Let size be the number of elements in setData.
+    size_t size = setData.size();
+    // 3. Let index be 0.
+    size_t index = 0;
+    // 4. Repeat, while index < size,
+    while (index < size) {
+        // a. Let e be setData[index].
+        auto e = setData[index];
+        // b. If e is not empty and e is SameValueZero(e, value), then
+        if (!e.isEmpty() && value.equalsToByTheSameValueZeroAlgorithm(state, Value(e))) {
+            // i. Return index.
+            return index;
+        }
+        // c. Set index to index + 1.
+        index++;
+    }
+    // 5. Return not-found.
+    return SIZE_MAX;
+}
+
+// https://tc39.es/ecma262/#sec-setdatahas
+static bool setDataHas(ExecutionState& state, const SetObject::SetObjectData& setData, const Value& value)
+{
+    return setDataIndex(state, setData, value) != SIZE_MAX;
+}
+
+// https://tc39.es/ecma262/#sec-set.prototype.union
+static Value builtinSetUnion(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // 1. Let O be the this value.
+    // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, stringUnion);
+    // 3. Let otherRec be ? GetSetRecord(other).
+    SetRecord otherRec = getSetRecord(state, argv[0]);
+    // 4. Let keysIter be ? GetIteratorFromMethod(otherRec.[[Set]], otherRec.[[Keys]]).
+    auto keysIter = IteratorObject::getIteratorFromMethod(state, otherRec.set, otherRec.keys);
+    // 5. Let resultSetData be a copy of O.[[SetData]].
+    SetObject::SetObjectData resultSetData = O->asSetObject()->storage();
+    // 6. Let next be true.
+    // 7. Repeat, while next is not false,
+    while (true) {
+        // a. Set next to ? IteratorStep(keysIter).
+        Optional<Object*> next = IteratorObject::iteratorStep(state, keysIter);
+        // b. If next is not false, then
+        if (next) {
+            // i. Let nextValue be ? IteratorValue(next).
+            auto nextValue = IteratorObject::iteratorValue(state, next.value());
+            // Set nextValue to CanonicalizeKeyedCollectionKey(nextValue).
+            nextValue = nextValue.toCanonicalizeKeyedCollectionKey(state);
+            // ii. If SetDataHas(resultSetData, nextValue) is false, then
+            if (!setDataHas(state, resultSetData, nextValue)) {
+                // 1. Append nextValue to resultSetData.
+                resultSetData.pushBack(nextValue);
+            }
+        } else {
+            break;
+        }
+    }
+    // 8. Let result be OrdinaryObjectCreate(%Set.prototype%, « [[SetData]] »).
+    // 9. Set result.[[SetData]] to resultSetData.
+    // 10. Return result.
+    return new SetObject(state, state.context()->globalObject()->setPrototypeObject(), std::move(resultSetData));
+}
+
 static Value builtinSetValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, values);
@@ -225,6 +340,9 @@ void GlobalObject::installSet(ExecutionState& state)
 
     m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().forEach),
                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().forEach, builtinSetForEach, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringUnion),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringUnion, builtinSetUnion, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     auto valuesFn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinSetValues, 0, NativeFunctionInfo::Strict));
     auto values = ObjectPropertyDescriptor(valuesFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent));

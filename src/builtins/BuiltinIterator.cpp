@@ -122,17 +122,6 @@ static Value builtinIteratorHelperPrototypeReturn(ExecutionState& state, Value t
     return IteratorObject::createIterResultObject(state, Value(), true);
 }
 
-// https://tc39.es/proposal-iterator-helpers/#sec-getiteratordirect
-IteratorRecord* getIteratorDirect(ExecutionState& state, Object* obj)
-{
-    // Let nextMethod be ? Get(obj, "next").
-    Value nextMethod = obj->get(state, ObjectPropertyName(state.context()->staticStrings().next)).value(state, obj);
-    // Let iteratorRecord be Record { [[Iterator]]: obj, [[NextMethod]]: nextMethod, [[Done]]: false }.
-    IteratorRecord* record = new IteratorRecord(obj, nextMethod, false);
-    // Return iteratorRecord.
-    return record;
-}
-
 struct IteratorMapData : public gc {
     StorePositiveNumberAsOddNumber counter;
     Value mapper;
@@ -191,7 +180,7 @@ static Value builtinIteratorMap(ExecutionState& state, Value thisValue, size_t a
     }
 
     // Let iterated be ? GetIteratorDirect(O).
-    IteratorRecord* iterated = getIteratorDirect(state, O.asObject());
+    IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
     // Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
     // Set result.[[UnderlyingIterator]] to iterated.
     IteratorHelperObject* result = new IteratorHelperObject(state, iteratorMapClosure, iterated, new IteratorMapData(mapper));

@@ -912,6 +912,7 @@ public:
     AtomicString stringTrue;
     AtomicString stringTry;
     AtomicString stringTypeof;
+    AtomicString stringUnion;
     AtomicString stringVoid;
     AtomicString stringWhile;
 #if defined(ENABLE_THREADING)

@@ -69,6 +69,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(stringTrue, "true");
     INIT_STATIC_STRING(stringTry, "try");
     INIT_STATIC_STRING(stringTypeof, "typeof");
+    INIT_STATIC_STRING(stringUnion, "union");
     INIT_STATIC_STRING(stringVoid, "void");
     INIT_STATIC_STRING(stringWhile, "while");
 #if defined(ENABLE_THREADING)

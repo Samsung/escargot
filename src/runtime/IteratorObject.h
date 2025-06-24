@@ -125,6 +125,10 @@ public:
     };
     typedef Vector<KeyedGroup*, GCUtil::gc_malloc_allocator<KeyedGroup*>> KeyedGroupVector;
     static KeyedGroupVector groupBy(ExecutionState& state, const Value& items, const Value& callbackfn, GroupByKeyCoercion keyCoercion);
+    // https://tc39.es/proposal-iterator-helpers/#sec-getiteratordirect
+    static IteratorRecord* getIteratorDirect(ExecutionState& state, Object* obj);
+    // https://tc39.es/ecma262/#sec-getiteratorfrommethod
+    static IteratorRecord* getIteratorFromMethod(ExecutionState& state, const Value& obj, const Value& method);
 };
 
 class IteratorHelperObject : public IteratorObject {

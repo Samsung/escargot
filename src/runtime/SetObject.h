@@ -35,6 +35,7 @@ public:
 
     explicit SetObject(ExecutionState& state);
     explicit SetObject(ExecutionState& state, Object* proto);
+    explicit SetObject(ExecutionState& state, Object* proto, SetObjectData&& data);
 
     virtual bool isSetObject() const override
     {

@@ -34,6 +34,12 @@ SetObject::SetObject(ExecutionState& state, Object* proto)
 {
 }
 
+SetObject::SetObject(ExecutionState& state, Object* proto, SetObjectData&& data)
+    : SetObject(state, proto)
+{
+    m_storage = data;
+}
+
 void* SetObject::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;
