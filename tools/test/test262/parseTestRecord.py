@@ -16,7 +16,7 @@ import subprocess
 import sys
 import tempfile
 import time
-import imp
+import importlib.util
 
 # from TestCasePackagerConfig import *
 
@@ -125,14 +125,22 @@ def importYamlLoad():
     yamlLoad = monkeyYaml.load
 
 def loadMonkeyYaml():
-    f = None
     try:
         p = os.path.dirname(os.path.realpath(__file__))
-        (f, pathname, description) = imp.find_module("monkeyYaml", [p])
-        module = imp.load_module("monkeyYaml", f, pathname, description)
+        module_path = os.path.join(p, "monkeyYaml.py")
+
+        if not os.path.exists(module_path):
+            raise ImportError("monkeyYaml.py not found in expected path")
+
+        spec = importlib.util.spec_from_file_location("monkeyYaml", module_path)
+        if spec is None or spec.loader is None:
+            raise ImportError("Cannot create module spec for monkeyYaml")
+
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["monkeyYaml"] = module  # 선택 사항
+        spec.loader.exec_module(module)
+
         return module
-    except:
-        raise ImportError("Cannot load monkeyYaml")
-    finally:
-        if f:
-            f.close()
+
+    except Exception as e:
+        raise ImportError("Cannot load monkeyYaml") from e
