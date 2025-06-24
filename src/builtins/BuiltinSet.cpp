@@ -231,6 +231,22 @@ static bool setDataHas(ExecutionState& state, const SetObject::SetObjectData& se
     return setDataIndex(state, setData, value) != SIZE_MAX;
 }
 
+// https://tc39.es/ecma262/#sec-setdatasize
+static size_t setDataSize(ExecutionState& state, const SetObject::SetObjectData& setData)
+{
+    // 1. Let count be 0.
+    // 2. For each element e of setData, do
+    //   a. If e is not empty, set count to count + 1.
+    // 3. Return count.
+    size_t count = 0;
+    for (const auto& d : setData) {
+        if (!d.isEmpty()) {
+            count++;
+        }
+    }
+    return count;
+}
+
 // https://tc39.es/ecma262/#sec-set.prototype.union
 static Value builtinSetUnion(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -266,6 +282,84 @@ static Value builtinSetUnion(ExecutionState& state, Value thisValue, size_t argc
     // 8. Let result be OrdinaryObjectCreate(%Set.prototype%, « [[SetData]] »).
     // 9. Set result.[[SetData]] to resultSetData.
     // 10. Return result.
+    return new SetObject(state, state.context()->globalObject()->setPrototypeObject(), std::move(resultSetData));
+}
+
+// https://tc39.es/ecma262/#sec-set.prototype.intersection
+static Value builtinSetIntersection(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // 1. Let O be the this value.
+    // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, intersection);
+    // 3. Let otherRec be ? GetSetRecord(other).
+    SetRecord otherRec = getSetRecord(state, argv[0]);
+    // 4. Let resultSetData be a new empty List.
+    SetObject::SetObjectData resultSetData;
+
+    // 5. If SetDataSize(O.[[SetData]]) ≤ otherRec.[[Size]], then
+    if (setDataSize(state, O->storage()) <= otherRec.size) {
+        // a. Let thisSize be the number of elements in O.[[SetData]].
+        auto thisSize = O->storage().size();
+        // b. Let index be 0.
+        size_t index = 0;
+        // c. Repeat, while index < thisSize
+        while (index < thisSize) {
+            // i. Let e be O.[[SetData]][index].
+            Value e = O->storage()[index];
+            // ii. Set index to index + 1.
+            index++;
+            // iii. If e is not empty, then
+            if (!e.isEmpty()) {
+                // 1. Let inOther be ToBoolean(? Call(otherRec.[[Has]], otherRec.[[SetObject]], « e »)).
+                Value argv = e;
+                bool inOther = Object::call(state, otherRec.has, otherRec.set, 1, &argv).toBoolean();
+                // 2. If inOther is true, then
+                if (inOther) {
+                    // a. NOTE: It is possible for earlier calls to otherRec.[[Has]] to remove and re-add an element of O.[[SetData]], which can cause the same element to be visited twice during this iteration.
+                    // b. If SetDataHas(resultSetData, e) is false, then
+                    if (!setDataHas(state, resultSetData, e)) {
+                        // i. Append e to resultSetData.
+                        resultSetData.pushBack(e);
+                    }
+                    // 3. NOTE: The number of elements in O.[[SetData]] may have increased during execution of otherRec.[[Has]].
+                    // 4. Set thisSize to the number of elements in O.[[SetData]].
+                    thisSize = O->storage().size();
+                }
+            }
+        }
+    } else {
+        // Else,
+        // a. Let keysIter be ? GetIteratorFromMethod(otherRec.[[SetObject]], otherRec.[[Keys]]).
+        auto keysIter = IteratorObject::getIteratorFromMethod(state, otherRec.set, otherRec.keys);
+        // b. Let next be not-started.
+        // c. Repeat, while next is not done,
+        while (true) {
+            // i. Set next to ? IteratorStepValue(keysIter).
+            auto next = IteratorObject::iteratorStepValue(state, keysIter);
+            // ii. If next is not done, then
+            if (next) {
+                // 1. Set next to CanonicalizeKeyedCollectionKey(next).
+                next = next.value().toCanonicalizeKeyedCollectionKey(state);
+                // 2. Let inThis be SetDataHas(O.[[SetData]], next).
+                bool inThis = setDataHas(state, O->storage(), next.value());
+                // 3. If inThis is true, then
+                if (inThis) {
+                    // a. NOTE: Because other is an arbitrary object, it is possible for its "keys" iterator to produce the same value more than once.
+                    // b. If SetDataHas(resultSetData, next) is false, then
+                    if (!setDataHas(state, resultSetData, next.value())) {
+                        // i. Append next to resultSetData.
+                        resultSetData.pushBack(next.value());
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    // 7. Let result be OrdinaryObjectCreate(%Set.prototype%, « [[SetData]] »).
+    // 8. Set result.[[SetData]] to resultSetData.
+    // 9. Return result.
     return new SetObject(state, state.context()->globalObject()->setPrototypeObject(), std::move(resultSetData));
 }
 
@@ -343,6 +437,9 @@ void GlobalObject::installSet(ExecutionState& state)
 
     m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().stringUnion),
                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().stringUnion, builtinSetUnion, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().intersection),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().intersection, builtinSetIntersection, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     auto valuesFn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinSetValues, 0, NativeFunctionInfo::Strict));
     auto values = ObjectPropertyDescriptor(valuesFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent));

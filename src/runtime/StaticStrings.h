@@ -296,6 +296,7 @@ namespace Escargot {
     F(input)                      \
     F(instanceof)                 \
     F(interface)                  \
+    F(intersection)               \
     F(is)                         \
     F(isArray)                    \
     F(isConcatSpreadable)         \
