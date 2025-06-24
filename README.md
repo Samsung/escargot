@@ -63,7 +63,7 @@ The following build options are supported when generating ninja rules using cmak
 
 General build prerequisites:
 ```sh
-sudo apt-get install autoconf automake cmake libtool libicu-dev ninja-build
+sudo apt-get install autoconf automake cmake libtool libicu-dev ninja-build pkg-config
 ```
 
 Prerequisites for x86-64-to-x86 compilation:
