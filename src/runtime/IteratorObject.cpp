@@ -351,6 +351,30 @@ IteratorObject::KeyedGroupVector IteratorObject::groupBy(ExecutionState& state, 
     }
 }
 
+// https://tc39.es/proposal-iterator-helpers/#sec-getiteratordirect
+IteratorRecord* IteratorObject::getIteratorDirect(ExecutionState& state, Object* obj)
+{
+    // Let nextMethod be ? Get(obj, "next").
+    Value nextMethod = obj->get(state, ObjectPropertyName(state.context()->staticStrings().next)).value(state, obj);
+    // Let iteratorRecord be Record { [[Iterator]]: obj, [[NextMethod]]: nextMethod, [[Done]]: false }.
+    IteratorRecord* record = new IteratorRecord(obj, nextMethod, false);
+    // Return iteratorRecord.
+    return record;
+}
+
+// https://tc39.es/ecma262/#sec-getiteratorfrommethod
+IteratorRecord* IteratorObject::getIteratorFromMethod(ExecutionState& state, const Value& obj, const Value& method)
+{
+    // 1. Let iterator be ? Call(method, obj).
+    Value iterator = Object::call(state, method, obj, 0, nullptr);
+    // 2. If iterator is not an Object, throw a TypeError exception.
+    if (!iterator.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "iterator is not object");
+    }
+    // 3. Return ? GetIteratorDirect(iterator).
+    return getIteratorDirect(state, iterator.asObject());
+}
+
 IteratorHelperObject::IteratorHelperObject(ExecutionState& state, IteratorHelperObjectCallback callback,
                                            IteratorRecord* underlyingIterator, void* data)
     : IteratorObject(state, state.context()->globalObject()->iteratorHelperPrototype())
