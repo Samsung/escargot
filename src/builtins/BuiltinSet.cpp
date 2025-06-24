@@ -363,6 +363,67 @@ static Value builtinSetIntersection(ExecutionState& state, Value thisValue, size
     return new SetObject(state, state.context()->globalObject()->setPrototypeObject(), std::move(resultSetData));
 }
 
+// https://tc39.es/ecma262/#sec-set.prototype.isdisjointfrom
+static Value builtinSetIsDisjointFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // 1. Let O be the this value.
+    // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, isDisjointFrom);
+    // 3. Let otherRec be ? GetSetRecord(other).
+    SetRecord otherRec = getSetRecord(state, argv[0]);
+    // 4. If SetDataSize(O.[[SetData]]) ≤ otherRec.[[Size]], then
+    if (setDataSize(state, O->storage()) <= otherRec.size) {
+        // a. Let thisSize be the number of elements in O.[[SetData]].
+        auto thisSize = O->storage().size();
+        // b. Let index be 0.
+        size_t index = 0;
+        // c. Repeat, while index < thisSize,
+        while (index < thisSize) {
+            // i. Let e be O.[[SetData]][index].
+            Value e = O->storage()[index];
+            // ii. Set index to index + 1.
+            index++;
+            // iii. If e is not empty, then
+            if (!e.isEmpty()) {
+                // 1. Let inOther be ToBoolean(? Call(otherRec.[[Has]], otherRec.[[SetObject]], « e »)).
+                Value argv = e;
+                bool inOther = Object::call(state, otherRec.has, otherRec.set, 1, &argv).toBoolean();
+                // 2. If inOther is true, return false.
+                if (inOther) {
+                    return Value(false);
+                }
+                // 3. NOTE: The number of elements in O.[[SetData]] may have increased during execution of otherRec.[[Has]].
+                // 4. Set thisSize to the number of elements in O.[[SetData]].
+                thisSize = O->storage().size();
+            }
+        }
+    } else {
+        // 5. Else,
+        // a. Let keysIter be ? GetIteratorFromMethod(otherRec.[[SetObject]], otherRec.[[Keys]]).
+        auto keysIter = IteratorObject::getIteratorFromMethod(state, otherRec.set, otherRec.keys);
+        // b. Let next be not-started.
+        // c. Repeat, while next is not done,
+        while (true) {
+            // i. Set next to ? IteratorStepValue(keysIter).
+            auto next = IteratorObject::iteratorStepValue(state, keysIter);
+            // ii. If next is not done, then
+            if (next) {
+                // 1. If SetDataHas(O.[[SetData]], next) is true, then
+                if (setDataHas(state, O->storage(), next.value())) {
+                    // a. Perform ? IteratorClose(keysIter, NormalCompletion(unused)).
+                    IteratorObject::iteratorClose(state, keysIter, Value(), false);
+                    // b. Return false.
+                    return Value(false);
+                }
+            } else {
+                break;
+            }
+        }
+    }
+    // 6. Return true.
+    return Value(true);
+}
+
 static Value builtinSetValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, values);
@@ -440,6 +501,9 @@ void GlobalObject::installSet(ExecutionState& state)
 
     m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().intersection),
                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().intersection, builtinSetIntersection, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isDisjointFrom),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isDisjointFrom, builtinSetIsDisjointFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     auto valuesFn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinSetValues, 0, NativeFunctionInfo::Strict));
     auto values = ObjectPropertyDescriptor(valuesFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
