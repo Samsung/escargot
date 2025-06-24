@@ -139,9 +139,11 @@ jobs:
       matrix:
         # clang-cl with cannot generate c++ exception code well
         # if clang-cl bug fixed, we can add x64
+        # clang version and STL version are sometimes not matched in github actions,
+        # so I add -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH
         arch: [
-          {cpu: "x86", flag: "-m32"}
-          # , {cpu: "x64", flag: ""}
+          {cpu: "x86", flag: "-m32 -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"}
+          #, {cpu: "x64", flag: "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"}
           ]
     steps:
     - name: Set git cllf config
@@ -171,9 +173,13 @@ jobs:
       with:
         arch: ${{ matrix.arch.cpu }}
         sdk: "10.0.20348.0"
+    - uses: egor-tensin/setup-clang@v1
+      with:
+        version: 19.1.7
+        platform: ${{ matrix.arch.cpu }}
     - name: Build ${{ matrix.arch.cpu }} Release
       run: |
-        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch.cpu }} -Bout/ -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=release -DCMAKE_C_FLAGS="${{ matrix.arch.flag }}" -DCMAKE_CXX_FLAGS="${{ matrix.arch.flag }} -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH"
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch.cpu }} -Bout/ -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=release -DCMAKE_C_FLAGS="${{ matrix.arch.flag }}" -DCMAKE_CXX_FLAGS="${{ matrix.arch.flag }}"
         CMake --build out/ --config Release
     - name: Run octane
       run: |
@@ -183,9 +189,9 @@ jobs:
     # clang-cl with cannot generate c++ exception code well. if clang-cl bug fixed, we can enable test262
     # - name: Run test262
     #   run: |
-    #     set GC_FREE_SPACE_DIVISOR=1
-    #     pip install chardet
-    #     python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics"
+    #      set GC_FREE_SPACE_DIVISOR=1
+    #      pip install chardet
+    #      python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics"
     #   shell: cmd
     - if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
