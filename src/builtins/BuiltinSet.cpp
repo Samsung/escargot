@@ -424,6 +424,71 @@ static Value builtinSetIsDisjointFrom(ExecutionState& state, Value thisValue, si
     return Value(true);
 }
 
+// https://tc39.es/ecma262/#sec-set.prototype.difference
+static Value builtinSetDifference(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // 1. Let O be the this value.
+    // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, difference);
+    // 3. Let otherRec be ? GetSetRecord(other).
+    SetRecord otherRec = getSetRecord(state, argv[0]);
+    // 4. Let resultSetData be a copy of O.[[SetData]].
+    SetObject::SetObjectData resultSetData = O->storage();
+    // 5. If SetDataSize(O.[[SetData]]) ≤ otherRec.[[Size]], then
+    if (setDataSize(state, O->storage()) <= otherRec.size) {
+        // a. Let thisSize be the number of elements in O.[[SetData]].
+        auto thisSize = O->storage().size();
+        // b. Let index be 0.
+        size_t index = 0;
+        // c. Repeat, while index < thisSize,
+        while (index < thisSize) {
+            // i. Let e be resultSetData[index].
+            Value e = resultSetData[index];
+            // ii. If e is not empty, then
+            if (!e.isEmpty()) {
+                // 1. Let inOther be ToBoolean(? Call(otherRec.[[Has]], otherRec.[[SetObject]], « e »)).
+                Value argv = e;
+                bool inOther = Object::call(state, otherRec.has, otherRec.set, 1, &argv).toBoolean();
+                // 2. If inOther is true, then
+                if (inOther) {
+                    // a. Set resultSetData[index] to empty.
+                    resultSetData[index] = Value(Value::EmptyValue);
+                }
+            }
+            // iii. Set index to index + 1.
+            index++;
+        }
+    } else {
+        // 6. Else,
+        // a. Let keysIter be ? GetIteratorFromMethod(otherRec.[[SetObject]], otherRec.[[Keys]]).
+        auto keysIter = IteratorObject::getIteratorFromMethod(state, otherRec.set, otherRec.keys);
+        // b. Let next be not-started.
+        // c. Repeat, while next is not done,
+        while (true) {
+            // i. Set next to ? IteratorStepValue(keysIter).
+            auto next = IteratorObject::iteratorStepValue(state, keysIter);
+            // ii. If next is not done, then
+            if (next) {
+                // 1. Set next to CanonicalizeKeyedCollectionKey(next).
+                next = next.value().toCanonicalizeKeyedCollectionKey(state);
+                // 2. Let valueIndex be SetDataIndex(resultSetData, next).
+                auto valueIndex = setDataIndex(state, resultSetData, next.value());
+                // 3. If valueIndex is not not-found, then
+                if (valueIndex != SIZE_MAX) {
+                    // a. Set resultSetData[valueIndex] to empty.
+                    resultSetData[valueIndex] = Value(Value::EmptyValue);
+                }
+            } else {
+                break;
+            }
+        }
+    }
+    // 7. Let result be OrdinaryObjectCreate(%Set.prototype%, « [[SetData]] »).
+    // 8. Set result.[[SetData]] to resultSetData.
+    // 9. Return result.
+    return new SetObject(state, state.context()->globalObject()->setPrototypeObject(), std::move(resultSetData));
+}
+
 static Value builtinSetValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, values);
@@ -504,6 +569,9 @@ void GlobalObject::installSet(ExecutionState& state)
 
     m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isDisjointFrom),
                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isDisjointFrom, builtinSetIsDisjointFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().difference),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().difference, builtinSetDifference, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     auto valuesFn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinSetValues, 0, NativeFunctionInfo::Strict));
     auto values = ObjectPropertyDescriptor(valuesFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
