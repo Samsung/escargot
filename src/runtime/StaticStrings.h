@@ -199,6 +199,7 @@ namespace Escargot {
     F(description)                \
     F(done)                       \
     F(dotAll)                     \
+    F(difference)                 \
     F(encodeURI)                  \
     F(encodeURIComponent)         \
     F(endsWith)                   \
