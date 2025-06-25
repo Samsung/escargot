@@ -310,6 +310,8 @@ namespace Escargot {
     F(isPrototypeOf)              \
     F(isSafeInteger)              \
     F(isSealed)                   \
+    F(isSubsetOf)                 \
+    F(isSupersetOf)               \
     F(isWellFormed)               \
     F(isView)                     \
     F(italics)                    \

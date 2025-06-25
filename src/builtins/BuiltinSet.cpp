@@ -489,6 +489,84 @@ static Value builtinSetDifference(ExecutionState& state, Value thisValue, size_t
     return new SetObject(state, state.context()->globalObject()->setPrototypeObject(), std::move(resultSetData));
 }
 
+// https://tc39.es/ecma262/#sec-set.prototype.issubsetof
+static Value builtinSetIsSubsetOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // 1. Let O be the this value.
+    // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, isSubsetOf);
+    // 3. Let otherRec be ? GetSetRecord(other).
+    SetRecord otherRec = getSetRecord(state, argv[0]);
+    // 4. If SetDataSize(O.[[SetData]]) > otherRec.[[Size]], return false.
+    if (setDataSize(state, O->storage()) > otherRec.size) {
+        return Value(false);
+    }
+
+    // 5. Let thisSize be the number of elements in O.[[SetData]].
+    size_t thisSize = O->storage().size();
+    // 6. Let index be 0.
+    size_t index = 0;
+    // 7. Repeat, while index < thisSize,
+    while (index < thisSize) {
+        // a. Let e be O.[[SetData]][index].
+        Value e = O->storage()[index];
+        // b. Set index to index + 1.
+        index++;
+        // c. If e is not empty, then
+        if (!e.isEmpty()) {
+            // i. Let inOther be ToBoolean(? Call(otherRec.[[Has]], otherRec.[[SetObject]], « e »)).
+            Value argv = e;
+            bool inOther = Object::call(state, otherRec.has, otherRec.set, 1, &argv).toBoolean();
+            // ii. If inOther is false, return false.
+            if (!inOther) {
+                return Value(false);
+            }
+            // iii. NOTE: The number of elements in O.[[SetData]] may have increased during execution of otherRec.[[Has]].
+            // iv. Set thisSize to the number of elements in O.[[SetData]].
+            thisSize = O->storage().size();
+        }
+    }
+
+    // 8. Return true.
+    return Value(true);
+}
+
+// https://tc39.es/ecma262/#sec-set.prototype.issupersetof
+static Value builtinSetIsSupersetOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // 1. Let O be the this value.
+    // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, isSupersetOf);
+    // 3. Let otherRec be ? GetSetRecord(other).
+    SetRecord otherRec = getSetRecord(state, argv[0]);
+    // 4. If SetDataSize(O.[[SetData]]) < otherRec.[[Size]], return false.
+    if (setDataSize(state, O->storage()) < otherRec.size) {
+        return Value(false);
+    }
+    // 5. Let keysIter be ? GetIteratorFromMethod(otherRec.[[SetObject]], otherRec.[[Keys]]).
+    auto keysIter = IteratorObject::getIteratorFromMethod(state, otherRec.set, otherRec.keys);
+    // 6. Let next be not-started.
+    // 7. Repeat, while next is not done,
+    while (true) {
+        // a. Set next to ? IteratorStepValue(keysIter).
+        auto next = IteratorObject::iteratorStepValue(state, keysIter);
+        // b. If next is not done, then
+        if (next) {
+            // i. If SetDataHas(O.[[SetData]], next) is false, then
+            if (!setDataHas(state, O->storage(), next.value())) {
+                // 1. Perform ? IteratorClose(keysIter, NormalCompletion(unused)).
+                IteratorObject::iteratorClose(state, keysIter, Value(), false);
+                // 2. Return false.
+                return Value(false);
+            }
+        } else {
+            break;
+        }
+    }
+    // 8. Return true.
+    return Value(true);
+}
+
 static Value builtinSetValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, values);
@@ -572,6 +650,12 @@ void GlobalObject::installSet(ExecutionState& state)
 
     m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().difference),
                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().difference, builtinSetDifference, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isSubsetOf),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isSubsetOf, builtinSetIsSubsetOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isSupersetOf),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isSupersetOf, builtinSetIsSupersetOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     auto valuesFn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinSetValues, 0, NativeFunctionInfo::Strict));
     auto values = ObjectPropertyDescriptor(valuesFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent));
