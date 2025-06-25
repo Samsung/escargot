@@ -567,6 +567,54 @@ static Value builtinSetIsSupersetOf(ExecutionState& state, Value thisValue, size
     return Value(true);
 }
 
+static Value builtinSetSymmetricDifference(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // 1. Let O be the this value.
+    // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
+    RESOLVE_THIS_BINDING_TO_SET(O, Set, symmetricDifference);
+    // 3. Let otherRec be ? GetSetRecord(other).
+    SetRecord otherRec = getSetRecord(state, argv[0]);
+    // 4. Let keysIter be ? GetIteratorFromMethod(otherRec.[[SetObject]], otherRec.[[Keys]]).
+    auto keysIter = IteratorObject::getIteratorFromMethod(state, otherRec.set, otherRec.keys);
+    // 5. Let resultSetData be a copy of O.[[SetData]].
+    SetObject::SetObjectData resultSetData = O->asSetObject()->storage();
+    // 6. Let next be not-started.
+    // 7. Repeat, while next is not done,
+    while (true) {
+        // a. Set next to ? IteratorStepValue(keysIter).
+        auto next = IteratorObject::iteratorStepValue(state, keysIter);
+        // b. If next is not done, then
+        if (next) {
+            // i. Set next to CanonicalizeKeyedCollectionKey(next).
+            next = next.value().toCanonicalizeKeyedCollectionKey(state);
+            // ii. Let resultIndex be SetDataIndex(resultSetData, next).
+            auto resultIndex = setDataIndex(state, resultSetData, next.value());
+            // iii. If resultIndex is not-found, let alreadyInResult be false. Otherwise let alreadyInResult be true.
+            bool alreadyInResult = resultIndex != SIZE_MAX;
+            // iv. If SetDataHas(O.[[SetData]], next) is true, then
+            if (setDataHas(state, O->storage(), next.value())) {
+                // 1. If alreadyInResult is true, set resultSetData[resultIndex] to empty.
+                if (alreadyInResult) {
+                    resultSetData[resultIndex] = Value(Value::EmptyValue);
+                }
+            } else {
+                // v. Else,
+                // 1. If alreadyInResult is false, append next to resultSetData.
+                if (!alreadyInResult) {
+                    resultSetData.pushBack(next.value());
+                }
+            }
+        } else {
+            break;
+        }
+    }
+
+    // 8. Let result be OrdinaryObjectCreate(%Set.prototype%, « [[SetData]] »).
+    // 9. Set result.[[SetData]] to resultSetData.
+    // 10. Return result.
+    return new SetObject(state, state.context()->globalObject()->setPrototypeObject(), std::move(resultSetData));
+}
+
 static Value builtinSetValues(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_SET(S, Set, values);
@@ -656,6 +704,9 @@ void GlobalObject::installSet(ExecutionState& state)
 
     m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isSupersetOf),
                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isSupersetOf, builtinSetIsSupersetOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_setPrototypeObject->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().symmetricDifference),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().symmetricDifference, builtinSetSymmetricDifference, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     auto valuesFn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().values, builtinSetValues, 0, NativeFunctionInfo::Strict));
     auto values = ObjectPropertyDescriptor(valuesFn, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent));

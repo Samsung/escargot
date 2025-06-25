@@ -452,6 +452,7 @@ namespace Escargot {
     F(super)                      \
     F(supportedLocalesOf)         \
     F(symbol)                     \
+    F(symmetricDifference)        \
     F(tan)                        \
     F(tanh)                       \
     F(test)                       \
