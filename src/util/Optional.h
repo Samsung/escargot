@@ -22,6 +22,10 @@
 
 namespace Escargot {
 
+enum class NullOptionType {
+    NullOption
+};
+
 template <typename T>
 class Optional {
 public:
@@ -38,6 +42,12 @@ public:
     }
 
     Optional(std::nullptr_t value)
+        : m_hasValue(false)
+        , m_value()
+    {
+    }
+
+    Optional(NullOptionType value)
         : m_hasValue(false)
         , m_value()
     {
@@ -146,6 +156,11 @@ public:
     }
 
     Optional(std::nullptr_t value)
+        : m_value(nullptr)
+    {
+    }
+
+    Optional(NullOptionType value)
         : m_value(nullptr)
     {
     }

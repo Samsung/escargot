@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
 #include "WTFBridge.h"
@@ -28,6 +28,8 @@
 
 #include "Yarr.h"
 #include "YarrPattern.h"
+
+WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
 
 namespace JSC { namespace Yarr {
 
@@ -74,12 +76,11 @@ struct HashTable {
     }
 };
 
-
 #if defined(ENABLE_ICU)
 #include "UnicodePatternTables.h"
 #endif
 
-Optional<BuiltInCharacterClassID> unicodeMatchPropertyValue(WTF::String unicodePropertyName, WTF::String unicodePropertyValue)
+std::optional<BuiltInCharacterClassID> unicodeMatchPropertyValue(WTF::String unicodePropertyName, WTF::String unicodePropertyValue)
 {
     int propertyIndex = -1;
 #if defined(ENABLE_ICU)
@@ -91,12 +92,12 @@ Optional<BuiltInCharacterClassID> unicodeMatchPropertyValue(WTF::String unicodeP
         propertyIndex = generalCategoryHashTable.entry(unicodePropertyValue);
 #endif
     if (propertyIndex == -1)
-        return nullptr;
+        return std::nullopt;
 
-    return Optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + propertyIndex));
+    return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + propertyIndex));
 }
 
-Optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String unicodePropertyValue, CompileMode compileMode)
+std::optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String unicodePropertyValue, CompileMode compileMode)
 {
     int propertyIndex = -1;
 #if defined(ENABLE_ICU)
@@ -107,9 +108,9 @@ Optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String unicodeProper
         propertyIndex = sequencePropertyHashTable.entry(unicodePropertyValue);
 #endif
     if (propertyIndex == -1)
-        return nullptr;
+        return std::nullopt;
 
-    return Optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + propertyIndex));
+    return std::optional<BuiltInCharacterClassID>(static_cast<BuiltInCharacterClassID>(static_cast<int>(BuiltInCharacterClassID::BaseUnicodePropertyID) + propertyIndex));
 }
 
 std::unique_ptr<CharacterClass> createUnicodeCharacterClassFor(BuiltInCharacterClassID unicodeClassID)
@@ -133,3 +134,5 @@ bool characterClassMayContainStrings(BuiltInCharacterClassID unicodeClassID)
 }
 
 } } // namespace JSC::Yarr
+
+WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
