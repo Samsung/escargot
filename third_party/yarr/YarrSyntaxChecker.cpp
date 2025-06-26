@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011, 2016 Apple Inc. All rights reserved.
+ * Copyright (C) 2025 Tetsuharu Ohzeki <tetsuharu.ohzeki@gmail.com>.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,8 +48,9 @@ public:
     void atomCharacterClassPushNested() { }
     void atomCharacterClassPopNested() { }
     void atomCharacterClassEnd() { }
-    void atomParenthesesSubpatternBegin(bool = true, Optional<String> = nullptr) { }
+    void atomParenthesesSubpatternBegin(bool = true, std::optional<String> = std::nullopt) { }
     void atomParentheticalAssertionBegin(bool, MatchDirection) { }
+    void atomParentheticalModifierBegin(OptionSet<Flags>, OptionSet<Flags>) { }
     void atomParenthesesEnd() { }
     void atomBackReference(unsigned) { }
     void atomNamedBackReference(const String&) { }
@@ -56,6 +58,9 @@ public:
     void quantifyAtom(unsigned, unsigned, bool) { }
     void disjunction(CreateDisjunctionPurpose) { }
     void resetForReparsing() { }
+
+    constexpr static bool abortedDueToError() { return false; }
+    constexpr static ErrorCode abortErrorCode() { return ErrorCode::NoError; }
 };
 
 ErrorCode checkSyntax(StringView pattern, StringView flags)

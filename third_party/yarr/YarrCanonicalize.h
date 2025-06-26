@@ -20,12 +20,14 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
 #pragma once
 
 #include <stdint.h>
+
+WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
 
 namespace JSC { namespace Yarr {
 
@@ -49,17 +51,13 @@ struct CanonicalizationRange {
     UCS2CanonicalizationType type;
 };
 
-extern const size_t UCS2_CANONICALIZATION_RANGES;
-extern const char32_t* const ucs2CharacterSetInfo[];
+extern const size_t ucs2CanonicalizationRanges;
+extern const char32_t* ucs2CharacterSetInfo[];
 extern const CanonicalizationRange ucs2RangeInfo[];
 extern const uint16_t canonicalTableLChar[256];
 
 extern const size_t UNICODE_CANONICALIZATION_RANGES;
-#if defined(COMPILER_MSVC)
 extern const char32_t* unicodeCharacterSetInfo[];
-#else
-extern const char32_t* const unicodeCharacterSetInfo[];
-#endif
 extern const CanonicalizationRange unicodeRangeInfo[];
 
 enum class CanonicalMode { UCS2, Unicode };
@@ -74,7 +72,7 @@ inline const char32_t* canonicalCharacterSetInfo(unsigned index, CanonicalMode c
 inline const CanonicalizationRange* canonicalRangeInfoFor(char32_t ch, CanonicalMode canonicalMode = CanonicalMode::UCS2)
 {
     const CanonicalizationRange* info = canonicalMode == CanonicalMode::UCS2 ? ucs2RangeInfo : unicodeRangeInfo;
-    size_t entries = canonicalMode == CanonicalMode::UCS2 ? UCS2_CANONICALIZATION_RANGES : UNICODE_CANONICALIZATION_RANGES;
+    size_t entries = canonicalMode == CanonicalMode::UCS2 ? ucs2CanonicalizationRanges : UNICODE_CANONICALIZATION_RANGES;
 
     while (true) {
         size_t candidate = entries >> 1;
@@ -145,3 +143,5 @@ inline bool areCanonicallyEquivalent(char32_t a, char32_t b, CanonicalMode canon
 }
 
 } } // JSC::Yarr
+
+WTF_ALLOW_UNSAFE_BUFFER_USAGE_END

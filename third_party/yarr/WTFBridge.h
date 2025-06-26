@@ -49,6 +49,11 @@
 #define JS_EXPORT_PRIVATE
 #define WTF_EXPORT_PRIVATE
 #define WTF_MAKE_FAST_ALLOCATED
+#define WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
+#define WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
+#define WTF_IGNORES_THREAD_SAFETY_ANALYSIS
+#define WTF_MAKE_TZONE_ALLOCATED(e)
+#define WTF_MAKE_TZONE_ALLOCATED_IMPL(e)
 #define NO_RETURN_DUE_TO_ASSERT
 #define ASSERT_WITH_SECURITY_IMPLICATION ASSERT
 #define UNUSED_PARAM(e)
@@ -84,6 +89,24 @@ using CPURegister = int32_t;
 using UCPURegister = uint32_t;
 #endif
 
+#if (__cplusplus < 202002L)
+#define constinit
+#endif
+
+#if defined(__APPLE__)
+#include <optional>
+#else // defined(__APPLE__)
+namespace std {
+template<typename T>
+using optional = Escargot::Optional<T>;
+constexpr Escargot::NullOptionType nullopt = Escargot::NullOptionType::NullOption;
+template<typename T>
+std::optional<T> make_optional(const T& param)
+{
+    return std::optional<T>(param);
+}
+}
+#endif // defined(__APPLE__)
 
 #if (__cplusplus < 201402L)
 namespace std {
@@ -103,6 +126,56 @@ template< class T >
 using make_unsigned_t = typename make_unsigned<T>::type;
 }
 #endif
+
+namespace std {
+template<class T>
+class span {
+public:
+    typedef T &reference;
+    typedef T *pointer;
+    typedef T const *const_pointer;
+    typedef T const &const_reference;
+
+    typedef pointer iterator;
+    typedef const_pointer const_iterator;
+
+    explicit span(std::initializer_list<T> il)
+    {
+        m_ptr = il.begin();
+        m_size = il.size();
+    }
+
+    explicit span(T* ptr, size_t size)
+        : m_ptr(ptr)
+        , m_size(size)
+    {
+    }
+
+    pointer data() const
+    {
+        return m_ptr;
+    }
+
+    size_t size() const
+    {
+        return m_size;
+    }
+
+    iterator begin() const
+    {
+        return { data() };
+    }
+
+    iterator end() const
+    {
+        return { data() + size() };
+    }
+
+private:
+    T* m_ptr;
+    size_t m_size;
+};
+}
 
 template <typename T, typename... Ts>
 std::unique_ptr<T> makeUnique(Ts&&... params)
@@ -176,6 +249,7 @@ template<typename T>
 using Optional = Escargot::Optional<T>;
 
 typedef Checked<uint32_t, RecordOverflow> CheckedUint32;
+typedef Checked<uint64_t, RecordOverflow> CheckedUint64;
 
 constexpr size_t notFound = static_cast<size_t>(-1);
 
@@ -204,9 +278,19 @@ inline ToType bitwise_cast(FromType from)
     return u.to;
 }
 
+class PrintStream {
+public:
+    template<typename T>
+    void print(T)
+    {
+    }
+};
+
 } /* namespace WTF */
 
 using WTF::CheckedUint32;
+using WTF::CheckedUint64;
+using WTF::PrintStream;
 
 #include "ASCIICType.h"
 #include "StringHasher.h"

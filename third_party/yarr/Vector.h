@@ -53,6 +53,14 @@ public:
         }
     }
 
+    Vector(std::span<T> span)
+    {
+        impl.reserve(span.size());
+        for (auto& i : span) {
+            impl.push_back(i);
+        }
+    }
+
     size_t size() const
     {
         return impl.size();
@@ -181,6 +189,11 @@ public:
     void deleteAllValues()
     {
         clear();
+    }
+
+    void reserveCapacity(size_t c)
+    {
+        reserve(c);
     }
 
     void reserve(size_t capacity)

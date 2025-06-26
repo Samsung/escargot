@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 Yusuke Suzuki <utatane.tea@gmail.com>.
+ * Copyright (C) 2025 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,6 +27,8 @@
 #include "WTFBridge.h"
 #include "YarrErrorCode.h"
 
+WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
+
 namespace JSC { namespace Yarr {
 
 ASCIILiteral errorMessage(ErrorCode error)
@@ -34,6 +37,8 @@ ASCIILiteral errorMessage(ErrorCode error)
     // The order of this array must match the ErrorCode enum.
     static const ASCIILiteral errorMessages[] = {
         { },                                                                          // NoError
+
+        // The following are hard errors.
         REGEXP_ERROR_PREFIX "regular expression too large",                         // PatternTooLarge
         REGEXP_ERROR_PREFIX "numbers out of order in {} quantifier",                // QuantifierOutOfOrder
         REGEXP_ERROR_PREFIX "nothing to repeat",                                    // QuantifierWithoutAtom
@@ -59,15 +64,20 @@ ASCIILiteral errorMessage(ErrorCode error)
         REGEXP_ERROR_PREFIX "invalid octal escape for Unicode pattern",             // InvalidOctalEscape
         REGEXP_ERROR_PREFIX "invalid \\c escape for Unicode pattern",               // InvalidControlLetterEscape
         REGEXP_ERROR_PREFIX "invalid property expression",                          // InvalidUnicodePropertyExpression
-        REGEXP_ERROR_PREFIX "too many nested disjunctions",                         // TooManyDisjunctions
         REGEXP_ERROR_PREFIX "pattern exceeds string length limits",                 // OffsetTooLarge
         REGEXP_ERROR_PREFIX "invalid flags",                                        // InvalidRegularExpressionFlags
         REGEXP_ERROR_PREFIX "invalid operation in class set",                       // InvalidClassSetOperation
         REGEXP_ERROR_PREFIX "negated class set may contain strings",                // NegatedClassSetMayContainStrings
-        REGEXP_ERROR_PREFIX "invalid class set character"                           // InvalidClassSetCharacter
+        REGEXP_ERROR_PREFIX "invalid class set character",                          // InvalidClassSetCharacter
+        REGEXP_ERROR_PREFIX "invalid regular expression modifier",                  // InvalidRegularExpressionModifier
+
+        // The following are NOT hard errors.
+        REGEXP_ERROR_PREFIX "too many nested disjunctions",                         // TooManyDisjunctions
     };
 
     return errorMessages[static_cast<unsigned>(error)];
 }
 
 } } // namespace JSC::Yarr
+
+WTF_ALLOW_UNSAFE_BUFFER_USAGE_END

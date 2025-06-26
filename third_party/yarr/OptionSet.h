@@ -117,6 +117,11 @@ public:
         return m_storage & optionSet.m_storage;
     }
 
+    constexpr bool containsAny(OptionSet optionSet) const
+    {
+        return !!(m_storage & optionSet.m_storage);
+    }
+
     constexpr friend bool operator==(OptionSet lhs, OptionSet rhs)
     {
         return lhs.m_storage == rhs.m_storage;

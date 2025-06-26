@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
 #pragma once
@@ -33,8 +33,8 @@ struct CharacterClass;
 struct ClassSet;
 enum class CompileMode : uint8_t;
 
-JS_EXPORT_PRIVATE Optional<BuiltInCharacterClassID> unicodeMatchPropertyValue(WTF::String, WTF::String);
-JS_EXPORT_PRIVATE Optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String, CompileMode);
+JS_EXPORT_PRIVATE std::optional<BuiltInCharacterClassID> unicodeMatchPropertyValue(WTF::String, WTF::String);
+JS_EXPORT_PRIVATE std::optional<BuiltInCharacterClassID> unicodeMatchProperty(WTF::String, CompileMode);
 
 std::unique_ptr<CharacterClass> createUnicodeCharacterClassFor(BuiltInCharacterClassID);
 JS_EXPORT_PRIVATE bool characterClassMayContainStrings(BuiltInCharacterClassID unicodeClassID);
