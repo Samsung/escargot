@@ -29,7 +29,7 @@ Optional<size_t> ObjectPrivateMemberStructure::findProperty(AtomicString name)
             return i;
         }
     }
-    return nullptr;
+    return NullOption;
 }
 
 ObjectPrivateMemberStructureItem ObjectPrivateMemberStructure::readProperty(size_t idx)

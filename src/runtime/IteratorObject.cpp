@@ -143,7 +143,7 @@ Optional<Value> IteratorObject::iteratorStepValue(ExecutionState& state, Iterato
     // If result is done, then
     if (!result) {
         // Return done.
-        return nullptr;
+        return NullOption;
     }
 
     Value value;

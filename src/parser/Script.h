@@ -307,7 +307,7 @@ private:
 
     // https://tc39.es/ecma262/#sec-source-text-module-record-execute-module
     // returns gotException and Value
-    ModuleExecutionResult moduleExecute(ExecutionState& state, Optional<PromiseReaction::Capability> capability = nullptr);
+    ModuleExecutionResult moduleExecute(ExecutionState& state, Optional<PromiseReaction::Capability> capability = NullOption);
 
     // https://tc39.es/proposal-top-level-await/#sec-execute-async-module
     void moduleExecuteAsyncModule(ExecutionState& state);
