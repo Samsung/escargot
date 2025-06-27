@@ -321,9 +321,12 @@ class TestCase(object):
     return '\n'.join([self.suite.GetInclude(include) for include in self.GetIncludeList()])
 
   def GetDriverSource(self):
+    # add compareArray, deepEqual due to driver bug regard to running staging tests
     source = self.suite.GetInclude("sta.js") + \
         self.suite.GetInclude("cth.js") + \
-        self.suite.GetInclude("assert.js")
+        self.suite.GetInclude("assert.js") + \
+        self.suite.GetInclude("compareArray.js") + \
+        self.suite.GetInclude("deepEqual.js")
 
     # Escargot: some async test are does not returns True for self.IsAsyncTest()
     if self.IsAsyncTest() or "Atomics" in self.GetFeatureList() or "async-iteration" in self.GetFeatureList():
