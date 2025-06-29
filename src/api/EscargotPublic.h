@@ -2213,7 +2213,7 @@ public:
     {
         return calloc(sizeInByte, 1);
     }
-    virtual void onFreeArrayBufferObjectDataBuffer(void* buffer, size_t sizeInByte)
+    virtual void onFreeArrayBufferObjectDataBuffer(void* buffer, size_t sizeInByte, void* deleterData)
     {
         return free(buffer);
     }
