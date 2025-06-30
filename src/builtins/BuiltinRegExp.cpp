@@ -24,6 +24,7 @@
 #include "runtime/RegExpObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/NativeFunctionObject.h"
+#include "parser/Lexer.h"
 
 namespace Escargot {
 
@@ -752,6 +753,223 @@ static Value builtinRegExpInputSetter(ExecutionState& state, Value thisValue, si
 REGEXP_LEGACY_FEATURES(DEFINE_LEGACY_FEATURE_GETTER);
 REGEXP_LEGACY_DOLLAR_NUMBER_FEATURES(DEFINE_LEGACY_DOLLAR_NUMBER_FEATURE_GETTER);
 
+// https://tc39.es/ecma262/#prod-SyntaxCharacter
+static bool isSyntaxChar(char32_t cp)
+{
+    switch (cp) {
+    case '^':
+    case '$':
+    case '\\':
+    case '.':
+    case '*':
+    case '+':
+    case '?':
+    case '(':
+    case ')':
+    case '[':
+    case ']':
+    case '{':
+    case '}':
+    case '|':
+        return true;
+    default:
+        return false;
+    }
+}
+
+static void utf16EncodeCodePoint(ExecutionState& state, char32_t cp, LargeStringBuilder& builder)
+{
+    auto r = utf16EncodeCodePoint(cp);
+    if (r.second) {
+        char16_t cu1 = floor((cp - 65536) / 1024) + 0xD800;
+        char16_t cu2 = ((cp - 65536) % 1024) + 0xDC00;
+
+        builder.appendChar(cu1, &state);
+        builder.appendChar(cu2, &state);
+    } else {
+        builder.appendChar(r.first, &state);
+    }
+}
+
+static bool isOtherPunctuators(char32_t cp)
+{
+    // ",-=<>#&!%:;@~'`" and the code unit 0x0022 (QUOTATION MARK).
+    switch (cp) {
+    case ',':
+    case '-':
+    case '=':
+    case '<':
+    case '>':
+    case '#':
+    case '&':
+    case '!':
+    case '%':
+    case ':':
+    case ';':
+    case '@':
+    case '~':
+    case '\'':
+    case '`':
+    case 0x22:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static std::pair<std::array<char, 12>, size_t> itoa(char32_t v)
+{
+    std::array<char, 12> result;
+    char* tp = result.data();
+    while (v || tp == result.data()) {
+        int i = v % 16;
+        v /= 16;
+        if (i < 10) {
+            *tp++ = i + '0';
+        } else {
+            *tp++ = i + 'a' - 10;
+        }
+    }
+
+    return std::make_pair(result, tp - result.data());
+}
+
+// https://tc39.es/ecma262/#sec-unicodeescape
+static void unicodeEscape(ExecutionState& state, char32_t cp, LargeStringBuilder& builder)
+{
+    ASSERT(cp <= 0x10FFFF);
+    builder.appendChar(static_cast<char>(0x5C), &state);
+    builder.appendChar('u', &state);
+
+    auto a = itoa(cp);
+    int pad = 4 - a.second;
+    while (pad > 0) {
+        builder.appendChar('0', &state);
+        pad--;
+    }
+
+    for (size_t i = 0; i < a.second; i++) {
+        builder.appendChar(a.first.at(a.second - i - 1), &state);
+    }
+}
+
+// https://tc39.es/ecma262/#sec-encodeforregexpescape
+static void encodeForRegExpEscape(ExecutionState& state, char32_t cp, LargeStringBuilder& builder)
+{
+    // If cp is matched by SyntaxCharacter or cp is U+002F (SOLIDUS), then
+    if (isSyntaxChar(cp) || cp == 0x02f) {
+        // a. Return the string-concatenation of 0x005C (REVERSE SOLIDUS) and UTF16EncodeCodePoint(cp).
+        builder.appendChar(static_cast<char>(0x5C), &state);
+        utf16EncodeCodePoint(state, cp, builder);
+        return;
+    } else if (cp >= 0x09 && cp <= 0x0d) {
+        // 2. Else if cp is a code point listed in the “Code Point” column of Table 67, then
+        // a. Return the string-concatenation of 0x005C (REVERSE SOLIDUS) and the string in the “ControlEscape” column of the row whose “Code Point” column contains cp.
+        builder.appendChar(static_cast<char>(0x5C), &state);
+        switch (cp) {
+        case 0x9:
+            builder.appendChar('t', &state);
+            break;
+        case 0xa:
+            builder.appendChar('n', &state);
+            break;
+        case 0xb:
+            builder.appendChar('v', &state);
+            break;
+        case 0xc:
+            builder.appendChar('f', &state);
+            break;
+        case 0xd:
+            builder.appendChar('r', &state);
+            break;
+        default:
+            ASSERT_NOT_REACHED();
+        }
+        return;
+    }
+
+    // 3. Let otherPunctuators be the string-concatenation of ",-=<>#&!%:;@~'`" and the code unit 0x0022 (QUOTATION MARK).
+    // 4. Let toEscape be StringToCodePoints(otherPunctuators).
+    // 5. If toEscape contains cp, cp is matched by either WhiteSpace or LineTerminator, or cp has the same numeric value as a leading surrogate or trailing surrogate, then
+    if (isOtherPunctuators(cp) || EscargotLexer::isWhiteSpaceOrLineTerminator(cp) || U16_IS_LEAD(cp) || U16_IS_TRAIL(cp)) {
+        // a. Let cpNum be the numeric value of cp.
+        // b. If cpNum ≤ 0xFF, then
+        if (cp < 0xff) {
+            // i. Let hex be Number::toString(𝔽(cpNum), 16).
+            // ii. Return the string-concatenation of the code unit 0x005C (REVERSE SOLIDUS), "x", and StringPad(hex, 2, "0", start).
+            auto cd = charToHexCode(static_cast<char>(cp), false);
+            builder.appendChar(static_cast<char>(0x5C), &state);
+            builder.appendChar('x', &state);
+            if (cd.first) {
+                builder.appendChar(cd.first, &state);
+            } else {
+                // check
+                builder.appendChar('0', &state);
+            }
+            builder.appendChar(cd.second, &state);
+            return;
+        }
+        // c. Let escaped be the empty String.
+        // d. Let codeUnits be UTF16EncodeCodePoint(cp).
+        // e. For each code unit cu of codeUnits, do
+        // i. Set escaped to the string-concatenation of escaped and UnicodeEscape(cu).
+        // f. Return escaped.
+
+        auto r = utf16EncodeCodePoint(cp);
+        if (r.second) {
+            unicodeEscape(state, r.first, builder);
+            unicodeEscape(state, r.second, builder);
+        } else {
+            unicodeEscape(state, r.first, builder);
+        }
+        return;
+    }
+
+    // 6. Return UTF16EncodeCodePoint(cp).
+    utf16EncodeCodePoint(state, cp, builder);
+}
+
+// https://tc39.es/ecma262/#sec-regexp.escape
+static Value builtinRegExpEscape(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // 1. If S is not a String, throw a TypeError exception.
+    if (!argv[0].isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "First parameter must be String");
+    }
+    String* S = argv[0].asString();
+    // 2. Let escaped be the empty String.
+    // 3. Let cpList be StringToCodePoints(S).
+    // 4. For each code point cp of cpList, do
+    size_t index = 0;
+    LargeStringBuilder builder;
+    while (index < S->length()) {
+        auto cp = S->codePointAt(index);
+        // a. If escaped is the empty String and cp is matched by either DecimalDigit or AsciiLetter, then
+        if ((builder.contentLength() == 0) && cp.codePoint < 128 && isASCIIAlphanumeric(cp.codePoint)) {
+            // i. NOTE: Escaping a leading digit ensures that output corresponds with pattern text which may be used after a \0 character escape or a DecimalEscape such as \1 and still match S rather than be interpreted as an extension of the preceding escape sequence. Escaping a leading ASCII letter does the same for the context after \c.
+            // ii. Let numericValue be the numeric value of cp.
+            char numericValue = static_cast<char>(cp.codePoint);
+            // iii. Let hex be Number::toString(𝔽(numericValue), 16).
+            // iv. Assert: The length of hex is 2.
+            // v. Set escaped to the string-concatenation of the code unit 0x005C (REVERSE SOLIDUS), "x", and hex.
+            auto cd = charToHexCode(numericValue, false);
+            builder.appendChar(static_cast<char>(0x5C), &state);
+            builder.appendChar('x', &state);
+            builder.appendChar(cd.first, &state);
+            builder.appendChar(cd.second, &state);
+        } else {
+            // b. Else,
+            // i. Set escaped to the string-concatenation of escaped and EncodeForRegExpEscape(cp).
+            encodeForRegExpEscape(state, cp.codePoint, builder);
+        }
+
+
+        index += cp.codeUnitCount;
+    }
+    // 5. Return escaped.
+    return builder.finalize(&state);
+}
+
 static Value builtinRegExpStringIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isRegExpStringIteratorObject()) {
@@ -860,6 +1078,14 @@ void GlobalObject::installRegExp(ExecutionState& state)
     }
 
     REGEXP_LEGACY_DOLLAR_NUMBER_FEATURES(DEFINE_LEGACY_DOLLAR_NUMBER_ATTR);
+
+
+    {
+        auto fn = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().escape, builtinRegExpEscape, 1, NativeFunctionInfo::Strict));
+        m_regexp->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().escape),
+                                          ObjectPropertyDescriptor(fn,
+                                                                   (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    }
 
     m_regexpPrototype = new RegExpPrototypeObject(state);
     m_regexpPrototype->setGlobalIntrinsicObject(state, true);

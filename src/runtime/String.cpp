@@ -381,6 +381,42 @@ bool isWellFormed(const char16_t*& utf16, const char16_t* bufferEnd)
     }
 }
 
+std::pair<char, char> charToHexCode(char dec, bool useCapitals)
+{
+    unsigned char dig1 = (dec & 0xF0) >> 4;
+    unsigned char dig2 = (dec & 0x0F);
+    if (dig1 <= 9) {
+        dig1 += 48; // 0, 48inascii
+    }
+    if (10 <= dig1 && dig1 <= 15) {
+        dig1 += (useCapitals ? 65 : 97) - 10; // a, 97inascii
+    }
+    if (dig2 <= 9) {
+        dig2 += 48;
+    }
+    if (10 <= dig2 && dig2 <= 15) {
+        dig2 += (useCapitals ? 65 : 97) - 10;
+    }
+
+    return std::make_pair(static_cast<char>(dig1), static_cast<char>(dig2));
+}
+
+std::pair<char16_t, char16_t> utf16EncodeCodePoint(char32_t cp)
+{
+    // 1. Assert: 0 ≤ cp ≤ 0x10FFFF.
+    ASSERT(cp <= 0x10FFFF);
+    // 2. If cp ≤ 0xFFFF, return the String value consisting of the code unit whose numeric value is cp.
+    if (cp < 0xFFFF) {
+        return std::make_pair(static_cast<char16_t>(cp), 0);
+    }
+    // 3. Let cu1 be the code unit whose numeric value is floor((cp - 0x10000) / 0x400) + 0xD800.
+    // 4. Let cu2 be the code unit whose numeric value is ((cp - 0x10000) modulo 0x400) + 0xDC00.
+    // 5. Return the string-concatenation of cu1 and cu2.
+    char16_t cu1 = floor((cp - 65536) / 1024) + 0xD800;
+    char16_t cu2 = ((cp - 65536) % 1024) + 0xDC00;
+    return std::make_pair(cu1, cu2);
+}
+
 bool StringBufferAccessData::equals16Bit(const char16_t* c1, const char* c2, size_t len)
 {
     while (len > 0) {
