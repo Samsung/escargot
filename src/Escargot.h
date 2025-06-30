@@ -338,6 +338,8 @@ typedef int32_t UChar32;
 // macros from icu
 #define U16_IS_LEAD(c) (((c) & 0xfffffc00) == 0xd800)
 #define U16_IS_TRAIL(c) (((c) & 0xfffffc00) == 0xdc00)
+#define U_IS_SURROGATE(c) (((c) & 0xfffff800) == 0xd800)
+#define U16_IS_SURROGATE(c) U_IS_SURROGATE(c)
 #define U16_SURROGATE_OFFSET ((0xd800 << 10UL) + 0xdc00 - 0x10000)
 #define U16_GET_SUPPLEMENTARY(lead, trail) \
     (((UChar32)(lead) << 10UL) + (UChar32)(trail) - U16_SURROGATE_OFFSET)
