@@ -769,6 +769,41 @@ static Value builtinPromiseWithResolvers(ExecutionState& state, Value thisValue,
     return obj;
 }
 
+// https://tc39.es/ecma262/#sec-promise.try
+static Value builtinPromiseTry(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // 1. Let C be the this value.
+    const Value& C = thisValue;
+    // 2. If C is not an Object, throw a TypeError exception.
+    if (!C.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::Not_Constructor);
+    }
+    // 3. Let promiseCapability be ? NewPromiseCapability(C).
+    auto promiseCapability = PromiseObject::newPromiseCapability(state, C.asObject());
+
+    // 4. Let status be Completion(Call(callback, undefined, args)).
+    Value exception = Value(Value::EmptyValue);
+    Value result;
+    try {
+        result = Object::call(state, argv[0], Value(), argc - 1, argv + 1);
+    } catch (const Value& error) {
+        exception = error;
+    }
+
+    // 5. If status is an abrupt completion, then
+    if (!exception.isEmpty()) {
+        // a. Perform ? Call(promiseCapability.[[Reject]], undefined, « status.[[Value]] »).
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &exception);
+    } else {
+        // 6. Else,
+        // a. Perform ? Call(promiseCapability.[[Resolve]], undefined, « status.[[Value]] »).
+        Object::call(state, promiseCapability.m_resolveFunction, Value(), 1, &result);
+    }
+
+    // 7. Return promiseCapability.[[Promise]].
+    return promiseCapability.m_promise;
+}
+
 void GlobalObject::initializePromise(ExecutionState& state)
 {
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
@@ -847,6 +882,11 @@ void GlobalObject::installPromise(ExecutionState& state)
     // Promise.withResolvers()
     m_promise->directDefineOwnProperty(state, ObjectPropertyName(strings->withResolvers),
                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->withResolvers, builtinPromiseWithResolvers, 0, NativeFunctionInfo::Strict)),
+                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // Promise.try()
+    m_promise->directDefineOwnProperty(state, ObjectPropertyName(strings->stringTry),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->stringTry, builtinPromiseTry, 1, NativeFunctionInfo::Strict)),
                                                                 (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 

@@ -773,13 +773,6 @@
     <test id="built-ins/Promise/allSettled/resolve-throws-iterator-return-is-not-callable"><reason>TODO</reason></test>
     <test id="built-ins/Promise/any/resolve-throws-iterator-return-is-not-callable"><reason>TODO</reason></test>
     <test id="built-ins/Promise/race/resolve-throws-iterator-return-is-not-callable"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/try/ctx-ctor"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/try/ctx-ctor-throws"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/try/length"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/try/name"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/try/not-a-constructor"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/try/promise"><reason>TODO</reason></test>
-    <test id="built-ins/Promise/try/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/RegExp/property-escapes/special-property-value-Script_Extensions-Unknown"><reason>TODO</reason></test>
     <test id="built-ins/ShadowRealm/WrappedFunction/length"><reason>TODO</reason></test>
     <test id="built-ins/ShadowRealm/WrappedFunction/length-throws-typeerror"><reason>TODO</reason></test>
