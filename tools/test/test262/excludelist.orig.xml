@@ -699,16 +699,6 @@
     <test id="built-ins/JSON/parse/reviver-context-source-object-literal"><reason>TODO</reason></test>
     <test id="built-ins/JSON/parse/reviver-context-source-primitive-literal"><reason>TODO</reason></test>
     <test id="built-ins/JSON/parse/reviver-forward-modifies-object"><reason>TODO</reason></test>
-    <test id="built-ins/JSON/rawJSON/basic"><reason>TODO</reason></test>
-    <test id="built-ins/JSON/rawJSON/bigint-raw-json-can-be-stringified"><reason>TODO</reason></test>
-    <test id="built-ins/JSON/rawJSON/builtin"><reason>TODO</reason></test>
-    <test id="built-ins/JSON/rawJSON/illegal-empty-and-start-end-chars"><reason>TODO</reason></test>
-    <test id="built-ins/JSON/rawJSON/invalid-JSON-text"><reason>TODO</reason></test>
-    <test id="built-ins/JSON/rawJSON/length"><reason>TODO</reason></test>
-    <test id="built-ins/JSON/rawJSON/name"><reason>TODO</reason></test>
-    <test id="built-ins/JSON/rawJSON/not-a-constructor"><reason>TODO</reason></test>
-    <test id="built-ins/JSON/rawJSON/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/JSON/rawJSON/returns-expected-object"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/value-bigint-tojson-receiver"><reason>TODO</reason></test>
     <test id="built-ins/JSON/stringify/value-string-escape-unicode"><reason>TODO</reason></test>
     <test id="built-ins/Map/prototype/getOrInsert/append-new-values"><reason>TODO</reason></test>
