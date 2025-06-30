@@ -302,6 +302,7 @@ namespace Escargot {
     F(isArray)                    \
     F(isConcatSpreadable)         \
     F(isDisjointFrom)             \
+    F(isError)                    \
     F(isExtensible)               \
     F(isFinite)                   \
     F(isFrozen)                   \
