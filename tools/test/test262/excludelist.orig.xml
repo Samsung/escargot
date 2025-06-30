@@ -336,18 +336,6 @@
     <test id="built-ins/DisposableStack/prototype/use/throws-if-value-missing-Symbol.dispose"><reason>TODO</reason></test>
     <test id="built-ins/DisposableStack/prototype/use/throws-if-value-not-object"><reason>TODO</reason></test>
     <test id="built-ins/DisposableStack/undefined-newtarget-throws"><reason>TODO</reason></test>
-    <test id="built-ins/Error/isError/bigints"><reason>TODO</reason></test>
-    <test id="built-ins/Error/isError/error-subclass"><reason>TODO</reason></test>
-    <test id="built-ins/Error/isError/errors"><reason>TODO</reason></test>
-    <test id="built-ins/Error/isError/errors-other-realm"><reason>TODO</reason></test>
-    <test id="built-ins/Error/isError/fake-errors"><reason>TODO</reason></test>
-    <test id="built-ins/Error/isError/is-a-constructor"><reason>TODO</reason></test>
-    <test id="built-ins/Error/isError/name"><reason>TODO</reason></test>
-    <test id="built-ins/Error/isError/non-error-objects"><reason>TODO</reason></test>
-    <test id="built-ins/Error/isError/non-error-objects-other-realm"><reason>TODO</reason></test>
-    <test id="built-ins/Error/isError/primitives"><reason>TODO</reason></test>
-    <test id="built-ins/Error/isError/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/Error/isError/symbols"><reason>TODO</reason></test>
     <test id="built-ins/Function/internals/Construct/derived-this-uninitialized-realm"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/apply/resizable-buffer"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/arguments/prop-desc"><reason>TODO</reason></test>
@@ -6673,7 +6661,6 @@
     <test id="staging/sm/Date/to-temporal-instant"><reason>TODO</reason></test>
     <test id="staging/sm/Date/two-digit-years"><reason>TODO</reason></test>
     <test id="staging/sm/Error/AggregateError"><reason>TODO</reason></test>
-    <test id="staging/sm/Error/isError"><reason>TODO</reason></test>
     <test id="staging/sm/Function/10.2.1.1.6"><reason>TODO</reason></test>
     <test id="staging/sm/Function/15.3.4.3-01"><reason>TODO</reason></test>
     <test id="staging/sm/Function/arguments-caller-callee"><reason>TODO</reason></test>

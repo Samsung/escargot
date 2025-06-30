@@ -209,6 +209,18 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
     return builder.finalize(&state);
 }
 
+// https://tc39.es/ecma262/#sec-error.iserror
+static Value builtinErrorIsError(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // 1. If arg is not an Object, return false.
+    // 2. If arg does not have an [[ErrorData]] internal slot, return false.
+    if (!argv[0].isObject() || !argv[0].asObject()->isErrorObject()) {
+        return Value(false);
+    }
+    // 3. Return true.
+    return Value(true);
+}
+
 void GlobalObject::initializeError(ExecutionState& state)
 {
 #define DEFINE_ERROR_INIT(errorname, bname)                                                                                                                                                                                                                         \
@@ -239,6 +251,10 @@ void GlobalObject::installError(ExecutionState& state)
 {
     m_error = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().Error, builtinErrorConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_error->setGlobalIntrinsicObject(state);
+
+    m_error->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().isError),
+                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().isError, builtinErrorIsError, 1, NativeFunctionInfo::Strict)),
+                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_errorPrototype = new PrototypeObject(state);
     m_errorPrototype->setGlobalIntrinsicObject(state, true);
