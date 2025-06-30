@@ -1293,7 +1293,7 @@ Optional<Object*> Object::getMethod(ExecutionState& state, const ObjectPropertyN
 Value Object::getV(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName)
 {
     Object* obj = internalFastToObjectForGetMethodGetV(state, O);
-    return obj->get(state, propertyName).value(state, obj);
+    return obj->get(state, propertyName).value(state, O);
 }
 
 Object* Object::getPrototypeFromConstructor(ExecutionState& state, Object* constructor, Object* (*intrinsicDefaultProtoGetter)(ExecutionState& state, Context* context))
