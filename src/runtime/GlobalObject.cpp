@@ -655,25 +655,14 @@ static Value builtinEncodeURIComponent(ExecutionState& state, Value thisValue, s
     return encode(state, argv[0].toString(state), false, state.context()->staticStrings().encodeURIComponent.string());
 }
 
-void char2hex(char dec, URIBuilderString& result)
+static void char2hex(char dec, URIBuilderString& result)
 {
-    unsigned char dig1 = (dec & 0xF0) >> 4;
-    unsigned char dig2 = (dec & 0x0F);
-    if (dig1 <= 9)
-        dig1 += 48; // 0, 48inascii
-    if (10 <= dig1 && dig1 <= 15)
-        dig1 += 65 - 10; // a, 97inascii
-    if (dig2 <= 9)
-        dig2 += 48;
-    if (10 <= dig2 && dig2 <= 15)
-        dig2 += 65 - 10;
-    char dig1_appended = static_cast<char>(dig1);
-    char dig2_appended = static_cast<char>(dig2);
-    result.pushBack(dig1_appended);
-    result.pushBack(dig2_appended);
+    auto s = charToHexCode(dec, true);
+    result.pushBack(s.first);
+    result.pushBack(s.second);
 }
 
-void char2hex4digit(char16_t dec, URIBuilderString& result)
+static void char2hex4digit(char16_t dec, URIBuilderString& result)
 {
     char dig[4];
     ASCIIStringDataNonGCStd r;
