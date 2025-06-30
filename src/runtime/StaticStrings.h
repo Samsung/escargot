@@ -306,6 +306,7 @@ namespace Escargot {
     F(isFinite)                   \
     F(isFrozen)                   \
     F(isInteger)                  \
+    F(isRawJSON)                  \
     F(isNaN)                      \
     F(isPrototypeOf)              \
     F(isSafeInteger)              \
@@ -373,6 +374,7 @@ namespace Escargot {
     F(race)                       \
     F(random)                     \
     F(raw)                        \
+    F(rawJSON)                    \
     F(read)                       \
     F(reduce)                     \
     F(reduceRight)                \

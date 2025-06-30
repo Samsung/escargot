@@ -495,6 +495,11 @@ public:
         return false;
     }
 
+    virtual bool isRawJSONObject() const
+    {
+        return false;
+    }
+
 #if defined(ENABLE_INTL)
     virtual bool isIntlLocaleObject() const
     {

@@ -25,6 +25,7 @@
 #include "runtime/TypedArrayObject.h"
 #include "runtime/BooleanObject.h"
 #include "runtime/BigIntObject.h"
+#include "runtime/RawJSONObject.h"
 
 #define RAPIDJSON_PARSE_DEFAULT_FLAGS kParseFullPrecisionFlag
 #define RAPIDJSON_ERROR_CHARTYPE char
@@ -83,10 +84,11 @@ struct JSONStringStream {
 };
 
 template <typename CharType, typename JSONCharType>
-static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSONCharType>& value)
+static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSONCharType>& value, bool hasReviver)
 {
     CHECK_STACK_OVERFLOW(state);
 
+#define MAX_SAFE_INTEGER 9007199254740991
     if (value.IsBool()) {
         return Value(value.GetBool());
     } else if (value.IsInt()) {
@@ -94,8 +96,16 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
     } else if (value.IsUint()) {
         return Value(value.GetUint());
     } else if (value.IsInt64()) {
+        auto val = value.GetInt64();
+        if (hasReviver && (val > MAX_SAFE_INTEGER || val < -MAX_SAFE_INTEGER)) {
+            return new BigInt(val);
+        }
         return Value(value.GetInt64());
     } else if (value.IsUint64()) {
+        auto val = value.GetUint64();
+        if (hasReviver && val > MAX_SAFE_INTEGER) {
+            return new BigInt(val);
+        }
         return Value(value.GetUint64());
     } else if (value.IsDouble()) {
         return Value(Value::DoubleToIntConvertibleTestNeeds, value.GetDouble());
@@ -122,7 +132,7 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
     } else if (value.IsArray()) {
         ArrayObject* arr = new ArrayObject(state, value.Size(), false);
         for (size_t i = 0; i < value.Size(); i++) {
-            arr->defineOwnIndexedPropertyWithoutExpanding(state, i, parseJSONWorker<CharType, JSONCharType>(state, value[i]));
+            arr->defineOwnIndexedPropertyWithoutExpanding(state, i, parseJSONWorker<CharType, JSONCharType>(state, value[i], hasReviver));
         }
         return arr;
     } else if (value.IsObject()) {
@@ -131,24 +141,29 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
         if (!ObjectStructure::isTransitionModeAvailable(memberCount)) {
             typedef typename rapidjson::GenericValue<JSONCharType>::MemberIterator JSONIter;
             JSONIter iter = value.MemberBegin();
+            struct CallbackData {
+                JSONIter& iter;
+                bool hasReviver;
+            } d = { iter, hasReviver };
             obj = new Object(state, memberCount,
                              [](ExecutionState& state, void* data) -> std::pair<Value, Value> {
-                                 JSONIter& iter = *((JSONIter*)data);
-                                 Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name);
-                                 Value value = parseJSONWorker<CharType, JSONCharType>(state, iter->value);
+                                 CallbackData* cd = reinterpret_cast<CallbackData*>(data);
+                                 JSONIter& iter = cd->iter;
+                                 Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name, cd->hasReviver);
+                                 Value value = parseJSONWorker<CharType, JSONCharType>(state, iter->value, cd->hasReviver);
                                  iter++;
                                  return std::make_pair(propertyName, value);
                              },
-                             &iter, true, true, true);
+                             &d, true, true, true);
             ASSERT(iter == value.MemberEnd());
         } else {
             obj = new Object(state);
             auto iter = value.MemberBegin();
             while (iter != value.MemberEnd()) {
-                Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name);
+                Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name, hasReviver);
                 ASSERT(propertyName.isString());
                 obj->defineOwnProperty(state, ObjectPropertyName(AtomicString(state, propertyName.toString(state))),
-                                       ObjectPropertyDescriptor(parseJSONWorker<CharType, JSONCharType>(state, iter->value), ObjectPropertyDescriptor::AllPresent));
+                                       ObjectPropertyDescriptor(parseJSONWorker<CharType, JSONCharType>(state, iter->value, hasReviver), ObjectPropertyDescriptor::AllPresent));
                 iter++;
             }
         }
@@ -159,7 +174,7 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
 }
 
 template <typename CharType, typename JSONCharType>
-static Value parseJSON(ExecutionState& state, const CharType* data, size_t length)
+static Value parseJSON(ExecutionState& state, const CharType* data, size_t length, bool hasReviver)
 {
     auto strings = &state.context()->staticStrings();
     rapidjson::GenericDocument<JSONCharType> jsonDocument;
@@ -170,7 +185,7 @@ static Value parseJSON(ExecutionState& state, const CharType* data, size_t lengt
         ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, strings->JSON.string(), true, strings->parse.string(), rapidjson::GetParseError_En(jsonDocument.GetParseError()));
     }
 
-    return parseJSONWorker<CharType, JSONCharType>(state, jsonDocument);
+    return parseJSONWorker<CharType, JSONCharType>(state, jsonDocument, hasReviver);
 }
 
 static void codePointTo4digitString(int codepoint, std::basic_string<char16_t>& ss)
@@ -200,7 +215,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
     // 1, 2, 3
     String* JText = text.toString(state);
     Value unfiltered;
-
+    bool hasReviver = reviver.isCallable();
     if (JText->has8BitContent()) {
         size_t len = JText->length();
         char16_t* char16Buf = new char16_t[len];
@@ -209,19 +224,20 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
         for (size_t i = 0; i < len; i++) {
             char16Buf[i] = srcBuf[i];
         }
-        unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, buf.get(), JText->length());
+        unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, buf.get(), JText->length(), hasReviver);
     } else {
-        unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, JText->characters16(), JText->length());
+        unfiltered = parseJSON<char16_t, rapidjson::UTF16<char16_t>>(state, JText->characters16(), JText->length(), hasReviver);
     }
 
     // 4
-    if (reviver.isCallable()) {
+    if (hasReviver) {
         Object* root = new Object(state);
         root->markThisObjectDontNeedStructureTransitionTable();
         root->defineOwnProperty(state, ObjectPropertyName(state, String::emptyString()), ObjectPropertyDescriptor(unfiltered, ObjectPropertyDescriptor::AllPresent));
         std::function<Value(Value, const ObjectPropertyName&)> Walk;
         Walk = [&](Value holder, const ObjectPropertyName& name) -> Value {
             CHECK_STACK_OVERFLOW(state);
+            Object* context = new Object(state);
             Value val = holder.asPointerValue()->asObject()->get(state, name).value(state, holder);
             if (val.isObject()) {
                 if (val.asObject()->isArray(state)) {
@@ -280,9 +296,15 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
                         }
                     }
                 }
+            } else {
+                context->defineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().source),
+                                           ObjectPropertyDescriptor(val.toString(state), ObjectPropertyDescriptor::AllPresent));
+                if (val.isBigInt()) {
+                    val = Value(Value::DoubleToIntConvertibleTestNeeds, val.asBigInt()->toNumber());
+                }
             }
-            Value arguments[] = { name.toPlainValue(), val };
-            return Object::call(state, reviver, holder, 2, arguments);
+            Value arguments[] = { name.toPlainValue(), val, context };
+            return Object::call(state, reviver, holder, 3, arguments);
         };
         return Walk(root, ObjectPropertyName(state, String::emptyString()));
     }
@@ -347,6 +369,7 @@ static bool builtinJSONStringifyStr(ExecutionState& state, Value key, Object* ho
         value = Object::call(state, replacerFunc, holder, 2, arguments);
     }
 
+    bool isRawString = false;
     if (value.isObject()) {
         if (value.asObject()->isNumberObject()) {
             value = Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state));
@@ -356,6 +379,9 @@ static bool builtinJSONStringifyStr(ExecutionState& state, Value key, Object* ho
             value = Value(value.asObject()->asBooleanObject()->primitiveValue());
         } else if (value.asObject()->isBigIntObject()) {
             value = Value(value.asObject()->asBigIntObject()->primitiveValue());
+        } else if (value.asObject()->isRawJSONObject()) {
+            value = value.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().rawJSON)).value(state, value);
+            isRawString = true;
         }
     }
     if (value.isNull()) {
@@ -367,7 +393,11 @@ static bool builtinJSONStringifyStr(ExecutionState& state, Value key, Object* ho
         return true;
     }
     if (value.isString()) {
-        builtinJSONStringifyQuote(state, value.asString(), product);
+        if (isRawString) {
+            product.appendString(value.asString(), &state);
+        } else {
+            builtinJSONStringifyQuote(state, value.asString(), product);
+        }
         return true;
     }
     if (value.isNumber()) {
