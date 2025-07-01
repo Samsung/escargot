@@ -418,9 +418,7 @@ static Value builtinArrayJoin(ExecutionState& state, Value thisValue, size_t arg
                             e->ret = std::min(index, e->ret);
                         }
                     }
-                    return true;
-                },
-                                            &data);
+                    return true; }, &data);
                 ptr = ptr.asObject()->getPrototype(state);
             }
             curIndex = data.ret;
@@ -2065,12 +2063,9 @@ static Value builtinArrayFindLastIndex(ExecutionState& state, Value thisValue, s
 
 void GlobalObject::initializeArray(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->array();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->array(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Array), nativeData, Value(Value::EmptyValue));
 }

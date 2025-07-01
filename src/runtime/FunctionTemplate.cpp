@@ -116,9 +116,7 @@ FunctionTemplate::FunctionTemplate(AtomicString name, size_t argumentCount, bool
             return toImpl(data->m_publicCallback((ExecutionStateRef*)(&state), toRef(newThisValue), argc, newArgv, OptionalRef<ObjectRef>(toRef(newTarget.value()))));
         } else {
             return toImpl(data->m_publicCallback((ExecutionStateRef*)(&state), toRef(thisValue), argc, newArgv, nullptr));
-        }
-    },
-                                               fn);
+        } }, fn);
     m_nativeFunctionData = fnData;
 }
 

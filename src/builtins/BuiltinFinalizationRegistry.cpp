@@ -102,12 +102,9 @@ static Value builtinfinalizationRegistryCleanupSome(ExecutionState& state, Value
 
 void GlobalObject::initializeFinalizationRegistry(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->finalizationRegistry();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->finalizationRegistry(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().FinalizationRegistry), nativeData, Value(Value::EmptyValue));
 }

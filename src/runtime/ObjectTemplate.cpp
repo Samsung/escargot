@@ -215,8 +215,7 @@ public:
                                                              ret->at(i));
 
                         ObjectStructurePropertyDescriptor desc = ObjectStructurePropertyDescriptor::createDataDescriptor(
-                            (ObjectStructurePropertyDescriptor::PresentAttribute)(
-                                ((attr & ObjectTemplatePropertyAttribute::PropertyAttributeWritable) ? ObjectStructurePropertyDescriptor::WritablePresent : 0) | ((attr & ObjectTemplatePropertyAttribute::PropertyAttributeEnumerable) ? ObjectStructurePropertyDescriptor::EnumerablePresent : 0) | ((attr & ObjectTemplatePropertyAttribute::PropertyAttributeConfigurable) ? ObjectStructurePropertyDescriptor::ConfigurablePresent : 0)));
+                            (ObjectStructurePropertyDescriptor::PresentAttribute)(((attr & ObjectTemplatePropertyAttribute::PropertyAttributeWritable) ? ObjectStructurePropertyDescriptor::WritablePresent : 0) | ((attr & ObjectTemplatePropertyAttribute::PropertyAttributeEnumerable) ? ObjectStructurePropertyDescriptor::EnumerablePresent : 0) | ((attr & ObjectTemplatePropertyAttribute::PropertyAttributeConfigurable) ? ObjectStructurePropertyDescriptor::ConfigurablePresent : 0)));
                         if (!callback(state, this, ObjectPropertyName(state, toImpl(ret->at(i))), desc, data)) {
                             return;
                         }

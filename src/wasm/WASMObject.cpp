@@ -47,9 +47,7 @@ WASMHostFunctionEnvironment::WASMHostFunctionEnvironment(Context* r, Object* f, 
     // so WASMHostFunctionEnvironment needs to be deallocated manually.
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         WASMHostFunctionEnvironment* self = (WASMHostFunctionEnvironment*)obj;
-        wasm_functype_delete(self->functype);
-    },
-                                   nullptr, nullptr, nullptr);
+        wasm_functype_delete(self->functype); }, nullptr, nullptr, nullptr);
 }
 
 void* WASMHostFunctionEnvironment::operator new(size_t size)
@@ -180,8 +178,7 @@ WASMMemoryObject* WASMMemoryObject::createMemoryObject(ExecutionState& state, wa
     void* dataBlock = wasm_memory_size(memaddr) == 0 ? WASMEmptyBlockAddress : wasm_memory_data(memaddr);
 
     // Init BackingStore with empty deleter
-    BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, wasm_memory_data_size(memaddr),
-                                                                           [](void* data, size_t length, void* deleterData) {}, nullptr);
+    BackingStore* backingStore = BackingStore::createNonSharedBackingStore(dataBlock, wasm_memory_data_size(memaddr), [](void* data, size_t length, void* deleterData) {}, nullptr);
     buffer->attachBuffer(backingStore);
 
     // Set memory.[[Memory]] to memory.

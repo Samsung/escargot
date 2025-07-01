@@ -137,8 +137,11 @@ IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* pr
 // https://tc39.es/intl-displaynames-v2/#sec-isvaliddatetimefieldcode
 static bool isValidDatetimeFieldCode(String* code)
 {
-#define TEST_ONCE(name) \
-    else if (code->equals(#name)) { return true; }
+#define TEST_ONCE(name)           \
+    else if (code->equals(#name)) \
+    {                             \
+        return true;              \
+    }
     if (false) {}
     TEST_ONCE(era)
     TEST_ONCE(year)

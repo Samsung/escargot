@@ -83,9 +83,7 @@ SandBox::SandBoxResult PromiseReactionJob::run()
             }
         }
 
-        return res;
-    },
-                                                this);
+        return res; }, this);
 
 #ifdef ESCARGOT_DEBUGGER
     if (activeSavedStackTraceExecutionState != ESCARGOT_DEBUGGER_NO_STACK_TRACE_RESTORE) {

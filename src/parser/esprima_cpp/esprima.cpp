@@ -682,7 +682,7 @@ public:
         if (this->context->strict && next->type == Token::IdentifierToken && next->isStrictModeReservedWord()) {
             this->scanner->convertToKeywordInStrictMode(next);
         }
-        //this->lookahead = *next;
+        // this->lookahead = *next;
 
         /*
         if (this->config.tokens && next.type !== Token.EOF) {

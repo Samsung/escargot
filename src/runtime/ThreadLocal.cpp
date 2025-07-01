@@ -302,10 +302,7 @@ void ThreadLocal::initialize()
     g_randEngine = new std::mt19937(static_cast<unsigned int>(time(NULL)));
 
     // g_bfContext
-    bf_context_init(&g_bfContext, [](void* opaque, void* ptr, size_t size) -> void* {
-        return realloc(ptr, size);
-    },
-                    nullptr);
+    bf_context_init(&g_bfContext, [](void* opaque, void* ptr, size_t size) -> void* { return realloc(ptr, size); }, nullptr);
 
 #if defined(ENABLE_WASM)
     // g_wasmContext

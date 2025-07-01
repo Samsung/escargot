@@ -67,9 +67,7 @@ ReloadableString::ReloadableString(VMInstance* instance, bool is8Bit, size_t str
         if (!self->m_isOwnerMayFreed) {
             auto& v = self->m_vmInstance->reloadableStrings();
             v.erase(std::find(v.begin(), v.end(), self));
-        }
-    },
-                                   nullptr, nullptr, nullptr);
+        } }, nullptr, nullptr, nullptr);
 }
 
 UTF8StringDataNonGCStd ReloadableString::toNonGCUTF8StringData(int options) const

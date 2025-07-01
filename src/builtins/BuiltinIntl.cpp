@@ -1127,12 +1127,9 @@ static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisVal
 
 void GlobalObject::initializeIntl(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->intl();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->intl(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Intl), nativeData, Value(Value::EmptyValue));
 }

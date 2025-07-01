@@ -418,7 +418,7 @@ public:
     T* operator->() const { return m_ptr; }
     bool operator!() const { return !m_ptr; }
     // This conversion operator allows implicit conversion to bool but not to other integer types.
-    typedef T*(PassRefPtr::*UnspecifiedBoolType);
+    typedef T*(PassRefPtr::* UnspecifiedBoolType);
     operator UnspecifiedBoolType() const { return m_ptr ? &PassRefPtr::m_ptr : nullptr; }
     friend PassRefPtr adoptRef<T>(T*);
 
@@ -584,7 +584,7 @@ public:
 
     bool operator!() const { return !m_ptr; }
     // This conversion operator allows implicit conversion to bool but not to other integer types.
-    typedef PtrType PassOwnPtr::*UnspecifiedBoolType;
+    typedef PtrType PassOwnPtr::* UnspecifiedBoolType;
     operator UnspecifiedBoolType() const { return m_ptr ? &PassOwnPtr::m_ptr : 0; }
     PassOwnPtr& operator=(const PassOwnPtr&)
     {
@@ -774,7 +774,7 @@ public:
 
     bool operator!() const { return !m_ptr; }
     // This conversion operator allows implicit conversion to bool but not to other integer types.
-    typedef PtrType OwnPtr::*UnspecifiedBoolType;
+    typedef PtrType OwnPtr::* UnspecifiedBoolType;
     operator UnspecifiedBoolType() const { return m_ptr ? &OwnPtr::m_ptr : 0; }
     OwnPtr& operator=(const PassOwnPtr<T>&);
     OwnPtr& operator=(std::nullptr_t)
@@ -803,10 +803,10 @@ private:
 
     // We should never have two OwnPtrs for the same underlying object (otherwise we'll get
     // double-destruction), so these equality operators should never be needed.
-    //template<typename U> bool operator==(const OwnPtr<U>&) { static_assert(!sizeof(U*), OwnPtrs_should_never_be_equal); return false; }
-    //template<typename U> bool operator!=(const OwnPtr<U>&) { static_assert(!sizeof(U*), OwnPtrs_should_never_be_equal); return false; }
-    //template<typename U> bool operator==(const PassOwnPtr<U>&) { static_assert(!sizeof(U*), OwnPtrs_should_never_be_equal); return false; }
-    //template<typename U> bool operator!=(const PassOwnPtr<U>&) { static_assert(!sizeof(U*), OwnPtrs_should_never_be_equal); return false; }
+    // template<typename U> bool operator==(const OwnPtr<U>&) { static_assert(!sizeof(U*), OwnPtrs_should_never_be_equal); return false; }
+    // template<typename U> bool operator!=(const OwnPtr<U>&) { static_assert(!sizeof(U*), OwnPtrs_should_never_be_equal); return false; }
+    // template<typename U> bool operator==(const PassOwnPtr<U>&) { static_assert(!sizeof(U*), OwnPtrs_should_never_be_equal); return false; }
+    // template<typename U> bool operator!=(const PassOwnPtr<U>&) { static_assert(!sizeof(U*), OwnPtrs_should_never_be_equal); return false; }
 
     PtrType m_ptr;
 };
@@ -1014,7 +1014,7 @@ public:
     ALWAYS_INLINE T* operator->() const { return m_ptr; }
     bool operator!() const { return !m_ptr; }
     // This conversion operator allows implicit conversion to bool but not to other integer types.
-    typedef T*(RefPtr::*UnspecifiedBoolType);
+    typedef T*(RefPtr::* UnspecifiedBoolType);
     operator UnspecifiedBoolType() const { return m_ptr ? &RefPtr::m_ptr : nullptr; }
     RefPtr& operator=(const RefPtr&);
     RefPtr& operator=(T*);

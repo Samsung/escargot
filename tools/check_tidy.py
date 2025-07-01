@@ -100,7 +100,7 @@ def check_tidy(src_dir, update, clang_format, stats):
 
 def main():
     parser = ArgumentParser(description='Escargot Source Format Checker and Updater')
-    parser.add_argument('--clang-format', metavar='PATH', default='clang-format-6.0',
+    parser.add_argument('--clang-format', metavar='PATH', default='clang-format-20',
                         help='path to clang-format (default: %(default)s)')
     parser.add_argument('--update', action='store_true',
                         help='reformat files')

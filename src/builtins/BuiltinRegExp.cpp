@@ -532,7 +532,7 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
     String* str = argv[0].toString(state);
     ASSERT(str != nullptr);
 
-    //21.2.5.6.8
+    // 21.2.5.6.8
     String* flags = rx.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().flags)).value(state, rx).toString(state);
     bool global = flags->contains("g");
 
@@ -545,22 +545,22 @@ static Value builtinRegExpMatch(ExecutionState& state, Value thisValue, size_t a
     ArrayObject* A = new ArrayObject(state);
     size_t n = 0;
 
-    //21.2.5.6.8.g.i
+    // 21.2.5.6.8.g.i
     while (true) {
-        //21.2.5.6.8.g.i
+        // 21.2.5.6.8.g.i
         Value result = regExpExec(state, rx.asObject(), str);
-        //21.2.5.6.8.g.iii
+        // 21.2.5.6.8.g.iii
         if (result.isNull()) {
             if (n == 0) {
                 return Value(Value::Null);
             }
             return A;
         } else {
-            //21.2.5.6.8.g.iv
+            // 21.2.5.6.8.g.iv
             Value matchStr = result.asObject()->get(state, ObjectPropertyName(state, Value(0))).value(state, result).toString(state);
             A->defineOwnProperty(state, ObjectPropertyName(state, Value(n).toString(state)), ObjectPropertyDescriptor(Value(matchStr), (ObjectPropertyDescriptor::PresentAttribute::AllPresent)));
             if (matchStr.asString()->length() == 0) {
-                //21.2.5.6.8.g.iv.5
+                // 21.2.5.6.8.g.iv.5
                 uint64_t thisIndex = rx.asObject()->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, rx).toLength(state);
                 uint64_t nextIndex = str->advanceStringIndex(thisIndex, fullUnicode);
                 rx.asObject()->setThrowsException(state, state.context()->staticStrings().lastIndex, Value(nextIndex), rx);
@@ -779,7 +779,7 @@ std::pair<Value, bool> RegExpStringIteratorObject::advance(ExecutionState& state
     if (global) {
         String* matchStr = match.asObject()->get(state, ObjectPropertyName(state, Value(0))).value(state, match).toString(state);
         if (matchStr->length() == 0) {
-            //21.2.5.6.8.g.iv.5
+            // 21.2.5.6.8.g.iv.5
             uint64_t thisIndex = r->get(state, ObjectPropertyName(state, state.context()->staticStrings().lastIndex)).value(state, r).toLength(state);
             uint64_t nextIndex = s->advanceStringIndex(thisIndex, unicode);
             r->setThrowsException(state, state.context()->staticStrings().lastIndex, Value(nextIndex), r);
@@ -792,12 +792,9 @@ std::pair<Value, bool> RegExpStringIteratorObject::advance(ExecutionState& state
 
 void GlobalObject::initializeRegExp(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->regexp();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->regexp(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().RegExp), nativeData, Value(Value::EmptyValue));
 }

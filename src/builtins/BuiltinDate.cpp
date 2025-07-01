@@ -506,12 +506,9 @@ static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size
 
 void GlobalObject::initializeDate(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->date();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->date(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Date), nativeData, Value(Value::EmptyValue));
 }

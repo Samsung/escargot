@@ -67,9 +67,7 @@ CompressibleString::CompressibleString(VMInstance* instance)
 
             auto& v = self->m_vmInstance->compressibleStrings();
             v.erase(std::find(v.begin(), v.end(), self));
-        }
-    },
-                                   nullptr, nullptr, nullptr);
+        } }, nullptr, nullptr, nullptr);
 }
 
 CompressibleString::CompressibleString(VMInstance* instance, const char* str, size_t len)

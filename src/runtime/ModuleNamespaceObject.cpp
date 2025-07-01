@@ -260,9 +260,7 @@ Object::OwnPropertyKeyVector ModuleNamespaceObject::ownPropertyKeys(ExecutionSta
                 exports->pushBack(p.objectStructurePropertyName().toValue());
             }
         }
-        return true;
-    },
-                        &exports, false);
+        return true; }, &exports, false);
 
     // Return exports.
     return exports;

@@ -579,12 +579,9 @@ static Value builtinAtomicsIsLockFree(ExecutionState& state, Value thisValue, si
 
 void GlobalObject::initializeAtomics(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->atomics();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->atomics(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Atomics), nativeData, Value(Value::EmptyValue));
 }

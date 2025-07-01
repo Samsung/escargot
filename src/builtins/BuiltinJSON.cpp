@@ -91,12 +91,9 @@ static Value builtinJSONIsRawJSON(ExecutionState& state, Value thisValue, size_t
 
 void GlobalObject::initializeJSON(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->json();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->json(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().JSON), nativeData, Value(Value::EmptyValue));
 }

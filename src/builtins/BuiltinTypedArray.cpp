@@ -1090,7 +1090,7 @@ static Value builtinTypedArrayEvery(ExecutionState& state, Value thisValue, size
     return Value(true);
 }
 
-//https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.fill
+// https://www.ecma-international.org/ecma-262/10.0/#sec-%typedarray%.prototype.fill
 static Value builtinTypedArrayFill(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Perform ? TypedArrayObject::validateTypedArray(O).
@@ -1825,15 +1825,12 @@ void GlobalObject::initializeTypedArray(ExecutionState& state)
 {
     const StaticStrings* strings = &state.context()->staticStrings();
 
-#define INITIALIZE_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                                                                                                          \
-    {                                                                                                                                                                                                                               \
-        ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,                                                                                                              \
-                                                                                                    [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value { \
+#define INITIALIZE_TYPEDARRAY(TYPE, type, siz, nativeType)                                                                                                                                                                                                          \
+    {                                                                                                                                                                                                                                                               \
+        ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value { \
                                                                                                         ASSERT(self->isGlobalObject());                                                                                             \
-                                                                                                        return self->asGlobalObject()->type##Array();                                                                               \
-                                                                                                    },                                                                                                                              \
-                                                                                                    nullptr);                                                                                                                       \
-        defineNativeDataAccessorProperty(state, ObjectPropertyName(strings->TYPE##Array), nativeData, Value(Value::EmptyValue));                                                                                                    \
+                                                                                                        return self->asGlobalObject()->type##Array(); }, nullptr); \
+        defineNativeDataAccessorProperty(state, ObjectPropertyName(strings->TYPE##Array), nativeData, Value(Value::EmptyValue));                                                                                                                                    \
     }
 
     FOR_EACH_TYPEDARRAY_TYPES(INITIALIZE_TYPEDARRAY)

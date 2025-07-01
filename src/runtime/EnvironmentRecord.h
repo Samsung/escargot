@@ -889,7 +889,7 @@ private:
 template <bool canBindThisValue, bool hasNewTarget>
 class FunctionEnvironmentRecordWithExtraData : public FunctionEnvironmentRecord {
     friend class LexicalEnvironment;
-    //friend class FunctionObject;
+    // friend class FunctionObject;
 
 public:
     ALWAYS_INLINE explicit FunctionEnvironmentRecordWithExtraData(ScriptFunctionObject* function)

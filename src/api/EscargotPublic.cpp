@@ -242,15 +242,11 @@ void PlatformRef::notifyHostImportModuleDynamicallyResult(ContextRef* relatedCon
         mp->m_value = toImpl(result.error.value());
         Evaluator::execute(relatedContext, [](ExecutionStateRef* state, ValueRef* error, PromiseObjectRef* promise) -> ValueRef* {
             promise->reject(state, promise);
-            return ValueRef::createUndefined();
-        },
-                           result.error.value(), promise);
+            return ValueRef::createUndefined(); }, result.error.value(), promise);
     } else {
         Evaluator::execute(relatedContext, [](ExecutionStateRef* state, ValueRef* error, PromiseObjectRef* promise) -> ValueRef* {
             promise->fulfill(state, promise);
-            return ValueRef::createUndefined();
-        },
-                           result.error.value(), promise);
+            return ValueRef::createUndefined(); }, result.error.value(), promise);
     }
 }
 
@@ -1305,7 +1301,7 @@ Evaluator::EvaluatorResult Evaluator::executeFunction(ContextRef* ctx, ValueRef*
 
     auto result = sb.run([](ExecutionState& state, void* data) -> Value {
         DataSender* sender = (DataSender*)data;
-        ValueRef* (*runner)(ExecutionStateRef * state, void* passedData) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData)) sender->fn;
+        ValueRef* (*runner)(ExecutionStateRef* state, void* passedData) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData)) sender->fn;
         return toImpl(runner(toRef(&state), sender->data));
     },
                          &sender);
@@ -1328,7 +1324,7 @@ Evaluator::EvaluatorResult Evaluator::executeFunction(ContextRef* ctx, ValueRef*
 
     auto result = sb.run([](ExecutionState& state, void* data) -> Value {
         DataSender* sender = (DataSender*)data;
-        ValueRef* (*runner)(ExecutionStateRef * state, void* passedData, void* passedData2) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData, void* passedData2)) sender->fn;
+        ValueRef* (*runner)(ExecutionStateRef* state, void* passedData, void* passedData2) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData, void* passedData2)) sender->fn;
         return toImpl(runner(toRef(&state), sender->data, sender->data2));
     },
                          &sender);
@@ -1352,9 +1348,7 @@ Evaluator::EvaluatorResult Evaluator::executeFunction(ExecutionStateRef* parentS
     auto result = sb.run(*toImpl(parentState), [](ExecutionState& state, void* data) -> Value {
         DataSender* sender = (DataSender*)data;
         ValueRef* (*runner)(ExecutionStateRef * state, void* passedData, void* passedData2) = (ValueRef * (*)(ExecutionStateRef * state, void* passedData, void* passedData2)) sender->fn;
-        return toImpl(runner(toRef(&state), sender->data, sender->data2));
-    },
-                         &sender);
+        return toImpl(runner(toRef(&state), sender->data, sender->data2)); }, &sender);
     return toEvaluatorResultRef(result);
 }
 
@@ -2231,28 +2225,28 @@ ObjectPropertyDescriptorRef::~ObjectPropertyDescriptorRef()
 }
 
 ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(void* src)
-    : m_privateData(new (GC) ObjectPropertyDescriptor(*((ObjectPropertyDescriptor*)src)))
+    : m_privateData(new(GC) ObjectPropertyDescriptor(*((ObjectPropertyDescriptor*)src)))
 {
 }
 
 ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(ValueRef* value)
-    : m_privateData(new (GC) ObjectPropertyDescriptor(toImpl(value), ObjectPropertyDescriptor::ValuePresent))
+    : m_privateData(new(GC) ObjectPropertyDescriptor(toImpl(value), ObjectPropertyDescriptor::ValuePresent))
 {
 }
 
 ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(ValueRef* value, bool writable)
-    : m_privateData(new (GC) ObjectPropertyDescriptor(toImpl(value),
-                                                      (ObjectPropertyDescriptor::PresentAttribute)((writable ? ObjectPropertyDescriptor::WritablePresent : ObjectPropertyDescriptor::NonWritablePresent) | ObjectPropertyDescriptor::ValuePresent)))
+    : m_privateData(new(GC) ObjectPropertyDescriptor(toImpl(value),
+                                                     (ObjectPropertyDescriptor::PresentAttribute)((writable ? ObjectPropertyDescriptor::WritablePresent : ObjectPropertyDescriptor::NonWritablePresent) | ObjectPropertyDescriptor::ValuePresent)))
 {
 }
 
 ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(ValueRef* getter, ValueRef* setter)
-    : m_privateData(new (GC) ObjectPropertyDescriptor(JSGetterSetter(toImpl(getter), toImpl(setter)), ObjectPropertyDescriptor::NotPresent))
+    : m_privateData(new(GC) ObjectPropertyDescriptor(JSGetterSetter(toImpl(getter), toImpl(setter)), ObjectPropertyDescriptor::NotPresent))
 {
 }
 
 ObjectPropertyDescriptorRef::ObjectPropertyDescriptorRef(const ObjectPropertyDescriptorRef& src)
-    : m_privateData(new (GC) ObjectPropertyDescriptor(*((ObjectPropertyDescriptor*)src.m_privateData)))
+    : m_privateData(new(GC) ObjectPropertyDescriptor(*((ObjectPropertyDescriptor*)src.m_privateData)))
 {
 }
 
@@ -2520,9 +2514,7 @@ bool ObjectRef::defineNativeDataAccessorProperty(ExecutionStateRef* state, Value
 {
     ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(publicData->m_isWritable, publicData->m_isEnumerable, publicData->m_isConfigurable, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
         NativeDataAccessorPropertyData* publicData = reinterpret_cast<NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
-        return toImpl(publicData->m_getter(toRef(&state), toRef(self), toRef(receiver), publicData));
-    },
-                                                                                               nullptr, actsLikeJSGetterSetter);
+        return toImpl(publicData->m_getter(toRef(&state), toRef(self), toRef(receiver), publicData)); }, nullptr, actsLikeJSGetterSetter);
 
     if (!publicData->m_isWritable) {
         innerData->m_setter = nullptr;
@@ -2755,9 +2747,7 @@ void ObjectRef::enumerateObjectOwnProperties(ExecutionStateRef* state, const std
     toImpl(this)->enumeration(*toImpl(state), [](ExecutionState& state, Object* self, const ObjectPropertyName& name, const ObjectStructurePropertyDescriptor& desc, void* data) -> bool {
         const std::function<bool(ExecutionStateRef * state, ValueRef * propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>* cb
             = (const std::function<bool(ExecutionStateRef * state, ValueRef * propertyName, bool isWritable, bool isEnumerable, bool isConfigurable)>*)data;
-        return (*cb)(toRef(&state), toRef(name.toPlainValue()), desc.isWritable(), desc.isEnumerable(), desc.isConfigurable());
-    },
-                              (void*)&cb, shouldSkipSymbolKey);
+        return (*cb)(toRef(&state), toRef(name.toPlainValue()), desc.isWritable(), desc.isEnumerable(), desc.isConfigurable()); }, (void*)&cb, shouldSkipSymbolKey);
 }
 
 FunctionObjectRef* GlobalObjectRef::object()
@@ -4710,9 +4700,7 @@ void TemplateRef::setNativeDataAccessorProperty(ValueRef* propertyName, ObjectRe
 
     ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(isWritable, isEnumerable, isConfigurable, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
         ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
-        return toImpl(publicData->m_getter(toRef(&state), toRef(self), toRef(receiver), publicData));
-    },
-                                                                                               nullptr, actsLikeJSGetterSetter);
+        return toImpl(publicData->m_getter(toRef(&state), toRef(self), toRef(receiver), publicData)); }, nullptr, actsLikeJSGetterSetter);
 
     if (!isWritable) {
         innerData->m_setter = nullptr;
@@ -4732,12 +4720,9 @@ void TemplateRef::setNativeDataAccessorProperty(ValueRef* propertyName, ObjectRe
 
 void TemplateRef::setNativeDataAccessorProperty(ValueRef* propertyName, ObjectRef::NativeDataAccessorPropertyData* publicData, bool actsLikeJSGetterSetter)
 {
-    ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(publicData->m_isWritable, publicData->m_isEnumerable, publicData->m_isConfigurable,
-                                                                                               [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* innerData = new ObjectPropertyNativeGetterSetterData(publicData->m_isWritable, publicData->m_isEnumerable, publicData->m_isConfigurable, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                    ObjectRef::NativeDataAccessorPropertyData* publicData = reinterpret_cast<ObjectRef::NativeDataAccessorPropertyData*>(privateDataFromObjectPrivateArea.payload());
-                                                                                                   return toImpl(publicData->m_getter(toRef(&state), toRef(self), toRef(receiver), publicData));
-                                                                                               },
-                                                                                               nullptr);
+                                                                                                   return toImpl(publicData->m_getter(toRef(&state), toRef(self), toRef(receiver), publicData)); }, nullptr);
     innerData->m_actsLikeJSGetterSetter = actsLikeJSGetterSetter;
     if (!publicData->m_isWritable) {
         innerData->m_setter = nullptr;

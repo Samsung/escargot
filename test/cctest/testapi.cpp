@@ -122,10 +122,7 @@ static std::string evalScript(ContextRef* context, StringRef* str, StringRef* fi
     }
 
     std::string result;
-    auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
-        return script->execute(state);
-    },
-                                         scriptInitializeResult.script.get());
+    auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, scriptInitializeResult.script.get());
 
     char str[256];
     if (!evalResult.isSuccessful()) {
@@ -150,10 +147,7 @@ static ValueRef* eval(ContextRef* context, StringRef* str)
 {
     auto scriptInitializeResult = context->scriptParser()->initializeScript(str, StringRef::createFromASCII("eval"), false);
     EXPECT_TRUE(scriptInitializeResult.script.hasValue());
-    auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
-        return script->execute(state);
-    },
-                                         scriptInitializeResult.script.get());
+    auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, scriptInitializeResult.script.get());
 
     EXPECT_TRUE(evalResult.isSuccessful());
     return evalResult.result;
@@ -498,22 +492,16 @@ TEST(Evaluator, Basic)
     EXPECT_TRUE(result2.error->asInt32() == 123);
 
     FunctionObjectRef* functionObjectRef = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
-                                               FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(g_context.get(), "test"),
-                                                                                                        [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
+                                               FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(g_context.get(), "test"), [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
                                                                                                             state->throwException(ValueRef::create(123));
-                                                                                                            return ValueRef::createUndefined();
-                                                                                                        },
-                                                                                                        0, true, false);
+                                                                                                            return ValueRef::createUndefined(); }, 0, true, false);
                                                return FunctionObjectRef::create(state, nativeFunctionInfo);
-                                           })
-                                               .result->asFunctionObject();
+                                           }).result->asFunctionObject();
 
     auto result3 = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* functionObjectRef) -> ValueRef* {
         functionObjectRef->call(state, ValueRef::createUndefined(), 0, nullptr);
         EXPECT_TRUE(false);
-        return ValueRef::create(456);
-    },
-                                      functionObjectRef);
+        return ValueRef::create(456); }, functionObjectRef);
 
     EXPECT_TRUE(!result3.isSuccessful());
     EXPECT_TRUE(result3.error);
@@ -525,15 +513,12 @@ TEST(Evaluator, Basic)
 
     FunctionObjectRef* functionObjectRef2 = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
                                                 return FunctionObjectRef::create(state, StringRef::createFromASCII("test_name"), AtomicStringRef::create(state->context(), "test"), 0, nullptr, StringRef::createFromASCII("throw 3;"));
-                                            })
-                                                .result->asFunctionObject();
+                                            }).result->asFunctionObject();
 
     auto result4 = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* functionObjectRef) -> ValueRef* {
         functionObjectRef->call(state, ValueRef::createUndefined(), 0, nullptr);
         EXPECT_TRUE(false);
-        return ValueRef::create(456);
-    },
-                                      functionObjectRef2);
+        return ValueRef::create(456); }, functionObjectRef2);
 
     EXPECT_TRUE(!result4.isSuccessful());
     EXPECT_TRUE(result4.error);
@@ -595,79 +580,59 @@ TEST(Object, ConstructorName)
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
         StringRef* c = testObj->constructorName(state);
         EXPECT_TRUE(c->toStdUTF8String() == "foo");
-        return ValueRef::createUndefined();
-    },
-                       testObj);
+        return ValueRef::createUndefined(); }, testObj);
 
     testObj = eval(g_context.get(), StringRef::createFromASCII("ctorNameTest = {}; ctorNameTest;"))->asObject();
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
         StringRef* c = testObj->constructorName(state);
         EXPECT_TRUE(c->toStdUTF8String() == "Object");
-        return ValueRef::createUndefined();
-    },
-                       testObj);
+        return ValueRef::createUndefined(); }, testObj);
 
     testObj = eval(g_context.get(), StringRef::createFromASCII("var ctorNameTest = new foo(); ctorNameTest.__proto__=null; ctorNameTest;"))->asObject();
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
         StringRef* c = testObj->constructorName(state);
         EXPECT_TRUE(c->toStdUTF8String() == "foo");
-        return ValueRef::createUndefined();
-    },
-                       testObj);
+        return ValueRef::createUndefined(); }, testObj);
 
     testObj = eval(g_context.get(), StringRef::createFromASCII("var ctorNameTest = {}; ctorNameTest.__proto__=foo.prototype; ctorNameTest;"))->asObject();
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
         StringRef* c = testObj->constructorName(state);
         EXPECT_TRUE(c->toStdUTF8String() == "foo");
-        return ValueRef::createUndefined();
-    },
-                       testObj);
+        return ValueRef::createUndefined(); }, testObj);
 
     testObj = eval(g_context.get(), StringRef::createFromASCII("class foobar{};  ctorNameTest = new foobar(); ctorNameTest;"))->asObject();
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
         StringRef* c = testObj->constructorName(state);
         EXPECT_TRUE(c->toStdUTF8String() == "foobar");
-        return ValueRef::createUndefined();
-    },
-                       testObj);
+        return ValueRef::createUndefined(); }, testObj);
 
     testObj = eval(g_context.get(), StringRef::createFromASCII("ctorNameTest = new foobar(); ctorNameTest.__proto__=foo.prototype;  ctorNameTest;"))->asObject();
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
         StringRef* c = testObj->constructorName(state);
         EXPECT_TRUE(c->toStdUTF8String() == "foobar");
-        return ValueRef::createUndefined();
-    },
-                       testObj);
+        return ValueRef::createUndefined(); }, testObj);
 
     testObj = eval(g_context.get(), StringRef::createFromASCII("ctorNameTest = new foobar(); ctorNameTest.__proto__=null;  ctorNameTest;"))->asObject();
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* testObj) -> ValueRef* {
         StringRef* c = testObj->constructorName(state);
         EXPECT_TRUE(c->toStdUTF8String() == "foobar");
-        return ValueRef::createUndefined();
-    },
-                       testObj);
+        return ValueRef::createUndefined(); }, testObj);
 }
 
 TEST(FunctionObject, Consturct)
 {
     FunctionObjectRef* fn = Evaluator::execute(g_context.get(), [](ExecutionStateRef* state) -> ValueRef* {
-                                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(g_context.get(), "test"),
-                                                                                         [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
+                                FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(g_context.get(), "test"), [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
                                                                                              EXPECT_TRUE(newTarget.hasValue());
                                                                                              ObjectRef* obj = ObjectRef::create(state, newTarget->asFunctionObject()->getFunctionPrototype(state)->asObject());
-                                                                                             return obj;
-                                                                                         },
-                                                                                         0, true, true);
+                                                                                             return obj; }, 0, true, true);
                                 return FunctionObjectRef::create(state, nativeFunctionInfo);
-                            })
-                                .result->asFunctionObject();
+                            }).result->asFunctionObject();
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* fn) -> ValueRef* {
         ObjectRef* obj = fn->construct(state, 0, nullptr)->asObject();
         EXPECT_TRUE(obj->instanceOf(state, fn));
-        return ValueRef::createUndefined();
-    },
-                       fn);
+        return ValueRef::createUndefined(); }, fn);
 }
 
 TEST(FunctionObject, CallConsturctor)
@@ -758,9 +723,7 @@ TEST(ObjectTemplate, Basic1)
         value = desc->asObject()->get(state, StringRef::createFromASCII("configurable"));
         EXPECT_TRUE(value->isFalse());
 
-        return ValueRef::createUndefined();
-    },
-                       obj);
+        return ValueRef::createUndefined(); }, obj);
 }
 
 TEST(ObjectTemplate, Basic2)
@@ -804,9 +767,7 @@ TEST(ObjectTemplate, Basic2)
         obj->set(state, StringRef::createFromASCII("asdf2"), StringRef::createFromASCII("test"));
         EXPECT_TRUE(obj->get(state, StringRef::createFromASCII("asdf2"))->equalsTo(state, StringRef::createFromASCII("test")));
 
-        return ValueRef::createUndefined();
-    },
-                       obj);
+        return ValueRef::createUndefined(); }, obj);
 }
 
 TEST(ObjectTemplate, Basic3)
@@ -938,16 +899,12 @@ TEST(ObjectTemplate, Basic3)
         desc2 = state->context()->globalObject()->jsonStringify()->call(state, ValueRef::createUndefined(), 1, &desc2);
         EXPECT_TRUE(desc2->toString(state)->toStdUTF8String() == "{\"value\":128,\"writable\":true,\"enumerable\":false,\"configurable\":false}");
 
-        return ValueRef::createUndefined();
-    },
-                       obj, data2, tpl);
+        return ValueRef::createUndefined(); }, obj, data2, tpl);
 
     // inline cache test if actsLikeJSGetterSetter is true
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
         state->context()->globalObject()->set(state, StringRef::createFromASCII("asdf"), obj);
-        return ValueRef::createUndefined();
-    },
-                       obj);
+        return ValueRef::createUndefined(); }, obj);
 
     evalScript(g_context.get(), StringRef::createFromASCII("var t = {}; t.__proto__ = asdf;"
                                                            "for(let i = 0;i < 10; i++) { t.asdf = 3 }"),
@@ -959,9 +916,7 @@ TEST(ObjectTemplate, Basic3)
         EXPECT_TRUE(ret->toNumber(state) == 6);
         state->context()->globalObject()->set(state, StringRef::createFromASCII("t"), ValueRef::createUndefined());
         state->context()->globalObject()->set(state, StringRef::createFromASCII("asdf"), ValueRef::createUndefined());
-        return ValueRef::createUndefined();
-    },
-                       obj);
+        return ValueRef::createUndefined(); }, obj);
 }
 
 TEST(ObjectTemplate, Basic4)
@@ -1080,9 +1035,7 @@ TEST(ObjectTemplate, Basic4)
         EXPECT_TRUE(descObj->isObject());
         EXPECT_TRUE(descObj->asObject()->get(state, StringRef::createFromASCII("value"))->isNull());
 
-        return ValueRef::createUndefined();
-    },
-                       obj);
+        return ValueRef::createUndefined(); }, obj);
 
 
     ObjectTemplateRef* tpl2 = ObjectTemplateRef::create();
@@ -1103,9 +1056,7 @@ TEST(ObjectTemplate, Basic4)
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
         EXPECT_FALSE(obj->defineDataProperty(state, StringRef::createFromASCII("ttt"), ValueRef::create(111), false, false, false));
-        return ValueRef::createUndefined();
-    },
-                       obj);
+        return ValueRef::createUndefined(); }, obj);
 }
 
 TEST(ObjectTemplate, Basic5)
@@ -1232,9 +1183,7 @@ TEST(ObjectTemplate, Basic5)
         EXPECT_TRUE(descObj->isObject());
         EXPECT_TRUE(descObj->asObject()->get(state, StringRef::createFromASCII("value"))->isNull());
 
-        return ValueRef::createUndefined();
-    },
-                       obj);
+        return ValueRef::createUndefined(); }, obj);
 
 
     ObjectTemplateRef* tpl2 = ObjectTemplateRef::create();
@@ -1257,9 +1206,7 @@ TEST(ObjectTemplate, Basic5)
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
         EXPECT_FALSE(obj->defineDataProperty(state, StringRef::createFromASCII("100"), ValueRef::create(111), false, false, false));
-        return ValueRef::createUndefined();
-    },
-                       obj);
+        return ValueRef::createUndefined(); }, obj);
 }
 
 TEST(ObjectTemplate, Basic6)
@@ -1448,9 +1395,7 @@ TEST(ObjectTemplate, Basic6)
         EXPECT_TRUE(descObj->isObject());
         EXPECT_TRUE(descObj->asObject()->get(state, StringRef::createFromASCII("value"))->isNull());
 
-        return ValueRef::createUndefined();
-    },
-                       obj);
+        return ValueRef::createUndefined(); }, obj);
 
     obj->setExtraData(ValueRef::create(123));
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
@@ -1501,9 +1446,7 @@ TEST(ObjectTemplate, Basic6)
         EXPECT_TRUE(descObj->isObject());
         EXPECT_TRUE(descObj->asObject()->get(state, StringRef::createFromASCII("value"))->isNull());
 
-        return ValueRef::createUndefined();
-    },
-                       obj);
+        return ValueRef::createUndefined(); }, obj);
 }
 
 TEST(FunctionTemplate, Basic1)
@@ -1555,9 +1498,7 @@ TEST(FunctionTemplate, Basic1)
         name = fn->getOwnProperty(state, StringRef::createFromASCII("name", 4));
         EXPECT_TRUE(name->asString()->equalsWithASCIIString("asdf3", 5));
 
-        return ValueRef::createUndefined();
-    },
-                                fn);
+        return ValueRef::createUndefined(); }, fn);
     EXPECT_TRUE(r.isSuccessful());
 }
 
@@ -1585,9 +1526,7 @@ TEST(FunctionTemplate, Basic2)
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionObjectRef* fn) -> ValueRef* {
         ValueRef* arr[1] = { ValueRef::create(123) };
         EXPECT_TRUE(fn->call(state, ValueRef::createUndefined(), 1, arr)->equalsTo(state, ValueRef::create(123)));
-        return ValueRef::createUndefined();
-    },
-                       fn);
+        return ValueRef::createUndefined(); }, fn);
 }
 
 TEST(FunctionTemplate, Basic3)
@@ -1597,11 +1536,7 @@ TEST(FunctionTemplate, Basic3)
                                                  return ValueRef::createUndefined();
                                              });
 
-    ObjectRef::NativeDataAccessorPropertyData* nativeAccessorData = new ObjectRef::NativeDataAccessorPropertyData(true, false, false,
-                                                                                                                  [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) -> ValueRef* {
-                                                                                                                      return ValueRef::create(12);
-                                                                                                                  },
-                                                                                                                  nullptr);
+    ObjectRef::NativeDataAccessorPropertyData* nativeAccessorData = new ObjectRef::NativeDataAccessorPropertyData(true, false, false, [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) -> ValueRef* { return ValueRef::create(12); }, nullptr);
 
     super->prototypeTemplate()->set(StringRef::createFromASCII("b_p1"), ValueRef::create(3.14), true, true, true);
     super->instanceTemplate()->set(StringRef::createFromASCII("b_i1"), ValueRef::create(3), true, true, true);
@@ -1624,9 +1559,7 @@ TEST(FunctionTemplate, Basic3)
 
         // base1.prototype.__proto__ == super1.prototype
         EXPECT_TRUE(base1->asFunctionObject()->getFunctionPrototype(state)->asObject()->getPrototype(state) == super1->asFunctionObject()->getFunctionPrototype(state));
-        return ValueRef::createUndefined();
-    },
-                       super, base);
+        return ValueRef::createUndefined(); }, super, base);
 
     // test super's instance
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionTemplateRef* super) -> ValueRef* {
@@ -1645,9 +1578,7 @@ TEST(FunctionTemplate, Basic3)
         // ref.prototype.b_ia
         EXPECT_FALSE(ref->asFunctionObject()->getFunctionPrototype(state)->asObject()->hasOwnProperty(state, StringRef::createFromASCII("b_ia")));
 
-        return ValueRef::createUndefined();
-    },
-                       super);
+        return ValueRef::createUndefined(); }, super);
 
     // test super's new instance
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionTemplateRef* super) -> ValueRef* {
@@ -1660,9 +1591,7 @@ TEST(FunctionTemplate, Basic3)
         EXPECT_TRUE(ref->hasOwnProperty(state, StringRef::createFromASCII("b_ia")));
         EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("b_ia"))->equalsTo(state, ValueRef::create(12)));
 
-        return ValueRef::createUndefined();
-    },
-                       super);
+        return ValueRef::createUndefined(); }, super);
 
     // test base's new instance
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, FunctionTemplateRef* base) -> ValueRef* {
@@ -1679,9 +1608,7 @@ TEST(FunctionTemplate, Basic3)
         EXPECT_TRUE(ref->hasOwnProperty(state, StringRef::createFromASCII("v2")));
         EXPECT_TRUE(ref->get(state, StringRef::createFromASCII("v2"))->equalsTo(state, ValueRef::create(0)));
 
-        return ValueRef::createUndefined();
-    },
-                       base);
+        return ValueRef::createUndefined(); }, base);
 }
 
 TEST(FunctionTemplate, Basic4)
@@ -1699,9 +1626,7 @@ TEST(FunctionTemplate, Basic4)
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
         g_context.get()->globalObject()->set(state, StringRef::createFromASCII("Parent"), obj);
-        return ValueRef::createUndefined();
-    },
-                       ft->instantiate(g_context.get()));
+        return ValueRef::createUndefined(); }, ft->instantiate(g_context.get()));
 
     auto s = evalScript(g_context.get(), StringRef::createFromASCII("class Child extends Parent { constructor() { super(); } run() { return super.run() + 2; }}; var c = new Child(); c.run(); "), StringRef::createFromASCII("test.js"), false);
     EXPECT_EQ(s, "3");
@@ -1727,36 +1652,18 @@ TEST(FunctionTemplate, Basic5)
     auto obj = ft->instanceTemplate()->instantiate(g_context.get());
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj, SymbolRef* symbol) -> ValueRef* {
         EXPECT_TRUE(obj->has(state, symbol));
-        return ValueRef::createUndefined();
-    },
-                       obj, symbol);
+        return ValueRef::createUndefined(); }, obj, symbol);
 }
 
 TEST(FunctionTemplate, Basic6)
 {
-    ObjectRef::NativeDataAccessorPropertyData* parentAccessorData = new ObjectRef::NativeDataAccessorPropertyData(true, false, false,
-                                                                                                                  [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) {
-                                                                                                                      return ValueRef::create(1);
-                                                                                                                  },
-                                                                                                                  nullptr);
+    ObjectRef::NativeDataAccessorPropertyData* parentAccessorData = new ObjectRef::NativeDataAccessorPropertyData(true, false, false, [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) { return ValueRef::create(1); }, nullptr);
 
-    ObjectRef::NativeDataAccessorPropertyData* parentReadOnlyAccessorData = new ObjectRef::NativeDataAccessorPropertyData(false, false, false,
-                                                                                                                          [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) {
-                                                                                                                              return ValueRef::create(1);
-                                                                                                                          },
-                                                                                                                          nullptr);
+    ObjectRef::NativeDataAccessorPropertyData* parentReadOnlyAccessorData = new ObjectRef::NativeDataAccessorPropertyData(false, false, false, [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) { return ValueRef::create(1); }, nullptr);
 
-    ObjectRef::NativeDataAccessorPropertyData* childAccessorData = new ObjectRef::NativeDataAccessorPropertyData(true, false, false,
-                                                                                                                 [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) {
-                                                                                                                     return ValueRef::create(42);
-                                                                                                                 },
-                                                                                                                 nullptr);
+    ObjectRef::NativeDataAccessorPropertyData* childAccessorData = new ObjectRef::NativeDataAccessorPropertyData(true, false, false, [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) { return ValueRef::create(42); }, nullptr);
 
-    ObjectRef::NativeDataAccessorPropertyData* childReadOnlyAccessorData = new ObjectRef::NativeDataAccessorPropertyData(false, false, false,
-                                                                                                                         [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) {
-                                                                                                                             return ValueRef::create(42);
-                                                                                                                         },
-                                                                                                                         nullptr);
+    ObjectRef::NativeDataAccessorPropertyData* childReadOnlyAccessorData = new ObjectRef::NativeDataAccessorPropertyData(false, false, false, [](ExecutionStateRef* state, ObjectRef* self, ValueRef* receiver, ObjectRef::NativeDataAccessorPropertyData* data) { return ValueRef::create(42); }, nullptr);
 
     auto parent = FunctionTemplateRef::create(AtomicStringRef::create(g_context.get(), "parent"), 0,
                                               true, true, [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, OptionalRef<ObjectRef> newTarget) -> ValueRef* {
@@ -1784,9 +1691,7 @@ TEST(FunctionTemplate, Basic6)
 
     Evaluator::execute(g_context.get(), [](ExecutionStateRef* state, ObjectRef* obj) -> ValueRef* {
         g_context.get()->globalObject()->set(state, StringRef::createFromASCII("ChildInstance"), obj);
-        return ValueRef::createUndefined();
-    },
-                       childInstance->instantiate(g_context.get()));
+        return ValueRef::createUndefined(); }, childInstance->instantiate(g_context.get()));
 
     auto s = evalScript(g_context.get(), StringRef::createFromASCII("ChildInstance.h = 3; ChildInstance.i = 3;"), StringRef::createFromASCII("testTemplate.js"), false);
 
@@ -1838,10 +1743,7 @@ TEST(BackingStore, Basic1)
         EXPECT_TRUE(abo->byteLength() == 1024);
 
         // there is no error
-        bs = BackingStoreRef::createNonSharedBackingStore(calloc(1024, 1), 1024, [](void* data, size_t length, void* deleterData) {
-            free(data);
-        },
-                                                          nullptr);
+        bs = BackingStoreRef::createNonSharedBackingStore(calloc(1024, 1), 1024, [](void* data, size_t length, void* deleterData) { free(data); }, nullptr);
         EXPECT_FALSE(bs->isShared());
         EXPECT_TRUE(bs->byteLength() == 1024);
         bs = nullptr;
@@ -1985,9 +1887,7 @@ TEST(EnumerateObjectOwnProperties, Basic1)
                 }
             }
 
-            return true;
-        },
-                                          false);
+            return true; }, false);
 
         EXPECT_TRUE(indexes.size() == 2);
         EXPECT_TRUE(strings->size() == 2);
@@ -2471,8 +2371,7 @@ TEST(Serializer, Basic9)
 TEST(ExecutionState, TryCatchFinally)
 {
     Evaluator::execute(g_context, [](ExecutionStateRef* state) -> ValueRef* {
-        FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(g_context.get(), "test"),
-                                                                 [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
+        FunctionObjectRef::NativeFunctionInfo nativeFunctionInfo(AtomicStringRef::create(g_context.get(), "test"), [](ExecutionStateRef* state, ValueRef* thisValue, size_t argc, ValueRef** argv, bool isConstructCall) -> ValueRef* {
                                                                      OptionalRef<ExecutionStateRef> e = state;
                                                                      if (argv[0]->asNumber() == 1) {
                                                                          while (e) {
@@ -2497,9 +2396,7 @@ TEST(ExecutionState, TryCatchFinally)
                                                                          }
                                                                      }
                                                                      EXPECT_TRUE(false);
-                                                                     return ValueRef::createUndefined();
-                                                                 },
-                                                                 1, true, false);
+                                                                     return ValueRef::createUndefined(); }, 1, true, false);
         FunctionObjectRef* buildFunctionObjectRef = FunctionObjectRef::create(state, nativeFunctionInfo);
         g_context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("tryCatchTest"), buildFunctionObjectRef, true, true, true);
         return ValueRef::createUndefined();
@@ -2534,9 +2431,7 @@ TEST(IteratorObject, GenericIterator)
         },
                                                                        data);
         g_context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("genericIteratorTest"), o, true, true, true);
-        return ValueRef::createUndefined();
-    },
-                       &d);
+        return ValueRef::createUndefined(); }, &d);
 
     evalScript(g_context.get(), StringRef::createFromASCII(R"(
     {
@@ -2601,9 +2496,7 @@ TEST(ReloadableString, Basic)
         g_context->vmInstance()->enterIdleMode();
         EXPECT_FALSE(d->flag);
 
-        return ValueRef::createUndefined();
-    },
-                       string, &d);
+        return ValueRef::createUndefined(); }, string, &d);
 }
 
 TEST(DisabledStackOverflow, Basic)
@@ -3015,9 +2908,7 @@ TEST(WeakPtr, Basic)
     Evaluator::execute(context.get(), [](ExecutionStateRef* state, PersistentRefHolder<ObjectRef>* weak2) -> ValueRef* {
         *weak2 = ObjectRef::create(state);
         weak2->setWeak();
-        return weak2->get();
-    },
-                       &weak2);
+        return weak2->get(); }, &weak2);
 
     EXPECT_TRUE(weak.get() != nullptr);
     EXPECT_TRUE(weak2.get() != nullptr);
@@ -3054,9 +2945,7 @@ TEST(Finalizer, Basic)
 
     Evaluator::execute(context.get(), [](ExecutionStateRef* state, PersistentRefHolder<ObjectRef>* target2) -> ValueRef* {
         *target2 = ObjectRef::create(state);
-        return target2->get();
-    },
-                       &target2);
+        return target2->get(); }, &target2);
 
     size_t counter = 0;
     EXPECT_FALSE(Memory::gcHasFinalizer(target.get()));

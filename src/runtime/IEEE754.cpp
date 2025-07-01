@@ -189,8 +189,8 @@ double __kernel_sin(double x, double y, int iy) WARN_UNUSED_RETURN;
 int32_t __ieee754_rem_pio2(double x, double *y)
 {
     /*
-   * Table of constants for 2/pi, 396 Hex digits (476 decimal) of 2/pi
-   */
+     * Table of constants for 2/pi, 396 Hex digits (476 decimal) of 2/pi
+     */
     constexpr int32_t two_over_pi[] = {
         0xA2F983,
         0x6E4E44,
@@ -296,14 +296,14 @@ int32_t __ieee754_rem_pio2(double x, double *y)
     };
 
     /*
-   * invpio2:  53 bits of 2/pi
-   * pio2_1:   first  33 bit of pi/2
-   * pio2_1t:  pi/2 - pio2_1
-   * pio2_2:   second 33 bit of pi/2
-   * pio2_2t:  pi/2 - (pio2_1+pio2_2)
-   * pio2_3:   third  33 bit of pi/2
-   * pio2_3t:  pi/2 - (pio2_1+pio2_2+pio2_3)
-   */
+     * invpio2:  53 bits of 2/pi
+     * pio2_1:   first  33 bit of pi/2
+     * pio2_1t:  pi/2 - pio2_1
+     * pio2_2:   second 33 bit of pi/2
+     * pio2_2t:  pi/2 - (pio2_1+pio2_2)
+     * pio2_3:   third  33 bit of pi/2
+     * pio2_3t:  pi/2 - (pio2_1+pio2_2+pio2_3)
+     */
 
     constexpr double
         zero
@@ -397,8 +397,8 @@ int32_t __ieee754_rem_pio2(double x, double *y)
         }
     }
     /*
-   * all other (large) arguments
-   */
+     * all other (large) arguments
+     */
     if (ix >= 0x7FF00000) { /* x is inf or NaN */
         y[0] = y[1] = x - x;
         return 0;
@@ -602,11 +602,11 @@ int __kernel_rem_pio2(double *x, double *y, int e0, int nx, int prec,
                       const int32_t *ipio2)
 {
     /* Constants:
-   * The hexadecimal values are the intended ones for the following
-   * constants. The decimal values may be used, provided that the
-   * compiler will convert from decimal to binary accurately enough
-   * to produce the hexadecimal values shown.
-   */
+     * The hexadecimal values are the intended ones for the following
+     * constants. The decimal values may be used, provided that the
+     * compiler will convert from decimal to binary accurately enough
+     * to produce the hexadecimal values shown.
+     */
     constexpr int init_jk[] = { 2, 3, 4, 6 }; /* initial value for jk */
 
     constexpr double PIo2[] = {
@@ -967,10 +967,10 @@ double __kernel_tan(double x, double y, int iy)
     z = x * x;
     w = z * z;
     /*
-   * Break x^5*(T[1]+x^2*T[2]+...) into
-   * x^5(T[1]+x^4*T[3]+...+x^20*T[11]) +
-   * x^5(x^2*(T[2]+x^4*T[4]+...+x^22*[T12]))
-   */
+     * Break x^5*(T[1]+x^2*T[2]+...) into
+     * x^5(T[1]+x^4*T[3]+...+x^20*T[11]) +
+     * x^5(x^2*(T[2]+x^4*T[4]+...+x^22*[T12]))
+     */
     r = T[1] + w * (T[3] + w * (T[5] + w * (T[7] + w * (T[9] + w * T[11]))));
     v = z * (T[2] + w * (T[4] + w * (T[6] + w * (T[8] + w * (T[10] + w * T[12])))));
     s = z * x;
@@ -985,9 +985,9 @@ double __kernel_tan(double x, double y, int iy)
         return w;
     } else {
         /*
-     * if allow error up to 2 ulp, simply return
-     * -1.0 / (x+r) here
-     */
+         * if allow error up to 2 ulp, simply return
+         * -1.0 / (x+r) here
+         */
         /* compute -1.0 / (x+r) accurately */
         double a, t;
         z = w;
@@ -1676,9 +1676,9 @@ double exp(double x)
     if (hx > 0x3FD62E42) { /* if  |x| > 0.5 ln2 */
         if (hx < 0x3FF0A2B2) { /* and |x| < 1.5 ln2 */
             /* TODO(rtoy): We special case exp(1) here to return the correct
-       * value of E, as the computation below would get the last bit
-       * wrong. We should probably fix the algorithm instead.
-       */
+             * value of E, as the computation below would get the last bit
+             * wrong. We should probably fix the algorithm instead.
+             */
             if (x == 1.0)
                 return E;
             hi = x - ln2HI[xsb];
@@ -2026,12 +2026,12 @@ double log1p(double x)
         }
         hu &= 0x000FFFFF;
         /*
-     * The approximation to sqrt(2) used in thresholds is not
-     * critical.  However, the ones used above must give less
-     * strict bounds than the one here so that the k==0 case is
-     * never reached from here, since here we have committed to
-     * using the correction term but don't use it if k==0.
-     */
+         * The approximation to sqrt(2) used in thresholds is not
+         * critical.  However, the ones used above must give less
+         * strict bounds than the one here so that the k==0 case is
+         * never reached from here, since here we have committed to
+         * using the correction term but don't use it if k==0.
+         */
         if (hu < 0x6A09E) { /* u ~< sqrt(2) */
             SET_HIGH_WORD(u, hu | 0x3FF00000); /* normalize u */
         } else {
@@ -2200,35 +2200,35 @@ double log2(double x)
     r = k_log1p(f);
 
     /*
-   * f-hfsq must (for args near 1) be evaluated in extra precision
-   * to avoid a large cancellation when x is near sqrt(2) or 1/sqrt(2).
-   * This is fairly efficient since f-hfsq only depends on f, so can
-   * be evaluated in parallel with R.  Not combining hfsq with R also
-   * keeps R small (though not as small as a true `lo' term would be),
-   * so that extra precision is not needed for terms involving R.
-   *
-   * Compiler bugs involving extra precision used to break Dekker's
-   * theorem for spitting f-hfsq as hi+lo, unless double_t was used
-   * or the multi-precision calculations were avoided when double_t
-   * has extra precision.  These problems are now automatically
-   * avoided as a side effect of the optimization of combining the
-   * Dekker splitting step with the clear-low-bits step.
-   *
-   * y must (for args near sqrt(2) and 1/sqrt(2)) be added in extra
-   * precision to avoid a very large cancellation when x is very near
-   * these values.  Unlike the above cancellations, this problem is
-   * specific to base 2.  It is strange that adding +-1 is so much
-   * harder than adding +-ln2 or +-log10_2.
-   *
-   * This uses Dekker's theorem to normalize y+val_hi, so the
-   * compiler bugs are back in some configurations, sigh.  And I
-   * don't want to used double_t to avoid them, since that gives a
-   * pessimization and the support for avoiding the pessimization
-   * is not yet available.
-   *
-   * The multi-precision calculations for the multiplications are
-   * routine.
-   */
+     * f-hfsq must (for args near 1) be evaluated in extra precision
+     * to avoid a large cancellation when x is near sqrt(2) or 1/sqrt(2).
+     * This is fairly efficient since f-hfsq only depends on f, so can
+     * be evaluated in parallel with R.  Not combining hfsq with R also
+     * keeps R small (though not as small as a true `lo' term would be),
+     * so that extra precision is not needed for terms involving R.
+     *
+     * Compiler bugs involving extra precision used to break Dekker's
+     * theorem for spitting f-hfsq as hi+lo, unless double_t was used
+     * or the multi-precision calculations were avoided when double_t
+     * has extra precision.  These problems are now automatically
+     * avoided as a side effect of the optimization of combining the
+     * Dekker splitting step with the clear-low-bits step.
+     *
+     * y must (for args near sqrt(2) and 1/sqrt(2)) be added in extra
+     * precision to avoid a very large cancellation when x is very near
+     * these values.  Unlike the above cancellations, this problem is
+     * specific to base 2.  It is strange that adding +-1 is so much
+     * harder than adding +-ln2 or +-log10_2.
+     *
+     * This uses Dekker's theorem to normalize y+val_hi, so the
+     * compiler bugs are back in some configurations, sigh.  And I
+     * don't want to used double_t to avoid them, since that gives a
+     * pessimization and the support for avoiding the pessimization
+     * is not yet available.
+     *
+     * The multi-precision calculations for the multiplications are
+     * routine.
+     */
     hi = f - hfsq;
     SET_LOW_WORD(hi, 0);
     lo = (f - hi) - hfsq + r;
@@ -2559,20 +2559,20 @@ double cbrt(double x)
         return (x + x); /* cbrt(NaN,INF) is itself */
 
     /*
-   * Rough cbrt to 5 bits:
-   *    cbrt(2**e*(1+m) ~= 2**(e/3)*(1+(e%3+m)/3)
-   * where e is integral and >= 0, m is real and in [0, 1), and "/" and
-   * "%" are integer division and modulus with rounding towards minus
-   * infinity.  The RHS is always >= the LHS and has a maximum relative
-   * error of about 1 in 16.  Adding a bias of -0.03306235651 to the
-   * (e%3+m)/3 term reduces the error to about 1 in 32. With the IEEE
-   * floating point representation, for finite positive normal values,
-   * ordinary integer division of the value in bits magically gives
-   * almost exactly the RHS of the above provided we first subtract the
-   * exponent bias (1023 for doubles) and later add it back.  We do the
-   * subtraction virtually to keep e >= 0 so that ordinary integer
-   * division rounds towards minus infinity; this is also efficient.
-   */
+     * Rough cbrt to 5 bits:
+     *    cbrt(2**e*(1+m) ~= 2**(e/3)*(1+(e%3+m)/3)
+     * where e is integral and >= 0, m is real and in [0, 1), and "/" and
+     * "%" are integer division and modulus with rounding towards minus
+     * infinity.  The RHS is always >= the LHS and has a maximum relative
+     * error of about 1 in 16.  Adding a bias of -0.03306235651 to the
+     * (e%3+m)/3 term reduces the error to about 1 in 32. With the IEEE
+     * floating point representation, for finite positive normal values,
+     * ordinary integer division of the value in bits magically gives
+     * almost exactly the RHS of the above provided we first subtract the
+     * exponent bias (1023 for doubles) and later add it back.  We do the
+     * subtraction virtually to keep e >= 0 so that ordinary integer
+     * division rounds towards minus infinity; this is also efficient.
+     */
     if (hx < 0x00100000) { /* zero or subnormal? */
         if ((hx | low) == 0)
             return (x); /* cbrt(0) is itself */
@@ -2585,28 +2585,28 @@ double cbrt(double x)
     }
 
     /*
-   * New cbrt to 23 bits:
-   *    cbrt(x) = t*cbrt(x/t**3) ~= t*P(t**3/x)
-   * where P(r) is a polynomial of degree 4 that approximates 1/cbrt(r)
-   * to within 2**-23.5 when |r - 1| < 1/10.  The rough approximation
-   * has produced t such than |t/cbrt(x) - 1| ~< 1/32, and cubing this
-   * gives us bounds for r = t**3/x.
-   *
-   * Try to optimize for parallel evaluation as in k_tanf.c.
-   */
+     * New cbrt to 23 bits:
+     *    cbrt(x) = t*cbrt(x/t**3) ~= t*P(t**3/x)
+     * where P(r) is a polynomial of degree 4 that approximates 1/cbrt(r)
+     * to within 2**-23.5 when |r - 1| < 1/10.  The rough approximation
+     * has produced t such than |t/cbrt(x) - 1| ~< 1/32, and cubing this
+     * gives us bounds for r = t**3/x.
+     *
+     * Try to optimize for parallel evaluation as in k_tanf.c.
+     */
     r = (t * t) * (t / x);
     t = t * ((P0 + r * (P1 + r * P2)) + ((r * r) * r) * (P3 + r * P4));
 
     /*
-   * Round t away from zero to 23 bits (sloppily except for ensuring that
-   * the result is larger in magnitude than cbrt(x) but not much more than
-   * 2 23-bit ulps larger).  With rounding towards zero, the error bound
-   * would be ~5/6 instead of ~4/6.  With a maximum error of 2 23-bit ulps
-   * in the rounded t, the infinite-precision error in the Newton
-   * approximation barely affects third digit in the final error
-   * 0.667; the error in the rounded t can be up to about 3 23-bit ulps
-   * before the final error is larger than 0.667 ulps.
-   */
+     * Round t away from zero to 23 bits (sloppily except for ensuring that
+     * the result is larger in magnitude than cbrt(x) but not much more than
+     * 2 23-bit ulps larger).  With rounding towards zero, the error bound
+     * would be ~5/6 instead of ~4/6.  With a maximum error of 2 23-bit ulps
+     * in the rounded t, the infinite-precision error in the Newton
+     * approximation barely affects third digit in the final error
+     * 0.667; the error in the rounded t can be up to about 3 23-bit ulps
+     * before the final error is larger than 0.667 ulps.
+     */
     u.value = t;
     u.bits = (u.bits + 0x80000000) & 0xFFFFFFFFC0000000ULL;
     t = u.value;

@@ -145,16 +145,13 @@ static Value parseJSONWorker(ExecutionState& state, rapidjson::GenericValue<JSON
                 JSONIter& iter;
                 bool hasReviver;
             } d = { iter, hasReviver };
-            obj = new Object(state, memberCount,
-                             [](ExecutionState& state, void* data) -> std::pair<Value, Value> {
+            obj = new Object(state, memberCount, [](ExecutionState& state, void* data) -> std::pair<Value, Value> {
                                  CallbackData* cd = reinterpret_cast<CallbackData*>(data);
                                  JSONIter& iter = cd->iter;
                                  Value propertyName = parseJSONWorker<CharType, JSONCharType>(state, iter->name, cd->hasReviver);
                                  Value value = parseJSONWorker<CharType, JSONCharType>(state, iter->value, cd->hasReviver);
                                  iter++;
-                                 return std::make_pair(propertyName, value);
-                             },
-                             &d, true, true, true);
+                                 return std::make_pair(propertyName, value); }, &d, true, true, true);
             ASSERT(iter == value.MemberEnd());
         } else {
             obj = new Object(state);
@@ -282,9 +279,7 @@ Value JSON::parse(ExecutionState& state, Value text, Value reviver)
                                 ObjectPropertyNameVector* keys = (ObjectPropertyNameVector*)data;
                                 keys->push_back(P);
                             }
-                            return true;
-                        },
-                                            &keys);
+                            return true; }, &keys);
                     }
 
                     for (auto& key : keys) {
@@ -741,9 +736,7 @@ Value JSON::stringify(ExecutionState& state, Value value, Value replacer, Value 
                     std::vector<uint32_t>* indexes = (std::vector<uint32_t>*)data;
                     indexes->push_back(idx);
                 }
-                return true;
-            },
-                                   &indexes);
+                return true; }, &indexes);
             std::sort(indexes.begin(), indexes.end(), std::less<uint32_t>());
             for (uint32_t i = 0; i < indexes.size(); ++i) {
                 Value property = arrObject->get(state, ObjectPropertyName(state, Value(indexes[i]))).value(state, arrObject);

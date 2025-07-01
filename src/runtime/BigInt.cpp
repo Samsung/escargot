@@ -146,9 +146,7 @@ void BigInt::initFinalizer()
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         BigInt* self = (BigInt*)obj;
-        bf_delete(&self->m_bf);
-    },
-                                   nullptr, nullptr, nullptr);
+        bf_delete(&self->m_bf); }, nullptr, nullptr, nullptr);
 }
 
 BigInt::BigInt()
