@@ -61,9 +61,7 @@ NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, Back
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         NonSharedBackingStore* self = (NonSharedBackingStore*)obj;
-        self->m_deleter(self->m_data, self->m_byteLength, self->m_deleterData);
-    },
-                                   nullptr, nullptr, nullptr);
+        self->m_deleter(self->m_data, self->m_byteLength, self->m_deleterData); }, nullptr, nullptr, nullptr);
 }
 
 NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, BackingStoreDeleterCallback callback, size_t maxByteLength, bool isAllocatedByPlatform)
@@ -78,9 +76,7 @@ NonSharedBackingStore::NonSharedBackingStore(void* data, size_t byteLength, Back
 
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         NonSharedBackingStore* self = (NonSharedBackingStore*)obj;
-        self->m_deleter(self->m_data, self->m_maxByteLength, nullptr);
-    },
-                                   nullptr, nullptr, nullptr);
+        self->m_deleter(self->m_data, self->m_maxByteLength, nullptr); }, nullptr, nullptr, nullptr);
 }
 
 void* NonSharedBackingStore::operator new(size_t size)
@@ -182,9 +178,7 @@ SharedBackingStore::SharedBackingStore(SharedDataBlockInfo* sharedInfo)
 
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         SharedBackingStore* self = (SharedBackingStore*)obj;
-        self->sharedDataBlockInfo()->deref();
-    },
-                                   nullptr, nullptr, nullptr);
+        self->sharedDataBlockInfo()->deref(); }, nullptr, nullptr, nullptr);
 }
 
 void SharedBackingStore::resize(size_t newByteLength)

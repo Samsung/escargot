@@ -455,9 +455,7 @@ static ValueRef* builtin262AgentStart(ExecutionStateRef* state, ValueRef* thisVa
                 if (callback) {
                     Evaluator::execute(context.get(), [](ExecutionStateRef* state, ValueRef* callback, ValueRef* v1, ValueRef* v2) -> ValueRef* {
                         ValueRef* argv[2] = { v1, v2 };
-                        return callback->call(state, ValueRef::createUndefined(), 2, argv);
-                    },
-                                       callback, val1, val2);
+                        return callback->call(state, ValueRef::createUndefined(), 2, argv); }, callback, val1, val2);
                 }
             }
 
@@ -786,10 +784,7 @@ static bool evalScript(ContextRef* context, StringRef* source, StringRef* srcNam
         return false;
     }
 
-    auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
-        return script->execute(state);
-    },
-                                         scriptInitializeResult.script.get());
+    auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, scriptInitializeResult.script.get());
 
     if (!evalResult.isSuccessful()) {
         fprintf(stderr, "Uncaught %s:\n", evalResult.resultOrErrorToString(context)->toStdUTF8String().data());
@@ -1001,9 +996,7 @@ PersistentRefHolder<ContextRef> createEscargotContext(VMInstanceRef* instance, b
             context->globalObject()->defineDataProperty(state, StringRef::createFromASCII("$262"), dollor262Object, true, false, true);
         }
 #endif
-        return ValueRef::createUndefined();
-    },
-                       isMainThread);
+        return ValueRef::createUndefined(); }, isMainThread);
 
     return context;
 }
@@ -1136,11 +1129,7 @@ int main(int argc, char* argv[])
             fclose(fp);
             runShell = false;
 
-            StringRef* src = Evaluator::execute(context, [](ExecutionStateRef* state, char* c) -> ValueRef* {
-                                 return builtinHelperFileRead(state, c, "read").get();
-                             },
-                                                argv[i])
-                                 .result->asString();
+            StringRef* src = Evaluator::execute(context, [](ExecutionStateRef* state, char* c) -> ValueRef* { return builtinHelperFileRead(state, c, "read").get(); }, argv[i]).result->asString();
 
             if (fileName.length() == 0) {
                 fileName = argv[i];
@@ -1165,10 +1154,7 @@ int main(int argc, char* argv[])
     }
 
     if (waitBeforeExit || context->isWaitBeforeExit()) {
-        auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* {
-            return script->execute(state);
-        },
-                                             context->scriptParser()->initializeScript(StringRef::createFromASCII("/* Escargot is about to terminate.\n   Global values can be inspected before exit. */"), StringRef::createFromASCII("<ScriptEnd>"), seenModule).script.get());
+        auto evalResult = Evaluator::execute(context, [](ExecutionStateRef* state, ScriptRef* script) -> ValueRef* { return script->execute(state); }, context->scriptParser()->initializeScript(StringRef::createFromASCII("/* Escargot is about to terminate.\n   Global values can be inspected before exit. */"), StringRef::createFromASCII("<ScriptEnd>"), seenModule).script.get());
     }
 
     while (runShell) {

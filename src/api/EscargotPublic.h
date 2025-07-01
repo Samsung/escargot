@@ -613,14 +613,14 @@ public:
     template <typename... Args, typename F>
     static EvaluatorResult execute(ContextRef* ctx, F&& closure, Args... args)
     {
-        typedef ValueRef* (*Closure)(ExecutionStateRef * state, Args...);
+        typedef ValueRef* (*Closure)(ExecutionStateRef* state, Args...);
         return executeImpl(ctx, Closure(closure), args...);
     }
 
     template <typename... Args, typename F>
     static EvaluatorResult execute(ExecutionStateRef* parent, F&& closure, Args... args)
     {
-        typedef ValueRef* (*Closure)(ExecutionStateRef * state, Args...);
+        typedef ValueRef* (*Closure)(ExecutionStateRef* state, Args...);
         return executeImpl(parent, Closure(closure), args...);
     }
 
@@ -632,7 +632,7 @@ private:
     template <typename P, typename... Args>
     static EvaluatorResult executeImpl(P* p, ValueRef* (*fn)(ExecutionStateRef* state, Args...), Args... args)
     {
-        typedef ValueRef* (*Closure)(ExecutionStateRef * state, Args...);
+        typedef ValueRef* (*Closure)(ExecutionStateRef* state, Args...);
         std::tuple<ExecutionStateRef*, Args...> tuple = std::tuple<ExecutionStateRef*, Args...>(nullptr, args...);
 
         return executeFunction(p, [](ExecutionStateRef* state, void* tuplePtr, void* fnPtr) -> ValueRef* {
@@ -641,9 +641,7 @@ private:
 
             std::get<0>(*tuple) = state;
 
-            return EvaluatorUtil::applyTupleIntoArgumentsOfVariadicTemplateFunction(fn, *tuple);
-        },
-                               &tuple, (void*)fn);
+            return EvaluatorUtil::applyTupleIntoArgumentsOfVariadicTemplateFunction(fn, *tuple); }, &tuple, (void*)fn);
     }
 };
 
@@ -913,7 +911,7 @@ public:
     // Base class for debugger callbacks
     class DebuggerClient {
     public:
-        virtual ~DebuggerClient(){};
+        virtual ~DebuggerClient() {};
         virtual void parseCompleted(StringRef* source, StringRef* srcName, std::vector<DebuggerOperationsRef::BreakpointLocationsInfo*>& breakpointLocationsVector) = 0;
         virtual void parseError(StringRef* source, StringRef* srcName, StringRef* error) = 0;
         virtual void codeReleased(WeakCodeRef* weakCodeRef) = 0;

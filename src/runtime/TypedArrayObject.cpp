@@ -228,7 +228,7 @@ bool TypedArrayObject::integerIndexedElementSet(ExecutionState& state, double in
             obj->setBuffer(nullptr, 0, 0, 0);                                                                                                     \
         } else {                                                                                                                                  \
             auto buffer = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), length * siz);            \
-            obj->setBuffer(buffer, 0, length* siz, length);                                                                                       \
+            obj->setBuffer(buffer, 0, length * siz, length);                                                                                      \
         }                                                                                                                                         \
         return obj;                                                                                                                               \
     }                                                                                                                                             \

@@ -285,12 +285,9 @@ static Value builtinReflectSetPrototypeOf(ExecutionState& state, Value thisValue
 
 void GlobalObject::initializeReflect(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->reflect();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->reflect(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Reflect), nativeData, Value(Value::EmptyValue));
 }

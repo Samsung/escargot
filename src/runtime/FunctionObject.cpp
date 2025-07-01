@@ -137,8 +137,7 @@ static String* createFunctionSource(ExecutionState& state, AtomicString function
 
         ReloadableStringData* data = new ReloadableStringData(headStr, originBodyStr->asReloadableString());
 
-        scriptSource = new ReloadableString(state.context()->vmInstance(), is8Bit, headStr->length() + originBodyStr->length() + sizeof(tail) - 1,
-                                            data, [](void* callbackData) -> void* {
+        scriptSource = new ReloadableString(state.context()->vmInstance(), is8Bit, headStr->length() + originBodyStr->length() + sizeof(tail) - 1, data, [](void* callbackData) -> void* {
                 ReloadableStringData* data = reinterpret_cast<ReloadableStringData*>(callbackData);
                 bool is8Bit = data->m_dest->has8BitContent();
 

@@ -159,9 +159,7 @@ void EnumerateObjectWithDestruction::executeEnumeration(ExecutionState& state, E
                 properties->strings.push_back(value);
             }
         }
-        return true;
-    },
-                          &properties, false);
+        return true; }, &properties, false);
 
     keys.resizeWithUninitializedValues(properties.indexes.size() + properties.strings.size() + properties.symbols.size());
 
@@ -212,9 +210,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
                         *shouldSearchProto = true;
                         return false;
                     }
-                    return true;
-                },
-                                   &shouldSearchProto);
+                    return true; }, &shouldSearchProto);
 
             } else {
                 shouldSearchProto |= proto->structure()->hasEnumerableProperty();
@@ -259,9 +255,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
                     ASSERT(eData->keyStringSet->find(key) == eData->keyStringSet->end());
                     eData->keyStringSet->insert(key);
                 }
-                return true;
-            },
-                                &eData);
+                return true; }, &eData);
             target = target->getPrototypeObject(state);
         }
 
@@ -288,9 +282,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
                         properties->strings.push_back(value);
                     }
                 }
-                return true;
-            },
-                                  &properties);
+                return true; }, &properties);
 
             keys.resizeWithUninitializedValues(properties.indexes.size() + properties.strings.size());
             size_t idx = 0;
@@ -308,9 +300,7 @@ void EnumerateObjectWithIteration::executeEnumeration(ExecutionState& state, Enc
                     ASSERT(!name.isIndexString() || value.toIndex(state) == Value::InvalidIndexValue);
                     keys->pushBack(value);
                 }
-                return true;
-            },
-                                  &keys);
+                return true; }, &keys);
         }
     }
 }

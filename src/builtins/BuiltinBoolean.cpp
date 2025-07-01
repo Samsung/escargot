@@ -63,12 +63,9 @@ static Value builtinBooleanToString(ExecutionState& state, Value thisValue, size
 
 void GlobalObject::initializeBoolean(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->boolean();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->boolean(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Boolean), nativeData, Value(Value::EmptyValue));
 }

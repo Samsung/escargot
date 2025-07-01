@@ -925,7 +925,7 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             if (left.isUInt32() && right.isUInt32()) {
                 uint32_t lnum = left.asUInt32();
                 uint32_t rnum = right.asUInt32();
-                lnum = (lnum) >> ((rnum)&0x1F);
+                lnum = (lnum) >> ((rnum) & 0x1F);
                 registerFile[code->m_dstIndex] = Value(lnum);
             } else {
                 registerFile[code->m_dstIndex] = InterpreterSlowPath::shiftOperationSlowCase(*state, left, right, ShiftOperationKind::UnsignedRight);
@@ -2150,7 +2150,7 @@ NEVER_INLINE Value InterpreterSlowPath::shiftOperationSlowCase(ExecutionState& s
         case Interpreter::ShiftOperationKind::UnsignedRight: {
             uint32_t lnum32 = lnum.first.toUint32(state);
             uint32_t rnum32 = rnum.first.toUint32(state);
-            lnum32 = (lnum32) >> ((rnum32)&0x1F);
+            lnum32 = (lnum32) >> ((rnum32) & 0x1F);
             return Value(lnum32);
         }
         default:
@@ -2309,19 +2309,7 @@ NEVER_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanRightSlowCase(Execu
     } else if (lval.isString() && rval.isString()) {
         return *lval.asString() < *rval.asString();
     } else {
-        return abstractLeftIsLessThanRightNumeric(state, lval, rval,
-                                                  [](BigInt* a, BigInt* b) -> bool {
-                                                      return a->lessThan(b);
-                                                  },
-                                                  [](BigInt* a, const BigIntData& b) -> bool {
-                                                      return a->lessThan(b);
-                                                  },
-                                                  [](const BigIntData& a, BigInt* b) -> bool {
-                                                      return a.lessThan(b);
-                                                  },
-                                                  [](const double& a, const double& b) -> bool {
-                                                      return a < b;
-                                                  });
+        return abstractLeftIsLessThanRightNumeric(state, lval, rval, [](BigInt* a, BigInt* b) -> bool { return a->lessThan(b); }, [](BigInt* a, const BigIntData& b) -> bool { return a->lessThan(b); }, [](const BigIntData& a, BigInt* b) -> bool { return a.lessThan(b); }, [](const double& a, const double& b) -> bool { return a < b; });
     }
 }
 
@@ -2341,19 +2329,7 @@ NEVER_INLINE bool InterpreterSlowPath::abstractLeftIsLessThanEqualRightSlowCase(
     } else if (lval.isString() && rval.isString()) {
         return *lval.asString() <= *rval.asString();
     } else {
-        return abstractLeftIsLessThanRightNumeric(state, lval, rval,
-                                                  [](BigInt* a, BigInt* b) -> bool {
-                                                      return a->lessThanEqual(b);
-                                                  },
-                                                  [](BigInt* a, const BigIntData& b) -> bool {
-                                                      return a->lessThanEqual(b);
-                                                  },
-                                                  [](const BigIntData& a, BigInt* b) -> bool {
-                                                      return a.lessThanEqual(b);
-                                                  },
-                                                  [](const double& a, const double& b) -> bool {
-                                                      return a <= b;
-                                                  });
+        return abstractLeftIsLessThanRightNumeric(state, lval, rval, [](BigInt* a, BigInt* b) -> bool { return a->lessThanEqual(b); }, [](BigInt* a, const BigIntData& b) -> bool { return a->lessThanEqual(b); }, [](const BigIntData& a, BigInt* b) -> bool { return a.lessThanEqual(b); }, [](const double& a, const double& b) -> bool { return a <= b; });
     }
 }
 

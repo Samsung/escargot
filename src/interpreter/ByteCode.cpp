@@ -141,9 +141,7 @@ ByteCodeBlock::ByteCodeBlock(InterpretedCodeBlock* codeBlock)
     v.push_back(this);
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         ByteCodeBlock* self = (ByteCodeBlock*)obj;
-        clearByteCodeBlock(self);
-    },
-                                   nullptr, nullptr, nullptr);
+        clearByteCodeBlock(self); }, nullptr, nullptr, nullptr);
 }
 
 void* ByteCodeBlock::operator new(size_t size)

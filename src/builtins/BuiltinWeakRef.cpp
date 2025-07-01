@@ -58,12 +58,9 @@ static Value builtinWeakRefDeRef(ExecutionState& state, Value thisValue, size_t 
 
 void GlobalObject::initializeWeakRef(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->weakRef();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->weakRef(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakRef), nativeData, Value(Value::EmptyValue));
 }

@@ -155,7 +155,7 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     Value boundThis = argv[0];
     size_t boundArgc = (argc > 0) ? argc - 1 : 0;
     Value* boundArgv = (boundArgc > 0) ? argv + 1 : nullptr;
-    //BoundFunctionObject* F = new BoundFunctionObject(state, thisValue, boundThis, boundArgc, boundArgv);
+    // BoundFunctionObject* F = new BoundFunctionObject(state, thisValue, boundThis, boundArgc, boundArgv);
 
     // Let targetHasLength be HasOwnProperty(Target, "length").
     bool targetHasLength = target->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().length));
@@ -185,8 +185,8 @@ static Value builtinFunctionBind(ExecutionState& state, Value thisValue, size_t 
     StringBuilder builder;
     builder.appendString("bound ");
     builder.appendString(targetName.asString());
-    //F->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().name),
-    //                                    ObjectPropertyDescriptor(Value(builder.finalize(&state)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    // F->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().name),
+    //                                     ObjectPropertyDescriptor(Value(builder.finalize(&state)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // Let F be BoundFunctionCreate(Target, thisArg, args).
     // Let status be DefinePropertyOrThrow(F, "length", PropertyDescriptor {[[Value]]: L, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true}).

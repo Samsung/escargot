@@ -398,7 +398,7 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
     case DebuggerKeyword:
         return ctx->staticStrings().debugger;
     case InstanceofKeyword:
-        return ctx->staticStrings().instanceof ;
+        return ctx->staticStrings().instanceof;
     case ImplementsKeyword:
         return ctx->staticStrings().implements;
     case InterfaceKeyword:

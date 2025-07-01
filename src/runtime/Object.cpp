@@ -696,7 +696,7 @@ bool Object::setPrototype(ExecutionState& state, const Value& proto)
         }
     }
 
-    //9. Set the value of the [[Prototype]] internal slot of O to V.
+    // 9. Set the value of the [[Prototype]] internal slot of O to V.
     Object* o = nullptr;
     if (LIKELY(proto.isObject())) {
         o = proto.asObject();

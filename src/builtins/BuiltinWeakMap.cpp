@@ -126,12 +126,9 @@ static Value builtinWeakMapSet(ExecutionState& state, Value thisValue, size_t ar
 
 void GlobalObject::initializeWeakMap(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->weakMap();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->weakMap(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().WeakMap), nativeData, Value(Value::EmptyValue));
 }

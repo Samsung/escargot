@@ -211,15 +211,12 @@ static Value builtinErrorToString(ExecutionState& state, Value thisValue, size_t
 
 void GlobalObject::initializeError(ExecutionState& state)
 {
-#define DEFINE_ERROR_INIT(errorname, bname)                                                                                                                                                                                         \
-    {                                                                                                                                                                                                                               \
-        ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,                                                                                                              \
-                                                                                                    [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value { \
+#define DEFINE_ERROR_INIT(errorname, bname)                                                                                                                                                                                                                         \
+    {                                                                                                                                                                                                                                                               \
+        ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value { \
                                                                                                         ASSERT(self->isGlobalObject());                                                                                             \
-                                                                                                        return self->asGlobalObject()->errorname##Error();                                                                          \
-                                                                                                    },                                                                                                                              \
-                                                                                                    nullptr);                                                                                                                       \
-        defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().bname##Error), nativeData, Value(Value::EmptyValue));                                                                           \
+                                                                                                        return self->asGlobalObject()->errorname##Error(); }, nullptr); \
+        defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().bname##Error), nativeData, Value(Value::EmptyValue));                                                                                                           \
     }
 
     DEFINE_ERROR_INIT(reference, Reference);
@@ -231,12 +228,9 @@ void GlobalObject::initializeError(ExecutionState& state)
     DEFINE_ERROR_INIT(aggregate, Aggregate);
 
     {
-        ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                    [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+        ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                         ASSERT(self->isGlobalObject());
-                                                                                                        return self->asGlobalObject()->error();
-                                                                                                    },
-                                                                                                    nullptr);
+                                                                                                        return self->asGlobalObject()->error(); }, nullptr);
         defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Error), nativeData, Value(Value::EmptyValue));
     }
 }

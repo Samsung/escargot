@@ -160,12 +160,9 @@ static Value builtinDataViewByteOffsetGetter(ExecutionState& state, Value thisVa
 
 void GlobalObject::initializeDataView(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->dataView();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->dataView(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().DataView), nativeData, Value(Value::EmptyValue));
 }

@@ -107,12 +107,9 @@ static Value builtinProxyRevocable(ExecutionState& state, Value thisValue, size_
 
 void GlobalObject::initializeProxy(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->proxy();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->proxy(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Proxy), nativeData, Value(Value::EmptyValue));
 }

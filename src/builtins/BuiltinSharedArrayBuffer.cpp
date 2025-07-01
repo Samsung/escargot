@@ -136,12 +136,9 @@ static Value builtinSharedArrayBufferSlice(ExecutionState& state, Value thisValu
 
 void GlobalObject::initializeSharedArrayBuffer(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->sharedArrayBuffer();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->sharedArrayBuffer(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().SharedArrayBuffer), nativeData, Value(Value::EmptyValue));
 }

@@ -372,9 +372,7 @@ VMInstance::VMInstance(const char* locale, const char* timezone, const char* bas
 {
     GC_REGISTER_FINALIZER_NO_ORDER(this, [](void* obj, void*) {
         VMInstance* self = (VMInstance*)obj;
-        self->~VMInstance();
-    },
-                                   nullptr, nullptr, nullptr);
+        self->~VMInstance(); }, nullptr, nullptr, nullptr);
 
     m_staticStrings.initStaticStrings();
 

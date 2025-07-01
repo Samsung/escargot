@@ -188,12 +188,9 @@ static Value builtinBigIntToLocaleString(ExecutionState& state, Value thisValue,
 
 void GlobalObject::initializeBigInt(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->bigInt();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->bigInt(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().BigInt), nativeData, Value(Value::EmptyValue));
 }

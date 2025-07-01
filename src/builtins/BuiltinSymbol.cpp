@@ -107,12 +107,9 @@ static Value builtinSymbolDescriptionGetter(ExecutionState& state, Value thisVal
 
 void GlobalObject::initializeSymbol(ExecutionState& state)
 {
-    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true,
-                                                                                                [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
+    ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
                                                                                                     ASSERT(self->isGlobalObject());
-                                                                                                    return self->asGlobalObject()->symbol();
-                                                                                                },
-                                                                                                nullptr);
+                                                                                                    return self->asGlobalObject()->symbol(); }, nullptr);
 
     defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().Symbol), nativeData, Value(Value::EmptyValue));
 }
