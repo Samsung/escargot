@@ -378,6 +378,60 @@ static Value builtinIteratorFind(ExecutionState& state, Value thisValue, size_t 
     }
 }
 
+static Value builtinIteratorSome(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be the this value.
+    const Value& O = thisValue;
+
+    // If O is not an Object, throw a TypeError exception.
+    if (!O.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "this value is not Object");
+    }
+
+    // If IsCallable(predicate) is false, throw a TypeError exception.
+    const Value& predicate = argv[0];
+    if (!predicate.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "predicate is not callable");
+    }
+
+    // Set iterated to ? GetIteratorDirect(O).
+    IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
+
+    // Let counter be 0.
+    size_t counter = 0;
+
+    while (true) {
+        // Let value be ? IteratorStepValue(iterated).
+        auto value = IteratorObject::iteratorStepValue(state, iterated);
+
+        // If value is done, return false.
+        if (!value) {
+            return Value(false);
+        }
+
+        // Let result be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
+        Value argv[2] = { value.value(), Value(counter) };
+        Value result;
+
+        try {
+            result = Object::call(state, predicate, Value(), 2, argv);
+        } catch (const Value& e) {
+            // IfAbruptCloseIterator(result, iterated).
+            IteratorObject::iteratorClose(state, iterated, e, true);
+            throw e;
+        }
+
+        // If ToBoolean(result) is true, return ? IteratorClose(iterated, NormalCompletion(true)).
+        if (result.toBoolean()) {
+            IteratorObject::iteratorClose(state, iterated, Value(true), false);
+            return Value(true);
+        }
+
+        // Set counter to counter + 1.
+        counter++;
+    }
+}
+
 static Value builtinGenericIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isGenericIteratorObject()) {
@@ -460,6 +514,9 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->find),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->find, builtinIteratorFind, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->some),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->some, builtinIteratorSome, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     directDefineOwnProperty(state, ObjectPropertyName(strings->Iterator),
                             ObjectPropertyDescriptor(m_iterator, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
