@@ -122,13 +122,13 @@ static Value builtinIteratorHelperPrototypeReturn(ExecutionState& state, Value t
     return IteratorObject::createIterResultObject(state, Value(), true);
 }
 
-struct IteratorMapData : public gc {
+struct IteratorData : public gc {
     StorePositiveNumberAsOddNumber counter;
-    Value mapper;
+    Value callback;
 
-    IteratorMapData(Value mapper)
+    IteratorData(Value callback)
         : counter(0)
-        , mapper(mapper)
+        , callback(callback)
     {
     }
 };
@@ -145,7 +145,7 @@ static std::pair<Value, bool> iteratorMapClosure(ExecutionState& state, Iterator
     //   Let completion be Completion(Yield(mapped)).
     //   IfAbruptCloseIterator(completion, iterated).
     //   Set counter to counter + 1.
-    IteratorMapData* closureData = reinterpret_cast<IteratorMapData*>(data);
+    IteratorData* closureData = reinterpret_cast<IteratorData*>(data);
     IteratorRecord* iterated = obj->underlyingIterator();
     size_t counter = closureData->counter;
     auto value = IteratorObject::iteratorStepValue(state, iterated);
@@ -154,9 +154,11 @@ static std::pair<Value, bool> iteratorMapClosure(ExecutionState& state, Iterator
         return std::make_pair(Value(), true);
     }
     Value argv[2] = { value.value(), Value(closureData->counter) };
+    Value mapper = closureData->callback;
+
     Value mapped;
     try {
-        mapped = Object::call(state, closureData->mapper, Value(), 2, argv);
+        mapped = Object::call(state, mapper, Value(), 2, argv);
     } catch (const Value& e) {
         IteratorObject::iteratorClose(state, iterated, e, true);
     }
@@ -183,21 +185,10 @@ static Value builtinIteratorMap(ExecutionState& state, Value thisValue, size_t a
     IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
     // Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
     // Set result.[[UnderlyingIterator]] to iterated.
-    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorMapClosure, iterated, new IteratorMapData(mapper));
+    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorMapClosure, iterated, new IteratorData(mapper));
     // Return result.
     return result;
 }
-
-struct IteratorFilterData : public gc {
-    StorePositiveNumberAsOddNumber counter;
-    Value predicate;
-
-    IteratorFilterData(Value predicate)
-        : counter(0)
-        , predicate(predicate)
-    {
-    }
-};
 
 static std::pair<Value, bool> iteratorFilterClosure(ExecutionState& state, IteratorHelperObject* obj, void* data)
 {
@@ -212,7 +203,7 @@ static std::pair<Value, bool> iteratorFilterClosure(ExecutionState& state, Itera
     //      Let completion be Completion(Yield(value)).
     //      IfAbruptCloseIterator(completion, iterated).
     //   Set counter to counter + 1.
-    IteratorFilterData* closureData = reinterpret_cast<IteratorFilterData*>(data);
+    IteratorData* closureData = reinterpret_cast<IteratorData*>(data);
     IteratorRecord* iterated = obj->underlyingIterator();
     size_t counter = closureData->counter;
     auto value = IteratorObject::iteratorStepValue(state, iterated);
@@ -221,9 +212,11 @@ static std::pair<Value, bool> iteratorFilterClosure(ExecutionState& state, Itera
         return std::make_pair(Value(), true);
     }
     Value argv[2] = { value.value(), Value(closureData->counter) };
+    Value predicate = closureData->callback;
+
     Value selected;
     try {
-        selected = Object::call(state, closureData->predicate, Value(), 2, argv);
+        selected = Object::call(state, predicate, Value(), 2, argv);
     } catch (const Value& e) {
         IteratorObject::iteratorClose(state, iterated, e, true);
     }
@@ -255,7 +248,7 @@ static Value builtinIteratorFilter(ExecutionState& state, Value thisValue, size_
     IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
     // Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
     // Set result.[[UnderlyingIterator]] to iterated.
-    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorFilterClosure, iterated, new IteratorFilterData(predicate));
+    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorFilterClosure, iterated, new IteratorData(predicate));
     // Return result.
     return result;
 }
