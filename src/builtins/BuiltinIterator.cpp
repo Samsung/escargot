@@ -188,6 +188,78 @@ static Value builtinIteratorMap(ExecutionState& state, Value thisValue, size_t a
     return result;
 }
 
+struct IteratorFilterData : public gc {
+    StorePositiveNumberAsOddNumber counter;
+    Value predicate;
+
+    IteratorFilterData(Value predicate)
+        : counter(0)
+        , predicate(predicate)
+    {
+    }
+};
+
+static std::pair<Value, bool> iteratorFilterClosure(ExecutionState& state, IteratorHelperObject* obj, void* data)
+{
+    // Let closure be a new Abstract Closure with no parameters that captures iterated and predicate and performs the following steps when called:
+    // Let counter be 0.
+    // Repeat,
+    //   Let value be ? IteratorStepValue(iterated).
+    //   If value is done, return undefined.
+    //   Let selected be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
+    //   IfAbruptCloseIterator(selected, iterated).
+    //   If ToBoolean(selected) is true, then
+    //      Let completion be Completion(Yield(value)).
+    //      IfAbruptCloseIterator(completion, iterated).
+    //   Set counter to counter + 1.
+    IteratorFilterData* closureData = reinterpret_cast<IteratorFilterData*>(data);
+    IteratorRecord* iterated = obj->underlyingIterator();
+    size_t counter = closureData->counter;
+    auto value = IteratorObject::iteratorStepValue(state, iterated);
+    if (!value) {
+        iterated->m_done = true;
+        return std::make_pair(Value(), true);
+    }
+    Value argv[2] = { value.value(), Value(closureData->counter) };
+    Value selected;
+    try {
+        selected = Object::call(state, closureData->predicate, Value(), 2, argv);
+    } catch (const Value& e) {
+        IteratorObject::iteratorClose(state, iterated, e, true);
+    }
+
+    closureData->counter = StorePositiveNumberAsOddNumber(counter + 1);
+    if (selected.toBoolean()) {
+        return std::make_pair(value.value(), false);
+    } else {
+        return iteratorFilterClosure(state, obj, data);
+    }
+}
+
+    // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.filter
+static Value builtinIteratorFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be the this value.
+    const Value& O = thisValue;
+    // If O is not an Object, throw a TypeError exception.
+    if (!O.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "this value is not Object");
+    }
+    // If IsCallable(predicate) is false, throw a TypeError exception.
+    const Value& predicate = argv[0];
+    if (!predicate.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "predicate is not callable");
+    }
+
+    // Let iterated be ? GetIteratorDirect(O).
+    IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
+    // Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
+    // Set result.[[UnderlyingIterator]] to iterated.
+    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorFilterClosure, iterated, new IteratorFilterData(predicate));
+    // Return result.
+    return result;
+}
+
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.find
 static Value builtinIteratorFind(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -316,6 +388,9 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->map),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->map, builtinIteratorMap, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->filter),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->filter, builtinIteratorFilter, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->find),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->find, builtinIteratorFind, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
