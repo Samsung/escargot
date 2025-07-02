@@ -6297,11 +6297,11 @@ public:
     }
 
     template <class ASTBuilder>
-    Platform::ModuleType parseModuleAssert(ASTBuilder& builder)
+    Platform::ModuleType parseModuleWith(ASTBuilder& builder)
     {
-        // Parse: assert { type: "json" }
+        // Parse: with { type: "json" }
 
-        if (this->hasLineTerminator || this->lookahead.relatedSource(this->scanner->source) != "assert") {
+        if (this->hasLineTerminator || this->lookahead.relatedSource(this->scanner->source) != "with") {
             return Platform::ModuleES;
         }
 
@@ -6497,7 +6497,7 @@ public:
         }
 
         ASTNode src = this->parseModuleSpecifier(builder);
-        Platform::ModuleType type = parseModuleAssert(builder);
+        Platform::ModuleType type = parseModuleWith(builder);
         appendToRequestedModulesIfNeeds(src->asLiteral()->value().asString(), type);
         this->consumeSemicolon();
 
@@ -6688,7 +6688,7 @@ public:
                     this->throwUnexpectedToken(this->lookahead);
                 }
                 ASTNode src = this->parseModuleSpecifier(builder);
-                Platform::ModuleType type = parseModuleAssert(builder);
+                Platform::ModuleType type = parseModuleWith(builder);
 
                 if (builder.willGenerateByteCode()) {
                     Script::ExportEntry entry;
@@ -6722,7 +6722,7 @@ public:
                 this->nextToken();
 
                 ASTNode src = this->parseModuleSpecifier(builder);
-                Platform::ModuleType type = parseModuleAssert(builder);
+                Platform::ModuleType type = parseModuleWith(builder);
 
                 if (builder.willGenerateByteCode()) {
                     Script::ExportEntry entry;
@@ -6807,7 +6807,7 @@ public:
                 // export {foo} from 'foo';
                 this->nextToken();
                 source = this->parseModuleSpecifier(builder);
-                type = parseModuleAssert(builder);
+                type = parseModuleWith(builder);
                 appendToRequestedModulesIfNeeds(source->asLiteral()->value().asString(), type);
                 this->consumeSemicolon();
             } else if (isExportFromIdentifier) {

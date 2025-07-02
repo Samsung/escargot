@@ -6212,16 +6212,6 @@
     <test id="language/identifiers/start-unicode-16.0.0-escaped"><reason>TODO</reason></test>
     <test id="language/identifiers/start-zwj-escaped"><reason>TODO</reason></test>
     <test id="language/identifiers/start-zwnj-escaped"><reason>TODO</reason></test>
-    <test id="language/import/import-attributes/json-extensibility-array"><reason>TODO</reason></test>
-    <test id="language/import/import-attributes/json-extensibility-object"><reason>TODO</reason></test>
-    <test id="language/import/import-attributes/json-idempotency"><reason>TODO</reason></test>
-    <test id="language/import/import-attributes/json-value-array"><reason>TODO</reason></test>
-    <test id="language/import/import-attributes/json-value-boolean"><reason>TODO</reason></test>
-    <test id="language/import/import-attributes/json-value-null"><reason>TODO</reason></test>
-    <test id="language/import/import-attributes/json-value-number"><reason>TODO</reason></test>
-    <test id="language/import/import-attributes/json-value-object"><reason>TODO</reason></test>
-    <test id="language/import/import-attributes/json-value-string"><reason>TODO</reason></test>
-    <test id="language/import/import-attributes/json-via-namespace"><reason>TODO</reason></test>
     <test id="language/import/import-defer/deferred-namespace-object/exotic-object-behavior"><reason>TODO</reason></test>
     <test id="language/import/import-defer/deferred-namespace-object/identity"><reason>TODO</reason></test>
     <test id="language/import/import-defer/deferred-namespace-object/to-string-tag"><reason>TODO</reason></test>
@@ -6876,7 +6866,6 @@
     <test id="staging/sm/object/proto-property-change-writability-set"><reason>TODO</reason></test>
     <test id="staging/sm/object/values"><reason>TODO</reason></test>
     <test id="staging/sm/regress/regress-1383630"><reason>TODO</reason></test>
-    <test id="staging/sm/regress/regress-1507322-deep-weakmap"><reason>TODO</reason></test>
     <test id="staging/sm/regress/regress-383682"><reason>TODO</reason></test>
     <test id="staging/sm/regress/regress-428366"><reason>TODO</reason></test>
     <test id="staging/sm/regress/regress-441477-01"><reason>TODO</reason></test>
