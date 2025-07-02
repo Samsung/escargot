@@ -147,22 +147,22 @@ static std::pair<Value, bool> iteratorMapClosure(ExecutionState& state, Iterator
     //   Set counter to counter + 1.
     IteratorData* closureData = reinterpret_cast<IteratorData*>(data);
     IteratorRecord* iterated = obj->underlyingIterator();
-    size_t counter = closureData->counter;
+    Value mapper = closureData->callback;
+
     auto value = IteratorObject::iteratorStepValue(state, iterated);
     if (!value) {
         iterated->m_done = true;
         return std::make_pair(Value(), true);
     }
-    Value argv[2] = { value.value(), Value(closureData->counter) };
-    Value mapper = closureData->callback;
 
+    Value argv[2] = { value.value(), Value(closureData->counter) };
     Value mapped;
     try {
         mapped = Object::call(state, mapper, Value(), 2, argv);
     } catch (const Value& e) {
         IteratorObject::iteratorClose(state, iterated, e, true);
     }
-    closureData->counter = StorePositiveNumberAsOddNumber(counter + 1);
+    closureData->counter = StorePositiveNumberAsOddNumber(closureData->counter + 1);
     return std::make_pair(mapped, false);
 }
 
@@ -205,27 +205,27 @@ static std::pair<Value, bool> iteratorFilterClosure(ExecutionState& state, Itera
     //   Set counter to counter + 1.
     IteratorData* closureData = reinterpret_cast<IteratorData*>(data);
     IteratorRecord* iterated = obj->underlyingIterator();
-    size_t counter = closureData->counter;
-    auto value = IteratorObject::iteratorStepValue(state, iterated);
-    if (!value) {
-        iterated->m_done = true;
-        return std::make_pair(Value(), true);
-    }
-    Value argv[2] = { value.value(), Value(closureData->counter) };
     Value predicate = closureData->callback;
 
-    Value selected;
-    try {
-        selected = Object::call(state, predicate, Value(), 2, argv);
-    } catch (const Value& e) {
-        IteratorObject::iteratorClose(state, iterated, e, true);
-    }
+    while (true) {
+        auto value = IteratorObject::iteratorStepValue(state, iterated);
+        if (!value) {
+            iterated->m_done = true;
+            return std::make_pair(Value(), true);
+        }
 
-    closureData->counter = StorePositiveNumberAsOddNumber(counter + 1);
-    if (selected.toBoolean()) {
-        return std::make_pair(value.value(), false);
-    } else {
-        return iteratorFilterClosure(state, obj, data);
+        Value argv[2] = { value.value(), Value(closureData->counter) };
+        Value selected;
+        try {
+            selected = Object::call(state, predicate, Value(), 2, argv);
+        } catch (const Value& e) {
+            IteratorObject::iteratorClose(state, iterated, e, true);
+        }
+
+        closureData->counter = StorePositiveNumberAsOddNumber(closureData->counter + 1);
+        if (selected.toBoolean()) {
+            return std::make_pair(value.value(), false);
+        }
     }
 }
 
