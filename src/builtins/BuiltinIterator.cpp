@@ -236,7 +236,7 @@ static std::pair<Value, bool> iteratorFilterClosure(ExecutionState& state, Itera
     }
 }
 
-    // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.filter
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.filter
 static Value builtinIteratorFilter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the this value.
@@ -258,6 +258,76 @@ static Value builtinIteratorFilter(ExecutionState& state, Value thisValue, size_
     IteratorHelperObject* result = new IteratorHelperObject(state, iteratorFilterClosure, iterated, new IteratorFilterData(predicate));
     // Return result.
     return result;
+}
+
+// https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.reduce
+static Value builtinIteratorReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be the this value.
+    const Value& O = thisValue;
+    // If O is not an Object, throw a TypeError exception.
+    if (!O.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "this value is not Object");
+    }
+
+    // If IsCallable(reducer) is false, throw a TypeError exception.
+    const Value& reducer = argv[0];
+    if (!reducer.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "reducer is not callable");
+    }
+
+    // Let iterated be ? GetIteratorDirect(O).
+    IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
+
+    // If initialValue is not present, then
+    // Let accumulator be ? IteratorStepValue(iterated).
+    // If accumulator is done, throw a TypeError exception.
+    // Let counter be 1.
+    // Else,
+    // Let accumulator be initialValue.
+    // Let counter be 0.
+    StorePositiveNumberAsOddNumber counter;
+    Value accumulator;
+
+    if (argc < 2) {
+        Optional<Value> guessValue = IteratorObject::iteratorStepValue(state, iterated);
+        if (!guessValue) {
+            iterated->m_done = true;
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "accumulator is done");
+        }
+        accumulator = guessValue.value();
+        counter = StorePositiveNumberAsOddNumber(1);
+    } else {
+        const Value& initialValue = argv[1];
+        accumulator = initialValue;
+        counter = StorePositiveNumberAsOddNumber(0);
+    }
+    // Repeat,
+    // Let value be ? IteratorStepValue(iterated).
+    // If value is done, return accumulator.
+    // Let result be Completion(Call(reducer, undefined, « accumulator, value, 𝔽(counter) »)).
+    // IfAbruptCloseIterator(result, iterated).
+    // Set accumulator to result.[[Value]].
+    // Set counter to counter + 1.
+    while (true) {
+        auto value = IteratorObject::iteratorStepValue(state, iterated);
+        if (!value) {
+            iterated->m_done = true;
+            return accumulator;
+        }
+
+        Value args[3] = { accumulator, value.value(), Value(counter) };
+        Value result;
+        try {
+            result = Object::call(state, reducer, Value(), 3, args);
+        } catch (const Value& e) {
+            IteratorObject::iteratorClose(state, iterated, e, true);
+            return Value();
+        }
+
+        accumulator = result;
+        counter = StorePositiveNumberAsOddNumber(counter + 1);
+    }
 }
 
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.find
@@ -391,6 +461,9 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->filter),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->filter, builtinIteratorFilter, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->reduce),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->reduce, builtinIteratorReduce, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->find),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->find, builtinIteratorFind, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
