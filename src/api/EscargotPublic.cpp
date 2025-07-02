@@ -3065,6 +3065,16 @@ ObjectRef* GlobalObjectRef::uint8ClampedArrayPrototype()
     return toRef(toImpl(this)->uint8ClampedArrayPrototype());
 }
 
+ObjectRef* GlobalObjectRef::float16Array()
+{
+    return toRef(toImpl(this)->float16Array());
+}
+
+ObjectRef* GlobalObjectRef::float16ArrayPrototype()
+{
+    return toRef(toImpl(this)->float16ArrayPrototype());
+}
+
 ObjectRef* GlobalObjectRef::float32Array()
 {
     return toRef(toImpl(this)->float32Array());
@@ -4393,6 +4403,12 @@ Int32ArrayObjectRef* Int32ArrayObjectRef::create(ExecutionStateRef* state)
 {
     ASSERT(state != nullptr);
     return toRef(new Int32ArrayObject(*toImpl(state)));
+}
+
+Float16ArrayObjectRef* Float16ArrayObjectRef::create(ExecutionStateRef* state)
+{
+    ASSERT(state != nullptr);
+    return toRef(new Float16ArrayObject(*toImpl(state)));
 }
 
 Float32ArrayObjectRef* Float32ArrayObjectRef::create(ExecutionStateRef* state)

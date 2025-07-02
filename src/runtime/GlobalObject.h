@@ -220,6 +220,8 @@ class FunctionObject;
     F(int32ArrayPrototype, Object, objName)         \
     F(uint32Array, FunctionObject, objName)         \
     F(uint32ArrayPrototype, Object, objName)        \
+    F(float16Array, FunctionObject, objName)        \
+    F(float16ArrayPrototype, Object, objName)       \
     F(float32Array, FunctionObject, objName)        \
     F(float32ArrayPrototype, Object, objName)       \
     F(float64Array, FunctionObject, objName)        \

@@ -69,6 +69,8 @@ static Value getDefaultTypedArrayConstructor(ExecutionState& state, const TypedA
         return glob->int32Array();
     case TypedArrayType::Uint32:
         return glob->uint32Array();
+    case TypedArrayType::Float16:
+        return glob->float16Array();
     case TypedArrayType::Float32:
         return glob->float32Array();
     case TypedArrayType::Float64:
@@ -543,6 +545,18 @@ static Value fastTypedArrayIndexSearch(TypedArrayObject* arr, size_t k, size_t l
                 return Value(byteK / elementSize);
             }
             updateFn(byteK, 8);
+        }
+    } else if (type == TypedArrayType::Float16) {
+        double num = value.asNumber();
+        if (std::isnan(num)) {
+            return Value(-1);
+        }
+        while (compFn(byteK, byteLength)) {
+            double c = convertFloat16ToFloat64(*reinterpret_cast<uint16_t*>(&buffer[byteK]));
+            if (c == num) {
+                return Value(byteK / elementSize);
+            }
+            updateFn(byteK, 2);
         }
     } else if (type == TypedArrayType::Float32) {
         double num = value.asNumber();

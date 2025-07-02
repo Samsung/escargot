@@ -33,6 +33,7 @@ enum class TypedArrayType : unsigned {
     Uint16,
     Uint32,
     Uint8Clamped,
+    Float16,
     Float32,
     Float64,
     BigInt64,

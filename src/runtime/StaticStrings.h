@@ -58,6 +58,7 @@ namespace Escargot {
     F(Error)                      \
     F(EvalError)                  \
     F(FinalizationRegistry)       \
+    F(Float16Array)               \
     F(Float32Array)               \
     F(Float64Array)               \
     F(Function)                   \
@@ -244,6 +245,7 @@ namespace Escargot {
     F(getCanonicalLocales)        \
     F(getDate)                    \
     F(getDay)                     \
+    F(getFloat16)                 \
     F(getFloat32)                 \
     F(getFloat64)                 \
     F(getFullYear)                \
@@ -403,6 +405,7 @@ namespace Escargot {
     F(setBigInt64)                \
     F(setBigUint64)               \
     F(setDate)                    \
+    F(setFloat16)                 \
     F(setFloat32)                 \
     F(setFloat64)                 \
     F(setFullYear)                \

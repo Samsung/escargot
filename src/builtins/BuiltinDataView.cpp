@@ -27,6 +27,7 @@
 namespace Escargot {
 
 #define FOR_EACH_DATAVIEW_TYPES(F) \
+    F(Float16)                     \
     F(Float32)                     \
     F(Float64)                     \
     F(Int8)                        \

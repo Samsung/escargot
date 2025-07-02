@@ -168,6 +168,9 @@ Value SharedArrayBufferObject::getValueFromBuffer(ExecutionState& state, size_t 
     case TypedArrayType::Uint8Clamped:
         __atomic_load(reinterpret_cast<uint8_t*>(rawStart), reinterpret_cast<uint8_t*>(rawBytes), __ATOMIC_SEQ_CST);
         break;
+    case TypedArrayType::Float16:
+        __atomic_load(reinterpret_cast<uint16_t*>(rawStart), reinterpret_cast<uint16_t*>(rawBytes), __ATOMIC_SEQ_CST);
+        break;
     case TypedArrayType::Float32:
         __atomic_load(reinterpret_cast<float*>(rawStart), reinterpret_cast<float*>(rawBytes), __ATOMIC_SEQ_CST);
         break;
@@ -246,6 +249,9 @@ void SharedArrayBufferObject::setValueInBuffer(ExecutionState& state, size_t byt
         break;
     case TypedArrayType::Uint8Clamped:
         __atomic_store(reinterpret_cast<uint8_t*>(rawStart), reinterpret_cast<uint8_t*>(rawBytes2), __ATOMIC_SEQ_CST);
+        break;
+    case TypedArrayType::Float16:
+        __atomic_store(reinterpret_cast<uint16_t*>(rawStart), reinterpret_cast<uint16_t*>(rawBytes2), __ATOMIC_SEQ_CST);
         break;
     case TypedArrayType::Float32:
         __atomic_store(reinterpret_cast<float*>(rawStart), reinterpret_cast<float*>(rawBytes2), __ATOMIC_SEQ_CST);
