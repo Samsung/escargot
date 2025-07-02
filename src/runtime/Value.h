@@ -58,8 +58,7 @@ inline ToType bitwise_cast(FromType from)
     union {
         FromType from;
         ToType to;
-    } u;
-    u.from = from;
+    } u = { from };
     return u.to;
 }
 

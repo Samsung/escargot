@@ -21,6 +21,7 @@
 #define __EscargotTypedArrayObject__
 
 #include "runtime/ArrayBufferObject.h"
+#include "util/Float16.h"
 
 namespace Escargot {
 
@@ -32,6 +33,7 @@ namespace Escargot {
     F(Uint8Clamped, uint8Clamped, 1, uint8_t); \
     F(Uint16, uint16, 2, uint16_t);            \
     F(Uint32, uint32, 4, uint32_t);            \
+    F(Float16, float16, 2, Float16);           \
     F(Float32, float32, 4, double);            \
     F(Float64, float64, 8, double);            \
     F(BigInt64, bigInt64, 8, int64_t);         \

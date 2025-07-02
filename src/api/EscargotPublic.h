@@ -90,6 +90,7 @@
 #define ESCARGOT_TYPEDARRAY_REF_LIST(F) \
     F(BigInt64ArrayObject)              \
     F(BigUint64ArrayObject)             \
+    F(Float16ArrayObject)               \
     F(Float32ArrayObject)               \
     F(Float64ArrayObject)               \
     F(Int16ArrayObject)                 \
@@ -1549,6 +1550,8 @@ public:
     ObjectRef* uint32ArrayPrototype();
     ObjectRef* uint8ClampedArray();
     ObjectRef* uint8ClampedArrayPrototype();
+    ObjectRef* float16Array();
+    ObjectRef* float16ArrayPrototype();
     ObjectRef* float32Array();
     ObjectRef* float32ArrayPrototype();
     ObjectRef* float64Array();
@@ -1893,6 +1896,11 @@ public:
 class ESCARGOT_EXPORT Uint8ClampedArrayObjectRef : public ArrayBufferViewRef {
 public:
     static Uint8ClampedArrayObjectRef* create(ExecutionStateRef* state);
+};
+
+class ESCARGOT_EXPORT Float16ArrayObjectRef : public ArrayBufferViewRef {
+public:
+    static Float16ArrayObjectRef* create(ExecutionStateRef* state);
 };
 
 class ESCARGOT_EXPORT Float32ArrayObjectRef : public ArrayBufferViewRef {

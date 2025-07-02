@@ -20,6 +20,8 @@
 #ifndef __EscargotTypedArrayInlines__
 #define __EscargotTypedArrayInlines__
 
+#include "util/Float16.h"
+
 namespace Escargot {
 
 template <typename Adapter>
@@ -83,6 +85,15 @@ struct FloatTypedArrayAdaptor {
     static TypeArg toNativeFromDouble(ExecutionState& state, double value)
     {
         return value;
+    }
+};
+
+struct Float16TypedArrayAdaptor {
+    typedef Float16 Type;
+
+    static Float16 toNative(ExecutionState& state, const Value& val)
+    {
+        return Float16(val.toNumber(state));
     }
 };
 
@@ -152,6 +163,8 @@ struct Uint16Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<uint16_t>> {
 };
 struct Uint32Adaptor : TypedArrayAdaptor<IntegralTypedArrayAdapter<uint32_t>> {
 };
+struct Float16Adaptor : TypedArrayAdaptor<Float16TypedArrayAdaptor> {
+};
 struct Float32Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<float>> {
 };
 struct Float64Adaptor : TypedArrayAdaptor<FloatTypedArrayAdaptor<double>> {
@@ -162,7 +175,7 @@ struct BigUint64Adaptor : TypedArrayAdaptor<BigIntegralArrayAdaptor<uint64_t>> {
 };
 
 struct TypedArrayHelper {
-    static unsigned elementSizeTable[11];
+    static unsigned elementSizeTable[12];
 
     inline static size_t elementSize(TypedArrayType type)
     {
@@ -236,6 +249,8 @@ struct TypedArrayHelper {
             return Value(*reinterpret_cast<Int32Adaptor::Type*>(rawBytes));
         case TypedArrayType::Uint32:
             return Value(*reinterpret_cast<Uint32Adaptor::Type*>(rawBytes));
+        case TypedArrayType::Float16:
+            return Value(Value::DoubleToIntConvertibleTestNeeds, convertFloat16ToFloat64(*reinterpret_cast<uint16_t*>(rawBytes)));
         case TypedArrayType::Float32:
             return Value(Value::DoubleToIntConvertibleTestNeeds, readFloat32(rawBytes));
         case TypedArrayType::Float64:
@@ -273,6 +288,9 @@ struct TypedArrayHelper {
             break;
         case TypedArrayType::Uint32:
             *reinterpret_cast<Uint32Adaptor::Type*>(rawBytes) = Uint32Adaptor::toNative(state, val);
+            break;
+        case TypedArrayType::Float16:
+            *reinterpret_cast<Float16Adaptor::Type*>(rawBytes) = Float16Adaptor::toNative(state, val);
             break;
         case TypedArrayType::Float32:
             *reinterpret_cast<Float32Adaptor::Type*>(rawBytes) = Float32Adaptor::toNative(state, val);
