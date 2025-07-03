@@ -161,17 +161,11 @@
     <test id="built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/name"><reason>TODO</reason></test>
     <test id="built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/return-val"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/notify/retrieve-length-before-index-coercion"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared-detached"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/notify/retrieve-length-before-index-coercion-non-shared-resize-to-zero"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/pause/descriptor"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/pause/length"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/pause/name"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/pause/not-a-constructor"><reason>TODO</reason></test>
     <test id="built-ins/Atomics/pause/returns-undefined"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/wait/retrieve-length-before-index-coercion"><reason>TODO</reason></test>
-    <test id="built-ins/Atomics/waitAsync/retrieve-length-before-index-coercion"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-length"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-offset"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-valid-by-offset"><reason>TODO</reason></test>

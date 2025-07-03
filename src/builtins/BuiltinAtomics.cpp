@@ -63,8 +63,8 @@ static ArrayBuffer* validateIntegerTypedArray(ExecutionState& state, Value typed
 
 static size_t validateAtomicAccess(ExecutionState& state, TypedArrayObject* typedArray, Value index)
 {
-    uint64_t accessIndex = index.toIndex(state);
     size_t length = typedArray->arrayLength();
+    uint64_t accessIndex = index.toIndex(state);
     if (UNLIKELY(accessIndex == Value::InvalidIndexValue || accessIndex >= (uint64_t)length)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::GlobalObject_RangeError);
     }
