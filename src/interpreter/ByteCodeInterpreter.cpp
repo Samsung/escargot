@@ -192,7 +192,7 @@ public:
 
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
-    static int evaluateImportAssertionOperation(ExecutionState& state, const Value& options);
+    static int evaluateImportWithOperation(ExecutionState& state, const Value& options);
 
 #if defined(ENABLE_TCO)
     static Value tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, ByteCodeBlock* byteCodeBlock, const Value& callee, Value* registerFile);
@@ -4184,7 +4184,7 @@ NEVER_INLINE void InterpreterSlowPath::callFunctionComplexCase(ExecutionState& s
             specifierString = specifier.toString(state);
 
             if (code->m_argumentCount == 2) {
-                moduleType = static_cast<Platform::ModuleType>(evaluateImportAssertionOperation(state, registerFile[code->m_argumentsStartIndex + 1]));
+                moduleType = static_cast<Platform::ModuleType>(evaluateImportWithOperation(state, registerFile[code->m_argumentsStartIndex + 1]));
             }
         } catch (const Value& v) {
             Value thrownValue = v;
@@ -4975,60 +4975,53 @@ NEVER_INLINE void InterpreterSlowPath::ensureArgumentsObjectOperation(ExecutionS
     funcObject->generateArgumentsObject(state, es->argc(), es->argv(), funcRecord, registerFile + byteCodeBlock->m_requiredOperandRegisterNumber, isMapped);
 }
 
-NEVER_INLINE int InterpreterSlowPath::evaluateImportAssertionOperation(ExecutionState& state, const Value& options)
+NEVER_INLINE int InterpreterSlowPath::evaluateImportWithOperation(ExecutionState& state, const Value& options)
 {
-    if (options.isUndefined()) {
-        return Platform::ModuleES;
-    }
+    // Let attributes be a new empty List.
+    // If options is not undefined, then
+    if (!options.isUndefined()) {
+        // If options is not an Object, then
+        if (!options.isObject()) {
+            // i. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "import options is not Object");
+        }
+        // b. Let attributesObj be Completion(Get(options, "with")).
+        // c. IfAbruptRejectPromise(attributesObj, promiseCapability).
+        Value attributesObj = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().with)).value(state, options.asObject());
 
-    if (!options.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
-    }
-
-    ObjectGetResult result = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().assert));
-
-    if (!result.hasValue()) {
-        return Platform::ModuleES;
-    }
-
-    Value assertions = result.value(state, options);
-
-    if (assertions.isUndefined()) {
-        return Platform::ModuleES;
-    }
-
-    if (!assertions.isObject()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotObject);
-    }
-
-    Object* assertObject = assertions.asObject();
-
-    ValueVectorWithInlineStorage nameList = Object::enumerableOwnProperties(state, assertObject, EnumerableOwnPropertiesType::Key);
-    size_t nameListLength = nameList.size();
-
-    if (nameListLength) {
-        for (size_t i = 0; i < nameListLength; i++) {
-            Value key = nameList[i];
-
-            // The key / value pair must be evaluated before their content is checked
-            ObjectGetResult result = assertObject->get(state, ObjectPropertyName(state, key));
-            Value resultValue = result.hasValue() ? result.value(state, options) : Value();
-
-            // Currently only "type" is supported
-            if (!key.isString() || !key.asString()->equals("type")) {
-                String* asString = key.toStringWithoutException(state);
-                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, asString, false, String::emptyString(), "unsupported import assertion key: %s");
+        // d. If attributesObj is not undefined, then
+        if (!attributesObj.isUndefined()) {
+            // i. If attributesObj is not an Object, then
+            if (!attributesObj.isObject()) {
+                // 1. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "import options.with is not Object");
             }
+            // ii. Let entries be Completion(EnumerableOwnProperties(attributesObj, key+value)).
+            ValueVectorWithInlineStorage entries = Object::enumerableOwnProperties(state, attributesObj.asObject(), EnumerableOwnPropertiesType::KeyAndValue);
 
-            if (!resultValue.isString() || !resultValue.asString()->equals("json")) {
-                String* asString = resultValue.toStringWithoutException(state);
-                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, asString, false, String::emptyString(), "unsupported import assertion type: %s");
+            //  iv. For each element entry of entries, do
+            for (const auto& entry : entries) {
+                //  1. Let key be ! Get(entry, "0").
+                Value key = entry.asObject()->get(state, ObjectPropertyName(state, uint32_t(0))).value(state, entry);
+                //  2. Let value be ! Get(entry, "1").
+                Value value = entry.asObject()->get(state, ObjectPropertyName(state, uint32_t(1))).value(state, entry);
+                //  3. If key is a String, then
+                if (key.isString()) {
+                    //  a. If value is not a String, then
+                    if (!value.isString()) {
+                        //  i. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+                        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "key and value of import options.with are not String");
+                    }
+                    //  b. Append the ImportAttribute Record { [[Key]]: key, [[Value]]: value } to attributes.
+                    if (key.asString()->equals("type") && value.asString()->equals("json")) {
+                        return Platform::ModuleJSON;
+                    } else {
+                        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Unsupported import type or");
+                    }
+                }
             }
         }
-
-        return Platform::ModuleJSON;
     }
-
     return Platform::ModuleES;
 }
 
