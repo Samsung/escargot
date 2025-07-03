@@ -28,6 +28,8 @@
 #include "runtime/Platform.h"
 #include "runtime/PromiseObject.h"
 
+#include "util/Yield.h"
+
 namespace Escargot {
 
 #if defined(ENABLE_THREADING)
@@ -577,6 +579,30 @@ static Value builtinAtomicsIsLockFree(ExecutionState& state, Value thisValue, si
 #endif
 }
 
+inline bool isIntegralNumber(double value)
+{
+    return std::isfinite(value) && std::trunc(value) == value;
+}
+
+// https://tc39.es/proposal-atomics-microwait/#Atomics.pause
+static Value builtinAtomicsPause(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // 1. If N is neither undefined nor an integral Number, throw a TypeError exception.
+    Value N = argc ? argv[0] : Value();
+    if (!N.isUndefined() && (!N.isNumber() || !isIntegralNumber(N.asNumber()))) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_IllegalFirstArgument);
+    }
+    // 2. If the execution environment of the ECMAScript implementation supports signaling to the operating system or CPU that the current executing code is in a spin-wait loop,
+    // such as executing a pause CPU instruction, send that signal. When N is not undefined, it determines the number of times that signal is sent.
+    // The number of times the signal is sent for an integral Number N is less than or equal to the number times it is sent for N + 1 if both N and N + 1 have the same sign.
+
+    // TODO use number input
+    YIELD_PROCESSOR;
+
+    // 3. Return undefined.
+    return Value();
+}
+
 void GlobalObject::initializeAtomics(ExecutionState& state)
 {
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
@@ -632,6 +658,9 @@ void GlobalObject::installAtomics(ExecutionState& state)
 
     m_atomics->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().notify),
                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().notify, builtinAtomicsNotify, 3, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_atomics->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().pause),
+                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().pause, builtinAtomicsPause, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Atomics),
                         ObjectPropertyDescriptor(m_atomics, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

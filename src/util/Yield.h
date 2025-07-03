@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-present Samsung Electronics Co., Ltd
+ * Copyright (c) 2025-present Samsung Electronics Co., Ltd
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -17,41 +17,32 @@
  *  USA
  */
 
-#if defined(ENABLE_THREADING)
+#ifndef __EscargotYield__
+#define __EscargotYield__
 
-#ifndef __EscargotSpinLock__
-#define __EscargotSpinLock__
-
-#include <atomic>
-#include "util/Yield.h"
-
-namespace Escargot {
-
-class SpinLock {
-    std::atomic_flag m_locked;
-
-public:
-    SpinLock()
-        : m_locked()
-    {
-        m_locked.clear();
-    }
-
-    void lock()
-    {
-        while (m_locked.test_and_set(std::memory_order_acquire)) {
-            YIELD_PROCESSOR;
-        }
-    }
-
-    void unlock()
-    {
-        m_locked.clear(std::memory_order_release);
-    }
-};
-
-} // namespace Escargot
-
+#if defined(COMPILER_MSVC)
+extern "C" void _mm_pause();
+#pragma intrinsic(_mm_pause)
+#define YIELD_PROCESSOR _mm_pause()
+#else
+#if defined(CPU_X86)
+#define YIELD_PROCESSOR __asm__ __volatile__("pause")
+#elif defined(CPU_X86_64)
+#define YIELD_PROCESSOR __asm__ __volatile__("pause")
+#elif defined(CPU_ARM32)
+#define YIELD_PROCESSOR __asm__ __volatile__("yield")
+#elif defined(CPU_ARM64)
+#define YIELD_PROCESSOR __asm__ __volatile__("yield")
+#elif defined(CPU_RISCV32)
+#define YIELD_PROCESSOR __asm__ __volatile__("fence")
+#elif defined(CPU_RISCV64)
+#define YIELD_PROCESSOR __asm__ __volatile__("fence")
 #endif
+#endif
+
+#ifndef YIELD_PROCESSOR
+#error "Unsupported arch"
+#endif
+
 
 #endif
