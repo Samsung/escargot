@@ -6103,12 +6103,6 @@
     <test id="language/expressions/dynamic-import/catch/top-level-import-catch-import-source-source-text-module"><reason>TODO</reason></test>
     <test id="language/expressions/dynamic-import/catch/top-level-import-catch-import-source-specifier-tostring"><reason>TODO</reason></test>
     <test id="language/expressions/dynamic-import/catch/top-level-import-catch-import-source-specifier-tostring-abrupt-rejects"><reason>TODO</reason></test>
-    <test id="language/expressions/dynamic-import/import-attributes/2nd-param-get-with-error"><reason>TODO</reason></test>
-    <test id="language/expressions/dynamic-import/import-attributes/2nd-param-with-enumeration-abrupt"><reason>TODO</reason></test>
-    <test id="language/expressions/dynamic-import/import-attributes/2nd-param-with-enumeration-enumerable"><reason>TODO</reason></test>
-    <test id="language/expressions/dynamic-import/import-attributes/2nd-param-with-non-object"><reason>TODO</reason></test>
-    <test id="language/expressions/dynamic-import/import-attributes/2nd-param-with-value-abrupt"><reason>TODO</reason></test>
-    <test id="language/expressions/dynamic-import/import-attributes/2nd-param-with-value-non-string"><reason>TODO</reason></test>
     <test id="language/expressions/dynamic-import/import-defer/import-defer-async-module/main"><reason>TODO</reason></test>
     <test id="language/expressions/dynamic-import/import-defer/import-defer-transitive-async-module/main"><reason>TODO</reason></test>
     <test id="language/expressions/dynamic-import/import-defer/sync-dependency-of-deferred-async-module/main"><reason>TODO</reason></test>
