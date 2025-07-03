@@ -366,6 +366,7 @@ namespace Escargot {
     F(parse)                      \
     F(parseFloat)                 \
     F(parseInt)                   \
+    F(pause)                      \
     F(pop)                        \
     F(pow)                        \
     F(preventExtensions)          \
