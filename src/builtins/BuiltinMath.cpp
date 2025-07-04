@@ -24,9 +24,12 @@
 #include "runtime/ThreadLocal.h"
 #include "runtime/StringObject.h"
 #include "runtime/NativeFunctionObject.h"
+#include "runtime/IteratorObject.h"
 
 #include "runtime/IEEE754.h"
 #include <math.h>
+
+#include "xsum.h"
 
 namespace Escargot {
 
@@ -409,6 +412,128 @@ static Value builtinMathExpm1(ExecutionState& state, Value thisValue, size_t arg
     return Value(Value::DoubleToIntConvertibleTestNeeds, ieee754::expm1(x));
 }
 
+enum class SumPreciseState {
+    MinusZero,
+    NotANumber,
+    MinusInfinity,
+    PlusInfinity,
+    Finite
+};
+
+// https://tc39.es/proposal-math-sum/#sec-math.sumprecise
+static Value builtinMathSumPrecise(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    const Value& items = argv[0];
+
+    // 1. Perform ? RequireObjectCoercible(items).
+    if (items.isUndefinedOrNull()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "sumPrecise called on undefined or null");
+    }
+
+    xsum_small_accumulator sacc;
+    xsum_small_init(&sacc);
+
+    // 2. Let iteratorRecord be ? GetIterator(items, sync).
+    auto iteratorRecord = IteratorObject::getIterator(state, items, true);
+    // 3. Let state be minus-zero.
+    SumPreciseState sumPreciseState = SumPreciseState::MinusZero;
+    // 4. Let sum be 0.
+    // 5. Let count be 0.
+    // 6. Let next be not-started.
+    uint64_t count = 0;
+    // 7. Repeat, while next is not done,
+    while (true) {
+        // a. Set next to ? IteratorStepValue(iteratorRecord).
+        auto next = IteratorObject::iteratorStepValue(state, iteratorRecord);
+        // b. If next is not done, then
+        if (next) {
+            // i. Set count to count + 1.
+            count++;
+            // ii. If count ≥ 2**53, then
+            if (count >= (1LL << 53LL)) {
+                // 1. Let error be ThrowCompletion(a newly created RangeError object).
+                Value error = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIStringFromExternalMemory("Too many result on sumPrecise function"));
+                // 2. Return ? IteratorClose(iteratorRecord, error).
+                IteratorObject::iteratorClose(state, iteratorRecord, error, true);
+                ASSERT_NOT_REACHED();
+            }
+            // iii. NOTE: The above case is not expected to be reached in practice and is included only so that implementations may rely on inputs being "reasonably sized" without violating this specification.
+            // iv. If next is not a Number, then
+            if (!next.value().isNumber()) {
+                // 1. Let error be ThrowCompletion(a newly created TypeError object).
+                Value error = ErrorObject::createError(state, ErrorCode::TypeError, new ASCIIStringFromExternalMemory("sumPrecise function needs number value"));
+                // 2. Return ? IteratorClose(iteratorRecord, error).
+                IteratorObject::iteratorClose(state, iteratorRecord, error, true);
+                ASSERT_NOT_REACHED();
+            }
+            // v. Let n be next.
+            double n = next.value().asNumber();
+            // vi. If state is not not-a-number, then
+            if (sumPreciseState != SumPreciseState::NotANumber) {
+                // 1. If n is NaN, then
+                if (std::isnan(n)) {
+                    // a. Set state to not-a-number.
+                    sumPreciseState = SumPreciseState::NotANumber;
+                } else if (std::isinf(n) && std::signbit(n) == 0) {
+                    // 2. Else if n is +∞𝔽, then
+                    // a. If state is minus-infinity, set state to not-a-number.
+                    if (sumPreciseState == SumPreciseState::MinusInfinity) {
+                        sumPreciseState = SumPreciseState::NotANumber;
+                    } else {
+                        // b. Else, set state to plus-infinity.
+                        sumPreciseState = SumPreciseState::PlusInfinity;
+                    }
+                } else if (std::isinf(n) && std::signbit(n) == 1) {
+                    // 3. Else if n is -∞𝔽, then
+                    // a. If state is plus-infinity, set state to not-a-number.
+                    if (sumPreciseState == SumPreciseState::PlusInfinity) {
+                        sumPreciseState = SumPreciseState::NotANumber;
+                    } else {
+                        // b. Else, set state to minus-infinity.
+                        sumPreciseState = SumPreciseState::MinusInfinity;
+                    }
+                } else if (!(n == 0 && std::signbit(n)) && (sumPreciseState == SumPreciseState::MinusZero || sumPreciseState == SumPreciseState::Finite)) {
+                    // 4. Else if n is not -0𝔽 and state is either minus-zero or finite, then
+                    // a. Set state to finite.
+                    sumPreciseState = SumPreciseState::Finite;
+                    // b. Set sum to sum + ℝ(n).
+                    xsum_small_add1(&sacc, n);
+                }
+            }
+        } else {
+            break;
+        }
+    }
+
+    // 8. If state is not-a-number, return NaN.
+    // 9. If state is plus-infinity, return +∞𝔽.
+    // 10. If state is minus-infinity, return -∞𝔽.
+    // 11. If state is minus-zero, return -0𝔽.
+    // 12. Return 𝔽(sum).
+    double result = 0;
+    switch (sumPreciseState) {
+    case SumPreciseState::NotANumber:
+        result = std::numeric_limits<double>::quiet_NaN();
+        break;
+    case SumPreciseState::PlusInfinity:
+        result = std::numeric_limits<double>::infinity();
+        break;
+    case SumPreciseState::MinusInfinity:
+        result = -std::numeric_limits<double>::infinity();
+        break;
+    case SumPreciseState::MinusZero:
+        result = -0.0;
+        break;
+    case SumPreciseState::Finite:
+        result = xsum_small_round(&sacc);
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+    }
+
+    return Value(Value::DoubleToIntConvertibleTestNeeds, result);
+}
+
 void GlobalObject::initializeMath(ExecutionState& state)
 {
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
@@ -549,6 +674,9 @@ void GlobalObject::installMath(ExecutionState& state)
     // initialize math object: $20.2.2.35 Math.trunc()
     m_math->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().trunc),
                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().trunc, builtinMathTrunc, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_math->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().sumPrecise),
+                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().sumPrecise, builtinMathSumPrecise, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Math),
                         ObjectPropertyDescriptor(m_math, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

@@ -455,6 +455,7 @@ namespace Escargot {
     F(subarray)                   \
     F(substr)                     \
     F(substring)                  \
+    F(sumPrecise)                 \
     F(sup)                        \
     F(super)                      \
     F(supportedLocalesOf)         \
