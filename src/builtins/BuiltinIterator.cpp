@@ -613,6 +613,105 @@ static Value builtinIteratorForEach(ExecutionState& state, Value thisValue, size
     }
 }
 
+
+static std::pair<Value, bool> iteratorDropClosure(ExecutionState& state, IteratorHelperObject* obj, void* data)
+{
+    // Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs the following steps when called:
+    //   Let remaining be integerLimit.
+    //   Repeat, while remaining > 0
+    //     If remaining ≠ +∞, then Set remaining to remaining - 1.
+    //     Let next be ? IteratorStep(iterated).
+    //     If next is done, return ReturnCompletion(undefined).
+    //   Repeat,
+    //     Let value be ? IteratorStepValue(iterated).
+    //     If value is done, return ReturnCompletion(undefined)
+    //     Let completion be Completion(Yield(value)).
+    //     IfAbruptCloseIterator(completion, iterated).
+    IteratorRecord* iterated = obj->underlyingIterator();
+    IteratorData* closureData = reinterpret_cast<IteratorData*>(data);
+    double remaining = closureData->callback.asNumber();
+
+    while (remaining > 0) {
+        if (!std::isinf(remaining)) {
+            remaining -= 1;
+        }
+
+        auto next = IteratorObject::iteratorStep(state, iterated);
+        if (!next) {
+            iterated->m_done = true;
+            return std::make_pair(Value(), true);
+        }
+    }
+
+    closureData->callback = Value(Value::DoubleToIntConvertibleTestNeeds, remaining);
+
+    // Note: The ECMAScript spec (ECMA-262 27.1.4.2) describes this step as a "Repeat" loop,
+    // but in this implementation, the closure is invoked once per next() call.
+    // Therefore, we only need to fetch and return a single value per invocation.
+    // The iterator's state (such as 'remaining') is preserved in IteratorHelperObject/IteratorData,
+    // so the effect of repeated next() calls matches the spec's intent without an explicit loop here.
+    auto value = IteratorObject::iteratorStepValue(state, iterated);
+    if (!value) {
+        iterated->m_done = true;
+        return std::make_pair(Value(), true);
+    }
+
+    return std::make_pair(value.value(), false);
+}
+
+static Value builtinIteratorDrop(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be the this value.
+    const Value& O = thisValue;
+
+    // If O is not an Object, throw a TypeError exception.
+    if (!O.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "this value is not Object");
+    }
+
+    // Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    IteratorRecord* iterated = new IteratorRecord(O.asObject(), Value(), false);
+
+    // Let numLimit be Completion(ToNumber(limit)).
+    const Value& limit = argv[0];
+    double numLimit;
+
+    try {
+        numLimit = limit.toNumber(state);
+    } catch (const Value& e) {
+        // IfAbruptCloseIterator(numLimit, iterated).
+        IteratorObject::iteratorClose(state, iterated, e, true);
+    }
+
+    // If numLimit is NaN, throw a RangeError exception.
+    if (std::isnan(numLimit)) {
+        // Let error be ThrowCompletion(a newly created RangeError object)
+        // Return ? IteratorClose(iterated, error)
+        Value error = ErrorObject::createBuiltinError(state, ErrorCode::RangeError, "limit must be a number");
+        IteratorObject::iteratorClose(state, iterated, error, true);
+    }
+
+    // Let integerLimit be ! ToIntegerOrInfinity(numLimit).
+    double integerLimit = Value(Value::DoubleToIntConvertibleTestNeeds, numLimit).toInteger(state);
+
+    // If integerLimit < 0, then
+    if (integerLimit < 0) {
+        // Let error be ThrowCompletion(a newly created RangeError object).
+        // Return ? IteratorClose(iterated, error)
+        Value error = ErrorObject::createBuiltinError(state, ErrorCode::RangeError, "limit must be a non-negative number");
+        IteratorObject::iteratorClose(state, iterated, error, true);
+    }
+
+    // Set iterated to ? GetIteratorDirect(O)
+    iterated = IteratorObject::getIteratorDirect(state, O.asObject());
+
+    // Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
+    // Set result.[[UnderlyingIterator]] to iterated.
+    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorDropClosure, iterated, new IteratorData(Value(Value::DoubleToIntConvertibleTestNeeds, integerLimit)));
+    // Return result.
+    return result;
+}
+
 // https://tc39.es/ecma262/#sec-iterator.prototype.toarray
 static Value builtinIteratorToArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -734,6 +833,9 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->forEach),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->forEach, builtinIteratorForEach, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->drop),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->drop, builtinIteratorDrop, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toArray),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toArray, builtinIteratorToArray, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
