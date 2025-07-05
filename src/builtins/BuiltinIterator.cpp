@@ -22,7 +22,7 @@
 #include "runtime/Context.h"
 #include "runtime/VMInstance.h"
 #include "runtime/NativeFunctionObject.h"
-#include "runtime/IteratorObject.h"
+#include "runtime/ArrayObject.h"
 
 namespace Escargot {
 
@@ -253,6 +253,61 @@ static Value builtinIteratorFilter(ExecutionState& state, Value thisValue, size_
     return result;
 }
 
+// https://tc39.es/ecma262/#sec-iterator.prototype.every
+static Value builtinIteratorEvery(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be the this value.
+    const Value& O = thisValue;
+    // If O is not an Object, throw a TypeError exception.
+    if (!O.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "this value is not Object");
+    }
+
+    // Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    // If IsCallable(predicate) is false, then
+    //   Let error be ThrowCompletion(a newly created TypeError object).
+    //   Return ? IteratorClose(iterated, error).
+    const Value& predicate = argv[0];
+    if (!predicate.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "predicate is not callable");
+    }
+
+    // Set iterated to ? GetIteratorDirect(O).
+    IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
+    // Let counter be 0.
+    StorePositiveNumberAsOddNumber counter = StorePositiveNumberAsOddNumber(0);
+
+    // Repeat,
+    //   Let value be ? IteratorStepValue(iterated).
+    //   If value is done, return true.
+    //   Let result be Completion(Call(predicate, undefined, « value, 𝔽(counter) »)).
+    //   IfAbruptCloseIterator(result, iterated).
+    //   If ToBoolean(result) is false, return ? IteratorClose(iterated, NormalCompletion(false)).
+    //   Set counter to counter + 1.
+    while (true) {
+        auto value = IteratorObject::iteratorStepValue(state, iterated);
+        if (!value) {
+            iterated->m_done = true;
+            return Value(true);
+        }
+
+        Value args[2] = { value.value(), Value(counter) };
+        Value result;
+        try {
+            result = Object::call(state, predicate, Value(), 2, args);
+        } catch (const Value& e) {
+            IteratorObject::iteratorClose(state, iterated, e, true);
+        }
+
+        if (!result.toBoolean()) {
+            IteratorObject::iteratorClose(state, iterated, Value(false), false);
+            return Value(false);
+        }
+
+        counter = StorePositiveNumberAsOddNumber(counter + 1);
+    }
+}
+
 // https://tc39.es/proposal-iterator-helpers/#sec-iteratorprototype.reduce
 static Value builtinIteratorReduce(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -430,6 +485,91 @@ static Value builtinIteratorSome(ExecutionState& state, Value thisValue, size_t 
     }
 }
 
+static double toIntegerOrInfinity(double d)
+{
+    if (std::isnan(d) || d == 0) {
+        return 0;
+    }
+    if (d == std::numeric_limits<double>::infinity() || d == -std::numeric_limits<double>::infinity()) {
+        return d;
+    }
+    return (d < 0 ? -1 : 1) * std::floor(std::abs(d));
+}
+
+static std::pair<Value, bool> iteratorTakeClosure(ExecutionState& state, IteratorHelperObject* obj, void* data)
+{
+    // Let closure be a new Abstract Closure with no parameters that captures iterated and integerLimit and performs the following steps when called:
+    // Let remaining be integerLimit.
+    // Repeat,
+    //     If remaining = 0, then
+    //        Return ? IteratorClose(iterated, ReturnCompletion(undefined)).
+    //     If remaining ≠ +∞, then
+    //         Set remaining to remaining - 1.
+    //     Let value be ? IteratorStepValue(iterated).
+    //     If value is done, return ReturnCompletion(undefined).
+    //     Let completion be Completion(Yield(value)).
+    //     IfAbruptCloseIterator(completion, iterated).
+    IteratorData* closureData = reinterpret_cast<IteratorData*>(data);
+    IteratorRecord* iterated = obj->underlyingIterator();
+    double remaining = closureData->callback.toNumber(state);
+
+    if (remaining == 0) {
+        if (!iterated->m_done) {
+            iterated->m_done = true;
+            IteratorObject::iteratorClose(state, iterated, Value(), false);
+        }
+        return std::make_pair(Value(), true);
+    }
+    if (remaining != std::numeric_limits<double>::infinity()) {
+        closureData->callback = Value(static_cast<int32_t>(remaining - 1));
+    }
+
+    auto value = IteratorObject::iteratorStepValue(state, iterated);
+    if (!value) {
+        iterated->m_done = true;
+        return std::make_pair(Value(), true);
+    }
+
+    return std::make_pair(value.value(), false);
+}
+
+// https://tc39.es/ecma262/#sec-iterator.prototype.take
+static Value builtinIteratorTake(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be the this value.
+    const Value& O = thisValue;
+    // If O is not an Object, throw a TypeError exception.
+    if (!O.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "this value is not Object");
+    }
+    // Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]: undefined, [[Done]]: false }.
+    // Let numLimit be Completion(ToNumber(limit)).
+    // IfAbruptCloseIterator(numLimit, iterated).
+    double numLimit = argv[0].toNumber(state);
+
+    // If numLimit is NaN, then
+    //    a. Let error be ThrowCompletion(a newly created RangeError object).
+    //    b. Return ? IteratorClose(iterated, error).
+    if (std::isnan(numLimit)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "numLimit is NaN");
+    }
+    // Let integerLimit be ! ToIntegerOrInfinity(numLimit).
+    // If integerLimit < 0, then
+    //    a. Let error be ThrowCompletion(a newly created RangeError object).
+    //    b. Return ? IteratorClose(iterated, error).
+    double integerLimit = toIntegerOrInfinity(numLimit);
+    if (integerLimit < 0) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "integerLimit is negative value");
+    }
+    // Set iterated to ? GetIteratorDirect(O).
+    IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
+    // Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
+    // Set result.[[UnderlyingIterator]] to iterated.
+    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorTakeClosure, iterated, new IteratorData(argv[0]));
+    // Return result.
+    return result;
+}
+
 static Value builtinIteratorForEach(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let O be the this value.
@@ -474,6 +614,33 @@ static Value builtinIteratorForEach(ExecutionState& state, Value thisValue, size
 
         // Set counter to counter + 1.
         counter++;
+    }
+}
+
+// https://tc39.es/ecma262/#sec-iterator.prototype.toarray
+static Value builtinIteratorToArray(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be the this value.
+    const Value& O = thisValue;
+    // If O is not an Object, throw a TypeError exception.
+    if (!O.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "this value is not Object");
+    }
+    // Let iterated be ? GetIteratorDirect(O).
+    IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
+    // Let items be a new empty List.
+    ValueVector items;
+    // Repeat,
+    //   Let value be ? IteratorStepValue(iterated).
+    //   If value is done, return CreateArrayFromList(items).
+    //   Append value to items.
+    while (true) {
+        auto value = IteratorObject::iteratorStepValue(state, iterated);
+        if (!value) {
+            iterated->m_done = true;
+            return Value(Object::createArrayFromList(state, items));
+        }
+        items.pushBack(value.value());
     }
 }
 
@@ -554,6 +721,9 @@ void GlobalObject::installIterator(ExecutionState& state)
     m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->filter),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->filter, builtinIteratorFilter, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->every),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->every, builtinIteratorEvery, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->reduce),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->reduce, builtinIteratorReduce, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
@@ -563,8 +733,14 @@ void GlobalObject::installIterator(ExecutionState& state)
     m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->some),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->some, builtinIteratorSome, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->take),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->take, builtinIteratorTake, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->forEach),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->forEach, builtinIteratorForEach, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toArray),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toArray, builtinIteratorToArray, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     directDefineOwnProperty(state, ObjectPropertyName(strings->Iterator),
                             ObjectPropertyDescriptor(m_iterator, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

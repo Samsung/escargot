@@ -460,10 +460,12 @@ namespace Escargot {
     F(supportedLocalesOf)         \
     F(symbol)                     \
     F(symmetricDifference)        \
+    F(take)                       \
     F(tan)                        \
     F(tanh)                       \
     F(test)                       \
     F(then)                       \
+    F(toArray)                    \
     F(toDateString)               \
     F(toExponential)              \
     F(toFixed)                    \
