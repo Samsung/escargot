@@ -201,6 +201,7 @@ namespace Escargot {
     F(done)                       \
     F(dotAll)                     \
     F(difference)                 \
+    F(drop)                       \
     F(encodeURI)                  \
     F(encodeURIComponent)         \
     F(endsWith)                   \
