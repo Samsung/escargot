@@ -145,7 +145,10 @@ public:
         , m_byteLength(0)
         , m_byteOffset(0)
         , m_arrayLength(0)
+        , m_originalByteLength(0)
+        , m_originalByteOffset(0)
         , m_auto(false)
+        , m_wasResetByInvalidByteLength(false)
     {
     }
 
@@ -157,6 +160,10 @@ public:
     {
         return m_cachedRawBufferAddress;
     }
+    ALWAYS_INLINE bool wasResetByInvalidByteLength()
+    {
+        return m_wasResetByInvalidByteLength;
+    }
 
     ALWAYS_INLINE void setBuffer(ArrayBuffer* bo, size_t byteOffset, size_t byteLength, size_t arrayLength, bool isAuto = false)
     {
@@ -165,8 +172,8 @@ public:
         }
 
         m_buffer = bo;
-        m_byteOffset = byteOffset;
-        m_byteLength = byteLength;
+        m_originalByteOffset = m_byteOffset = byteOffset;
+        m_originalByteLength = m_byteLength = byteLength;
         m_arrayLength = arrayLength;
         m_auto = isAuto;
 
@@ -213,16 +220,33 @@ private:
     {
         ArrayBufferView* self = reinterpret_cast<ArrayBufferView*>(from);
 
-        bool reset = self->m_auto ? newByteLength < self->m_byteOffset : self->m_byteOffset + self->m_byteLength > newByteLength;
+        self->m_wasResetByInvalidByteLength = false;
+
+        bool reset = self->m_auto ? newByteLength < self->m_originalByteOffset : self->m_originalByteOffset + self->m_originalByteLength > newByteLength;
         if (reset) {
             // reset to 0
             self->m_arrayLength = self->m_byteLength = self->m_byteOffset = 0;
             newAddress = nullptr;
+            self->m_wasResetByInvalidByteLength = true;
         } else if (self->m_auto) {
             // auto mode within boundary
-            self->m_byteLength = newByteLength - self->m_byteOffset;
+            self->m_byteOffset = self->m_originalByteOffset;
+            if (newByteLength > self->m_byteOffset) {
+                self->m_byteLength = newByteLength - self->m_byteOffset;
+            } else {
+                self->m_byteLength = 0;
+            }
             ASSERT(self->elementSize());
             self->m_arrayLength = self->m_byteLength / self->elementSize();
+        } else if (self->buffer()->isResizableArrayBuffer() && newByteLength >= self->m_originalByteOffset + self->m_originalByteLength) {
+            // reset to original size if possible
+            self->m_byteOffset = self->m_originalByteOffset;
+            self->m_byteLength = self->m_originalByteLength;
+            self->m_arrayLength = self->m_byteLength / self->elementSize();
+        }
+
+        if (!newByteLength) {
+            newAddress = nullptr;
         }
 
         self->updateBufferCallback(newAddress);
@@ -233,7 +257,10 @@ private:
     size_t m_byteLength;
     size_t m_byteOffset;
     size_t m_arrayLength;
+    size_t m_originalByteLength;
+    size_t m_originalByteOffset;
     bool m_auto;
+    bool m_wasResetByInvalidByteLength;
 };
 
 } // namespace Escargot
