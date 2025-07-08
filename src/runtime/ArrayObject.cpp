@@ -737,6 +737,21 @@ std::pair<Value, bool> ArrayIteratorObject::advance(ExecutionState& state)
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().ArrayIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
             return std::make_pair(Value(), false);
         }
+        // https://tc39.es/ecma262/#sec-istypedarrayoutofbounds
+        // 5. Let byteOffsetStart be O.[[ByteOffset]].
+        // 6. If O.[[ArrayLength]] is auto, then
+        //     a. Let byteOffsetEnd be bufferByteLength.
+        // 7. Else,
+        //     a. Let elementSize be TypedArrayElementSize(O).
+        //     b. Let byteOffsetEnd be byteOffsetStart + O.[[ArrayLength]] × elementSize.
+        // 8. If byteOffsetStart > bufferByteLength or byteOffsetEnd > bufferByteLength, return true.
+        auto bufferByteLength = a->asArrayBufferView()->buffer()->byteLength();
+        auto byteOffsetStart = a->asTypedArrayObject()->byteOffset();
+        auto byteOffsetEnd = byteOffsetStart + a->asTypedArrayObject()->byteLength();
+        if (byteOffsetStart > bufferByteLength || byteOffsetEnd > bufferByteLength || a->asTypedArrayObject()->wasResetByInvalidByteLength()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().ArrayIterator.string(), true, state.context()->staticStrings().next.string(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
+            return std::make_pair(Value(), false);
+        }
         // Let len be a.[[ArrayLength]].
         len = a->asArrayBufferView()->arrayLength();
     } else {
