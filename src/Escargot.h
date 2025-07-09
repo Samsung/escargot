@@ -579,6 +579,21 @@ typedef uint16_t LexicalBlockIndex;
 
 namespace Escargot {
 
+#if defined(ESCARGOT_SMALL_CONFIG)
+template <class Key, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>,
+          class Allocator = std::allocator<Key>,
+          bool StoreHash = false,
+          class GrowthPolicy = tsl::rh::mod_growth_policy<std::ratio<5, 4>>>
+using HashSet = tsl::robin_set<Key, Hash, KeyEqual, Allocator, StoreHash, GrowthPolicy>;
+
+template <class Key, class T, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>,
+          class Allocator = std::allocator<std::pair<Key, T>>,
+          bool StoreHash = false,
+          class GrowthPolicy = tsl::rh::mod_growth_policy<std::ratio<5, 4>>>
+using HashMap = tsl::robin_map<Key, T, Hash, KeyEqual, Allocator, StoreHash, GrowthPolicy>;
+#else
 template <class Key, class Hash = std::hash<Key>,
           class KeyEqual = std::equal_to<Key>,
           class Allocator = std::allocator<Key>,
@@ -592,7 +607,7 @@ template <class Key, class T, class Hash = std::hash<Key>,
           bool StoreHash = false,
           class GrowthPolicy = tsl::rh::power_of_two_growth_policy<2>>
 using HashMap = tsl::robin_map<Key, T, Hash, KeyEqual, Allocator, StoreHash, GrowthPolicy>;
-
+#endif
 } // namespace Escargot
 
 
