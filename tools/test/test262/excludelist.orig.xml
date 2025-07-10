@@ -5738,17 +5738,6 @@
     <test id="language/expressions/compound-assignment/S11.13.2_A7.7_T4"><reason>TODO</reason></test>
     <test id="language/expressions/compound-assignment/S11.13.2_A7.8_T4"><reason>TODO</reason></test>
     <test id="language/expressions/compound-assignment/S11.13.2_A7.9_T4"><reason>TODO</reason></test>
-    <test id="language/expressions/compound-assignment/add-non-simple"><reason>TODO</reason></test>
-    <test id="language/expressions/compound-assignment/btws-and-non-simple"><reason>TODO</reason></test>
-    <test id="language/expressions/compound-assignment/btws-or-non-simple"><reason>TODO</reason></test>
-    <test id="language/expressions/compound-assignment/btws-xor-non-simple"><reason>TODO</reason></test>
-    <test id="language/expressions/compound-assignment/div-non-simple"><reason>TODO</reason></test>
-    <test id="language/expressions/compound-assignment/left-shift-non-simple"><reason>TODO</reason></test>
-    <test id="language/expressions/compound-assignment/mod-div-non-simple"><reason>TODO</reason></test>
-    <test id="language/expressions/compound-assignment/mult-non-simple"><reason>TODO</reason></test>
-    <test id="language/expressions/compound-assignment/right-shift-non-simple"><reason>TODO</reason></test>
-    <test id="language/expressions/compound-assignment/subtract-non-simple"><reason>TODO</reason></test>
-    <test id="language/expressions/compound-assignment/u-right-shift-non-simple"><reason>TODO</reason></test>
     <test id="language/expressions/delete/super-property-null-base"><reason>TODO</reason></test>
     <test id="language/expressions/delete/super-property-topropertykey"><reason>TODO</reason></test>
     <test id="language/expressions/delete/super-property-uninitialized-this"><reason>TODO</reason></test>
