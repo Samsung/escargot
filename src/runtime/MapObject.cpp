@@ -97,6 +97,28 @@ Value MapObject::get(ExecutionState& state, const Value& key)
     return Value();
 }
 
+Value MapObject::getOrInsert(ExecutionState& state, const Value& key, const Value& value)
+{
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        Value existingKey = m_storage[i].first;
+        if (existingKey.isEmpty()) {
+            continue;
+        }
+        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+            return m_storage[i].second;
+        }
+    }
+
+    // If key is -0, let key be +0.
+    if (key.isNumber() && key.asNumber() == 0 && std::signbit(key.asNumber())) {
+        m_storage.pushBack(std::make_pair(Value(0), value));
+    } else {
+        m_storage.pushBack(std::make_pair(key, value));
+    }
+
+    return value;
+}
+
 bool MapObject::has(ExecutionState& state, const Value& key)
 {
     for (size_t i = 0; i < m_storage.size(); i++) {

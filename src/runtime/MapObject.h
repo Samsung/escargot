@@ -44,6 +44,7 @@ public:
     void clear(ExecutionState& state);
     bool deleteOperation(ExecutionState& state, const Value& key);
     Value get(ExecutionState& state, const Value& key);
+    Value getOrInsert(ExecutionState& state, const Value& key, const Value& value);
     bool has(ExecutionState& state, const Value& key);
     void set(ExecutionState& state, const Value& key, const Value& value);
     size_t size(ExecutionState& state);
