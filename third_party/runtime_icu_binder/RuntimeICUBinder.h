@@ -117,6 +117,7 @@ namespace RuntimeICUBinder {
     F(udat_formatForFields, int32_t (*)(const UDateFormat* format, UDate, UChar*, int32_t, UFieldPositionIterator*, UErrorCode*), int32_t)                                                     \
     F(udat_getCalendar, const UCalendar* (*)(const UDateFormat* fmt), const UCalendar*)                                                                                                        \
     F(udat_toPattern, int32_t (*)(const UDateFormat* fmt, UBool localized, UChar* result, int32_t resultLength, UErrorCode* status), int32_t)                                                  \
+    F(udat_parse, UDate (*)(const UDateFormat*, const UChar*, int32_t, int32_t*, UErrorCode*), UDate)                                                  \
     F(uenum_count, int32_t (*)(UEnumeration * en, UErrorCode * status), int32_t)                                                                                                               \
     F(uenum_unext, const UChar* (*)(UEnumeration * en, int32_t * resultLength, UErrorCode * status), const UChar*)                                                                             \
     F(uenum_next, const char* (*)(UEnumeration * en, int32_t * resultLength, UErrorCode * status), const char*)                                                                                \

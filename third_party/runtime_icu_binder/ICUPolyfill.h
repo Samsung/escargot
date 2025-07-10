@@ -96,6 +96,7 @@
 #define udat_close RuntimeICUBinder::ICU::instance().udat_close
 #define udat_getCalendar RuntimeICUBinder::ICU::instance().udat_getCalendar
 #define udat_toPattern RuntimeICUBinder::ICU::instance().udat_toPattern
+#define udat_parse RuntimeICUBinder::ICU::instance().udat_parse
 
 #define uenum_count RuntimeICUBinder::ICU::instance().uenum_count
 #define uenum_unext RuntimeICUBinder::ICU::instance().uenum_unext
