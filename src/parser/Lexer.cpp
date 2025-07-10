@@ -948,6 +948,9 @@ Scanner::ScanIDResult Scanner::getComplexIdentifier()
 
     if (UNLIKELY(this->parserContext->await && id == u"await")) {
         this->throwUnexpectedToken(Messages::KeywordMustNotContainEscapedCharacters);
+    } else if (UNLIKELY(str->charAt(0) == 0x200C || str->charAt(0) == 0x200D)) {
+        // zero width joiner and zero width non-joiner are not a valid identifier start
+        this->throwUnexpectedToken();
     }
 
     return std::make_tuple(str->bufferAccessData(), str);
