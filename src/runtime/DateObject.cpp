@@ -1048,6 +1048,32 @@ time64_t DateObject::parseStringToDate(ExecutionState& state, String* istr)
     if (IS_VALID_TIME(primitiveValue) && IS_IN_TIME_RANGE(primitiveValue)) {
         return primitiveValue;
     } else {
+        // fallback. try to parse date with icu
+#if defined(ENABLE_ICU)
+        UChar* buf = (UChar*)alloca(sizeof(UChar) * (state.context()->vmInstance()->timezoneID().size() + 1));
+        int32_t len = state.context()->vmInstance()->timezoneID().size();
+        buf[len] = 0;
+        for (int32_t i = 0; i < len; i++) {
+            buf[i] = state.context()->vmInstance()->timezoneID()[i];
+        }
+        auto u16 = istr->toUTF16StringData();
+
+        for (size_t i = 0; i <= UDateFormatStyle::UDAT_SHORT; i++) {
+            for (size_t j = 0; j <= UDateFormatStyle::UDAT_SHORT; j++) {
+                UErrorCode err = U_ZERO_ERROR;
+                UDateFormat* format = udat_open(static_cast<UDateFormatStyle>(i), static_cast<UDateFormatStyle>(j),
+                                                state.context()->vmInstance()->locale().data(), buf, len, nullptr, 0, &err);
+                if (U_FAILURE(err)) {
+                    continue;
+                }
+                auto result = udat_parse(format, u16.data(), u16.length(), nullptr, &err);
+                udat_close(format);
+                if (!U_FAILURE(err)) {
+                    return result;
+                }
+            }
+        }
+#endif
         return TIME64NAN;
     }
 }
@@ -1398,11 +1424,11 @@ static String* formatDateTimeString(ExecutionState& state, DateObject* self, boo
     UDateFormat* format = nullptr;
     UErrorCode err = U_ZERO_ERROR;
     if (isDate) {
-        udat_open(UDateFormatStyle::UDAT_NONE, UDateFormatStyle::UDAT_MEDIUM, state.context()->vmInstance()->locale().data(),
-                  buf, len, nullptr, 0, &err);
+        format = udat_open(UDateFormatStyle::UDAT_NONE, UDateFormatStyle::UDAT_MEDIUM, state.context()->vmInstance()->locale().data(),
+                           buf, len, nullptr, 0, &err);
     } else {
-        udat_open(UDateFormatStyle::UDAT_MEDIUM, UDateFormatStyle::UDAT_NONE, state.context()->vmInstance()->locale().data(),
-                  buf, len, nullptr, 0, &err);
+        format = udat_open(UDateFormatStyle::UDAT_MEDIUM, UDateFormatStyle::UDAT_NONE, state.context()->vmInstance()->locale().data(),
+                           buf, len, nullptr, 0, &err);
     }
     UFieldPosition field;
     field.field = -1;
