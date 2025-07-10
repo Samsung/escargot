@@ -103,6 +103,16 @@ static Value builtinWeakMapGet(ExecutionState& state, Value thisValue, size_t ar
     return M->get(state, argv[0].asPointerValue());
 }
 
+static Value builtinWeakMapGetOrInsert(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, getOrInsert);
+    if (!argv[0].canBeHeldWeakly(state.context()->vmInstance())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid value used as weak map key");
+    }
+
+    return M->getOrInsert(state, argv[0].asPointerValue(), argv[1]);
+}
+
 static Value builtinWeakMapHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_WEAKMAP(M, WeakMap, has);
@@ -147,6 +157,9 @@ void GlobalObject::installWeakMap(ExecutionState& state)
 
     m_weakMapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().get),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().get, builtinWeakMapGet, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_weakMapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getOrInsert),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getOrInsert, builtinWeakMapGetOrInsert, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_weakMapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().has),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().has, builtinWeakMapHas, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

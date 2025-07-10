@@ -257,6 +257,7 @@ namespace Escargot {
     F(getMilliseconds)            \
     F(getMinutes)                 \
     F(getMonth)                   \
+    F(getOrInsert)                \
     F(getOwnPropertyDescriptor)   \
     F(getOwnPropertyDescriptors)  \
     F(getOwnPropertyNames)        \

@@ -75,6 +75,37 @@ Value WeakMapObject::get(ExecutionState& state, PointerValue* key)
     return Value();
 }
 
+Value WeakMapObject::getOrInsert(ExecutionState& state, PointerValue* key, const Value& value)
+{
+    ASSERT(key->isObject() || key->isSymbol());
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        auto existingKey = m_storage[i]->key.unwrap();
+        if (existingKey && existingKey == key) {
+            return m_storage[i]->data;
+        }
+    }
+
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        if (!m_storage[i]->key) {
+            m_storage[i]->key = key;
+            m_storage[i]->data = value;
+            GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&m_storage[i]->key), key);
+            GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&m_storage[i]->data), key);
+            return m_storage[i]->data;
+        }
+    }
+
+    auto newData = new WeakMapObjectDataItem();
+    newData->key = key;
+    newData->data = value;
+    m_storage.pushBack(newData);
+
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&newData->key), key);
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&newData->data), key);
+
+    return value;
+}
+
 bool WeakMapObject::has(ExecutionState& state, PointerValue* key)
 {
     ASSERT(key->isObject() || key->isSymbol());
@@ -92,7 +123,7 @@ void WeakMapObject::set(ExecutionState& state, PointerValue* key, const Value& v
 {
     ASSERT(key->isObject() || key->isSymbol());
     for (size_t i = 0; i < m_storage.size(); i++) {
-        auto existingKey = m_storage[i]->key;
+        auto existingKey = m_storage[i]->key.unwrap();
         if (existingKey == key) {
             m_storage[i]->data = value;
             return;
