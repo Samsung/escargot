@@ -55,6 +55,7 @@ bool WeakMapObject::deleteOperation(ExecutionState& state, PointerValue* key)
         auto existingKey = m_storage[i]->key.unwrap();
         if (existingKey == key) {
             GC_unregister_disappearing_link(reinterpret_cast<void**>(&m_storage[i]->key));
+            GC_unregister_disappearing_link(reinterpret_cast<void**>(&m_storage[i]->data));
             m_storage.erase(i);
             return true;
         }
@@ -103,6 +104,7 @@ void WeakMapObject::set(ExecutionState& state, PointerValue* key, const Value& v
             m_storage[i]->key = key;
             m_storage[i]->data = value;
             GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&m_storage[i]->key), key);
+            GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&m_storage[i]->data), key);
             return;
         }
     }
@@ -113,5 +115,6 @@ void WeakMapObject::set(ExecutionState& state, PointerValue* key, const Value& v
     m_storage.pushBack(newData);
 
     GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&newData->key), key);
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&newData->data), key);
 }
 } // namespace Escargot
