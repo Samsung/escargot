@@ -3409,6 +3409,10 @@ public:
 
                     rightNode = this->isolateCoverGrammar(builder, &Parser::parseAssignmentExpression<ASTBuilder, false>);
 
+                    if (UNLIKELY(!isLeftAssignmentTarget && token->valuePunctuatorKind != Substitution)) {
+                        this->throwError(Messages::InvalidLHSInAssignment);
+                    }
+
                     switch (token->valuePunctuatorKind) {
                     case Substitution: {
                         if (type == ASTNodeType::Identifier && startToken->type == Token::IdentifierToken) {
@@ -3453,22 +3457,13 @@ public:
                     case ExponentiationEqual:
                         exprResult = builder.createAssignmentExpressionExponentiationNode(exprNode, rightNode);
                         break;
-
-#define CHECK_LOGICAL_ASSIGNMENT()                          \
-    if (!isLeftAssignmentTarget) {                          \
-        this->throwError(Messages::InvalidLHSInAssignment); \
-    }
-
                     case LogicalAndEqual:
-                        CHECK_LOGICAL_ASSIGNMENT()
                         exprResult = builder.createAssignmentExpressionLogicalAndNode(exprNode, rightNode);
                         break;
                     case LogicalOrEqual:
-                        CHECK_LOGICAL_ASSIGNMENT()
                         exprResult = builder.createAssignmentExpressionLogicalOrNode(exprNode, rightNode);
                         break;
                     case LogicalNullishEqual:
-                        CHECK_LOGICAL_ASSIGNMENT()
                         exprResult = builder.createAssignmentExpressionLogicalNullishNode(exprNode, rightNode);
                         break;
                     default:
