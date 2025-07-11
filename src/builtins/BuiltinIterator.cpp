@@ -132,6 +132,20 @@ struct IteratorData : public gc {
     {
     }
 };
+struct FlatMapIteratorData : public gc {
+    StorePositiveNumberAsOddNumber counter;
+    Value mapper;
+    IteratorRecord* innerIterator;
+    bool innerAlive;
+
+    FlatMapIteratorData(Value mapper)
+        : counter(0)
+        , mapper(mapper)
+        , innerIterator(nullptr)
+        , innerAlive(false)
+    {
+    }
+};
 
 static std::pair<Value, bool> iteratorMapClosure(ExecutionState& state, IteratorHelperObject* obj, void* data)
 {
@@ -739,6 +753,104 @@ static Value builtinIteratorToArray(ExecutionState& state, Value thisValue, size
     }
 }
 
+static std::pair<Value, bool> iteratorFlatMapClosure(ExecutionState& state, IteratorHelperObject* obj, void* data)
+{
+    //    Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the following steps when called:
+    //    a. Let counter be 0.
+    //    b. Repeat,
+    //       i. Let value be ? IteratorStepValue(iterated).
+    //       ii. If value is done, return ReturnCompletion(undefined).
+    //       iii. Let mapped be Completion(Call(mapper, undefined, « value, 𝔽(counter) »)).
+    //       iv. IfAbruptCloseIterator(mapped, iterated).
+    //       v. Let innerIterator be Completion(GetIteratorFlattenable(mapped, reject-primitives)).
+    //       vi. IfAbruptCloseIterator(innerIterator, iterated).
+    //       vii. Let innerAlive be true.
+    //       viii. Repeat, while innerAlive is true,
+    //             1. Let innerValue be Completion(IteratorStepValue(innerIterator)).
+    //             2. IfAbruptCloseIterator(innerValue, iterated).
+    //             3. If innerValue is done, then
+    //                a. Set innerAlive to false.
+    //             4. Else,
+    //                a. Let completion be Completion(Yield(innerValue)).
+    //                b. If completion is an abrupt completion, then
+    //                   i. Let backupCompletion be Completion(IteratorClose(innerIterator, completion)).
+    //                   ii. IfAbruptCloseIterator(backupCompletion, iterated).
+    //                   iii. Return ? IteratorClose(iterated, completion).
+    //       ix. Set counter to counter + 1.
+    IteratorRecord* iterated = obj->underlyingIterator();
+    FlatMapIteratorData* closureData = reinterpret_cast<FlatMapIteratorData*>(data);
+    Value mapper = closureData->mapper;
+
+    while (true) {
+        if (closureData->innerAlive && closureData->innerIterator) {
+            auto innerValue = IteratorObject::iteratorStepValue(state, closureData->innerIterator);
+
+            if (!innerValue) {
+                closureData->innerAlive = false;
+                closureData->innerIterator = nullptr;
+            } else {
+                return std::make_pair(innerValue.value(), false);
+            }
+        }
+
+        auto value = IteratorObject::iteratorStepValue(state, iterated);
+
+        if (!value) {
+            iterated->m_done = true;
+            return std::make_pair(Value(), true);
+        }
+
+        Value args[2] = { value.value(), Value(closureData->counter) };
+        Value mapped;
+
+        try {
+            mapped = Object::call(state, mapper, Value(), 2, args);
+        } catch (const Value& e) {
+            IteratorObject::iteratorClose(state, iterated, e, true);
+        }
+
+        IteratorRecord* innerIterator = nullptr;
+
+        try {
+            innerIterator = IteratorObject::getIteratorFlattenable(state, mapped, IteratorObject::PrimitiveHandling::RejectPrimitives);
+        } catch (const Value& e) {
+            IteratorObject::iteratorClose(state, iterated, e, true);
+        }
+
+        closureData->innerAlive = true;
+        closureData->innerIterator = innerIterator;
+        closureData->counter = StorePositiveNumberAsOddNumber(closureData->counter + 1);
+    }
+}
+
+static Value builtinIteratorFlatMap(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be the this value.
+    const Value& O = thisValue;
+
+    // If O is not an Object, throw a TypeError exception.
+    if (!O.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "this value is not Object");
+    }
+
+    // If IsCallable(mapper) is false, throw a TypeError exception.
+    const Value& mapper = argv[0];
+    if (!mapper.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "mapper is not callable");
+    }
+
+    // Set iterated to ? GetIteratorDirect(O).
+    IteratorRecord* iterated = IteratorObject::getIteratorDirect(state, O.asObject());
+
+    // Let result be CreateIteratorFromClosure(closure, "Iterator Helper", %IteratorHelperPrototype%, « [[UnderlyingIterator]] »).
+    // Set result.[[UnderlyingIterator]] to iterated.
+    IteratorHelperObject* result = new IteratorHelperObject(state, iteratorFlatMapClosure, iterated, new FlatMapIteratorData(mapper));
+
+    // Return result.
+    return result;
+}
+
+
 static Value builtinGenericIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!thisValue.isObject() || !thisValue.asObject()->isGenericIteratorObject()) {
@@ -839,6 +951,9 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toArray),
                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toArray, builtinIteratorToArray, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_iteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->flatMap),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->flatMap, builtinIteratorFlatMap, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     directDefineOwnProperty(state, ObjectPropertyName(strings->Iterator),
                             ObjectPropertyDescriptor(m_iterator, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
