@@ -33,6 +33,11 @@ public:
             : key(key)
         {
         }
+
+        void* operator new(size_t size)
+        {
+            return GC_MALLOC_ATOMIC(size);
+        }
     };
 
     typedef Vector<WeakSetObjectDataItem*, GCUtil::gc_malloc_allocator<WeakSetObjectDataItem*>> WeakSetObjectData;

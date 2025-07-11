@@ -34,6 +34,23 @@ WeakMapObject::WeakMapObject(ExecutionState& state, Object* proto)
 {
 }
 
+void* WeakMapObject::WeakMapObjectDataItem::operator new(size_t size)
+{
+#ifdef NDEBUG
+    static MAY_THREAD_LOCAL bool typeInited = false;
+    static MAY_THREAD_LOCAL GC_descr descr;
+    if (!typeInited) {
+        GC_word objBitmap[GC_BITMAP_SIZE(WeakMapObjectDataItem)] = { 0 };
+        GC_set_bit(objBitmap, GC_WORD_OFFSET(WeakMapObjectDataItem, data));
+        descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(WeakMapObjectDataItem));
+        typeInited = true;
+    }
+    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+#else
+    return CustomAllocator<WeakMapObjectDataItem>().allocate(1);
+#endif
+}
+
 void* WeakMapObject::operator new(size_t size)
 {
     static MAY_THREAD_LOCAL bool typeInited = false;

@@ -224,6 +224,18 @@ int getValidValueInFinalizationRegistryObjectItem(void* ptr, GC_mark_custom_resu
     arr[1].to = (GC_word*)current->source;
     return 0;
 }
+
+int getValidValueInWeakMapObjectDataItem(void* ptr, GC_mark_custom_result* arr)
+{
+    WeakMapObject::WeakMapObjectDataItem* current = (WeakMapObject::WeakMapObjectDataItem*)ptr;
+    arr[0].from = (GC_word*)&current->data;
+    if (current->data.isStoredInHeap()) {
+        arr[0].to = (GC_word*)current->data.payload();
+    } else {
+        arr[0].to = nullptr;
+    }
+    return 0;
+}
 #endif
 
 void initializeCustomAllocators()
@@ -296,6 +308,11 @@ void initializeCustomAllocators()
                                                                                 GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInFinalizationRegistryObjectItem, 2>), 0),
                                                                                 FALSE,
                                                                                 TRUE);
+
+    s_gcKinds[HeapObjectKind::WeakMapObjectDataItemKind] = GC_new_kind(GC_new_free_list(),
+                                                                       GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInWeakMapObjectDataItem, 1>), 0),
+                                                                       FALSE,
+                                                                       TRUE);
 #endif
 }
 
@@ -456,6 +473,16 @@ FinalizationRegistryObject::FinalizationRegistryObjectItem* CustomAllocator<Fina
     ASSERT(GC_n == 1);
     int kind = s_gcKinds[HeapObjectKind::FinalizationRegistryObjectItemKind];
     return (FinalizationRegistryObject::FinalizationRegistryObjectItem*)GC_GENERIC_MALLOC(sizeof(FinalizationRegistryObject::FinalizationRegistryObjectItem), kind);
+}
+
+template <>
+WeakMapObject::WeakMapObjectDataItem* CustomAllocator<WeakMapObject::WeakMapObjectDataItem>::allocate(size_type GC_n, const void*)
+{
+    // Un-comment this to use default allocator
+    // return (WeakMapObject::WeakMapObjectDataItem*)GC_MALLOC(sizeof(WeakMapObject::WeakMapObjectDataItem));
+    ASSERT(GC_n == 1);
+    int kind = s_gcKinds[HeapObjectKind::WeakMapObjectDataItemKind];
+    return (WeakMapObject::WeakMapObjectDataItem*)GC_GENERIC_MALLOC(sizeof(WeakMapObject::WeakMapObjectDataItem), kind);
 }
 #endif
 
