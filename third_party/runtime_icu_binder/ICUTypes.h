@@ -6302,6 +6302,49 @@ typedef enum UNumberCompactStyle {
 } UNumberCompactStyle;
 
 /**
+ * Selector constants for ucurr_openCurrencies().
+ *
+ * @see ucurr_openCurrencies
+ * @stable ICU 3.2
+ */
+typedef enum UCurrCurrencyType {
+    /**
+     * Select all ISO-4217 currency codes.
+     * @stable ICU 3.2
+     */
+    UCURR_ALL = INT32_MAX,
+    /**
+     * Select only ISO-4217 commonly used currency codes.
+     * These currencies can be found in common use, and they usually have
+     * bank notes or coins associated with the currency code.
+     * This does not include fund codes, precious metals and other
+     * various ISO-4217 codes limited to special financial products.
+     * @stable ICU 3.2
+     */
+    UCURR_COMMON = 1,
+    /**
+     * Select ISO-4217 uncommon currency codes.
+     * These codes respresent fund codes, precious metals and other
+     * various ISO-4217 codes limited to special financial products.
+     * A fund code is a monetary resource associated with a currency.
+     * @stable ICU 3.2
+     */
+    UCURR_UNCOMMON = 2,
+    /**
+     * Select only deprecated ISO-4217 codes.
+     * These codes are no longer in general public use.
+     * @stable ICU 3.2
+     */
+    UCURR_DEPRECATED = 4,
+    /**
+     * Select only non-deprecated ISO-4217 codes.
+     * These codes are in general public use.
+     * @stable ICU 3.2
+     */
+    UCURR_NON_DEPRECATED = 8
+} UCurrCurrencyType;
+
+/**
  * Constants for specifying currency spacing
  * @stable ICU 4.8
  */

@@ -71,6 +71,7 @@ namespace RuntimeICUBinder {
     F(uloc_getCharacterOrientation, ULayoutType (*)(const char* localeID, UErrorCode* err), ULayoutType)                                                                   \
     F(uloc_countAvailable, int32_t (*)(), int32_t)                                                                                                                         \
     F(uloc_getAvailable, const char* (*)(int32_t n), const char*)                                                                                                          \
+    F(uloc_toUnicodeLocaleType, const char* (*)(const char*, const char*), const char*)                                                                                    \
     F(ucnv_open, UConverter* (*)(const char* converterName, UErrorCode* err), UConverter*)                                                                                 \
     F(ucnv_compareNames, int (*)(const char* name1, const char* name2), int)                                                                                               \
     F(ucnv_getDisplayName, int32_t (*)(const UConverter* converter, const char* displayLocale, UChar* displayName, int32_t displayNameCapacity, UErrorCode* err), int32_t) \
@@ -106,6 +107,7 @@ namespace RuntimeICUBinder {
     F(vzone_getRawOffset, int32_t (*)(VZone*), int32_t)                                                                                                                                        \
     F(ucol_countAvailable, int32_t (*)(), int32_t)                                                                                                                                             \
     F(ucol_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                                \
+    F(ucol_getKeywordValues, UEnumeration* (*)(const char* key, UErrorCode* status), UEnumeration*)                                                                                   \
     F(ucol_getKeywordValuesForLocale, UEnumeration* (*)(const char* key, const char* locale, UBool commonlyUsed, UErrorCode* status), UEnumeration*)                                           \
     F(ucol_open, UCollator* (*)(const char* loc, UErrorCode* status), UCollator*)                                                                                                              \
     F(ucol_strcollIter, UCollationResult (*)(const UCollator* coll, UCharIterator* sIter, UCharIterator* tIter, UErrorCode* status), UCollationResult)                                         \
@@ -176,6 +178,8 @@ namespace RuntimeICUBinder {
     F(ucurr_getName, const UChar* (*)(const UChar* currency, const char* locale, UCurrNameStyle nameStyle, UBool* isChoiceFormat, int32_t* len, UErrorCode* ec), const UChar*)                 \
     F(ucurr_getDefaultFractionDigits, int32_t (*)(const UChar* currency, UErrorCode* ec), int32_t)                                                                                             \
     F(ucurr_getDefaultFractionDigitsForUsage, int32_t (*)(const UChar* currency, const UCurrencyUsage usage, UErrorCode* ec), int32_t)                                                         \
+    F(ucurr_openISOCurrencies, UEnumeration* (*)(uint32_t currType, UErrorCode *pErrorCode), UEnumeration*)                                                                                    \
+    F(ucurr_getKeywordValuesForLocale, UEnumeration* (*)(const char *key, const char *locale, UBool commonlyUsed, UErrorCode *status), UEnumeration*)                                          \
     F(ureldatefmt_open, URelativeDateTimeFormatter* (*)(const char*, UNumberFormat*, UDateRelativeDateTimeFormatterStyle, UDisplayContext, UErrorCode*), URelativeDateTimeFormatter*)          \
     F(ureldatefmt_openResult, UFormattedRelativeDateTime* (*)(UErrorCode * ec), UFormattedRelativeDateTime*)                                                                                   \
     F(ureldatefmt_resultAsValue, const UFormattedValue* (*)(const UFormattedRelativeDateTime* ufrdt, UErrorCode* ec), const UFormattedValue*)                                                  \

@@ -212,11 +212,15 @@ static bool isSanctionedSimpleUnitIdentifier(const std::string& s)
             return true;
         } else if (s == "millisecond") {
             return true;
+        } else if (s == "microsecond") {
+            return true;
         } else if (s == "minute") {
             return true;
         }
         return (s == "month");
     }
+    case 'n':
+        return (s == "nanosecond");
     case 'o':
         return (s == "ounce");
     case 'p':
@@ -296,6 +300,8 @@ static const char* findICUUnitTypeFromUnitString(const std::string& s)
     COMPARE_ONCE(volume, milliliter)
     COMPARE_ONCE(length, millimeter)
     COMPARE_ONCE(duration, millisecond)
+    COMPARE_ONCE(duration, microsecond)
+    COMPARE_ONCE(duration, nanosecond)
     COMPARE_ONCE(duration, minute)
     COMPARE_ONCE(duration, month)
     COMPARE_ONCE(mass, ounce)

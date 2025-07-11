@@ -52,6 +52,7 @@ public:
     static std::string preferredLanguage(const std::string& language);
     static String* icuLocaleToBCP47Tag(String* string);
     static std::string convertICUCalendarKeywordToBCP47KeywordIfNeeds(const std::string& icuCalendar);
+    static std::string convertBCP47KeywordToICUCalendarKeywordIfNeeds(const std::string& icuCalendar);
     static std::string convertICUCollationKeywordToBCP47KeywordIfNeeds(const std::string& icuCollation);
     static std::vector<std::string> calendarsForLocale(String* locale);
     static std::vector<std::string> numberingSystemsForLocale(String* locale);

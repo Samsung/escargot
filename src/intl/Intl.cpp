@@ -1679,25 +1679,33 @@ String* Intl::icuLocaleToBCP47Tag(String* string)
 
 std::string Intl::convertICUCalendarKeywordToBCP47KeywordIfNeeds(const std::string& icuCalendar)
 {
-    if (icuCalendar == std::string("gregorian")) {
+    if (icuCalendar == "gregorian") {
         return "gregory";
-    } else if (icuCalendar == std::string("islamic-civil")) {
-        return "islamicc";
-    } else if (icuCalendar == std::string("ethiopic-amete-alem")) {
+    } else if (icuCalendar == "ethiopic-amete-alem") {
         return "ethioaa";
     }
     return icuCalendar;
 }
 
+std::string Intl::convertBCP47KeywordToICUCalendarKeywordIfNeeds(const std::string& keyword)
+{
+    if (keyword == "gregory") {
+        return "gregorian";
+    } else if (keyword == "ethioaa") {
+        return "ethiopic-amete-alem";
+    }
+    return keyword;
+}
+
 std::string Intl::convertICUCollationKeywordToBCP47KeywordIfNeeds(const std::string& icuCollation)
 {
-    if (icuCollation == std::string("dictionary")) {
+    if (icuCollation == "dictionary") {
         return "dict";
-    } else if (icuCollation == std::string("gb2312han")) {
+    } else if (icuCollation == "gb2312han") {
         return "gb2312";
-    } else if (icuCollation == std::string("phonebook")) {
+    } else if (icuCollation == "phonebook") {
         return "phonebk";
-    } else if (icuCollation == std::string("traditional")) {
+    } else if (icuCollation == "traditional") {
         return "trad";
     }
     return icuCollation;
@@ -2357,9 +2365,13 @@ std::vector<std::string> Intl::numberingSystemsForLocale(String* locale)
     std::string defaultSystemName(unumsys_getName(defaultSystem));
     unumsys_close(defaultSystem);
 
-    std::vector<std::string> numberingSystems;
-    numberingSystems.push_back(defaultSystemName);
-    numberingSystems.insert(numberingSystems.end(), availableNumberingSystems.begin(), availableNumberingSystems.end());
+    std::vector<std::string> numberingSystems = availableNumberingSystems;
+
+    auto iter = std::find(numberingSystems.begin(), numberingSystems.end(), defaultSystemName);
+    if (iter != numberingSystems.end()) {
+        numberingSystems.erase(iter);
+    }
+    numberingSystems.insert(numberingSystems.begin(), defaultSystemName);
     return numberingSystems;
 }
 
