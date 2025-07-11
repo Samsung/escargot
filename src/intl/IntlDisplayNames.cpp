@@ -220,9 +220,7 @@ static String* canonicalCodeForDisplayNames(ExecutionState& state, String* type,
         // b. Let code be the result of mapping code to lower case as described in 6.1.
         // c. Return code.
 
-        if (code->equals("gregory")) {
-            code = String::fromASCII("gregorian", sizeof("gregorian") - 1);
-        } else if (code->equals("islamicc")) {
+        if (code->equals("islamicc")) {
             code = String::fromASCII("islamic-civil", sizeof("islamic-civil") - 1);
         } else if (code->equals("ethioaa")) {
             code = String::fromASCII("ethiopic-amete-alem", sizeof("ethiopic-amete-alem") - 1);
@@ -291,7 +289,8 @@ Value IntlDisplayNamesObject::of(ExecutionState& state, const Value& codeInput)
     } else if (m_type->equals("script")) {
         result = INTL_ICU_STRING_BUFFER_OPERATION(uldn_scriptDisplayName, m_icuLocaleDisplayNames, code->toNonGCUTF8StringData().data());
     } else if (m_type->equals("calendar")) {
-        result = INTL_ICU_STRING_BUFFER_OPERATION(uldn_keyValueDisplayName, m_icuLocaleDisplayNames, "calendar", code->toNonGCUTF8StringData().data());
+        auto icuKey = Intl::convertBCP47KeywordToICUCalendarKeywordIfNeeds(code->toNonGCUTF8StringData());
+        result = INTL_ICU_STRING_BUFFER_OPERATION(uldn_keyValueDisplayName, m_icuLocaleDisplayNames, "calendar", icuKey.data());
     } else if (m_type->equals("currency")) {
         UCurrNameStyle style = UCURR_LONG_NAME;
         if (m_style->equals("long")) {

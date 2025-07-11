@@ -815,6 +815,7 @@ namespace Escargot {
     F(SmallLetterNaN, "nan")                                \
     F(Standard, "standard")                                 \
     F(Style, "style")                                       \
+    F(SupportedValuesOf, "supportedValuesOf")               \
     F(TextInfo, "textInfo")                                 \
     F(Time, "time")                                         \
     F(TimeStyle, "timeStyle")                               \
