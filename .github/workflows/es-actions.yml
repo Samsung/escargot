@@ -241,7 +241,7 @@ jobs:
       run: |
         set GC_FREE_SPACE_DIVISOR=1
         pip install chardet
-        python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics"
+        python tools\run-tests.py --engine=%cd%\out\escargot.exe test262 --test262-extra-arg="--skip Temporal --skip intl402 --skip Atomics --skip sm"
       shell: cmd
     - name: Run octane
       run: |
@@ -403,21 +403,21 @@ jobs:
       env:
         BUILD_OPTIONS: -DESCARGOT_THREADING=ON -DESCARGOT_TEMPORAL=ON -DESCARGOT_TCO=ON -DESCARGOT_TLS_ACCESS_BY_ADDRESS=ON -DESCARGOT_TEST=ON -DESCARGOT_OUTPUT=shell -GNinja
       run: |
-        LDFLAGS=" -L/usr/icu32/lib/ -Wl,-rpath=/usr/icu32/lib/" PKG_CONFIG_PATH="/usr/icu32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
-        LDFLAGS=" -L/usr/icu32/lib/ -Wl,-rpath=/usr/icu32/lib/" PKG_CONFIG_PATH="/usr/icu32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux_release -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu77-32/lib/ -Wl,-rpath=/usr/icu77-32/lib/" PKG_CONFIG_PATH="/usr/icu77-32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux -DESCARGOT_ARCH=x86 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu77-32/lib/ -Wl,-rpath=/usr/icu77-32/lib/" PKG_CONFIG_PATH="/usr/icu77-32/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux_release -DESCARGOT_ARCH=x86 $BUILD_OPTIONS
         gcc -shared -m32 -fPIC -o backtrace-hooking-32.so tools/test/test262/backtrace-hooking.c
-        LDFLAGS=" -L/usr/icu64/lib/ -Wl,-rpath=/usr/icu64/lib/" PKG_CONFIG_PATH="/usr/icu64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64 -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
-        LDFLAGS=" -L/usr/icu64/lib/ -Wl,-rpath=/usr/icu64/lib/" PKG_CONFIG_PATH="/usr/icu64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64_release -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu77-64/lib/ -Wl,-rpath=/usr/icu77-64/lib/" PKG_CONFIG_PATH="/usr/icu77-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64 -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=debug -DESCARGOT_TCO_DEBUG=ON $BUILD_OPTIONS
+        LDFLAGS=" -L/usr/icu77-64/lib/ -Wl,-rpath=/usr/icu77-64/lib/" PKG_CONFIG_PATH="/usr/icu77-64/lib/pkgconfig/" cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H./ -Bbuild/out_linux64_release -DESCARGOT_ARCH=x64 -DESCARGOT_MODE=release $BUILD_OPTIONS
         cmake --build build/out_linux/
         cmake --build build/out_linux64/
         cmake --build build/out_linux_release/
         cmake --build build/out_linux64_release/
     - name: Test
       run: |
-        LD_LIBRARY_PATH=/usr/icu32/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release/escargot" test262
-        LD_LIBRARY_PATH=/usr/icu32/lib/ GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${{ github.workspace }}/backtrace-hooking-32.so $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux/escargot" test262
-        LD_LIBRARY_PATH=/usr/icu64/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release/escargot" test262
-        LD_LIBRARY_PATH=/usr/icu64/lib/ python tools/kangax/run-kangax.py --engine="${{ github.workspace }}/build/out_linux64/escargot"
+        LD_LIBRARY_PATH=/usr/icu77-32/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux_release/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu77-32/lib/ GC_FREE_SPACE_DIVISOR=1 ESCARGOT_LD_PRELOAD=${{ github.workspace }}/backtrace-hooking-32.so $RUNNER --arch=x86 --engine="${{ github.workspace }}/build/out_linux/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu77-64/lib/ GC_FREE_SPACE_DIVISOR=1 $RUNNER --arch=x86_64 --engine="${{ github.workspace }}/build/out_linux64_release/escargot" test262
+        LD_LIBRARY_PATH=/usr/icu77-64/lib/ python tools/kangax/run-kangax.py --engine="${{ github.workspace }}/build/out_linux64/escargot"
 
   build-test-on-self-hosted-arm-linux:
     runs-on: [self-hosted, linux, arm]
@@ -432,7 +432,7 @@ jobs:
         cmake --build ./out/
     - name: Test
       run: |
-        GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402" new-es v8 spidermonkey chakracore test262
+        GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402 --skip sm" new-es v8 spidermonkey chakracore test262
 
   build-test-on-self-hosted-arm64-linux:
     runs-on: [self-hosted, linux, arm64]
@@ -447,7 +447,7 @@ jobs:
         cmake --build ./out/
     - name: Test
       run: |
-        GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402" test262 chakracore spidermonkey v8 new-es
+        GC_FREE_SPACE_DIVISOR=1 $RUNNER --engine="${{ github.workspace }}/out/escargot" --test262-extra-arg="--skip intl402 --skip sm" test262 chakracore spidermonkey v8 new-es
 
   build-test-on-riscv64-release:
     runs-on: ubuntu-latest
