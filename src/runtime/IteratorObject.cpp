@@ -25,6 +25,7 @@
 #include "runtime/ErrorObject.h"
 #include "runtime/AsyncFromSyncIteratorObject.h"
 #include "runtime/ScriptAsyncFunctionObject.h"
+#include "runtime/StringObject.h"
 
 namespace Escargot {
 
@@ -372,6 +373,45 @@ IteratorRecord* IteratorObject::getIteratorFromMethod(ExecutionState& state, con
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "iterator is not object");
     }
     // 3. Return ? GetIteratorDirect(iterator).
+    return getIteratorDirect(state, iterator.asObject());
+}
+
+// https://tc39.es/ecma262/#sec-getiteratorflattenable
+IteratorRecord* IteratorObject::getIteratorFlattenable(ExecutionState& state, const Value& obj, PrimitiveHandling primitiveHandling)
+{
+    // If obj is not an Object, then
+    if (!obj.isObject()) {
+        // If primitiveHandling is reject-primitives, throw a TypeError exception.
+        if (primitiveHandling == PrimitiveHandling::RejectPrimitives) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "GetIteratorFlattenable called on non-object with reject-primitives");
+        }
+        // Assert: primitiveHandling is iterate-string-primitives.
+        ASSERT(primitiveHandling == PrimitiveHandling::IterateStringPrimitives);
+        // If obj is not a String, throw a TypeError exception.
+        if (!obj.isString()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "GetIteratorFlattenable called on non-string primitive with iterate-string-primitives");
+        }
+    }
+
+    // Let method be ? GetMethod(obj, %Symbol.iterator%).
+    Value method = Object::getMethod(state, obj, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator));
+    Value iterator;
+
+    // If method is undefined, then
+    if (method.isUndefined()) {
+        // Let iterator be obj.
+        iterator = obj;
+    } else {
+        // Let iterator be ? Call(method, obj).
+        iterator = Object::call(state, method, obj, 0, nullptr);
+    }
+
+    // If iterator is not an Object, throw a TypeError exception.
+    if (!iterator.isObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "GetIteratorFlattenable: iterator is not an object");
+    }
+
+    // Return ? GetIteratorDirect(iterator).
     return getIteratorDirect(state, iterator.asObject());
 }
 

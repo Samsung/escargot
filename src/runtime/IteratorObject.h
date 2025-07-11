@@ -123,12 +123,18 @@ public:
         Value key;
         ValueVector elements;
     };
+    enum PrimitiveHandling {
+        IterateStringPrimitives,
+        RejectPrimitives,
+    };
     typedef Vector<KeyedGroup*, GCUtil::gc_malloc_allocator<KeyedGroup*>> KeyedGroupVector;
     static KeyedGroupVector groupBy(ExecutionState& state, const Value& items, const Value& callbackfn, GroupByKeyCoercion keyCoercion);
     // https://tc39.es/proposal-iterator-helpers/#sec-getiteratordirect
     static IteratorRecord* getIteratorDirect(ExecutionState& state, Object* obj);
     // https://tc39.es/ecma262/#sec-getiteratorfrommethod
     static IteratorRecord* getIteratorFromMethod(ExecutionState& state, const Value& obj, const Value& method);
+    // https://tc39.es/ecma262/#sec-getiteratorflattenable
+    static IteratorRecord* getIteratorFlattenable(ExecutionState& state, const Value& obj, PrimitiveHandling primitiveHandling);
 };
 
 class IteratorHelperObject : public IteratorObject {
