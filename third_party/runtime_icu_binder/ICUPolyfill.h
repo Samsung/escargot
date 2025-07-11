@@ -47,6 +47,7 @@
 #define uloc_getCharacterOrientation RuntimeICUBinder::ICU::instance().uloc_getCharacterOrientation
 #define uloc_countAvailable RuntimeICUBinder::ICU::instance().uloc_countAvailable
 #define uloc_getAvailable RuntimeICUBinder::ICU::instance().uloc_getAvailable
+#define uloc_toUnicodeLocaleType RuntimeICUBinder::ICU::instance().uloc_toUnicodeLocaleType
 
 #define u_getIntPropertyValue RuntimeICUBinder::ICU::instance().u_getIntPropertyValue
 #define u_getIntPropertyMaxValue RuntimeICUBinder::ICU::instance().u_getIntPropertyMaxValue
@@ -74,6 +75,7 @@
 #define ucol_getAvailable RuntimeICUBinder::ICU::instance().ucol_getAvailable
 #define ucol_setAttribute RuntimeICUBinder::ICU::instance().ucol_setAttribute
 #define ucol_close RuntimeICUBinder::ICU::instance().ucol_close
+#define ucol_getKeywordValues RuntimeICUBinder::ICU::instance().ucol_getKeywordValues
 #define ucol_getKeywordValuesForLocale RuntimeICUBinder::ICU::instance().ucol_getKeywordValuesForLocale
 #define ucol_open RuntimeICUBinder::ICU::instance().ucol_open
 #define ucol_strcollIter RuntimeICUBinder::ICU::instance().ucol_strcollIter
@@ -207,6 +209,8 @@
 #define ucurr_getName RuntimeICUBinder::ICU::instance().ucurr_getName
 #define ucurr_getDefaultFractionDigits RuntimeICUBinder::ICU::instance().ucurr_getDefaultFractionDigits
 #define ucurr_getDefaultFractionDigitsForUsage RuntimeICUBinder::ICU::instance().ucurr_getDefaultFractionDigitsForUsage
+#define ucurr_openISOCurrencies RuntimeICUBinder::ICU::instance().ucurr_openISOCurrencies
+#define ucurr_getKeywordValuesForLocale RuntimeICUBinder::ICU::instance().ucurr_getKeywordValuesForLocale
 
 #define ureldatefmt_open RuntimeICUBinder::ICU::instance().ureldatefmt_open
 #define ureldatefmt_openResult RuntimeICUBinder::ICU::instance().ureldatefmt_openResult

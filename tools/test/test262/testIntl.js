@@ -1,5 +1,6 @@
 // Copyright (C) 2011 2012 Norbert Lindenberg. All rights reserved.
 // Copyright (C) 2012 2013 Mozilla Corporation. All rights reserved.
+// Copyright (C) 2020 Apple Inc. All rights reserved.
 // This code is governed by the BSD license found in the LICENSE file.
 /*---
 description: |
@@ -18,11 +19,18 @@ defines:
   - getInvalidLocaleArguments
   - testOption
   - testForUnwantedRegExpChanges
+  - allCalendars
+  - allCollations
+  - allNumberingSystems
   - isValidNumberingSystem
+  - numberingSystemDigits
+  - allSimpleSanctionedUnits
   - testNumberFormat
   - getDateTimeComponents
   - getDateTimeComponentValues
   - isCanonicalizedStructurallyValidTimeZoneName
+  - partitionDurationFormatPattern
+  - formatDurationFormatPattern
 ---*/
 /**
  */
@@ -39,7 +47,9 @@ function testWithIntlConstructors(f) {
   var constructors = ["Collator", "NumberFormat", "DateTimeFormat"];
 
   // Optionally supported Intl constructors.
-  ["PluralRules"].forEach(function(constructor) {
+  // NB: Intl.Locale isn't an Intl service constructor!
+  // Intl.DisplayNames cannot be called without type in options.
+  ["PluralRules", "RelativeTimeFormat", "ListFormat"].forEach(function(constructor) {
     if (typeof Intl[constructor] === "function") {
       constructors[constructors.length] = constructor;
     }
@@ -66,7 +76,7 @@ function testWithIntlConstructors(f) {
 function taintDataProperty(obj, property) {
   Object.defineProperty(obj, property, {
     set: function(value) {
-      $ERROR("Client code can adversely affect behavior: setter for " + property + ".");
+      throw new Test262Error("Client code can adversely affect behavior: setter for " + property + ".");
     },
     enumerable: false,
     configurable: true
@@ -83,7 +93,7 @@ function taintDataProperty(obj, property) {
 function taintMethod(obj, property) {
   Object.defineProperty(obj, property, {
     value: function() {
-      $ERROR("Client code can adversely affect behavior: method " + property + ".");
+      throw new Test262Error("Client code can adversely affect behavior: method " + property + ".");
     },
     writable: true,
     enumerable: false,
@@ -125,12 +135,13 @@ function taintArray() {
  * Gets locale support info for the given constructor object, which must be one
  * of Intl constructors.
  * @param {object} Constructor the constructor for which to get locale support info
+ * @param {object} options the options while calling the constructor
  * @return {object} locale support info with the following properties:
  *   supported: array of fully supported language tags
  *   byFallback: array of language tags that are supported through fallbacks
  *   unsupported: array of unsupported language tags
  */
-function getLocaleSupportInfo(Constructor) {
+function getLocaleSupportInfo(Constructor, options) {
   var languages = ["zh", "es", "en", "hi", "ur", "ar", "ja", "pa"];
   var scripts = ["Latn", "Hans", "Deva", "Arab", "Jpan", "Hant", "Guru"];
   var countries = ["CN", "IN", "US", "PK", "JP", "TW", "HK", "SG", "419"];
@@ -160,7 +171,7 @@ function getLocaleSupportInfo(Constructor) {
   var unsupported = [];
   for (i = 0; i < allTags.length; i++) {
     var request = allTags[i];
-    var result = new Constructor([request], {localeMatcher: "lookup"}).resolvedOptions().locale;
+    var result = new Constructor([request], options).resolvedOptions().locale;
     if (request === result) {
       supported.push(request);
     } else if (request.indexOf(result) === 0) {
@@ -243,9 +254,6 @@ function getInvalidLanguageTags() {
     "x-y-",
   ];
 
-
-  // we should comment out this since our regex engine bug is finded #616
-  /*
   // make sure the data above is correct
   for (var i = 0; i < invalidLanguageTags.length; ++i) {
     var invalidTag = invalidLanguageTags[i];
@@ -254,7 +262,6 @@ function getInvalidLanguageTags() {
       "Test data \"" + invalidTag + "\" is a canonicalized and structurally valid language tag."
     );
   }
-  */
 
   return invalidLanguageTags;
 }
@@ -277,8 +284,8 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
    */
   var alpha = "[a-z]",
     digit = "[0-9]",
-    alphanum = "(" + alpha + "|" + digit + ")",
-    variant = "(" + alphanum + "{5,8}|(" + digit + alphanum + "{3}))",
+    alphanum = "[a-z0-9]",
+    variant = "(" + alphanum + "{5,8}|(?:" + digit + alphanum + "{3}))",
     region = "(" + alpha + "{2}|" + digit + "{3})",
     script = "(" + alpha + "{4})",
     language = "(" + alpha + "{2,3}|" + alpha + "{5,8})",
@@ -299,9 +306,10 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
 
   var duplicateSingleton = "-" + singleton + "-(.*-)?\\1(?!" + alphanum + ")",
     duplicateSingletonRE = new RegExp(duplicateSingleton, "i"),
-    duplicateVariant = "(" + alphanum + "{2,8}-)+" + variant + "-(" + alphanum + "{2,8}-)*\\3(?!" + alphanum + ")",
+    duplicateVariant = "(" + alphanum + "{2,8}-)+" + variant + "-(" + alphanum + "{2,8}-)*\\2(?!" + alphanum + ")",
     duplicateVariantRE = new RegExp(duplicateVariant, "i");
 
+  var transformKeyRE = new RegExp("^" + alpha + digit + "$", "i");
 
   /**
    * Verifies that the given string is a well-formed Unicode BCP 47 Locale Identifier
@@ -322,13 +330,13 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
    * Mappings from complete tags to preferred values.
    *
    * Spec: http://unicode.org/reports/tr35/#Identifiers
-   * Version: CLDR, version 35
+   * Version: CLDR, version 36.1
    */
   var __tagMappings = {
     // property names must be in lower case; values in canonical form
 
     "art-lojban": "jbo",
-    "cel-gaulish": "xtg-x-cel-gaulish",
+    "cel-gaulish": "xtg",
     "zh-guoyu": "zh",
     "zh-hakka": "hak",
     "zh-xiang": "hsn",
@@ -339,7 +347,7 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
    * Mappings from language subtags to preferred values.
    *
    * Spec: http://unicode.org/reports/tr35/#Identifiers
-   * Version: CLDR, version 35
+   * Version: CLDR, version 36.1
    */
   var __languageMappings = {
     // property names and values must be in canonical case
@@ -358,6 +366,7 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
     "arb": "ar",
     "arg": "an",
     "arm": "hy",
+    "asd": "snz",
     "asm": "as",
     "aue": "ktz",
     "ava": "av",
@@ -413,6 +422,7 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
     "dhd": "mwr",
     "dik": "din",
     "diq": "zza",
+    "dit": "dif",
     "div": "dv",
     "drh": "mn",
     "dut": "nl",
@@ -528,6 +538,7 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
     "lim": "li",
     "lin": "ln",
     "lit": "lt",
+    "llo": "ngt",
     "lmm": "rmx",
     "ltz": "lb",
     "lub": "lu",
@@ -554,6 +565,7 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
     "mup": "raj",
     "mwj": "vaj",
     "mya": "my",
+    "myd": "aog",
     "myt": "mry",
     "nad": "xny",
     "nau": "na",
@@ -565,6 +577,7 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
     "nep": "ne",
     "nld": "nl",
     "nno": "nn",
+    "nns": "nbr",
     "nnx": "ngv",
     "no": "nb",
     "nob": "nb",
@@ -693,14 +706,14 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
     "zsm": "ms",
     "zul": "zu",
     "zyb": "za",
-  }
+  };
 
 
   /**
    * Mappings from region subtags to preferred values.
    *
    * Spec: http://unicode.org/reports/tr35/#Identifiers
-   * Version: CLDR, version 35
+   * Version: CLDR, version 36.1
    */
   var __regionMappings = {
     // property names and values must be in canonical case
@@ -1032,6 +1045,552 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
 
 
   /**
+   * Complex mappings from language subtags to preferred values.
+   *
+   * Spec: http://unicode.org/reports/tr35/#Identifiers
+   * Version: CLDR, version 36.1
+   */
+  var __complexLanguageMappings = {
+    // property names and values must be in canonical case
+
+    "cnr": {language: "sr", region: "ME"},
+    "drw": {language: "fa", region: "AF"},
+    "hbs": {language: "sr", script: "Latn"},
+    "prs": {language: "fa", region: "AF"},
+    "sh": {language: "sr", script: "Latn"},
+    "swc": {language: "sw", region: "CD"},
+    "tnf": {language: "fa", region: "AF"},
+  };
+
+
+  /**
+   * Complex mappings from region subtags to preferred values.
+   *
+   * Spec: http://unicode.org/reports/tr35/#Identifiers
+   * Version: CLDR, version 36.1
+   */
+  var __complexRegionMappings = {
+    // property names and values must be in canonical case
+
+    "172": {
+      default: "RU",
+      "ab": "GE",
+      "az": "AZ",
+      "be": "BY",
+      "crh": "UA",
+      "gag": "MD",
+      "got": "UA",
+      "hy": "AM",
+      "ji": "UA",
+      "ka": "GE",
+      "kaa": "UZ",
+      "kk": "KZ",
+      "ku-Yezi": "GE",
+      "ky": "KG",
+      "os": "GE",
+      "rue": "UA",
+      "sog": "UZ",
+      "tg": "TJ",
+      "tk": "TM",
+      "tkr": "AZ",
+      "tly": "AZ",
+      "ttt": "AZ",
+      "ug-Cyrl": "KZ",
+      "uk": "UA",
+      "und-Armn": "AM",
+      "und-Chrs": "UZ",
+      "und-Geor": "GE",
+      "und-Goth": "UA",
+      "und-Sogd": "UZ",
+      "und-Sogo": "UZ",
+      "und-Yezi": "GE",
+      "uz": "UZ",
+      "xco": "UZ",
+      "xmf": "GE",
+    },
+    "200": {
+      default: "CZ",
+      "sk": "SK",
+    },
+    "530": {
+      default: "CW",
+      "vic": "SX",
+    },
+    "532": {
+      default: "CW",
+      "vic": "SX",
+    },
+    "536": {
+      default: "SA",
+      "akk": "IQ",
+      "ckb": "IQ",
+      "ku-Arab": "IQ",
+      "mis": "IQ",
+      "syr": "IQ",
+      "und-Hatr": "IQ",
+      "und-Syrc": "IQ",
+      "und-Xsux": "IQ",
+    },
+    "582": {
+      default: "FM",
+      "mh": "MH",
+      "pau": "PW",
+    },
+    "810": {
+      default: "RU",
+      "ab": "GE",
+      "az": "AZ",
+      "be": "BY",
+      "crh": "UA",
+      "et": "EE",
+      "gag": "MD",
+      "got": "UA",
+      "hy": "AM",
+      "ji": "UA",
+      "ka": "GE",
+      "kaa": "UZ",
+      "kk": "KZ",
+      "ku-Yezi": "GE",
+      "ky": "KG",
+      "lt": "LT",
+      "ltg": "LV",
+      "lv": "LV",
+      "os": "GE",
+      "rue": "UA",
+      "sgs": "LT",
+      "sog": "UZ",
+      "tg": "TJ",
+      "tk": "TM",
+      "tkr": "AZ",
+      "tly": "AZ",
+      "ttt": "AZ",
+      "ug-Cyrl": "KZ",
+      "uk": "UA",
+      "und-Armn": "AM",
+      "und-Chrs": "UZ",
+      "und-Geor": "GE",
+      "und-Goth": "UA",
+      "und-Sogd": "UZ",
+      "und-Sogo": "UZ",
+      "und-Yezi": "GE",
+      "uz": "UZ",
+      "vro": "EE",
+      "xco": "UZ",
+      "xmf": "GE",
+    },
+    "890": {
+      default: "RS",
+      "bs": "BA",
+      "hr": "HR",
+      "mk": "MK",
+      "sl": "SI",
+    },
+    "AN": {
+      default: "CW",
+      "vic": "SX",
+    },
+    "NT": {
+      default: "SA",
+      "akk": "IQ",
+      "ckb": "IQ",
+      "ku-Arab": "IQ",
+      "mis": "IQ",
+      "syr": "IQ",
+      "und-Hatr": "IQ",
+      "und-Syrc": "IQ",
+      "und-Xsux": "IQ",
+    },
+    "PC": {
+      default: "FM",
+      "mh": "MH",
+      "pau": "PW",
+    },
+    "SU": {
+      default: "RU",
+      "ab": "GE",
+      "az": "AZ",
+      "be": "BY",
+      "crh": "UA",
+      "et": "EE",
+      "gag": "MD",
+      "got": "UA",
+      "hy": "AM",
+      "ji": "UA",
+      "ka": "GE",
+      "kaa": "UZ",
+      "kk": "KZ",
+      "ku-Yezi": "GE",
+      "ky": "KG",
+      "lt": "LT",
+      "ltg": "LV",
+      "lv": "LV",
+      "os": "GE",
+      "rue": "UA",
+      "sgs": "LT",
+      "sog": "UZ",
+      "tg": "TJ",
+      "tk": "TM",
+      "tkr": "AZ",
+      "tly": "AZ",
+      "ttt": "AZ",
+      "ug-Cyrl": "KZ",
+      "uk": "UA",
+      "und-Armn": "AM",
+      "und-Chrs": "UZ",
+      "und-Geor": "GE",
+      "und-Goth": "UA",
+      "und-Sogd": "UZ",
+      "und-Sogo": "UZ",
+      "und-Yezi": "GE",
+      "uz": "UZ",
+      "vro": "EE",
+      "xco": "UZ",
+      "xmf": "GE",
+    },
+  };
+
+
+  /**
+   * Mappings from variant subtags to preferred values.
+   *
+   * Spec: http://unicode.org/reports/tr35/#Identifiers
+   * Version: CLDR, version 36.1
+   */
+  var __variantMappings = {
+    // property names and values must be in canonical case
+
+    "aaland": {type: "region", replacement: "AX"},
+    "arevela": {type: "language", replacement: "hy"},
+    "arevmda": {type: "language", replacement: "hyw"},
+    "heploc": {type: "variant", replacement: "alalc97"},
+    "polytoni": {type: "variant", replacement: "polyton"},
+  };
+
+
+  /**
+   * Mappings from Unicode extension subtags to preferred values.
+   *
+   * Spec: http://unicode.org/reports/tr35/#Identifiers
+   * Version: CLDR, version 36.1
+   */
+  var __unicodeMappings = {
+    // property names and values must be in canonical case
+
+    "ca": {
+      "ethiopic-amete-alem": "ethioaa",
+      "islamicc": "islamic-civil",
+    },
+    "kb": {
+      "yes": "true",
+    },
+    "kc": {
+      "yes": "true",
+    },
+    "kh": {
+      "yes": "true",
+    },
+    "kk": {
+      "yes": "true",
+    },
+    "kn": {
+      "yes": "true",
+    },
+    "ks": {
+      "primary": "level1",
+      "tertiary": "level3",
+    },
+    "ms": {
+      "imperial": "uksystem",
+    },
+    "rg": {
+      "cn11": "cnbj",
+      "cn12": "cntj",
+      "cn13": "cnhe",
+      "cn14": "cnsx",
+      "cn15": "cnmn",
+      "cn21": "cnln",
+      "cn22": "cnjl",
+      "cn23": "cnhl",
+      "cn31": "cnsh",
+      "cn32": "cnjs",
+      "cn33": "cnzj",
+      "cn34": "cnah",
+      "cn35": "cnfj",
+      "cn36": "cnjx",
+      "cn37": "cnsd",
+      "cn41": "cnha",
+      "cn42": "cnhb",
+      "cn43": "cnhn",
+      "cn44": "cngd",
+      "cn45": "cngx",
+      "cn46": "cnhi",
+      "cn50": "cncq",
+      "cn51": "cnsc",
+      "cn52": "cngz",
+      "cn53": "cnyn",
+      "cn54": "cnxz",
+      "cn61": "cnsn",
+      "cn62": "cngs",
+      "cn63": "cnqh",
+      "cn64": "cnnx",
+      "cn65": "cnxj",
+      "cz10a": "cz110",
+      "cz10b": "cz111",
+      "cz10c": "cz112",
+      "cz10d": "cz113",
+      "cz10e": "cz114",
+      "cz10f": "cz115",
+      "cz611": "cz663",
+      "cz612": "cz632",
+      "cz613": "cz633",
+      "cz614": "cz634",
+      "cz615": "cz635",
+      "cz621": "cz641",
+      "cz622": "cz642",
+      "cz623": "cz643",
+      "cz624": "cz644",
+      "cz626": "cz646",
+      "cz627": "cz647",
+      "czjc": "cz31",
+      "czjm": "cz64",
+      "czka": "cz41",
+      "czkr": "cz52",
+      "czli": "cz51",
+      "czmo": "cz80",
+      "czol": "cz71",
+      "czpa": "cz53",
+      "czpl": "cz32",
+      "czpr": "cz10",
+      "czst": "cz20",
+      "czus": "cz42",
+      "czvy": "cz63",
+      "czzl": "cz72",
+      "fra": "frges",
+      "frb": "frnaq",
+      "frc": "frara",
+      "frd": "frbfc",
+      "fre": "frbre",
+      "frf": "frcvl",
+      "frg": "frges",
+      "frh": "frcor",
+      "fri": "frbfc",
+      "frj": "fridf",
+      "frk": "frocc",
+      "frl": "frnaq",
+      "frm": "frges",
+      "frn": "frocc",
+      "fro": "frhdf",
+      "frp": "frnor",
+      "frq": "frnor",
+      "frr": "frpdl",
+      "frs": "frhdf",
+      "frt": "frnaq",
+      "fru": "frpac",
+      "frv": "frara",
+      "laxn": "laxs",
+      "lud": "lucl",
+      "lug": "luec",
+      "lul": "luca",
+      "mrnkc": "mr13",
+      "no23": "no50",
+      "nzn": "nzauk",
+      "nzs": "nzcan",
+      "omba": "ombj",
+      "omsh": "omsj",
+      "plds": "pl02",
+      "plkp": "pl04",
+      "pllb": "pl08",
+      "plld": "pl10",
+      "pllu": "pl06",
+      "plma": "pl12",
+      "plmz": "pl14",
+      "plop": "pl16",
+      "plpd": "pl20",
+      "plpk": "pl18",
+      "plpm": "pl22",
+      "plsk": "pl26",
+      "plsl": "pl24",
+      "plwn": "pl28",
+      "plwp": "pl30",
+      "plzp": "pl32",
+      "tteto": "tttob",
+      "ttrcm": "ttmrc",
+      "ttwto": "tttob",
+      "twkhq": "twkhh",
+      "twtnq": "twtnn",
+      "twtpq": "twnwt",
+      "twtxq": "twtxg",
+    },
+    "sd": {
+      "cn11": "cnbj",
+      "cn12": "cntj",
+      "cn13": "cnhe",
+      "cn14": "cnsx",
+      "cn15": "cnmn",
+      "cn21": "cnln",
+      "cn22": "cnjl",
+      "cn23": "cnhl",
+      "cn31": "cnsh",
+      "cn32": "cnjs",
+      "cn33": "cnzj",
+      "cn34": "cnah",
+      "cn35": "cnfj",
+      "cn36": "cnjx",
+      "cn37": "cnsd",
+      "cn41": "cnha",
+      "cn42": "cnhb",
+      "cn43": "cnhn",
+      "cn44": "cngd",
+      "cn45": "cngx",
+      "cn46": "cnhi",
+      "cn50": "cncq",
+      "cn51": "cnsc",
+      "cn52": "cngz",
+      "cn53": "cnyn",
+      "cn54": "cnxz",
+      "cn61": "cnsn",
+      "cn62": "cngs",
+      "cn63": "cnqh",
+      "cn64": "cnnx",
+      "cn65": "cnxj",
+      "cz10a": "cz110",
+      "cz10b": "cz111",
+      "cz10c": "cz112",
+      "cz10d": "cz113",
+      "cz10e": "cz114",
+      "cz10f": "cz115",
+      "cz611": "cz663",
+      "cz612": "cz632",
+      "cz613": "cz633",
+      "cz614": "cz634",
+      "cz615": "cz635",
+      "cz621": "cz641",
+      "cz622": "cz642",
+      "cz623": "cz643",
+      "cz624": "cz644",
+      "cz626": "cz646",
+      "cz627": "cz647",
+      "czjc": "cz31",
+      "czjm": "cz64",
+      "czka": "cz41",
+      "czkr": "cz52",
+      "czli": "cz51",
+      "czmo": "cz80",
+      "czol": "cz71",
+      "czpa": "cz53",
+      "czpl": "cz32",
+      "czpr": "cz10",
+      "czst": "cz20",
+      "czus": "cz42",
+      "czvy": "cz63",
+      "czzl": "cz72",
+      "fra": "frges",
+      "frb": "frnaq",
+      "frc": "frara",
+      "frd": "frbfc",
+      "fre": "frbre",
+      "frf": "frcvl",
+      "frg": "frges",
+      "frh": "frcor",
+      "fri": "frbfc",
+      "frj": "fridf",
+      "frk": "frocc",
+      "frl": "frnaq",
+      "frm": "frges",
+      "frn": "frocc",
+      "fro": "frhdf",
+      "frp": "frnor",
+      "frq": "frnor",
+      "frr": "frpdl",
+      "frs": "frhdf",
+      "frt": "frnaq",
+      "fru": "frpac",
+      "frv": "frara",
+      "laxn": "laxs",
+      "lud": "lucl",
+      "lug": "luec",
+      "lul": "luca",
+      "mrnkc": "mr13",
+      "no23": "no50",
+      "nzn": "nzauk",
+      "nzs": "nzcan",
+      "omba": "ombj",
+      "omsh": "omsj",
+      "plds": "pl02",
+      "plkp": "pl04",
+      "pllb": "pl08",
+      "plld": "pl10",
+      "pllu": "pl06",
+      "plma": "pl12",
+      "plmz": "pl14",
+      "plop": "pl16",
+      "plpd": "pl20",
+      "plpk": "pl18",
+      "plpm": "pl22",
+      "plsk": "pl26",
+      "plsl": "pl24",
+      "plwn": "pl28",
+      "plwp": "pl30",
+      "plzp": "pl32",
+      "tteto": "tttob",
+      "ttrcm": "ttmrc",
+      "ttwto": "tttob",
+      "twkhq": "twkhh",
+      "twtnq": "twtnn",
+      "twtpq": "twnwt",
+      "twtxq": "twtxg",
+    },
+    "tz": {
+      "aqams": "nzakl",
+      "cnckg": "cnsha",
+      "cnhrb": "cnsha",
+      "cnkhg": "cnurc",
+      "cuba": "cuhav",
+      "egypt": "egcai",
+      "eire": "iedub",
+      "est": "utcw05",
+      "gmt0": "gmt",
+      "hongkong": "hkhkg",
+      "hst": "utcw10",
+      "iceland": "isrey",
+      "iran": "irthr",
+      "israel": "jeruslm",
+      "jamaica": "jmkin",
+      "japan": "jptyo",
+      "libya": "lytip",
+      "mst": "utcw07",
+      "navajo": "usden",
+      "poland": "plwaw",
+      "portugal": "ptlis",
+      "prc": "cnsha",
+      "roc": "twtpe",
+      "rok": "krsel",
+      "turkey": "trist",
+      "uct": "utc",
+      "usnavajo": "usden",
+      "zulu": "utc",
+    },
+  };
+
+
+  /**
+   * Mappings from Unicode extension subtags to preferred values.
+   *
+   * Spec: http://unicode.org/reports/tr35/#Identifiers
+   * Version: CLDR, version 36.1
+   */
+  var __transformMappings = {
+    // property names and values must be in canonical case
+
+    "d0": {
+      "name": "charname",
+    },
+    "m0": {
+      "names": "prprname",
+    },
+  };
+
+  /**
    * Canonicalizes the given well-formed BCP 47 language tag, including regularized case of subtags.
    *
    * Spec: ECMAScript Internationalization API Specification, draft, 6.2.3.
@@ -1070,195 +1629,33 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
 
     if (__languageMappings.hasOwnProperty(language)) {
       language = __languageMappings[language];
-    } else {
-      // Language subtags with complex mappings, CLDR 35.
-      switch (language) {
-      case "cnr":
-        language = "sr";
-        if (region === undefined) {
-          region = "ME";
-        }
-        break;
-      case "drw":
-      case "prs":
-      case "tnf":
-        language = "fa";
-        if (region === undefined) {
-          region = "AF";
-        }
-        break;
-      case "hbs":
-      case "sh":
-        language = "sr";
-        if (script === undefined) {
-          script = "Latn";
-        }
-        break;
-      case "swc":
-        language = "sw";
-        if (region === undefined) {
-          region = "CD";
-        }
-        break;
+    } else if (__complexLanguageMappings.hasOwnProperty(language)) {
+      var mapping = __complexLanguageMappings[language];
+
+      language = mapping.language;
+      if (script === undefined && mapping.hasOwnProperty("script")) {
+        script = mapping.script;
+      }
+      if (region === undefined && mapping.hasOwnProperty("region")) {
+        region = mapping.region;
       }
     }
 
     if (region !== undefined) {
       if (__regionMappings.hasOwnProperty(region)) {
         region = __regionMappings[region];
-      } else {
-        // Region subtags with complex mappings, CLDR 35.
-        switch (region) {
-        case "172":
-          if (language === "ab" || language === "ka" || language === "os" ||
-              (language === "und" && script === "Geor") || language === "xmf") {
-            region = "GE";
-          }
-          else if (language === "az" || language === "tkr" || language === "tly" || language === "ttt") {
-            region = "AZ";
-          }
-          else if (language === "be") {
-            region = "BY";
-          }
-          else if (language === "crh" || language === "got" || language === "ji" || language === "rue" ||
-                   language === "uk" || (language === "und" && script === "Goth")) {
-            region = "UA";
-          }
-          else if (language === "gag") {
-            region = "MD";
-          }
-          else if (language === "hy" || (language === "und" && script === "Armn")) {
-            region = "AM";
-          }
-          else if (language === "kaa" || language === "sog" || (language === "und" && script === "Sogd") ||
-                   (language === "und" && script === "Sogo") || language === "uz") {
-            region = "UZ";
-          }
-          else if (language === "kk" || (language === "ug" && script === "Cyrl")) {
-            region = "KZ";
-          }
-          else if (language === "ky") {
-            region = "KG";
-          }
-          else if (language === "tg") {
-            region = "TJ";
-          }
-          else if (language === "tk") {
-            region = "TM";
-          }
-          else {
-            region = "RU";
-          }
-          break;
-        case "200":
-          if (language === "sk") {
-            region = "SK";
-          }
-          else {
-            region = "CZ";
-          }
-          break;
-        case "530":
-        case "532":
-        case "AN":
-          if (language === "vic") {
-            region = "SX";
-          }
-          else {
-            region = "CW";
-          }
-          break;
-        case "536":
-        case "NT":
-          if (language === "akk" || language === "ckb" || (language === "ku" && script === "Arab") ||
-              language === "mis" || language === "syr" || (language === "und" && script === "Xsux") ||
-              (language === "und" && script === "Hatr") || (language === "und" && script === "Syrc")) {
-            region = "IQ";
-          }
-          else {
-            region = "SA";
-          }
-          break;
-        case "582":
-        case "PC":
-          if (language === "mh") {
-            region = "MH";
-          }
-          else if (language === "pau") {
-            region = "PW";
-          }
-          else {
-            region = "FM";
-          }
-          break;
-        case "810":
-        case "SU":
-          if (language === "ab" || language === "ka" || language === "os" || language === "xmf" ||
-              (language === "und" && script === "Geor")) {
-            region = "GE";
-          }
-          else if (language === "az" || language === "tkr" || language === "tly" || language === "ttt") {
-            region = "AZ";
-          }
-          else if (language === "be") {
-            region = "BY";
-          }
-          else if (language === "crh" || language === "got" || language === "ji" || language === "rue" ||
-                   language === "uk" || (language === "und" && script === "Goth")) {
-            region = "UA";
-          }
-          else if (language === "et" || language === "vro") {
-            region = "EE";
-          }
-          else if (language === "gag") {
-            region = "MD";
-          }
-          else if (language === "hy" || (language === "und" && script === "Armn")) {
-            region = "AM";
-          }
-          else if (language === "kaa" || language === "sog" || (language === "und" && script === "Sogd") ||
-                   (language === "und" && script === "Sogo") || language === "uz") {
-            region = "UZ";
-          }
-          else if (language === "kk" || (language === "ug" && script === "Cyrl")) {
-            region = "KZ";
-          }
-          else if (language === "ky") {
-            region = "KG";
-          }
-          else if (language === "lt" || language === "sgs") {
-            region = "LT";
-          }
-          else if (language === "ltg" || language === "lv") {
-            region = "LV";
-          }
-          else if (language === "tg") {
-            region = "TJ";
-          }
-          else if (language === "tk") {
-            region = "TM";
-          }
-          else {
-            region = "RU";
-          }
-          break;
-        case "890":
-          if (language === "bs") {
-            region = "BA";
-          }
-          else if (language === "hr") {
-            region = "HR";
-          }
-          else if (language === "mk") {
-            region = "MK";
-          }
-          else if (language === "sl") {
-            region = "SI";
-          }
-          else {
-            region = "RS";
-          }
-          break;
+      } else if (__complexRegionMappings.hasOwnProperty(region)) {
+        var mapping = __complexRegionMappings[region];
+
+        var mappingKey = language;
+        if (script !== undefined) {
+          mappingKey += "-" + script;
+        }
+
+        if (mapping.hasOwnProperty(mappingKey)) {
+          region = mapping[mappingKey];
+        } else {
+          region = mapping.default;
         }
       }
     }
@@ -1266,8 +1663,31 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
     // handle variants
     var variants = [];
     while (i < subtags.length && subtags[i].length > 1) {
-        variants.push(subtags[i]);
-        i += 1;
+      var variant = subtags[i];
+
+      if (__variantMappings.hasOwnProperty(variant)) {
+        var mapping = __variantMappings[variant];
+        switch (mapping.type) {
+          case "language":
+            language = mapping.replacement;
+            break;
+
+          case "region":
+            region = mapping.replacement;
+            break;
+
+          case "variant":
+            variants.push(mapping.replacement);
+            break;
+
+          default:
+            throw new Error("illegal variant mapping type");
+        }
+      } else {
+        variants.push(variant);
+      }
+
+      i += 1;
     }
     variants.sort();
 
@@ -1279,7 +1699,80 @@ function isCanonicalizedStructurallyValidLanguageTag(locale) {
       while (i < subtags.length && subtags[i].length > 1) {
         i++;
       }
-      var extension = subtags.slice(extensionStart, i).join("-");
+
+      var extension;
+      var extensionKey = subtags[extensionStart];
+      if (extensionKey === "u") {
+        var j = extensionStart + 1;
+
+        // skip over leading attributes
+        while (j < i && subtags[j].length > 2) {
+          j++;
+        }
+
+        extension = subtags.slice(extensionStart, j).join("-");
+
+        while (j < i) {
+          var keyStart = j;
+          j++;
+
+          while (j < i && subtags[j].length > 2) {
+            j++;
+          }
+
+          var key = subtags[keyStart];
+          var value = subtags.slice(keyStart + 1, j).join("-");
+
+          if (__unicodeMappings.hasOwnProperty(key)) {
+            var mapping = __unicodeMappings[key];
+            if (mapping.hasOwnProperty(value)) {
+              value = mapping[value];
+            }
+          }
+
+          extension += "-" + key;
+          if (value !== "" && value !== "true") {
+            extension += "-" + value;
+          }
+        }
+      } else if (extensionKey === "t") {
+        var j = extensionStart + 1;
+
+        while (j < i && !transformKeyRE.test(subtags[j])) {
+          j++;
+        }
+
+        extension = "t";
+
+        var transformLanguage = subtags.slice(extensionStart + 1, j).join("-");
+        if (transformLanguage !== "") {
+          extension += "-" + canonicalizeLanguageTag(transformLanguage).toLowerCase();
+        }
+
+        while (j < i) {
+          var keyStart = j;
+          j++;
+
+          while (j < i && subtags[j].length > 2) {
+            j++;
+          }
+
+          var key = subtags[keyStart];
+          var value = subtags.slice(keyStart + 1, j).join("-");
+
+          if (__transformMappings.hasOwnProperty(key)) {
+            var mapping = __transformMappings[key];
+            if (mapping.hasOwnProperty(value)) {
+              value = mapping[value];
+            }
+          }
+
+          extension += "-" + key + "-" + value;
+        }
+      } else {
+        extension = subtags.slice(extensionStart, i).join("-");
+      }
+
       extensions.push(extension);
     }
     extensions.sort();
@@ -1434,13 +1927,13 @@ function testOption(Constructor, property, type, values, fallback, testOptions) 
     obj = new Constructor(undefined, options);
     if (noReturn) {
       if (obj.resolvedOptions().hasOwnProperty(property)) {
-        $ERROR("Option property " + property + " is returned, but shouldn't be.");
+        throw new Test262Error("Option property " + property + " is returned, but shouldn't be.");
       }
     } else {
       actual = obj.resolvedOptions()[property];
       if (isILD) {
         if (actual !== undefined && values.indexOf(actual) === -1) {
-          $ERROR("Invalid value " + actual + " returned for property " + property + ".");
+          throw new Test262Error("Invalid value " + actual + " returned for property " + property + ".");
         }
       } else {
         if (type === "boolean") {
@@ -1449,7 +1942,7 @@ function testOption(Constructor, property, type, values, fallback, testOptions) 
           expected = String(value);
         }
         if (actual !== expected && !(isOptional && actual === undefined)) {
-          $ERROR("Option value " + value + " for property " + property +
+          throw new Test262Error("Option value " + value + " for property " + property +
             " was not accepted; got " + actual + " instead.");
         }
       }
@@ -1476,9 +1969,9 @@ function testOption(Constructor, property, type, values, fallback, testOptions) 
         error = e;
       }
       if (error === undefined) {
-        $ERROR("Invalid option value " + value + " for property " + property + " was not rejected.");
+        throw new Test262Error("Invalid option value " + value + " for property " + property + " was not rejected.");
       } else if (error.name !== "RangeError") {
-        $ERROR("Invalid option value " + value + " for property " + property + " was rejected with wrong error " + error.name + ".");
+        throw new Test262Error("Invalid option value " + value + " for property " + property + " was rejected with wrong error " + error.name + ".");
       }
     });
   }
@@ -1492,12 +1985,12 @@ function testOption(Constructor, property, type, values, fallback, testOptions) 
     if (!(isOptional && actual === undefined)) {
       if (fallback !== undefined) {
         if (actual !== fallback) {
-          $ERROR("Option fallback value " + fallback + " for property " + property +
+          throw new Test262Error("Option fallback value " + fallback + " for property " + property +
             " was not used; got " + actual + " instead.");
         }
       } else {
         if (values.indexOf(actual) === -1 && !(isILD && actual === undefined)) {
-          $ERROR("Invalid value " + actual + " returned for property " + property + ".");
+          throw new Test262Error("Invalid value " + actual + " returned for property " + property + ".");
         }
       }
     }
@@ -1517,6 +2010,7 @@ var regExpProperties = ["$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9",
 
 var regExpPropertiesDefaultValues = (function () {
   var values = Object.create(null);
+  (/(?:)/).test("");
   regExpProperties.forEach(function (property) {
     values[property] = RegExp[property];
   });
@@ -1530,13 +2024,11 @@ var regExpPropertiesDefaultValues = (function () {
  * RegExp constructor.
  */
 function testForUnwantedRegExpChanges(testFunc) {
-  regExpProperties.forEach(function (property) {
-    RegExp[property] = regExpPropertiesDefaultValues[property];
-  });
+  (/(?:)/).test("");
   testFunc();
   regExpProperties.forEach(function (property) {
     if (RegExp[property] !== regExpPropertiesDefaultValues[property]) {
-      $ERROR("RegExp has unexpected property " + property + " with value " +
+      throw new Test262Error("RegExp has unexpected property " + property + " with value " +
         RegExp[property] + ".");
     }
   });
@@ -1544,17 +2036,71 @@ function testForUnwantedRegExpChanges(testFunc) {
 
 
 /**
- * Tests whether name is a valid BCP 47 numbering system name
- * and not excluded from use in the ECMAScript Internationalization API.
- * @param {string} name the name to be tested.
- * @return {boolean} whether name is a valid BCP 47 numbering system name and
- *   allowed for use in the ECMAScript Internationalization API.
+ * Returns an array of all known calendars.
  */
+function allCalendars() {
+  // source: CLDR file common/bcp47/number.xml; version CLDR 39.
+  // https://github.com/unicode-org/cldr/blob/master/common/bcp47/calendar.xml
+  return [
+    "buddhist",
+    "chinese",
+    "coptic",
+    "dangi",
+    "ethioaa",
+    "ethiopic",
+    "gregory",
+    "hebrew",
+    "indian",
+    "islamic",
+    "islamic-umalqura",
+    "islamic-tbla",
+    "islamic-civil",
+    "islamic-rgsa",
+    "iso8601",
+    "japanese",
+    "persian",
+    "roc",
+  ];
+}
 
-function isValidNumberingSystem(name) {
 
-  // source: CLDR file common/bcp47/number.xml; version CLDR 32.
-  var numberingSystems = [
+/**
+ * Returns an array of all known collations.
+ */
+function allCollations() {
+  // source: CLDR file common/bcp47/collation.xml; version CLDR 39.
+  // https://github.com/unicode-org/cldr/blob/master/common/bcp47/collation.xml
+  return [
+    "big5han",
+    "compat",
+    "dict",
+    "direct",
+    "ducet",
+    "emoji",
+    "eor",
+    "gb2312",
+    "phonebk",
+    "phonetic",
+    "pinyin",
+    "reformed",
+    "search",
+    "searchjl",
+    "standard",
+    "stroke",
+    "trad",
+    "unihan",
+    "zhuyin",
+  ];
+}
+
+
+/**
+ * Returns an array of all known numbering systems.
+ */
+function allNumberingSystems() {
+  // source: CLDR file common/bcp47/number.xml; version CLDR 40 & new in Unicode 14.0
+  // https://github.com/unicode-org/cldr/blob/master/common/bcp47/number.xml
+  return [
     "adlm",
     "ahom",
     "arab",
@@ -1569,10 +2115,12 @@ function isValidNumberingSystem(name) {
     "cham",
     "cyrl",
     "deva",
+    "diak",
     "ethi",
     "finance",
     "fullwide",
     "geor",
+    "gong",
     "gonm",
     "grek",
     "greklow",
@@ -1586,10 +2134,13 @@ function isValidNumberingSystem(name) {
     "hantfin",
     "hebr",
     "hmng",
+    "hmnp",
     "java",
     "jpan",
     "jpanfin",
+    "jpanyear",
     "kali",
+    "kawi",
     "khmr",
     "knda",
     "lana",
@@ -1611,12 +2162,14 @@ function isValidNumberingSystem(name) {
     "mymr",
     "mymrshan",
     "mymrtlng",
+    "nagm",
     "native",
     "newa",
     "nkoo",
     "olck",
     "orya",
     "osma",
+    "rohg",
     "roman",
     "romanlow",
     "saur",
@@ -1629,6 +2182,7 @@ function isValidNumberingSystem(name) {
     "talu",
     "taml",
     "tamldec",
+    "tnsa",
     "telu",
     "thai",
     "tirh",
@@ -1636,7 +2190,22 @@ function isValidNumberingSystem(name) {
     "traditio",
     "vaii",
     "wara",
+    "wcho",
   ];
+}
+
+
+/**
+ * Tests whether name is a valid BCP 47 numbering system name
+ * and not excluded from use in the ECMAScript Internationalization API.
+ * @param {string} name the name to be tested.
+ * @return {boolean} whether name is a valid BCP 47 numbering system name and
+ *   allowed for use in the ECMAScript Internationalization API.
+ */
+
+function isValidNumberingSystem(name) {
+
+  var numberingSystems = allNumberingSystems();
 
   var excluded = [
     "finance",
@@ -1655,29 +2224,131 @@ function isValidNumberingSystem(name) {
  */
 
 var numberingSystemDigits = {
+  adlm: "𞥐𞥑𞥒𞥓𞥔𞥕𞥖𞥗𞥘𞥙",
+  ahom: "𑜰𑜱𑜲𑜳𑜴𑜵𑜶𑜷𑜸𑜹",
   arab: "٠١٢٣٤٥٦٧٨٩",
   arabext: "۰۱۲۳۴۵۶۷۸۹",
   bali: "\u1B50\u1B51\u1B52\u1B53\u1B54\u1B55\u1B56\u1B57\u1B58\u1B59",
   beng: "০১২৩৪৫৬৭৮৯",
+  bhks: "𑱐𑱑𑱒𑱓𑱔𑱕𑱖𑱗𑱘𑱙",
+  brah: "𑁦𑁧𑁨𑁩𑁪𑁫𑁬𑁭𑁮𑁯",
+  cakm: "𑄶𑄷𑄸𑄹𑄺𑄻𑄼𑄽𑄾𑄿",
+  cham: "꩐꩑꩒꩓꩔꩕꩖꩗꩘꩙",
   deva: "०१२३४५६७८९",
+  diak: "𑥐𑥑𑥒𑥓𑥔𑥕𑥖𑥗𑥘𑥙",
   fullwide: "０１２３４５６７８９",
+  gong: "𑶠𑶡𑶢𑶣𑶤𑶥𑶦𑶧𑶨𑶩",
+  gonm: "𑵐𑵑𑵒𑵓𑵔𑵕𑵖𑵗𑵘𑵙",
   gujr: "૦૧૨૩૪૫૬૭૮૯",
   guru: "੦੧੨੩੪੫੬੭੮੯",
   hanidec: "〇一二三四五六七八九",
+  hmng: "𖭐𖭑𖭒𖭓𖭔𖭕𖭖𖭗𖭘𖭙",
+  hmnp: "𞅀𞅁𞅂𞅃𞅄𞅅𞅆𞅇𞅈𞅉",
+  java: "꧐꧑꧒꧓꧔꧕꧖꧗꧘꧙",
+  kali: "꤀꤁꤂꤃꤄꤅꤆꤇꤈꤉",
+  kawi: "\u{11F50}\u{11F51}\u{11F52}\u{11F53}\u{11F54}\u{11F55}\u{11F56}\u{11F57}\u{11F58}\u{11F59}",
   khmr: "០១២៣៤៥៦៧៨៩",
   knda: "೦೧೨೩೪೫೬೭೮೯",
+  lana: "᪀᪁᪂᪃᪄᪅᪆᪇᪈᪉",
+  lanatham: "᪐᪑᪒᪓᪔᪕᪖᪗᪘᪙",
   laoo: "໐໑໒໓໔໕໖໗໘໙",
   latn: "0123456789",
+  lepc: "᱀᱁᱂᱃᱄᱅᱆᱇᱈᱉",
   limb: "\u1946\u1947\u1948\u1949\u194A\u194B\u194C\u194D\u194E\u194F",
+  nagm: "\u{1E4F0}\u{1E4F1}\u{1E4F2}\u{1E4F3}\u{1E4F4}\u{1E4F5}\u{1E4F6}\u{1E4F7}\u{1E4F8}\u{1E4F9}",
+  mathbold: "𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗",
+  mathdbl: "𝟘𝟙𝟚𝟛𝟜𝟝𝟞𝟟𝟠𝟡",
+  mathmono: "𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿",
+  mathsanb: "𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵",
+  mathsans: "𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫",
   mlym: "൦൧൨൩൪൫൬൭൮൯",
+  modi: "𑙐𑙑𑙒𑙓𑙔𑙕𑙖𑙗𑙘𑙙",
   mong: "᠐᠑᠒᠓᠔᠕᠖᠗᠘᠙",
+  mroo: "𖩠𖩡𖩢𖩣𖩤𖩥𖩦𖩧𖩨𖩩",
+  mtei: "꯰꯱꯲꯳꯴꯵꯶꯷꯸꯹",
   mymr: "၀၁၂၃၄၅၆၇၈၉",
+  mymrshan: "႐႑႒႓႔႕႖႗႘႙",
+  mymrtlng: "꧰꧱꧲꧳꧴꧵꧶꧷꧸꧹",
+  newa: "𑑐𑑑𑑒𑑓𑑔𑑕𑑖𑑗𑑘𑑙",
+  nkoo: "߀߁߂߃߄߅߆߇߈߉",
+  olck: "᱐᱑᱒᱓᱔᱕᱖᱗᱘᱙",
   orya: "୦୧୨୩୪୫୬୭୮୯",
+  osma: "𐒠𐒡𐒢𐒣𐒤𐒥𐒦𐒧𐒨𐒩",
+  rohg: "𐴰𐴱𐴲𐴳𐴴𐴵𐴶𐴷𐴸𐴹",
+  saur: "꣐꣑꣒꣓꣔꣕꣖꣗꣘꣙",
+  segment: "🯰🯱🯲🯳🯴🯵🯶🯷🯸🯹",
+  shrd: "𑇐𑇑𑇒𑇓𑇔𑇕𑇖𑇗𑇘𑇙",
+  sind: "𑋰𑋱𑋲𑋳𑋴𑋵𑋶𑋷𑋸𑋹",
+  sinh: "෦෧෨෩෪෫෬෭෮෯",
+  sora: "𑃰𑃱𑃲𑃳𑃴𑃵𑃶𑃷𑃸𑃹",
+  sund: "᮰᮱᮲᮳᮴᮵᮶᮷᮸᮹",
+  takr: "𑛀𑛁𑛂𑛃𑛄𑛅𑛆𑛇𑛈𑛉",
+  talu: "᧐᧑᧒᧓᧔᧕᧖᧗᧘᧙",
   tamldec: "௦௧௨௩௪௫௬௭௮௯",
+  tnsa: "\u{16AC0}\u{16AC1}\u{16AC2}\u{16AC3}\u{16AC4}\u{16AC5}\u{16AC6}\u{16AC7}\u{16AC8}\u{16AC9}",
   telu: "౦౧౨౩౪౫౬౭౮౯",
   thai: "๐๑๒๓๔๕๖๗๘๙",
-  tibt: "༠༡༢༣༤༥༦༧༨༩"
+  tibt: "༠༡༢༣༤༥༦༧༨༩",
+  tirh: "𑓐𑓑𑓒𑓓𑓔𑓕𑓖𑓗𑓘𑓙",
+  vaii: "꘠꘡꘢꘣꘤꘥꘦꘧꘨꘩",
+  wara: "𑣠𑣡𑣢𑣣𑣤𑣥𑣦𑣧𑣨𑣩",
+  wcho: "𞋰𞋱𞋲𞋳𞋴𞋵𞋶𞋷𞋸𞋹",
 };
+
+
+/**
+ * Returns an array of all simple, sanctioned unit identifiers.
+ */
+function allSimpleSanctionedUnits() {
+  // https://tc39.es/ecma402/#table-sanctioned-simple-unit-identifiers
+  return [
+    "acre",
+    "bit",
+    "byte",
+    "celsius",
+    "centimeter",
+    "day",
+    "degree",
+    "fahrenheit",
+    "fluid-ounce",
+    "foot",
+    "gallon",
+    "gigabit",
+    "gigabyte",
+    "gram",
+    "hectare",
+    "hour",
+    "inch",
+    "kilobit",
+    "kilobyte",
+    "kilogram",
+    "kilometer",
+    "liter",
+    "megabit",
+    "megabyte",
+    "meter",
+    "microsecond",
+    "mile",
+    "mile-scandinavian",
+    "milliliter",
+    "millimeter",
+    "millisecond",
+    "minute",
+    "month",
+    "nanosecond",
+    "ounce",
+    "percent",
+    "petabyte",
+    "pound",
+    "second",
+    "stone",
+    "terabit",
+    "terabyte",
+    "week",
+    "yard",
+    "year",
+  ];
+}
 
 
 /**
@@ -1705,7 +2376,7 @@ function testNumberFormat(locales, numberingSystems, options, testData) {
         var oneoneRE = "([^" + digits + "]*)[" + digits + "]+([^" + digits + "]+)[" + digits + "]+([^" + digits + "]*)";
         var match = formatted.match(new RegExp(oneoneRE));
         if (match === null) {
-          $ERROR("Unexpected formatted " + n + " for " +
+          throw new Test262Error("Unexpected formatted " + n + " for " +
             format.resolvedOptions().locale + " and options " +
             JSON.stringify(options) + ": " + formatted);
         }
@@ -1748,7 +2419,7 @@ function testNumberFormat(locales, numberingSystems, options, testData) {
           var expected = buildExpected(rawExpected, patternParts);
           var actual = format.format(input);
           if (actual !== expected) {
-            $ERROR("Formatted value for " + input + ", " +
+            throw new Test262Error("Formatted value for " + input + ", " +
             format.resolvedOptions().locale + " and options " +
             JSON.stringify(options) + " is " + actual + "; expected " + expected + ".");
           }
@@ -1792,7 +2463,7 @@ function getDateTimeComponentValues(component) {
 
   var result = components[component];
   if (result === undefined) {
-    $ERROR("Internal error: No values defined for date-time component " + component + ".");
+    throw new Test262Error("Internal error: No values defined for date-time component " + component + ".");
   }
   return result;
 }
@@ -1832,4 +2503,260 @@ function isCanonicalizedStructurallyValidTimeZoneName(timeZone) {
     return false;
   }
   return zoneNamePattern.test(timeZone);
+}
+
+
+/**
+ * @description Simplified PartitionDurationFormatPattern implementation which
+ * only supports the "en" locale.
+ * @param {Object} durationFormat the duration format object
+ * @param {Object} duration the duration record
+ * @result {Array} an array with formatted duration parts
+ */
+
+function partitionDurationFormatPattern(durationFormat, duration) {
+  function durationToFractional(duration, exponent) {
+    let {
+      seconds = 0,
+      milliseconds = 0,
+      microseconds = 0,
+      nanoseconds = 0,
+    } = duration;
+
+    // Directly return the duration amount when no sub-seconds are present.
+    switch (exponent) {
+      case 9: {
+        if (milliseconds === 0 && microseconds === 0 && nanoseconds === 0) {
+          return seconds;
+        }
+        break;
+      }
+      case 6: {
+        if (microseconds === 0 && nanoseconds === 0) {
+          return milliseconds;
+        }
+        break;
+      }
+      case 3: {
+        if (nanoseconds === 0) {
+          return microseconds;
+        }
+        break;
+      }
+    }
+
+    // Otherwise compute the overall amount of nanoseconds using BigInt to avoid
+    // loss of precision.
+    let ns = BigInt(nanoseconds);
+    switch (exponent) {
+      case 9:
+        ns += BigInt(seconds) * 1_000_000_000n;
+        // fallthrough
+      case 6:
+        ns += BigInt(milliseconds) * 1_000_000n;
+        // fallthrough
+      case 3:
+        ns += BigInt(microseconds) * 1_000n;
+        // fallthrough
+    }
+
+    let e = BigInt(10 ** exponent);
+
+    // Split the nanoseconds amount into an integer and its fractional part.
+    let q = ns / e;
+    let r = ns % e;
+
+    // Pad fractional part, without any leading negative sign, to |exponent| digits.
+    if (r < 0) {
+      r = -r;
+    }
+    r = String(r).padStart(exponent, "0");
+
+    // Return the result as a decimal string.
+    return `${q}.${r}`;
+  }
+
+  const units = [
+    "years",
+    "months",
+    "weeks",
+    "days",
+    "hours",
+    "minutes",
+    "seconds",
+    "milliseconds",
+    "microseconds",
+    "nanoseconds",
+  ];
+
+  let options = durationFormat.resolvedOptions();
+
+  // Only "en" is supported.
+  const locale = "en";
+  const numberingSystem = "latn";
+  const timeSeparator = ":";
+
+  let result = [];
+  let needSeparator = false;
+  let displayNegativeSign = true;
+
+  for (let unit of units) {
+    // Absent units default to zero.
+    let value = duration[unit] ?? 0;
+
+    let style = options[unit];
+    let display = options[unit + "Display"];
+
+    // NumberFormat requires singular unit names.
+    let numberFormatUnit = unit.slice(0, -1);
+
+    // Compute the matching NumberFormat options.
+    let nfOpts = Object.create(null);
+
+    // Numeric seconds and sub-seconds are combined into a single value.
+    let done = false;
+    if (unit === "seconds" || unit === "milliseconds" || unit === "microseconds") {
+      let nextStyle = options[units[units.indexOf(unit) + 1]];
+      if (nextStyle === "numeric") {
+        if (unit === "seconds") {
+          value = durationToFractional(duration, 9);
+        } else if (unit === "milliseconds") {
+          value = durationToFractional(duration, 6);
+        } else {
+          value = durationToFractional(duration, 3);
+        }
+
+        nfOpts.maximumFractionDigits = options.fractionalDigits ?? 9;
+        nfOpts.minimumFractionDigits = options.fractionalDigits ?? 0;
+        nfOpts.roundingMode = "trunc";
+
+        done = true;
+      }
+    }
+
+    // Display zero numeric minutes when seconds will be displayed.
+    let displayRequired = false;
+    if (unit === "minutes" && needSeparator) {
+      displayRequired = options.secondsDisplay === "always" ||
+                        (duration.seconds ?? 0) !== 0 ||
+                        (duration.milliseconds ?? 0) !== 0 ||
+                        (duration.microseconds ?? 0) !== 0 ||
+                        (duration.nanoseconds ?? 0) !== 0;
+    }
+
+    // "auto" display omits zero units.
+    if (value !== 0 || display !== "auto" || displayRequired) {
+      // Display only the first negative value.
+      if (displayNegativeSign) {
+        displayNegativeSign = false;
+
+        // Set to negative zero to ensure the sign is displayed.
+        if (value === 0) {
+          let negative = units.some(unit => (duration[unit] ?? 0) < 0);
+          if (negative) {
+            value = -0;
+          }
+        }
+      } else {
+        nfOpts.signDisplay = "never";
+      }
+
+      nfOpts.numberingSystem = options.numberingSystem;
+
+      // If the value is formatted as a 2-digit numeric value.
+      if (style === "2-digit") {
+        nfOpts.minimumIntegerDigits = 2;
+      }
+
+      // If the value is formatted as a standalone unit.
+      if (style !== "numeric" && style !== "2-digit") {
+        nfOpts.style = "unit";
+        nfOpts.unit = numberFormatUnit;
+        nfOpts.unitDisplay = style;
+      } else {
+        nfOpts.useGrouping = false;
+      }
+
+      let nf = new Intl.NumberFormat(locale, nfOpts);
+
+      let list;
+      if (!needSeparator) {
+        list = [];
+      } else {
+        list = result[result.length - 1];
+
+        // Prepend the time separator before the formatted number.
+        list.push({
+          type: "literal",
+          value: timeSeparator,
+        });
+      }
+
+      // Format the numeric value.
+      let parts = nf.formatToParts(value);
+
+      // Add |numberFormatUnit| to the formatted number.
+      for (let {value, type} of parts) {
+        list.push({type, value, unit: numberFormatUnit});
+      }
+
+      if (!needSeparator) {
+        // Prepend the separator before the next numeric unit.
+        if (style === "2-digit" || style === "numeric") {
+          needSeparator = true;
+        }
+
+        // Append the formatted number to |result|.
+        result.push(list);
+      }
+    }
+
+    if (done) {
+      break;
+    }
+  }
+
+  let listStyle = options.style;
+  if (listStyle === "digital") {
+    listStyle = "short";
+  }
+
+  let lf = new Intl.ListFormat(locale, {
+    type: "unit",
+    style: listStyle,
+  });
+
+  // Collect all formatted units into a list of strings.
+  let strings = [];
+  for (let parts of result) {
+    let string = "";
+    for (let {value} of parts) {
+      string += value;
+    }
+    strings.push(string);
+  }
+
+  // Format the list of strings and compute the overall result.
+  let flattened = [];
+  for (let {type, value} of lf.formatToParts(strings)) {
+    if (type === "element") {
+      flattened.push(...result.shift());
+    } else {
+      flattened.push({type, value});
+    }
+  }
+  return flattened;
+}
+
+
+/**
+ * @description Return the formatted string from partitionDurationFormatPattern.
+ * @param {Object} durationFormat the duration format object
+ * @param {Object} duration the duration record
+ * @result {String} a string containing the formatted duration
+ */
+
+function formatDurationFormatPattern(durationFormat, duration) {
+  let parts = partitionDurationFormatPattern(durationFormat, duration);
+  return parts.reduce((acc, e) => acc + e.value, "");
 }

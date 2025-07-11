@@ -1125,6 +1125,198 @@ static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisVal
     return Object::createArrayFromList(state, ll);
 }
 
+static ValueVector availableCalendars()
+{
+    ValueVector resultVector;
+
+    auto ns = Intl::calendarsForLocale(String::emptyString());
+
+    for (const auto& s : ns) {
+        resultVector.pushBack(String::fromUTF8(s.data(), s.length()));
+    }
+    return resultVector;
+}
+
+static ValueVector availableCollation()
+{
+    ValueVector resultVector;
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UEnumeration> collation(
+        ucol_getKeywordValues("collation", &status),
+        [](UEnumeration* fmt) { uenum_close(fmt); });
+
+    if (!U_SUCCESS(status)) {
+        return {};
+    }
+
+    const char* buffer;
+    int32_t bufferLength = 0;
+    while ((buffer = uenum_next(collation.get(), &bufferLength, &status)) && U_SUCCESS(status)) {
+        std::string co(uloc_toUnicodeLocaleType("co", buffer));
+        if (co == "search") {
+            continue;
+        }
+        if (co == "standard") {
+            continue;
+        }
+        resultVector.pushBack(String::fromUTF8(co.data(), co.size()));
+    }
+
+    if (!U_SUCCESS(status)) {
+        return {};
+    }
+
+    return resultVector;
+}
+
+static ValueVector availableCurrency()
+{
+    ValueVector resultVector;
+    UErrorCode status = U_ZERO_ERROR;
+
+    LocalResourcePointer<UEnumeration> curr(
+        ucurr_getKeywordValuesForLocale("currency", "", false, &status),
+        [](UEnumeration* fmt) { uenum_close(fmt); });
+
+    if (!U_SUCCESS(status)) {
+        return {};
+    }
+
+    const char* buffer;
+    int32_t bufferLength = 0;
+    while ((buffer = uenum_next(curr.get(), &bufferLength, &status)) && U_SUCCESS(status)) {
+        resultVector.pushBack(String::fromUTF8(buffer, bufferLength));
+    }
+
+    if (!U_SUCCESS(status)) {
+        return {};
+    }
+
+    return resultVector;
+}
+
+static ValueVector availableNumberingSystem()
+{
+    ValueVector resultVector;
+    auto ns = Intl::numberingSystemsForLocale(String::emptyString());
+
+    for (const auto& s : ns) {
+        resultVector.pushBack(String::fromUTF8(s.data(), s.length()));
+    }
+
+    return resultVector;
+}
+
+static ValueVector availableTimeZone()
+{
+    // 1. Let records be AvailableNamedTimeZoneIdentifiers().
+    // 2. Let result be a new empty List.
+    // 3. For each element timeZoneIdentifierRecord of records, do
+    //   a. If timeZoneIdentifierRecord.[[Identifier]] is timeZoneIdentifierRecord.[[PrimaryIdentifier]], then
+    //     i. Append timeZoneIdentifierRecord.[[Identifier]] to result.
+    // 4. Return result.
+    ValueVector resultVector;
+    UErrorCode status = U_ZERO_ERROR;
+
+    LocalResourcePointer<UEnumeration> tzs(ucal_openTimeZoneIDEnumeration(UCAL_ZONE_TYPE_CANONICAL_LOCATION, nullptr, nullptr, &status),
+                                           [](UEnumeration* fmt) { uenum_close(fmt); });
+
+    if (!U_SUCCESS(status)) {
+        return {};
+    }
+
+    const char* buffer;
+    int32_t bufferLength = 0;
+    while ((buffer = uenum_next(tzs.get(), &bufferLength, &status)) && U_SUCCESS(status)) {
+        std::string id(buffer, bufferLength);
+        if (id == "UTC" || (id.find("Etc/GMT") != std::string::npos)) {
+            continue;
+        }
+        resultVector.pushBack(String::fromUTF8(buffer, bufferLength));
+    }
+
+    resultVector.pushBack(String::fromASCII("UTC"));
+
+    for (int i = 1; i <= 12; i++) {
+        std::string s;
+        s += "Etc/GMT+" + std::to_string(i);
+        resultVector.pushBack(String::fromASCII(s.data(), s.length()));
+        s = "";
+        s += "Etc/GMT-" + std::to_string(i);
+        resultVector.pushBack(String::fromASCII(s.data(), s.length()));
+    }
+
+    resultVector.pushBack(String::fromASCII("Etc/GMT-13"));
+    resultVector.pushBack(String::fromASCII("Etc/GMT-14"));
+
+    if (!U_SUCCESS(status)) {
+        return {};
+    }
+    return resultVector;
+}
+
+static ValueVector availableUnit()
+{
+    // ecma402 #sec-issanctionedsimpleunitidentifier
+    ValueVector resultVector;
+    std::array<const char*, 45> data = {
+        "acre", "bit", "byte", "celsius",
+        "centimeter", "day", "degree", "fahrenheit",
+        "fluid-ounce", "foot", "gallon", "gigabit",
+        "gigabyte", "gram", "hectare", "hour",
+        "inch", "kilobit", "kilobyte", "kilogram",
+        "kilometer", "liter", "megabit", "megabyte",
+        "meter", "microsecond", "mile", "mile-scandinavian",
+        "millimeter", "milliliter", "millisecond", "minute",
+        "month", "nanosecond", "ounce", "percent",
+        "petabyte", "pound", "second", "stone",
+        "terabit", "terabyte", "week", "yard",
+        "year"
+    };
+    for (size_t i = 0; i < data.size(); i++) {
+        resultVector.pushBack(String::fromASCII(data[i], strlen(data[i])));
+    }
+    return resultVector;
+}
+
+
+// https://402.ecma-international.org/12.0/index.html#sec-intl.supportedvaluesof
+static Value builtinIntlSupportedValuesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let key be ? ToString(key).
+    String* key = argv[0].toString(state);
+    ValueVector resultVector;
+    // If key is "calendar", then
+    if (key->equals("calendar")) {
+        resultVector = availableCalendars();
+    } else if (key->equals("collation")) {
+        // Else if key is "collation", then
+        resultVector = availableCollation();
+    } else if (key->equals("currency")) {
+        // Else if key is "currency", then
+        resultVector = availableCurrency();
+    } else if (key->equals("numberingSystem")) {
+        // Else if key is "numberingSystem", then
+        resultVector = availableNumberingSystem();
+    } else if (key->equals("timeZone")) {
+        // Else if key is "timeZone", then
+        resultVector = availableTimeZone();
+    } else if (key->equals("unit")) {
+        // Else if key is "unit", then
+        resultVector = availableUnit();
+    } else {
+        // Throw a RangeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid key");
+    }
+
+    ArrayObject* arr = Object::createArrayFromList(state, resultVector);
+    arr->sort(state, arr->length(state), [](const Value& a, const Value& b) -> bool {
+        return *a.asString() < *b.asString();
+    });
+
+    return arr;
+}
+
 void GlobalObject::initializeIntl(ExecutionState& state)
 {
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
@@ -1457,6 +1649,10 @@ void GlobalObject::installIntl(ExecutionState& state)
     FunctionObject* getCanonicalLocales = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCanonicalLocales, builtinIntlGetCanonicalLocales, 1, NativeFunctionInfo::Strict));
     m_intl->directDefineOwnProperty(state, ObjectPropertyName(strings->getCanonicalLocales),
                                     ObjectPropertyDescriptor(getCanonicalLocales, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_intl->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySupportedValuesOf()),
+                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySupportedValuesOf(), builtinIntlSupportedValuesOf, 1, NativeFunctionInfo::Strict)),
+                                                             (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 
 #else
