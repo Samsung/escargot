@@ -2929,6 +2929,71 @@ TEST(WeakPtr, Basic)
     instance.release();
 }
 
+TEST(WeakPtr, WeakSet)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+
+    PersistentRefHolder<ValueRef> weakTarget = SymbolRef::create(StringRef::createFromUTF8("asdf"));
+    Evaluator::execute(context.get(), [](ExecutionStateRef* state, ValueRef* s) -> ValueRef* {
+        auto ws = WeakSetObjectRef::create(state);
+        EXPECT_TRUE(ws->add(state, s));
+        return ws; }, weakTarget.get());
+
+    // clear stack
+    Evaluator::execute(context.get(), [](ExecutionStateRef* state, StringRef* s) -> ValueRef* { return ValueRef::create(100); }, StringRef::createFromUTF8("qwer"));
+
+    weakTarget.setWeak();
+
+    for (size_t i = 0; i < 100; i++) {
+        PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
+    }
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+
+    EXPECT_TRUE(weakTarget.get() == nullptr);
+
+    context.release();
+    instance.release();
+}
+
+TEST(WeakPtr, WeakMap)
+{
+    PersistentRefHolder<VMInstanceRef> instance = VMInstanceRef::create();
+    PersistentRefHolder<ContextRef> context = createEscargotContext(instance.get());
+
+    PersistentRefHolder<ValueRef> weakTarget = SymbolRef::create(StringRef::createFromUTF8("asdf"));
+    PersistentRefHolder<ValueRef> weakTargetValue = SymbolRef::create(StringRef::createFromUTF8("asdf"));
+    Evaluator::execute(context.get(), [](ExecutionStateRef* state, ValueRef* s, ValueRef* s2) -> ValueRef* {
+        auto ws = WeakMapObjectRef::create(state);
+        ws->set(state, s, s2);
+        return ws; }, weakTarget.get(), weakTargetValue.get());
+
+    // clear stack
+    Evaluator::execute(context.get(), [](ExecutionStateRef* state, StringRef* s, StringRef* s2) -> ValueRef* { return ValueRef::create(100); }, StringRef::createFromUTF8("qwer"), StringRef::createFromUTF8("qwer"));
+
+    weakTarget.setWeak();
+    weakTargetValue.setWeak();
+
+    for (size_t i = 0; i < 100; i++) {
+        PersistentRefHolder<StringRef> dummy = StringRef::createFromUTF8("asdf");
+    }
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+    Memory::gc();
+
+    EXPECT_TRUE(weakTarget.get() == nullptr);
+    EXPECT_TRUE(weakTargetValue.get() == nullptr);
+
+    context.release();
+    instance.release();
+}
+
 static void finalizerTester(void* obj, void* data)
 {
     (*((size_t*)data))++;
