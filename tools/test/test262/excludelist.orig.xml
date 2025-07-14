@@ -5043,9 +5043,6 @@
     <test id="intl402/NumberFormat/prototype/format/signDisplay-negative-ja-JP"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/format/signDisplay-negative-ko-KR"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/format/signDisplay-negative-zh-TW"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/format/useGrouping-extended-de-DE"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/format/useGrouping-extended-en-IN"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/format/useGrouping-extended-en-US"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/format/value-decimal-string"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/formatRange/builtin"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/formatRange/en-US"><reason>TODO</reason></test>
@@ -5075,14 +5072,11 @@
     <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-ja-JP"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-ko-KR"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/formatToParts/signDisplay-negative-zh-TW"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/resolvedOptions/basic"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/resolvedOptions/roundingMode"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/toStringTag/configurable"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/toStringTag/prop-desc"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/test-option-roundingPriority"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/test-option-roundingPriority-mixed-options"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/test-option-useGrouping"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/test-option-useGrouping-extended"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/throws-for-maximumFractionDigits-over-limit"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/throws-for-minimumFractionDigits-over-limit"><reason>TODO</reason></test>
     <test id="intl402/PluralRules/constructor-option-read-order"><reason>TODO</reason></test>
