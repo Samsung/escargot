@@ -574,10 +574,45 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyCompactDisplay()), compactDisplay, numberFormat->internalSlot());
     }
 
-    // Let useGrouping be ? GetOption(options, "useGrouping", "boolean", undefined, true).
-    Value useGrouping = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyUseGrouping().string(), Intl::BooleanValue, nullptr, 0, Value(true));
+    // Let defaultUseGrouping be "auto".
+    Value defaultUseGrouping = state.context()->staticStrings().lazyAuto().string();
+    // If notation is "compact", then
+    if (notation.asString()->equals("compact")) {
+        // Set numberFormat.[[CompactDisplay]] to compactDisplay.
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyCompactDisplay()), compactDisplay, numberFormat->internalSlot());
+        // Set defaultUseGrouping to "min2".
+        defaultUseGrouping = new ASCIIStringFromExternalMemory("min2");
+    }
+
+    // NOTE: For historical reasons, the strings "true" and "false" are accepted and replaced with the default value.
+    // Let useGrouping be ? GetBooleanOrStringNumberFormatOption(options, "useGrouping", « "min2", "auto", "always", "true", "false" », defaultUseGrouping).
+    Value useGrouping = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyUseGrouping())).value(state, options);
+
+    // GetBooleanOrStringNumberFormatOption
+    if (useGrouping.isUndefined()) {
+        useGrouping = defaultUseGrouping;
+    } else if (useGrouping.isBoolean() && useGrouping.asBoolean()) {
+        useGrouping = Value(true);
+    } else if (!useGrouping.toBoolean()) {
+        useGrouping = Value(false);
+    } else {
+        useGrouping = useGrouping.toString(state);
+        if (!useGrouping.asString()->equals("min2") && !useGrouping.asString()->equals("auto") && !useGrouping.asString()->equals("always") && !useGrouping.asString()->equals("true") && !useGrouping.asString()->equals("false")) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid useGrouping value");
+        }
+    }
+
+    // If useGrouping is "true" or useGrouping is "false", set useGrouping to defaultUseGrouping.
+    if (useGrouping.isString() && (useGrouping.asString()->equals("true") || useGrouping.asString()->equals("false"))) {
+        useGrouping = defaultUseGrouping;
+    }
+    // If useGrouping is true, set useGrouping to "always".
+    if (useGrouping.isBoolean() && useGrouping.asBoolean()) {
+        useGrouping = state.context()->staticStrings().lazyAlways().string();
+    }
     // Set numberFormat.[[UseGrouping]] to useGrouping.
     numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyUseGrouping()), useGrouping, numberFormat->internalSlot());
+    ASSERT((useGrouping.isBoolean() && !useGrouping.asBoolean()) || useGrouping.isString());
 
     // Let signDisplay be ? GetOption(options, "signDisplay", "string", « "auto", "never", "always", "exceptZero" », "auto").
     Value signDisplayValue[4] = { state.context()->staticStrings().lazyAuto().string(), state.context()->staticStrings().lazyNever().string(), state.context()->staticStrings().lazyAlways().string(), state.context()->staticStrings().lazyExceptZero().string() };
@@ -719,8 +754,16 @@ void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, Object* n
         skeleton += ' ';
     }
 
-    if (!useGrouping.asBoolean()) {
+    if ((useGrouping.isBoolean() && !useGrouping.asBoolean()) || useGrouping.asString()->equals("")) {
         skeleton += u"group-off ";
+    } else if (useGrouping.asString()->equals("min2")) {
+        skeleton += u"group-min2 ";
+    } else if (useGrouping.asString()->equals("auto")) {
+        skeleton += u"group-auto ";
+    } else if (useGrouping.asString()->equals("always")) {
+        skeleton += u"group-on-aligned ";
+    } else {
+        ASSERT_NOT_REACHED();
     }
 
     String* notationString = notation.asString();
