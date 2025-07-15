@@ -326,11 +326,19 @@ static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValu
     Object* numberFormat = callee->asObject();
 
     UTF16StringDataNonGCStd result;
-    auto numeric = argv[0].toNumeric(state);
-    if (numeric.second) {
-        result = IntlNumberFormat::format(state, numberFormat, numeric.first.asBigInt()->toString());
+    if (argv[0].isNumber()) {
+        result = IntlNumberFormat::format(state, numberFormat, argv[0].asNumber());
+    } else if (argv[0].isString() && argv[0].asString()->isAllSpecialCharacters([](char c) -> bool {
+                   return c == '.' || c == '-' || isdigit(c);
+               })) {
+        result = IntlNumberFormat::format(state, numberFormat, argv[0].asString());
     } else {
-        result = IntlNumberFormat::format(state, numberFormat, numeric.first.asNumber());
+        auto numeric = argv[0].toNumeric(state);
+        if (numeric.second) {
+            result = IntlNumberFormat::format(state, numberFormat, numeric.first.asBigInt()->toString());
+        } else {
+            result = IntlNumberFormat::format(state, numberFormat, numeric.first.asNumber());
+        }
     }
 
     return new UTF16String(result.data(), result.length());
@@ -409,6 +417,11 @@ static Value builtinIntlNumberFormatResolvedOptions(ExecutionState& state, Value
     setFormatOpt(state, internalSlot, result, String::fromASCII("notation"));
     setFormatOpt(state, internalSlot, result, String::fromASCII("compactDisplay"));
     setFormatOpt(state, internalSlot, result, String::fromASCII("signDisplay"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("roundingIncrement"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("roundingMode"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("roundingPriority"));
+    setFormatOpt(state, internalSlot, result, String::fromASCII("trailingZeroDisplay"));
+
     return result;
 }
 

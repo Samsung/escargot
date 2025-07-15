@@ -23,6 +23,7 @@
 #define __EscargotIntlNumberFormat__
 
 #include "runtime/Object.h"
+#include "intl/Intl.h"
 
 namespace Escargot {
 
@@ -35,7 +36,8 @@ public:
     static ArrayObject* formatToParts(ExecutionState& state, Object* numberFormat, double x);
 
 private:
-    static void initNumberFormatSkeleton(ExecutionState& state, Object* numberFormat, const Value& style, const Value& currency, const Value& currencyDisplay, const Value& currencySign, const Value& unit, const Value& unitDisplay, const Value& compactDisplay, const Value& signDisplay, const Value& useGrouping, const Value& notation, UTF16StringDataNonGCStd& skeleton);
+    static void initNumberFormatSkeleton(ExecutionState& state, const Intl::SetNumberFormatDigitOptionsResult& formatResult,
+                                         const Value& style, const Value& currency, const Value& currencyDisplay, const Value& currencySign, const Value& unit, const Value& unitDisplay, const Value& compactDisplay, const Value& signDisplay, const Value& useGrouping, const Value& notation, UTF16StringDataNonGCStd& skeleton);
 };
 
 } // namespace Escargot

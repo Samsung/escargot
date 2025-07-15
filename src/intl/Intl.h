@@ -87,6 +87,38 @@ public:
     static void convertICUNumberFieldToEcmaNumberField(std::vector<NumberFieldItem>& fields, double x, const UTF16StringDataNonGCStd& resultString);
     static String* icuNumberFieldToString(ExecutionState& state, int32_t fieldName, double d);
 
+    enum class RoundingType {
+        MorePrecision,
+        LessPrecision,
+        SignificantDigits,
+        FractionDigits,
+    };
+
+    enum class RoundingPriority {
+        Auto,
+        LessPrecision,
+        MorePrecision
+    };
+    struct SetNumberFormatDigitOptionsResult {
+        Value minimumIntegerDigits;
+        double roundingIncrement;
+        Value roundingMode;
+        Value trailingZeroDisplay;
+        Value minimumSignificantDigits;
+        Value maximumSignificantDigits;
+        Value minimumFractionDigits;
+        Value maximumFractionDigits;
+        RoundingType roundingType;
+        RoundingPriority computedRoundingPriority;
+    };
+    // https://402.ecma-international.org/12.0/index.html#sec-setnumberformatdigitoptions
+    static SetNumberFormatDigitOptionsResult setNumberFormatDigitOptions(ExecutionState& state, Object* options,
+                                                                         double mnfdDefault, double mxfdDefault, String* notation);
+
+    // https://tc39.es/ecma402/#sec-defaultnumberoption
+    static Value defaultNumberOption(ExecutionState& state, Value value, double minimum, double maximum, double fallback);
+    static Value defaultNumberOption(ExecutionState& state, Value value, double minimum, double maximum, Value fallback);
+
 #define INTL_ICU_STRING_BUFFER_OPERATION(icuFnName, ...)                                                     \
     ([&]() -> std::pair<UErrorCode, UTF16StringDataNonGCStd> {                                               \
         UTF16StringDataNonGCStd output;                                                                      \

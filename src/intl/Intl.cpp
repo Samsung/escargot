@@ -2570,6 +2570,242 @@ String* Intl::icuNumberFieldToString(ExecutionState& state, int32_t fieldName, d
     }
 }
 
+Value Intl::defaultNumberOption(ExecutionState& state, Value value, double minimum, double maximum, double fallback)
+{
+    // If value is not undefined, then
+    if (!value.isUndefined()) {
+        // Let value be ToNumber(value).
+        double doubleValue = value.toNumber(state);
+        // If value is NaN or less than minimum or greater than maximum, throw a RangeError exception.
+        if (std::isnan(doubleValue) || doubleValue < minimum || maximum < doubleValue) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Got invalid number option value");
+        }
+        // Return floor(value).
+        return Value(Value::DoubleToIntConvertibleTestNeeds, floor(doubleValue));
+    } else {
+        // Else, return fallback.
+        return Value(Value::DoubleToIntConvertibleTestNeeds, fallback);
+    }
+}
+
+Value Intl::defaultNumberOption(ExecutionState& state, Value value, double minimum, double maximum, Value fallback)
+{
+    // If value is not undefined, then
+    if (!value.isUndefined()) {
+        // Let value be ToNumber(value).
+        double doubleValue = value.toNumber(state);
+        // If value is NaN or less than minimum or greater than maximum, throw a RangeError exception.
+        if (std::isnan(doubleValue) || doubleValue < minimum || maximum < doubleValue) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Got invalid number option value");
+        }
+        // Return floor(value).
+        return Value(Value::DoubleToIntConvertibleTestNeeds, floor(doubleValue));
+    } else {
+        // Else, return fallback.
+        return fallback;
+    }
+}
+
+Intl::SetNumberFormatDigitOptionsResult Intl::setNumberFormatDigitOptions(ExecutionState& state, Object* options,
+                                                                          double mnfdDefault, double mxfdDefault, String* notation)
+{
+    Intl::SetNumberFormatDigitOptionsResult result;
+
+    // Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21, 1).
+    double mnid = Intl::getNumberOption(state, options, state.context()->staticStrings().lazyMinimumIntegerDigits().string(), 1, 21, 1);
+    // Let mnfd be ? Get(options, "minimumFractionDigits").
+    Value mnfd;
+    auto g = options->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()));
+    if (g.hasValue()) {
+        mnfd = g.value(state, options);
+    }
+    // Let mxfd be ? Get(options, "maximumFractionDigits").
+    Value mxfd;
+    g = options->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()));
+    if (g.hasValue()) {
+        mxfd = g.value(state, options);
+    }
+    // Let mnsd be ? Get(options, "minimumSignificantDigits").
+    Value mnsd;
+    g = options->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits()));
+    if (g.hasValue()) {
+        mnsd = g.value(state, options);
+    }
+    // Let mxsd be ? Get(options, "maximumSignificantDigits").
+    Value mxsd;
+    g = options->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits()));
+    if (g.hasValue()) {
+        mxsd = g.value(state, options);
+    }
+
+    // Set intlObj.[[MinimumIntegerDigits]] to mnid.
+    result.minimumIntegerDigits = Value(Value::DoubleToIntConvertibleTestNeeds, mnid);
+
+    // Let roundingIncrement be ? GetNumberOption(options, "roundingIncrement", 1, 5000, 1).
+    double roundingIncrement = Intl::getNumberOption(state, options, state.context()->staticStrings().lazyRoundingIncrement().string(), 1, 5000, 1);
+    // If roundingIncrement is not in « 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000 », throw a RangeError exception.
+    if (roundingIncrement != 1 && roundingIncrement != 2 && roundingIncrement != 5 && roundingIncrement != 10 && roundingIncrement != 20 && roundingIncrement != 25 && roundingIncrement != 50 && roundingIncrement != 100 && roundingIncrement != 200 && roundingIncrement != 250 && roundingIncrement != 500 && roundingIncrement != 1000 && roundingIncrement != 2000 && roundingIncrement != 2500 && roundingIncrement != 5000) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Got invalid roundingIncrement value");
+    }
+
+    // Let roundingMode be ? GetOption(options, "roundingMode", string, « "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand", "halfTrunc", "halfEven" », "halfExpand").
+    Value roundingModeValues[] = { state.context()->staticStrings().ceil.string(), state.context()->staticStrings().floor.string(),
+                                   state.context()->staticStrings().lazyExpand().string(), state.context()->staticStrings().trunc.string(),
+                                   state.context()->staticStrings().lazyHalfCeil().string(), state.context()->staticStrings().lazyHalfFloor().string(),
+                                   state.context()->staticStrings().lazyHalfExpand().string(), state.context()->staticStrings().lazyHalfTrunc().string(),
+                                   state.context()->staticStrings().lazyHalfEven().string() };
+    Value roundingMode = Intl::getOption(state, options, state.context()->staticStrings().lazyRoundingMode().string(), Intl::StringValue, roundingModeValues, 9, roundingModeValues[6]);
+    // Let roundingPriority be ? GetOption(options, "roundingPriority", string, « "auto", "morePrecision", "lessPrecision" », "auto").
+    Value roundingPriorityValues[] = { state.context()->staticStrings().lazyAuto().string(), state.context()->staticStrings().lazyMorePrecision().string(),
+                                       state.context()->staticStrings().lazyLessPrecision().string() };
+    Value roundingPriority = Intl::getOption(state, options, state.context()->staticStrings().lazyRoundingPriority().string(), Intl::StringValue, roundingPriorityValues, 3, roundingPriorityValues[0]);
+    // Let trailingZeroDisplay be ? GetOption(options, "trailingZeroDisplay", string, « "auto", "stripIfInteger" », "auto").
+    Value trailingZeroDisplayValues[] = { state.context()->staticStrings().lazyAuto().string(), state.context()->staticStrings().lazyStripIfInteger().string() };
+    Value trailingZeroDisplay = Intl::getOption(state, options, state.context()->staticStrings().lazyTrailingZeroDisplay().string(), Intl::StringValue, trailingZeroDisplayValues, 2, trailingZeroDisplayValues[0]);
+    // NOTE: All fields required by SetNumberFormatDigitOptions have now been read from options. The remainder of this AO interprets the options and may throw exceptions.
+    // If roundingIncrement is not 1, set mxfdDefault to mnfdDefault.
+    if (roundingIncrement != 1) {
+        mxfdDefault = mnfdDefault;
+    }
+    // Set intlObj.[[RoundingIncrement]] to roundingIncrement.
+    result.roundingIncrement = roundingIncrement;
+    // Set intlObj.[[RoundingMode]] to roundingMode.
+    result.roundingMode = roundingMode;
+    // Set intlObj.[[TrailingZeroDisplay]] to trailingZeroDisplay.
+    result.trailingZeroDisplay = trailingZeroDisplay;
+    // If mnsd is undefined and mxsd is undefined, let hasSd be false. Otherwise, let hasSd be true.
+    bool hasSd;
+    if (mnsd.isUndefined() && mxsd.isUndefined()) {
+        hasSd = false;
+    } else {
+        hasSd = true;
+    }
+    // NOTE: IMO mxsd is typo. mxfd is more reasonable
+    // If mnfd is undefined and mxsd is undefined, let hasFd be false. Otherwise, let hasFd be true.
+    bool hasFd;
+    if (mnfd.isUndefined() && mxfd.isUndefined()) {
+        hasFd = false;
+    } else {
+        hasFd = true;
+    }
+    // Let needSd be true.
+    bool needSd = true;
+    // Let needFd be true.
+    bool needFd = true;
+
+    // If roundingPriority is "auto", then
+    if (roundingPriority.asString()->equals("auto")) {
+        // a. Set needSd to hasSd.
+        needSd = hasSd;
+        // b. If needSd is true, or hasFd is false and notation is "compact", then
+        if (needSd || (!hasFd && notation->equals("compact"))) {
+            // i. Set needFd to false.
+            needFd = false;
+        }
+    }
+
+    // If needSd is true, then
+    if (needSd) {
+        // a. If hasSd is true, then
+        if (hasSd) {
+            // i. Set intlObj.[[MinimumSignificantDigits]] to ? DefaultNumberOption(mnsd, 1, 21, 1).
+            result.minimumSignificantDigits = Intl::defaultNumberOption(state, mnsd, 1, 21, 1);
+            // ii. Set intlObj.[[maximumSignificantDigits]] to ? DefaultNumberOption(mxsd, intlObj.[[MinimumSignificantDigits]], 21, 21).
+            result.maximumSignificantDigits = Intl::defaultNumberOption(state, mxsd, result.minimumSignificantDigits.asNumber(), 21, 21);
+        } else {
+            // Else,
+            // Set intlObj.[[MinimumSignificantDigits]] to 1.
+            result.minimumSignificantDigits = Value(1);
+            // Set intlObj.[[maximumSignificantDigits]] to 21.
+            result.maximumSignificantDigits = Value(21);
+        }
+    }
+    // If needFd is true, then
+    if (needFd) {
+        // If hasFd is true, then
+        if (hasFd) {
+            // Set mnfd to ? DefaultNumberOption(mnfd, 0, 100, undefined).
+            mnfd = Intl::defaultNumberOption(state, mnfd, 0, 100, Value());
+            // Set mxfd to ? DefaultNumberOption(mxfd, 0, 100, undefined).
+            mxfd = Intl::defaultNumberOption(state, mxfd, 0, 100, Value());
+            // If mnfd is undefined, set mnfd to min(mnfdDefault, mxfd).
+            if (mnfd.isUndefined()) {
+                mnfd = Value(Value::DoubleToIntConvertibleTestNeeds, std::min(mnfdDefault, mxfd.asNumber()));
+            } else if (mxfd.isUndefined()) {
+                // Else if mxfd is undefined, set mxfd to max(mxfdDefault, mnfd).
+                mxfd = Value(Value::DoubleToIntConvertibleTestNeeds, std::max(mxfdDefault, mnfd.asNumber()));
+            } else if (mnfd.asNumber() > mxfd.asNumber()) {
+                // Else if mnfd is greater than mxfd, throw a RangeError exception.
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Got invalid mnfd, mxfd value");
+            }
+            // Set intlObj.[[MinimumFractionDigits]] to mnfd.
+            result.minimumFractionDigits = mnfd;
+            // Set intlObj.[[MaximumFractionDigits]] to mxfd.
+            result.maximumFractionDigits = mxfd;
+        } else {
+            // Else,
+            // Set intlObj.[[MinimumFractionDigits]] to mnfdDefault.
+            result.minimumFractionDigits = Value(Value::DoubleToIntConvertibleTestNeeds, mnfdDefault);
+            // Set intlObj.[[MaximumFractionDigits]] to mxfdDefault.
+            result.maximumFractionDigits = Value(Value::DoubleToIntConvertibleTestNeeds, mxfdDefault);
+        }
+    }
+
+    // If needSd is false and needFd is false, then
+    if (!needSd && !needFd) {
+        // Set intlObj.[[MinimumFractionDigits]] to 0.
+        result.minimumFractionDigits = Value(0);
+        // Set intlObj.[[MaximumFractionDigits]] to 0.
+        result.maximumFractionDigits = Value(0);
+        // Set intlObj.[[MinimumSignificantDigits]] to 1.
+        result.minimumSignificantDigits = Value(1);
+        // Set intlObj.[[MaximumSignificantDigits]] to 2.
+        result.maximumSignificantDigits = Value(2);
+        // Set intlObj.[[RoundingType]] to more-precision.
+        result.roundingType = RoundingType::MorePrecision;
+        // Set intlObj.[[ComputedRoundingPriority]] to "morePrecision".
+        result.computedRoundingPriority = RoundingPriority::MorePrecision;
+    } else if (roundingPriority.asString()->equals("morePrecision")) {
+        // Else if roundingPriority is "morePrecision", then
+        // Set intlObj.[[RoundingType]] to more-precision.
+        result.roundingType = RoundingType::MorePrecision;
+        // Set intlObj.[[ComputedRoundingPriority]] to "morePrecision".
+        result.computedRoundingPriority = RoundingPriority::MorePrecision;
+    } else if (roundingPriority.asString()->equals("lessPrecision")) {
+        // Else if roundingPriority is "lessPrecision", then
+        // Set intlObj.[[RoundingType]] to less-precision.
+        result.roundingType = RoundingType::LessPrecision;
+        // Set intlObj.[[ComputedRoundingPriority]] to "lessPrecision".
+        result.computedRoundingPriority = RoundingPriority::LessPrecision;
+    } else if (hasSd) {
+        // Else if hasSd is true, then
+        // Set intlObj.[[RoundingType]] to significant-digits.
+        result.roundingType = RoundingType::SignificantDigits;
+        // Set intlObj.[[ComputedRoundingPriority]] to "auto".
+        result.computedRoundingPriority = RoundingPriority::Auto;
+    } else {
+        // Else,
+        // Set intlObj.[[RoundingType]] to fraction-digits.
+        result.roundingType = RoundingType::FractionDigits;
+        // Set intlObj.[[ComputedRoundingPriority]] to "auto".
+        result.computedRoundingPriority = RoundingPriority::Auto;
+    }
+
+    // If roundingIncrement is not 1, then
+    if (roundingIncrement != 1) {
+        // If intlObj.[[RoundingType]] is not fraction-digits, throw a TypeError exception.
+        if (result.roundingType != RoundingType::FractionDigits) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "If roundingIncrement is 1, roundingType should be `fraction-digits`");
+        }
+        // If intlObj.[[MaximumFractionDigits]] is not intlObj.[[MinimumFractionDigits]], throw a RangeError exception.
+        if (result.maximumFractionDigits != result.minimumFractionDigits) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "If roundingIncrement is 1, maximumFractionDigits and minimumFractionDigits should be same");
+        }
+    }
+
+    return result;
+}
+
 } // namespace Escargot
 
 #endif

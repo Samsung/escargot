@@ -125,25 +125,6 @@ static std::vector<std::string> localeDataNumberFormat(String* locale, size_t ke
     return Intl::numberingSystemsForLocale(locale);
 }
 
-static Value defaultNumberOption(ExecutionState& state, Value value, double minimum, double maximum, double fallback)
-{
-    // https://tc39.es/ecma402/#sec-defaultnumberoption
-    // If value is not undefined, then
-    if (!value.isUndefined()) {
-        // Let value be ToNumber(value).
-        double doubleValue = value.toNumber(state);
-        // If value is NaN or less than minimum or greater than maximum, throw a RangeError exception.
-        if (std::isnan(doubleValue) || doubleValue < minimum || maximum < doubleValue) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Got invalid number option value");
-        }
-        // Return floor(value).
-        return Value(Value::DoubleToIntConvertibleTestNeeds, floor(doubleValue));
-    } else {
-        // Else, return fallback.
-        return Value(Value::DoubleToIntConvertibleTestNeeds, fallback);
-    }
-}
-
 Object* IntlNumberFormat::create(ExecutionState& state, Context* realm, Value locales, Value options)
 {
     Object* numberFormat = new Object(state, realm->globalObject()->intlNumberFormatPrototype());
@@ -464,12 +445,19 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyUnitDisplay()), unitDisplay.asString(), numberFormat->internalSlot());
     }
 
+    // Let notation be ? GetOption(options, "notation", "string", « "standard", "scientific", "engineering", "compact" », "standard").
+    Value notationValues[4] = { state.context()->staticStrings().lazyStandard().string(), state.context()->staticStrings().lazyScientific().string(), state.context()->staticStrings().lazyEngineering().string(), state.context()->staticStrings().lazyCompact().string() };
+    Value notation = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyNotation().string(), Intl::StringValue, notationValues, 4, notationValues[0]);
+    // Set numberFormat.[[Notation]] to notation.
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyNotation()), notation, numberFormat->internalSlot());
+
     double mnfdDefault = 0;
     double mxfdDefault = 0;
 
     // Let style be numberFormat.[[Style]].
     // If style is "currency", then
-    if (style.equalsTo(state, state.context()->staticStrings().lazyCurrency().string())) {
+    // If style is "currency" and notation is "standard", then
+    if (style.equalsTo(state, state.context()->staticStrings().lazyCurrency().string()) && notation.asString()->equals("standard")) {
         // Let currency be numberFormat.[[Currency]].
         // Let cDigits be CurrencyDigits(currency).
         size_t cDigits = currencyDigits(currency.asString());
@@ -482,7 +470,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         // Let mnfdDefault be 0.
         mnfdDefault = 0;
         // If style is "percent", then
-        if (style.equalsTo(state, state.context()->staticStrings().lazyCurrency().string())) {
+        if (style.equalsTo(state, state.context()->staticStrings().lazyPercent().string())) {
             // Let mxfdDefault be 0.
             mxfdDefault = 0;
         } else {
@@ -492,77 +480,42 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
         }
     }
 
-    // Let notation be ? GetOption(options, "notation", "string", « "standard", "scientific", "engineering", "compact" », "standard").
-    Value notationValues[4] = { state.context()->staticStrings().lazyStandard().string(), state.context()->staticStrings().lazyScientific().string(), state.context()->staticStrings().lazyEngineering().string(), state.context()->staticStrings().lazyCompact().string() };
-    Value notation = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyNotation().string(), Intl::StringValue, notationValues, 4, notationValues[0]);
-    // Set numberFormat.[[Notation]] to notation.
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyNotation()), notation, numberFormat->internalSlot());
-
     // Perform ? SetNumberFormatDigitOptions(numberFormat, options, mnfdDefault, mxfdDefault, notation).
-    // Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21, 1).
-    double mnid = Intl::getNumberOption(state, options.asObject(), state.context()->staticStrings().lazyMinimumIntegerDigits().string(), 1, 21, 1);
-    // Let mnfd be ? Get(options, "minimumFractionDigits").
-    Value mnfd;
-    auto g = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()));
-    if (g.hasValue()) {
-        mnfd = g.value(state, options.asObject());
+    auto setNumberFormatDigitOptionsResult = Intl::setNumberFormatDigitOptions(state, options.asObject(), mnfdDefault, mxfdDefault, notation.asString());
+
+#define SET_PROPERTY(name, Name)                                                                                    \
+    if (!setNumberFormatDigitOptionsResult.name.isUndefined()) {                                                    \
+        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazy##Name()), \
+                                          setNumberFormatDigitOptionsResult.name, numberFormat->internalSlot());    \
     }
-    // Let mxfd be ? Get(options, "maximumFractionDigits").
-    Value mxfd;
-    g = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()));
-    if (g.hasValue()) {
-        mxfd = g.value(state, options.asObject());
-    }
-    // Let mnsd be ? Get(options, "minimumSignificantDigits").
-    Value mnsd;
-    g = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits()));
-    if (g.hasValue()) {
-        mnsd = g.value(state, options.asObject());
-    }
-    // Let mxsd be ? Get(options, "maximumSignificantDigits").
-    Value mxsd;
-    g = options.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits()));
-    if (g.hasValue()) {
-        mxsd = g.value(state, options.asObject());
+    SET_PROPERTY(minimumIntegerDigits, MinimumIntegerDigits);
+    SET_PROPERTY(minimumFractionDigits, MinimumFractionDigits);
+    SET_PROPERTY(maximumFractionDigits, MaximumFractionDigits);
+    SET_PROPERTY(minimumSignificantDigits, MinimumSignificantDigits);
+    SET_PROPERTY(maximumSignificantDigits, MaximumSignificantDigits);
+    SET_PROPERTY(roundingMode, RoundingMode);
+    SET_PROPERTY(trailingZeroDisplay, TrailingZeroDisplay);
+#undef SET_PROPERTY
+
+    Value roundingType;
+    switch (setNumberFormatDigitOptionsResult.computedRoundingPriority) {
+    case Intl::RoundingPriority::Auto:
+        roundingType = state.context()->staticStrings().lazyAuto().string();
+        break;
+    case Intl::RoundingPriority::MorePrecision:
+        roundingType = state.context()->staticStrings().lazyMorePrecision().string();
+        break;
+    case Intl::RoundingPriority::LessPrecision:
+        roundingType = state.context()->staticStrings().lazyLessPrecision().string();
+        break;
+    default:
+        ASSERT_NOT_REACHED();
     }
 
-    // Set intlObj.[[MinimumIntegerDigits]] to mnid.
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumIntegerDigits()), Value(Value::DoubleToIntConvertibleTestNeeds, mnid), numberFormat->internalSlot());
-
-    // If mnsd is not undefined or mxsd is not undefined, then
-    if (!mnsd.isUndefined() || !mxsd.isUndefined()) {
-        // Set intlObj.[[RoundingType]] to significantDigits.
-        // Let mnsd be ? DefaultNumberOption(mnsd, 1, 21, 1).
-        mnsd = defaultNumberOption(state, mnsd, 1, 21, 1);
-        // Let mxsd be ? DefaultNumberOption(mxsd, mnsd, 21, 21).
-        mxsd = defaultNumberOption(state, mxsd, mnsd.asNumber(), 21, 21);
-        // Set intlObj.[[MinimumSignificantDigits]] to mnsd.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits()), mnsd, numberFormat->internalSlot());
-        // Set intlObj.[[MaximumSignificantDigits]] to mxsd.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits()), mxsd, numberFormat->internalSlot());
-    } else if (!mnfd.isUndefined() || !mxfd.isUndefined()) {
-        // Else if mnfd is not undefined or mxfd is not undefined, then
-        // Set intlObj.[[RoundingType]] to fractionDigits.
-        // Let mnfd be ? DefaultNumberOption(mnfd, 0, 20, mnfdDefault).
-        mnfd = defaultNumberOption(state, mnfd, 0, 20, mnfdDefault);
-        // Let mxfdActualDefault be max( mnfd, mxfdDefault ).
-        double mxfdActualDefault = std::max(mnfd.asNumber(), mxfdDefault);
-        // Let mxfd be ? DefaultNumberOption(mxfd, mnfd, 20, mxfdActualDefault).
-        mxfd = defaultNumberOption(state, mxfd, mnfd.asNumber(), 20, mxfdActualDefault);
-        // Set intlObj.[[MinimumFractionDigits]] to mnfd.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()), mnfd, numberFormat->internalSlot());
-        // Set intlObj.[[MaximumFractionDigits]] to mxfd.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()), mxfd, numberFormat->internalSlot());
-    } else if (notation.equalsTo(state, state.context()->staticStrings().lazyCompact().string())) {
-        // Else if notation is "compact", then
-        // Set intlObj.[[RoundingType]] to compactRounding.
-    } else {
-        // Set intlObj.[[RoundingType]] to fractionDigits.
-        // Set intlObj.[[MinimumFractionDigits]] to mnfdDefault.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()), Value(Value::DoubleToIntConvertibleTestNeeds, mnfdDefault), numberFormat->internalSlot());
-        // Set intlObj.[[MaximumFractionDigits]] to mxfdDefault.
-        numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()), Value(Value::DoubleToIntConvertibleTestNeeds, mxfdDefault), numberFormat->internalSlot());
-    }
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyRoundingIncrement()),
+                                      Value(Value::DoubleToIntConvertibleTestNeeds, setNumberFormatDigitOptionsResult.roundingIncrement), numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyRoundingPriority()),
+                                      roundingType, numberFormat->internalSlot());
 
     // Let compactDisplay be ? GetOption(options, "compactDisplay", "string", « "short", "long" », "short").
     Value compactDisplayValues[2] = { state.context()->staticStrings().lazyShort().string(), state.context()->staticStrings().lazyLong().string() };
@@ -614,9 +567,11 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyUseGrouping()), useGrouping, numberFormat->internalSlot());
     ASSERT((useGrouping.isBoolean() && !useGrouping.asBoolean()) || useGrouping.isString());
 
-    // Let signDisplay be ? GetOption(options, "signDisplay", "string", « "auto", "never", "always", "exceptZero" », "auto").
-    Value signDisplayValue[4] = { state.context()->staticStrings().lazyAuto().string(), state.context()->staticStrings().lazyNever().string(), state.context()->staticStrings().lazyAlways().string(), state.context()->staticStrings().lazyExceptZero().string() };
-    Value signDisplay = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazySignDisplay().string(), Intl::StringValue, signDisplayValue, 4, signDisplayValue[0]);
+    // Let signDisplay be ? GetOption(options, "signDisplay", string, « "auto", "never", "always", "exceptZero", "negative" », "auto").
+    Value signDisplayValue[5] = { state.context()->staticStrings().lazyAuto().string(), state.context()->staticStrings().lazyNever().string(),
+                                  state.context()->staticStrings().lazyAlways().string(), state.context()->staticStrings().lazyExceptZero().string(),
+                                  state.context()->staticStrings().lazyNegative().string() };
+    Value signDisplay = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazySignDisplay().string(), Intl::StringValue, signDisplayValue, 5, signDisplayValue[0]);
     // Set numberFormat.[[SignDisplay]] to signDisplay.
     numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazySignDisplay()), signDisplay, numberFormat->internalSlot());
 
@@ -625,12 +580,21 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     // Return numberFormat
 
     UTF16StringDataNonGCStd skeleton;
-    initNumberFormatSkeleton(state, numberFormat, style, currency, currencyDisplay, currencySign, unit, unitDisplay, compactDisplay, signDisplay, useGrouping, notation, skeleton);
+    initNumberFormatSkeleton(state, setNumberFormatDigitOptionsResult, style, currency, currencyDisplay, currencySign, unit, unitDisplay, compactDisplay, signDisplay, useGrouping, notation, skeleton);
 
     String* localeOption = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale())).value(state, numberFormat->internalSlot()).toString(state);
+    std::string localeWithExtension = localeOption->toNonGCUTF8StringData();
+    if (numberingSystem.isString()
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+        && versionArray[0] >= 70
+#endif
+    ) {
+        localeWithExtension += "-u-nu-";
+        localeWithExtension += numberingSystem.asString()->toNonGCUTF8StringData();
+    }
 
     UErrorCode status = U_ZERO_ERROR;
-    UNumberFormatter* fomatter = unumf_openForSkeletonAndLocale((UChar*)skeleton.data(), skeleton.length(), localeOption->toNonGCUTF8StringData().data(), &status);
+    UNumberFormatter* fomatter = unumf_openForSkeletonAndLocale((UChar*)skeleton.data(), skeleton.length(), localeWithExtension.data(), &status);
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to init NumberFormat");
     }
@@ -644,8 +608,268 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
                                                nullptr);
 }
 
-void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, Object* numberFormat, const Value& style, const Value& currency, const Value& currencyDisplay, const Value& currencySign, const Value& unit, const Value& unitDisplay, const Value& compactDisplay, const Value& signDisplay, const Value& useGrouping, const Value& notation, UTF16StringDataNonGCStd& skeleton)
+void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, const Intl::SetNumberFormatDigitOptionsResult& formatResult,
+                                                const Value& style, const Value& currency, const Value& currencyDisplay, const Value& currencySign, const Value& unit, const Value& unitDisplay, const Value& compactDisplay, const Value& signDisplay, const Value& useGrouping, const Value& notation, UTF16StringDataNonGCStd& skeleton)
 {
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    UVersionInfo versionArray;
+    u_getVersion(versionArray);
+    if (versionArray[0] < 68) {
+        if (style.asString()->equals("currency")) {
+            if (!currency.isUndefined()) {
+                skeleton += u"currency/";
+                skeleton += currency.asString()->charAt(0);
+                skeleton += currency.asString()->charAt(1);
+                skeleton += currency.asString()->charAt(2);
+                skeleton += u" ";
+            }
+
+            if (currencyDisplay.asString()->equals("code")) {
+                skeleton += u"unit-width-iso-code ";
+            } else if (currencyDisplay.asString()->equals("symbol")) {
+                // default
+            } else if (currencyDisplay.asString()->equals("narrowSymbol")) {
+                skeleton += u"unit-width-narrow ";
+            } else if (currencyDisplay.asString()->equals("name")) {
+                skeleton += u"unit-width-full-name ";
+            }
+        } else if (style.asString()->equals("percent")) {
+            skeleton += u"percent scale/100 ";
+        } else if (style.asString()->equals("unit")) {
+            String* unitString = unit.asString();
+            if (unitString->contains("-per-")) {
+                size_t pos = unitString->find("-per-");
+                skeleton += u"measure-unit/";
+                const char* u = findICUUnitTypeFromUnitString(unitString->substring(0, pos)->toNonGCUTF8StringData());
+                size_t len = strlen(u);
+                for (size_t i = 0; i < len; i++) {
+                    skeleton += u[i];
+                }
+                skeleton += '-';
+                skeleton += unitString->substring(0, pos)->toUTF16StringData().data();
+                skeleton += ' ';
+
+                skeleton += u"per-measure-unit/";
+                u = findICUUnitTypeFromUnitString(unitString->substring(pos + 5, unitString->length())->toNonGCUTF8StringData());
+                len = strlen(u);
+                for (size_t i = 0; i < len; i++) {
+                    skeleton += u[i];
+                }
+                skeleton += '-';
+                skeleton += unitString->substring(pos + 5, unitString->length())->toUTF16StringData().data();
+                skeleton += ' ';
+            } else {
+                skeleton += u"measure-unit/";
+                const char* u = findICUUnitTypeFromUnitString(unitString->toNonGCUTF8StringData());
+                size_t len = strlen(u);
+                for (size_t i = 0; i < len; i++) {
+                    skeleton += u[i];
+                }
+                skeleton += '-';
+                skeleton += unitString->toUTF16StringData().data();
+                skeleton += ' ';
+            }
+
+            String* unitDisplayString = unitDisplay.asString();
+            if (unitDisplayString->equals("short")) {
+                skeleton += u"unit-width-short ";
+            } else if (unitDisplayString->equals("narrow")) {
+                skeleton += u"unit-width-narrow ";
+            } else {
+                ASSERT(unitDisplayString->equals("long"));
+                skeleton += u"unit-width-full-name ";
+            }
+        }
+
+        if (!formatResult.minimumSignificantDigits.isUndefined()) {
+            double mnsd = formatResult.minimumSignificantDigits.asNumber();
+            double mxsd = formatResult.maximumSignificantDigits.asNumber();
+
+            for (double i = 0; i < mnsd; i++) {
+                skeleton += '@';
+            }
+
+            for (double i = 0; i < mxsd - mnsd; i++) {
+                skeleton += '#';
+            }
+
+            skeleton += ' ';
+        }
+
+        if (!formatResult.minimumFractionDigits.isUndefined()) {
+            double mnfd = formatResult.minimumSignificantDigits.asNumber();
+            double mxfd = formatResult.maximumSignificantDigits.asNumber();
+
+            skeleton += '.';
+
+            for (double i = 0; i < mnfd; i++) {
+                skeleton += '0';
+            }
+
+            for (double i = 0; i < mxfd - mnfd; i++) {
+                skeleton += '#';
+            }
+            skeleton += ' ';
+        }
+
+        {
+            double mnid = formatResult.minimumIntegerDigits.asNumber();
+            skeleton += u"integer-width/+";
+            for (double i = 0; i < mnid; i++) {
+                skeleton += '0';
+            }
+            skeleton += ' ';
+        }
+
+        if (!useGrouping.toBoolean()) {
+            skeleton += u"group-off ";
+        }
+
+        String* notationString = notation.asString();
+        if (notationString->equals("standard")) {
+        } else if (notationString->equals("scientific")) {
+            skeleton += u"scientific ";
+        } else if (notationString->equals("engineering")) {
+            skeleton += u"engineering ";
+        } else {
+            if (compactDisplay.asString()->equals("short")) {
+                skeleton += u"compact-short ";
+            } else {
+                skeleton += u"compact-long ";
+            }
+        }
+
+        String* signDisplayString = signDisplay.asString();
+        bool accountingSign = currencySign.asString()->equals("accounting");
+        if (signDisplayString->equals("auto")) {
+            if (accountingSign) {
+                skeleton += u"sign-accounting ";
+            }
+        } else if (signDisplayString->equals("never")) {
+            skeleton += u"sign-never ";
+        } else if (signDisplayString->equals("always")) {
+            if (accountingSign) {
+                skeleton += u"sign-accounting-always ";
+            } else {
+                skeleton += u"sign-always ";
+            }
+        } else {
+            if (accountingSign) {
+                skeleton += u"sign-accounting-except-zero ";
+            } else {
+                skeleton += u"sign-except-zero ";
+            }
+        }
+
+        skeleton += u"rounding-mode-half-up ";
+        return;
+    }
+#endif
+
+    String* rm = formatResult.roundingMode.asString();
+    if (rm->equals("ceil")) {
+        skeleton += u"rounding-mode-ceiling ";
+    } else if (rm->equals("floor")) {
+        skeleton += u"rounding-mode-floor ";
+    } else if (rm->equals("expand")) {
+        skeleton += u"rounding-mode-up ";
+    } else if (rm->equals("trunc")) {
+        skeleton += u"rounding-mode-down ";
+    } else if (rm->equals("halfCeil")) {
+        skeleton += u"rounding-mode-half-ceiling ";
+    } else if (rm->equals("halfFloor")) {
+        skeleton += u"rounding-mode-half-floor ";
+    } else if (rm->equals("halfExpand")) {
+        skeleton += u"rounding-mode-half-up ";
+    } else if (rm->equals("halfTrunc")) {
+        skeleton += u"rounding-mode-half-down ";
+    } else {
+        ASSERT(rm->equals("halfEven"));
+        skeleton += u"rounding-mode-half-even ";
+    }
+
+    {
+        double mnid = formatResult.minimumIntegerDigits.asNumber();
+        skeleton += u"integer-width/*";
+        for (double i = 0; i < mnid; i++) {
+            skeleton += '0';
+        }
+        skeleton += ' ';
+    }
+
+    if (formatResult.roundingIncrement != 1) {
+        skeleton += u"precision-increment/";
+        auto string = dtoa(formatResult.roundingIncrement);
+        if (formatResult.maximumFractionDigits.asNumber() >= string.size()) {
+            skeleton += u"0.";
+            for (size_t i = 0; i < (formatResult.maximumFractionDigits.asNumber() - string.size()); i++) {
+                skeleton += u"0";
+            }
+            for (auto c : string) {
+                skeleton += static_cast<char16_t>(c);
+            }
+        } else {
+            auto nonFraction = string.size() - formatResult.maximumFractionDigits.asNumber();
+            for (size_t i = 0; i < nonFraction; i++) {
+                skeleton += static_cast<char16_t>(string[i]);
+            }
+            skeleton += u".";
+
+            for (size_t i = 0; i < nonFraction; i++) {
+                skeleton += static_cast<char16_t>(string[i]);
+            }
+
+            for (size_t i = 0; i < formatResult.maximumFractionDigits.asNumber(); i++) {
+                skeleton += static_cast<char16_t>(string[i + nonFraction]);
+            }
+        }
+    } else {
+        if (formatResult.roundingType == Intl::RoundingType::FractionDigits) {
+            skeleton += u".";
+            for (size_t i = 0; i < formatResult.minimumFractionDigits.asNumber(); i++) {
+                skeleton += u"0";
+            }
+            for (size_t i = 0; i < formatResult.maximumFractionDigits.asNumber() - formatResult.minimumFractionDigits.asNumber(); i++) {
+                skeleton += u"#";
+            }
+        } else if (formatResult.roundingType == Intl::RoundingType::SignificantDigits) {
+            for (size_t i = 0; i < formatResult.minimumSignificantDigits.asNumber(); i++) {
+                skeleton += u"@";
+            }
+            for (size_t i = 0; i < formatResult.maximumSignificantDigits.asNumber() - formatResult.minimumSignificantDigits.asNumber(); i++) {
+                skeleton += u"#";
+            }
+        } else {
+            ASSERT(formatResult.roundingType == Intl::RoundingType::LessPrecision || formatResult.roundingType == Intl::RoundingType::MorePrecision);
+            skeleton += u".";
+            for (size_t i = 0; i < formatResult.minimumFractionDigits.asNumber(); i++) {
+                skeleton += u"0";
+            }
+            for (size_t i = 0; i < formatResult.maximumFractionDigits.asNumber() - formatResult.minimumFractionDigits.asNumber(); i++) {
+                skeleton += u"#";
+            }
+            skeleton += u"/";
+            for (size_t i = 0; i < formatResult.minimumSignificantDigits.asNumber(); i++) {
+                skeleton += u"@";
+            }
+            for (size_t i = 0; i < formatResult.maximumSignificantDigits.asNumber() - formatResult.minimumSignificantDigits.asNumber(); i++) {
+                skeleton += u"#";
+            }
+            if (formatResult.roundingType == Intl::RoundingType::MorePrecision) {
+                skeleton += u"r";
+            } else {
+                skeleton += u"s";
+            }
+        }
+    }
+
+    if (formatResult.trailingZeroDisplay.asString()->equals("auto")) {
+        skeleton += u" ";
+    } else {
+        ASSERT(formatResult.trailingZeroDisplay.asString()->equals("stripIfInteger"));
+        skeleton += u"/w ";
+    }
+
     if (style.asString()->equals("currency")) {
         if (!currency.isUndefined()) {
             skeleton += u"currency/";
@@ -714,46 +938,6 @@ void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, Object* n
         }
     }
 
-    if (numberFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits()))) {
-        double mnsd = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits())).value(state, numberFormat->internalSlot()).toNumber(state);
-        double mxsd = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits())).value(state, numberFormat->internalSlot()).toNumber(state);
-
-        for (double i = 0; i < mnsd; i++) {
-            skeleton += '@';
-        }
-
-        for (double i = 0; i < mxsd - mnsd; i++) {
-            skeleton += '#';
-        }
-
-        skeleton += ' ';
-    }
-
-    if (numberFormat->internalSlot()->hasOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()))) {
-        double mnfd = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits())).value(state, numberFormat->internalSlot()).toNumber(state);
-        double mxfd = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits())).value(state, numberFormat->internalSlot()).toNumber(state);
-
-        skeleton += '.';
-
-        for (double i = 0; i < mnfd; i++) {
-            skeleton += '0';
-        }
-
-        for (double i = 0; i < mxfd - mnfd; i++) {
-            skeleton += '#';
-        }
-        skeleton += ' ';
-    }
-
-    {
-        double mnid = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumIntegerDigits())).value(state, numberFormat->internalSlot()).toNumber(state);
-        skeleton += u"integer-width/+";
-        for (double i = 0; i < mnid; i++) {
-            skeleton += '0';
-        }
-        skeleton += ' ';
-    }
-
     if ((useGrouping.isBoolean() && !useGrouping.asBoolean()) || useGrouping.asString()->equals("")) {
         skeleton += u"group-off ";
     } else if (useGrouping.asString()->equals("min2")) {
@@ -781,10 +965,12 @@ void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, Object* n
     }
 
     String* signDisplayString = signDisplay.asString();
-    bool accountingSign = currencySign.asString()->equals("accounting");
+    bool accountingSign = style.asString()->equals("currency") && currencySign.asString()->equals("accounting");
     if (signDisplayString->equals("auto")) {
         if (accountingSign) {
             skeleton += u"sign-accounting ";
+        } else {
+            skeleton += u"sign-auto ";
         }
     } else if (signDisplayString->equals("never")) {
         skeleton += u"sign-never ";
@@ -794,6 +980,12 @@ void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, Object* n
         } else {
             skeleton += u"sign-always ";
         }
+    } else if (signDisplayString->equals("negative")) {
+        if (accountingSign) {
+            skeleton += u"sign-accounting-negative ";
+        } else {
+            skeleton += u"sign-negative ";
+        }
     } else {
         if (accountingSign) {
             skeleton += u"sign-accounting-except-zero ";
@@ -801,8 +993,6 @@ void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, Object* n
             skeleton += u"sign-except-zero ";
         }
     }
-
-    skeleton += u"rounding-mode-half-up ";
 }
 
 UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* numberFormat, double x)

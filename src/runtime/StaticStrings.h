@@ -755,12 +755,14 @@ namespace Escargot {
     F(Engineering, "engineering")                           \
     F(Era, "era")                                           \
     F(ExceptZero, "exceptZero")                             \
+    F(Expand, "expand")                                     \
     F(ExponentInteger, "exponentInteger")                   \
     F(ExponentMinusSign, "exponentMinusSign")               \
     F(ExponentSeparator, "exponentSeparator")               \
     F(Fallback, "fallback")                                 \
     F(FormatMatcher, "formatMatcher")                       \
     F(Fraction, "fraction")                                 \
+    F(FractionDigits, "fractionDigits")                     \
     F(FractionalSecond, "fractionalSecond")                 \
     F(FractionalSecondDigits, "fractionalSecondDigits")     \
     F(Full, "full")                                         \
@@ -769,6 +771,11 @@ namespace Escargot {
     F(H12, "h12")                                           \
     F(H23, "h23")                                           \
     F(H24, "h24")                                           \
+    F(HalfCeil, "halfCeil")                                 \
+    F(HalfFloor, "halfFloor")                               \
+    F(HalfExpand, "halfExpand")                             \
+    F(HalfTrunc, "halfTrunc")                               \
+    F(HalfEven, "halfEven")                                 \
     F(Hour, "hour")                                         \
     F(Hour12, "hour12")                                     \
     F(HourCycles, "hourCycles")                             \
@@ -780,6 +787,7 @@ namespace Escargot {
     F(Kf, "kf")                                             \
     F(Kn, "kn")                                             \
     F(LanguageDisplay, "languageDisplay")                   \
+    F(LessPrecision, "lessPrecision")                       \
     F(Literal, "literal")                                   \
     F(LocaleMatcher, "localeMatcher")                       \
     F(Long, "long")                                         \
@@ -794,8 +802,10 @@ namespace Escargot {
     F(MinusSign, "minusSign")                               \
     F(Minute, "minute")                                     \
     F(Month, "month")                                       \
+    F(MorePrecision, "morePrecision")                       \
     F(Narrow, "narrow")                                     \
     F(NarrowSymbol, "narrowSymbol")                         \
+    F(Negative, "negative")                                 \
     F(Never, "never")                                       \
     F(None, "none")                                         \
     F(Notation, "notation")                                 \
@@ -804,16 +814,21 @@ namespace Escargot {
     F(Percent, "percent")                                   \
     F(PercentSign, "percentSign")                           \
     F(PlusSign, "plusSign")                                 \
+    F(RoundingIncrement, "roundingIncrement")               \
+    F(RoundingMode, "roundingMode")                         \
+    F(RoundingPriority, "roundingPriority")                 \
     F(Quarter, "quarter")                                   \
     F(Scientific, "scientific")                             \
     F(Second, "second")                                     \
     F(Sensitivity, "sensitivity")                           \
     F(Short, "short")                                       \
     F(SignDisplay, "signDisplay")                           \
+    F(SignificantDigits, "significantDigits")               \
     F(SmallLetterInfinity, "infinity")                      \
     F(SmallLetterLocale, "locale")                          \
     F(SmallLetterNaN, "nan")                                \
     F(Standard, "standard")                                 \
+    F(StripIfInteger, "stripIfInteger")                     \
     F(Style, "style")                                       \
     F(SupportedValuesOf, "supportedValuesOf")               \
     F(TextInfo, "textInfo")                                 \
@@ -822,6 +837,7 @@ namespace Escargot {
     F(TimeZone, "timeZone")                                 \
     F(TimeZones, "timeZones")                               \
     F(TimeZoneName, "timeZoneName")                         \
+    F(TrailingZeroDisplay, "trailingZeroDisplay")           \
     F(TwoDigit, "2-digit")                                  \
     F(Type, "type")                                         \
     F(Unit, "unit")                                         \
