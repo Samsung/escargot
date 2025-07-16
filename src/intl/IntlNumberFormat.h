@@ -33,6 +33,8 @@ public:
     static void initialize(ExecutionState& state, Object* numberFormat, Value locales, Value options);
     static UTF16StringDataNonGCStd format(ExecutionState& state, Object* numberFormat, double x);
     static UTF16StringDataNonGCStd format(ExecutionState& state, Object* numberFormat, String* str);
+    static String* formatRange(ExecutionState& state, Object* numberFormat, double x, double y);
+    static String* formatRange(ExecutionState& state, Object* numberFormat, String* x, String* y);
     static ArrayObject* formatToParts(ExecutionState& state, Object* numberFormat, double x);
 
 private:
