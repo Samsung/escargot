@@ -303,6 +303,11 @@ static const char* findICUUnitTypeFromUnitString(const std::string& s)
     return "";
 }
 
+struct IntlNumberFormatData {
+    UNumberFormatter* numberFormatter;
+    Optional<UNumberRangeFormatter*> numberRangeFormatter;
+};
+
 void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, Value locales, Value options)
 {
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
@@ -594,16 +599,35 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     }
 
     UErrorCode status = U_ZERO_ERROR;
-    UNumberFormatter* fomatter = unumf_openForSkeletonAndLocale((UChar*)skeleton.data(), skeleton.length(), localeWithExtension.data(), &status);
+    UNumberFormatter* formatter = unumf_openForSkeletonAndLocale((UChar*)skeleton.data(), skeleton.length(), localeWithExtension.data(), &status);
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to init NumberFormat");
     }
 
-    numberFormat->internalSlot()->setExtraData(fomatter);
+    IntlNumberFormatData* data = new IntlNumberFormatData;
+    data->numberFormatter = formatter;
 
+    if (true
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+        && versionArray[0] >= 68
+#endif
+    ) {
+        data->numberRangeFormatter = unumrf_openForSkeletonWithCollapseAndIdentityFallback((UChar*)skeleton.data(), skeleton.length(),
+                                                                                           UNUM_RANGE_COLLAPSE_AUTO, UNUM_IDENTITY_FALLBACK_APPROXIMATELY, localeWithExtension.data(), nullptr, &status);
+        if (U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to init NumberFormat");
+        }
+    }
+
+    numberFormat->internalSlot()->setExtraData(data);
     numberFormat->internalSlot()->addFinalizer([](PointerValue* obj, void* data) {
         Object* self = (Object*)obj;
-        unumf_close((UNumberFormatter*)self->extraData());
+        auto ud = reinterpret_cast<IntlNumberFormatData*>(self->extraData());
+        unumf_close(ud->numberFormatter);
+        if (ud->numberRangeFormatter) {
+            unumrf_close(ud->numberRangeFormatter.value());
+        }
+        delete ud;
     },
                                                nullptr);
 }
@@ -997,7 +1021,8 @@ void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, const Int
 
 UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* numberFormat, double x)
 {
-    UNumberFormatter* formatter = (UNumberFormatter*)numberFormat->internalSlot()->extraData();
+    auto ud = reinterpret_cast<IntlNumberFormatData*>(numberFormat->internalSlot()->extraData());
+    UNumberFormatter* formatter = ud->numberFormatter;
 
     UErrorCode status = U_ZERO_ERROR;
     UTF16StringDataNonGCStd resultString;
@@ -1027,7 +1052,8 @@ UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* 
 
 UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* numberFormat, String* str)
 {
-    UNumberFormatter* formatter = (UNumberFormatter*)numberFormat->internalSlot()->extraData();
+    auto ud = reinterpret_cast<IntlNumberFormatData*>(numberFormat->internalSlot()->extraData());
+    UNumberFormatter* formatter = ud->numberFormatter;
 
     UErrorCode status = U_ZERO_ERROR;
     UTF16StringDataNonGCStd resultString;
@@ -1059,7 +1085,8 @@ UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* 
 
 ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numberFormat, double x)
 {
-    UNumberFormatter* formatter = (UNumberFormatter*)numberFormat->internalSlot()->extraData();
+    auto ud = reinterpret_cast<IntlNumberFormatData*>(numberFormat->internalSlot()->extraData());
+    UNumberFormatter* formatter = ud->numberFormatter;
 
     ArrayObject* result = new ArrayObject(state);
 
@@ -1141,6 +1168,85 @@ ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numb
     }
 
     return result;
+}
+
+String* IntlNumberFormat::formatRange(ExecutionState& state, Object* numberFormat, double x, double y)
+{
+    auto ud = reinterpret_cast<IntlNumberFormatData*>(numberFormat->internalSlot()->extraData());
+
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    if (!ud->numberRangeFormatter) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.NumberFormat.formatRange needs 68+ version of ICU");
+    }
+#endif
+
+    UNumberFormatter* formatter = ud->numberFormatter;
+
+    if (std::isnan(x) || std::isnan(y)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Failed to format a number");
+    }
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UFormattedNumberRange> uresult(unumrf_openResult(&status), [](UFormattedNumberRange* f) { unumrf_closeResult(f); });
+
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
+    }
+
+    unumrf_formatDoubleRange(ud->numberRangeFormatter.value(), x, y, uresult.get(), &status);
+
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
+    }
+    auto* formattedValue = unumrf_resultAsValue(uresult.get(), &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
+    }
+    int32_t length = 0;
+    const UChar* string = ufmtval_getString(formattedValue, &length, &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
+    }
+
+    return new UTF16String(string, length);
+}
+
+String* IntlNumberFormat::formatRange(ExecutionState& state, Object* numberFormat, String* x, String* y)
+{
+    auto ud = reinterpret_cast<IntlNumberFormatData*>(numberFormat->internalSlot()->extraData());
+
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    if (!ud->numberRangeFormatter) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.NumberFormat.formatRange needs 68+ version of ICU");
+    }
+#endif
+
+    UNumberFormatter* formatter = ud->numberFormatter;
+
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UFormattedNumberRange> uresult(unumrf_openResult(&status), [](UFormattedNumberRange* f) { unumrf_closeResult(f); });
+
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
+    }
+
+    auto xs = x->toNonGCUTF8StringData();
+    auto ys = y->toNonGCUTF8StringData();
+    unumrf_formatDecimalRange(ud->numberRangeFormatter.value(), xs.data(), xs.length(), ys.data(), ys.length(), uresult.get(), &status);
+
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
+    }
+    auto* formattedValue = unumrf_resultAsValue(uresult.get(), &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
+    }
+    int32_t length = 0;
+    const UChar* string = ufmtval_getString(formattedValue, &length, &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
+    }
+
+    return new UTF16String(string, length);
 }
 
 } // namespace Escargot

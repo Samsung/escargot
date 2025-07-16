@@ -4946,15 +4946,6 @@
     <test id="intl402/Locale/prototype/variants/name"><reason>TODO</reason></test>
     <test id="intl402/Locale/prototype/variants/prop-desc"><reason>TODO</reason></test>
     <test id="intl402/Locale/reject-duplicate-variants-in-tlang"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRange/builtin"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRange/en-US"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRange/invoked-as-func"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRange/length"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRange/name"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRange/nan-arguments-throws"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRange/prop-desc"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRange/pt-PT"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRange/x-greater-than-y-not-throws"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/formatRangeToParts/builtin"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/formatRangeToParts/en-US"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/formatRangeToParts/invoked-as-func"><reason>TODO</reason></test>
@@ -4964,8 +4955,6 @@
     <test id="intl402/NumberFormat/prototype/formatRangeToParts/prop-desc"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/formatRangeToParts/x-greater-than-y-not-throws"><reason>TODO</reason></test>
     <test id="intl402/NumberFormat/prototype/formatToParts/percent-en-US"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/toStringTag/configurable"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/toStringTag/prop-desc"><reason>TODO</reason></test>
     <test id="intl402/PluralRules/constructor-option-read-order"><reason>TODO</reason></test>
     <test id="intl402/PluralRules/constructor-options-throwing-getters"><reason>TODO</reason></test>
     <test id="intl402/PluralRules/default-options-object-prototype"><reason>TODO</reason></test>

@@ -306,6 +306,7 @@ extern "C" {
 #include <unicode/unum.h> // for Intl
 #include <unicode/upluralrules.h> // for Intl
 #include <unicode/unumberformatter.h> // for Intl
+#include <unicode/unumberrangeformatter.h> // for Intl
 #include <unicode/ureldatefmt.h> // for Intl
 #include <unicode/uformattedvalue.h> // for Intl
 #include <unicode/ucurr.h> // for Intl

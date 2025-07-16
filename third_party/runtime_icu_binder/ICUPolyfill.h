@@ -202,6 +202,14 @@
 #define unumf_close RuntimeICUBinder::ICU::instance().unumf_close
 #define unumf_closeResult RuntimeICUBinder::ICU::instance().unumf_closeResult
 
+#define unumrf_openForSkeletonWithCollapseAndIdentityFallback RuntimeICUBinder::ICU::instance().unumrf_openForSkeletonWithCollapseAndIdentityFallback
+#define unumrf_close RuntimeICUBinder::ICU::instance().unumrf_close
+#define unumrf_resultAsValue RuntimeICUBinder::ICU::instance().unumrf_resultAsValue
+#define unumrf_formatDoubleRange RuntimeICUBinder::ICU::instance().unumrf_formatDoubleRange
+#define unumrf_formatDecimalRange RuntimeICUBinder::ICU::instance().unumrf_formatDecimalRange
+#define unumrf_openResult RuntimeICUBinder::ICU::instance().unumrf_openResult
+#define unumrf_closeResult RuntimeICUBinder::ICU::instance().unumrf_closeResult
+
 #define ufieldpositer_open RuntimeICUBinder::ICU::instance().ufieldpositer_open
 #define ufieldpositer_next RuntimeICUBinder::ICU::instance().ufieldpositer_next
 #define ufieldpositer_close RuntimeICUBinder::ICU::instance().ufieldpositer_close

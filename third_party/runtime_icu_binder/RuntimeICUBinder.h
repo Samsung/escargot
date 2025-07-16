@@ -107,7 +107,7 @@ namespace RuntimeICUBinder {
     F(vzone_getRawOffset, int32_t (*)(VZone*), int32_t)                                                                                                                                        \
     F(ucol_countAvailable, int32_t (*)(), int32_t)                                                                                                                                             \
     F(ucol_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                                \
-    F(ucol_getKeywordValues, UEnumeration* (*)(const char* key, UErrorCode* status), UEnumeration*)                                                                                   \
+    F(ucol_getKeywordValues, UEnumeration* (*)(const char* key, UErrorCode* status), UEnumeration*)                                                                                            \
     F(ucol_getKeywordValuesForLocale, UEnumeration* (*)(const char* key, const char* locale, UBool commonlyUsed, UErrorCode* status), UEnumeration*)                                           \
     F(ucol_open, UCollator* (*)(const char* loc, UErrorCode* status), UCollator*)                                                                                                              \
     F(ucol_strcollIter, UCollationResult (*)(const UCollator* coll, UCharIterator* sIter, UCharIterator* tIter, UErrorCode* status), UCollationResult)                                         \
@@ -119,7 +119,7 @@ namespace RuntimeICUBinder {
     F(udat_formatForFields, int32_t (*)(const UDateFormat* format, UDate, UChar*, int32_t, UFieldPositionIterator*, UErrorCode*), int32_t)                                                     \
     F(udat_getCalendar, const UCalendar* (*)(const UDateFormat* fmt), const UCalendar*)                                                                                                        \
     F(udat_toPattern, int32_t (*)(const UDateFormat* fmt, UBool localized, UChar* result, int32_t resultLength, UErrorCode* status), int32_t)                                                  \
-    F(udat_parse, UDate (*)(const UDateFormat*, const UChar*, int32_t, int32_t*, UErrorCode*), UDate)                                                  \
+    F(udat_parse, UDate (*)(const UDateFormat*, const UChar*, int32_t, int32_t*, UErrorCode*), UDate)                                                                                          \
     F(uenum_count, int32_t (*)(UEnumeration * en, UErrorCode * status), int32_t)                                                                                                               \
     F(uenum_unext, const UChar* (*)(UEnumeration * en, int32_t * resultLength, UErrorCode * status), const UChar*)                                                                             \
     F(uenum_next, const char* (*)(UEnumeration * en, int32_t * resultLength, UErrorCode * status), const char*)                                                                                \
@@ -173,6 +173,9 @@ namespace RuntimeICUBinder {
     F(unumf_openForSkeletonAndLocaleWithError, UNumberFormatter* (*)(const UChar* skeleton, int32_t skeletonLen, const char* locale, UParseError* perror, UErrorCode* ec), UNumberFormatter*)  \
     F(unumf_openResult, UFormattedNumber* (*)(UErrorCode * ec), UFormattedNumber*)                                                                                                             \
     F(unumf_resultToString, int32_t (*)(const UFormattedNumber* uresult, UChar* buffer, int32_t bufferCapacity, UErrorCode* ec), int32_t)                                                      \
+    F(unumrf_openForSkeletonWithCollapseAndIdentityFallback, UNumberRangeFormatter* (*)(const UChar*, int32_t, UNumberRangeCollapse, UNumberRangeIdentityFallback, const char*, UParseError*, UErrorCode*), UNumberRangeFormatter*)\
+    F(unumrf_resultAsValue, const UFormattedValue* (*)(const UFormattedNumberRange* uresult, UErrorCode* ec), const UFormattedValue*)                                                          \
+    F(unumrf_openResult, UFormattedNumberRange* (*)(UErrorCode* ec), UFormattedNumberRange*)                                                                                                   \
     F(ufieldpositer_open, UFieldPositionIterator* (*)(UErrorCode * status), UFieldPositionIterator*)                                                                                           \
     F(ufieldpositer_next, int32_t (*)(UFieldPositionIterator * fpositer, int32_t * beginIndex, int32_t * endIndex), int32_t)                                                                   \
     F(ucurr_getName, const UChar* (*)(const UChar* currency, const char* locale, UCurrNameStyle nameStyle, UBool* isChoiceFormat, int32_t* len, UErrorCode* ec), const UChar*)                 \
@@ -224,6 +227,10 @@ namespace RuntimeICUBinder {
     F(unumf_resultGetAllFieldPositions, void (*)(const UFormattedNumber* uresult, UFieldPositionIterator* ufpositer, UErrorCode* ec), void)                          \
     F(unumf_close, void (*)(UNumberFormatter * uformatter), void)                                                                                                    \
     F(unumf_closeResult, void (*)(UFormattedNumber * uresult), void)                                                                                                 \
+    F(unumrf_formatDoubleRange, void (*)(const UNumberRangeFormatter*, double, double, UFormattedNumberRange*, UErrorCode*), void)                                   \
+    F(unumrf_formatDecimalRange, void (*)(const UNumberRangeFormatter*, const char*, int32_t, const char*, int32_t, UFormattedNumberRange*, UErrorCode*), void)      \
+    F(unumrf_close, void (*)(UNumberRangeFormatter*), void)                                                                                                          \
+    F(unumrf_closeResult, void (*)(UFormattedNumberRange*), void)                                                                                                    \
     F(ufieldpositer_close, void (*)(UFieldPositionIterator * fpositer), void)                                                                                        \
     F(ureldatefmt_formatNumericToResult, void (*)(const URelativeDateTimeFormatter*, double, URelativeDateTimeUnit, UFormattedRelativeDateTime*, UErrorCode*), void) \
     F(ureldatefmt_formatToResult, void (*)(const URelativeDateTimeFormatter*, double, URelativeDateTimeUnit, UFormattedRelativeDateTime*, UErrorCode*), void)        \

@@ -231,7 +231,6 @@ namespace Escargot {
     F(fontsize)                   \
     F(forEach)                    \
     F(format)                     \
-    F(formatToParts)              \
     F(freeze)                     \
     F(from)                       \
     F(fromCharCode)               \
@@ -760,7 +759,9 @@ namespace Escargot {
     F(ExponentMinusSign, "exponentMinusSign")               \
     F(ExponentSeparator, "exponentSeparator")               \
     F(Fallback, "fallback")                                 \
+    F(FormatRange, "formatRange")                           \
     F(FormatMatcher, "formatMatcher")                       \
+    F(FormatToParts, "formatToParts")                       \
     F(Fraction, "fraction")                                 \
     F(FractionDigits, "fractionDigits")                     \
     F(FractionalSecond, "fractionalSecond")                 \
@@ -1010,6 +1011,7 @@ public:
     AtomicString intlDotListFormat;
     AtomicString intlDotLocale;
     AtomicString intlDotPluralRules;
+    AtomicString intlDotNumberFormat;
     AtomicString intlDotRelativeTimeFormat;
     AtomicString set__proto__;
     AtomicString symbolMatch;
