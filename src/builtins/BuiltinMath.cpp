@@ -323,6 +323,122 @@ static Value builtinMathFround(ExecutionState& state, Value thisValue, size_t ar
     return Value(Value::DoubleToIntConvertibleTestNeeds, static_cast<double>(static_cast<float>(x)));
 }
 
+// This is extracted from Version 2.2.0 of the half library by Christian Rau.
+// See https://sourceforge.net/projects/half/.
+// The original copyright and MIT license are reproduced below:
+
+// half - IEEE 754-based half-precision floating-point library.
+//
+// Copyright (c) 2012-2021 Christian Rau <rauy@users.sourceforge.net>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+/// Type traits for floating-point bits.
+template <typename T>
+struct bits {
+    using type = unsigned char;
+};
+template <typename T>
+struct bits<const T> : bits<T> {};
+template <typename T>
+struct bits<volatile T> : bits<T> {};
+template <typename T>
+struct bits<const volatile T> : bits<T> {};
+
+/// Unsigned integer of (at least) 64 bits width.
+template <>
+struct bits<double> {
+    using type = std::uint_least64_t;
+};
+
+
+/// Fastest unsigned integer of (at least) 32 bits width.
+using uint32 = std::uint_fast32_t;
+
+/// Half-precision overflow.
+/// \param sign half-precision value with sign bit only
+/// \return rounded overflowing half-precision value
+constexpr unsigned int overflow(unsigned int sign = 0) { return sign | 0x7C00; }
+
+/// Half-precision underflow.
+/// \param sign half-precision value with sign bit only
+/// \return rounded underflowing half-precision value
+constexpr unsigned int underflow(unsigned int sign = 0) { return sign; }
+
+/// Round half-precision number.
+/// \param value finite half-precision number to round
+/// \param g guard bit (most significant discarded bit)
+/// \param s sticky bit (or of all but the most significant discarded bits)
+/// \return rounded half-precision value
+constexpr unsigned int rounded(unsigned int value, int g, int s)
+{
+    return value + (g & (s | value));
+}
+
+/// Convert IEEE double-precision to half-precision.
+/// \param value double-precision value to convert
+/// \return rounded half-precision value
+inline unsigned int float2half_impl(double value)
+{
+    bits<double>::type dbits;
+    std::memcpy(&dbits, &value, sizeof(double));
+    uint32 hi = dbits >> 32, lo = dbits & 0xFFFFFFFF;
+    unsigned int sign = (hi >> 16) & 0x8000;
+    hi &= 0x7FFFFFFF;
+    if (hi >= 0x7FF00000)
+        return sign | 0x7C00 | ((dbits & 0xFFFFFFFFFFFFF) ? (0x200 | ((hi >> 10) & 0x3FF)) : 0);
+    if (hi >= 0x40F00000)
+        return overflow(sign);
+    if (hi >= 0x3F100000)
+        return rounded(sign | (((hi >> 20) - 1008) << 10) | ((hi >> 10) & 0x3FF),
+                       (hi >> 9) & 1, ((hi & 0x1FF) | lo) != 0);
+    if (hi >= 0x3E600000) {
+        int i = 1018 - (hi >> 20);
+        hi = (hi & 0xFFFFF) | 0x100000;
+        return rounded(sign | (hi >> (i + 1)), (hi >> i) & 1,
+                       ((hi & ((static_cast<uint32>(1) << i) - 1)) | lo) != 0);
+    }
+    if ((hi | lo) != 0)
+        return underflow(sign);
+    return sign;
+}
+// End of the half library extraction.
+
+// \brief Conversion from float/double to half round number.
+// \details For the specification, see https://tc39.es/proposal-float16array/#sec-function-properties-of-the-math-object.
+// \author Anwar Fuadi
+// \date 2025-present
+static auto builtinMathF16round(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value
+{
+    // 1. Let n be ? ToNumber(x).
+    auto x = double{ argv[0].toNumber(state) };
+
+    // 2. If n is NaN, return NaN.
+    // 3. If n is one of +0𝔽, -0𝔽, +∞𝔽, or -∞𝔽, return n.
+    // 4. Let n16 be the result of converting n to IEEE 754-2019 binary16 format using roundTiesToEven mode.
+    auto f16 = float2half_impl(x);
+
+    // 5. Let n64 be the result of converting n16 to IEEE 754-2019 binary64 format.
+    // 6. Return the ECMAScript Number value corresponding to n64.
+    return Value(Value::DoubleToIntConvertibleTestNeeds, static_cast<double>(f16));
+}
+
 static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     double maxValue = 0;

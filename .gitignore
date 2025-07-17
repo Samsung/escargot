@@ -18,7 +18,7 @@ cscope.out
 #memps
 escargot.asm
 escargot.elf
-out
+out/*
 build.ninja
 rules.ninja
 .ninja_deps
@@ -40,3 +40,4 @@ cmake_install.cmake
 EscargotInfo.h
 escargot.pc
 escargot_generated/*
+.vs/*
