@@ -724,6 +724,7 @@ namespace Escargot {
     F(Accounting, "accounting")                             \
     F(Always, "always")                                     \
     F(Any, "any")                                           \
+    F(ApproximatelySign, "approximatelySign")               \
     F(Auto, "auto")                                         \
     F(Base, "base")                                         \
     F(Basic, "basic")                                       \
@@ -760,6 +761,7 @@ namespace Escargot {
     F(ExponentSeparator, "exponentSeparator")               \
     F(Fallback, "fallback")                                 \
     F(FormatRange, "formatRange")                           \
+    F(FormatRangeToParts, "formatRangeToParts")             \
     F(FormatMatcher, "formatMatcher")                       \
     F(FormatToParts, "formatToParts")                       \
     F(Fraction, "fraction")                                 \

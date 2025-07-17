@@ -470,6 +470,20 @@ static Value builtinIntlNumberFormatFormatRange(ExecutionState& state, Value thi
     }
 }
 
+static Value builtinIntlNumberFormatFormatRangeToParts(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, state.context()->staticStrings().lazyInitializedNumberFormat())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    if (argv[0].isUndefined() || argv[1].isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid parameter: undefined");
+    }
+
+    return IntlNumberFormat::formatRangeToParts(state, thisValue.asObject(),
+                                                toIntlDecimalString(state, argv[0]), toIntlDecimalString(state, argv[1]));
+}
+
 static Value builtinIntlNumberFormatSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If options is not provided, then let options be undefined.
@@ -1432,6 +1446,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlNumberFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyFormatRange(),
                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFormatRange(), builtinIntlNumberFormatFormatRange, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlNumberFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyFormatRangeToParts(),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFormatRangeToParts(), builtinIntlNumberFormatFormatRangeToParts, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlNumberFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlNumberFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));

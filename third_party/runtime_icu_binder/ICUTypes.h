@@ -8003,6 +8003,7 @@ typedef enum UCurrNameStyle {
 typedef const void *UCurrRegistryKey;
 
 // uformattedvalue.h
+
 /**
  * All possible field categories in ICU. Every entry in this enum corresponds
  * to another enum that exists in ICU.
@@ -8013,70 +8014,67 @@ typedef const void *UCurrRegistryKey;
  * categories 2^28 and higher or below zero (with the highest bit turned on)
  * are private-use and will not be used by ICU in the future.
  *
- * @draft ICU 64
+ * @stable ICU 64
  */
 typedef enum UFieldCategory {
     /**
      * For an undefined field category.
      *
-     * @draft ICU 64
+     * @stable ICU 64
      */
     UFIELD_CATEGORY_UNDEFINED = 0,
-
     /**
      * For fields in UDateFormatField (udat.h), from ICU 3.0.
      *
-     * @draft ICU 64
+     * @stable ICU 64
      */
     UFIELD_CATEGORY_DATE,
-
     /**
      * For fields in UNumberFormatFields (unum.h), from ICU 49.
      *
-     * @draft ICU 64
+     * @stable ICU 64
      */
     UFIELD_CATEGORY_NUMBER,
-
     /**
      * For fields in UListFormatterField (ulistformatter.h), from ICU 63.
      *
-     * @draft ICU 64
+     * @stable ICU 64
      */
     UFIELD_CATEGORY_LIST,
-
     /**
      * For fields in URelativeDateTimeFormatterField (ureldatefmt.h), from ICU 64.
      *
-     * @draft ICU 64
+     * @stable ICU 64
      */
     UFIELD_CATEGORY_RELATIVE_DATETIME,
-
     /**
      * Reserved for possible future fields in UDateIntervalFormatField.
      *
      * @internal
      */
     UFIELD_CATEGORY_DATE_INTERVAL,
-
 #ifndef U_HIDE_INTERNAL_API
     /** @internal */
     UFIELD_CATEGORY_COUNT,
-#endif /* U_HIDE_INTERNAL_API */
-
+#endif  /* U_HIDE_INTERNAL_API */
     /**
      * Category for spans in a list.
      *
-     * @draft ICU 64
+     * @stable ICU 64
      */
     UFIELD_CATEGORY_LIST_SPAN = 0x1000 + UFIELD_CATEGORY_LIST,
-
     /**
      * Category for spans in a date interval.
      *
-     * @draft ICU 64
+     * @stable ICU 64
      */
     UFIELD_CATEGORY_DATE_INTERVAL_SPAN = 0x1000 + UFIELD_CATEGORY_DATE_INTERVAL,
-
+    /**
+     * Category for spans in a number range.
+     *
+     * @stable ICU 69
+     */
+    UFIELD_CATEGORY_NUMBER_RANGE_SPAN = 0x1000 + UFIELD_CATEGORY_NUMBER,
 } UFieldCategory;
 
 

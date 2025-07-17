@@ -343,7 +343,7 @@ ArrayObject* IntlRelativeTimeFormatObject::formatToParts(ExecutionState& state, 
         const Intl::NumberFieldItem& item = fields[i];
 
         Object* o = new Object(state);
-        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(Intl::icuNumberFieldToString(state, item.type, value), ObjectPropertyDescriptor::AllPresent));
+        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(Intl::icuNumberFieldToString(state, item.type, value, String::emptyString()), ObjectPropertyDescriptor::AllPresent));
         auto sub = resultString.substr(item.start, item.end - item.start);
         o->defineOwnPropertyThrowsException(state, ObjectPropertyName(valueAtom), ObjectPropertyDescriptor(new UTF16String(sub.data(), sub.length()), ObjectPropertyDescriptor::AllPresent));
         if (item.type != -1) {
