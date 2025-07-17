@@ -85,7 +85,7 @@ public:
         int32_t type;
     };
     static void convertICUNumberFieldToEcmaNumberField(std::vector<NumberFieldItem>& fields, double x, const UTF16StringDataNonGCStd& resultString);
-    static String* icuNumberFieldToString(ExecutionState& state, int32_t fieldName, double d);
+    static String* icuNumberFieldToString(ExecutionState& state, int32_t fieldName, double d, String* style);
 
     enum class RoundingType {
         MorePrecision,

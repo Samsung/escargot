@@ -1,7 +1,9 @@
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
 /*
- * Copyright (C) 2015 Andy VanWagoner (thetalecrafter@gmail.com)
- * Copyright (C) 2015 Sukolsak Sakshuwong (sukolsak@gmail.com)
+ * Copyright (C) 2015 Andy VanWagoner (andy@vanwagoner.family)
+ * Copyright (C) 2016 Sukolsak Sakshuwong (sukolsak@gmail.com)
+ * Copyright (C) 2016-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2020 Sony Interactive Entertainment Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1019,6 +1021,12 @@ void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, const Int
     }
 }
 
+#define THROW_TYPEERROR_IF_FAILED()                                                               \
+    if (U_FAILURE(status)) {                                                                      \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number"); \
+    }
+
+
 UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* numberFormat, double x)
 {
     auto ud = reinterpret_cast<IntlNumberFormatData*>(numberFormat->internalSlot()->extraData());
@@ -1031,9 +1039,7 @@ UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* 
 
     unumf_formatDouble(formatter, x, uresult.get(), &status);
 
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
 
     resultString.resize(32);
     auto length = unumf_resultToString(uresult.get(), (UChar*)resultString.data(), resultString.size(), &status);
@@ -1043,9 +1049,7 @@ UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* 
         status = U_ZERO_ERROR;
         unumf_resultToString(uresult.get(), (UChar*)resultString.data(), resultString.size(), &status);
     }
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
 
     return resultString;
 }
@@ -1064,9 +1068,7 @@ UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* 
 
     unumf_formatDecimal(formatter, s.data(), s.length(), uresult.get(), &status);
 
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
 
     resultString.resize(32);
     auto length = unumf_resultToString(uresult.get(), (UChar*)resultString.data(), resultString.size(), &status);
@@ -1076,15 +1078,14 @@ UTF16StringDataNonGCStd IntlNumberFormat::format(ExecutionState& state, Object* 
         status = U_ZERO_ERROR;
         unumf_resultToString(uresult.get(), (UChar*)resultString.data(), resultString.size(), &status);
     }
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
 
     return resultString;
 }
 
 ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numberFormat, double x)
 {
+    auto style = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyStyle())).value(state, numberFormat->internalSlot()).asString();
     auto ud = reinterpret_cast<IntlNumberFormatData*>(numberFormat->internalSlot()->extraData());
     UNumberFormatter* formatter = ud->numberFormatter;
 
@@ -1097,9 +1098,7 @@ ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numb
 
     unumf_formatDouble(formatter, x, uresult.get(), &status);
 
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
 
     resultString.resize(32);
     auto length = unumf_resultToString(uresult.get(), (UChar*)resultString.data(), resultString.size(), &status);
@@ -1109,18 +1108,14 @@ ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numb
         status = U_ZERO_ERROR;
         unumf_resultToString(uresult.get(), (UChar*)resultString.data(), resultString.size(), &status);
     }
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
 
     LocalResourcePointer<UFieldPositionIterator> fpositer(ufieldpositer_open(&status), [](UFieldPositionIterator* f) { ufieldpositer_close(f); });
     ASSERT(U_SUCCESS(status));
 
     unumf_resultGetAllFieldPositions(uresult.get(), fpositer.get(), &status);
 
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
 
     std::vector<Intl::NumberFieldItem> fields;
 
@@ -1160,7 +1155,7 @@ ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numb
         const Intl::NumberFieldItem& item = fields[i];
 
         Object* o = new Object(state);
-        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(Intl::icuNumberFieldToString(state, item.type, x), ObjectPropertyDescriptor::AllPresent));
+        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(Intl::icuNumberFieldToString(state, item.type, x, style), ObjectPropertyDescriptor::AllPresent));
         auto sub = resultString.substr(item.start, item.end - item.start);
         o->defineOwnPropertyThrowsException(state, ObjectPropertyName(valueAtom), ObjectPropertyDescriptor(new UTF16String(sub.data(), sub.length()), ObjectPropertyDescriptor::AllPresent));
 
@@ -1188,24 +1183,16 @@ String* IntlNumberFormat::formatRange(ExecutionState& state, Object* numberForma
     UErrorCode status = U_ZERO_ERROR;
     LocalResourcePointer<UFormattedNumberRange> uresult(unumrf_openResult(&status), [](UFormattedNumberRange* f) { unumrf_closeResult(f); });
 
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
 
     unumrf_formatDoubleRange(ud->numberRangeFormatter.value(), x, y, uresult.get(), &status);
 
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
     auto* formattedValue = unumrf_resultAsValue(uresult.get(), &status);
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
     int32_t length = 0;
     const UChar* string = ufmtval_getString(formattedValue, &length, &status);
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
 
     return new UTF16String(string, length);
 }
@@ -1225,28 +1212,292 @@ String* IntlNumberFormat::formatRange(ExecutionState& state, Object* numberForma
     UErrorCode status = U_ZERO_ERROR;
     LocalResourcePointer<UFormattedNumberRange> uresult(unumrf_openResult(&status), [](UFormattedNumberRange* f) { unumrf_closeResult(f); });
 
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
+    THROW_TYPEERROR_IF_FAILED();
+
+    auto xs = x->toNonGCUTF8StringData();
+    auto ys = y->toNonGCUTF8StringData();
+    unumrf_formatDecimalRange(ud->numberRangeFormatter.value(), xs.data(), xs.length(), ys.data(), ys.length(), uresult.get(), &status);
+    THROW_TYPEERROR_IF_FAILED();
+    auto* formattedValue = unumrf_resultAsValue(uresult.get(), &status);
+    THROW_TYPEERROR_IF_FAILED();
+    int32_t length = 0;
+    const UChar* string = ufmtval_getString(formattedValue, &length, &status);
+    THROW_TYPEERROR_IF_FAILED();
+
+    return new UTF16String(string, length);
+}
+
+static bool numberFieldsPracticallyEqual(ExecutionState& state, const UFormattedValue* formattedValue)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UConstrainedFieldPosition> uresult(ucfpos_open(&status), [](UConstrainedFieldPosition* f) { ucfpos_close(f); });
+    THROW_TYPEERROR_IF_FAILED();
+
+    // We only care about UFIELD_CATEGORY_NUMBER_RANGE_SPAN category.
+    ucfpos_constrainCategory(uresult.get(), UFIELD_CATEGORY_NUMBER_RANGE_SPAN, &status);
+    THROW_TYPEERROR_IF_FAILED();
+
+    bool hasSpan = ufmtval_nextPosition(formattedValue, uresult.get(), &status);
+    THROW_TYPEERROR_IF_FAILED();
+
+    return !hasSpan;
+}
+
+static std::vector<Intl::NumberFieldItem> flattenFields(std::vector<Intl::NumberFieldItem>&& fields, int32_t formattedStringLength)
+{
+    // ICU generates sequence of nested fields, but ECMA402 requires non-overlapping sequence of parts.
+    // This function flattens nested fields into sequence of non-overlapping parts.
+    //
+    // Formatted string: "100,000–20,000,000"
+    //                    |  |  | | |   |  |
+    //                    |  B  | | E   F  |
+    //                    |     | |        |
+    //                    +--C--+ +---G----+
+    //                    +--A--+ +---D----+
+    //
+    // Ranges ICU generates:
+    //     A:    (0, 7)   UFIELD_CATEGORY_NUMBER_RANGE_SPAN startRange
+    //     B:    (3, 4)   UFIELD_CATEGORY_NUMBER group ","
+    //     C:    (0, 7)   UFIELD_CATEGORY_NUMBER integer
+    //     D:    (8, 18)  UFIELD_CATEGORY_NUMBER_RANGE_SPAN endRange
+    //     E:    (10, 11) UFIELD_CATEGORY_NUMBER group ","
+    //     F:    (14, 15) UFIELD_CATEGORY_NUMBER group ","
+    //     G:    (8, 18)  UFIELD_CATEGORY_NUMBER integer
+    //
+    // Then, we need to generate:
+    //     A:    (0, 3)   startRange integer
+    //     B:    (3, 4)   startRange group ","
+    //     C:    (4, 7)   startRange integer
+    //     D:    (7, 8)   shared     literal "-"
+    //     E:    (8, 10)  endRange   integer
+    //     F:    (10, 11) endRange   group ","
+    //     G:    (11, 14) endRange   integer
+    //     H:    (14, 15) endRange   group ","
+    //     I:    (15, 18) endRange   integer
+
+    std::sort(fields.begin(), fields.end(), [](Intl::NumberFieldItem& lhs, Intl::NumberFieldItem& rhs) {
+        if (lhs.start < rhs.start)
+            return true;
+        if (lhs.start > rhs.start)
+            return false;
+        if (lhs.end < rhs.end)
+            return false;
+        if (lhs.end > rhs.end)
+            return true;
+        return lhs.type < rhs.type;
+    });
+
+    std::vector<Intl::NumberFieldItem> flatten;
+    std::vector<Intl::NumberFieldItem> stack;
+    // Top-level field covers entire parts, which makes parts "literal".
+    stack.push_back(Intl::NumberFieldItem{ 0, formattedStringLength, -1 });
+    unsigned cursor = 0;
+    int32_t begin = 0;
+    while (cursor < fields.size()) {
+        const auto& field = fields[cursor];
+
+        // If the new field is out of the current top-most field, roll up and insert a flatten field.
+        // Because the top-level field in the stack covers all index range, this condition always becomes false
+        // if stack size is 1.
+        while (stack.back().end < field.start) {
+            if (begin < stack.back().end) {
+                Intl::NumberFieldItem flattenField{ begin, stack.back().end, stack.back().type };
+                flatten.push_back(flattenField);
+                begin = flattenField.end;
+            }
+            stack.erase(stack.end() - 1);
+        }
+        ASSERT(!stack.empty()); // At least, top-level field exists.
+
+        // If the new field is starting with the same index, diving into the new field by adding it into stack.
+        if (begin == field.start) {
+            stack.push_back(field);
+            ++cursor;
+            continue;
+        }
+
+        // If there is a room between the current top-most field and the new field, insert a flatten field.
+        if (begin < field.start) {
+            Intl::NumberFieldItem flattenField{ begin, field.start, stack.back().type };
+            flatten.push_back(flattenField);
+            stack.push_back(field);
+            begin = field.start;
+            ++cursor;
+            continue;
+        }
+    }
+
+    // Roll up the nested field at the end of the formatted string sequence.
+    // For example,
+    //
+    //      <------------A-------------->
+    //      <--------B------------>
+    //      <---C---->
+    //
+    // Then, after C finishes, we should insert remaining B and A.
+    while (!stack.empty()) {
+        if (begin < stack.back().end) {
+            Intl::NumberFieldItem flattenField{ begin, stack.back().end, stack.back().type };
+            flatten.push_back(flattenField);
+            begin = flattenField.end;
+        }
+        stack.erase(stack.end() - 1);
+    }
+
+    return flatten;
+}
+
+
+ArrayObject* IntlNumberFormat::formatRangeToParts(ExecutionState& state, Object* numberFormat, String* x, String* y)
+{
+    auto style = numberFormat->internalSlot()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyStyle())).value(state, numberFormat->internalSlot()).asString();
+    auto ud = reinterpret_cast<IntlNumberFormatData*>(numberFormat->internalSlot()->extraData());
+
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    if (!ud->numberRangeFormatter) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.NumberFormat.formatRange needs 68+ version of ICU");
+    }
+#endif
+
+    UNumberFormatter* formatter = ud->numberFormatter;
+
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UFormattedNumberRange> uresult(unumrf_openResult(&status), [](UFormattedNumberRange* f) { unumrf_closeResult(f); });
+
+    THROW_TYPEERROR_IF_FAILED();
+
+    double xAsNumber = Value(x).toNumber(state);
+    double yAsNumber = Value(y).toNumber(state);
+    if (std::isnan(xAsNumber) || std::isnan(yAsNumber)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Failed to format a number");
     }
 
     auto xs = x->toNonGCUTF8StringData();
     auto ys = y->toNonGCUTF8StringData();
     unumrf_formatDecimalRange(ud->numberRangeFormatter.value(), xs.data(), xs.length(), ys.data(), ys.length(), uresult.get(), &status);
 
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
     auto* formattedValue = unumrf_resultAsValue(uresult.get(), &status);
-    if (U_FAILURE(status)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
-    }
+    THROW_TYPEERROR_IF_FAILED();
     int32_t length = 0;
     const UChar* string = ufmtval_getString(formattedValue, &length, &status);
+    THROW_TYPEERROR_IF_FAILED();
+
+    UVersionInfo versionArray;
+    u_getVersion(versionArray);
+    // After ICU 71, approximatelySign is supported. We use the old path only for < 71.
+    if (versionArray[0] < 71) {
+        bool equal = numberFieldsPracticallyEqual(state, formattedValue);
+        if (equal) {
+            return IntlNumberFormat::formatToParts(state, numberFormat, Value(x).toNumber(state));
+        }
+    }
+
+    // We care multiple categories (UFIELD_CATEGORY_DATE and UFIELD_CATEGORY_DATE_INTERVAL_SPAN).
+    // So we do not constraint iterator.
+    LocalResourcePointer<UConstrainedFieldPosition> iterator(ucfpos_open(&status), [](UConstrainedFieldPosition* f) { ucfpos_close(f); });
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number");
     }
 
-    return new UTF16String(string, length);
+    std::vector<Intl::NumberFieldItem> fields;
+    Intl::NumberFieldItem startField{ -1, -1, -1 };
+    Intl::NumberFieldItem endField{ -1, -1, -1 };
+
+    while (true) {
+        bool next = ufmtval_nextPosition(formattedValue, iterator.get(), &status);
+        THROW_TYPEERROR_IF_FAILED();
+        if (!next) {
+            break;
+        }
+
+        int32_t category = ucfpos_getCategory(iterator.get(), &status);
+        THROW_TYPEERROR_IF_FAILED();
+
+        int32_t fieldType = ucfpos_getField(iterator.get(), &status);
+        THROW_TYPEERROR_IF_FAILED();
+
+        int32_t beginIndex = 0;
+        int32_t endIndex = 0;
+        ucfpos_getIndexes(iterator.get(), &beginIndex, &endIndex, &status);
+        THROW_TYPEERROR_IF_FAILED();
+
+        if (category != UFIELD_CATEGORY_NUMBER && category != UFIELD_CATEGORY_NUMBER_RANGE_SPAN) {
+            continue;
+        }
+        if (category == UFIELD_CATEGORY_NUMBER && fieldType < 0) {
+            continue;
+        }
+
+        if (category == UFIELD_CATEGORY_NUMBER_RANGE_SPAN) {
+            // > The special field category UFIELD_CATEGORY_NUMBER_RANGE_SPAN is used to indicate which number
+            // > primitives came from which arguments: 0 means start, and 1 means end. The span category
+            // > will always occur before the corresponding fields in UFIELD_CATEGORY_NUMBER in the nextPosition() iterator.
+            // from ICU comment. So, field 0 is startRange, field 1 is endRange.
+            if (!fieldType) {
+                startField = { beginIndex, endIndex, -1 };
+            } else {
+                ASSERT(fieldType == 1);
+                endField = { beginIndex, endIndex, -1 };
+            }
+            continue;
+        }
+
+        ASSERT(category == UFIELD_CATEGORY_NUMBER);
+        Intl::NumberFieldItem item;
+        item.start = beginIndex;
+        item.end = endIndex;
+        item.type = fieldType;
+        fields.push_back(item);
+    }
+
+    auto flatten = flattenFields(std::move(fields), length);
+
+    AtomicString typeAtom(state, "type", 4);
+    AtomicString valueAtom = state.context()->staticStrings().value;
+    AtomicString sourceAtom = state.context()->staticStrings().source;
+
+    String* sharedString = new ASCIIStringFromExternalMemory("shared");
+    String* startRangeString = new ASCIIStringFromExternalMemory("startRange");
+    String* endRangeString = new ASCIIStringFromExternalMemory("endRange");
+    String* literalString = new ASCIIStringFromExternalMemory("literal");
+    String* resultString = new UTF16String(string, length);
+
+    auto createPart = [&](String* type, int32_t beginIndex, int32_t endIndex) {
+        auto sourceType = [&](int32_t index) -> String* {
+            if (startField.start <= index && index < startField.end) {
+                return startRangeString;
+            }
+            if (endField.start <= index && index < endField.end) {
+                return endRangeString;
+            }
+            return sharedString;
+        };
+
+        Object* part = new Object(state);
+        part->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(type, ObjectPropertyDescriptor::AllPresent));
+        String* value = resultString->substring(beginIndex, endIndex);
+        part->defineOwnPropertyThrowsException(state, ObjectPropertyName(valueAtom), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
+        part->defineOwnPropertyThrowsException(state, ObjectPropertyName(sourceAtom), ObjectPropertyDescriptor(sourceType(beginIndex), ObjectPropertyDescriptor::AllPresent));
+        return part;
+    };
+
+    ArrayObject* result = new ArrayObject(state);
+    size_t resultIndex = 0;
+    for (auto& field : flatten) {
+        double d = xAsNumber;
+        if (startField.start <= field.start && field.start < startField.end) {
+            d = xAsNumber;
+        } else {
+            d = yAsNumber;
+        }
+        auto fieldType = field.type;
+        auto partType = fieldType == -1 ? literalString : Intl::icuNumberFieldToString(state, fieldType, d, style);
+        Object* part = createPart(partType, field.start, field.end);
+        result->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, resultIndex++), ObjectPropertyDescriptor(part, ObjectPropertyDescriptor::AllPresent));
+    }
+
+    return result;
 }
 
 } // namespace Escargot

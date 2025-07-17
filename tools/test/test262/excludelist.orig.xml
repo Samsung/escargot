@@ -4946,15 +4946,6 @@
     <test id="intl402/Locale/prototype/variants/name"><reason>TODO</reason></test>
     <test id="intl402/Locale/prototype/variants/prop-desc"><reason>TODO</reason></test>
     <test id="intl402/Locale/reject-duplicate-variants-in-tlang"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRangeToParts/builtin"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRangeToParts/en-US"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRangeToParts/invoked-as-func"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRangeToParts/length"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRangeToParts/name"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRangeToParts/nan-arguments-throws"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRangeToParts/prop-desc"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatRangeToParts/x-greater-than-y-not-throws"><reason>TODO</reason></test>
-    <test id="intl402/NumberFormat/prototype/formatToParts/percent-en-US"><reason>TODO</reason></test>
     <test id="intl402/PluralRules/constructor-option-read-order"><reason>TODO</reason></test>
     <test id="intl402/PluralRules/constructor-options-throwing-getters"><reason>TODO</reason></test>
     <test id="intl402/PluralRules/default-options-object-prototype"><reason>TODO</reason></test>

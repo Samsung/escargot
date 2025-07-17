@@ -2521,7 +2521,7 @@ void Intl::convertICUNumberFieldToEcmaNumberField(std::vector<NumberFieldItem>& 
               });
 }
 
-String* Intl::icuNumberFieldToString(ExecutionState& state, int32_t fieldName, double d)
+String* Intl::icuNumberFieldToString(ExecutionState& state, int32_t fieldName, double d, String* style)
 {
     if (fieldName == -1) {
         return state.context()->staticStrings().lazyLiteral().string();
@@ -2545,7 +2545,11 @@ String* Intl::icuNumberFieldToString(ExecutionState& state, int32_t fieldName, d
     case UNUM_SIGN_FIELD:
         return std::signbit(d) ? state.context()->staticStrings().lazyMinusSign().string() : state.context()->staticStrings().lazyPlusSign().string();
     case UNUM_PERCENT_FIELD:
-        return state.context()->staticStrings().lazyPercentSign().string();
+        if (style->equals("unit")) {
+            return state.context()->staticStrings().lazyUnit().string();
+        } else {
+            return state.context()->staticStrings().lazyPercentSign().string();
+        }
     case UNUM_CURRENCY_FIELD:
         return state.context()->staticStrings().lazyCurrency().string();
     case UNUM_EXPONENT_SYMBOL_FIELD:
@@ -2564,9 +2568,13 @@ String* Intl::icuNumberFieldToString(ExecutionState& state, int32_t fieldName, d
         return state.context()->staticStrings().lazyUnit().string();
     case UNUM_COMPACT_FIELD:
         return state.context()->staticStrings().lazyCompact().string();
+#ifndef UNUM_APPROXIMATELY_SIGN_FIELD
+#define UNUM_APPROXIMATELY_SIGN_FIELD (UNUM_COMPACT_FIELD + 1)
+#endif
+    case UNUM_APPROXIMATELY_SIGN_FIELD:
+        return state.context()->staticStrings().lazyApproximatelySign().string();
     default:
-        ASSERT_NOT_REACHED();
-        return String::emptyString();
+        return String::fromASCII("unknown");
     }
 }
 

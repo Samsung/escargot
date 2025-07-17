@@ -36,6 +36,7 @@ public:
     static String* formatRange(ExecutionState& state, Object* numberFormat, double x, double y);
     static String* formatRange(ExecutionState& state, Object* numberFormat, String* x, String* y);
     static ArrayObject* formatToParts(ExecutionState& state, Object* numberFormat, double x);
+    static ArrayObject* formatRangeToParts(ExecutionState& state, Object* numberFormat, String* x, String* y);
 
 private:
     static void initNumberFormatSkeleton(ExecutionState& state, const Intl::SetNumberFormatDigitOptionsResult& formatResult,
