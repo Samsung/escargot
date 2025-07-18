@@ -490,16 +490,23 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     // Perform ? SetNumberFormatDigitOptions(numberFormat, options, mnfdDefault, mxfdDefault, notation).
     auto setNumberFormatDigitOptionsResult = Intl::setNumberFormatDigitOptions(state, options.asObject(), mnfdDefault, mxfdDefault, notation.asString());
 
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumIntegerDigits()),
+                                      Value(Value::DoubleToIntConvertibleTestNeeds, setNumberFormatDigitOptionsResult.minimumIntegerDigits),
+                                      numberFormat->internalSlot());
 #define SET_PROPERTY(name, Name)                                                                                    \
     if (!setNumberFormatDigitOptionsResult.name.isUndefined()) {                                                    \
         numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazy##Name()), \
                                           setNumberFormatDigitOptionsResult.name, numberFormat->internalSlot());    \
     }
-    SET_PROPERTY(minimumIntegerDigits, MinimumIntegerDigits);
     SET_PROPERTY(minimumFractionDigits, MinimumFractionDigits);
     SET_PROPERTY(maximumFractionDigits, MaximumFractionDigits);
     SET_PROPERTY(minimumSignificantDigits, MinimumSignificantDigits);
     SET_PROPERTY(maximumSignificantDigits, MaximumSignificantDigits);
+#undef SET_PROPERTY
+
+#define SET_PROPERTY(name, Name)                                                                                \
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazy##Name()), \
+                                      setNumberFormatDigitOptionsResult.name, numberFormat->internalSlot());
     SET_PROPERTY(roundingMode, RoundingMode);
     SET_PROPERTY(trailingZeroDisplay, TrailingZeroDisplay);
 #undef SET_PROPERTY
@@ -707,62 +714,10 @@ void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, const Int
             }
         }
 
-        if (!formatResult.minimumSignificantDigits.isUndefined()) {
-            double mnsd = formatResult.minimumSignificantDigits.asNumber();
-            double mxsd = formatResult.maximumSignificantDigits.asNumber();
-
-            for (double i = 0; i < mnsd; i++) {
-                skeleton += '@';
-            }
-
-            for (double i = 0; i < mxsd - mnsd; i++) {
-                skeleton += '#';
-            }
-
-            skeleton += ' ';
-        }
-
-        if (!formatResult.minimumFractionDigits.isUndefined()) {
-            double mnfd = formatResult.minimumSignificantDigits.asNumber();
-            double mxfd = formatResult.maximumSignificantDigits.asNumber();
-
-            skeleton += '.';
-
-            for (double i = 0; i < mnfd; i++) {
-                skeleton += '0';
-            }
-
-            for (double i = 0; i < mxfd - mnfd; i++) {
-                skeleton += '#';
-            }
-            skeleton += ' ';
-        }
-
-        {
-            double mnid = formatResult.minimumIntegerDigits.asNumber();
-            skeleton += u"integer-width/+";
-            for (double i = 0; i < mnid; i++) {
-                skeleton += '0';
-            }
-            skeleton += ' ';
-        }
+        Intl::initNumberFormatSkeleton(state, formatResult, notation.asString(), compactDisplay.asString(), skeleton);
 
         if (!useGrouping.toBoolean()) {
             skeleton += u"group-off ";
-        }
-
-        String* notationString = notation.asString();
-        if (notationString->equals("standard")) {
-        } else if (notationString->equals("scientific")) {
-            skeleton += u"scientific ";
-        } else if (notationString->equals("engineering")) {
-            skeleton += u"engineering ";
-        } else {
-            if (compactDisplay.asString()->equals("short")) {
-                skeleton += u"compact-short ";
-            } else {
-                skeleton += u"compact-long ";
-            }
         }
 
         String* signDisplayString = signDisplay.asString();
@@ -791,110 +746,7 @@ void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, const Int
         return;
     }
 #endif
-
-    String* rm = formatResult.roundingMode.asString();
-    if (rm->equals("ceil")) {
-        skeleton += u"rounding-mode-ceiling ";
-    } else if (rm->equals("floor")) {
-        skeleton += u"rounding-mode-floor ";
-    } else if (rm->equals("expand")) {
-        skeleton += u"rounding-mode-up ";
-    } else if (rm->equals("trunc")) {
-        skeleton += u"rounding-mode-down ";
-    } else if (rm->equals("halfCeil")) {
-        skeleton += u"rounding-mode-half-ceiling ";
-    } else if (rm->equals("halfFloor")) {
-        skeleton += u"rounding-mode-half-floor ";
-    } else if (rm->equals("halfExpand")) {
-        skeleton += u"rounding-mode-half-up ";
-    } else if (rm->equals("halfTrunc")) {
-        skeleton += u"rounding-mode-half-down ";
-    } else {
-        ASSERT(rm->equals("halfEven"));
-        skeleton += u"rounding-mode-half-even ";
-    }
-
-    {
-        double mnid = formatResult.minimumIntegerDigits.asNumber();
-        skeleton += u"integer-width/*";
-        for (double i = 0; i < mnid; i++) {
-            skeleton += '0';
-        }
-        skeleton += ' ';
-    }
-
-    if (formatResult.roundingIncrement != 1) {
-        skeleton += u"precision-increment/";
-        auto string = dtoa(formatResult.roundingIncrement);
-        if (formatResult.maximumFractionDigits.asNumber() >= string.size()) {
-            skeleton += u"0.";
-            for (size_t i = 0; i < (formatResult.maximumFractionDigits.asNumber() - string.size()); i++) {
-                skeleton += u"0";
-            }
-            for (auto c : string) {
-                skeleton += static_cast<char16_t>(c);
-            }
-        } else {
-            auto nonFraction = string.size() - formatResult.maximumFractionDigits.asNumber();
-            for (size_t i = 0; i < nonFraction; i++) {
-                skeleton += static_cast<char16_t>(string[i]);
-            }
-            skeleton += u".";
-
-            for (size_t i = 0; i < nonFraction; i++) {
-                skeleton += static_cast<char16_t>(string[i]);
-            }
-
-            for (size_t i = 0; i < formatResult.maximumFractionDigits.asNumber(); i++) {
-                skeleton += static_cast<char16_t>(string[i + nonFraction]);
-            }
-        }
-    } else {
-        if (formatResult.roundingType == Intl::RoundingType::FractionDigits) {
-            skeleton += u".";
-            for (size_t i = 0; i < formatResult.minimumFractionDigits.asNumber(); i++) {
-                skeleton += u"0";
-            }
-            for (size_t i = 0; i < formatResult.maximumFractionDigits.asNumber() - formatResult.minimumFractionDigits.asNumber(); i++) {
-                skeleton += u"#";
-            }
-        } else if (formatResult.roundingType == Intl::RoundingType::SignificantDigits) {
-            for (size_t i = 0; i < formatResult.minimumSignificantDigits.asNumber(); i++) {
-                skeleton += u"@";
-            }
-            for (size_t i = 0; i < formatResult.maximumSignificantDigits.asNumber() - formatResult.minimumSignificantDigits.asNumber(); i++) {
-                skeleton += u"#";
-            }
-        } else {
-            ASSERT(formatResult.roundingType == Intl::RoundingType::LessPrecision || formatResult.roundingType == Intl::RoundingType::MorePrecision);
-            skeleton += u".";
-            for (size_t i = 0; i < formatResult.minimumFractionDigits.asNumber(); i++) {
-                skeleton += u"0";
-            }
-            for (size_t i = 0; i < formatResult.maximumFractionDigits.asNumber() - formatResult.minimumFractionDigits.asNumber(); i++) {
-                skeleton += u"#";
-            }
-            skeleton += u"/";
-            for (size_t i = 0; i < formatResult.minimumSignificantDigits.asNumber(); i++) {
-                skeleton += u"@";
-            }
-            for (size_t i = 0; i < formatResult.maximumSignificantDigits.asNumber() - formatResult.minimumSignificantDigits.asNumber(); i++) {
-                skeleton += u"#";
-            }
-            if (formatResult.roundingType == Intl::RoundingType::MorePrecision) {
-                skeleton += u"r";
-            } else {
-                skeleton += u"s";
-            }
-        }
-    }
-
-    if (formatResult.trailingZeroDisplay.asString()->equals("auto")) {
-        skeleton += u" ";
-    } else {
-        ASSERT(formatResult.trailingZeroDisplay.asString()->equals("stripIfInteger"));
-        skeleton += u"/w ";
-    }
+    Intl::initNumberFormatSkeleton(state, formatResult, notation.asString(), compactDisplay.asString(), skeleton);
 
     if (style.asString()->equals("currency")) {
         if (!currency.isUndefined()) {
@@ -974,20 +826,6 @@ void IntlNumberFormat::initNumberFormatSkeleton(ExecutionState& state, const Int
         skeleton += u"group-on-aligned ";
     } else {
         ASSERT_NOT_REACHED();
-    }
-
-    String* notationString = notation.asString();
-    if (notationString->equals("standard")) {
-    } else if (notationString->equals("scientific")) {
-        skeleton += u"scientific ";
-    } else if (notationString->equals("engineering")) {
-        skeleton += u"engineering ";
-    } else {
-        if (compactDisplay.asString()->equals("short")) {
-            skeleton += u"compact-short ";
-        } else {
-            skeleton += u"compact-long ";
-        }
     }
 
     String* signDisplayString = signDisplay.asString();

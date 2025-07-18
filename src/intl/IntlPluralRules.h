@@ -36,7 +36,7 @@ public:
         return true;
     }
 
-    String* resolvePlural(double number);
+    String* resolvePlural(ExecutionState& state, double number);
 
     String* locale() const
     {
@@ -48,39 +48,64 @@ public:
         return m_type;
     }
 
+    String* notation() const
+    {
+        return m_notation;
+    }
+
     double minimumIntegerDigits() const
     {
         return m_minimumIntegerDigits;
     }
 
-    double minimumFractionDigits() const
+    double roundingIncrement() const
+    {
+        return m_roundingIncrement;
+    }
+
+    Value minimumFractionDigits() const
     {
         return m_minimumFractionDigits;
     }
 
-    double maximumFractionDigits() const
+    Value maximumFractionDigits() const
     {
         return m_maximumFractionDigits;
     }
 
-    Optional<double> minimumSignificantDigits() const
+    Value minimumSignificantDigits() const
     {
         return m_minimumSignificantDigits;
     }
 
-    Optional<double> maximumSignificantDigits() const
+    Value maximumSignificantDigits() const
     {
         return m_maximumSignificantDigits;
+    }
+
+    String* roundingMode() const
+    {
+        return m_roundingMode;
+    }
+
+    String* trailingZeroDisplay() const
+    {
+        return m_trailingZeroDisplay;
+    }
+
+    Intl::RoundingType roundingType() const
+    {
+        return m_roundingType;
+    }
+
+    Intl::RoundingPriority computedRoundingPriority() const
+    {
+        return m_computedRoundingPriority;
     }
 
     UPluralRules* icuPluralRules() const
     {
         return m_icuPluralRules;
-    }
-
-    UNumberFormat* icuNumberFormat() const
-    {
-        return m_icuNumberFormat;
     }
 
     void* operator new(size_t size);
@@ -89,14 +114,20 @@ public:
 protected:
     String* m_locale;
     String* m_type;
+    String* m_notation;
     double m_minimumIntegerDigits;
-    double m_minimumFractionDigits;
-    double m_maximumFractionDigits;
-    Optional<double> m_minimumSignificantDigits;
-    Optional<double> m_maximumSignificantDigits;
+    double m_roundingIncrement;
+    Value m_minimumFractionDigits; // double or undefined
+    Value m_maximumFractionDigits; // double or undefined
+    Value m_minimumSignificantDigits; // double or undefined
+    Value m_maximumSignificantDigits; // double or undefined
+    String* m_roundingMode;
+    String* m_trailingZeroDisplay;
+    Intl::RoundingType m_roundingType;
+    Intl::RoundingPriority m_computedRoundingPriority;
 
     UPluralRules* m_icuPluralRules;
-    UNumberFormat* m_icuNumberFormat;
+    UNumberFormatter* m_icuNumberFormat;
 };
 
 } // namespace Escargot

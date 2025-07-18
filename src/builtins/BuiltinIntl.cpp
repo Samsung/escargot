@@ -540,7 +540,7 @@ static Value builtinIntlPluralRulesSelect(ExecutionState& state, Value thisValue
     // Let n be ? ToNumber(value).
     double n = argv[0].toNumber(state);
     // Return ? ResolvePlural(pr, n).
-    return thisValue.asObject()->asIntlPluralRulesObject()->asIntlPluralRulesObject()->resolvePlural(n);
+    return thisValue.asObject()->asIntlPluralRulesObject()->asIntlPluralRulesObject()->resolvePlural(state, n);
 }
 
 static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -562,19 +562,19 @@ static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value 
     // If v is not undefined, then
     // Perform ! CreateDataPropertyOrThrow(options, p, v).
 
-
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale()), ObjectPropertyDescriptor(pr->locale(), ObjectPropertyDescriptor::AllPresent));
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyType()), ObjectPropertyDescriptor(pr->type(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyNotation()), ObjectPropertyDescriptor(pr->notation(), ObjectPropertyDescriptor::AllPresent));
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumIntegerDigits()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->minimumIntegerDigits()), ObjectPropertyDescriptor::AllPresent));
 
-    if (pr->minimumSignificantDigits()) {
-        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->minimumSignificantDigits().value()), ObjectPropertyDescriptor::AllPresent));
-        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->maximumSignificantDigits().value()), ObjectPropertyDescriptor::AllPresent));
-    } else {
-        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->minimumFractionDigits()), ObjectPropertyDescriptor::AllPresent));
-        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->maximumFractionDigits()), ObjectPropertyDescriptor::AllPresent));
+    if (!pr->minimumSignificantDigits().isUndefined()) {
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits()), ObjectPropertyDescriptor(pr->minimumSignificantDigits(), ObjectPropertyDescriptor::AllPresent));
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits()), ObjectPropertyDescriptor(pr->maximumSignificantDigits(), ObjectPropertyDescriptor::AllPresent));
     }
-
+    if (!pr->minimumFractionDigits().isUndefined()) {
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()), ObjectPropertyDescriptor(pr->minimumFractionDigits(), ObjectPropertyDescriptor::AllPresent));
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()), ObjectPropertyDescriptor(pr->maximumFractionDigits(), ObjectPropertyDescriptor::AllPresent));
+    }
 
     // Let pluralCategories be a List of Strings representing the possible results of PluralRuleSelect for the selected locale pr.[[Locale]]. This List consists of unique string values, from the the list "zero", "one", "two", "few", "many" and "other", that are relevant for the locale whose localization is specified in LDML Language Plural Rules.
     // Perform ! CreateDataProperty(options, "pluralCategories", CreateArrayFromList(pluralCategories)).
@@ -583,8 +583,7 @@ static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value 
     UErrorCode status = U_ZERO_ERROR;
     UEnumeration* ue = uplrules_getKeywords(pr->icuPluralRules(), &status);
     ASSERT(U_SUCCESS(status));
-    uint32_t i = 0;
-
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> v;
     do {
         int32_t size;
         const char* str = uenum_next(ue, &size, &status);
@@ -594,15 +593,49 @@ static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value 
             break;
         }
 
-        String* s = String::fromUTF8(str, size);
-        pluralCategories->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, (size_t)i), ObjectPropertyDescriptor(Value(s), ObjectPropertyDescriptor::AllPresent));
-        i++;
+        v.pushBack(String::fromUTF8(str, size));
     } while (true);
+
+
+    constexpr std::array<const char*, 6> candidates = { { "zero", "one", "two", "few", "many", "other" } };
+
+    size_t i = 0;
+    for (auto candidate : candidates) {
+        for (auto s : v) {
+            if (s->equals(candidate, strlen(candidate))) {
+                pluralCategories->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, i++), ObjectPropertyDescriptor(Value(s), ObjectPropertyDescriptor::AllPresent));
+                break;
+            }
+        }
+    }
 
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(AtomicString(state.context()->atomicStringMap(), "pluralCategories", sizeof("pluralCategories") - 1, AtomicString::FromExternalMemory)),
                                               ObjectPropertyDescriptor(pluralCategories, ObjectPropertyDescriptor::AllPresent));
 
     uenum_close(ue);
+
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyRoundingIncrement()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->roundingIncrement()), ObjectPropertyDescriptor::AllPresent));
+
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyRoundingMode()), ObjectPropertyDescriptor(pr->roundingMode(), ObjectPropertyDescriptor::AllPresent));
+
+    Value roundingType;
+    switch (pr->computedRoundingPriority()) {
+    case Intl::RoundingPriority::Auto:
+        roundingType = state.context()->staticStrings().lazyAuto().string();
+        break;
+    case Intl::RoundingPriority::MorePrecision:
+        roundingType = state.context()->staticStrings().lazyMorePrecision().string();
+        break;
+    case Intl::RoundingPriority::LessPrecision:
+        roundingType = state.context()->staticStrings().lazyLessPrecision().string();
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+    }
+
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyRoundingPriority()), ObjectPropertyDescriptor(roundingType, ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyTrailingZeroDisplay()), ObjectPropertyDescriptor(pr->trailingZeroDisplay(), ObjectPropertyDescriptor::AllPresent));
+
     // Return options.
     return options;
 }
