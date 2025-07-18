@@ -231,7 +231,6 @@ namespace Escargot {
     F(fontsize)                   \
     F(forEach)                    \
     F(format)                     \
-    F(formatToParts)              \
     F(freeze)                     \
     F(from)                       \
     F(fromCharCode)               \
@@ -239,6 +238,7 @@ namespace Escargot {
     F(fromEntries)                \
     F(fround)                     \
     F(function)                   \
+    F(f16round)                   \
     F(gc)                         \
     F(get)                        \
     F(getBigInt64)                \
@@ -725,6 +725,7 @@ namespace Escargot {
     F(Accounting, "accounting")                             \
     F(Always, "always")                                     \
     F(Any, "any")                                           \
+    F(ApproximatelySign, "approximatelySign")               \
     F(Auto, "auto")                                         \
     F(Base, "base")                                         \
     F(Basic, "basic")                                       \
@@ -760,7 +761,10 @@ namespace Escargot {
     F(ExponentMinusSign, "exponentMinusSign")               \
     F(ExponentSeparator, "exponentSeparator")               \
     F(Fallback, "fallback")                                 \
+    F(FormatRange, "formatRange")                           \
+    F(FormatRangeToParts, "formatRangeToParts")             \
     F(FormatMatcher, "formatMatcher")                       \
+    F(FormatToParts, "formatToParts")                       \
     F(Fraction, "fraction")                                 \
     F(FractionDigits, "fractionDigits")                     \
     F(FractionalSecond, "fractionalSecond")                 \
@@ -821,6 +825,7 @@ namespace Escargot {
     F(Scientific, "scientific")                             \
     F(Second, "second")                                     \
     F(Sensitivity, "sensitivity")                           \
+    F(SelectRange, "selectRange")                           \
     F(Short, "short")                                       \
     F(SignDisplay, "signDisplay")                           \
     F(SignificantDigits, "significantDigits")               \
@@ -1010,6 +1015,7 @@ public:
     AtomicString intlDotListFormat;
     AtomicString intlDotLocale;
     AtomicString intlDotPluralRules;
+    AtomicString intlDotNumberFormat;
     AtomicString intlDotRelativeTimeFormat;
     AtomicString set__proto__;
     AtomicString symbolMatch;

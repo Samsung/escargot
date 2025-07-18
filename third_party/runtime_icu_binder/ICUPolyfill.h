@@ -179,6 +179,8 @@
 #define uplrules_select RuntimeICUBinder::ICU::instance().uplrules_select
 #define uplrules_getKeywords RuntimeICUBinder::ICU::instance().uplrules_getKeywords
 #define uplrules_selectWithFormat RuntimeICUBinder::ICU::instance().uplrules_selectWithFormat
+#define uplrules_selectFormatted RuntimeICUBinder::ICU::instance().uplrules_selectFormatted
+#define uplrules_selectForRange RuntimeICUBinder::ICU::instance().uplrules_selectForRange
 
 #define ures_open RuntimeICUBinder::ICU::instance().ures_open
 #define ures_openDirect RuntimeICUBinder::ICU::instance().ures_openDirect
@@ -201,6 +203,14 @@
 #define unumf_resultToString RuntimeICUBinder::ICU::instance().unumf_resultToString
 #define unumf_close RuntimeICUBinder::ICU::instance().unumf_close
 #define unumf_closeResult RuntimeICUBinder::ICU::instance().unumf_closeResult
+
+#define unumrf_openForSkeletonWithCollapseAndIdentityFallback RuntimeICUBinder::ICU::instance().unumrf_openForSkeletonWithCollapseAndIdentityFallback
+#define unumrf_close RuntimeICUBinder::ICU::instance().unumrf_close
+#define unumrf_resultAsValue RuntimeICUBinder::ICU::instance().unumrf_resultAsValue
+#define unumrf_formatDoubleRange RuntimeICUBinder::ICU::instance().unumrf_formatDoubleRange
+#define unumrf_formatDecimalRange RuntimeICUBinder::ICU::instance().unumrf_formatDecimalRange
+#define unumrf_openResult RuntimeICUBinder::ICU::instance().unumrf_openResult
+#define unumrf_closeResult RuntimeICUBinder::ICU::instance().unumrf_closeResult
 
 #define ufieldpositer_open RuntimeICUBinder::ICU::instance().ufieldpositer_open
 #define ufieldpositer_next RuntimeICUBinder::ICU::instance().ufieldpositer_next

@@ -316,6 +316,28 @@ static Value builtinIntlDateTimeFormatSupportedLocalesOf(ExecutionState& state, 
 }
 
 #if defined(ENABLE_INTL_NUMBERFORMAT)
+
+static bool isIntlNumberChar(char c)
+{
+    return c == '.' || c == '-' || isdigit(c);
+}
+
+static String* toIntlDecimalString(ExecutionState& state, const Value& v)
+{
+    if (v.isNumber()) {
+        return v.toString(state);
+    } else if (v.isString() && v.asString()->isAllSpecialCharacters(isIntlNumberChar)) {
+        return v.asString();
+    } else {
+        auto numeric = v.toNumeric(state);
+        if (numeric.second) {
+            return numeric.first.asBigInt()->toString();
+        } else {
+            return numeric.first.toString(state);
+        }
+    }
+}
+
 static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     FunctionObject* callee = state.resolveCallee();
@@ -328,17 +350,8 @@ static Value builtinIntlNumberFormatFormat(ExecutionState& state, Value thisValu
     UTF16StringDataNonGCStd result;
     if (argv[0].isNumber()) {
         result = IntlNumberFormat::format(state, numberFormat, argv[0].asNumber());
-    } else if (argv[0].isString() && argv[0].asString()->isAllSpecialCharacters([](char c) -> bool {
-                   return c == '.' || c == '-' || isdigit(c);
-               })) {
-        result = IntlNumberFormat::format(state, numberFormat, argv[0].asString());
     } else {
-        auto numeric = argv[0].toNumeric(state);
-        if (numeric.second) {
-            result = IntlNumberFormat::format(state, numberFormat, numeric.first.asBigInt()->toString());
-        } else {
-            result = IntlNumberFormat::format(state, numberFormat, numeric.first.asNumber());
-        }
+        result = IntlNumberFormat::format(state, numberFormat, toIntlDecimalString(state, argv[0]));
     }
 
     return new UTF16String(result.data(), result.length());
@@ -439,6 +452,38 @@ static Value builtinIntlNumberFormatFormatToParts(ExecutionState& state, Value t
     return IntlNumberFormat::formatToParts(state, thisValue.asObject(), x);
 }
 
+static Value builtinIntlNumberFormatFormatRange(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, state.context()->staticStrings().lazyInitializedNumberFormat())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    if (argv[0].isUndefined() || argv[1].isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid parameter: undefined");
+    }
+
+    if (argv[0].isNumber() && argv[1].isNumber()) {
+        return IntlNumberFormat::formatRange(state, thisValue.asObject(), argv[0].asNumber(), argv[1].asNumber());
+    } else {
+        return IntlNumberFormat::formatRange(state, thisValue.asObject(),
+                                             toIntlDecimalString(state, argv[0]), toIntlDecimalString(state, argv[1]));
+    }
+}
+
+static Value builtinIntlNumberFormatFormatRangeToParts(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->hasInternalSlot() || !thisValue.asObject()->internalSlot()->hasOwnProperty(state, state.context()->staticStrings().lazyInitializedNumberFormat())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    if (argv[0].isUndefined() || argv[1].isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid parameter: undefined");
+    }
+
+    return IntlNumberFormat::formatRangeToParts(state, thisValue.asObject(),
+                                                toIntlDecimalString(state, argv[0]), toIntlDecimalString(state, argv[1]));
+}
+
 static Value builtinIntlNumberFormatSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If options is not provided, then let options be undefined.
@@ -495,7 +540,28 @@ static Value builtinIntlPluralRulesSelect(ExecutionState& state, Value thisValue
     // Let n be ? ToNumber(value).
     double n = argv[0].toNumber(state);
     // Return ? ResolvePlural(pr, n).
-    return thisValue.asObject()->asIntlPluralRulesObject()->asIntlPluralRulesObject()->resolvePlural(n);
+    return thisValue.asObject()->asIntlPluralRulesObject()->asIntlPluralRulesObject()->resolvePlural(state, n);
+}
+
+static Value builtinIntlPluralRulesSelectRange(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.selectrange
+    // Perform ? RequireInternalSlot(pr, [[InitializedPluralRules]]).
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlPluralRulesObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    // If start is undefined or end is undefined, throw a TypeError exception.
+    if (argv[0].isUndefined() || argv[1].isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid parameter: undefined");
+    }
+    // Let x be ? ToNumber(start).
+    double x = argv[0].toNumber(state);
+    // Let y be ? ToNumber(end).
+    double y = argv[1].toNumber(state);
+
+    // Return ? ResolvePluralRange(pr, x, y).
+    return thisValue.asObject()->asIntlPluralRulesObject()->asIntlPluralRulesObject()->resolvePluralRange(state, x, y);
 }
 
 static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -517,19 +583,19 @@ static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value 
     // If v is not undefined, then
     // Perform ! CreateDataPropertyOrThrow(options, p, v).
 
-
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale()), ObjectPropertyDescriptor(pr->locale(), ObjectPropertyDescriptor::AllPresent));
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyType()), ObjectPropertyDescriptor(pr->type(), ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyNotation()), ObjectPropertyDescriptor(pr->notation(), ObjectPropertyDescriptor::AllPresent));
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumIntegerDigits()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->minimumIntegerDigits()), ObjectPropertyDescriptor::AllPresent));
 
-    if (pr->minimumSignificantDigits()) {
-        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->minimumSignificantDigits().value()), ObjectPropertyDescriptor::AllPresent));
-        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->maximumSignificantDigits().value()), ObjectPropertyDescriptor::AllPresent));
-    } else {
-        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->minimumFractionDigits()), ObjectPropertyDescriptor::AllPresent));
-        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->maximumFractionDigits()), ObjectPropertyDescriptor::AllPresent));
+    if (!pr->minimumSignificantDigits().isUndefined()) {
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumSignificantDigits()), ObjectPropertyDescriptor(pr->minimumSignificantDigits(), ObjectPropertyDescriptor::AllPresent));
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumSignificantDigits()), ObjectPropertyDescriptor(pr->maximumSignificantDigits(), ObjectPropertyDescriptor::AllPresent));
     }
-
+    if (!pr->minimumFractionDigits().isUndefined()) {
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinimumFractionDigits()), ObjectPropertyDescriptor(pr->minimumFractionDigits(), ObjectPropertyDescriptor::AllPresent));
+        options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMaximumFractionDigits()), ObjectPropertyDescriptor(pr->maximumFractionDigits(), ObjectPropertyDescriptor::AllPresent));
+    }
 
     // Let pluralCategories be a List of Strings representing the possible results of PluralRuleSelect for the selected locale pr.[[Locale]]. This List consists of unique string values, from the the list "zero", "one", "two", "few", "many" and "other", that are relevant for the locale whose localization is specified in LDML Language Plural Rules.
     // Perform ! CreateDataProperty(options, "pluralCategories", CreateArrayFromList(pluralCategories)).
@@ -538,8 +604,7 @@ static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value 
     UErrorCode status = U_ZERO_ERROR;
     UEnumeration* ue = uplrules_getKeywords(pr->icuPluralRules(), &status);
     ASSERT(U_SUCCESS(status));
-    uint32_t i = 0;
-
+    Vector<String*, GCUtil::gc_malloc_allocator<String*>> v;
     do {
         int32_t size;
         const char* str = uenum_next(ue, &size, &status);
@@ -549,15 +614,49 @@ static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value 
             break;
         }
 
-        String* s = String::fromUTF8(str, size);
-        pluralCategories->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, (size_t)i), ObjectPropertyDescriptor(Value(s), ObjectPropertyDescriptor::AllPresent));
-        i++;
+        v.pushBack(String::fromUTF8(str, size));
     } while (true);
+
+
+    constexpr std::array<const char*, 6> candidates = { { "zero", "one", "two", "few", "many", "other" } };
+
+    size_t i = 0;
+    for (auto candidate : candidates) {
+        for (auto s : v) {
+            if (s->equals(candidate, strlen(candidate))) {
+                pluralCategories->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, i++), ObjectPropertyDescriptor(Value(s), ObjectPropertyDescriptor::AllPresent));
+                break;
+            }
+        }
+    }
 
     options->defineOwnPropertyThrowsException(state, ObjectPropertyName(AtomicString(state.context()->atomicStringMap(), "pluralCategories", sizeof("pluralCategories") - 1, AtomicString::FromExternalMemory)),
                                               ObjectPropertyDescriptor(pluralCategories, ObjectPropertyDescriptor::AllPresent));
 
     uenum_close(ue);
+
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyRoundingIncrement()), ObjectPropertyDescriptor(Value(Value::DoubleToIntConvertibleTestNeeds, pr->roundingIncrement()), ObjectPropertyDescriptor::AllPresent));
+
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyRoundingMode()), ObjectPropertyDescriptor(pr->roundingMode(), ObjectPropertyDescriptor::AllPresent));
+
+    Value roundingType;
+    switch (pr->computedRoundingPriority()) {
+    case Intl::RoundingPriority::Auto:
+        roundingType = state.context()->staticStrings().lazyAuto().string();
+        break;
+    case Intl::RoundingPriority::MorePrecision:
+        roundingType = state.context()->staticStrings().lazyMorePrecision().string();
+        break;
+    case Intl::RoundingPriority::LessPrecision:
+        roundingType = state.context()->staticStrings().lazyLessPrecision().string();
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+    }
+
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyRoundingPriority()), ObjectPropertyDescriptor(roundingType, ObjectPropertyDescriptor::AllPresent));
+    options->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyTrailingZeroDisplay()), ObjectPropertyDescriptor(pr->trailingZeroDisplay(), ObjectPropertyDescriptor::AllPresent));
+
     // Return options.
     return options;
 }
@@ -1374,8 +1473,8 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlDateTimeFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().format,
                                                            ObjectPropertyDescriptor(JSGetterSetter(formatFunction, Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_intlDateTimeFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().formatToParts,
-                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->formatToParts, builtinIntlDateTimeFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+    m_intlDateTimeFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyFormatToParts(),
+                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFormatToParts(), builtinIntlDateTimeFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlDateTimeFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
                                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlDateTimeFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
@@ -1396,14 +1495,20 @@ void GlobalObject::installIntl(ExecutionState& state)
         m_intlNumberFormatPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->format), desc);
     }
 
-    m_intlNumberFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().formatToParts,
-                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->formatToParts, builtinIntlNumberFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+    m_intlNumberFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyFormatToParts(),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFormatToParts(), builtinIntlNumberFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlNumberFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyFormatRange(),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFormatRange(), builtinIntlNumberFormatFormatRange, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlNumberFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyFormatRangeToParts(),
+                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFormatRangeToParts(), builtinIntlNumberFormatFormatRangeToParts, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlNumberFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlNumberFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlNumberFormatPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                                         ObjectPropertyDescriptor(Value(state.context()->staticStrings().Object.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                         ObjectPropertyDescriptor(Value(state.context()->staticStrings().intlDotNumberFormat.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_intlNumberFormat->directDefineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlNumberFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
@@ -1418,6 +1523,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlPluralRulesPrototype->directDefineOwnProperty(state, state.context()->staticStrings().select,
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->select, builtinIntlPluralRulesSelect, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlPluralRulesPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazySelectRange(),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySelectRange(), builtinIntlPluralRulesSelectRange, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlPluralRulesPrototype->directDefineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlPluralRulesResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
@@ -1579,8 +1687,8 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlRelativeTimeFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().format,
                                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlRelativeTimeFormatFormat, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
-    m_intlRelativeTimeFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().formatToParts,
-                                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->formatToParts, builtinIntlRelativeTimeFormatFormatToParts, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+    m_intlRelativeTimeFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyFormatToParts(),
+                                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFormatToParts(), builtinIntlRelativeTimeFormatFormatToParts, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlRelativeTimeFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
                                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlRelativeTimeFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
@@ -1622,8 +1730,8 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlListFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().format,
                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlListFormatFormat, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
-    m_intlListFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().formatToParts,
-                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->formatToParts, builtinIntlListFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+    m_intlListFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyFormatToParts(),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFormatToParts(), builtinIntlListFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlListFormatPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                        ObjectPropertyDescriptor(Value(strings->intlDotListFormat.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

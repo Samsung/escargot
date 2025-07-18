@@ -418,6 +418,26 @@ inline unsigned int float2half_impl(double value)
         return underflow(sign);
     return sign;
 }
+
+/// Convert half-precision to IEEE double-precision.
+/// \param value half-precision value to convert
+/// \return double-precision value
+inline double half2float_impl(unsigned int value)
+{
+    uint32 hi = static_cast<uint32>(value & 0x8000) << 16;
+    unsigned int abs = value & 0x7FFF;
+    if (abs) {
+        hi |= 0x3F000000 << static_cast<unsigned>(abs >= 0x7C00);
+        for (; abs < 0x400; abs <<= 1, hi -= 0x100000)
+            ;
+        hi += static_cast<uint32>(abs) << 10;
+    }
+    bits<double>::type dbits = static_cast<bits<double>::type>(hi) << 32;
+    double out;
+    std::memcpy(&out, &dbits, sizeof(double));
+    return out;
+}
+
 // End of the half library extraction.
 
 // \brief Conversion from float/double to half round number.
@@ -433,10 +453,10 @@ static auto builtinMathF16round(ExecutionState& state, Value thisValue, size_t a
     // 3. If n is one of +0𝔽, -0𝔽, +∞𝔽, or -∞𝔽, return n.
     // 4. Let n16 be the result of converting n to IEEE 754-2019 binary16 format using roundTiesToEven mode.
     auto f16 = float2half_impl(x);
-
+    x = half2float_impl(f16);
     // 5. Let n64 be the result of converting n16 to IEEE 754-2019 binary64 format.
     // 6. Return the ECMAScript Number value corresponding to n64.
-    return Value(Value::DoubleToIntConvertibleTestNeeds, static_cast<double>(f16));
+    return Value(Value::DoubleToIntConvertibleTestNeeds, x);
 }
 
 static Value builtinMathHypot(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -793,6 +813,10 @@ void GlobalObject::installMath(ExecutionState& state)
 
     m_math->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().sumPrecise),
                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().sumPrecise, builtinMathSumPrecise, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_math->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().f16round),
+                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().f16round, builtinMathF16round, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Math),
                         ObjectPropertyDescriptor(m_math, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
