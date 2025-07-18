@@ -77,6 +77,7 @@
 #define ucol_close RuntimeICUBinder::ICU::instance().ucol_close
 #define ucol_getKeywordValues RuntimeICUBinder::ICU::instance().ucol_getKeywordValues
 #define ucol_getKeywordValuesForLocale RuntimeICUBinder::ICU::instance().ucol_getKeywordValuesForLocale
+#define ucol_getAttribute RuntimeICUBinder::ICU::instance().ucol_getAttribute
 #define ucol_open RuntimeICUBinder::ICU::instance().ucol_open
 #define ucol_strcollIter RuntimeICUBinder::ICU::instance().ucol_strcollIter
 #define ucol_strcoll RuntimeICUBinder::ICU::instance().ucol_strcoll

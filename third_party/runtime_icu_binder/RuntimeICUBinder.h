@@ -109,6 +109,7 @@ namespace RuntimeICUBinder {
     F(ucol_getAvailable, const char* (*)(int32_t), const char*)                                                                                                                                \
     F(ucol_getKeywordValues, UEnumeration* (*)(const char* key, UErrorCode* status), UEnumeration*)                                                                                            \
     F(ucol_getKeywordValuesForLocale, UEnumeration* (*)(const char* key, const char* locale, UBool commonlyUsed, UErrorCode* status), UEnumeration*)                                           \
+    F(ucol_getAttribute, UColAttributeValue (*)(const UCollator *coll, UColAttribute attr, UErrorCode *status), UColAttributeValue)                                                            \
     F(ucol_open, UCollator* (*)(const char* loc, UErrorCode* status), UCollator*)                                                                                                              \
     F(ucol_strcollIter, UCollationResult (*)(const UCollator* coll, UCharIterator* sIter, UCharIterator* tIter, UErrorCode* status), UCollationResult)                                         \
     F(ucol_strcoll, UCollationResult (*)(const UCollator* coll, const UChar* source, int32_t sourceLength, const UChar* target, int32_t targetLength), UCollationResult)                       \
