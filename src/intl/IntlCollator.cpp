@@ -203,6 +203,14 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     // Set opt.[[localeMatcher]] to matcher.
     opt.insert(std::make_pair("localeMatcher", matcher.toString(state)));
 
+    Value collation = Intl::getOption(state, options.asObject(), state.context()->staticStrings().collation.string(), Intl::StringValue, nullptr, 0, Value());
+    if (!collation.isUndefined()) {
+        if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(collation.asString())) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "collation is not a well-formed");
+        }
+        opt.insert(std::make_pair("co", collation.asString()));
+    }
+
     // Table 1 – Collator options settable through both extension keys and options properties
     // Key Property    Type            Values
     // kn  numeric    "boolean"
@@ -317,13 +325,12 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     }
 
     // Let ip be the result of calling the GetOption abstract operation with arguments options, "ignorePunctuation", "boolean", undefined, and false.
-    Value ip = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyIgnorePunctuation().string(), Intl::BooleanValue, nullptr, 0, Value(false));
+    Value ip = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyIgnorePunctuation().string(), Intl::BooleanValue, nullptr, 0, Value());
     // Set the [[ignorePunctuation]] internal property of collator to ip.
-    collator->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyIgnorePunctuation()), ObjectPropertyDescriptor(ip));
+    collator->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyIgnorePunctuation()), ObjectPropertyDescriptor(ip.isUndefined() ? Value(false) : ip, ObjectPropertyDescriptor::WritablePresent));
     // Set the [[boundCompare]] internal property of collator to undefined.
     // Set the [[initializedCollator]] internal property of collator to true.
     collator->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyInitializedCollator()), ObjectPropertyDescriptor(Value(true)));
-    // Return collator.
 
     {
         Object* internalSlot = collator->internalSlot();
@@ -332,7 +339,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
         String* locale = opt.locale;
         UColAttributeValue strength = UCOL_DEFAULT;
         UColAttributeValue caseLevel = UCOL_OFF;
-        UColAttributeValue alternate = UCOL_DEFAULT;
+        UColAttributeValue alternate = ip.isUndefined() ? UCOL_DEFAULT : UCOL_NON_IGNORABLE;
         UColAttributeValue numeric = UCOL_OFF;
         UColAttributeValue normalization = UCOL_ON; // normalization is always on. ecma-402 needs this
         UColAttributeValue caseFirst = UCOL_DEFAULT;
@@ -413,6 +420,15 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
         },
                                    nullptr);
     }
+
+    if (ip.isUndefined()) {
+        UErrorCode status = U_ZERO_ERROR;
+        auto result = ucol_getAttribute((UCollator*)collator->internalSlot()->extraData(), UCOL_ALTERNATE_HANDLING, &status);
+        ASSERT(U_SUCCESS(status));
+        ip = Value(result == UCOL_SHIFTED);
+        collator->ensureInternalSlot(state)->defineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyIgnorePunctuation()), ObjectPropertyDescriptor(ip));
+    }
+    // Return collator.
 }
 
 int IntlCollator::compare(ExecutionState& state, Object* collator, String* a, String* b)

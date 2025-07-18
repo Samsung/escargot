@@ -4635,10 +4635,6 @@
     <test id="harness/asyncHelpers-asyncTest-return-not-thenable"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-without-async-flag"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-throwsAsync-func-never-settles"><reason>TODO</reason></test>
-    <test id="intl402/Collator/constructor-options-throwing-getters"><reason>TODO</reason></test>
-    <test id="intl402/Collator/prototype/compare/ignorePunctuation"><reason>TODO</reason></test>
-    <test id="intl402/Collator/prototype/resolvedOptions/ignorePunctuation-default"><reason>TODO</reason></test>
-    <test id="intl402/Collator/prototype/resolvedOptions/resolved-collation-unicode-extensions-and-options"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/canonicalize-calendar"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/canonicalize-timezone"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/canonicalize-utc-timezone"><reason>TODO</reason></test>
@@ -4840,7 +4836,6 @@
     <test id="intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-timezone"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true"><reason>TODO</reason></test>
     <test id="intl402/Intl/getCanonicalLocales/unicode-ext-key-with-digit"><reason>TODO</reason></test>
-    <test id="intl402/Intl/supportedValuesOf/collations-accepted-by-Collator"><reason>TODO</reason></test>
     <test id="intl402/Locale/constructor-apply-options-canonicalizes-twice"><reason>TODO</reason></test>
     <test id="intl402/Locale/constructor-getter-order"><reason>TODO</reason></test>
     <test id="intl402/Locale/constructor-options-canonicalized"><reason>TODO</reason></test>
@@ -6173,7 +6168,6 @@
     <test id="staging/sm/TypedArray/element-setting-converts-using-ToNumber"><reason>TODO</reason></test>
     <test id="staging/sm/TypedArray/find-and-findIndex"><reason>TODO</reason></test>
     <test id="staging/sm/TypedArray/findLast-and-findLastIndex"><reason>TODO</reason></test>
-    <test id="staging/sm/TypedArray/indexOf-and-lastIndexOf"><reason>TODO</reason></test>
     <test id="staging/sm/TypedArray/prototype-constructor-identity"><reason>TODO</reason></test>
     <test id="staging/sm/TypedArray/set-with-receiver"><reason>TODO</reason></test>
     <test id="staging/sm/TypedArray/sort-negative-nan"><reason>TODO</reason></test>
