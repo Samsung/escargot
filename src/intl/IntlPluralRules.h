@@ -37,6 +37,7 @@ public:
     }
 
     String* resolvePlural(ExecutionState& state, double number);
+    String* resolvePluralRange(ExecutionState& state, double x, double y);
 
     String* locale() const
     {
@@ -128,6 +129,7 @@ protected:
 
     UPluralRules* m_icuPluralRules;
     UNumberFormatter* m_icuNumberFormat;
+    Optional<UNumberRangeFormatter*> m_icuNumberRangeFormat;
 };
 
 } // namespace Escargot

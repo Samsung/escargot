@@ -824,6 +824,7 @@ namespace Escargot {
     F(Scientific, "scientific")                             \
     F(Second, "second")                                     \
     F(Sensitivity, "sensitivity")                           \
+    F(SelectRange, "selectRange")                           \
     F(Short, "short")                                       \
     F(SignDisplay, "signDisplay")                           \
     F(SignificantDigits, "significantDigits")               \

@@ -121,6 +121,23 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
 
     ASSERT(U_SUCCESS(status));
 
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    UVersionInfo versionArray;
+    u_getVersion(versionArray);
+#endif
+
+    if (true
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+        && versionArray[0] >= 68
+#endif
+    ) {
+        m_icuNumberRangeFormat = unumrf_openForSkeletonWithCollapseAndIdentityFallback((UChar*)skeleton.data(), skeleton.length(),
+                                                                                       UNUM_RANGE_COLLAPSE_AUTO, UNUM_IDENTITY_FALLBACK_APPROXIMATELY, foundLocale->toNonGCUTF8StringData().data(), nullptr, &status);
+        if (U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to init PluralRules");
+        }
+    }
+
     UPluralType icuType = UPLURAL_TYPE_CARDINAL;
     if (t->equals("ordinal")) {
         icuType = UPLURAL_TYPE_ORDINAL;
@@ -141,6 +158,9 @@ IntlPluralRulesObject::IntlPluralRulesObject(ExecutionState& state, Object* prot
         IntlPluralRulesObject* self = (IntlPluralRulesObject*)obj;
         uplrules_close(self->m_icuPluralRules);
         unumf_close(self->m_icuNumberFormat);
+        if (self->m_icuNumberRangeFormat) {
+            unumrf_close(self->m_icuNumberRangeFormat.value());
+        }
     },
                  nullptr);
 
@@ -173,6 +193,41 @@ String* IntlPluralRulesObject::resolvePlural(ExecutionState& state, double numbe
     ASSERT(U_SUCCESS(status));
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to resolve Plural");
+    }
+
+    return new UTF16String(buf, len);
+}
+
+String* IntlPluralRulesObject::resolvePluralRange(ExecutionState& state, double x, double y)
+{
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    if (!m_icuNumberRangeFormat) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.PluralRules.formatRange needs 68+ version of ICU");
+    }
+#endif
+    if (std::isnan(x) || std::isnan(y)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Failed to resolve Plural range");
+    }
+
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UFormattedNumberRange> uresult(unumrf_openResult(&status), [](UFormattedNumberRange* f) { unumrf_closeResult(f); });
+
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to resolve Plural range");
+    }
+
+    unumrf_formatDoubleRange(m_icuNumberRangeFormat.value(), x, y, uresult.get(), &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to resolve Plural range");
+    }
+
+    int32_t len = uplrules_selectForRange(m_icuPluralRules, uresult.get(), nullptr, 0, &status);
+    UChar* buf = ALLOCA((len + 1) * sizeof(UChar), UChar);
+    status = U_ZERO_ERROR;
+    uplrules_selectForRange(m_icuPluralRules, uresult.get(), buf, len + 1, &status);
+    ASSERT(U_SUCCESS(status));
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to resolve Plural range");
     }
 
     return new UTF16String(buf, len);

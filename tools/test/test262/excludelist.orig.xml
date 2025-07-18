@@ -4946,13 +4946,6 @@
     <test id="intl402/Locale/prototype/variants/name"><reason>TODO</reason></test>
     <test id="intl402/Locale/prototype/variants/prop-desc"><reason>TODO</reason></test>
     <test id="intl402/Locale/reject-duplicate-variants-in-tlang"><reason>TODO</reason></test>
-    <test id="intl402/PluralRules/prototype/selectRange/default-en-us"><reason>TODO</reason></test>
-    <test id="intl402/PluralRules/prototype/selectRange/invoked-as-func"><reason>TODO</reason></test>
-    <test id="intl402/PluralRules/prototype/selectRange/length"><reason>TODO</reason></test>
-    <test id="intl402/PluralRules/prototype/selectRange/name"><reason>TODO</reason></test>
-    <test id="intl402/PluralRules/prototype/selectRange/nan-arguments-throws"><reason>TODO</reason></test>
-    <test id="intl402/PluralRules/prototype/selectRange/prop-desc"><reason>TODO</reason></test>
-    <test id="intl402/PluralRules/prototype/selectRange/x-greater-than-y-not-throws"><reason>TODO</reason></test>
     <test id="intl402/RelativeTimeFormat/prototype/format/pl-pl-style-long"><reason>TODO</reason></test>
     <test id="intl402/RelativeTimeFormat/prototype/format/pl-pl-style-narrow"><reason>TODO</reason></test>
     <test id="intl402/RelativeTimeFormat/prototype/format/pl-pl-style-short"><reason>TODO</reason></test>

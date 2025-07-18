@@ -180,6 +180,7 @@
 #define uplrules_getKeywords RuntimeICUBinder::ICU::instance().uplrules_getKeywords
 #define uplrules_selectWithFormat RuntimeICUBinder::ICU::instance().uplrules_selectWithFormat
 #define uplrules_selectFormatted RuntimeICUBinder::ICU::instance().uplrules_selectFormatted
+#define uplrules_selectForRange RuntimeICUBinder::ICU::instance().uplrules_selectForRange
 
 #define ures_open RuntimeICUBinder::ICU::instance().ures_open
 #define ures_openDirect RuntimeICUBinder::ICU::instance().ures_openDirect

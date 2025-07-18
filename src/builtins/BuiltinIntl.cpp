@@ -543,6 +543,27 @@ static Value builtinIntlPluralRulesSelect(ExecutionState& state, Value thisValue
     return thisValue.asObject()->asIntlPluralRulesObject()->asIntlPluralRulesObject()->resolvePlural(state, n);
 }
 
+static Value builtinIntlPluralRulesSelectRange(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.selectrange
+    // Perform ? RequireInternalSlot(pr, [[InitializedPluralRules]]).
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlPluralRulesObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    // If start is undefined or end is undefined, throw a TypeError exception.
+    if (argv[0].isUndefined() || argv[1].isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid parameter: undefined");
+    }
+    // Let x be ? ToNumber(start).
+    double x = argv[0].toNumber(state);
+    // Let y be ? ToNumber(end).
+    double y = argv[1].toNumber(state);
+
+    // Return ? ResolvePluralRange(pr, x, y).
+    return thisValue.asObject()->asIntlPluralRulesObject()->asIntlPluralRulesObject()->resolvePluralRange(state, x, y);
+}
+
 static Value builtinIntlPluralRulesResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let pr be the this value.
@@ -1502,6 +1523,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlPluralRulesPrototype->directDefineOwnProperty(state, state.context()->staticStrings().select,
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->select, builtinIntlPluralRulesSelect, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlPluralRulesPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazySelectRange(),
+                                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySelectRange(), builtinIntlPluralRulesSelectRange, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlPluralRulesPrototype->directDefineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
                                                         ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlPluralRulesResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
