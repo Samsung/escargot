@@ -340,11 +340,6 @@
     <test id="built-ins/Map/prototype/getOrInsertComputed/returns-value-if-key-is-not-present-different-key-types"><reason>TODO</reason></test>
     <test id="built-ins/Map/prototype/getOrInsertComputed/returns-value-if-key-is-present-different-key-types"><reason>TODO</reason></test>
     <test id="built-ins/Map/prototype/getOrInsertComputed/returns-value-normalized-zero-key"><reason>TODO</reason></test>
-    <test id="built-ins/Math/f16round/length"><reason>TODO</reason></test>
-    <test id="built-ins/Math/f16round/name"><reason>TODO</reason></test>
-    <test id="built-ins/Math/f16round/not-a-constructor"><reason>TODO</reason></test>
-    <test id="built-ins/Math/f16round/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/Math/f16round/value-conversion"><reason>TODO</reason></test>
     <test id="built-ins/NativeErrors/SuppressedError/is-a-constructor"><reason>TODO</reason></test>
     <test id="built-ins/NativeErrors/SuppressedError/length"><reason>TODO</reason></test>
     <test id="built-ins/NativeErrors/SuppressedError/message-method-prop"><reason>TODO</reason></test>
@@ -6146,7 +6141,6 @@
     <test id="staging/sm/JSON/trailing-comma"><reason>TODO</reason></test>
     <test id="staging/sm/Map/constructor-iterator-close"><reason>TODO</reason></test>
     <test id="staging/sm/Map/iterator-thisv-error"><reason>TODO</reason></test>
-    <test id="staging/sm/Math/f16round"><reason>TODO</reason></test>
     <test id="staging/sm/Number/20.1.3.2-toExponential"><reason>TODO</reason></test>
     <test id="staging/sm/Number/20.1.3.2-toPrecision"><reason>TODO</reason></test>
     <test id="staging/sm/Number/20.1.3.3-toFixed"><reason>TODO</reason></test>

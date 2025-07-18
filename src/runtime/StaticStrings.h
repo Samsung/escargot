@@ -238,6 +238,7 @@ namespace Escargot {
     F(fromEntries)                \
     F(fround)                     \
     F(function)                   \
+    F(f16round)                   \
     F(gc)                         \
     F(get)                        \
     F(getBigInt64)                \
