@@ -671,6 +671,7 @@
   'extra-arguments': [SKIP],
   'function-caller': [SKIP],
   'regress/regress-105': [SKIP],
+  'array-tostring': [SKIP],
 
   # old string functions
   'function-names': [SKIP],

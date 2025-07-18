@@ -4676,7 +4676,6 @@
     <test id="harness/asyncHelpers-asyncTest-return-not-thenable"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-without-async-flag"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-throwsAsync-func-never-settles"><reason>TODO</reason></test>
-    <test id="intl402/Array/prototype/toLocaleString/invoke-element-tolocalestring"><reason>TODO</reason></test>
     <test id="intl402/Collator/constructor-options-throwing-getters"><reason>TODO</reason></test>
     <test id="intl402/Collator/prototype/compare/ignorePunctuation"><reason>TODO</reason></test>
     <test id="intl402/Collator/prototype/resolvedOptions/ignorePunctuation-default"><reason>TODO</reason></test>

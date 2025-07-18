@@ -1397,7 +1397,11 @@ static Value builtinArrayToLocaleString(ExecutionState& state, Value thisValue, 
         if (!nextElement.isUndefinedOrNull()) {
             // Let S be ? ToString(? Invoke(nextElement, "toLocaleString", « locales, options »)).
             Value func = nextElement.toObject(state)->get(state, state.context()->staticStrings().toLocaleString).value(state, nextElement);
-            String* S = Object::call(state, func, nextElement, argc, argv).toString(state);
+            Value callArgv[2] = {
+                argc > 0 ? argv[0] : Value(),
+                argc > 1 ? argv[1] : Value()
+            };
+            String* S = Object::call(state, func, nextElement, 2, callArgv).toString(state);
             // Set R to the string-concatenation of R and S.
             StringBuilder builder;
             builder.appendString(R, &state);
