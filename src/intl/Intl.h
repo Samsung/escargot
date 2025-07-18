@@ -100,10 +100,10 @@ public:
         MorePrecision
     };
     struct SetNumberFormatDigitOptionsResult {
-        Value minimumIntegerDigits;
+        double minimumIntegerDigits;
         double roundingIncrement;
-        Value roundingMode;
-        Value trailingZeroDisplay;
+        String* roundingMode;
+        String* trailingZeroDisplay;
         Value minimumSignificantDigits;
         Value maximumSignificantDigits;
         Value minimumFractionDigits;
@@ -114,6 +114,7 @@ public:
     // https://402.ecma-international.org/12.0/index.html#sec-setnumberformatdigitoptions
     static SetNumberFormatDigitOptionsResult setNumberFormatDigitOptions(ExecutionState& state, Object* options,
                                                                          double mnfdDefault, double mxfdDefault, String* notation);
+    static void initNumberFormatSkeleton(ExecutionState& state, const Intl::SetNumberFormatDigitOptionsResult& formatResult, String* notation, String* compactDisplay, UTF16StringDataNonGCStd& skeleton);
 
     // https://tc39.es/ecma402/#sec-defaultnumberoption
     static Value defaultNumberOption(ExecutionState& state, Value value, double minimum, double maximum, double fallback);

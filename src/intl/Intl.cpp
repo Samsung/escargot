@@ -2647,7 +2647,7 @@ Intl::SetNumberFormatDigitOptionsResult Intl::setNumberFormatDigitOptions(Execut
     }
 
     // Set intlObj.[[MinimumIntegerDigits]] to mnid.
-    result.minimumIntegerDigits = Value(Value::DoubleToIntConvertibleTestNeeds, mnid);
+    result.minimumIntegerDigits = mnid;
 
     // Let roundingIncrement be ? GetNumberOption(options, "roundingIncrement", 1, 5000, 1).
     double roundingIncrement = Intl::getNumberOption(state, options, state.context()->staticStrings().lazyRoundingIncrement().string(), 1, 5000, 1);
@@ -2678,9 +2678,9 @@ Intl::SetNumberFormatDigitOptionsResult Intl::setNumberFormatDigitOptions(Execut
     // Set intlObj.[[RoundingIncrement]] to roundingIncrement.
     result.roundingIncrement = roundingIncrement;
     // Set intlObj.[[RoundingMode]] to roundingMode.
-    result.roundingMode = roundingMode;
+    result.roundingMode = roundingMode.asString();
     // Set intlObj.[[TrailingZeroDisplay]] to trailingZeroDisplay.
-    result.trailingZeroDisplay = trailingZeroDisplay;
+    result.trailingZeroDisplay = trailingZeroDisplay.asString();
     // If mnsd is undefined and mxsd is undefined, let hasSd be false. Otherwise, let hasSd be true.
     bool hasSd;
     if (mnsd.isUndefined() && mxsd.isUndefined()) {
@@ -2812,6 +2812,186 @@ Intl::SetNumberFormatDigitOptionsResult Intl::setNumberFormatDigitOptions(Execut
     }
 
     return result;
+}
+
+void Intl::initNumberFormatSkeleton(ExecutionState& state, const Intl::SetNumberFormatDigitOptionsResult& formatResult, String* notation, String* compactDisplay, UTF16StringDataNonGCStd& skeleton)
+{
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    UVersionInfo versionArray;
+    u_getVersion(versionArray);
+    if (versionArray[0] < 68) {
+        if (!formatResult.minimumSignificantDigits.isUndefined()) {
+            double mnsd = formatResult.minimumSignificantDigits.asNumber();
+            double mxsd = formatResult.maximumSignificantDigits.asNumber();
+
+            for (double i = 0; i < mnsd; i++) {
+                skeleton += '@';
+            }
+
+            for (double i = 0; i < mxsd - mnsd; i++) {
+                skeleton += '#';
+            }
+
+            skeleton += ' ';
+        }
+
+        if (!formatResult.minimumFractionDigits.isUndefined()) {
+            double mnfd = formatResult.minimumSignificantDigits.asNumber();
+            double mxfd = formatResult.maximumSignificantDigits.asNumber();
+
+            skeleton += '.';
+
+            for (double i = 0; i < mnfd; i++) {
+                skeleton += '0';
+            }
+
+            for (double i = 0; i < mxfd - mnfd; i++) {
+                skeleton += '#';
+            }
+            skeleton += ' ';
+        }
+
+        {
+            double mnid = formatResult.minimumIntegerDigits;
+            skeleton += u"integer-width/+";
+            for (double i = 0; i < mnid; i++) {
+                skeleton += '0';
+            }
+            skeleton += ' ';
+        }
+
+        if (notation->equals("standard")) {
+        } else if (notation->equals("scientific")) {
+            skeleton += u"scientific ";
+        } else if (notation->equals("engineering")) {
+            skeleton += u"engineering ";
+        } else {
+            if (compactDisplay->equals("short")) {
+                skeleton += u"compact-short ";
+            } else {
+                skeleton += u"compact-long ";
+            }
+        }
+
+        return;
+    }
+#endif
+    String* rm = formatResult.roundingMode;
+    if (rm->equals("ceil")) {
+        skeleton += u"rounding-mode-ceiling ";
+    } else if (rm->equals("floor")) {
+        skeleton += u"rounding-mode-floor ";
+    } else if (rm->equals("expand")) {
+        skeleton += u"rounding-mode-up ";
+    } else if (rm->equals("trunc")) {
+        skeleton += u"rounding-mode-down ";
+    } else if (rm->equals("halfCeil")) {
+        skeleton += u"rounding-mode-half-ceiling ";
+    } else if (rm->equals("halfFloor")) {
+        skeleton += u"rounding-mode-half-floor ";
+    } else if (rm->equals("halfExpand")) {
+        skeleton += u"rounding-mode-half-up ";
+    } else if (rm->equals("halfTrunc")) {
+        skeleton += u"rounding-mode-half-down ";
+    } else {
+        ASSERT(rm->equals("halfEven"));
+        skeleton += u"rounding-mode-half-even ";
+    }
+
+    {
+        double mnid = formatResult.minimumIntegerDigits;
+        skeleton += u"integer-width/*";
+        for (double i = 0; i < mnid; i++) {
+            skeleton += '0';
+        }
+        skeleton += ' ';
+    }
+
+    if (formatResult.roundingIncrement != 1) {
+        skeleton += u"precision-increment/";
+        auto string = dtoa(formatResult.roundingIncrement);
+        if (formatResult.maximumFractionDigits.asNumber() >= string.size()) {
+            skeleton += u"0.";
+            for (size_t i = 0; i < (formatResult.maximumFractionDigits.asNumber() - string.size()); i++) {
+                skeleton += u"0";
+            }
+            for (auto c : string) {
+                skeleton += static_cast<char16_t>(c);
+            }
+        } else {
+            auto nonFraction = string.size() - formatResult.maximumFractionDigits.asNumber();
+            for (size_t i = 0; i < nonFraction; i++) {
+                skeleton += static_cast<char16_t>(string[i]);
+            }
+            skeleton += u".";
+
+            for (size_t i = 0; i < nonFraction; i++) {
+                skeleton += static_cast<char16_t>(string[i]);
+            }
+
+            for (size_t i = 0; i < formatResult.maximumFractionDigits.asNumber(); i++) {
+                skeleton += static_cast<char16_t>(string[i + nonFraction]);
+            }
+        }
+    } else {
+        if (formatResult.roundingType == Intl::RoundingType::FractionDigits) {
+            skeleton += u".";
+            for (size_t i = 0; i < formatResult.minimumFractionDigits.asNumber(); i++) {
+                skeleton += u"0";
+            }
+            for (size_t i = 0; i < formatResult.maximumFractionDigits.asNumber() - formatResult.minimumFractionDigits.asNumber(); i++) {
+                skeleton += u"#";
+            }
+        } else if (formatResult.roundingType == Intl::RoundingType::SignificantDigits) {
+            for (size_t i = 0; i < formatResult.minimumSignificantDigits.asNumber(); i++) {
+                skeleton += u"@";
+            }
+            for (size_t i = 0; i < formatResult.maximumSignificantDigits.asNumber() - formatResult.minimumSignificantDigits.asNumber(); i++) {
+                skeleton += u"#";
+            }
+        } else {
+            ASSERT(formatResult.roundingType == Intl::RoundingType::LessPrecision || formatResult.roundingType == Intl::RoundingType::MorePrecision);
+            skeleton += u".";
+            for (size_t i = 0; i < formatResult.minimumFractionDigits.asNumber(); i++) {
+                skeleton += u"0";
+            }
+            for (size_t i = 0; i < formatResult.maximumFractionDigits.asNumber() - formatResult.minimumFractionDigits.asNumber(); i++) {
+                skeleton += u"#";
+            }
+            skeleton += u"/";
+            for (size_t i = 0; i < formatResult.minimumSignificantDigits.asNumber(); i++) {
+                skeleton += u"@";
+            }
+            for (size_t i = 0; i < formatResult.maximumSignificantDigits.asNumber() - formatResult.minimumSignificantDigits.asNumber(); i++) {
+                skeleton += u"#";
+            }
+            if (formatResult.roundingType == Intl::RoundingType::MorePrecision) {
+                skeleton += u"r";
+            } else {
+                skeleton += u"s";
+            }
+        }
+    }
+
+    if (formatResult.trailingZeroDisplay->equals("auto")) {
+        skeleton += u" ";
+    } else {
+        ASSERT(formatResult.trailingZeroDisplay->equals("stripIfInteger"));
+        skeleton += u"/w ";
+    }
+
+    if (notation->equals("standard")) {
+    } else if (notation->equals("scientific")) {
+        skeleton += u"scientific ";
+    } else if (notation->equals("engineering")) {
+        skeleton += u"engineering ";
+    } else {
+        if (compactDisplay->equals("short")) {
+            skeleton += u"compact-short ";
+        } else {
+            skeleton += u"compact-long ";
+        }
+    }
 }
 
 } // namespace Escargot

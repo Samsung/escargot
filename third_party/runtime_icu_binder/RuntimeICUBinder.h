@@ -169,6 +169,7 @@ namespace RuntimeICUBinder {
     F(uplrules_open, UPluralRules* (*)(const char* locale, UErrorCode* status), UPluralRules*)                                                                                                 \
     F(uplrules_openForType, UPluralRules* (*)(const char* locale, UPluralType type, UErrorCode* status), UPluralRules*)                                                                        \
     F(uplrules_selectWithFormat, int32_t (*)(const UPluralRules* uplrules, double number, const UNumberFormat* fmt, UChar* keyword, int32_t capacity, UErrorCode* status), int32_t)            \
+    F(uplrules_selectFormatted, int32_t (*)(const UPluralRules *uplrules, const struct UFormattedNumber* , UChar *, int32_t , UErrorCode *), int32_t)                                          \
     F(unumf_openForSkeletonAndLocale, UNumberFormatter* (*)(const UChar* skeleton, int32_t skeletonLen, const char* locale, UErrorCode* ec), UNumberFormatter*)                                \
     F(unumf_openForSkeletonAndLocaleWithError, UNumberFormatter* (*)(const UChar* skeleton, int32_t skeletonLen, const char* locale, UParseError* perror, UErrorCode* ec), UNumberFormatter*)  \
     F(unumf_openResult, UFormattedNumber* (*)(UErrorCode * ec), UFormattedNumber*)                                                                                                             \
