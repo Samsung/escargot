@@ -2710,7 +2710,7 @@ public:
                 this->throwError(Messages::StrictLHSPrefix);
             }
 
-            if (UNLIKELY((!this->context->isAssignmentTarget && (exprNode->type() != ASTNodeType::CallExpression || this->context->strict)) || (exprNode->type() == ObjectExpression))) {
+            if (UNLIKELY((!this->context->isAssignmentTarget && (exprNode->type() != ASTNodeType::CallExpression || this->context->strict)) || (exprNode->type() == ObjectExpression) || (exprNode->type() == YieldExpression) || (exprNode->type() == MetaProperty))) {
                 this->throwError(Messages::InvalidLHSInAssignment);
             }
 
@@ -2731,7 +2731,7 @@ public:
                     this->throwError(Messages::StrictLHSPostfix);
                 }
 
-                if (UNLIKELY((!this->context->isAssignmentTarget && (exprNode->type() != ASTNodeType::CallExpression || this->context->strict)) || (exprNode->type() == ObjectExpression))) {
+                if (UNLIKELY((!this->context->isAssignmentTarget && (exprNode->type() != ASTNodeType::CallExpression || this->context->strict)) || (exprNode->type() == ObjectExpression) || (exprNode->type() == YieldExpression) || (exprNode->type() == MetaProperty))) {
                     this->throwError(Messages::InvalidLHSInAssignment);
                 }
 
