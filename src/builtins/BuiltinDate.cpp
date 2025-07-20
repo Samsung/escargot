@@ -312,13 +312,19 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, name);
     DateObject* d = thisObject;
 
+    // Read the current [[DateValue]] first (before any ToNumber conversions)
+    // To keep a record of the original state
+    double originalDateValue = d->primitiveValue();
+    bool isOriginalDateValid = d->isValid();
+
     if (setterType == DateSetterType::Day && length == 3) {
         // setFullYear, setUTCFullYear case
-        if (!(d->isValid())) {
+        if (!isOriginalDateValid) {
             d->setTimeValue(DateObject::timeClip(state, 0));
             d->setTimeValue(d->getTimezoneOffset(state) * TimeConstant::MsPerMinute);
+            originalDateValue = d->primitiveValue();
+            isOriginalDateValid = true;
         }
-        ASSERT(d->isValid());
     }
 
     if (argc < 1) {
@@ -326,9 +332,10 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         return Value(Value::NanInit);
     }
 
+    // Read date components from original state (before ToNumber calls)
     double year = 0, month = 0, date = 0, hour = 0, minute = 0, second = 0, millisecond = 0;
 
-    if (d->isValid()) {
+    if (isOriginalDateValid) {
         if (!utc) {
             year = d->getFullYear(state);
             month = d->getMonth(state);
@@ -350,8 +357,7 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         }
     }
 
-    bool convertToUTC = !utc;
-
+    // Convert arguments to numbers (this may cause side effects)
     switch (setterType) {
     case DateSetterType::Day:
         if ((length >= 3) && (argc > length - 3))
@@ -375,9 +381,16 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
         RELEASE_ASSERT_NOT_REACHED();
     }
 
+    // Check if original date value was NaN
+    if (std::isnan(originalDateValue)) {
+        return Value(Value::NanInit);
+    }
+
+    bool convertToUTC = !utc;
+
     if (UNLIKELY(!isInValidRange(year, month, date, hour, minute, second, millisecond))) {
         d->setTimeValueAsNaN();
-    } else if (d->isValid()) {
+    } else {
         d->setTimeValue(state, year, month, date, hour, minute, second, millisecond, convertToUTC);
     }
 
