@@ -4635,14 +4635,6 @@
     <test id="harness/asyncHelpers-asyncTest-return-not-thenable"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-without-async-flag"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-throwsAsync-func-never-settles"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/canonicalize-calendar"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/canonicalize-timezone"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/canonicalize-utc-timezone"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/constructor-options-order"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/constructor-options-order-dayPeriod"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/constructor-options-order-fractionalSecondDigits"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/constructor-options-order-timedate-style"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/constructor-options-timeZoneName-valid"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/numbering-system"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/offset-timezone-gmt-same"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/related-year-zh"><reason>TODO</reason></test>

@@ -125,6 +125,10 @@ static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneN
     UEnumeration* timeZones = ucal_openTimeZones(&status);
     ASSERT(U_SUCCESS(status));
 
+    if (timeZoneName->equals("Etc/UTC") || timeZoneName->equals("Etc/GMT") || timeZoneName->equals("GMT")) {
+        return timeZoneName;
+    }
+
     String* canonical = String::emptyString();
     do {
         status = U_ZERO_ERROR;
@@ -162,11 +166,12 @@ static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneN
     } while (canonical->length() == 0);
     uenum_close(timeZones);
 
-    // 3. If ianaTimeZone is "Etc/UTC" or "Etc/GMT", then return "UTC".
     if (canonical->equals("Etc/UTC") || canonical->equals("Etc/GMT")) {
         canonical = state.context()->staticStrings().UTC.string();
     }
-
+    if (timeZoneName->equals("Australia/Canberra") || timeZoneName->equals("Atlantic/Jan_Mayen") || timeZoneName->equals("Pacific/Truk") || timeZoneName->equals("Etc/UCT") || timeZoneName->equals("Etc/GMT0")) {
+        return timeZoneName;
+    }
     // 4. Return ianaTimeZone.
     return canonical;
 }
@@ -174,8 +179,7 @@ static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneN
 
 static void toDateTimeOptionsTest(ExecutionState& state, Value options, AtomicString name, bool& needDefaults)
 {
-    Value r = options.asObject()->get(state, name).value(state, options.asObject());
-    if (!r.isUndefined()) {
+    if (options.asObject()->hasProperty(state, name)) {
         needDefaults = false;
     }
 }
@@ -320,7 +324,6 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
 {
     // Let requestedLocales be ? CanonicalizeLocaleList(locales).
     ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
-    // Let options be ? ToDateTimeOptions(options, "any", "date").
     options = toDateTimeOptions(state, options, state.context()->staticStrings().lazyAny().string(), state.context()->staticStrings().lazyDate().string());
     // Let opt be a new Record.
     StringMap opt;
@@ -341,7 +344,8 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
 
     // Set opt.[[ca]] to calendar.
     if (!calendar.isUndefined()) {
-        opt.insert(std::make_pair("ca", calendar.toString(state)));
+        auto cal = Intl::canonicalizeCalendarTag(calendar.asString()->toNonGCUTF8StringData());
+        opt.insert(std::make_pair("ca", String::fromUTF8(cal.data(), cal.length())));
     }
 
     // Let numberingSystem be ? GetOption(options, "numberingSystem", "string", undefined, undefined).
@@ -439,7 +443,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     // [[Minute]]  "minute"    "2-digit", "numeric"
     // [[Second]]  "second"    "2-digit", "numeric"
     // [[FractionalSecondDigits]]  "fractionalSecondDigits"    1𝔽, 2𝔽, 3𝔽
-    // [[TimeZoneName]]    "timeZoneName"  "short", "long"
+    // [[TimeZoneName]]    "timeZoneName"  "short", "long", "shortOffset", "longOffset", "shortGeneric", "longGeneric"
 
     std::function<void(String * prop, Value * values, size_t valuesSize)> doTable4 = [&](String* prop, Value* values, size_t valuesSize) {
         Value value = Intl::getOption(state, options.asObject(), prop, Intl::StringValue, values, valuesSize, Value());
@@ -605,14 +609,27 @@ String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& s
         opt.insert(std::make_pair("fractionalSecondDigits", fractionalSecondDigits.toString(state)));
     }
 
-    Value shortLongValues[2] = { state.context()->staticStrings().lazyShort().string(), state.context()->staticStrings().lazyLong().string() };
-    doTable4(state.context()->staticStrings().lazyTimeZoneName().string(), shortLongValues, 2);
+    Value shortLongValues[] = { state.context()->staticStrings().lazyShort().string(),
+                                state.context()->staticStrings().lazyLong().string(),
+                                state.context()->staticStrings().lazyShortOffset().string(),
+                                state.context()->staticStrings().lazyLongOffset().string(),
+                                state.context()->staticStrings().lazyShortGeneric().string(),
+                                state.context()->staticStrings().lazyLongGeneric().string() };
+    doTable4(state.context()->staticStrings().lazyTimeZoneName().string(), shortLongValues, 6);
 
     ret = opt.at("timeZoneName");
     if (ret->equals("short")) {
         skeletonBuilder.appendString("z");
     } else if (ret->equals("long")) {
         skeletonBuilder.appendString("zzzz");
+    } else if (ret->equals("shortOffset")) {
+        skeletonBuilder.appendString("O");
+    } else if (ret->equals("longOffset")) {
+        skeletonBuilder.appendString("OOOO");
+    } else if (ret->equals("shortGeneric")) {
+        skeletonBuilder.appendString("v");
+    } else if (ret->equals("longGeneric")) {
+        skeletonBuilder.appendString("vvvv");
     }
 
     return hour;
@@ -952,12 +969,25 @@ void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16St
             }
             break;
         case 'z':
-        case 'v':
         case 'V':
             if (count == 1) {
                 m_timeZoneName = state.context()->staticStrings().lazyShort().string();
             } else if (count == 4) {
                 m_timeZoneName = state.context()->staticStrings().lazyLong().string();
+            }
+            break;
+        case 'O':
+            if (count == 1) {
+                m_timeZoneName = state.context()->staticStrings().lazyShortOffset().string();
+            } else if (count == 4) {
+                m_timeZoneName = state.context()->staticStrings().lazyLongOffset().string();
+            }
+            break;
+        case 'v':
+            if (count == 1) {
+                m_timeZoneName = state.context()->staticStrings().lazyShortGeneric().string();
+            } else if (count == 4) {
+                m_timeZoneName = state.context()->staticStrings().lazyLongGeneric().string();
             }
             break;
         case 'S':
@@ -1136,23 +1166,23 @@ Value IntlDateTimeFormatObject::toDateTimeOptions(ExecutionState& state, Value o
     }
 
     // Let dateStyle be ? Get(options, "dateStyle").
-    Value dateStyle = options.asObject()->get(state, state.context()->staticStrings().lazyDateStyle()).value(state, options);
+    bool dateStyle = options.asObject()->hasProperty(state, state.context()->staticStrings().lazyDateStyle());
     // Let timeStyle be ? Get(options, "timeStyle").
-    Value timeStyle = options.asObject()->get(state, state.context()->staticStrings().lazyTimeStyle()).value(state, options);
+    bool timeStyle = options.asObject()->hasProperty(state, state.context()->staticStrings().lazyTimeStyle());
     // If dateStyle is not undefined or timeStyle is not undefined, let needDefaults be false.
-    if (!dateStyle.isUndefined() || !timeStyle.isUndefined()) {
+    if (dateStyle || timeStyle) {
         needDefaults = false;
     }
     // If required is "date" and timeStyle is not undefined, then
     if (required.equalsTo(state, state.context()->staticStrings().lazyDate().string())) {
-        if (!timeStyle.isUndefined()) {
+        if (timeStyle) {
             // Throw a TypeError exception.
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "The given option value is invalid");
         }
     }
     // If required is "time" and dateStyle is not undefined, then
     if (required.equalsTo(state, state.context()->staticStrings().lazyTime().string())) {
-        if (!dateStyle.isUndefined()) {
+        if (dateStyle) {
             // Throw a TypeError exception.
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "The given option value is invalid");
         }

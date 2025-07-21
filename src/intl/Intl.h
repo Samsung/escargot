@@ -74,6 +74,7 @@ public:
     static CanonicalizedLangunageTag canonicalizeLanguageTag(const std::string& locale, const std::string& unicodeExtensionNameShouldIgnored = "");
     static CanonicalizedLangunageTag isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(const std::string& locale);
     static String* getLocaleForStringLocaleConvertCase(ExecutionState& state, Value locales);
+    static std::string canonicalizeCalendarTag(const std::string& s);
 
     static bool isValidUnicodeLocaleIdentifier(String* value);
     // test string is `(3*8alphanum) *("-" (3*8alphanum))` sequence

@@ -2393,6 +2393,17 @@ String* Intl::getLocaleForStringLocaleConvertCase(ExecutionState& state, Value l
     return locale;
 }
 
+std::string Intl::canonicalizeCalendarTag(const std::string& s)
+{
+    std::string ret = s;
+    std::transform(ret.begin(), ret.end(), ret.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (ret == "islamicc") {
+        ret = "islamic-civil";
+    }
+    return ret;
+}
+
 static bool is38Alphanum(const std::string& str)
 {
     if (str.length() >= 3 && str.length() <= 8) {
