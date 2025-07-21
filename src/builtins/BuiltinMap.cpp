@@ -124,6 +124,12 @@ static Value builtinMapGetOrInsert(ExecutionState& state, Value thisValue, size_
     return M->getOrInsert(state, argv[0], argv[1]);
 }
 
+static Value builtinMapGetOrInsertComputed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_MAP(M, Map, getOrInsertComputed);
+    return M->getOrInsertComputed(state, argv[0], argv[1]);
+}
+
 static Value builtinMapHas(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_MAP(M, Map, has);
@@ -262,6 +268,9 @@ void GlobalObject::installMap(ExecutionState& state)
 
     m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getOrInsert),
                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getOrInsert, builtinMapGetOrInsert, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().getOrInsertComputed),
+                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getOrInsertComputed, builtinMapGetOrInsertComputed, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_mapPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().has),
                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().has, builtinMapHas, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

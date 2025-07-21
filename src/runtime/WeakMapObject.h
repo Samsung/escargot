@@ -46,6 +46,7 @@ public:
     bool deleteOperation(ExecutionState& state, PointerValue* key);
     Value get(ExecutionState& state, PointerValue* key);
     Value getOrInsert(ExecutionState& state, PointerValue* key, const Value& value);
+    Value getOrInsertComputed(ExecutionState& state, PointerValue* key, const Value& callback);
     bool has(ExecutionState& state, PointerValue* key);
     void set(ExecutionState& state, PointerValue* key, const Value& value);
 
