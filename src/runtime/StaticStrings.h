@@ -796,6 +796,8 @@ namespace Escargot {
     F(Literal, "literal")                                   \
     F(LocaleMatcher, "localeMatcher")                       \
     F(Long, "long")                                         \
+    F(LongOffset, "longOffset")                             \
+    F(LongGeneric, "longGeneric")                           \
     F(Lookup, "lookup")                                     \
     F(Lower, "lower")                                       \
     F(MaximumFractionDigits, "maximumFractionDigits")       \
@@ -828,6 +830,8 @@ namespace Escargot {
     F(Sensitivity, "sensitivity")                           \
     F(SelectRange, "selectRange")                           \
     F(Short, "short")                                       \
+    F(ShortOffset, "shortOffset")                           \
+    F(ShortGeneric, "shortGeneric")                         \
     F(SignDisplay, "signDisplay")                           \
     F(SignificantDigits, "significantDigits")               \
     F(SmallLetterInfinity, "infinity")                      \
