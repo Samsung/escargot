@@ -123,6 +123,51 @@ Value WeakMapObject::getOrInsert(ExecutionState& state, PointerValue* key, const
     return value;
 }
 
+Value WeakMapObject::getOrInsertComputed(ExecutionState& state, PointerValue* key, const Value& callback)
+{
+    ASSERT(key->isObject() || key->isSymbol());
+    if (!callback.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
+    }
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        auto existingKey = m_storage[i]->key.unwrap();
+        if (existingKey && existingKey == key) {
+            return m_storage[i]->data;
+        }
+    }
+
+    Value argv[1] = { key };
+    Value value = Object::call(state, callback, Value(), 1, argv);
+
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        auto existingKey = m_storage[i]->key.unwrap();
+        if (existingKey && existingKey == key) {
+            m_storage[i]->data = value;
+            return value;
+        }
+    }
+
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        if (!m_storage[i]->key) {
+            m_storage[i]->key = key;
+            m_storage[i]->data = value;
+            GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&m_storage[i]->key), key);
+            GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&m_storage[i]->data), key);
+            return m_storage[i]->data;
+        }
+    }
+
+    auto newData = new WeakMapObjectDataItem();
+    newData->key = key;
+    newData->data = value;
+    m_storage.pushBack(newData);
+
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&newData->key), key);
+    GC_GENERAL_REGISTER_DISAPPEARING_LINK_SAFE(reinterpret_cast<void**>(&newData->data), key);
+
+    return value;
+}
+
 bool WeakMapObject::has(ExecutionState& state, PointerValue* key)
 {
     ASSERT(key->isObject() || key->isSymbol());

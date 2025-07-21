@@ -97,8 +97,18 @@ Value MapObject::get(ExecutionState& state, const Value& key)
     return Value();
 }
 
-Value MapObject::getOrInsert(ExecutionState& state, const Value& key, const Value& value)
+static Value canonicalizeKeyedCollectionKey(Value& key)
 {
+    // If key is -0, let key be +0.
+    if (key.isNumber() && key.asNumber() == 0 && std::signbit(key.asNumber())) {
+        return Value(0);
+    }
+    return key;
+}
+
+Value MapObject::getOrInsert(ExecutionState& state, Value& key, const Value& value)
+{
+    key = canonicalizeKeyedCollectionKey(key);
     for (size_t i = 0; i < m_storage.size(); i++) {
         Value existingKey = m_storage[i].first;
         if (existingKey.isEmpty()) {
@@ -109,13 +119,42 @@ Value MapObject::getOrInsert(ExecutionState& state, const Value& key, const Valu
         }
     }
 
-    // If key is -0, let key be +0.
-    if (key.isNumber() && key.asNumber() == 0 && std::signbit(key.asNumber())) {
-        m_storage.pushBack(std::make_pair(Value(0), value));
-    } else {
-        m_storage.pushBack(std::make_pair(key, value));
+    m_storage.pushBack(std::make_pair(key, value));
+    return value;
+}
+
+Value MapObject::getOrInsertComputed(ExecutionState& state, Value& key, const Value& callback)
+{
+    if (!callback.isCallable()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::NOT_Callable);
+    }
+    key = canonicalizeKeyedCollectionKey(key);
+
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        Value existingKey = m_storage[i].first;
+        if (existingKey.isEmpty()) {
+            continue;
+        }
+        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+            return m_storage[i].second;
+        }
     }
 
+    Value argv[1] = { key };
+    Value value = Object::call(state, callback, Value(), 1, argv);
+
+    for (size_t i = 0; i < m_storage.size(); i++) {
+        Value existingKey = m_storage[i].first;
+        if (existingKey.isEmpty()) {
+            continue;
+        }
+        if (existingKey.equalsToByTheSameValueZeroAlgorithm(state, key)) {
+            m_storage[i].second = value;
+            return value;
+        }
+    }
+
+    m_storage.pushBack(std::make_pair(key, value));
     return value;
 }
 
