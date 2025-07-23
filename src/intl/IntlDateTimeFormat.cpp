@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2015 Andy VanWagoner (thetalecrafter@gmail.com)
  * Copyright (C) 2015 Sukolsak Sakshuwong (sukolsak@gmail.com)
+ * Copyright (C) 2016-2023 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -117,6 +118,122 @@ static bool equalIgnoringASCIICase(String* timeZoneName, const UTF16StringDataNo
     return true;
 }
 
+static Optional<int64_t> parseUTCOffsetInMinutes(const StringBufferAccessData& buffer)
+{
+    // UTCOffset :::
+    //     TemporalSign Hour
+    //     TemporalSign Hour HourSubcomponents[+Extended]
+    //     TemporalSign Hour HourSubcomponents[~Extended]
+    //
+    // TemporalSign :::
+    //     ASCIISign
+    //     <MINUS>
+    //
+    // ASCIISign ::: one of
+    //     + -
+    //
+    // Hour :::
+    //     0 DecimalDigit
+    //     1 DecimalDigit
+    //     20
+    //     21
+    //     22
+    //     23
+    //
+    // HourSubcomponents[Extended] :::
+    //     TimeSeparator[?Extended] MinuteSecond
+    //
+    // TimeSeparator[Extended] :::
+    //     [+Extended] :
+    //     [~Extended] [empty]
+    //
+    // MinuteSecond :::
+    //     0 DecimalDigit
+    //     1 DecimalDigit
+    //     2 DecimalDigit
+    //     3 DecimalDigit
+    //     4 DecimalDigit
+    //     5 DecimalDigit
+
+    size_t advance = 0;
+    // sign and hour.
+    if (buffer.length < 3)
+        return NullOption;
+    int64_t factor = 1;
+    if (buffer.charAt(advance) == '+') {
+        advance++;
+    } else if (buffer.charAt(advance) == '-') {
+        factor = -1;
+        advance++;
+    } else {
+        return NullOption;
+    }
+
+    auto firstHourCharacter = buffer.charAt(advance);
+    if (!(firstHourCharacter >= '0' && firstHourCharacter <= '2')) {
+        return NullOption;
+    }
+
+    advance++;
+    auto secondHourCharacter = buffer.charAt(advance);
+    if (!isASCIIDigit(secondHourCharacter)) {
+        return NullOption;
+    }
+    unsigned hour = (secondHourCharacter - '0') + 10 * (firstHourCharacter - '0');
+    if (hour >= 24) {
+        return NullOption;
+    }
+    advance++;
+
+    if (advance == buffer.length) {
+        return (hour * 60) * factor;
+    }
+
+    if (buffer.charAt(advance) == ':') {
+        advance++;
+    } else if (!(buffer.charAt(advance) >= '0' && buffer.charAt(advance) <= '5')) {
+        if (advance != buffer.length) {
+            return NullOption;
+        }
+        return (hour * 60) * factor;
+    }
+
+    if ((buffer.length - advance) < 2) {
+        return NullOption;
+    }
+    auto firstMinuteCharacter = buffer.charAt(advance);
+    if (!(firstMinuteCharacter >= '0' && firstMinuteCharacter <= '5')) {
+        return NullOption;
+    }
+
+    advance++;
+    auto secondMinuteCharacter = buffer.charAt(advance);
+    if (!isASCIIDigit(secondMinuteCharacter)) {
+        return NullOption;
+    }
+    unsigned minute = (secondMinuteCharacter - '0') + 10 * (firstMinuteCharacter - '0');
+    advance++;
+
+    if (advance != buffer.length) {
+        return NullOption;
+    }
+
+    return (hour * 60 + minute) * factor;
+}
+
+static std::string pad(char ch, unsigned min, const std::string& s)
+{
+    if (min > s.length()) {
+        std::string result = s;
+        for (unsigned i = 0; i < min - s.length(); i++) {
+            result = ch + result;
+        }
+        return result;
+    } else {
+        return s;
+    }
+}
+
 static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneName)
 {
     // 6.4.1 IsValidTimeZoneName (timeZone)
@@ -126,6 +243,13 @@ static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneN
     ASSERT(U_SUCCESS(status));
 
     if (timeZoneName->equals("Etc/UTC") || timeZoneName->equals("Etc/GMT") || timeZoneName->equals("GMT")) {
+        return timeZoneName;
+    }
+
+    if (auto offset = parseUTCOffsetInMinutes(timeZoneName->bufferAccessData())) {
+        int64_t minutes = offset.value();
+        int64_t absMinutes = std::abs(minutes);
+        std::string tz = minutes < 0 ? std::string("-") : std::string("+") + pad('0', 2, std::to_string(absMinutes / 60)) + ':' + pad('0', 2, std::to_string(absMinutes % 60));
         return timeZoneName;
     }
 
@@ -473,7 +597,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     // Set dateTimeFormat.[[TimeStyle]] to timeStyle.
     m_timeStyle = timeStyle;
 
-    initDateTimeFormatOtherHelper(state, dataLocale, dateStyle, timeStyle, hourCycle, hour12, hour, opt, dataLocaleWithExtensions, skeletonBuilder);
+    initDateTimeFormatOtherHelper(state, String::fromUTF8(dataLocaleWithExtensions.data(), dataLocaleWithExtensions.size()), dateStyle, timeStyle, hourCycle, hour12, hour, opt, dataLocaleWithExtensions, skeletonBuilder);
 }
 
 String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& state, StringMap& opt, const Value& options, const Value& hour12, std::function<void(String* prop, Value* values, size_t valuesSize)>& doTable4, StringBuilder& skeletonBuilder)
@@ -836,6 +960,13 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
 
     status = U_ZERO_ERROR;
     UTF16StringData timeZoneView = m_timeZone->toUTF16StringData();
+    if (auto offset = parseUTCOffsetInMinutes((UTF16String(timeZoneView.data(), timeZoneView.length())).bufferAccessData())) {
+        int64_t minutes = offset.value();
+        int64_t absMinutes = std::abs(minutes);
+        std::string timeZoneForICU = std::string("GMT") + (minutes < 0 ? "-" : "+")
+            + pad('0', 2, std::to_string(absMinutes / 60)) + pad('0', 2, std::to_string(absMinutes % 60));
+        timeZoneView = utf8StringToUTF16String(timeZoneForICU.data(), timeZoneForICU.length());
+    }
     m_icuDateFormat = udat_open(UDAT_PATTERN, UDAT_PATTERN, dataLocaleWithExtensions.data(), (UChar*)timeZoneView.data(), timeZoneView.length(), (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
@@ -997,6 +1128,28 @@ void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16St
     }
 }
 
+// ICU 72 uses narrowNoBreakSpace (u202F) and thinSpace (u2009) for the output of Intl.DateTimeFormat.
+// However, a lot of real world code (websites[1], Node.js modules[2] etc.) strongly assumes that this output
+// only contains normal spaces and these code stops working because of parsing failures. As a workaround
+// for this issue, this function replaces narrowNoBreakSpace and thinSpace with normal space.
+// This behavior is aligned to SpiderMonkey[3] and V8[4].
+// [1]: https://bugzilla.mozilla.org/show_bug.cgi?id=1806042
+// [2]: https://github.com/nodejs/node/issues/46123
+// [3]: https://hg.mozilla.org/mozilla-central/rev/40e2c54d5618
+// [4]: https://chromium.googlesource.com/v8/v8/+/bab790f9165f65a44845b4383c8df7c6c32cf4b3
+template <typename Container>
+static void replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(Container& vector)
+{
+    // The key of this replacement is that we are not changing size of string.
+    // This allows us not to adjust offsets reported from formatToParts / formatRangeToParts
+    for (auto& character : vector) {
+        if (character == 0x202f || character == 0x2009) {
+            character = ' ';
+        }
+    }
+}
+
+
 UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, double x)
 {
     // If x is not a finite Number, then throw a RangeError exception.
@@ -1013,6 +1166,8 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
     if (U_FAILURE(formatResult.first)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format date value");
     }
+
+    replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(formatResult.second);
 
     return formatResult.second;
 }
@@ -1038,6 +1193,7 @@ ArrayObject* IntlDateTimeFormatObject::formatToParts(ExecutionState& state, doub
 
     auto formatResult = INTL_ICU_STRING_BUFFER_OPERATION_COMPLEX(udat_formatForFields, fpositer, m_icuDateFormat, x);
     UTF16StringDataNonGCStd resultString = std::move(formatResult.second);
+    replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(resultString);
 
     struct FieldItem {
         int32_t start;
