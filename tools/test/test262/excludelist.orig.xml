@@ -4635,9 +4635,6 @@
     <test id="harness/asyncHelpers-asyncTest-return-not-thenable"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-asyncTest-without-async-flag"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-throwsAsync-func-never-settles"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/format/numbering-system"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/format/offset-timezone-gmt-same"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/format/related-year-zh"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/temporal-objects-not-overlapping-options"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/temporal-objects-resolved-time-zone"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/temporal-plaindate-formatting-datetime-style"><reason>TODO</reason></test>
@@ -4684,8 +4681,6 @@
     <test id="intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-objects-resolved-time-zone"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/formatRangeToParts/temporal-zoneddatetime-not-supported"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/formatRangeToParts/to-datetime-formattable-with-different-arg-kinds"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/formatToParts/offset-timezone-correct"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/formatToParts/pattern-on-calendar"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/formatToParts/related-year"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/formatToParts/related-year-zh"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/formatToParts/temporal-objects-not-overlapping-options"><reason>TODO</reason></test>
