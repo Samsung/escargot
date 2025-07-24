@@ -98,7 +98,7 @@ static Value builtinDateConstructor(ExecutionState& state, Value thisValue, size
                 } else {
                     // Let tv be ToNumber(v).
                     double V = v.toNumber(state);
-                    thisObject->setTimeValue(DateObject::timeClip(state, V));
+                    thisObject->setTimeValue(DateObject::timeClipToTime64(state, V));
                 }
             }
         } else {
@@ -320,7 +320,7 @@ static Value builtinDateSetHelper(ExecutionState& state, DateSetterType setterTy
     if (setterType == DateSetterType::Day && length == 3) {
         // setFullYear, setUTCFullYear case
         if (!isOriginalDateValid) {
-            d->setTimeValue(DateObject::timeClip(state, 0));
+            d->setTimeValue(DateObject::timeClipToTime64(state, 0));
             d->setTimeValue(d->getTimezoneOffset(state) * TimeConstant::MsPerMinute);
             originalDateValue = d->primitiveValue();
             isOriginalDateValid = true;
@@ -409,7 +409,7 @@ static Value builtinDateSetTime(ExecutionState& state, Value thisValue, size_t a
 {
     RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, setTime);
     if (argc > 0) {
-        thisObject->setTimeValue(DateObject::timeClip(state, argv[0].toNumber(state)));
+        thisObject->setTimeValue(DateObject::timeClipToTime64(state, argv[0].toNumber(state)));
         return Value(Value::DoubleToIntConvertibleTestNeeds, thisObject->primitiveValue());
     } else {
         thisObject->setTimeValueAsNaN();
@@ -433,7 +433,7 @@ static Value builtinDateSetYear(ExecutionState& state, Value thisValue, size_t a
     DateObject* d = thisObject;
 
     if (!(d->isValid())) {
-        d->setTimeValue(DateObject::timeClip(state, 0));
+        d->setTimeValue(DateObject::timeClipToTime64(state, 0));
         d->setTimeValue(d->getTimezoneOffset(state) * TimeConstant::MsPerMinute);
     }
     ASSERT(d->isValid());

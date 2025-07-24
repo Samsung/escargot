@@ -209,7 +209,7 @@ void DateObject::setTimeValue(ExecutionState& state, const Value& v)
 {
     Value pv = v.toPrimitive(state);
     if (pv.isNumber()) {
-        setTimeValue(DateObject::timeClip(state, pv.asNumber()));
+        setTimeValue(DateObject::timeClipToTime64(state, pv.asNumber()));
     } else {
         String* istr = v.toString(state);
         setTimeValue(parseStringToDate(state, istr));

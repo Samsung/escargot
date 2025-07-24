@@ -79,7 +79,15 @@ public:
         return true;
     }
 
-    static time64_t timeClip(ExecutionState& state, double V)
+    static double timeClip(double t)
+    {
+        if (std::abs(t) > TimeConstant::MaximumDatePrimitiveValue) {
+            return std::numeric_limits<double>::quiet_NaN();
+        }
+        return std::trunc(t) + 0.0;
+    }
+
+    static time64_t timeClipToTime64(ExecutionState& state, double V)
     {
         if (std::isinf(V) || std::isnan(V)) {
             return TIME64NAN;

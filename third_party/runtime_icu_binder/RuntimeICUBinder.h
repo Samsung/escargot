@@ -140,6 +140,7 @@ namespace RuntimeICUBinder {
     F(ucal_getType, const char* (*)(const UCalendar* cal, UErrorCode* status), const char*)                                                                                                    \
     F(ucal_getAttribute, int32_t (*)(const UCalendar* cal, UCalendarAttribute attr), int32_t)                                                                                                  \
     F(ucal_getDayOfWeekType, UCalendarWeekdayType (*)(const UCalendar* cal, UCalendarDaysOfWeek dayOfWeek, UErrorCode* status), UCalendarWeekdayType)                                          \
+    F(ucal_clone, UCalendar* (*)(const UCalendar *cal, UErrorCode *status), UCalendar*)                                                                                                        \
     F(udatpg_open, UDateTimePatternGenerator* (*)(const char* locale, UErrorCode* pErrorCode), UDateTimePatternGenerator*)                                                                     \
     F(udatpg_getBestPattern, int32_t (*)(UDateTimePatternGenerator * dtpg, const UChar* skeleton, int32_t length, UChar* bestPattern, int32_t capacity, UErrorCode* pErrorCode), int32_t)      \
     F(udatpg_getBestPatternWithOptions, int32_t (*)(UDateTimePatternGenerator*, const UChar*, int32_t, UDateTimePatternMatchOptions, UChar*, int32_t, UErrorCode*), int32_t)                   \
@@ -199,7 +200,10 @@ namespace RuntimeICUBinder {
     F(ulistfmt_openForType, UListFormatter* (*)(const char* locale, UListFormatterType type, UListFormatterWidth width, UErrorCode* status), UListFormatter*)                                  \
     F(ulistfmt_format, int32_t (*)(const UListFormatter* listfmt, const UChar* const strings[], const int32_t*, int32_t, UChar*, int32_t, UErrorCode*), int32_t)                               \
     F(ulistfmt_openResult, UFormattedList* (*)(UErrorCode * ec), UFormattedList*)                                                                                                              \
-    F(ulistfmt_resultAsValue, const UFormattedValue* (*)(const UFormattedList* uresult, UErrorCode* ec), const UFormattedValue*)
+    F(ulistfmt_resultAsValue, const UFormattedValue* (*)(const UFormattedList* uresult, UErrorCode* ec), const UFormattedValue*)                                                               \
+    F(udtitvfmt_open, UDateIntervalFormat* (*)(const char*, const UChar*, int32_t, const UChar*, int32_t, UErrorCode*), UDateIntervalFormat*)                                                  \
+    F(udtitvfmt_openResult, UFormattedDateInterval* (*)(UErrorCode* ec), UFormattedDateInterval*)                                                                                              \
+    F(udtitvfmt_resultAsValue, const UFormattedValue* (*)(const UFormattedDateInterval*, UErrorCode* ec), const UFormattedValue*)
 
 #define FOR_EACH_I18N_VOID_OP(F)                                                                                                                                     \
     F(udat_close, void (*)(UDateFormat * format), void)                                                                                                              \
@@ -246,7 +250,11 @@ namespace RuntimeICUBinder {
     F(ucfpos_getIndexes, void (*)(const UConstrainedFieldPosition* ucfpos, int32_t* pStart, int32_t* pLimit, UErrorCode* ec), void)                                  \
     F(ulistfmt_close, void (*)(UListFormatter * listfmt), void)                                                                                                      \
     F(ulistfmt_formatStringsToResult, void (*)(const UListFormatter*, const UChar* const[], const int32_t*, int32_t, UFormattedList*, UErrorCode*), void)            \
-    F(ulistfmt_closeResult, void (*)(UFormattedList * uresult), void)
+    F(ulistfmt_closeResult, void (*)(UFormattedList * uresult), void)                                                                                                \
+    F(udtitvfmt_close, void (*)(UDateIntervalFormat *formatter), void)                                                                                               \
+    F(udtitvfmt_closeResult, void (*)(UFormattedDateInterval* uresult), void)                                                                                        \
+    F(udtitvfmt_formatToResult, void (*)(const UDateIntervalFormat*, UDate, UDate, UFormattedDateInterval*, UErrorCode*), void)                                      \
+    F(udtitvfmt_formatCalendarToResult, void (*)(const UDateIntervalFormat*, UCalendar*, UCalendar*, UFormattedDateInterval*, UErrorCode*), void)
 
 #define FOR_EACH_I18N_STICKY_OP(F) \
     F(vzone_getOffset3)
