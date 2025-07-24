@@ -4643,7 +4643,6 @@
     <test id="intl402/DateTimeFormat/prototype/format/temporal-plaintime-formatting-datetime-style"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/temporal-plainyearmonth-formatting-datetime-style"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/temporal-zoneddatetime-not-supported"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/format/timedatestyle-en"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/formatRange/argument-date-string"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/formatRange/argument-near-time-boundaries"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/formatRange/argument-to-integer"><reason>TODO</reason></test>
