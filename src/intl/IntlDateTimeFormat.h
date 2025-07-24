@@ -38,6 +38,7 @@ public:
 
     UTF16StringDataNonGCStd format(ExecutionState& state, double x);
     ArrayObject* formatToParts(ExecutionState& state, double x);
+    UTF16StringDataNonGCStd formatRange(ExecutionState& state, double startDate, double endDate);
     static Value toDateTimeOptions(ExecutionState& state, Value options, Value required, Value defaults);
     static std::string readHourCycleFromPattern(const UTF16StringDataNonGCStd& patternString);
     String* locale() const
@@ -139,11 +140,12 @@ protected:
     String* initDateTimeFormatMainHelper(ExecutionState& state, StringMap& opt, const Value& options, const Value& hour12, std::function<void(String* prop, Value* values, size_t valuesSize)>& doTable4, StringBuilder& skeletonBuilder);
     void initDateTimeFormatOtherHelper(ExecutionState& state, const Value& dataLocale, const Value& dateStyle, const Value& timeStyle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, std::string& dataLocaleWithExtensions, StringBuilder& skeletonBuilder);
     void setDateFromPattern(ExecutionState& state, UTF16StringDataNonGCStd& patternBuffer, bool hasHourOption);
-
+    void initICUIntervalFormatIfNecessary(ExecutionState& state);
     String* m_locale;
     String* m_calendar;
     String* m_numberingSystem;
     String* m_timeZone;
+    String* m_timeZoneICU;
 
     EncodedValue m_hour12;
     EncodedValue m_era;
@@ -162,6 +164,7 @@ protected:
     EncodedValue m_timeStyle;
 
     UDateFormat* m_icuDateFormat;
+    Optional<UDateIntervalFormat*> m_icuDateIntervalFormat;
 };
 
 } // namespace Escargot

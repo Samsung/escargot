@@ -130,6 +130,7 @@
 #define ucal_getDayOfWeekType RuntimeICUBinder::ICU::instance().ucal_getDayOfWeekType
 #define ucal_setGregorianChange RuntimeICUBinder::ICU::instance().ucal_setGregorianChange
 #define ucal_setMillis RuntimeICUBinder::ICU::instance().ucal_setMillis
+#define ucal_clone RuntimeICUBinder::ICU::instance().ucal_clone
 
 #define udatpg_close RuntimeICUBinder::ICU::instance().udatpg_close
 #define udatpg_open RuntimeICUBinder::ICU::instance().udatpg_open
@@ -261,5 +262,13 @@
 #define ulistfmt_openResult RuntimeICUBinder::ICU::instance().ulistfmt_openResult
 #define ulistfmt_resultAsValue RuntimeICUBinder::ICU::instance().ulistfmt_resultAsValue
 #define ulistfmt_closeResult RuntimeICUBinder::ICU::instance().ulistfmt_closeResult
+
+#define udtitvfmt_open RuntimeICUBinder::ICU::instance().udtitvfmt_open
+#define udtitvfmt_openResult RuntimeICUBinder::ICU::instance().udtitvfmt_openResult
+#define udtitvfmt_close RuntimeICUBinder::ICU::instance().udtitvfmt_close
+#define udtitvfmt_closeResult RuntimeICUBinder::ICU::instance().udtitvfmt_closeResult
+#define udtitvfmt_formatToResult RuntimeICUBinder::ICU::instance().udtitvfmt_formatToResult
+#define udtitvfmt_formatCalendarToResult RuntimeICUBinder::ICU::instance().udtitvfmt_formatCalendarToResult
+#define udtitvfmt_resultAsValue RuntimeICUBinder::ICU::instance().udtitvfmt_resultAsValue
 
 #endif

@@ -527,13 +527,23 @@ static std::string findTimezone()
 #else
 static std::string findTimezone()
 {
-    auto tz = icu::TimeZone::detectHostTimeZone();
-    icu::UnicodeString id;
-    tz->getID(id);
-    delete tz;
-    std::string r;
-    id.toUTF8String(r);
-    return r;
+    UChar result[256];
+    UErrorCode status = U_ZERO_ERROR;
+    int32_t len = ucal_getHostTimeZone(result, sizeof(result) / sizeof(UChar), &status);
+    if (U_SUCCESS(status)) {
+        std::string u8Result;
+        for (int32_t i = 0; i < len; i++) {
+            u8Result.push_back(result[i]);
+        }
+        return u8Result;
+    }
+
+    // fallback
+    time_t t;
+    tm lt;
+    t = time(NULL);
+    localtime_r(&t, &lt);
+    return lt.tm_zone;
 }
 #endif
 

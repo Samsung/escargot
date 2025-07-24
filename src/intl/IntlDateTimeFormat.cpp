@@ -491,6 +491,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     , m_calendar(String::emptyString())
     , m_numberingSystem(String::emptyString())
     , m_timeZone(String::emptyString())
+    , m_timeZoneICU(String::emptyString())
     , m_icuDateFormat(nullptr)
 {
     // Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -1026,7 +1027,9 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
             + pad('0', 2, std::to_string(absMinutes / 60)) + pad('0', 2, std::to_string(absMinutes % 60));
         timeZoneView = utf8StringToUTF16String(timeZoneForICU.data(), timeZoneForICU.length());
     }
-    m_icuDateFormat = udat_open(UDAT_PATTERN, UDAT_PATTERN, dataLocaleWithExtensions.data(), (UChar*)timeZoneView.data(), timeZoneView.length(), (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
+    m_timeZoneICU = new UTF16String(std::move(timeZoneView));
+    m_icuDateFormat = udat_open(UDAT_PATTERN, UDAT_PATTERN, dataLocaleWithExtensions.data(), m_timeZoneICU->bufferAccessData().bufferAs16Bit,
+                                m_timeZoneICU->length(), (UChar*)patternBuffer.data(), patternBuffer.length(), &status);
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
         return;
@@ -1035,6 +1038,9 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
     addFinalizer([](PointerValue* obj, void* data) {
         IntlDateTimeFormatObject* self = (IntlDateTimeFormatObject*)obj;
         udat_close(self->m_icuDateFormat);
+        if (self->m_icuDateIntervalFormat) {
+            udtitvfmt_close(self->m_icuDateIntervalFormat.value());
+        }
     },
                  nullptr);
 
@@ -1402,6 +1408,199 @@ Value IntlDateTimeFormatObject::toDateTimeOptions(ExecutionState& state, Value o
     }
 
     return options;
+}
+
+void IntlDateTimeFormatObject::initICUIntervalFormatIfNecessary(ExecutionState& state)
+{
+    if (m_icuDateIntervalFormat) {
+        return;
+    }
+
+    auto toPatternResult = INTL_ICU_STRING_BUFFER_OPERATION(udat_toPattern, m_icuDateFormat, false);
+    if (U_FAILURE(toPatternResult.first)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateIntervalFormat");
+        return;
+    }
+    auto pattern(std::move(toPatternResult.second));
+
+    auto getSkeletonResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getSkeleton, nullptr, pattern.data(), pattern.size());
+    if (U_FAILURE(getSkeletonResult.first)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateIntervalFormat");
+        return;
+    }
+    auto skeleton(std::move(getSkeletonResult.second));
+
+    // While the pattern is including right HourCycle patterns, UDateIntervalFormat does not follow.
+    // We need to enforce HourCycle by setting "hc" extension if it is specified.
+    std::string locale = m_locale->toNonGCUTF8StringData();
+    locale += "-u-ca-";
+    locale += m_calendar->asString()->toNonGCUTF8StringData();
+    locale += "-nu-";
+    locale += m_numberingSystem->asString()->toNonGCUTF8StringData();
+    if (!m_hourCycle.toValue().isUndefined()) {
+        locale += "-hc-";
+        locale += m_hourCycle.toValue().asString()->toNonGCUTF8StringData();
+    }
+
+    UErrorCode status = U_ZERO_ERROR;
+
+    m_icuDateIntervalFormat = udtitvfmt_open(locale.data(), skeleton.data(), skeleton.size(), m_timeZoneICU->bufferAccessData().bufferAs16Bit, m_timeZoneICU->length(), &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateIntervalFormat");
+        return;
+    }
+}
+
+static LocalResourcePointer<UFormattedDateInterval> formattedValueFromDateRange(ExecutionState& state, UDateIntervalFormat* dateIntervalFormat,
+                                                                                UDateFormat* dateFormat, double startDate, double endDate, UErrorCode& status)
+{
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    UVersionInfo versionArray;
+    u_getVersion(versionArray);
+    if (versionArray[0] < 67) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "some function of Intl.DateTimeFormat needs 67+ version of ICU");
+    }
+#endif
+
+    LocalResourcePointer<UFormattedDateInterval> result(udtitvfmt_openResult(&status),
+                                                        [](UFormattedDateInterval* d) { udtitvfmt_closeResult(d); });
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+        return result;
+    }
+
+    // If a date is after Oct 15, 1582, the configuration of gregorian calendar change date in UCalendar does not affect
+    // on the formatted string. To ensure that it is after Oct 15 in all timezones, we add one day to gregorian calendar
+    // change date in UTC, so that this check can conservatively answer whether the date is definitely after gregorian
+    // calendar change date.
+    auto definitelyAfterGregorianCalendarChangeDate = [](double millisecondsFromEpoch) {
+        constexpr double gregorianCalendarReformDateInUTC = -12219292800000.0;
+        return millisecondsFromEpoch >= (gregorianCalendarReformDateInUTC + TimeConstant::MsPerDay);
+    };
+
+    // UFormattedDateInterval does not have a way to configure gregorian calendar change date while ECMAScript requires that
+    // gregorian calendar change should not have effect (we are setting ucal_setGregorianChange(cal, minECMAScriptTime, &status) explicitly).
+    // As a result, if the input date is older than gregorian calendar change date (Oct 15, 1582), the formatted string becomes
+    // julian calendar date.
+    // udtitvfmt_formatCalendarToResult API offers the way to set calendar to each date of the input, so that we can use UDateFormat's
+    // calendar which is already configured to meet ECMAScript's requirement (effectively clearing gregorian calendar change date).
+    //
+    // If we can ensure that startDate is after gregorian calendar change date, we can just use udtitvfmt_formatToResult since gregorian
+    // calendar change date does not affect on the formatted string.
+    //
+    // https://unicode-org.atlassian.net/browse/ICU-20705
+    if (definitelyAfterGregorianCalendarChangeDate(startDate)) {
+        udtitvfmt_formatToResult(dateIntervalFormat, startDate, endDate, result.get(), &status);
+    } else {
+        auto createCalendarForDate = [](const UCalendar* calendar, double date, UErrorCode& status) -> LocalResourcePointer<UCalendar> {
+            auto result = LocalResourcePointer<UCalendar>(ucal_clone(calendar, &status), [](UCalendar* cal) {
+                ucal_close(cal);
+            });
+            if (U_FAILURE(status)) {
+                result.reset();
+                return result;
+            }
+            ucal_setMillis(result.get(), date, &status);
+            if (U_FAILURE(status)) {
+                result.reset();
+                return result;
+            }
+            return result;
+        };
+
+        auto calendar = udat_getCalendar(dateFormat);
+
+        auto startCalendar = createCalendarForDate(calendar, startDate, status);
+        if (U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+            return result;
+        }
+
+        auto endCalendar = createCalendarForDate(calendar, endDate, status);
+        if (U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+            return result;
+        }
+
+        udtitvfmt_formatCalendarToResult(dateIntervalFormat, startCalendar.get(), endCalendar.get(), result.get(), &status);
+    }
+
+    return result;
+}
+
+static bool dateFieldsPracticallyEqual(const UFormattedValue* formattedValue, UErrorCode& status)
+{
+    LocalResourcePointer<UConstrainedFieldPosition> iterator(ucfpos_open(&status), [](UConstrainedFieldPosition* pos) {
+        ucfpos_close(pos);
+    });
+
+    if (U_FAILURE(status)) {
+        return false;
+    }
+
+    // We only care about UFIELD_CATEGORY_DATE_INTERVAL_SPAN category.
+    ucfpos_constrainCategory(iterator.get(), UFIELD_CATEGORY_DATE_INTERVAL_SPAN, &status);
+    if (U_FAILURE(status)) {
+        return false;
+    }
+
+    bool hasSpan = ufmtval_nextPosition(formattedValue, iterator.get(), &status);
+    if (U_FAILURE(status)) {
+        return false;
+    }
+
+    return !hasSpan;
+}
+
+UTF16StringDataNonGCStd IntlDateTimeFormatObject::formatRange(ExecutionState& state, double startDate, double endDate)
+{
+    startDate = DateObject::timeClip(startDate);
+    endDate = DateObject::timeClip(endDate);
+
+    if (std::isnan(startDate) || std::isnan(endDate)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "get invalid date value");
+    }
+
+    initICUIntervalFormatIfNecessary(state);
+
+    UErrorCode status = U_ZERO_ERROR;
+    auto result = formattedValueFromDateRange(state, m_icuDateIntervalFormat.value(), m_icuDateFormat, startDate, endDate, status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+        return UTF16StringDataNonGCStd();
+    }
+
+    // UFormattedValue is owned by UFormattedDateInterval. We do not need to close it.
+    auto formattedValue = udtitvfmt_resultAsValue(result.get(), &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+        return UTF16StringDataNonGCStd();
+    }
+
+    // If the formatted parts of startDate and endDate are the same, it is possible that the resulted string does not look like range.
+    // For example, if the requested format only includes "year" and startDate and endDate are the same year, the result just contains one year.
+    // In that case, startDate and endDate are *practically-equal* (spec term), and we generate parts as we call `formatToParts(startDate)` with
+    // `source: "shared"` additional fields.
+    bool equal = dateFieldsPracticallyEqual(formattedValue, status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+        return UTF16StringDataNonGCStd();
+    }
+
+    if (equal) {
+        return format(state, startDate);
+    }
+
+    int32_t formattedStringLength = 0;
+    const UChar* formattedStringPointer = ufmtval_getString(formattedValue, &formattedStringLength, &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+        return UTF16StringDataNonGCStd();
+    }
+
+    UTF16StringDataNonGCStd buffer(formattedStringPointer, formattedStringLength);
+    replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(buffer);
+    return buffer;
 }
 
 } // namespace Escargot

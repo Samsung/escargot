@@ -8411,6 +8411,22 @@ typedef enum UListFormatterWidth {
 } UListFormatterWidth;
 #endif /* U_HIDE_DRAFT_API */
 
+// udateintervalformat.h
+
+/**
+ * Opaque UDateIntervalFormat object for use in C programs.
+ * @stable ICU 4.8
+ */
+struct UDateIntervalFormat;
+typedef struct UDateIntervalFormat UDateIntervalFormat;  /**< C typedef for struct UDateIntervalFormat. @stable ICU 4.8 */
+
+struct UFormattedDateInterval;
+/**
+ * Opaque struct to contain the results of a UDateIntervalFormat operation.
+ * @stable ICU 64
+ */
+typedef struct UFormattedDateInterval UFormattedDateInterval;
+
 // uversion.h
 
 /** Maximum length of the copyright string.
