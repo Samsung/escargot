@@ -821,6 +821,7 @@ namespace Escargot {
     F(Percent, "percent")                                   \
     F(PercentSign, "percentSign")                           \
     F(PlusSign, "plusSign")                                 \
+    F(RelatedYear, "relatedYear")                           \
     F(RoundingIncrement, "roundingIncrement")               \
     F(RoundingMode, "roundingMode")                         \
     F(RoundingPriority, "roundingPriority")                 \
@@ -859,7 +860,8 @@ namespace Escargot {
     F(Week, "week")                                         \
     F(Weekday, "weekday")                                   \
     F(WeekInfo, "weekInfo")                                 \
-    F(Year, "year")
+    F(Year, "year")                                         \
+    F(YearName, "yearName")
 #else
 #define FOR_EACH_LAZY_INTL_STATIC_STRING(F)
 #endif

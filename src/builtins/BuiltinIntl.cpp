@@ -265,6 +265,23 @@ static Value builtinIntlDateTimeFormatFormatRange(ExecutionState& state, Value t
     return Value(new UTF16String(result.data(), result.length()));
 }
 
+static Value builtinIntlDateTimeFormatFormatRangeToParts(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlDateTimeFormatObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    if (argv[0].isUndefined() || argv[1].isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "get invalid date value");
+    }
+
+    IntlDateTimeFormatObject* dtf = thisValue.asObject()->asIntlDateTimeFormatObject();
+    double x = argv[0].toNumber(state);
+    double y = argv[1].toNumber(state);
+    return dtf->formatRangeToParts(state, x, y);
+}
+
+
 static void setFormatOpt(ExecutionState& state, Object* internalSlot, Object* result, String* prop)
 {
     ObjectGetResult r;
@@ -1498,6 +1515,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlDateTimeFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyFormatRange(),
                                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFormatRange(), builtinIntlDateTimeFormatFormatRange, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlDateTimeFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyFormatRangeToParts(),
+                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFormatRangeToParts(), builtinIntlDateTimeFormatFormatRangeToParts, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlDateTimeFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
                                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlDateTimeFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
