@@ -132,6 +132,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(intlDotListFormat, "Intl.ListFormat");
     INIT_STATIC_STRING(intlDotLocale, "Intl.Locale");
     INIT_STATIC_STRING(intlDotPluralRules, "Intl.PluralRules");
+    INIT_STATIC_STRING(intlDotDateTimeFormat, "Intl.DateTimeFormat");
     INIT_STATIC_STRING(intlDotRelativeTimeFormat, "Intl.RelativeTimeFormat");
     INIT_STATIC_STRING(intlDotNumberFormat, "Intl.NumberFormat");
     INIT_STATIC_STRING(set__proto__, "set __proto__");

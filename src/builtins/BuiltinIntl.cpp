@@ -1469,6 +1469,9 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlDateTimeFormatPrototype = m_intlDateTimeFormat->getFunctionPrototype(state).asObject();
     m_intlDateTimeFormatPrototype->setGlobalIntrinsicObject(state, true);
 
+    m_intlDateTimeFormatPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                           ObjectPropertyDescriptor(strings->intlDotDateTimeFormat.string(), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
     FunctionObject* formatFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->getFormat, builtinIntlDateTimeFormatFormatGetter, 0, NativeFunctionInfo::Strict));
     m_intlDateTimeFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().format,
                                                            ObjectPropertyDescriptor(JSGetterSetter(formatFunction, Value(Value::EmptyValue)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
