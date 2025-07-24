@@ -444,7 +444,6 @@ static String* icuFieldTypeToPartName(ExecutionState& state, int32_t fieldName)
     case UDAT_YEAR_FIELD:
     case UDAT_YEAR_WOY_FIELD:
     case UDAT_EXTENDED_YEAR_FIELD:
-    case UDAT_YEAR_NAME_FIELD:
         return state.context()->staticStrings().lazyYear().string();
     case UDAT_MONTH_FIELD:
     case UDAT_STANDALONE_MONTH_FIELD:
@@ -474,9 +473,17 @@ static String* icuFieldTypeToPartName(ExecutionState& state, int32_t fieldName)
         return state.context()->staticStrings().lazyTimeZoneName().string();
     case UDAT_FRACTIONAL_SECOND_FIELD:
         return state.context()->staticStrings().lazyFractionalSecond().string();
+#ifndef UDAT_RELATED_YEAR_FIELD
+#define UDAT_RELATED_YEAR_FIELD 34
+#endif
+    case UDAT_RELATED_YEAR_FIELD:
+        return state.context()->staticStrings().lazyRelatedYear().string();
+    case UDAT_YEAR_NAME_FIELD:
+        return state.context()->staticStrings().lazyYearName().string();
+
+    // Any newer additions to the UDateFormatField enum should just be considered an "unknown" part.
     default:
-        ASSERT_NOT_REACHED();
-        return String::emptyString();
+        return new ASCIIStringFromExternalMemory("unknown");
     }
 }
 
@@ -1601,6 +1608,191 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::formatRange(ExecutionState& st
     UTF16StringDataNonGCStd buffer(formattedStringPointer, formattedStringLength);
     replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(buffer);
     return buffer;
+}
+
+ArrayObject* IntlDateTimeFormatObject::formatRangeToParts(ExecutionState& state, double startDate, double endDate)
+{
+    startDate = DateObject::timeClip(startDate);
+    endDate = DateObject::timeClip(endDate);
+
+    if (std::isnan(startDate) || std::isnan(endDate)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "get invalid date value");
+    }
+
+    initICUIntervalFormatIfNecessary(state);
+
+    ArrayObject* parts = new ArrayObject(state);
+    UErrorCode status = U_ZERO_ERROR;
+    auto result = formattedValueFromDateRange(state, m_icuDateIntervalFormat.value(), m_icuDateFormat, startDate, endDate, status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+        return parts;
+    }
+
+    // UFormattedValue is owned by UFormattedDateInterval. We do not need to close it.
+    auto formattedValue = udtitvfmt_resultAsValue(result.get(), &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+        return parts;
+    }
+
+    // ICU produces ranges for the formatted string, and we construct parts array from that.
+    // For example, startDate = Jan 3, 2019, endDate = Jan 5, 2019 with en-US locale is,
+    //
+    // Formatted string: "1/3/2019 – 1/5/2019"
+    //                    | | |  |   | | |  |
+    //                    B C |  |   F G |  |
+    //                    |   +-D+   |   +-H+
+    //                    |      |   |      |
+    //                    +--A---+   +--E---+
+    //
+    // Ranges ICU generates:
+    //     A:    (0, 8)   UFIELD_CATEGORY_DATE_INTERVAL_SPAN startRange
+    //     B:    (0, 1)   UFIELD_CATEGORY_DATE month
+    //     C:    (2, 3)   UFIELD_CATEGORY_DATE day
+    //     D:    (4, 8)   UFIELD_CATEGORY_DATE year
+    //     E:    (11, 19) UFIELD_CATEGORY_DATE_INTERVAL_SPAN endRange
+    //     F:    (11, 12) UFIELD_CATEGORY_DATE month
+    //     G:    (13, 14) UFIELD_CATEGORY_DATE day
+    //     H:    (15, 19) UFIELD_CATEGORY_DATE year
+    //
+    //  We use UFIELD_CATEGORY_DATE_INTERVAL_SPAN range to determine each part is either "startRange", "endRange", or "shared".
+    //  It is guaranteed that UFIELD_CATEGORY_DATE_INTERVAL_SPAN comes first before any other parts including that range.
+    //  For example, in the above formatted string, " – " is "shared" part. For UFIELD_CATEGORY_DATE ranges, we generate corresponding
+    //  part object with types such as "month". And non populated parts (e.g. "/") become "literal" parts.
+    //  In the above case, expected parts are,
+    //
+    //     { type: "month", value: "1", source: "startRange" },
+    //     { type: "literal", value: "/", source: "startRange" },
+    //     { type: "day", value: "3", source: "startRange" },
+    //     { type: "literal", value: "/", source: "startRange" },
+    //     { type: "year", value: "2019", source: "startRange" },
+    //     { type: "literal", value: " - ", source: "shared" },
+    //     { type: "month", value: "1", source: "endRange" },
+    //     { type: "literal", value: "/", source: "endRange" },
+    //     { type: "day", value: "5", source: "endRange" },
+    //     { type: "literal", value: "/", source: "endRange" },
+    //     { type: "year", value: "2019", source: "endRange" },
+    //
+
+    int32_t formattedStringLength = 0;
+    const UChar* formattedStringPointer = ufmtval_getString(formattedValue, &formattedStringLength, &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+        return parts;
+    }
+
+    UTF16StringDataNonGCStd buffer(formattedStringPointer, formattedStringLength);
+    replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(buffer);
+
+    // We care multiple categories (UFIELD_CATEGORY_DATE and UFIELD_CATEGORY_DATE_INTERVAL_SPAN).
+    // So we do not constraint iterator.
+    LocalResourcePointer<UConstrainedFieldPosition> iterator(ucfpos_open(&status), [](UConstrainedFieldPosition* pos) {
+        ucfpos_close(pos);
+    });
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+        return parts;
+    }
+
+    String* sharedString = new ASCIIStringFromExternalMemory("shared");
+    String* startRangeString = new ASCIIStringFromExternalMemory("startRange");
+    String* endRangeString = new ASCIIStringFromExternalMemory("endRange");
+    String* literalString = new ASCIIStringFromExternalMemory("literal");
+
+    AtomicString typeAtom(state, "type", 4);
+    AtomicString valueAtom = state.context()->staticStrings().value;
+    AtomicString sourceAtom = state.context()->staticStrings().source;
+
+    std::pair<int32_t, int32_t> startRange{ -1, -1 };
+    std::pair<int32_t, int32_t> endRange{ -1, -1 };
+
+    auto createPart = [&](String* type, int32_t beginIndex, int32_t length) {
+        auto sourceType = [&](int32_t index) -> String* {
+            if (startRange.first <= index && index < startRange.second) {
+                return startRangeString;
+            }
+            if (endRange.first <= index && index < endRange.second) {
+                return endRangeString;
+            }
+            return sharedString;
+        };
+
+        auto value = new UTF16String(buffer.data() + beginIndex, length);
+        Object* part = new Object(state);
+        part->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(type, ObjectPropertyDescriptor::AllPresent));
+        part->defineOwnPropertyThrowsException(state, ObjectPropertyName(valueAtom), ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
+        part->defineOwnPropertyThrowsException(state, ObjectPropertyName(sourceAtom), ObjectPropertyDescriptor(sourceType(beginIndex), ObjectPropertyDescriptor::AllPresent));
+        return part;
+    };
+
+    size_t resultIndex = 0;
+    int32_t resultLength = buffer.length();
+    int32_t previousEndIndex = 0;
+    while (true) {
+        bool next = ufmtval_nextPosition(formattedValue, iterator.get(), &status);
+        if (U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+            return parts;
+        }
+        if (!next) {
+            break;
+        }
+
+        int32_t category = ucfpos_getCategory(iterator.get(), &status);
+        if (U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+            return parts;
+        }
+
+        int32_t fieldType = ucfpos_getField(iterator.get(), &status);
+        if (U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+            return parts;
+        }
+
+        int32_t beginIndex = 0;
+        int32_t endIndex = 0;
+        ucfpos_getIndexes(iterator.get(), &beginIndex, &endIndex, &status);
+        if (U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format DateIntervalFormat");
+            return parts;
+        }
+
+        if (previousEndIndex < beginIndex) {
+            Object* part = createPart(literalString, previousEndIndex, beginIndex - previousEndIndex);
+            parts->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, resultIndex++), ObjectPropertyDescriptor(part, ObjectPropertyDescriptor::AllPresent));
+            previousEndIndex = beginIndex;
+        }
+
+        if (category == UFIELD_CATEGORY_DATE_INTERVAL_SPAN) {
+            // > The special field category UFIELD_CATEGORY_DATE_INTERVAL_SPAN is used to indicate which datetime
+            // > primitives came from which arguments: 0 means fromCalendar, and 1 means toCalendar. The span category
+            // > will always occur before the corresponding fields in UFIELD_CATEGORY_DATE in the nextPosition() iterator.
+            // from ICU comment. So, field 0 is startRange, field 1 is endRange.
+            if (!fieldType) {
+                startRange = std::make_pair(beginIndex, endIndex);
+            } else {
+                ASSERT(fieldType == 1);
+                endRange = std::make_pair(beginIndex, endIndex);
+            }
+            continue;
+        }
+
+        ASSERT(category == UFIELD_CATEGORY_DATE);
+
+        auto type = icuFieldTypeToPartName(state, fieldType);
+        Object* part = createPart(type, beginIndex, endIndex - beginIndex);
+        parts->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, resultIndex++), ObjectPropertyDescriptor(part, ObjectPropertyDescriptor::AllPresent));
+        previousEndIndex = endIndex;
+    }
+
+    if (previousEndIndex < resultLength) {
+        Object* part = createPart(literalString, previousEndIndex, resultLength - previousEndIndex);
+        parts->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, resultIndex++), ObjectPropertyDescriptor(part, ObjectPropertyDescriptor::AllPresent));
+    }
+
+    return parts;
 }
 
 } // namespace Escargot
