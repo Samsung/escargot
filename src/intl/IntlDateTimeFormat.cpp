@@ -118,6 +118,27 @@ static bool equalIgnoringASCIICase(String* timeZoneName, const UTF16StringDataNo
     return true;
 }
 
+// ICU 72 uses narrowNoBreakSpace (u202F) and thinSpace (u2009) for the output of Intl.DateTimeFormat.
+// However, a lot of real world code (websites[1], Node.js modules[2] etc.) strongly assumes that this output
+// only contains normal spaces and these code stops working because of parsing failures. As a workaround
+// for this issue, this function replaces narrowNoBreakSpace and thinSpace with normal space.
+// This behavior is aligned to SpiderMonkey[3] and V8[4].
+// [1]: https://bugzilla.mozilla.org/show_bug.cgi?id=1806042
+// [2]: https://github.com/nodejs/node/issues/46123
+// [3]: https://hg.mozilla.org/mozilla-central/rev/40e2c54d5618
+// [4]: https://chromium.googlesource.com/v8/v8/+/bab790f9165f65a44845b4383c8df7c6c32cf4b3
+template <typename Container>
+static void replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(Container& vector)
+{
+    // The key of this replacement is that we are not changing size of string.
+    // This allows us not to adjust offsets reported from formatToParts / formatRangeToParts
+    for (auto& character : vector) {
+        if (character == 0x202f || character == 0x2009) {
+            character = ' ';
+        }
+    }
+}
+
 static Optional<int64_t> parseUTCOffsetInMinutes(const StringBufferAccessData& buffer)
 {
     // UTCOffset :::
@@ -350,21 +371,36 @@ std::string IntlDateTimeFormatObject::readHourCycleFromPattern(const UTF16String
 UTF16StringDataNonGCStd updateHourCycleInPatternDueToHourCycle(const UTF16StringDataNonGCStd& pattern, String* hc)
 {
     char16_t newHcChar;
+    bool isH23OrH24 = false;
     if (hc->equals("h11")) {
         newHcChar = 'K';
     } else if (hc->equals("h12")) {
         newHcChar = 'h';
     } else if (hc->equals("h23")) {
         newHcChar = 'H';
+        isH23OrH24 = true;
     } else {
         ASSERT(hc->equals("h24"));
         newHcChar = 'k';
+        isH23OrH24 = true;
     }
     bool inQuote = false;
     UTF16StringDataNonGCStd result;
     for (size_t i = 0; i < pattern.length(); i++) {
         auto ch = pattern[i];
         switch (ch) {
+        case 'a':
+        case 'b':
+        case 'B':
+            if (isH23OrH24) {
+                // pass next white space
+                if (i + 1 < pattern.length() && pattern[i + 1] == ' ') {
+                    i++;
+                }
+                continue;
+            }
+            result += ch;
+            break;
         case '\'':
             inQuote = !inQuote;
             result += ch;
@@ -379,6 +415,17 @@ UTF16StringDataNonGCStd updateHourCycleInPatternDueToHourCycle(const UTF16String
             result += ch;
             break;
         }
+    }
+
+    if (isH23OrH24) {
+        auto pos = result.find(newHcChar, 0);
+        if (pos != SIZE_MAX && (pos + 1) != result.size() && result[pos + 1] != newHcChar) {
+            result.insert(pos + result.begin(), newHcChar);
+        }
+    }
+
+    while (result.size() && result.back() == ' ') {
+        result.erase(result.size() - 1);
     }
 
     return result;
@@ -816,6 +863,7 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
 
         auto toPatternResult = INTL_ICU_STRING_BUFFER_OPERATION(udat_toPattern, dateFormatFromStyle.get(), false);
         patternBuffer = std::move(toPatternResult.second);
+        replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(patternBuffer);
         if (U_FAILURE(toPatternResult.first)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize DateTimeFormat");
             return;
@@ -866,6 +914,7 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
                     return;
                 }
                 patternBuffer = std::move(getBestPatternWithOptionsResult.second);
+                replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(patternBuffer);
             }
         }
 
@@ -883,8 +932,10 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
             return;
         }
         patternBuffer = std::move(getBestPatternWithOptionsResult.second);
+        replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(patternBuffer);
     }
 
+    Value hourCycleBefore = m_hourCycle;
     // If dateTimeFormat.[[Hour]] is not undefined, then
     bool hasHourOption = hour->length();
     if (hasHourOption) {
@@ -893,6 +944,7 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
         auto getBestPatternResult = INTL_ICU_STRING_BUFFER_OPERATION(udatpg_getBestPattern, generator.get(), u"jjmm", 4);
         ASSERT(U_SUCCESS(getBestPatternResult.first));
         patternBuffer = std::move(getBestPatternResult.second);
+        replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(patternBuffer);
         auto hcDefault = readHourCycleFromPattern(patternBuffer);
         // Let hc be dateTimeFormat.[[HourCycle]].
         auto hc = m_hourCycle;
@@ -945,10 +997,17 @@ void IntlDateTimeFormatObject::initDateTimeFormatOtherHelper(ExecutionState& sta
     // Set dateTimeFormat.[[Pattern]] to pattern.
     // Set dateTimeFormat.[[RangePatterns]] to rangePatterns.
     // Return dateTimeFormat.
-
+    Value hc = m_hourCycle;
+    if (hour12.isUndefined()) {
+        if (!hc.isString() && hourCycleBefore.isString()) {
+            hc = hourCycleBefore.asString();
+        }
+    } else {
+        hc = hour12.toBoolean() ? state.context()->staticStrings().lazyH12().string() : state.context()->staticStrings().lazyH24().string();
+    }
     // After generating pattern from skeleton, we need to change h11 vs. h12 and h23 vs. h24 if hourCycle is specified.
-    if (!Value(m_hourCycle).isUndefined()) {
-        patternBuffer = updateHourCycleInPatternDueToHourCycle(patternBuffer, Value(m_hourCycle).asString());
+    if (!Value(hc).isUndefined()) {
+        patternBuffer = updateHourCycleInPatternDueToHourCycle(patternBuffer, Value(hc).asString());
     }
 
     // For each row in Table 4, except the header row, in table order, do
@@ -1127,28 +1186,6 @@ void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16St
         }
     }
 }
-
-// ICU 72 uses narrowNoBreakSpace (u202F) and thinSpace (u2009) for the output of Intl.DateTimeFormat.
-// However, a lot of real world code (websites[1], Node.js modules[2] etc.) strongly assumes that this output
-// only contains normal spaces and these code stops working because of parsing failures. As a workaround
-// for this issue, this function replaces narrowNoBreakSpace and thinSpace with normal space.
-// This behavior is aligned to SpiderMonkey[3] and V8[4].
-// [1]: https://bugzilla.mozilla.org/show_bug.cgi?id=1806042
-// [2]: https://github.com/nodejs/node/issues/46123
-// [3]: https://hg.mozilla.org/mozilla-central/rev/40e2c54d5618
-// [4]: https://chromium.googlesource.com/v8/v8/+/bab790f9165f65a44845b4383c8df7c6c32cf4b3
-template <typename Container>
-static void replaceNarrowNoBreakSpaceOrThinSpaceWithNormalSpace(Container& vector)
-{
-    // The key of this replacement is that we are not changing size of string.
-    // This allows us not to adjust offsets reported from formatToParts / formatRangeToParts
-    for (auto& character : vector) {
-        if (character == 0x202f || character == 0x2009) {
-            character = ' ';
-        }
-    }
-}
-
 
 UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, double x)
 {
