@@ -1021,6 +1021,7 @@ public:
     AtomicString intlDotLocale;
     AtomicString intlDotPluralRules;
     AtomicString intlDotNumberFormat;
+    AtomicString intlDotDateTimeFormat;
     AtomicString intlDotRelativeTimeFormat;
     AtomicString set__proto__;
     AtomicString symbolMatch;
