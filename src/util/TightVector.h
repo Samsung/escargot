@@ -500,7 +500,7 @@ public:
     void pushBack(const T& val, size_t newSize)
     {
         auto oldSize = newSize - 1;
-        expandBuffer(newSize, oldSize);
+        expandBuffer(newSize);
         m_buffer[oldSize] = val;
     }
 
@@ -522,7 +522,7 @@ public:
     void resize(size_t oldSize, size_t newSize, const T& val = T())
     {
         if (newSize) {
-            expandBuffer(newSize, oldSize);
+            expandBuffer(newSize);
             for (size_t i = oldSize; i < newSize; i++) {
                 m_buffer[i] = val;
             }
@@ -534,7 +534,7 @@ public:
     void resizeWithUninitializedValues(size_t oldSize, size_t newSize)
     {
         if (newSize) {
-            expandBuffer(newSize, oldSize);
+            expandBuffer(newSize);
         } else {
             GC_FREE(m_buffer);
             m_buffer = nullptr;
@@ -595,15 +595,6 @@ public:
     }
 
 protected:
-    void expandBuffer(size_t newSize, size_t oldSize)
-    {
-        if (m_buffer == nullptr) {
-            m_buffer = GCAllocator().allocate(newSize);
-        } else {
-            m_buffer = reinterpret_cast<T*>(GC_REALLOC_NO_SHRINK(m_buffer, newSize * sizeof(T)));
-        }
-    }
-
     T* m_buffer;
 };
 } // namespace Escargot
