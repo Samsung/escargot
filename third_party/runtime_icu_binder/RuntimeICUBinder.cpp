@@ -16,14 +16,6 @@
 
 #include "RuntimeICUBinder.h"
 
-#include <dlfcn.h>
-#include <string.h>
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <locale.h>
-#include <string>
-
 #ifdef _WIN32
 #define OS_WINDOWS 1
 #elif _WIN64
@@ -49,11 +41,21 @@
 #error "failed to detect target OS"
 #endif
 
+#include <string.h>
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <locale.h>
+#include <string>
+
 #if defined(OS_POSIX)
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include <dlfcn.h>
+#elif defined(OS_WINDOWS)
+#include <Windows.h>
 #endif
 
 namespace RuntimeICUBinder {
@@ -73,7 +75,8 @@ static void die(const char *message)
 static constexpr int s_icuMinVersion = 49; // icu 4.9 was released on 2012-06-06
 static constexpr int s_icuMaxVersion = 2048;
 
-static void* findSo(ICU::Soname name)
+#if defined(OS_POSIX)
+static void *findSo(ICU::Soname name)
 {
     std::string soPath;
     switch (name) {
@@ -90,14 +93,14 @@ static void* findSo(ICU::Soname name)
         die("invalid soname");
     }
 
-    void* handle = dlopen(soPath.data(), RTLD_LAZY);
+    void *handle = dlopen(soPath.data(), RTLD_LAZY);
     if (handle) {
         return handle;
     }
 
     // try to find with version name
-    for (int i = s_icuMinVersion; i < s_icuMaxVersion; i ++) {
-        void* handle = dlopen((soPath + "." + std::to_string(i)).data(), RTLD_LAZY);
+    for (int i = s_icuMinVersion; i < s_icuMaxVersion; i++) {
+        void *handle = dlopen((soPath + "." + std::to_string(i)).data(), RTLD_LAZY);
         if (handle) {
             return handle;
         }
@@ -107,12 +110,14 @@ static void* findSo(ICU::Soname name)
     dlopen(soPath.data(), RTLD_LAZY);
     return nullptr;
 }
+#endif
 
 void ICU::loadSo(ICU::Soname name)
 {
     assert(m_soHandles[name] == nullptr);
-    void *handle = findSo(name);
-
+    void *handle;
+#if defined(OS_POSIX)
+    handle = findSo(name);
     if (!handle) {
         char *error = dlerror();
         if (error) {
@@ -120,6 +125,9 @@ void ICU::loadSo(ICU::Soname name)
         }
         die("failed to open so");
     }
+#else
+    handle = LoadLibraryA("icu.dll");
+#endif
     m_soHandles[name] = handle;
 }
 
@@ -127,8 +135,6 @@ void *ICU::loadFunction(Soname soname, Function kind)
 {
     assert(m_functions[kind] == nullptr);
     const char *name = "";
-    char nameBuffer[256];
-
     switch (kind) {
 #define DECLARE_CASE(fnName, fnType, fnReturnType) \
     case function##fnName:                         \
@@ -151,6 +157,8 @@ void *ICU::loadFunction(Soname soname, Function kind)
     }
 
     void *fn;
+#if defined(OS_POSIX)
+    char nameBuffer[256];
     if (m_icuVersion == -1) {
         fn = dlsym(ensureLoadSo(soname), name);
     } else {
@@ -164,8 +172,20 @@ void *ICU::loadFunction(Soname soname, Function kind)
         if (error) {
             fputs(error, stderr);
         }
-        die(nameBuffer);
+        if (m_icuVersion == -1) {
+            die(name);
+        } else {
+            die(nameBuffer);
+        }
     }
+#else
+    fn = GetProcAddress((HMODULE)ensureLoadSo(soname), name);
+
+    if (!fn) {
+        fputs("failed to load", stderr);
+        die(name);
+    }
+#endif
 
     m_functions[kind] = fn;
     return fn;
@@ -309,7 +329,7 @@ std::string ICU::findSystemTimezoneName()
     }
 #endif
 #if defined(ANDROID)
-    FILE* fp = popen("getprop persist.sys.timezone", "r");
+    FILE *fp = popen("getprop persist.sys.timezone", "r");
     if (fp) {
         char buffer[512];
         fgets(buffer, sizeof(buffer), fp);
@@ -329,25 +349,19 @@ std::string ICU::findSystemTimezoneName()
     int32_t len = ICU::instance().ucal_getDefaultTimeZone(result, sizeof(result) / sizeof(UChar), &status);
     if (U_SUCCESS(status)) {
         std::string u8Result;
-        for (int32_t i = 0; i < len; i ++) {
+        for (int32_t i = 0; i < len; i++) {
             u8Result.push_back(result[i]);
         }
         return u8Result;
     }
-
-    // fallback
-    time_t t;
-    tm lt;
-    t = time(NULL);
-    localtime_r(&t, &lt);
-    return lt.tm_zone;
+    return "";
 }
 
 ICU::ICU()
 {
     memset(m_soHandles, 0, sizeof(void *) * ICU::Soname::SonameMax);
     memset(m_functions, 0, sizeof(void *) * ICU::Function::FunctionMax);
-
+#if defined(OS_POSIX)
     // load first so
     ensureLoadSo(Soname::uc);
 
@@ -375,5 +389,6 @@ ICU::ICU()
             die("failed to read version from so");
         }
     }
+#endif
 }
 } // namespace RuntimeICUBinder
