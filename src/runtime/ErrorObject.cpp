@@ -153,10 +153,6 @@ static Value builtinErrorObjectStackInfoGet(ExecutionState& state, Value thisVal
 
 static Value builtinErrorObjectStackInfoSet(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (!(LIKELY(thisValue.isPointerValue() && thisValue.asPointerValue()->isErrorObject()))) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "set Error.prototype.stack called on incompatible receiver");
-    }
-
     // Do nothing
     return Value();
 }
