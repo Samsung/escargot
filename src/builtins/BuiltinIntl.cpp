@@ -60,6 +60,7 @@
 #include "intl/IntlRelativeTimeFormat.h"
 #include "intl/IntlDisplayNames.h"
 #include "intl/IntlListFormat.h"
+#include "intl/IntlDurationFormat.h"
 
 namespace Escargot {
 
@@ -1263,6 +1264,61 @@ static Value builtinIntlListFormatFormatToParts(ExecutionState& state, Value thi
 }
 #endif
 
+#if defined(ENABLE_INTL_DURATIONFORMAT)
+static Value builtinIntlDurationFormatConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
+    }
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* realm) -> Object* {
+        return realm->globalObject()->intlDurationFormatPrototype();
+    });
+    if (argc >= 2) {
+        return new IntlDurationFormatObject(state, proto, argv[0], argv[1]);
+    } else if (argc >= 1) {
+        return new IntlDurationFormatObject(state, proto, argv[0], Value());
+    } else {
+        return new IntlDurationFormatObject(state, proto, Value(), Value());
+    }
+}
+
+static Value builtinIntlDurationFormatResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlDurationFormatObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    IntlDurationFormatObject* r = thisValue.asObject()->asIntlDurationFormatObject();
+    return r->resolvedOptions(state);
+}
+
+static Value builtinIntlDurationFormatFormat(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlDurationFormatObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    IntlDurationFormatObject* r = thisValue.asObject()->asIntlDurationFormatObject();
+    return r->format(state, argv[0]);
+}
+
+static Value builtinIntlDurationFormatSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value locales = argv[0];
+    Value options;
+    if (argc >= 2) {
+        options = argv[1];
+    }
+    const auto& availableLocales = state.context()->vmInstance()->intlDurationFormatAvailableLocales();
+    ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
+    return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
+}
+
+#endif
+
 static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Let ll be ? CanonicalizeLocaleList(locales).
@@ -1778,10 +1834,30 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlListFormatPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                        ObjectPropertyDescriptor(Value(strings->intlDotListFormat.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+#endif
+
+#if defined(ENABLE_INTL_DURATIONFORMAT)
+    m_intlDurationFormat = new NativeFunctionObject(state, NativeFunctionInfo(strings->DurationFormat, builtinIntlDurationFormatConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_intlDurationFormat->setGlobalIntrinsicObject(state);
+
+    m_intlDurationFormat->directDefineOwnProperty(state, state.context()->staticStrings().supportedLocalesOf,
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->supportedLocalesOf, builtinIntlDurationFormatSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlDurationFormatPrototype = m_intlDurationFormat->getFunctionPrototype(state).asObject();
+    m_intlDurationFormatPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_intlDurationFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().resolvedOptions,
+                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->resolvedOptions, builtinIntlDurationFormatResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlDurationFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().format,
+                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlDurationFormatFormat, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlDurationFormatPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                           ObjectPropertyDescriptor(Value(strings->intlDotDurationFormat.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+#endif
 
     m_intl->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                     ObjectPropertyDescriptor(Value(state.context()->staticStrings().Intl.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
-#endif
 
     m_intl->directDefineOwnProperty(state, ObjectPropertyName(strings->Collator),
                                     ObjectPropertyDescriptor(m_intlCollator, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -1809,6 +1885,10 @@ void GlobalObject::installIntl(ExecutionState& state)
 #if defined(ENABLE_INTL_LISTFORMAT)
     m_intl->directDefineOwnProperty(state, ObjectPropertyName(strings->ListFormat),
                                     ObjectPropertyDescriptor(m_intlListFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+#endif
+#if defined(ENABLE_INTL_DURATIONFORMAT)
+    m_intl->directDefineOwnProperty(state, ObjectPropertyName(strings->DurationFormat),
+                                    ObjectPropertyDescriptor(m_intlDurationFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 #endif
     FunctionObject* getCanonicalLocales = new NativeFunctionObject(state, NativeFunctionInfo(strings->getCanonicalLocales, builtinIntlGetCanonicalLocales, 1, NativeFunctionInfo::Strict));
     m_intl->directDefineOwnProperty(state, ObjectPropertyName(strings->getCanonicalLocales),

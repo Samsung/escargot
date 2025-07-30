@@ -52,6 +52,7 @@ namespace Escargot {
     F(Date)                       \
     F(DateTimeFormat)             \
     F(DisplayNames)               \
+    F(DurationFormat)             \
     F(E)                          \
     F(EPSILON)                    \
     F(Empty)                      \
@@ -750,9 +751,11 @@ namespace Escargot {
     F(DateStyle, "dateStyle")                               \
     F(DateTimeField, "dateTimeField")                       \
     F(Day, "day")                                           \
+    F(Days, "days")                                         \
     F(DayPeriod, "dayPeriod")                               \
     F(Decimal, "decimal")                                   \
     F(Dialect, "dialect")                                   \
+    F(Digital, "digital")                                   \
     F(Disjunction, "disjunction")                           \
     F(Engineering, "engineering")                           \
     F(Era, "era")                                           \
@@ -767,7 +770,8 @@ namespace Escargot {
     F(FormatMatcher, "formatMatcher")                       \
     F(FormatToParts, "formatToParts")                       \
     F(Fraction, "fraction")                                 \
-    F(FractionDigits, "fractionDigits")                     \
+    F(Fractional, "fractional")                             \
+    F(FractionalDigits, "fractionalDigits")                 \
     F(FractionalSecond, "fractionalSecond")                 \
     F(FractionalSecondDigits, "fractionalSecondDigits")     \
     F(Full, "full")                                         \
@@ -782,6 +786,7 @@ namespace Escargot {
     F(HalfTrunc, "halfTrunc")                               \
     F(HalfEven, "halfEven")                                 \
     F(Hour, "hour")                                         \
+    F(Hours, "hours")                                       \
     F(Hour12, "hour12")                                     \
     F(HourCycles, "hourCycles")                             \
     F(IgnorePunctuation, "ignorePunctuation")               \
@@ -803,13 +808,18 @@ namespace Escargot {
     F(MaximumFractionDigits, "maximumFractionDigits")       \
     F(MaximumSignificantDigits, "maximumSignificantDigits") \
     F(Medium, "medium")                                     \
+    F(Milliseconds, "milliseconds")                         \
+    F(Microseconds, "microseconds")                         \
     F(MinimumFractionDigits, "minimumFractionDigits")       \
     F(MinimumIntegerDigits, "minimumIntegerDigits")         \
     F(MinimumSignificantDigits, "minimumSignificantDigits") \
     F(MinusSign, "minusSign")                               \
     F(Minute, "minute")                                     \
+    F(Minutes, "minutes")                                   \
     F(Month, "month")                                       \
+    F(Months, "months")                                     \
     F(MorePrecision, "morePrecision")                       \
+    F(Nanoseconds, "nanoseconds")                           \
     F(Narrow, "narrow")                                     \
     F(NarrowSymbol, "narrowSymbol")                         \
     F(Negative, "negative")                                 \
@@ -828,6 +838,7 @@ namespace Escargot {
     F(Quarter, "quarter")                                   \
     F(Scientific, "scientific")                             \
     F(Second, "second")                                     \
+    F(Seconds, "seconds")                                   \
     F(Sensitivity, "sensitivity")                           \
     F(SelectRange, "selectRange")                           \
     F(Short, "short")                                       \
@@ -858,9 +869,11 @@ namespace Escargot {
     F(UseGrouping, "useGrouping")                           \
     F(Variant, "variant")                                   \
     F(Week, "week")                                         \
+    F(Weeks, "weeks")                                       \
     F(Weekday, "weekday")                                   \
     F(WeekInfo, "weekInfo")                                 \
     F(Year, "year")                                         \
+    F(Years, "years")                                       \
     F(YearName, "yearName")
 #else
 #define FOR_EACH_LAZY_INTL_STATIC_STRING(F)
@@ -1025,6 +1038,7 @@ public:
     AtomicString intlDotNumberFormat;
     AtomicString intlDotDateTimeFormat;
     AtomicString intlDotRelativeTimeFormat;
+    AtomicString intlDotDurationFormat;
     AtomicString set__proto__;
     AtomicString symbolMatch;
     AtomicString symbolMatchAll;
