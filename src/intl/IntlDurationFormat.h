@@ -90,6 +90,7 @@ public:
 
     Object* resolvedOptions(ExecutionState& state);
     String* format(ExecutionState& state, const Value& duration);
+    ArrayObject* formatToParts(ExecutionState& state, const Value& duration);
 
 protected:
     enum class ElementType : uint8_t {

@@ -1305,6 +1305,16 @@ static Value builtinIntlDurationFormatFormat(ExecutionState& state, Value thisVa
     return r->format(state, argv[0]);
 }
 
+static Value builtinIntlDurationFormatFormatToParts(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlDurationFormatObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    IntlDurationFormatObject* r = thisValue.asObject()->asIntlDurationFormatObject();
+    return r->formatToParts(state, argv[0]);
+}
+
 static Value builtinIntlDurationFormatSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value locales = argv[0];
@@ -1851,6 +1861,9 @@ void GlobalObject::installIntl(ExecutionState& state)
 
     m_intlDurationFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().format,
                                                            ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->format, builtinIntlDurationFormatFormat, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlDurationFormatPrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyFormatToParts(),
+                                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyFormatToParts(), builtinIntlDurationFormatFormatToParts, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
     m_intlDurationFormatPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                            ObjectPropertyDescriptor(Value(strings->intlDotDurationFormat.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));

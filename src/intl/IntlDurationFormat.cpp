@@ -52,6 +52,7 @@
 #include "runtime/BigInt.h"
 #include "Intl.h"
 #include "IntlDurationFormat.h"
+#include "IntlNumberFormat.h"
 
 #if defined(ENABLE_INTL_DURATIONFORMAT)
 
@@ -1018,6 +1019,237 @@ String* IntlDurationFormatObject::format(ExecutionState& state, const Value& dur
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format list of strings");
     }
     return new UTF16String(result.second.data(), result.second.length());
+}
+
+class IntlFieldIterator {
+public:
+    explicit IntlFieldIterator(UFieldPositionIterator& iterator)
+        : m_iterator(iterator)
+    {
+    }
+
+    int32_t next(int32_t& beginIndex, int32_t& endIndex, UErrorCode&)
+    {
+        return ufieldpositer_next(&m_iterator, &beginIndex, &endIndex);
+    }
+
+private:
+    UFieldPositionIterator& m_iterator;
+};
+
+static void formatToPartsInternal(ExecutionState& state, String* style, double x, const UTF16StringDataNonGCStd& formatted, IntlFieldIterator& iterator,
+                                  ArrayObject* parts, Optional<String*> sourceType, Optional<String*> unit)
+{
+    std::vector<Intl::NumberFieldItem> fields;
+
+    while (true) {
+        int32_t beginIndex = 0;
+        int32_t endIndex = 0;
+        UErrorCode status = U_ZERO_ERROR;
+        int32_t fieldType = iterator.next(beginIndex, endIndex, status);
+        if (U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to iterate field position iterator");
+        }
+        if (fieldType < 0)
+            break;
+
+        Intl::NumberFieldItem item;
+        item.start = beginIndex;
+        item.end = endIndex;
+        item.type = fieldType;
+
+        fields.push_back(item);
+    }
+
+    Intl::convertICUNumberFieldToEcmaNumberField(fields, x, formatted);
+
+    AtomicString typeAtom(state, "type", 4);
+    AtomicString valueAtom = state.context()->staticStrings().value;
+
+    for (size_t i = 0; i < fields.size(); i++) {
+        const Intl::NumberFieldItem& item = fields[i];
+
+        Object* o = new Object(state);
+        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(typeAtom), ObjectPropertyDescriptor(Intl::icuNumberFieldToString(state, item.type, x, style), ObjectPropertyDescriptor::AllPresent));
+        auto sub = formatted.substr(item.start, item.end - item.start);
+        o->defineOwnPropertyThrowsException(state, ObjectPropertyName(valueAtom), ObjectPropertyDescriptor(new UTF16String(sub.data(), sub.length()), ObjectPropertyDescriptor::AllPresent));
+
+        if (unit) {
+            o->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyUnit()),
+                                                ObjectPropertyDescriptor(unit.value(), ObjectPropertyDescriptor::AllPresent));
+        }
+        if (sourceType) {
+            o->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().source),
+                                                ObjectPropertyDescriptor(sourceType.value(), ObjectPropertyDescriptor::AllPresent));
+        }
+
+        parts->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, parts->length(state)), ObjectPropertyDescriptor(o, ObjectPropertyDescriptor::AllPresent));
+    }
+}
+
+ArrayObject* IntlDurationFormatObject::formatToParts(ExecutionState& state, const Value& duration)
+{
+    auto record = toDurationRecord(state, duration);
+
+    // https://tc39.es/proposal-intl-duration-format/#sec-partitiondurationformatpattern
+    auto elements = collectElements(state, this, record);
+
+    std::vector<UTF16StringDataNonGCStd> stringList;
+    std::vector<std::vector<Element>> groupedElements;
+    for (unsigned index = 0; index < elements.size(); ++index) {
+        std::vector<Element> group;
+        group.push_back(std::move(elements[index]));
+        do {
+            unsigned nextIndex = index + 1;
+            if (!(nextIndex < elements.size()))
+                break;
+            if (elements[nextIndex].m_type != ElementType::Literal)
+                break;
+            group.push_back(std::move(elements[nextIndex]));
+            ++index;
+            ++nextIndex;
+            if (!(nextIndex < elements.size()))
+                break;
+            if (elements[nextIndex].m_type != ElementType::Element)
+                break;
+            group.push_back(std::move(elements[nextIndex]));
+            ++index;
+        } while (true);
+
+        if (group.size() == 1) {
+            stringList.push_back(group[0].m_string);
+        } else {
+            UTF16StringDataNonGCStd builder;
+            for (auto& element : group) {
+                builder.append(element.m_string);
+            }
+            stringList.push_back(builder);
+        }
+        groupedElements.push_back(std::move(group));
+    }
+    ASSERT(stringList.size() == groupedElements.size());
+
+    StringVectorToUCharList input(stringList);
+
+    UErrorCode status = U_ZERO_ERROR;
+
+    LocalResourcePointer<UFormattedList> result(ulistfmt_openResult(&status), [](UFormattedList* res) {
+        ulistfmt_closeResult(res);
+    });
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format list of strings");
+    }
+
+    ulistfmt_formatStringsToResult(m_icuListFormatter, input.strings(), input.stringLengths(), input.stringCount(), result.get(), &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format list of strings");
+    }
+    // UFormattedValue is owned by UFormattedList. We do not need to close it.
+    auto formattedValue = ulistfmt_resultAsValue(result.get(), &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format list of strings");
+    }
+
+    ArrayObject* parts = new ArrayObject(state);
+    int32_t formattedStringLength = 0;
+    const UChar* formattedStringPointer = ufmtval_getString(formattedValue, &formattedStringLength, &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format list of strings");
+    }
+
+    LocalResourcePointer<UConstrainedFieldPosition> iterator(ucfpos_open(&status), [](UConstrainedFieldPosition* res) {
+        ucfpos_close(res);
+    });
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format list of strings");
+    }
+
+    ucfpos_constrainField(iterator.get(), UFIELD_CATEGORY_LIST, ULISTFMT_ELEMENT_FIELD, &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format list of strings");
+    }
+
+    String* literalString = state.context()->staticStrings().lazyLiteral().string();
+
+    auto createPart = [&](String* type, String* value) {
+        Object* part = new Object(state);
+        part->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyType()),
+                                      ObjectPropertyDescriptor(type, ObjectPropertyDescriptor::AllPresent));
+        part->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().value),
+                                      ObjectPropertyDescriptor(value, ObjectPropertyDescriptor::AllPresent));
+        return part;
+    };
+
+    auto pushElements = [&](ArrayObject* parts, unsigned elementIndex) -> void {
+        if (elementIndex < groupedElements.size()) {
+            auto& elements = groupedElements[elementIndex];
+            for (auto& element : elements) {
+                switch (element.m_type) {
+                case ElementType::Element: {
+                    UErrorCode status = U_ZERO_ERROR;
+                    LocalResourcePointer<UFieldPositionIterator> fieldItr(ufieldpositer_open(&status), [](UFieldPositionIterator* res) {
+                        ufieldpositer_close(res);
+                    });
+
+                    if (U_FAILURE(status)) {
+                        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to open field position iterator");
+                    }
+                    unumf_resultGetAllFieldPositions(element.m_formattedNumber.get(), fieldItr.get(), &status);
+                    if (U_FAILURE(status)) {
+                        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Failed to format a number.");
+                    }
+
+                    String* s = DurationRecord::typeName(state, element.m_unit);
+                    String* type = s->substring(status, s->length() - 1);
+                    IntlFieldIterator subiter(*fieldItr);
+                    formatToPartsInternal(state, state.context()->staticStrings().lazyUnit().string(),
+                                          element.m_valueSignBit ? -1 : 1, element.m_string, subiter, parts, nullptr, type);
+                    break;
+                }
+                case ElementType::Literal: {
+                    String* value = new UTF16String(element.m_string.data(), element.m_string.length());
+                    Object* part = createPart(literalString, value);
+                    parts->setIndexedProperty(state, Value(parts->length(state)), part, parts);
+                    break;
+                }
+                }
+            }
+        }
+    };
+
+    int32_t resultLength = formattedStringLength;
+    int32_t previousEndIndex = 0;
+    unsigned elementIndex = 0;
+    while (true) {
+        bool next = ufmtval_nextPosition(formattedValue, iterator.get(), &status);
+        if (U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format list of strings");
+        }
+        if (!next)
+            break;
+
+        int32_t beginIndex = 0;
+        int32_t endIndex = 0;
+        ucfpos_getIndexes(iterator.get(), &beginIndex, &endIndex, &status);
+        if (U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to format list of strings");
+        }
+        if (previousEndIndex < beginIndex) {
+            String* value = new UTF16String(formattedStringPointer + previousEndIndex, beginIndex - previousEndIndex);
+            Object* part = createPart(literalString, value);
+            parts->setIndexedProperty(state, Value(parts->length(state)), part, parts);
+        }
+        previousEndIndex = endIndex;
+        pushElements(parts, elementIndex++);
+    }
+
+    if (previousEndIndex < resultLength) {
+        String* value = new UTF16String(formattedStringPointer + previousEndIndex, resultLength - previousEndIndex);
+        Object* part = createPart(literalString, value);
+        parts->setIndexedProperty(state, Value(parts->length(state)), part, parts);
+    }
+
+    return parts;
 }
 
 } // namespace Escargot
