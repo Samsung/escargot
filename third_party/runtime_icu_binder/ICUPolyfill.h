@@ -194,6 +194,7 @@
 #define ures_resetIterator RuntimeICUBinder::ICU::instance().ures_resetIterator
 #define ures_getSize RuntimeICUBinder::ICU::instance().ures_getSize
 #define ures_getStringByIndex RuntimeICUBinder::ICU::instance().ures_getStringByIndex
+#define ures_getStringByKey RuntimeICUBinder::ICU::instance().ures_getStringByKey
 
 #define unumf_openForSkeletonAndLocale RuntimeICUBinder::ICU::instance().unumf_openForSkeletonAndLocale
 #define unumf_openForSkeletonAndLocaleWithError RuntimeICUBinder::ICU::instance().unumf_openForSkeletonAndLocaleWithError

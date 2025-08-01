@@ -36,10 +36,34 @@ BigIntData::BigIntData(BigIntData&& src)
     bf_init(m_data.ctx, &src.m_data);
 }
 
+BigIntData::BigIntData(const BigIntData& src)
+{
+    bf_init(ThreadLocal::bfContext(), &m_data);
+    bf_set(&m_data, &src.m_data);
+}
+
+BigIntData& BigIntData::operator=(const BigIntData& src)
+{
+    bf_set(&m_data, &src.m_data);
+    return *this;
+}
+
 BigIntData::BigIntData(const double& d)
 {
     bf_init(ThreadLocal::bfContext(), &m_data);
     bf_set_float64(&m_data, d);
+}
+
+BigIntData::BigIntData(const int64_t& d)
+{
+    bf_init(ThreadLocal::bfContext(), &m_data);
+    bf_set_si(&m_data, d);
+}
+
+BigIntData::BigIntData(const uint64_t& d)
+{
+    bf_init(ThreadLocal::bfContext(), &m_data);
+    bf_set_ui(&m_data, d);
 }
 
 BigIntData::BigIntData(String* src, int radix)
@@ -107,6 +131,83 @@ void BigIntData::init(const char* buf, size_t length, int radix)
     }
 }
 
+void BigIntData::addition(const int64_t& d)
+{
+    bf_t r;
+    bf_init(ThreadLocal::bfContext(), &r);
+    int ret = bf_add_si(&r, &m_data, d, BF_PREC_INF, BF_RNDZ);
+    if (UNLIKELY(ret)) {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    bf_set(&m_data, &r);
+    bf_delete(&r);
+}
+
+void BigIntData::addition(const BigIntData& src)
+{
+    bf_t r;
+    bf_init(ThreadLocal::bfContext(), &r);
+    int ret = bf_add(&r, &m_data, &src.m_data, BF_PREC_INF, BF_RNDZ);
+    if (UNLIKELY(ret)) {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    bf_set(&m_data, &r);
+    bf_delete(&r);
+}
+
+void BigIntData::multiply(const int64_t& d)
+{
+    bf_t r;
+    bf_init(ThreadLocal::bfContext(), &r);
+    int ret = bf_mul_si(&r, &m_data, d, BF_PREC_INF, BF_RNDZ);
+    if (UNLIKELY(ret)) {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    bf_set(&m_data, &r);
+    bf_delete(&r);
+}
+
+void BigIntData::division(const int64_t& d)
+{
+    int64_t a;
+    if (bf_get_int64(&a, &m_data, BF_GET_INT_MOD) == 0) {
+        bf_set_si(&m_data, a / d);
+        return;
+    }
+
+    bf_t src;
+    bf_t r;
+    bf_init(ThreadLocal::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &src);
+    bf_set_si(&src, d);
+
+    int ret = bf_div(&r, &m_data, &src, BF_PREC_INF, BF_RNDZ);
+    if (UNLIKELY(ret) && UNLIKELY(ret != BF_ST_INEXACT)) {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    bf_set(&m_data, &r);
+    bf_delete(&r);
+    bf_delete(&src);
+}
+
+void BigIntData::remainder(const int64_t& d)
+{
+    bf_t r, src;
+    bf_init(ThreadLocal::bfContext(), &r);
+    bf_init(ThreadLocal::bfContext(), &src);
+    bf_set_si(&src, d);
+
+    int ret = bf_rem(&r, &m_data, &src, BF_PREC_INF, BF_RNDZ,
+                     BF_RNDZ)
+        & BF_ST_INVALID_OP;
+    if (UNLIKELY(ret)) {
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    bf_set(&m_data, &r);
+    bf_delete(&r);
+    bf_delete(&src);
+}
+
 bool BigIntData::lessThan(BigInt* b) const
 {
     return bf_cmp_lt(&m_data, &b->m_bf);
@@ -115,6 +216,11 @@ bool BigIntData::lessThan(BigInt* b) const
 bool BigIntData::lessThanEqual(BigInt* b) const
 {
     return bf_cmp_le(&m_data, &b->m_bf);
+}
+
+bool BigIntData::lessThanEqual(const BigIntData& b) const
+{
+    return bf_cmp_le(&m_data, &b.m_data);
 }
 
 bool BigIntData::greaterThan(BigInt* b) const
@@ -127,6 +233,11 @@ bool BigIntData::greaterThanEqual(BigInt* b) const
     return bf_cmp(&m_data, &b->m_bf) >= 0;
 }
 
+bool BigIntData::greaterThanEqual(const BigIntData& src) const
+{
+    return bf_cmp(&m_data, &src.m_data) >= 0;
+}
+
 bool BigIntData::isNaN()
 {
     return bf_is_nan(&m_data);
@@ -135,6 +246,25 @@ bool BigIntData::isNaN()
 bool BigIntData::isInfinity()
 {
     return !bf_is_finite(&m_data);
+}
+
+std::string BigIntData::toNonGCStdString()
+{
+    int savedSign = m_data.sign;
+    if (m_data.expn == BF_EXP_ZERO) {
+        m_data.sign = 0;
+    }
+    size_t resultLen = 0;
+    auto str = bf_ftoa(&resultLen, &m_data, 10, 0, BF_RNDZ | BF_FTOA_FORMAT_FRAC | BF_FTOA_JS_QUIRKS);
+    m_data.sign = savedSign;
+
+    if (UNLIKELY(!str)) {
+        RELEASE_ASSERT_NOT_REACHED();
+    } else {
+        std::string ret(str, resultLen);
+        bf_free(ThreadLocal::bfContext(), str);
+        return ret;
+    }
 }
 
 void* BigInt::operator new(size_t size)

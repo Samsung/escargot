@@ -95,6 +95,7 @@ class IntlDateTimeFormatObject;
 class IntlRelativeTimeFormatObject;
 class IntlDisplayNamesObject;
 class IntlListFormatObject;
+class IntlDurationFormatObject;
 #endif
 #if defined(ENABLE_WASM)
 class WASMModuleObject;
@@ -530,6 +531,11 @@ public:
     {
         return false;
     }
+
+    virtual bool isIntlDurationFormatObject() const
+    {
+        return false;
+    }
 #endif
 
 #if defined(ENABLE_TEMPORAL)
@@ -937,6 +943,12 @@ public:
     {
         ASSERT(isIntlListFormatObject());
         return (IntlListFormatObject*)this;
+    }
+
+    IntlDurationFormatObject* asIntlDurationFormatObject()
+    {
+        ASSERT(isIntlDurationFormatObject());
+        return (IntlDurationFormatObject*)this;
     }
 #endif
 

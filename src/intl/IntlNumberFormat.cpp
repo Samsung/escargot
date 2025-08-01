@@ -999,7 +999,6 @@ ArrayObject* IntlNumberFormat::formatToParts(ExecutionState& state, Object* numb
 
         result->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, i), ObjectPropertyDescriptor(o, ObjectPropertyDescriptor::AllPresent));
     }
-
     return result;
 }
 

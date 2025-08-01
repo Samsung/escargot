@@ -135,6 +135,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(intlDotDateTimeFormat, "Intl.DateTimeFormat");
     INIT_STATIC_STRING(intlDotRelativeTimeFormat, "Intl.RelativeTimeFormat");
     INIT_STATIC_STRING(intlDotNumberFormat, "Intl.NumberFormat");
+    INIT_STATIC_STRING(intlDotDurationFormat, "Intl.DurationFormat");
     INIT_STATIC_STRING(set__proto__, "set __proto__");
     INIT_STATIC_STRING(symbolMatch, "[Symbol.match]");
     INIT_STATIC_STRING(symbolMatchAll, "[Symbol.matchAll]");

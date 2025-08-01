@@ -30,21 +30,33 @@ class BigIntData {
     friend class BigInt;
 
 public:
+    BigIntData(const uint64_t& d = 0);
+    BigIntData(const int64_t& d);
     BigIntData(const double& d);
     BigIntData(String* src, int radix = 10);
     BigIntData(const char* buf, size_t length, int radix = 10);
     BigIntData(BigIntData&& src);
-    BigIntData(const BigIntData& src) = delete;
-    BigIntData operator=(const BigIntData& src) = delete;
+    BigIntData(const BigIntData& src);
+    BigIntData& operator=(const BigIntData& src);
     ~BigIntData();
+
+    void addition(const int64_t& d);
+    void addition(const BigIntData& src);
+    void multiply(const int64_t& d);
+    void division(const int64_t& d);
+    void remainder(const int64_t& d);
 
     bool lessThan(BigInt* b) const;
     bool lessThanEqual(BigInt* b) const;
+    bool lessThanEqual(const BigIntData& b) const;
     bool greaterThan(BigInt* b) const;
     bool greaterThanEqual(BigInt* b) const;
+    bool greaterThanEqual(const BigIntData& src) const;
 
     bool isNaN();
     bool isInfinity();
+
+    std::string toNonGCStdString();
 
 private:
     void init(const char* buf, size_t length, int radix);
