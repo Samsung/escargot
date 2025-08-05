@@ -1793,6 +1793,8 @@ void GlobalObject::installIntl(ExecutionState& state)
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_intlLocalePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazyCalendars()), desc);
+        m_intlLocalePrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyGetCalendars(),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetCalendars(), builtinIntlLocaleCalendarsGetter, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
     }
 
     {
@@ -1800,6 +1802,8 @@ void GlobalObject::installIntl(ExecutionState& state)
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_intlLocalePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazyCollations()), desc);
+        m_intlLocalePrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyGetCollations(),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetCollations(), builtinIntlLocaleCollationsGetter, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
     }
 
     {
@@ -1807,6 +1811,8 @@ void GlobalObject::installIntl(ExecutionState& state)
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_intlLocalePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazyHourCycles()), desc);
+        m_intlLocalePrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyGetHourCycles(),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetHourCycles(), builtinIntlLocaleHourCyclesGetter, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
     }
 
     {
@@ -1814,6 +1820,8 @@ void GlobalObject::installIntl(ExecutionState& state)
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_intlLocalePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazyNumberingSystems()), desc);
+        m_intlLocalePrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyGetNumberingSystems(),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetNumberingSystems(), builtinIntlLocaleNumberingSystemsGetter, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
     }
 
     {
@@ -1821,6 +1829,8 @@ void GlobalObject::installIntl(ExecutionState& state)
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_intlLocalePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazyTextInfo()), desc);
+        m_intlLocalePrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyGetTextInfo(),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetTextInfo(), builtinIntlLocaleTextInfoGetter, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
     }
 
     {
@@ -1828,6 +1838,8 @@ void GlobalObject::installIntl(ExecutionState& state)
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_intlLocalePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazyWeekInfo()), desc);
+        m_intlLocalePrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyGetWeekInfo(),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetWeekInfo(), builtinIntlLocaleWeekInfoGetter, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
     }
 
     {
@@ -1835,6 +1847,8 @@ void GlobalObject::installIntl(ExecutionState& state)
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_intlLocalePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazyTimeZones()), desc);
+        m_intlLocalePrototype->directDefineOwnProperty(state, state.context()->staticStrings().lazyGetTimeZones(),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetTimeZones(), builtinIntlLocaleTimeZonesGetter, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
     }
 
 #if defined(ENABLE_INTL_RELATIVETIMEFORMAT)

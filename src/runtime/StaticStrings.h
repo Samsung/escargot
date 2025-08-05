@@ -776,6 +776,13 @@ namespace Escargot {
     F(FractionalSecond, "fractionalSecond")                 \
     F(FractionalSecondDigits, "fractionalSecondDigits")     \
     F(Full, "full")                                         \
+    F(GetCalendars, "getCalendars")                         \
+    F(GetCollations, "getCollations")                       \
+    F(GetHourCycles, "getHourCycles")                       \
+    F(GetNumberingSystems, "getNumberingSystems")           \
+    F(GetTextInfo, "getTextInfo")                           \
+    F(GetTimeZones, "getTimeZones")                         \
+    F(GetWeekInfo, "getWeekInfo")                           \
     F(Group, "group")                                       \
     F(H11, "h11")                                           \
     F(H12, "h12")                                           \
