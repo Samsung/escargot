@@ -96,6 +96,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(getDetached, "get detached");
     INIT_STATIC_STRING(getDescription, "get description");
     INIT_STATIC_STRING(getDotAll, "get dotAll");
+    INIT_STATIC_STRING(getFirstDayOfWeek, "get firstDayOfWeek");
     INIT_STATIC_STRING(getFlags, "get flags");
     INIT_STATIC_STRING(getFormat, "get format");
     INIT_STATIC_STRING(getGlobal, "get global");
@@ -111,6 +112,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(getNumeric, "get numeric");
     INIT_STATIC_STRING(getRegion, "get region");
     INIT_STATIC_STRING(getScript, "get script");
+    INIT_STATIC_STRING(getVariants, "get variants");
     INIT_STATIC_STRING(getSize, "get size");
     INIT_STATIC_STRING(getSource, "get source");
     INIT_STATIC_STRING(getSticky, "get sticky");

@@ -28,63 +28,22 @@ namespace Escargot {
 
 class IntlLocaleObject : public DerivedObject {
 public:
-    IntlLocaleObject(ExecutionState& state, String* tag, Optional<Object*> options);
-    IntlLocaleObject(ExecutionState& state, Object* proto, String* tag, Optional<Object*> options);
+    IntlLocaleObject(ExecutionState& state, String* tag, Object* options);
+    IntlLocaleObject(ExecutionState& state, Object* proto, String* tag, Object* options);
 
-    String* locale() const
-    {
-        return m_locale;
-    }
-
-    String* language() const
-    {
-        return m_language;
-    }
-
-    Value region() const
-    {
-        return m_region->length() ? Value(m_region) : Value();
-    }
-
-    Value script() const
-    {
-        return m_script->length() ? Value(m_script) : Value();
-    }
-
-    String* baseName() const
-    {
-        return m_baseName;
-    }
-
-    Optional<String*> calendar() const
-    {
-        return m_calendar;
-    }
-
-    Optional<String*> caseFirst() const
-    {
-        return m_caseFirst;
-    }
-
-    Optional<String*> collation() const
-    {
-        return m_collation;
-    }
-
-    Optional<String*> hourCycle() const
-    {
-        return m_hourCycle;
-    }
-
-    Optional<String*> numeric() const
-    {
-        return m_numeric;
-    }
-
-    Optional<String*> numberingSystem() const
-    {
-        return m_numberingSystem;
-    }
+    String* locale() const;
+    String* language() const;
+    String* region() const;
+    String* script() const;
+    String* variants() const;
+    String* baseName() const;
+    Optional<String*> calendar() const;
+    Optional<String*> caseFirst() const;
+    Optional<String*> collation() const;
+    Optional<String*> firstDayOfWeek() const;
+    Optional<String*> hourCycle() const;
+    Optional<String*> numeric() const;
+    Optional<String*> numberingSystem() const;
 
     virtual bool isIntlLocaleObject() const override
     {
@@ -100,17 +59,7 @@ public:
     Value timeZones(ExecutionState& state);
 
 protected:
-    String* m_language;
-    String* m_script;
-    String* m_region;
-    String* m_baseName;
-    String* m_locale;
-    Optional<String*> m_calendar; // ca
-    Optional<String*> m_caseFirst; // kf
-    Optional<String*> m_collation; // co
-    Optional<String*> m_hourCycle; // hc
-    Optional<String*> m_numeric; // kn
-    Optional<String*> m_numberingSystem; // nu
+    String* m_localeID;
 };
 
 } // namespace Escargot

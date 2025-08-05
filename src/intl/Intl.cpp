@@ -1657,12 +1657,353 @@ Intl::CanonicalizedLangunageTag Intl::isStructurallyValidLanguageTagAndCanonical
     if (isValidTagInBCP47ButInvalidOnUTS35(locale)) {
         return Intl::CanonicalizedLangunageTag();
     }
+
     std::string grandfather = grandfatheredLangTag(locale);
     if (grandfather.length()) {
         return canonicalizeLanguageTag(grandfather);
     }
 
     return canonicalizeLanguageTag(locale);
+}
+
+// The IsStructurallyValidLanguageTag abstract operation verifies that the locale argument (which must be a String value)
+//
+//     represents a well-formed "Unicode BCP 47 locale identifier" as specified in Unicode Technical Standard 35 section 3.2,
+//     does not include duplicate variant subtags, and
+//     does not include duplicate singleton subtags.
+//
+//  The abstract operation returns true if locale can be generated from the EBNF grammar in section 3.2 of the Unicode Technical Standard 35,
+//  starting with unicode_locale_id, and does not contain duplicate variant or singleton subtags (other than as a private use subtag).
+//  It returns false otherwise. Terminal value characters in the grammar are interpreted as the Unicode equivalents of the ASCII octet values given.
+//
+// https://unicode.org/reports/tr35/#Unicode_locale_identifier
+class LanguageTagParser {
+public:
+    LanguageTagParser(const std::string& tag)
+        : m_range(split(tag, '-'))
+        , m_cursor(m_range.begin())
+    {
+        ASSERT(m_cursor != m_range.end());
+        m_current = *m_cursor;
+    }
+
+    bool parseUnicodeLocaleId();
+    bool parseUnicodeLanguageId();
+
+    bool isEOS()
+    {
+        return m_cursor == m_range.end();
+    }
+
+    bool next()
+    {
+        if (isEOS())
+            return false;
+
+        ++m_cursor;
+        if (isEOS()) {
+            m_current = "";
+            return false;
+        }
+        m_current = *m_cursor;
+        return true;
+    }
+
+private:
+    bool parseExtensionsAndPUExtensions();
+
+    bool parseUnicodeExtensionAfterPrefix();
+    bool parseTransformedExtensionAfterPrefix();
+    bool parseOtherExtensionAfterPrefix();
+    bool parsePUExtensionAfterPrefix();
+
+    std::vector<std::string> m_range;
+    std::vector<std::string>::iterator m_cursor;
+    std::string m_current;
+};
+
+bool LanguageTagParser::parseUnicodeLocaleId()
+{
+    // unicode_locale_id    = unicode_language_id
+    //                        extensions*
+    //                        pu_extensions? ;
+    ASSERT(!isEOS());
+    if (!parseUnicodeLanguageId())
+        return false;
+    if (isEOS())
+        return true;
+    if (!parseExtensionsAndPUExtensions())
+        return false;
+    return true;
+}
+
+bool LanguageTagParser::parseUnicodeLanguageId()
+{
+    // unicode_language_id  = unicode_language_subtag (sep unicode_script_subtag)? (sep unicode_region_subtag)? (sep unicode_variant_subtag)* ;
+    ASSERT(!isEOS());
+    if (!Intl::isUnicodeLanguageSubtag(m_current))
+        return false;
+    if (!next())
+        return true;
+
+    if (Intl::isUnicodeScriptSubtag(m_current)) {
+        if (!next())
+            return true;
+    }
+
+    if (Intl::isUnicodeRegionSubtag(m_current)) {
+        if (!next())
+            return true;
+    }
+
+    std::unordered_set<std::string> subtags;
+    while (true) {
+        if (!Intl::isUnicodeVariantSubtag(m_current))
+            return true;
+        // https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
+        // does not include duplicate variant subtags
+        std::string lowerVariant = m_current;
+        std::transform(lowerVariant.begin(), lowerVariant.end(), lowerVariant.begin(), tolower);
+        auto iter = subtags.find(lowerVariant);
+        if (iter != subtags.end()) {
+            return false;
+        }
+        if (!next())
+            return true;
+    }
+}
+
+static bool isUnicodeExtensionTypeComponent(const std::string& string)
+{
+    auto length = string.length();
+    return length >= 3 && length <= 8 && isAllSpecialCharacters(string, isASCIIAlphanumeric);
+}
+
+static bool isUnicodePUExtensionValue(const std::string& string)
+{
+    auto length = string.length();
+    return length >= 1 && length <= 8 && isAllSpecialCharacters(string, isASCIIAlphanumeric);
+}
+
+static bool isUnicodeOtherExtensionValue(const std::string& string)
+{
+    auto length = string.length();
+    return length >= 2 && length <= 8 && isAllSpecialCharacters(string, isASCIIAlphanumeric);
+}
+
+static bool isUnicodeTKey(const std::string& string)
+{
+    return string.length() == 2 && isASCIIAlpha(string[0]) && isASCIIDigit(string[1]);
+}
+
+static bool isUnicodeTValueComponent(const std::string& string)
+{
+    auto length = string.length();
+    return length >= 3 && length <= 8 && isAllSpecialCharacters(string, isASCIIAlphanumeric);
+}
+
+bool LanguageTagParser::parseUnicodeExtensionAfterPrefix()
+{
+    // ((sep keyword)+ | (sep attribute)+ (sep keyword)*) ;
+    //
+    // keyword = key (sep type)? ;
+    // key = alphanum alpha ;
+    // type = alphanum{3,8} (sep alphanum{3,8})* ;
+    // attribute = alphanum{3,8} ;
+    ASSERT(!isEOS());
+    bool isAttributeOrKeyword = false;
+    if (Intl::isUnicodeExtensionAttribute(m_current)) {
+        isAttributeOrKeyword = true;
+        while (true) {
+            if (!Intl::isUnicodeExtensionAttribute(m_current))
+                break;
+            if (!next())
+                return true;
+        }
+    }
+
+    if (Intl::isUnicodeExtensionKey(m_current)) {
+        isAttributeOrKeyword = true;
+        while (true) {
+            if (!Intl::isUnicodeExtensionKey(m_current))
+                break;
+            if (!next())
+                return true;
+            while (true) {
+                if (!isUnicodeExtensionTypeComponent(m_current))
+                    break;
+                if (!next())
+                    return true;
+            }
+        }
+    }
+
+    if (!isAttributeOrKeyword)
+        return false;
+    return true;
+}
+
+bool LanguageTagParser::parseTransformedExtensionAfterPrefix()
+{
+    // ((sep tlang (sep tfield)*) | (sep tfield)+) ;
+    //
+    // tlang = unicode_language_subtag (sep unicode_script_subtag)? (sep unicode_region_subtag)? (sep unicode_variant_subtag)* ;
+    // tfield = tkey tvalue;
+    // tkey = alpha digit ;
+    // tvalue = (sep alphanum{3,8})+ ;
+    ASSERT(!isEOS());
+    bool found = false;
+    if (Intl::isUnicodeLanguageSubtag(m_current)) {
+        found = true;
+        if (!parseUnicodeLanguageId())
+            return false;
+        if (isEOS())
+            return true;
+    }
+
+    if (isUnicodeTKey(m_current)) {
+        found = true;
+        while (true) {
+            if (!isUnicodeTKey(m_current))
+                break;
+            if (!next())
+                return false;
+            if (!isUnicodeTValueComponent(m_current))
+                return false;
+            if (!next())
+                return true;
+            while (true) {
+                if (!isUnicodeTValueComponent(m_current))
+                    break;
+                if (!next())
+                    return true;
+            }
+        }
+    }
+
+    return found;
+}
+
+bool LanguageTagParser::parseOtherExtensionAfterPrefix()
+{
+    // (sep alphanum{2,8})+ ;
+    ASSERT(!isEOS());
+    if (!isUnicodeOtherExtensionValue(m_current))
+        return false;
+    if (!next())
+        return true;
+
+    while (true) {
+        if (!isUnicodeOtherExtensionValue(m_current))
+            return true;
+        if (!next())
+            return true;
+    }
+}
+
+bool LanguageTagParser::parsePUExtensionAfterPrefix()
+{
+    // (sep alphanum{1,8})+ ;
+    ASSERT(!isEOS());
+    if (!isUnicodePUExtensionValue(m_current))
+        return false;
+    if (!next())
+        return true;
+
+    while (true) {
+        if (!isUnicodePUExtensionValue(m_current))
+            return true;
+        if (!next())
+            return true;
+    }
+}
+
+bool LanguageTagParser::parseExtensionsAndPUExtensions()
+{
+    // unicode_locale_id    = unicode_language_id
+    //                        extensions*
+    //                        pu_extensions? ;
+    //
+    // extensions = unicode_locale_extensions
+    //            | transformed_extensions
+    //            | other_extensions ;
+    //
+    // pu_extensions = sep [xX] (sep alphanum{1,8})+ ;
+    ASSERT(!isEOS());
+    std::unordered_set<char16_t> singletonsSet;
+    while (true) {
+        if (m_current.length() != 1)
+            return true;
+        char16_t prefixCode = m_current[0];
+        if (!isASCIIAlphanumeric(prefixCode))
+            return true;
+
+        // https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
+        // does not include duplicate singleton subtags.
+        //
+        // https://unicode.org/reports/tr35/#Unicode_locale_identifier
+        // As is often the case, the complete syntactic constraints are not easily captured by ABNF,
+        // so there is a further condition: There cannot be more than one extension with the same singleton (-a-, …, -t-, -u-, …).
+        // Note that the private use extension (-x-) must come after all other extensions.
+        if (singletonsSet.find(prefixCode) != singletonsSet.end())
+            return false;
+        singletonsSet.insert(prefixCode);
+
+        switch (prefixCode) {
+        case 'u':
+        case 'U': {
+            // unicode_locale_extensions = sep [uU] ((sep keyword)+ | (sep attribute)+ (sep keyword)*) ;
+            if (!next())
+                return false;
+            if (!parseUnicodeExtensionAfterPrefix())
+                return false;
+            if (isEOS())
+                return true;
+            break; // Next extension.
+        }
+        case 't':
+        case 'T': {
+            // transformed_extensions = sep [tT] ((sep tlang (sep tfield)*) | (sep tfield)+) ;
+            if (!next())
+                return false;
+            if (!parseTransformedExtensionAfterPrefix())
+                return false;
+            if (isEOS())
+                return true;
+            break; // Next extension.
+        }
+        case 'x':
+        case 'X': {
+            // pu_extensions = sep [xX] (sep alphanum{1,8})+ ;
+            if (!next())
+                return false;
+            if (!parsePUExtensionAfterPrefix())
+                return false;
+            return true; // If pu_extensions appear, no extensions can follow after that. This must be the end of unicode_locale_id.
+        }
+        default: {
+            // other_extensions = sep [alphanum-[tTuUxX]] (sep alphanum{2,8})+ ;
+            if (!next())
+                return false;
+            if (!parseOtherExtensionAfterPrefix())
+                return false;
+            if (isEOS())
+                return true;
+            break; // Next extension.
+        }
+        }
+    }
+}
+
+// https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
+bool Intl::isStructurallyValidLanguageTag(const std::string& string)
+{
+    LanguageTagParser parser(string);
+    if (!parser.parseUnicodeLocaleId())
+        return false;
+    if (!parser.isEOS())
+        return false;
+    return true;
 }
 
 String* Intl::icuLocaleToBCP47Tag(String* string)
@@ -1709,6 +2050,259 @@ std::string Intl::convertICUCollationKeywordToBCP47KeywordIfNeeds(const std::str
         return "trad";
     }
     return icuCollation;
+}
+
+std::string Intl::localeIDBufferForLanguageTagWithNullTerminator(const std::string& tag)
+{
+    if (!tag.length()) {
+        return "";
+    }
+
+    UErrorCode status = U_ZERO_ERROR;
+    std::string buffer;
+    int32_t parsedLength = 0;
+    auto bufferLength = uloc_forLanguageTag(tag.data(), nullptr, 0, &parsedLength, &status);
+    if (bufferLength) {
+        parsedLength = 0;
+        buffer.resize(bufferLength);
+        status = U_ZERO_ERROR;
+        uloc_forLanguageTag(tag.data(), (char*)buffer.data(), bufferLength, &parsedLength, &status);
+        ASSERT(buffer.size() == strlen(buffer.data()));
+    } else if (status == U_STRING_NOT_TERMINATED_WARNING) {
+        buffer.assign(tag.begin(), tag.begin() + parsedLength);
+    }
+    if (U_FAILURE(status) || parsedLength != static_cast<int32_t>(tag.length())) {
+        return "";
+    }
+
+    return buffer;
+}
+
+static std::vector<std::string> unicodeExtensionComponents(const std::string& extension)
+{
+    // UnicodeExtensionSubtags (extension)
+    // https://tc39.github.io/ecma402/#sec-unicodeextensionsubtags
+
+    auto extensionLength = extension.length();
+    if (extensionLength < 3)
+        return {};
+
+    std::vector<std::string> subtags;
+    size_t subtagStart = 3; // Skip initial -u-.
+    size_t valueStart = 3;
+    bool isLeading = true;
+    for (size_t index = subtagStart; index < extensionLength; ++index) {
+        if (extension[index] == '-') {
+            if (index - subtagStart == 2) {
+                // Tag is a key, first append prior key's value if there is one.
+                if (subtagStart - valueStart > 1) {
+                    subtags.push_back(extension.substr(valueStart, subtagStart - valueStart - 1));
+                }
+                subtags.push_back(extension.substr(subtagStart, index - subtagStart));
+                valueStart = index + 1;
+                isLeading = false;
+            } else if (isLeading) {
+                // Leading subtags before first key.
+                subtags.push_back(extension.substr(subtagStart, index - subtagStart));
+                valueStart = index + 1;
+            }
+            subtagStart = index + 1;
+        }
+    }
+    if (extensionLength - subtagStart == 2) {
+        // Trailing an extension key, first append prior key's value if there is one.
+        if (subtagStart - valueStart > 1)
+            subtags.push_back(extension.substr(valueStart, subtagStart - valueStart - 1));
+        valueStart = subtagStart;
+    }
+    // Append final key's value.
+    subtags.push_back(extension.substr(valueStart, extensionLength - valueStart));
+    return subtags;
+}
+
+std::string Intl::canonicalizeUnicodeExtensionsAfterICULocaleCanonicalization(std::string&& buffer)
+{
+    const std::string& locale(buffer);
+    ASSERT(String::fromUTF8(locale.data(), locale.size())->is8Bit());
+    size_t extensionIndex = locale.find("-u-");
+    if (extensionIndex == std::string::npos) {
+        return std::move(buffer);
+    }
+
+    // Since ICU's canonicalization is incomplete, we need to perform some of canonicalization here.
+    size_t extensionLength = locale.length() - extensionIndex;
+    size_t end = extensionIndex + 3;
+    while (end < locale.length()) {
+        end = locale.find('-', end);
+        if (end == std::string::npos) {
+            break;
+        }
+        // Found another singleton.
+        if (end + 2 < locale.length() && locale[end + 2] == '-') {
+            extensionLength = end - extensionIndex;
+            break;
+        }
+        end++;
+    }
+
+    std::string result = buffer.substr(0, extensionIndex + 2);
+    std::string extension = locale.substr(extensionIndex, extensionLength);
+    auto subtags = unicodeExtensionComponents(extension);
+    for (unsigned index = 0; index < subtags.size();) {
+        auto& subtag = subtags[index];
+        result.push_back('-');
+        result.append(subtag);
+
+        if (subtag.length() != 2) {
+            ++index;
+            continue;
+        }
+        ASSERT(subtag.length() == 2);
+
+        // This is unicode extension key.
+        unsigned valueIndexStart = index + 1;
+        unsigned valueIndexEnd = valueIndexStart;
+        for (; valueIndexEnd < subtags.size(); ++valueIndexEnd) {
+            if (subtags[valueIndexEnd].length() == 2)
+                break;
+        }
+        // [valueIndexStart, valueIndexEnd) is value of this unicode extension. If there is no value, valueIndexStart == valueIndexEnd.
+
+        for (unsigned valueIndex = valueIndexStart; valueIndex < valueIndexEnd; ++valueIndex) {
+            const auto& value = subtags[valueIndex];
+            if (value != "true") {
+                result.push_back('-');
+                result.append(value);
+            }
+        }
+        index = valueIndexEnd;
+    }
+
+    result.append(buffer.substr(extensionIndex + extensionLength));
+    return result;
+}
+
+Optional<std::string> Intl::canonicalizeLocaleID(const char* localeID)
+{
+    auto result = INTL_ICU_STD_STRING_BUFFER_OPERATION(uloc_canonicalize, localeID);
+    if (result.first == U_STRING_NOT_TERMINATED_WARNING) {
+        return Optional<std::string>(std::string(localeID));
+    }
+    if (U_FAILURE(result.first)) {
+        return NullOption;
+    }
+    return result.second;
+}
+
+bool Intl::isUnicodeLocaleIdentifierType(const std::string& buffer)
+{
+    size_t index = 0;
+    while (true) {
+        auto begin = index;
+        while (index < buffer.size() && isASCIIAlphanumeric(buffer[index])) {
+            ++index;
+        }
+        size_t length = index - begin;
+        if (length < 3 || length > 8) {
+            return false;
+        }
+        if (index >= buffer.size()) {
+            return true;
+        }
+        if (buffer[index] != '-') {
+            return false;
+        }
+        ++index;
+    }
+}
+
+bool Intl::isUnicodeLanguageSubtag(const std::string& string)
+{
+    auto length = string.length();
+    if (length >= 2 && length <= 8 && length != 4) {
+        for (auto c : string) {
+            if (!isASCIIAlpha(c)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+bool Intl::isUnicodeScriptSubtag(const std::string& string)
+{
+    auto length = string.length();
+    if (length == 4) {
+        for (auto c : string) {
+            if (!isASCIIAlpha(c)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+bool Intl::isUnicodeRegionSubtag(const std::string& string)
+{
+    auto length = string.length();
+    if (length == 2) {
+        for (auto c : string) {
+            if (!isASCIIAlpha(c)) {
+                return false;
+            }
+        }
+        return true;
+    } else if (length == 3) {
+        for (auto c : string) {
+            if (!isASCIIDigit(c)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+bool Intl::isUnicodeVariantSubtag(const std::string& string)
+{
+    auto length = string.length();
+    if (length >= 5 && length <= 8) {
+        for (auto c : string) {
+            if (!isASCIIAlphanumeric(c)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    if (length == 4 && isASCIIDigit(string[0])) {
+        return isASCIIAlphanumeric(string[1]) && isASCIIAlphanumeric(string[2]) && isASCIIAlphanumeric(string[3]);
+    }
+    return false;
+}
+
+bool Intl::isUnicodeExtensionAttribute(const std::string& string)
+{
+    auto length = string.length();
+    return length >= 3 && length <= 8 && isAllSpecialCharacters(string, isASCIIAlphanumeric);
+}
+
+bool Intl::isUnicodeExtensionKey(const std::string& string)
+{
+    return string.length() == 2 && isASCIIAlphanumeric(string[0]) && isASCIIAlpha(string[1]);
+}
+
+Optional<std::string> Intl::languageTagForLocaleID(const char* localeID)
+{
+    std::vector<char> buffer;
+    buffer.resize(32);
+
+    auto result = INTL_ICU_STD_STRING_BUFFER_OPERATION_COMPLEX(uloc_toLanguageTag, false, localeID);
+    if (U_FAILURE(result.first)) {
+        return NullOption;
+    }
+    return canonicalizeUnicodeExtensionsAfterICULocaleCanonicalization(std::move(result.second));
 }
 
 static String* defaultLocale(ExecutionState& state)

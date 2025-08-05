@@ -739,10 +739,11 @@ static Value builtinIntlLocaleConstructor(ExecutionState& state, Value thisValue
         tag = tagValue.toString(state);
     }
 
-    Optional<Object*> options;
+    Object* options;
     // If options is undefined, then
     if (argc <= 1 || argv[1].isUndefined()) {
         // Let options be ! ObjectCreate(null).
+        options = new Object(state, Object::PrototypeIsNull);
     } else {
         // Let options be ? ToObject(options).
         options = argv[1].toObject(state);
@@ -827,6 +828,18 @@ static Value builtinIntlLocaleHourCycleGetter(ExecutionState& state, Value thisV
     return loc.asObject()->asIntlLocaleObject()->hourCycle().hasValue() ? loc.asObject()->asIntlLocaleObject()->hourCycle().value() : Value();
 }
 
+static Value builtinIntlLocaleFirstDayOfWeekGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    return loc.asObject()->asIntlLocaleObject()->firstDayOfWeek().hasValue() ? loc.asObject()->asIntlLocaleObject()->firstDayOfWeek().value() : Value();
+}
+
 static Value builtinIntlLocaleNumericGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     Value loc = thisValue;
@@ -836,7 +849,7 @@ static Value builtinIntlLocaleNumericGetter(ExecutionState& state, Value thisVal
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
-    return loc.asObject()->asIntlLocaleObject()->numeric().hasValue() ? Value(loc.asObject()->asIntlLocaleObject()->numeric().value()->equals("true")) : Value(false);
+    return loc.asObject()->asIntlLocaleObject()->numeric().hasValue() ? Value(loc.asObject()->asIntlLocaleObject()->numeric().value()->equals("yes")) : Value(false);
 }
 
 static Value builtinIntlLocaleNumberingSystemGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -872,7 +885,12 @@ static Value builtinIntlLocaleScriptGetter(ExecutionState& state, Value thisValu
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
-    return loc.asObject()->asIntlLocaleObject()->script();
+    auto r = loc.asObject()->asIntlLocaleObject()->script();
+    if (r->length()) {
+        return r;
+    } else {
+        return Value();
+    }
 }
 
 static Value builtinIntlLocaleRegionGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -884,7 +902,29 @@ static Value builtinIntlLocaleRegionGetter(ExecutionState& state, Value thisValu
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
     }
 
-    return loc.asObject()->asIntlLocaleObject()->region();
+    auto r = loc.asObject()->asIntlLocaleObject()->region();
+    if (r->length()) {
+        return r;
+    } else {
+        return Value();
+    }
+}
+
+static Value builtinIntlLocaleVariantsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value loc = thisValue;
+    // If Type(loc) is not Object or loc does not have an [[InitializedLocale]] internal slot, then
+    if (!loc.isObject() || !loc.asObject()->isIntlLocaleObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    auto r = loc.asObject()->asIntlLocaleObject()->variants();
+    if (r->length()) {
+        return r;
+    } else {
+        return Value();
+    }
 }
 
 static size_t icuLocleToBCP47Locale(char* buf, size_t len)
@@ -942,7 +982,7 @@ static Value builtinIntlLocaleMaximize(ExecutionState& state, Value thisValue, s
         StringBuilder sb;
         sb.appendString(buf, newLen);
         sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
-        return new IntlLocaleObject(state, sb.finalize(), nullptr);
+        return new IntlLocaleObject(state, sb.finalize(), new Object(state, Object::PrototypeIsNull));
 
     } else if (status != U_BUFFER_OVERFLOW_ERROR) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Unexpected error is occured while parsing locale");
@@ -956,7 +996,7 @@ static Value builtinIntlLocaleMaximize(ExecutionState& state, Value thisValue, s
     StringBuilder sb;
     sb.appendString(newBuf, newLen);
     sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
-    return new IntlLocaleObject(state, sb.finalize(), nullptr);
+    return new IntlLocaleObject(state, sb.finalize(), new Object(state, Object::PrototypeIsNull));
 }
 
 static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -981,7 +1021,7 @@ static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, s
         StringBuilder sb;
         sb.appendString(buf, newLen);
         sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
-        return new IntlLocaleObject(state, sb.finalize(), nullptr);
+        return new IntlLocaleObject(state, sb.finalize(), new Object(state, Object::PrototypeIsNull));
     } else if (status != U_BUFFER_OVERFLOW_ERROR) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Unexpected error is occured while parsing locale");
     }
@@ -994,7 +1034,7 @@ static Value builtinIntlLocaleMinimize(ExecutionState& state, Value thisValue, s
     StringBuilder sb;
     sb.appendString(newBuf, newLen);
     sb.appendSubString(locale, localeObject->baseName()->length(), locale->length());
-    return new IntlLocaleObject(state, sb.finalize(), nullptr);
+    return new IntlLocaleObject(state, sb.finalize(), new Object(state, Object::PrototypeIsNull));
 }
 
 static Value builtinIntlLocaleCalendarsGetter(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -1691,6 +1731,13 @@ void GlobalObject::installIntl(ExecutionState& state)
     }
 
     {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getFirstDayOfWeek, builtinIntlLocaleFirstDayOfWeekGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().lazyFirstDayOfWeek()), desc);
+    }
+
+    {
         Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getNumeric, builtinIntlLocaleNumericGetter, 0, NativeFunctionInfo::Strict));
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
@@ -1723,6 +1770,13 @@ void GlobalObject::installIntl(ExecutionState& state)
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
         m_intlLocalePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().region), desc);
+    }
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().getVariants, builtinIntlLocaleVariantsGetter, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_intlLocalePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, state.context()->staticStrings().lazyVariants()), desc);
     }
 
     m_intlLocalePrototype->directDefineOwnProperty(state, state.context()->staticStrings().toString,

@@ -77,6 +77,8 @@ namespace RuntimeICUBinder {
     F(uloc_countAvailable, int32_t(CALLCONV*)(), int32_t)                                                                                                                         \
     F(uloc_getAvailable, const char*(CALLCONV*)(int32_t n), const char*)                                                                                                          \
     F(uloc_toUnicodeLocaleType, const char*(CALLCONV*)(const char*, const char*), const char*)                                                                                    \
+    F(uloc_setKeywordValue, int32_t(CALLCONV*)(const char *keywordName, const char *keywordValue, char *buffer, int32_t bufferCapacity, UErrorCode *status), int32_t)             \
+    F(uloc_getKeywordValue, int32_t(CALLCONV*)(const char *localeID, const char *keywordName, char *buffer, int32_t bufferCapacity, UErrorCode *status), int32_t)                 \
     F(ucnv_open, UConverter*(CALLCONV*)(const char* converterName, UErrorCode* err), UConverter*)                                                                                 \
     F(ucnv_compareNames, int(CALLCONV*)(const char* name1, const char* name2), int)                                                                                               \
     F(ucnv_getDisplayName, int32_t(CALLCONV*)(const UConverter* converter, const char* displayLocale, UChar* displayName, int32_t displayNameCapacity, UErrorCode* err), int32_t) \

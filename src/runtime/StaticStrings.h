@@ -765,6 +765,7 @@ namespace Escargot {
     F(ExponentMinusSign, "exponentMinusSign")               \
     F(ExponentSeparator, "exponentSeparator")               \
     F(Fallback, "fallback")                                 \
+    F(FirstDayOfWeek, "firstDayOfWeek")                     \
     F(FormatRange, "formatRange")                           \
     F(FormatRangeToParts, "formatRangeToParts")             \
     F(FormatMatcher, "formatMatcher")                       \
@@ -868,6 +869,7 @@ namespace Escargot {
     F(Usage, "usage")                                       \
     F(UseGrouping, "useGrouping")                           \
     F(Variant, "variant")                                   \
+    F(Variants, "variants")                                 \
     F(Week, "week")                                         \
     F(Weeks, "weeks")                                       \
     F(Weekday, "weekday")                                   \
@@ -999,6 +1001,7 @@ public:
     AtomicString getDescription;
     AtomicString getDetached;
     AtomicString getDotAll;
+    AtomicString getFirstDayOfWeek;
     AtomicString getFlags;
     AtomicString getFormat;
     AtomicString getGlobal;
@@ -1014,6 +1017,7 @@ public:
     AtomicString getNumeric;
     AtomicString getRegion;
     AtomicString getScript;
+    AtomicString getVariants;
     AtomicString getSize;
     AtomicString getSource;
     AtomicString getSticky;

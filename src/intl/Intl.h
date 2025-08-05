@@ -54,6 +54,18 @@ public:
     static std::string convertICUCalendarKeywordToBCP47KeywordIfNeeds(const std::string& icuCalendar);
     static std::string convertBCP47KeywordToICUCalendarKeywordIfNeeds(const std::string& icuCalendar);
     static std::string convertICUCollationKeywordToBCP47KeywordIfNeeds(const std::string& icuCollation);
+    static std::string localeIDBufferForLanguageTagWithNullTerminator(const std::string& tag);
+    static std::string canonicalizeUnicodeExtensionsAfterICULocaleCanonicalization(std::string&& buffer);
+    static Optional<std::string> canonicalizeLocaleID(const char* localeID);
+    static bool isUnicodeLocaleIdentifierType(const std::string& src);
+    static bool isUnicodeLanguageSubtag(const std::string& src);
+    static bool isUnicodeScriptSubtag(const std::string& src);
+    static bool isUnicodeRegionSubtag(const std::string& src);
+    static bool isUnicodeVariantSubtag(const std::string& src);
+    static bool isUnicodeExtensionAttribute(const std::string& src);
+    static bool isUnicodeExtensionKey(const std::string& src);
+    static Optional<std::string> languageTagForLocaleID(const char* localeID);
+
     static std::vector<std::string> calendarsForLocale(String* locale);
     static std::vector<std::string> numberingSystemsForLocale(String* locale);
     struct CanonicalizedLangunageTag {
@@ -72,6 +84,7 @@ public:
         std::string privateUse;
     };
     static CanonicalizedLangunageTag canonicalizeLanguageTag(const std::string& locale, const std::string& unicodeExtensionNameShouldIgnored = "");
+    static bool isStructurallyValidLanguageTag(const std::string& string);
     static CanonicalizedLangunageTag isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(const std::string& locale);
     static String* getLocaleForStringLocaleConvertCase(ExecutionState& state, Value locales);
     static std::string canonicalizeCalendarTag(const std::string& s);
@@ -156,7 +169,34 @@ public:
         }                                                                                                           \
         return std::make_pair(status, output);                                                                      \
     })()
+
+#define INTL_ICU_STD_STRING_BUFFER_OPERATION(icuFnName, ...)                     \
+    ([&]() -> std::pair<UErrorCode, std::string> {                               \
+        std::string output;                                                      \
+        UErrorCode status = U_ZERO_ERROR;                                        \
+        auto resultLength = icuFnName(__VA_ARGS__, nullptr, 0, &status);         \
+        if (status == U_BUFFER_OVERFLOW_ERROR) {                                 \
+            status = U_ZERO_ERROR;                                               \
+            output.resize(resultLength);                                         \
+            icuFnName(__VA_ARGS__, (char*)output.data(), resultLength, &status); \
+        }                                                                        \
+        return std::make_pair(status, output);                                   \
+    })()
+
+#define INTL_ICU_STD_STRING_BUFFER_OPERATION_COMPLEX(icuFnName, extra, ...)             \
+    ([&]() -> std::pair<UErrorCode, std::string> {                                      \
+        std::string output;                                                             \
+        UErrorCode status = U_ZERO_ERROR;                                               \
+        auto resultLength = icuFnName(__VA_ARGS__, nullptr, 0, extra, &status);         \
+        if (status == U_BUFFER_OVERFLOW_ERROR) {                                        \
+            status = U_ZERO_ERROR;                                                      \
+            output.resize(resultLength);                                                \
+            icuFnName(__VA_ARGS__, (char*)output.data(), resultLength, extra, &status); \
+        }                                                                               \
+        return std::make_pair(status, output);                                          \
+    })()
 };
+
 } // namespace Escargot
 
 #endif
