@@ -1768,6 +1768,7 @@ bool LanguageTagParser::parseUnicodeLanguageId()
         if (iter != subtags.end()) {
             return false;
         }
+        subtags.insert(lowerVariant);
         if (!next())
             return true;
     }

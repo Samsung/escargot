@@ -662,33 +662,6 @@ Value IntlLocaleObject::weekInfo(ExecutionState& state)
         return Value();
     }
 
-    int32_t weekendStart = 0;
-    int32_t weekendEnd = 0;
-    for (int32_t day = UCAL_SUNDAY; day <= UCAL_SATURDAY; ++day) {
-        UCalendarWeekdayType type = canonicalizeDayOfWeekType(ucal_getDayOfWeekType(calendar.get(), static_cast<UCalendarDaysOfWeek>(day), &status));
-        if (!U_SUCCESS(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
-            return Value();
-        }
-        if (previous != type) {
-            switch (type) {
-            case UCAL_WEEKDAY: // WeekEnd => WeekDay
-                if (day == UCAL_SUNDAY)
-                    weekendEnd = UCAL_SATURDAY;
-                else
-                    weekendEnd = day - 1;
-                break;
-            case UCAL_WEEKEND: // WeekDay => WeekEnd
-                weekendStart = day;
-                break;
-            default:
-                ASSERT_NOT_REACHED();
-                break;
-            }
-        }
-        previous = type;
-    }
-
     auto convertUCalendarDaysOfWeekToMondayBasedDay = [](int32_t day) -> int32_t {
         // Convert from
         //     Sunday => 1
@@ -701,10 +674,29 @@ Value IntlLocaleObject::weekInfo(ExecutionState& state)
         return day - 1;
     };
 
+    ArrayObject* weekendArray = new ArrayObject(state);
+    size_t index = 0;
+    for (int32_t day = 1; day <= 7; ++day) {
+        UCalendarWeekdayType type = canonicalizeDayOfWeekType(ucal_getDayOfWeekType(calendar.get(), static_cast<UCalendarDaysOfWeek>(convertUCalendarDaysOfWeekToMondayBasedDay(day)), &status));
+        if (!U_SUCCESS(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
+            return Value();
+        }
+        switch (type) {
+        case UCAL_WEEKDAY:
+            break;
+        case UCAL_WEEKEND:
+            weekendArray->setIndexedProperty(state, Value(index++), Value(day), weekendArray);
+            break;
+        default:
+            ASSERT_NOT_REACHED();
+            break;
+        }
+    }
+
     Object* result = new Object(state);
     result->set(state, ObjectPropertyName(state, String::fromASCII("firstDay")), Value(convertUCalendarDaysOfWeekToMondayBasedDay(firstDayOfWeek)), result);
-    result->set(state, ObjectPropertyName(state, String::fromASCII("weekendStart")), Value(convertUCalendarDaysOfWeekToMondayBasedDay(weekendStart)), result);
-    result->set(state, ObjectPropertyName(state, String::fromASCII("weekendEnd")), Value(convertUCalendarDaysOfWeekToMondayBasedDay(weekendEnd)), result);
+    result->set(state, ObjectPropertyName(state, String::fromASCII("weekend")), weekendArray, result);
     result->set(state, ObjectPropertyName(state, String::fromASCII("minimalDays")), Value(minimalDays), result);
     return result;
 }
