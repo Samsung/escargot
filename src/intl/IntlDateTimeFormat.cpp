@@ -512,7 +512,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     Value matcher = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyLocaleMatcher().string(), Intl::StringValue, matcherValues, 2, matcherValues[1]);
 
     // Let calendar be ? GetOption(options, "calendar", "string", undefined, undefined).
-    Value calendar = Intl::getOption(state, options.asObject(), state.context()->staticStrings().calendar.string(), Intl::StringValue, nullptr, 0, Value());
+    Value calendar = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyCalendar().string(), Intl::StringValue, nullptr, 0, Value());
     // If calendar is not undefined, then
     if (!calendar.isUndefined()) {
         // If calendar does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
@@ -528,7 +528,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
     }
 
     // Let numberingSystem be ? GetOption(options, "numberingSystem", "string", undefined, undefined).
-    Value numberingSystem = Intl::getOption(state, options.asObject(), state.context()->staticStrings().numberingSystem.string(), Intl::StringValue, nullptr, 0, Value());
+    Value numberingSystem = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyNumberingSystem().string(), Intl::StringValue, nullptr, 0, Value());
     // If numberingSystem is not undefined, then
     if (!numberingSystem.isUndefined()) {
         // If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
@@ -546,7 +546,7 @@ IntlDateTimeFormatObject::IntlDateTimeFormatObject(ExecutionState& state, Object
 
     // Let hourCycle be ? GetOption(options, "hourCycle", "string", « "h11", "h12", "h23", "h24" », undefined).
     Value hourCycleValue[4] = { state.context()->staticStrings().lazyH11().string(), state.context()->staticStrings().lazyH12().string(), state.context()->staticStrings().lazyH23().string(), state.context()->staticStrings().lazyH24().string() };
-    Value hourCycle = Intl::getOption(state, options.asObject(), state.context()->staticStrings().hourCycle.string(), Intl::StringValue, hourCycleValue, 4, Value());
+    Value hourCycle = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyHourCycle().string(), Intl::StringValue, hourCycleValue, 4, Value());
     // If hour12 is not undefined, then
     if (!hour12.isUndefined()) {
         // Let hourCycle be null.
@@ -690,7 +690,7 @@ String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& s
         skeletonBuilder.appendString("GGGG");
     }
 
-    Value twoDightNumericValues[2] = { state.context()->staticStrings().lazyTwoDigit().string(), state.context()->staticStrings().numeric.string() };
+    Value twoDightNumericValues[2] = { state.context()->staticStrings().lazyTwoDigit().string(), state.context()->staticStrings().lazyNumeric().string() };
     doTable4(state.context()->staticStrings().lazyYear().string(), twoDightNumericValues, 2);
 
     ret = opt.at("year");
@@ -700,7 +700,7 @@ String* IntlDateTimeFormatObject::initDateTimeFormatMainHelper(ExecutionState& s
         skeletonBuilder.appendString("y");
     }
 
-    Value allValues[5] = { state.context()->staticStrings().lazyTwoDigit().string(), state.context()->staticStrings().numeric.string(), state.context()->staticStrings().lazyNarrow().string(), state.context()->staticStrings().lazyShort().string(), state.context()->staticStrings().lazyLong().string() };
+    Value allValues[5] = { state.context()->staticStrings().lazyTwoDigit().string(), state.context()->staticStrings().lazyNumeric().string(), state.context()->staticStrings().lazyNarrow().string(), state.context()->staticStrings().lazyShort().string(), state.context()->staticStrings().lazyLong().string() };
     doTable4(state.context()->staticStrings().lazyMonth().string(), allValues, 5);
 
     ret = opt.at("month");
@@ -1099,7 +1099,7 @@ void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16St
             break;
         case 'y':
             if (count == 1) {
-                m_year = state.context()->staticStrings().numeric.string();
+                m_year = state.context()->staticStrings().lazyNumeric().string();
             } else if (count == 2) {
                 m_year = state.context()->staticStrings().lazyTwoDigit().string();
             }
@@ -1107,7 +1107,7 @@ void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16St
         case 'M':
         case 'L':
             if (count == 1) {
-                m_month = state.context()->staticStrings().numeric.string();
+                m_month = state.context()->staticStrings().lazyNumeric().string();
             } else if (count == 2) {
                 m_month = state.context()->staticStrings().lazyTwoDigit().string();
             } else if (count == 3) {
@@ -1131,7 +1131,7 @@ void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16St
             break;
         case 'd':
             if (count == 1) {
-                m_day = state.context()->staticStrings().numeric.string();
+                m_day = state.context()->staticStrings().lazyNumeric().string();
             } else if (count == 2) {
                 m_day = state.context()->staticStrings().lazyTwoDigit().string();
             }
@@ -1152,21 +1152,21 @@ void IntlDateTimeFormatObject::setDateFromPattern(ExecutionState& state, UTF16St
         case 'k':
         case 'K':
             if (count == 1) {
-                m_hour = state.context()->staticStrings().numeric.string();
+                m_hour = state.context()->staticStrings().lazyNumeric().string();
             } else if (count == 2) {
                 m_hour = state.context()->staticStrings().lazyTwoDigit().string();
             }
             break;
         case 'm':
             if (count == 1) {
-                m_minute = state.context()->staticStrings().numeric.string();
+                m_minute = state.context()->staticStrings().lazyNumeric().string();
             } else if (count == 2) {
                 m_minute = state.context()->staticStrings().lazyTwoDigit().string();
             }
             break;
         case 's':
             if (count == 1) {
-                m_second = state.context()->staticStrings().numeric.string();
+                m_second = state.context()->staticStrings().lazyNumeric().string();
             } else if (count == 2) {
                 m_second = state.context()->staticStrings().lazyTwoDigit().string();
             }
@@ -1399,7 +1399,7 @@ Value IntlDateTimeFormatObject::toDateTimeOptions(ExecutionState& state, Value o
         // For each of the property names "year", "month", "day":
         // Call the [[DefineOwnProperty]] internal method of options with the property name,
         // Property Descriptor {[[Value]]: "numeric", [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-        String* v = state.context()->staticStrings().numeric.string();
+        String* v = state.context()->staticStrings().lazyNumeric().string();
         options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyYear()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
         options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMonth()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
         options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyDay()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
@@ -1408,7 +1408,7 @@ Value IntlDateTimeFormatObject::toDateTimeOptions(ExecutionState& state, Value o
     if (needDefaults && (defaults.equalsTo(state, state.context()->staticStrings().lazyTime().string()) || defaults.equalsTo(state, state.context()->staticStrings().all.string()))) {
         // For each of the property names "hour", "minute", "second":
         // Call the [[DefineOwnProperty]] internal method of options with the property name, Property Descriptor {[[Value]]: "numeric", [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true}, and false.
-        String* v = state.context()->staticStrings().numeric.string();
+        String* v = state.context()->staticStrings().lazyNumeric().string();
         options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyHour()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
         options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazyMinute()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));
         options.asObject()->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->staticStrings().lazySecond()), ObjectPropertyDescriptor(v, ObjectPropertyDescriptor::AllPresent));

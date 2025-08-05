@@ -138,10 +138,10 @@ IntlCollator::CollatorResolvedOptions IntlCollator::resolvedOptions(ExecutionSta
     opt.locale = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazySmallLetterLocale())).value(state, internalSlot).toString(state);
     opt.sensitivity = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazySensitivity())).value(state, internalSlot).toString(state);
     opt.usage = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyUsage())).value(state, internalSlot).toString(state);
-    opt.collation = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().collation)).value(state, internalSlot).toString(state);
-    opt.numeric = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().numeric)).value(state, internalSlot).toBoolean();
+    opt.collation = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyCollation())).value(state, internalSlot).toString(state);
+    opt.numeric = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyNumeric())).value(state, internalSlot).toBoolean();
     opt.ignorePunctuation = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyIgnorePunctuation())).value(state, internalSlot).toBoolean();
-    opt.caseFirst = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().caseFirst)).value(state, internalSlot).toString(state);
+    opt.caseFirst = internalSlot->get(state, ObjectPropertyName(state.context()->staticStrings().lazyCaseFirst())).value(state, internalSlot).toString(state);
     return opt;
 }
 
@@ -203,7 +203,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
     // Set opt.[[localeMatcher]] to matcher.
     opt.insert(std::make_pair("localeMatcher", matcher.toString(state)));
 
-    Value collation = Intl::getOption(state, options.asObject(), state.context()->staticStrings().collation.string(), Intl::StringValue, nullptr, 0, Value());
+    Value collation = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyCollation().string(), Intl::StringValue, nullptr, 0, Value());
     if (!collation.isUndefined()) {
         if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(collation.asString())) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "collation is not a well-formed");
@@ -233,9 +233,9 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
         opt.insert(std::make_pair(keyColumn->toNonGCUTF8StringData(), value.toString(state)));
     };
 
-    doTable1(state.context()->staticStrings().lazyKn().string(), state.context()->staticStrings().numeric.string(), Intl::BooleanValue, nullptr, 0);
+    doTable1(state.context()->staticStrings().lazyKn().string(), state.context()->staticStrings().lazyNumeric().string(), Intl::BooleanValue, nullptr, 0);
     Value caseFirstValue[3] = { state.context()->staticStrings().lazyUpper().string(), state.context()->staticStrings().lazyLower().string(), state.context()->staticStrings().stringFalse.string() };
-    doTable1(state.context()->staticStrings().lazyKf().string(), state.context()->staticStrings().caseFirst.string(), Intl::StringValue, caseFirstValue, 3);
+    doTable1(state.context()->staticStrings().lazyKf().string(), state.context()->staticStrings().lazyCaseFirst().string(), Intl::StringValue, caseFirstValue, 3);
 
     // Let relevantExtensionKeys be the value of the [[relevantExtensionKeys]] internal property of Collator.
     // Let r be the result of calling the ResolveLocale abstract operation (defined in 9.2.5) with the [[availableLocales]]
@@ -258,7 +258,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
         Value value;
         if (strcmp(key, "co") == 0) {
             // Let property be "collation".
-            property = state.context()->staticStrings().collation;
+            property = state.context()->staticStrings().lazyCollation();
             // Let value be the value of r.[[co]].
             auto iter = r.find("co");
             // If value is null, then let value be "default".
@@ -275,7 +275,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
             // Else use the row of Table 1 that contains the value of key in the Key column:
             // Let property be the name given in the Property column of the row.
-            property = state.context()->staticStrings().numeric;
+            property = state.context()->staticStrings().lazyNumeric();
             // Let value be the value of r.[[<key>]].
             value = r.at("kn");
             // If the name given in the Type column of the row is "boolean",
@@ -290,7 +290,7 @@ void IntlCollator::initialize(ExecutionState& state, Object* collator, Context* 
 
             // Else use the row of Table 1 that contains the value of key in the Key column:
             // Let property be the name given in the Property column of the row.
-            property = state.context()->staticStrings().caseFirst;
+            property = state.context()->staticStrings().lazyCaseFirst();
             // Let value be the value of r.[[<key>]].
             value = r.at("kf");
             // If the name given in the Type column of the row is "boolean",
