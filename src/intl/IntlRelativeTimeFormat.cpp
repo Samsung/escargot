@@ -97,7 +97,7 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
     // Let numberingSystem be ? GetOption(options, "numberingSystem", "string", undefined, undefined).
     Value numberingSystem;
     if (options) {
-        numberingSystem = Intl::getOption(state, options.value(), state.context()->staticStrings().numberingSystem.string(), Intl::StringValue, nullptr, 0, Value());
+        numberingSystem = Intl::getOption(state, options.value(), state.context()->staticStrings().lazyNumberingSystem().string(), Intl::StringValue, nullptr, 0, Value());
     }
     // If numberingSystem is not undefined, then
     if (!numberingSystem.isUndefined()) {
@@ -135,7 +135,7 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
     Value numericValues[2] = { state.context()->staticStrings().lazyAlways().string(), state.context()->staticStrings().lazyAuto().string() };
     String* numeric = numericValues[0].asString();
     if (options) {
-        numeric = Intl::getOption(state, options.value(), state.context()->staticStrings().numeric.string(), Intl::StringValue, numericValues, 2, numericValues[0]).asString();
+        numeric = Intl::getOption(state, options.value(), state.context()->staticStrings().lazyNumeric().string(), Intl::StringValue, numericValues, 2, numericValues[0]).asString();
     }
     // Set relativeTimeFormat.[[Numeric]] to numeric.
     m_numeric = numeric;

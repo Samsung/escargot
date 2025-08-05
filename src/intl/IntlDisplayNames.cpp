@@ -77,8 +77,8 @@ IntlDisplayNamesObject::IntlDisplayNamesObject(ExecutionState& state, Object* pr
     // Set displayNames.[[Style]] to style.
     m_style = style.asString();
     // Let type be ? GetOption(options, "type", "string", « "language", "region", "script", "currency",  "calendar", "dateTimeField" », undefined).
-    Value typeValues[] = { staticStrings.language.string(), staticStrings.region.string(),
-                           staticStrings.script.string(), staticStrings.lazyCurrency().string(), staticStrings.calendar.string(), staticStrings.lazyDateTimeField().string() };
+    Value typeValues[] = { staticStrings.lazyLanguage().string(), staticStrings.lazyRegion().string(),
+                           staticStrings.lazyScript().string(), staticStrings.lazyCurrency().string(), staticStrings.lazyCalendar().string(), staticStrings.lazyDateTimeField().string() };
     Value type = Intl::getOption(state, optionsObject, staticStrings.lazyType().string(), Intl::StringValue, typeValues, 6, Value());
     // If type is undefined, throw a TypeError exception.
     if (type.isUndefined()) {

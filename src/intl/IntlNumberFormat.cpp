@@ -353,7 +353,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     opt.insert(std::make_pair("localeMatcher", matcher.toString(state)));
 
     // Let numberingSystem be ? GetOption(options, "numberingSystem", "string", undefined, undefined).
-    Value numberingSystem = Intl::getOption(state, options.asObject(), state.context()->staticStrings().numberingSystem.string(), Intl::StringValue, nullptr, 0, Value());
+    Value numberingSystem = Intl::getOption(state, options.asObject(), state.context()->staticStrings().lazyNumberingSystem().string(), Intl::StringValue, nullptr, 0, Value());
     // If numberingSystem is not undefined, then
     if (!numberingSystem.isUndefined()) {
         // If numberingSystem does not match the Unicode Locale Identifier type nonterminal, throw a RangeError exception.
@@ -377,7 +377,7 @@ void IntlNumberFormat::initialize(ExecutionState& state, Object* numberFormat, V
     // Set numberFormat.[[DataLocale]] to r.[[dataLocale]].
     numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyDataLocale()), r.at("dataLocale"), numberFormat->internalSlot());
     // Set the [[numberingSystem]] internal property of numberFormat to the value of r.[[nu]].
-    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().numberingSystem), r.at("nu"), numberFormat->internalSlot());
+    numberFormat->internalSlot()->set(state, ObjectPropertyName(state.context()->staticStrings().lazyNumberingSystem()), r.at("nu"), numberFormat->internalSlot());
 
     // SetNumberFormatUnitOptions ( intlObj, options )
     // Let s be the result of calling the GetOption abstract operation with the arguments options, "style", "string",

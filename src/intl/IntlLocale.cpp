@@ -199,17 +199,17 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid language tag");
     }
 
-    Value language = Intl::getOption(state, options, state.context()->staticStrings().language.string(), Intl::StringValue, nullptr, 0, Value());
+    Value language = Intl::getOption(state, options, state.context()->staticStrings().lazyLanguage().string(), Intl::StringValue, nullptr, 0, Value());
     if (!language.isUndefined() && !Intl::isUnicodeLanguageSubtag(language.asString()->toNonGCUTF8StringData())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid language tag");
     }
 
-    Value script = Intl::getOption(state, options, state.context()->staticStrings().script.string(), Intl::StringValue, nullptr, 0, Value());
+    Value script = Intl::getOption(state, options, state.context()->staticStrings().lazyScript().string(), Intl::StringValue, nullptr, 0, Value());
     if (!script.isUndefined() && !Intl::isUnicodeScriptSubtag(script.asString()->toNonGCUTF8StringData())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "script is not a well-formed script value");
     }
 
-    Value region = Intl::getOption(state, options, state.context()->staticStrings().region.string(), Intl::StringValue, nullptr, 0, Value());
+    Value region = Intl::getOption(state, options, state.context()->staticStrings().lazyRegion().string(), Intl::StringValue, nullptr, 0, Value());
     if (!region.isUndefined() && !Intl::isUnicodeRegionSubtag(region.asString()->toNonGCUTF8StringData())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "region is not a well-formed region value");
     }
@@ -251,7 +251,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
     }
 
 
-    Value calendar = Intl::getOption(state, options, state.context()->staticStrings().calendar.string(), Intl::StringValue, nullptr, 0, Value());
+    Value calendar = Intl::getOption(state, options, state.context()->staticStrings().lazyCalendar().string(), Intl::StringValue, nullptr, 0, Value());
     if (!calendar.isUndefined()) {
         std::string s = calendar.asString()->toNonGCUTF8StringData();
         if (!Intl::isUnicodeLocaleIdentifierType(s) || !localeID.setKeywordValue("calendar", s)) {
@@ -259,7 +259,7 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
         }
     }
 
-    Value collation = Intl::getOption(state, options, state.context()->staticStrings().collation.string(), Intl::StringValue, nullptr, 0, Value());
+    Value collation = Intl::getOption(state, options, state.context()->staticStrings().lazyCollation().string(), Intl::StringValue, nullptr, 0, Value());
     if (!collation.isUndefined()) {
         std::string s = collation.asString()->toNonGCUTF8StringData();
         if (!Intl::isUnicodeLocaleIdentifierType(s) || !localeID.setKeywordValue("collation", s)) {
@@ -297,24 +297,24 @@ IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String*
     }
 
     Value hourCycleValues[4] = { state.context()->staticStrings().lazyH11().string(), state.context()->staticStrings().lazyH12().string(), state.context()->staticStrings().lazyH23().string(), state.context()->staticStrings().lazyH24().string() };
-    Value hourCycle = options ? Intl::getOption(state, options, state.context()->staticStrings().hourCycle.string(), Intl::StringValue, hourCycleValues, 4, Value()) : Value();
+    Value hourCycle = options ? Intl::getOption(state, options, state.context()->staticStrings().lazyHourCycle().string(), Intl::StringValue, hourCycleValues, 4, Value()) : Value();
     if (!hourCycle.isUndefined()) {
         localeID.setKeywordValue("hours", hourCycle.asString()->toNonGCUTF8StringData());
     }
 
     Value caseFirstValues[3] = { state.context()->staticStrings().lazyUpper().string(), state.context()->staticStrings().lazyLower().string(), state.context()->staticStrings().stringFalse.string() };
-    Value caseFirst = options ? Intl::getOption(state, options, state.context()->staticStrings().caseFirst.string(), Intl::StringValue, caseFirstValues, 3, Value()) : Value();
+    Value caseFirst = options ? Intl::getOption(state, options, state.context()->staticStrings().lazyCaseFirst().string(), Intl::StringValue, caseFirstValues, 3, Value()) : Value();
     if (!caseFirst.isUndefined()) {
         localeID.setKeywordValue("colcasefirst", caseFirst.asString()->toNonGCUTF8StringData());
     }
 
-    Value numeric = Intl::getOption(state, options, state.context()->staticStrings().numeric.string(), Intl::BooleanValue, nullptr, 0, Value());
+    Value numeric = Intl::getOption(state, options, state.context()->staticStrings().lazyNumeric().string(), Intl::BooleanValue, nullptr, 0, Value());
     if (!numeric.isUndefined()) {
         localeID.setKeywordValue("colnumeric", numeric.toBoolean() ? "yes" : "no");
     }
 
 
-    Value numberingSystem = Intl::getOption(state, options, state.context()->staticStrings().numberingSystem.string(), Intl::StringValue, nullptr, 0, Value());
+    Value numberingSystem = Intl::getOption(state, options, state.context()->staticStrings().lazyNumberingSystem().string(), Intl::StringValue, nullptr, 0, Value());
     if (!numberingSystem.isUndefined()) {
         std::string s = numberingSystem.asString()->toNonGCUTF8StringData();
         if (!Intl::isUnicodeLocaleIdentifierType(s) || !localeID.setKeywordValue("numbers", s)) {

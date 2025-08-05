@@ -104,7 +104,7 @@ static std::pair<String*, String*> getDurationUnitOptions(ExecutionState& state,
         } else if (prevStyle->equals("fractional") || prevStyle->equals("numeric") || prevStyle->equals("2-digit")) {
             // Else if prevStyle is one of "fractional", "numeric" or "2-digit", then
             // Set style to "numeric".
-            style = state.context()->staticStrings().numeric.string();
+            style = state.context()->staticStrings().lazyNumeric().string();
             // If unit is not "minutes" or "seconds", set displayDefault to "auto".
             if (!unit->equals("minutes") || unit->equals("seconds")) {
                 displayDefault = state.context()->staticStrings().lazyAuto().string();
@@ -178,7 +178,7 @@ IntlDurationFormatObject::IntlDurationFormatObject(ExecutionState& state, Object
     matcher = Intl::getOption(state, options, state.context()->staticStrings().lazyLocaleMatcher().string(), Intl::StringValue, localeMatcherValues, 2, localeMatcherValues[1]).asString();
     opt.insert(std::make_pair("matcher", matcher));
 
-    Value numberingSystem = Intl::getOption(state, options, state.context()->staticStrings().numberingSystem.string(), Intl::StringValue, nullptr, 0, Value());
+    Value numberingSystem = Intl::getOption(state, options, state.context()->staticStrings().lazyNumberingSystem().string(), Intl::StringValue, nullptr, 0, Value());
     if (!numberingSystem.isUndefined()) {
         if (!Intl::isValidUnicodeLocaleIdentifierTypeNonterminalOrTypeSequence(numberingSystem.asString())) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "The numberingSystem value you gave is not valid");
@@ -227,7 +227,7 @@ IntlDurationFormatObject::IntlDurationFormatObject(ExecutionState& state, Object
         state.context()->staticStrings().lazyLong().string(),
         state.context()->staticStrings().lazyShort().string(),
         state.context()->staticStrings().lazyNarrow().string(),
-        state.context()->staticStrings().numeric.string(),
+        state.context()->staticStrings().lazyNumeric().string(),
         state.context()->staticStrings().lazyTwoDigit().string(),
     };
 
@@ -235,7 +235,7 @@ IntlDurationFormatObject::IntlDurationFormatObject(ExecutionState& state, Object
         state.context()->staticStrings().lazyLong().string(),
         state.context()->staticStrings().lazyShort().string(),
         state.context()->staticStrings().lazyNarrow().string(),
-        state.context()->staticStrings().numeric.string(),
+        state.context()->staticStrings().lazyNumeric().string(),
     };
 
     // years
@@ -264,42 +264,42 @@ IntlDurationFormatObject::IntlDurationFormatObject(ExecutionState& state, Object
 
     // hours
     durationUnitOptionsResult = getDurationUnitOptions(state, state.context()->staticStrings().lazyHours().string(),
-                                                       options, style, longShortNarrowNumericTwoDigitValues, 5, state.context()->staticStrings().numeric.string(), prevStyle, false);
+                                                       options, style, longShortNarrowNumericTwoDigitValues, 5, state.context()->staticStrings().lazyNumeric().string(), prevStyle, false);
     m_hoursStyle = durationUnitOptionsResult.first;
     m_hoursDisplay = durationUnitOptionsResult.second;
     prevStyle = durationUnitOptionsResult.first;
 
     // minutes
     durationUnitOptionsResult = getDurationUnitOptions(state, state.context()->staticStrings().lazyMinutes().string(),
-                                                       options, style, longShortNarrowNumericTwoDigitValues, 5, state.context()->staticStrings().numeric.string(), prevStyle, false);
+                                                       options, style, longShortNarrowNumericTwoDigitValues, 5, state.context()->staticStrings().lazyNumeric().string(), prevStyle, false);
     m_minutesStyle = durationUnitOptionsResult.first;
     m_minutesDisplay = durationUnitOptionsResult.second;
     prevStyle = durationUnitOptionsResult.first;
 
     // seconds
     durationUnitOptionsResult = getDurationUnitOptions(state, state.context()->staticStrings().lazySeconds().string(),
-                                                       options, style, longShortNarrowNumericTwoDigitValues, 5, state.context()->staticStrings().numeric.string(), prevStyle, false);
+                                                       options, style, longShortNarrowNumericTwoDigitValues, 5, state.context()->staticStrings().lazyNumeric().string(), prevStyle, false);
     m_secondsStyle = durationUnitOptionsResult.first;
     m_secondsDisplay = durationUnitOptionsResult.second;
     prevStyle = durationUnitOptionsResult.first;
 
     // milliseconds
     durationUnitOptionsResult = getDurationUnitOptions(state, state.context()->staticStrings().lazyMilliseconds().string(),
-                                                       options, style, longShortNarrowNumericValues, 4, state.context()->staticStrings().numeric.string(), prevStyle, false);
+                                                       options, style, longShortNarrowNumericValues, 4, state.context()->staticStrings().lazyNumeric().string(), prevStyle, false);
     m_millisecondsStyle = durationUnitOptionsResult.first;
     m_millisecondsDisplay = durationUnitOptionsResult.second;
     prevStyle = durationUnitOptionsResult.first;
 
     // microseconds
     durationUnitOptionsResult = getDurationUnitOptions(state, state.context()->staticStrings().lazyMicroseconds().string(),
-                                                       options, style, longShortNarrowNumericValues, 4, state.context()->staticStrings().numeric.string(), prevStyle, false);
+                                                       options, style, longShortNarrowNumericValues, 4, state.context()->staticStrings().lazyNumeric().string(), prevStyle, false);
     m_microsecondsStyle = durationUnitOptionsResult.first;
     m_microsecondsDisplay = durationUnitOptionsResult.second;
     prevStyle = durationUnitOptionsResult.first;
 
     // nanoseconds
     durationUnitOptionsResult = getDurationUnitOptions(state, state.context()->staticStrings().lazyNanoseconds().string(),
-                                                       options, style, longShortNarrowNumericValues, 4, state.context()->staticStrings().numeric.string(), prevStyle, false);
+                                                       options, style, longShortNarrowNumericValues, 4, state.context()->staticStrings().lazyNumeric().string(), prevStyle, false);
     m_nanosecondsStyle = durationUnitOptionsResult.first;
     m_nanosecondsDisplay = durationUnitOptionsResult.second;
 
@@ -352,7 +352,7 @@ Object* IntlDurationFormatObject::resolvedOptions(ExecutionState& state)
     Object* options = new Object(state);
     auto& ss = state.context()->staticStrings();
     options->directDefineOwnProperty(state, ObjectPropertyName(ss.lazySmallLetterLocale()), ObjectPropertyDescriptor(m_locale, ObjectPropertyDescriptor::AllPresent));
-    options->directDefineOwnProperty(state, ObjectPropertyName(ss.numberingSystem), ObjectPropertyDescriptor(m_numberingSystem, ObjectPropertyDescriptor::AllPresent));
+    options->directDefineOwnProperty(state, ObjectPropertyName(ss.lazyNumberingSystem()), ObjectPropertyDescriptor(m_numberingSystem, ObjectPropertyDescriptor::AllPresent));
     options->directDefineOwnProperty(state, ObjectPropertyName(ss.lazyStyle()), ObjectPropertyDescriptor(m_style, ObjectPropertyDescriptor::AllPresent));
 
 #define ADD_PROPERTY(name)                                                                                                                                                              \
