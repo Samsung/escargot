@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2020 Sony Interactive Entertainment Inc.
- * Copyright (C) 2021 Apple Inc. All rights reserved.
+ * Copyright (C) 2021-2023 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,366 +55,432 @@
 
 namespace Escargot {
 
-static Intl::CanonicalizedLangunageTag applyOptionsToTag(ExecutionState& state, String* tag, Optional<Object*> options)
+class LocaleIDBuilder {
+public:
+    bool initialize(const std::string&);
+    std::string toCanonical();
+
+    void overrideLanguageScriptRegionVariants(Optional<String*> language, Optional<String*> script,
+                                              Optional<String*> region, Optional<String*> variants);
+    bool setKeywordValue(const char* key, const std::string& value);
+
+private:
+    std::string m_buffer;
+};
+
+
+bool LocaleIDBuilder::initialize(const std::string& tag)
 {
-    // we should not allow grandfathered tag like `i-default`(invalid lang), `no-bok`(have extlang)
-    auto u8Tag = tag->toNonGCUTF8StringData();
-    auto tagPart = split(u8Tag, '-');
-    if ((tagPart.size() > 0 && tagPart[0].length() == 1) || (tagPart.size() > 1 && tagPart[1].length() == 3 && isAllSpecialCharacters(tagPart[1], isASCIIAlpha))) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Incorrect locale information provided");
-    }
-
-    // If IsStructurallyValidLanguageTag(tag) is false, throw a RangeError exception.
-    auto parsedResult = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(u8Tag);
-    if (!parsedResult.canonicalizedTag) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Incorrect locale information provided");
-    }
-
-    // We should not allow extlang here
-    if (parsedResult.extLang.size()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Incorrect locale information provided");
-    }
-
-    String* languageString = state.context()->staticStrings().language.string();
-    // Let language be ? GetOption(options, "language", "string", undefined, undefined).
-    Value language = options ? Intl::getOption(state, options.value(), languageString, Intl::StringValue, nullptr, 0, Value()) : Value();
-    // If language is not undefined, then
-    if (!language.isUndefined()) {
-        // If language does not match the unicode_language_subtag production, throw a RangeError exception.
-        auto u8Lang = language.asString()->toNonGCUTF8StringData();
-        UErrorCode status = U_ZERO_ERROR;
-        int32_t len = uloc_forLanguageTag(u8Lang.data(), nullptr, 0, nullptr, &status);
-        UNUSED_VARIABLE(len);
-        if (status != U_BUFFER_OVERFLOW_ERROR || u8Lang.length() != 2 || !isAllSpecialCharacters(u8Lang, isASCIIAlpha)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "lanuage tag you give into Intl.Locale is invalid");
-        }
-    }
-
-    String* scriptString = state.context()->staticStrings().script.string();
-    // Let script be ? GetOption(options, "script", "string", undefined, undefined).
-    Value script = options ? Intl::getOption(state, options.value(), scriptString, Intl::StringValue, nullptr, 0, Value()) : Value();
-    // If script is not undefined, then
-    if (!script.isUndefined()) {
-        // If script does not match the unicode_script_subtag, throw a RangeError exception.
-        String* scriptString = script.asString();
-        if (scriptString->length() != 4 || !scriptString->isAllSpecialCharacters(isASCIIAlpha)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "script you give into Intl.Locale is invalid");
-        }
-    }
-
-    String* regionString = state.context()->staticStrings().region.string();
-    // Let region be ? GetOption(options, "region", "string", undefined, undefined).
-    Value region = options ? Intl::getOption(state, options.value(), regionString, Intl::StringValue, nullptr, 0, Value()) : Value();
-    // If region is not undefined, then
-    if (!region.isUndefined()) {
-        // If region does not match the unicode_region_subtag, throw a RangeError exception.
-        String* regionString = region.asString();
-        if ((!(regionString->length() == 2 && regionString->isAllSpecialCharacters(isASCIIAlpha)) && !(regionString->length() == 3 && regionString->isAllSpecialCharacters(isASCIIDigit)))) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "region you give into Intl.Locale is invalid");
-        }
-    }
-
-    // Let tag to CanonicalizeUnicodeLocaleId(tag).
-    // If language is not undefined,
-    // Assert: tag matches the unicode_locale_id production.
-    // Set tag to tag with the substring corresponding to the unicode_language_subtag production of the unicode_language_id replaced by the string language.
-    // If script is not undefined, then
-    // If tag does not contain a unicode_script_subtag production of the unicode_language_id, then
-    // Set tag to the concatenation of the unicode_language_subtag production of the unicode_languge_id of tag, "-", script, and the rest of tag.
-    // Else,
-    // Set tag to tag with the substring corresponding to the unicode_script_subtag production of the unicode_language_id replaced by the string script.
-    // If region is not undefined, then
-    // If tag does not contain a unicode_region_subtag production of the unicode_language_id, then
-    // Set tag to the concatenation of the unicode_language_subtag production of the unicode_language_id of tag, the substring corresponding to the "-" unicode_script_subtag production of the unicode_language_id if present, "-", region, and the rest of tag.
-    // Else,
-    // Set tag to tag with the substring corresponding to the unicode_region_subtag production of the unicode_language_id replaced by the string region.
-    // Return CanonicalizeUnicodeLocaleId(tag).
-    std::string localeStr;
-
-    if (!language.isUndefined()) {
-        localeStr = language.asString()->toNonGCUTF8StringData();
-    } else {
-        localeStr = parsedResult.language;
-    }
-
-    if (!script.isUndefined()) {
-        localeStr += "-";
-        localeStr += script.asString()->toNonGCUTF8StringData();
-    } else if (parsedResult.script.length()) {
-        localeStr += "-";
-        localeStr += parsedResult.script;
-    }
-
-    if (!region.isUndefined()) {
-        localeStr += "-";
-        localeStr += region.asString()->toNonGCUTF8StringData();
-    } else if (parsedResult.region.length()) {
-        localeStr += "-";
-        localeStr += parsedResult.region;
-    }
-
-    for (size_t i = 0; i < parsedResult.variant.size(); i++) {
-        localeStr += "-";
-        localeStr += parsedResult.variant[i];
-    }
-
-    auto newParsedResult = Intl::isStructurallyValidLanguageTagAndCanonicalizeLanguageTag(localeStr);
-    if (!newParsedResult.canonicalizedTag) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Incorrect locale information provided");
-    }
-
-    // We should not allow extlang here
-    if (newParsedResult.extLang.size()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "First argument of Intl.Locale should have valid tag");
-    }
-
-    newParsedResult.privateUse = parsedResult.privateUse;
-    newParsedResult.extensions = parsedResult.extensions;
-    newParsedResult.unicodeExtension = parsedResult.unicodeExtension;
-
-    return newParsedResult;
-}
-
-static bool checkOptionValueIsAlphaNum38DashAlphaNum38(const std::string& value)
-{
-    if (value.length() == 0) {
+    if (!Intl::isStructurallyValidLanguageTag(tag)) {
         return false;
     }
+    ASSERT(String::fromUTF8(tag.data(), tag.size())->is8Bit());
+    m_buffer = Intl::localeIDBufferForLanguageTagWithNullTerminator(tag);
+    return m_buffer.size();
+}
 
-    auto parts = split(value, '-');
-    if (parts.size() > 2) {
-        return false;
+
+std::string LocaleIDBuilder::toCanonical()
+{
+    ASSERT(m_buffer.size());
+
+    auto buffer = Intl::canonicalizeLocaleID(m_buffer.data());
+    if (!buffer)
+        return {};
+
+    return Intl::canonicalizeUnicodeExtensionsAfterICULocaleCanonicalization(std::move(buffer.value()));
+}
+
+// Because ICU's C API doesn't have set[Language|Script|Region|Variants] functions...
+void LocaleIDBuilder::overrideLanguageScriptRegionVariants(Optional<String*> language, Optional<String*> script,
+                                                           Optional<String*> region, Optional<String*> variants)
+{
+    unsigned length = m_buffer.length();
+    const std::string& localeIDView = m_buffer;
+
+    auto endOfLanguageScriptRegionVariant = localeIDView.find(ULOC_KEYWORD_SEPARATOR);
+    if (endOfLanguageScriptRegionVariant == std::string::npos) {
+        endOfLanguageScriptRegionVariant = length;
     }
-    for (size_t i = 0; i < parts.size(); i++) {
-        const auto& s = parts[i];
-        if (s.length() < 3 || s.length() > 8 || !isAllSpecialCharacters(s, isASCIIAlphanumeric)) {
-            return false;
+
+    std::vector<std::string> subtags;
+
+    for (auto subtag : split(localeIDView.substr(0, endOfLanguageScriptRegionVariant), '_')) {
+        subtags.push_back(subtag);
+    }
+
+    if (language) {
+        subtags[0] = language->toNonGCUTF8StringData();
+    }
+
+    bool hasScript = subtags.size() > 1 && subtags[1].length() == 4;
+    if (script) {
+        if (hasScript) {
+            subtags[1] = script.value()->toNonGCUTF8StringData();
+        } else {
+            subtags.insert(subtags.begin() + 1, script.value()->toNonGCUTF8StringData());
+            hasScript = true;
         }
     }
 
-    return true;
+    if (region) {
+        size_t index = hasScript ? 2 : 1;
+        bool hasRegion = subtags.size() > index && subtags[index].length() < 4;
+        if (hasRegion) {
+            subtags[index] = region.value()->toNonGCUTF8StringData();
+        } else {
+            subtags.insert(index + subtags.begin(), region.value()->toNonGCUTF8StringData());
+        }
+    }
+
+    if (variants) {
+        while (subtags.size() > 1) {
+            auto& lastSubtag = subtags.back();
+            bool isVariant = (lastSubtag.length() >= 5 && lastSubtag.length() <= 8) || (lastSubtag.length() == 4 && isASCIIDigit(lastSubtag[0]));
+            if (!isVariant)
+                break;
+            subtags.pop_back();
+        }
+        if (variants->length()) {
+            for (auto variant : split(variants->toNonGCUTF8StringData(), '-')) {
+                subtags.push_back(variant);
+            }
+        }
+    }
+
+    std::string buffer;
+    bool hasAppended = false;
+    for (auto subtag : subtags) {
+        if (hasAppended) {
+            buffer.push_back('_');
+        } else {
+            hasAppended = true;
+        }
+
+        buffer += subtag;
+    }
+
+    if (endOfLanguageScriptRegionVariant != length) {
+        auto rest = localeIDView.substr(endOfLanguageScriptRegionVariant, length - endOfLanguageScriptRegionVariant);
+        buffer += rest;
+    }
+
+    m_buffer.swap(buffer);
 }
 
-IntlLocaleObject::IntlLocaleObject(ExecutionState& state, String* tag, Optional<Object*> options)
+bool LocaleIDBuilder::setKeywordValue(const char* key, const std::string& value)
+{
+    ASSERT(m_buffer.size());
+
+    UErrorCode status = U_ZERO_ERROR;
+    auto length = uloc_setKeywordValue(key, value.data(), (char*)m_buffer.data(), m_buffer.size(), &status);
+    // uloc_setKeywordValue does not set U_STRING_NOT_TERMINATED_WARNING.
+    if (status == U_BUFFER_OVERFLOW_ERROR) {
+        m_buffer.resize(length);
+        status = U_ZERO_ERROR;
+        uloc_setKeywordValue(key, value.data(), (char*)m_buffer.data(), length + 1, &status);
+    } else if (U_SUCCESS(status)) {
+        m_buffer.resize(length);
+    }
+    return U_SUCCESS(status);
+}
+
+IntlLocaleObject::IntlLocaleObject(ExecutionState& state, String* tag, Object* options)
     : IntlLocaleObject(state, state.context()->globalObject()->intlLocalePrototype(), tag, options)
 {
 }
 
-IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String* tag, Optional<Object*> options)
+IntlLocaleObject::IntlLocaleObject(ExecutionState& state, Object* proto, String* tag, Object* options)
     : DerivedObject(state, proto)
-    , m_language(nullptr)
-    , m_script(nullptr)
-    , m_region(nullptr)
-    , m_baseName(nullptr)
-    , m_locale(nullptr)
 {
-    // Set tag to ? ApplyOptionsToTag(tag, options).
-    Intl::CanonicalizedLangunageTag buildResult = applyOptionsToTag(state, tag, options);
-    m_language = String::fromUTF8(buildResult.language.data(), buildResult.language.length());
-    m_script = String::fromUTF8(buildResult.script.data(), buildResult.script.length());
-    m_region = String::fromUTF8(buildResult.region.data(), buildResult.region.length());
-    m_baseName = buildResult.canonicalizedTag.value();
+    auto u8Tag = tag->toNonGCUTF8StringData();
+    LocaleIDBuilder localeID;
+    if (!localeID.initialize(u8Tag)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid language tag");
+    }
 
-    // Let opt be a new Record.
-    Optional<String*> ca;
-    Optional<String*> co;
-    Optional<String*> hc;
-    Optional<String*> nu;
-    Optional<String*> kf;
-    Optional<String*> kn;
+    Value language = Intl::getOption(state, options, state.context()->staticStrings().language.string(), Intl::StringValue, nullptr, 0, Value());
+    if (!language.isUndefined() && !Intl::isUnicodeLanguageSubtag(language.asString()->toNonGCUTF8StringData())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "invalid language tag");
+    }
 
-    auto& parsedUnicodeExtension = buildResult.unicodeExtension;
-    for (size_t i = 0; i < parsedUnicodeExtension.size(); i++) {
-        if (!ca && parsedUnicodeExtension[i].first == "ca") {
-            ca = String::fromUTF8(parsedUnicodeExtension[i].second.data(), parsedUnicodeExtension[i].second.length());
-        } else if (!co && parsedUnicodeExtension[i].first == "co") {
-            co = String::fromUTF8(parsedUnicodeExtension[i].second.data(), parsedUnicodeExtension[i].second.length());
-        } else if (!hc && parsedUnicodeExtension[i].first == "hc") {
-            hc = String::fromUTF8(parsedUnicodeExtension[i].second.data(), parsedUnicodeExtension[i].second.length());
-        } else if (!kf && parsedUnicodeExtension[i].first == "kf") {
-            kf = String::fromUTF8(parsedUnicodeExtension[i].second.data(), parsedUnicodeExtension[i].second.length());
-        } else if (!kn && parsedUnicodeExtension[i].first == "kn") {
-            kn = String::fromUTF8(parsedUnicodeExtension[i].second.data(), parsedUnicodeExtension[i].second.length());
-        } else if (!nu && parsedUnicodeExtension[i].first == "nu") {
-            nu = String::fromUTF8(parsedUnicodeExtension[i].second.data(), parsedUnicodeExtension[i].second.length());
+    Value script = Intl::getOption(state, options, state.context()->staticStrings().script.string(), Intl::StringValue, nullptr, 0, Value());
+    if (!script.isUndefined() && !Intl::isUnicodeScriptSubtag(script.asString()->toNonGCUTF8StringData())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "script is not a well-formed script value");
+    }
+
+    Value region = Intl::getOption(state, options, state.context()->staticStrings().region.string(), Intl::StringValue, nullptr, 0, Value());
+    if (!region.isUndefined() && !Intl::isUnicodeRegionSubtag(region.asString()->toNonGCUTF8StringData())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "region is not a well-formed region value");
+    }
+
+    Value variantsValue = Intl::getOption(state, options, state.context()->staticStrings().lazyVariants().string(), Intl::StringValue, nullptr, 0, Value());
+    if (!variantsValue.isUndefined()) {
+        const char* variantsErrorMessage = "variants is not a well-formed variants value";
+        std::string variants = variantsValue.asString()->toNonGCUTF8StringData();
+        if (variants.empty() || variants[0] == '-' || variants.back() == '-' || variants.find("--") != std::string::npos) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, variantsErrorMessage);
+        }
+        auto variantList = split(variants, '-');
+        if (variantList.size() == 1) {
+            if (!Intl::isUnicodeVariantSubtag(variantList[0])) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, variantsErrorMessage);
+            }
+        } else {
+            std::unordered_set<std::string> seenVariants;
+            for (const auto& variant : variantList) {
+                if (!Intl::isUnicodeVariantSubtag(variant)) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, variantsErrorMessage);
+                }
+                std::string lowerVariant = variant;
+                std::transform(lowerVariant.begin(), lowerVariant.end(), lowerVariant.begin(),
+                               [](char c) { return std::tolower(c); });
+                if (seenVariants.find(lowerVariant) != seenVariants.end()) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, variantsErrorMessage);
+                }
+                seenVariants.insert(lowerVariant);
+            }
         }
     }
 
-    // Let calendar be ? GetOption(options, "calendar", "string", undefined, undefined).
-    String* calendarString = state.context()->staticStrings().calendar.string();
-    Value calendar = options ? Intl::getOption(state, options.value(), calendarString, Intl::StringValue, nullptr, 0, Value()) : Value();
-    // If calendar is not undefined, then
+    if (!language.isUndefined() || !script.isUndefined() || !region.isUndefined() || !variantsValue.isUndefined()) {
+        localeID.overrideLanguageScriptRegionVariants(language.isUndefined() ? nullptr : language.asString(),
+                                                      script.isUndefined() ? nullptr : script.asString(),
+                                                      region.isUndefined() ? nullptr : region.asString(),
+                                                      variantsValue.isUndefined() ? nullptr : variantsValue.asString());
+    }
+
+
+    Value calendar = Intl::getOption(state, options, state.context()->staticStrings().calendar.string(), Intl::StringValue, nullptr, 0, Value());
     if (!calendar.isUndefined()) {
-        // If calendar does not match the type sequence (from UTS 35 Unicode Locale Identifier, section 3.2), throw a RangeError exception.
-        // If calendar does not match the [(3*8alphanum) *("-" (3*8alphanum))] sequence, throw a RangeError exception.
-        std::string value = calendar.asString()->toNonGCUTF8StringData();
-        if (!uloc_toLegacyType("calendar", value.data()) || !checkOptionValueIsAlphaNum38DashAlphaNum38(value)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "`calendar` option you input is not valid");
+        std::string s = calendar.asString()->toNonGCUTF8StringData();
+        if (!Intl::isUnicodeLocaleIdentifierType(s) || !localeID.setKeywordValue("calendar", s)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "calendar is not a well-formed calendar value");
         }
-        // Set opt.[[ca]] to calendar.
-        ca = calendar.asString();
     }
 
-    // Let collation be ? GetOption(options, "collation", "string", undefined, undefined).
-    Value collation = options ? Intl::getOption(state, options.value(), state.context()->staticStrings().collation.string(), Intl::StringValue, nullptr, 0, Value()) : Value();
-    // If collation is not undefined, then
+    Value collation = Intl::getOption(state, options, state.context()->staticStrings().collation.string(), Intl::StringValue, nullptr, 0, Value());
     if (!collation.isUndefined()) {
-        // If collation does not match the type sequence (from UTS 35 Unicode Locale Identifier, section 3.2), throw a RangeError exception.
-        // If collation does not match the [(3*8alphanum) *("-" (3*8alphanum))] sequence, throw a RangeError exception.
-        std::string value = collation.asString()->toNonGCUTF8StringData();
-        if (!uloc_toLegacyType("collation", value.data()) || !checkOptionValueIsAlphaNum38DashAlphaNum38(value)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "`collation` option you input is not valid");
+        std::string s = collation.asString()->toNonGCUTF8StringData();
+        if (!Intl::isUnicodeLocaleIdentifierType(s) || !localeID.setKeywordValue("collation", s)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "collation is not a well-formed collation value");
         }
-        // Set opt.[[co]] to collation.
-        co = collation.asString();
     }
 
+    Value firstDayOfWeek = Intl::getOption(state, options, state.context()->staticStrings().lazyFirstDayOfWeek().string(), Intl::StringValue, nullptr, 0, Value());
+    if (!firstDayOfWeek.isUndefined()) {
+        std::string s = firstDayOfWeek.asString()->toNonGCUTF8StringData();
 
-    // Let hc be ? GetOption(options, "hourCycle", "string", « "h11", "h12", "h23", "h24" », undefined).
+        if (s.length() == 1) {
+            if (s == "0") {
+                s = "sun";
+            } else if (s == "1") {
+                s = "mon";
+            } else if (s == "2") {
+                s = "tue";
+            } else if (s == "3") {
+                s = "wed";
+            } else if (s == "4") {
+                s = "thu";
+            } else if (s == "5") {
+                s = "fri";
+            } else if (s == "6") {
+                s = "sat";
+            } else if (s == "7") {
+                s = "sun";
+            }
+        }
+
+        if (!Intl::isUnicodeLocaleIdentifierType(s) || !localeID.setKeywordValue("fw", s)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "firstDayOfWeek is not a well-formed firstDayOfWeek value");
+        }
+    }
+
     Value hourCycleValues[4] = { state.context()->staticStrings().lazyH11().string(), state.context()->staticStrings().lazyH12().string(), state.context()->staticStrings().lazyH23().string(), state.context()->staticStrings().lazyH24().string() };
-    Value hourCycle = options ? Intl::getOption(state, options.value(), state.context()->staticStrings().hourCycle.string(), Intl::StringValue, hourCycleValues, 4, Value()) : Value();
-    // Set opt.[[hc]] to hc.
+    Value hourCycle = options ? Intl::getOption(state, options, state.context()->staticStrings().hourCycle.string(), Intl::StringValue, hourCycleValues, 4, Value()) : Value();
     if (!hourCycle.isUndefined()) {
-        hc = hourCycle.asString();
+        localeID.setKeywordValue("hours", hourCycle.asString()->toNonGCUTF8StringData());
     }
 
-    // Let kf be ? GetOption(options, "caseFirst", "string", « "upper", "lower", "false" », undefined).
     Value caseFirstValues[3] = { state.context()->staticStrings().lazyUpper().string(), state.context()->staticStrings().lazyLower().string(), state.context()->staticStrings().stringFalse.string() };
-    // Set opt.[[kf]] to kf.
-    Value caseFirst = options ? Intl::getOption(state, options.value(), state.context()->staticStrings().caseFirst.string(), Intl::StringValue, caseFirstValues, 3, Value()) : Value();
+    Value caseFirst = options ? Intl::getOption(state, options, state.context()->staticStrings().caseFirst.string(), Intl::StringValue, caseFirstValues, 3, Value()) : Value();
     if (!caseFirst.isUndefined()) {
-        kf = caseFirst.asString();
+        localeID.setKeywordValue("colcasefirst", caseFirst.asString()->toNonGCUTF8StringData());
     }
 
-    // Let kn be ? GetOption(options, "numeric", "boolean", undefined, undefined).
-    Value numeric = options ? Intl::getOption(state, options.value(), state.context()->staticStrings().numeric.string(), Intl::BooleanValue, nullptr, 0, Value()) : Value();
-    // If kn is not undefined, set kn to ! ToString(kn).
+    Value numeric = Intl::getOption(state, options, state.context()->staticStrings().numeric.string(), Intl::BooleanValue, nullptr, 0, Value());
     if (!numeric.isUndefined()) {
-        kn = numeric.toString(state);
+        localeID.setKeywordValue("colnumeric", numeric.toBoolean() ? "yes" : "no");
     }
-    // Set opt.[[kn]] to kn.
 
-    // Let numberingSystem be ? GetOption(options, "numberingSystem", "string", undefined, undefined).
-    Value numberingSystem = options ? Intl::getOption(state, options.value(), state.context()->staticStrings().numberingSystem.string(), Intl::StringValue, nullptr, 0, Value()) : Value();
-    // If numberingSystem is not undefined, then
+
+    Value numberingSystem = Intl::getOption(state, options, state.context()->staticStrings().numberingSystem.string(), Intl::StringValue, nullptr, 0, Value());
     if (!numberingSystem.isUndefined()) {
-        // If numberingSystem does not match the type sequence (from UTS 35 Unicode Locale Identifier, section 3.2), throw a RangeError exception.
-        // If numberingSystem does not match the [(3*8alphanum) *("-" (3*8alphanum))] sequence, throw a RangeError exception.
-        std::string value = numberingSystem.asString()->toNonGCUTF8StringData();
-        if (!uloc_toLegacyType(uloc_toLegacyKey("nu"), value.data()) || !checkOptionValueIsAlphaNum38DashAlphaNum38(value)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "`collation` option you input is not valid");
-        }
-        // Set opt.[[nu]] to numberingSystem.
-        nu = numberingSystem.asString();
-    }
-
-    // Let r be ! ApplyUnicodeExtensionToTag(tag, opt, relevantExtensionKeys).
-    m_calendar = ca;
-    m_caseFirst = kf;
-    m_collation = co;
-    m_hourCycle = hc;
-    m_numberingSystem = nu;
-    m_numeric = kn;
-
-    std::vector<std::pair<std::string, std::string>> newUnicodeExtension;
-    for (size_t i = 0; i < parsedUnicodeExtension.size(); i++) {
-        if (parsedUnicodeExtension[i].first != "ca" && parsedUnicodeExtension[i].first != "co" && parsedUnicodeExtension[i].first != "hc" && parsedUnicodeExtension[i].first != "kf" && parsedUnicodeExtension[i].first != "kn" && parsedUnicodeExtension[i].first != "nu") {
-            newUnicodeExtension.push_back(parsedUnicodeExtension[i]);
+        std::string s = numberingSystem.asString()->toNonGCUTF8StringData();
+        if (!Intl::isUnicodeLocaleIdentifierType(s) || !localeID.setKeywordValue("numbers", s)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "numberingSystem is not a well-formed numberingSystem value");
         }
     }
 
-    if (m_calendar) {
-        newUnicodeExtension.push_back(std::make_pair(std::string("ca"), m_calendar->asString()->toNonGCUTF8StringData()));
+    std::string cLocale = localeID.toCanonical();
+    m_localeID = String::fromUTF8(cLocale.data(), cLocale.length());
+    if (!m_localeID->length()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize Locale");
     }
+}
 
-    if (m_caseFirst) {
-        newUnicodeExtension.push_back(std::make_pair(std::string("kf"), m_caseFirst->asString()->equals("true") ? std::string() : m_caseFirst->asString()->toNonGCUTF8StringData()));
+String* IntlLocaleObject::locale() const
+{
+    auto langTag = Intl::languageTagForLocaleID(m_localeID->toNonGCUTF8StringData().data());
+    if (langTag) {
+        return String::fromUTF8(langTag.value().data(), langTag.value().size());
+    } else {
+        return String::emptyString();
     }
+}
 
-    if (m_collation) {
-        newUnicodeExtension.push_back(std::make_pair(std::string("co"), m_collation->asString()->toNonGCUTF8StringData()));
+String* IntlLocaleObject::language() const
+{
+    auto result = INTL_ICU_STD_STRING_BUFFER_OPERATION(uloc_getLanguage, m_localeID->toNonGCUTF8StringData().data());
+    if (result.second == "") {
+        result.second = "und";
     }
+    return String::fromUTF8(result.second.data(), result.second.length());
+}
 
-    if (m_hourCycle) {
-        newUnicodeExtension.push_back(std::make_pair(std::string("hc"), m_hourCycle->asString()->toNonGCUTF8StringData()));
-    }
+String* IntlLocaleObject::region() const
+{
+    auto result = INTL_ICU_STD_STRING_BUFFER_OPERATION(uloc_getCountry, m_localeID->toNonGCUTF8StringData().data());
+    return String::fromUTF8(result.second.data(), result.second.length());
+}
 
-    if (m_numberingSystem) {
-        newUnicodeExtension.push_back(std::make_pair(std::string("nu"), m_numberingSystem->asString()->toNonGCUTF8StringData()));
-    }
+String* IntlLocaleObject::script() const
+{
+    auto result = INTL_ICU_STD_STRING_BUFFER_OPERATION(uloc_getScript, m_localeID->toNonGCUTF8StringData().data());
+    return String::fromUTF8(result.second.data(), result.second.length());
+}
 
-    if (m_numeric) {
-        newUnicodeExtension.push_back(std::make_pair(std::string("kn"), m_numeric->asString()->equals("true") ? std::string() : m_numeric->asString()->toNonGCUTF8StringData()));
-    }
-
-    std::sort(newUnicodeExtension.begin(), newUnicodeExtension.end(),
-              [](const std::pair<std::string, std::string>& a, const std::pair<std::string, std::string>& b) -> bool {
-                  return a.first < b.first;
-              });
-
-    StringBuilder localeBuilder;
-
-    localeBuilder.appendString(m_baseName);
-
-    size_t extensionIndex;
-    for (extensionIndex = 0; extensionIndex < buildResult.extensions.size(); extensionIndex++) {
-        if (buildResult.extensions[extensionIndex].key == 'u') {
-            extensionIndex++;
-            break;
-        }
-
-        localeBuilder.appendChar('-');
-        localeBuilder.appendChar(buildResult.extensions[extensionIndex].key);
-        localeBuilder.appendChar('-');
-        localeBuilder.appendString(buildResult.extensions[extensionIndex].value.data(),
-                                   buildResult.extensions[extensionIndex].value.length());
-    }
-
-    if (newUnicodeExtension.size()) {
-        localeBuilder.appendChar('-');
-        localeBuilder.appendChar('u');
-
-        for (size_t i = 0; i < newUnicodeExtension.size(); i++) {
-            if (newUnicodeExtension[i].first.length()) {
-                localeBuilder.appendChar('-');
-                localeBuilder.appendString(newUnicodeExtension[i].first.data(),
-                                           newUnicodeExtension[i].first.length());
-            }
-
-            if (newUnicodeExtension[i].second.length()) {
-                localeBuilder.appendChar('-');
-                localeBuilder.appendString(newUnicodeExtension[i].second.data(),
-                                           newUnicodeExtension[i].second.length());
+String* IntlLocaleObject::variants() const
+{
+    std::string baseNameValue = baseName()->toNonGCUTF8StringData();
+    std::vector<std::string> variantParts;
+    if (baseNameValue.length()) {
+        auto parts = split(baseNameValue, '-');
+        for (size_t i = 1; i < parts.size(); i++) {
+            const auto& part = parts[i];
+            if (Intl::isUnicodeVariantSubtag(part)) {
+                auto p = part;
+                std::transform(p.begin(), p.end(), p.begin(),
+                               [](char c) { return std::tolower(c); });
+                variantParts.push_back(p);
             }
         }
     }
+    if (variantParts.size() > 0) {
+        std::string builder;
+        bool first = true;
+        for (const auto& variant : variantParts) {
+            if (!first) {
+                builder += "-";
+            }
+            builder.append(variant);
+            first = false;
+        }
+        return String::fromUTF8(builder.data(), builder.length());
+    } else {
+        return String::emptyString();
+    }
+}
 
-    for (; extensionIndex < buildResult.extensions.size(); extensionIndex++) {
-        localeBuilder.appendChar('-');
-        localeBuilder.appendChar(buildResult.extensions[extensionIndex].key);
-        localeBuilder.appendChar('-');
-        localeBuilder.appendString(buildResult.extensions[extensionIndex].value.data(),
-                                   buildResult.extensions[extensionIndex].value.length());
+String* IntlLocaleObject::baseName() const
+{
+    std::string buffer;
+    buffer.resize(32);
+    UErrorCode status = U_ZERO_ERROR;
+    auto bufferLength = uloc_getBaseName(m_localeID->toNonGCUTF8StringData().data(), (char*)buffer.data(), buffer.size(), &status);
+    // uloc_setKeywordValue does not set U_STRING_NOT_TERMINATED_WARNING.
+    if (status == U_BUFFER_OVERFLOW_ERROR) {
+        buffer.resize(bufferLength);
+        status = U_ZERO_ERROR;
+        uloc_getBaseName(m_localeID->toNonGCUTF8StringData().data(), (char*)buffer.data(), bufferLength, &status);
+    } else if (U_SUCCESS(status)) {
+        buffer.resize(bufferLength);
     }
 
-    if (buildResult.privateUse.length()) {
-        localeBuilder.appendChar('-');
-        localeBuilder.appendString(buildResult.privateUse.data(),
-                                   buildResult.privateUse.length());
+    auto langTag = Intl::languageTagForLocaleID(buffer.data());
+    if (langTag) {
+        return String::fromUTF8(langTag.value().data(), langTag.value().size());
+    } else {
+        return String::emptyString();
     }
+}
 
-    m_locale = localeBuilder.finalize();
+static Optional<String*> keywordValue(String* localeID, const char* key, bool isBoolean = false)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    std::string cLocaleID = localeID->toNonGCUTF8StringData();
+    auto result = INTL_ICU_STD_STRING_BUFFER_OPERATION(uloc_getKeywordValue, cLocaleID.data(), key);
+    ASSERT(U_SUCCESS(result.first));
+    if (isBoolean) {
+        return String::fromUTF8(result.second.data(), result.second.length());
+    }
+    const char* value = uloc_toUnicodeLocaleType(key, result.second.data());
+    if (!value) {
+        return nullptr;
+    }
+    auto r = String::fromUTF8(value, strlen(value));
+    if (r->equals("true")) {
+        return String::emptyString();
+    }
+    return r;
+}
+
+
+Optional<String*> IntlLocaleObject::calendar() const
+{
+    return keywordValue(m_localeID, "calendar");
+}
+
+Optional<String*> IntlLocaleObject::caseFirst() const
+{
+    return keywordValue(m_localeID, "colcasefirst");
+}
+
+Optional<String*> IntlLocaleObject::collation() const
+{
+    return keywordValue(m_localeID, "collation");
+}
+
+Optional<String*> IntlLocaleObject::firstDayOfWeek() const
+{
+    return keywordValue(m_localeID, "fw");
+}
+
+Optional<String*> IntlLocaleObject::hourCycle() const
+{
+    return keywordValue(m_localeID, "hours");
+}
+
+Optional<String*> IntlLocaleObject::numeric() const
+{
+    return keywordValue(m_localeID, "colnumeric", true);
+}
+
+Optional<String*> IntlLocaleObject::numberingSystem() const
+{
+    return keywordValue(m_localeID, "numbers");
 }
 
 Value IntlLocaleObject::calendars(ExecutionState& state)
 {
     ValueVector resultVector;
-    if (m_calendar) {
-        resultVector.pushBack(m_calendar.value());
+    auto calendar = this->calendar();
+    if (calendar) {
+        resultVector.pushBack(calendar.value());
     } else {
         UErrorCode status = U_ZERO_ERROR;
         LocalResourcePointer<UEnumeration> calendars(
-            ucal_getKeywordValuesForLocale("calendar", m_locale->toNonGCUTF8StringData().data(), true, &status),
+            ucal_getKeywordValuesForLocale("calendar", locale()->toNonGCUTF8StringData().data(), true, &status),
             [](UEnumeration* fmt) { uenum_close(fmt); });
 
         if (!U_SUCCESS(status)) {
@@ -442,12 +508,13 @@ Value IntlLocaleObject::calendars(ExecutionState& state)
 Value IntlLocaleObject::collations(ExecutionState& state)
 {
     ValueVector resultVector;
-    if (m_collation) {
-        resultVector.pushBack(m_collation.value());
+    auto collation = this->collation();
+    if (collation) {
+        resultVector.pushBack(collation.value());
     } else {
         UErrorCode status = U_ZERO_ERROR;
         LocalResourcePointer<UEnumeration> collations(
-            ucol_getKeywordValuesForLocale("collation", m_locale->toNonGCUTF8StringData().data(), true, &status),
+            ucol_getKeywordValuesForLocale("collation", locale()->toNonGCUTF8StringData().data(), true, &status),
             [](UEnumeration* f) { uenum_close(f); });
 
         if (!U_SUCCESS(status)) {
@@ -483,11 +550,12 @@ Value IntlLocaleObject::collations(ExecutionState& state)
 Value IntlLocaleObject::hourCycles(ExecutionState& state)
 {
     ValueVector resultVector;
-    if (m_hourCycle) {
-        resultVector.pushBack(m_hourCycle.value());
+    auto hourCycle = this->hourCycle();
+    if (hourCycle) {
+        resultVector.pushBack(hourCycle.value());
     } else {
         UErrorCode status = U_ZERO_ERROR;
-        LocalResourcePointer<UDateTimePatternGenerator> generator(udatpg_open(m_locale->toNonGCUTF8StringData().data(), &status),
+        LocalResourcePointer<UDateTimePatternGenerator> generator(udatpg_open(locale()->toNonGCUTF8StringData().data(), &status),
                                                                   [](UDateTimePatternGenerator* d) { udatpg_close(d); });
         if (!U_SUCCESS(status)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
@@ -513,12 +581,13 @@ Value IntlLocaleObject::hourCycles(ExecutionState& state)
 Value IntlLocaleObject::numberingSystems(ExecutionState& state)
 {
     ValueVector resultVector;
-    if (m_numberingSystem) {
-        resultVector.pushBack(m_numberingSystem.value());
+    auto numberingSystem = this->numberingSystem();
+    if (numberingSystem) {
+        resultVector.pushBack(numberingSystem.value());
     } else {
         UErrorCode status = U_ZERO_ERROR;
         LocalResourcePointer<UNumberingSystem> numberingSystem(
-            unumsys_open(m_locale->toNonGCUTF8StringData().data(), &status),
+            unumsys_open(locale()->toNonGCUTF8StringData().data(), &status),
             [](UNumberingSystem* p) { unumsys_close(p); });
 
         if (!U_SUCCESS(status)) {
@@ -536,7 +605,7 @@ Value IntlLocaleObject::numberingSystems(ExecutionState& state)
 Value IntlLocaleObject::textInfo(ExecutionState& state)
 {
     UErrorCode status = U_ZERO_ERROR;
-    ULayoutType layout = uloc_getCharacterOrientation(m_locale->toNonGCUTF8StringData().data(), &status);
+    ULayoutType layout = uloc_getCharacterOrientation(locale()->toNonGCUTF8StringData().data(), &status);
     if (!U_SUCCESS(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
         return Value();
@@ -562,7 +631,7 @@ Value IntlLocaleObject::textInfo(ExecutionState& state)
 Value IntlLocaleObject::weekInfo(ExecutionState& state)
 {
     UErrorCode status = U_ZERO_ERROR;
-    LocalResourcePointer<UCalendar> calendar(ucal_open(nullptr, 0, m_locale->toNonGCUTF8StringData().data(), UCAL_DEFAULT, &status),
+    LocalResourcePointer<UCalendar> calendar(ucal_open(nullptr, 0, locale()->toNonGCUTF8StringData().data(), UCAL_DEFAULT, &status),
                                              [](UCalendar* d) { ucal_close(d); });
     if (!U_SUCCESS(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");
@@ -642,12 +711,13 @@ Value IntlLocaleObject::weekInfo(ExecutionState& state)
 
 Value IntlLocaleObject::timeZones(ExecutionState& state)
 {
-    if (!m_region->length()) {
+    auto region = this->region();
+    if (!region->length()) {
         return Value();
     }
 
     UErrorCode status = U_ZERO_ERROR;
-    LocalResourcePointer<UEnumeration> enumeration(ucal_openTimeZoneIDEnumeration(UCAL_ZONE_TYPE_CANONICAL, m_region->toNonGCUTF8StringData().data(), nullptr, &status),
+    LocalResourcePointer<UEnumeration> enumeration(ucal_openTimeZoneIDEnumeration(UCAL_ZONE_TYPE_CANONICAL, region->toNonGCUTF8StringData().data(), nullptr, &status),
                                                    [](UEnumeration* d) { uenum_close(d); });
     if (!U_SUCCESS(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid locale");

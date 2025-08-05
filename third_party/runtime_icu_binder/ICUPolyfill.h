@@ -48,6 +48,8 @@
 #define uloc_countAvailable RuntimeICUBinder::ICU::instance().uloc_countAvailable
 #define uloc_getAvailable RuntimeICUBinder::ICU::instance().uloc_getAvailable
 #define uloc_toUnicodeLocaleType RuntimeICUBinder::ICU::instance().uloc_toUnicodeLocaleType
+#define uloc_setKeywordValue RuntimeICUBinder::ICU::instance().uloc_setKeywordValue
+#define uloc_getKeywordValue RuntimeICUBinder::ICU::instance().uloc_getKeywordValue
 
 #define u_getIntPropertyValue RuntimeICUBinder::ICU::instance().u_getIntPropertyValue
 #define u_getIntPropertyMaxValue RuntimeICUBinder::ICU::instance().u_getIntPropertyMaxValue
