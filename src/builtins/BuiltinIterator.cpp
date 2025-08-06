@@ -26,6 +26,25 @@
 
 namespace Escargot {
 
+// https://tc39.es/ecma262/#sec-iterator.from
+static Value builtinIteratorFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let iteratorRecord be ? GetIteratorFlattenable(O, iterate-string-primitives).
+    auto iteratorRecord = IteratorObject::getIteratorFlattenable(state, argv[0], IteratorObject::PrimitiveHandling::IterateStringPrimitives);
+    // Let hasInstance be ? OrdinaryHasInstance(%Iterator%, iteratorRecord.[[Iterator]]).
+    auto hasInstance = state.context()->globalObject()->iterator()->hasInstance(state, iteratorRecord->m_iterator);
+    // If hasInstance is true, then
+    if (hasInstance) {
+        // Return iteratorRecord.[[Iterator]].
+        return iteratorRecord->m_iterator;
+    }
+    // Let wrapper be OrdinaryObjectCreate(%WrapForValidIteratorPrototype%, « [[Iterated]] »).
+    // Set wrapper.[[Iterated]] to iteratorRecord.
+    auto wrapper = new WrapForValidIteratorObject(state, state.context()->globalObject()->wrapForValidIteratorPrototype(), iteratorRecord);
+    // Return wrapper.
+    return wrapper;
+}
+
 // https://tc39.es/proposal-iterator-helpers/#sec-iterator-constructor
 static Value builtinIteratorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -906,6 +925,9 @@ void GlobalObject::installIterator(ExecutionState& state)
 
     m_iterator = new NativeFunctionObject(state, NativeFunctionInfo(strings->Iterator, builtinIteratorConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
     m_iterator->setGlobalIntrinsicObject(state);
+
+    m_iterator->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
+                                        ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinIteratorFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     // https://tc39.es/proposal-iterator-helpers/#sec-iterator.prototype
     m_iterator->setFunctionPrototype(state, m_iteratorPrototype);

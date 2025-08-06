@@ -1109,7 +1109,7 @@ public:
 
     // http://www.ecma-international.org/ecma-262/6.0/#sec-getmethod
     static Value getMethod(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName);
-    Optional<Object*> getMethod(ExecutionState& state, const ObjectPropertyName& propertyName); // returns nullptr or callable
+    Optional<Object*> getMethod(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& receiver); // returns nullptr or callable
 
     // https://www.ecma-international.org/ecma-262/#sec-getv
     static Value getV(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName);
