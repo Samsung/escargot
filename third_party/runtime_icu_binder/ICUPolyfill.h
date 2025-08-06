@@ -148,6 +148,11 @@
 #define ubrk_setUText RuntimeICUBinder::ICU::instance().ubrk_setUText
 #define ubrk_close RuntimeICUBinder::ICU::instance().ubrk_close
 #define ubrk_clone RuntimeICUBinder::ICU::instance().ubrk_clone
+#define ubrk_preceding RuntimeICUBinder::ICU::instance().ubrk_preceding
+#define ubrk_following RuntimeICUBinder::ICU::instance().ubrk_following
+#define ubrk_getRuleStatus RuntimeICUBinder::ICU::instance().ubrk_getRuleStatus
+#define ubrk_first RuntimeICUBinder::ICU::instance().ubrk_first
+#define ubrk_current RuntimeICUBinder::ICU::instance().ubrk_current
 
 #define ucnv_open RuntimeICUBinder::ICU::instance().ucnv_open
 #define ucnv_compareNames RuntimeICUBinder::ICU::instance().ucnv_compareNames

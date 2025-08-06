@@ -1412,6 +1412,39 @@ static Value builtinIntlSegmenterSupportedLocalesOf(ExecutionState& state, Value
     return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
 }
 
+static Value builtinIntlSegmenterSegment(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlSegmenterObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+    return thisValue.asObject()->asIntlSegmenterObject()->segment(state, argv[0].toString(state));
+}
+
+static Value builtinIntlSegmentsIterator(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlSegmentsObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    return thisValue.asObject()->asIntlSegmentsObject()->createIteratorObject(state);
+}
+
+static Value builtinIntlSegmentsContaining(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlSegmentsObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+    return thisValue.asObject()->asIntlSegmentsObject()->containing(state, argv[0]);
+}
+
+static Value builtinIntlSegmentsIteratorNext(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlSegmentsIteratorObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+    return thisValue.asObject()->asIntlSegmentsIteratorObject()->next(state);
+}
+
 #endif
 
 static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -1994,8 +2027,27 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlSegmenterPrototype->directDefineOwnProperty(state, strings->lazyResolvedOptions(),
                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyResolvedOptions(), builtinIntlSegmenterResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
 
+    m_intlSegmenterPrototype->directDefineOwnProperty(state, strings->lazySegment(),
+                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySegment(), builtinIntlSegmenterSegment, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
     m_intlSegmenterPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                       ObjectPropertyDescriptor(Value(strings->lazyIntlDotSegmenter().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_intlSegmentsPrototype = new PrototypeObject(state, m_objectPrototype);
+    m_intlSegmentsPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_intlSegmentsPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().iterator),
+                                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolIterator, builtinIntlSegmentsIterator, 0, NativeFunctionInfo::Strict)),
+                                                                              (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_intlSegmentsPrototype->directDefineOwnProperty(state, strings->lazyContaining(),
+                                                     ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyContaining(), builtinIntlSegmentsContaining, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlSegmentsIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
+    m_intlSegmentsIteratorPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_intlSegmentsIteratorPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().next),
+                                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().next, builtinIntlSegmentsIteratorNext, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 #endif
 
     m_intl->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),

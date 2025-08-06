@@ -114,6 +114,8 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(symbolReplace, "[Symbol.replace]");
     INIT_STATIC_STRING(symbolSearch, "[Symbol.search]");
     INIT_STATIC_STRING(symbolSplit, "[Symbol.split]");
+    INIT_STATIC_STRING(symbolAsyncIterator, "[Symbol.asyncIterator]");
+    INIT_STATIC_STRING(symbolIterator, "[Symbol.iterator]");
 
 #if defined(ENABLE_WASM)
     INIT_STATIC_STRING(getExports, "get exports");
