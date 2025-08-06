@@ -147,6 +147,7 @@
 #define ubrk_setText RuntimeICUBinder::ICU::instance().ubrk_setText
 #define ubrk_setUText RuntimeICUBinder::ICU::instance().ubrk_setUText
 #define ubrk_close RuntimeICUBinder::ICU::instance().ubrk_close
+#define ubrk_clone RuntimeICUBinder::ICU::instance().ubrk_clone
 
 #define ucnv_open RuntimeICUBinder::ICU::instance().ucnv_open
 #define ucnv_compareNames RuntimeICUBinder::ICU::instance().ucnv_compareNames

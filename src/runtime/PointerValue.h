@@ -96,6 +96,7 @@ class IntlRelativeTimeFormatObject;
 class IntlDisplayNamesObject;
 class IntlListFormatObject;
 class IntlDurationFormatObject;
+class IntlSegmenterObject;
 #endif
 #if defined(ENABLE_WASM)
 class WASMModuleObject;
@@ -536,6 +537,11 @@ public:
     {
         return false;
     }
+
+    virtual bool isIntlSegmenterObject() const
+    {
+        return false;
+    }
 #endif
 
 #if defined(ENABLE_TEMPORAL)
@@ -949,6 +955,12 @@ public:
     {
         ASSERT(isIntlDurationFormatObject());
         return (IntlDurationFormatObject*)this;
+    }
+
+    IntlSegmenterObject* asIntlSegmenterObject()
+    {
+        ASSERT(isIntlSegmenterObject());
+        return (IntlSegmenterObject*)this;
     }
 #endif
 

@@ -61,6 +61,7 @@
 #include "intl/IntlDisplayNames.h"
 #include "intl/IntlListFormat.h"
 #include "intl/IntlDurationFormat.h"
+#include "intl/IntlSegmenter.h"
 
 namespace Escargot {
 
@@ -1368,6 +1369,50 @@ static Value builtinIntlDurationFormatSupportedLocalesOf(ExecutionState& state, 
 }
 
 #endif
+#if defined(ENABLE_INTL_SEGMENTER)
+static Value builtinIntlSegmenterConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
+    }
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* realm) -> Object* {
+        return realm->globalObject()->intlSegmenterPrototype();
+    });
+    if (argc >= 2) {
+        return new IntlSegmenterObject(state, proto, argv[0], argv[1]);
+    } else if (argc >= 1) {
+        return new IntlSegmenterObject(state, proto, argv[0], Value());
+    } else {
+        return new IntlSegmenterObject(state, proto, Value(), Value());
+    }
+}
+
+static Value builtinIntlSegmenterResolvedOptions(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isIntlSegmenterObject()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Method called on incompatible receiver");
+    }
+
+    IntlSegmenterObject* r = thisValue.asObject()->asIntlSegmenterObject();
+    return r->resolvedOptions(state);
+}
+
+static Value builtinIntlSegmenterSupportedLocalesOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value locales = argv[0];
+    Value options;
+    if (argc >= 2) {
+        options = argv[1];
+    }
+    const auto& availableLocales = state.context()->vmInstance()->intlSegmenterAvailableLocales();
+    ValueVector requestedLocales = Intl::canonicalizeLocaleList(state, locales);
+    return Intl::supportedLocales(state, availableLocales, requestedLocales, options);
+}
+
+#endif
 
 static Value builtinIntlGetCanonicalLocales(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -1936,6 +1981,22 @@ void GlobalObject::installIntl(ExecutionState& state)
     m_intlDurationFormatPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                            ObjectPropertyDescriptor(Value(strings->lazyIntlDotDurationFormat().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 #endif
+#if defined(ENABLE_INTL_SEGMENTER)
+    m_intlSegmenter = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalSegmenter(), builtinIntlSegmenterConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_intlSegmenter->setGlobalIntrinsicObject(state);
+
+    m_intlSegmenter->directDefineOwnProperty(state, strings->lazySupportedLocalesOf(),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySupportedLocalesOf(), builtinIntlSegmenterSupportedLocalesOf, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlSegmenterPrototype = m_intlSegmenter->getFunctionPrototype(state).asObject();
+    m_intlSegmenterPrototype->setGlobalIntrinsicObject(state, true);
+
+    m_intlSegmenterPrototype->directDefineOwnProperty(state, strings->lazyResolvedOptions(),
+                                                      ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyResolvedOptions(), builtinIntlSegmenterResolvedOptions, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent | ObjectPropertyDescriptor::WritablePresent)));
+
+    m_intlSegmenterPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                      ObjectPropertyDescriptor(Value(strings->lazyIntlDotSegmenter().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+#endif
 
     m_intl->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                     ObjectPropertyDescriptor(Value(strings->Intl.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -1970,6 +2031,10 @@ void GlobalObject::installIntl(ExecutionState& state)
 #if defined(ENABLE_INTL_DURATIONFORMAT)
     m_intl->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalDurationFormat()),
                                     ObjectPropertyDescriptor(m_intlDurationFormat, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+#endif
+#if defined(ENABLE_INTL_SEGMENTER)
+    m_intl->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalSegmenter()),
+                                    ObjectPropertyDescriptor(m_intlSegmenter, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 #endif
     FunctionObject* getCanonicalLocales = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetCanonicalLocales(), builtinIntlGetCanonicalLocales, 1, NativeFunctionInfo::Strict));
     m_intl->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyGetCanonicalLocales()),

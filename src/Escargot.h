@@ -316,7 +316,7 @@ extern "C" {
 #include <unicode/ulistformatter.h> // for Intl
 #include <unicode/ures.h> // for Intl
 #include <unicode/udateintervalformat.h> // for Intl
-
+#include <unicode/ubrk.h> // for Intl
 // FIXME replace these vzone decl into include
 // I declare vzone api because there is no header file in include folder
 extern "C" {
