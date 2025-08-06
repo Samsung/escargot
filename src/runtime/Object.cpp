@@ -1267,17 +1267,17 @@ static Object* internalFastToObjectForGetMethodGetV(ExecutionState& state, const
 Value Object::getMethod(ExecutionState& state, const Value& O, const ObjectPropertyName& propertyName)
 {
     Object* obj = internalFastToObjectForGetMethodGetV(state, O);
-    auto r = obj->getMethod(state, propertyName);
+    auto r = obj->getMethod(state, propertyName, O);
     if (r) {
         return Value(r.value());
     }
     return Value();
 }
 
-Optional<Object*> Object::getMethod(ExecutionState& state, const ObjectPropertyName& propertyName)
+Optional<Object*> Object::getMethod(ExecutionState& state, const ObjectPropertyName& propertyName, const Value& receiver)
 {
     // 2. Let func be GetV(O, P).
-    Value func = get(state, propertyName).value(state, this);
+    Value func = get(state, propertyName).value(state, receiver);
     // 4. If func is either undefined or null, return undefined.
     if (func.isUndefinedOrNull()) {
         return nullptr;
