@@ -97,6 +97,8 @@ class IntlDisplayNamesObject;
 class IntlListFormatObject;
 class IntlDurationFormatObject;
 class IntlSegmenterObject;
+class IntlSegmentsObject;
+class IntlSegmentsIteratorObject;
 #endif
 #if defined(ENABLE_WASM)
 class WASMModuleObject;
@@ -542,6 +544,16 @@ public:
     {
         return false;
     }
+
+    virtual bool isIntlSegmentsObject() const
+    {
+        return false;
+    }
+
+    virtual bool isIntlSegmentsIteratorObject() const
+    {
+        return false;
+    }
 #endif
 
 #if defined(ENABLE_TEMPORAL)
@@ -961,6 +973,18 @@ public:
     {
         ASSERT(isIntlSegmenterObject());
         return (IntlSegmenterObject*)this;
+    }
+
+    IntlSegmentsObject* asIntlSegmentsObject()
+    {
+        ASSERT(isIntlSegmentsObject());
+        return (IntlSegmentsObject*)this;
+    }
+
+    IntlSegmentsIteratorObject* asIntlSegmentsIteratorObject()
+    {
+        ASSERT(isIntlSegmentsIteratorObject());
+        return (IntlSegmentsIteratorObject*)this;
     }
 #endif
 

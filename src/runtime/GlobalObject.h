@@ -130,7 +130,9 @@ class FunctionObject;
 #if defined(ENABLE_INTL_SEGMENTER)
 #define GLOBALOBJECT_BUILTIN_INTL_SEGMENTER(F, objName) \
     F(intlSegmenter, FunctionObject, objName)           \
-    F(intlSegmenterPrototype, Object, objName)
+    F(intlSegmenterPrototype, Object, objName)          \
+    F(intlSegmentsPrototype, Object, objName)           \
+    F(intlSegmentsIteratorPrototype, Object, objName)
 #else
 #define GLOBALOBJECT_BUILTIN_INTL_SEGMENTER(F, objName)
 #endif

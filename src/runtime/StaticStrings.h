@@ -728,6 +728,7 @@ namespace Escargot {
     F(CompactDisplay, "compactDisplay")                     \
     F(Compare, "compare")                                   \
     F(CompareFunction, "compareFunction")                   \
+    F(Containing, "containing")                             \
     F(Conjunction, "conjunction")                           \
     F(Constrain, "constrain")                               \
     F(Currency, "currency")                                 \
@@ -826,6 +827,7 @@ namespace Escargot {
     F(IntlDotDurationFormat, "Intl.DurationFormat")         \
     F(IntlDotRelativeTimeFormat, "Intl.RelativeTimeFormat") \
     F(IntlDotSegmenter, "Intl.Segmenter")                   \
+    F(IsWordLike, "isWordLike")                             \
     F(Kf, "kf")                                             \
     F(Kn, "kn")                                             \
     F(Language, "language")                                 \
@@ -879,6 +881,8 @@ namespace Escargot {
     F(Script, "script")                                     \
     F(Second, "second")                                     \
     F(Seconds, "seconds")                                   \
+    F(Segment, "segment")                                   \
+    F(Segments, "segments")                                 \
     F(Sentence, "sentence")                                 \
     F(Sensitivity, "sensitivity")                           \
     F(Select, "select")                                     \
@@ -1057,6 +1061,8 @@ public:
     AtomicString getmaxByteLength;
     AtomicString getresizable;
     AtomicString set__proto__;
+    AtomicString symbolAsyncIterator;
+    AtomicString symbolIterator;
     AtomicString symbolMatch;
     AtomicString symbolMatchAll;
     AtomicString symbolReplace;
