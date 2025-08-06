@@ -6581,6 +6581,11 @@ typedef enum UNumberFormatAttribute {
     UNUM_LIMIT_BOOLEAN_ATTRIBUTE = 0x1003
 } UNumberFormatAttribute;
 
+typedef enum UNumberFormatMinimumGroupingDigits {
+    UNUM_MINIMUM_GROUPING_DIGITS_AUTO = -2,
+    UNUM_MINIMUM_GROUPING_DIGITS_MIN2 = -3,
+} UNumberFormatMinimumGroupingDigits;
+
 // uloc.h
 
 /** Useful constant for this language. @stable ICU 2.0 */

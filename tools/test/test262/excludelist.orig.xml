@@ -4652,12 +4652,6 @@
     <test id="intl402/Locale/extensions-grandfathered"><reason>TODO</reason></test>
     <test id="intl402/Locale/getters-grandfathered"><reason>TODO</reason></test>
     <test id="intl402/Locale/likely-subtags-grandfathered"><reason>TODO</reason></test>
-    <test id="intl402/RelativeTimeFormat/prototype/format/pl-pl-style-long"><reason>TODO</reason></test>
-    <test id="intl402/RelativeTimeFormat/prototype/format/pl-pl-style-narrow"><reason>TODO</reason></test>
-    <test id="intl402/RelativeTimeFormat/prototype/format/pl-pl-style-short"><reason>TODO</reason></test>
-    <test id="intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-long"><reason>TODO</reason></test>
-    <test id="intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-narrow"><reason>TODO</reason></test>
-    <test id="intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-short"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Duration/compare/relativeto-hour"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Duration/compare/relativeto-sub-minute-offset"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Duration/compare/twenty-five-hour-day"><reason>TODO</reason></test>

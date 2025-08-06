@@ -66,8 +66,8 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
     UVersionInfo versionArray;
     u_getVersion(versionArray);
-    if (versionArray[0] < 62) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.NumberFormat needs 62+ version of ICU");
+    if (versionArray[0] < 68) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.NumberFormat needs 68+ version of ICU");
     }
 #endif
     // Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -143,6 +143,31 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
     // Let relativeTimeFormat.[[PluralRules]] be ! Construct(%PluralRules%, « locale »).
     // Return relativeTimeFormat.
 
+    StringBuilder dataLocaleBuilder;
+    dataLocaleBuilder.appendString(m_dataLocale);
+    dataLocaleBuilder.appendString("-u-nu-");
+    dataLocaleBuilder.appendString(m_numberingSystem);
+    String* dataLocaleWithExtensions = dataLocaleBuilder.finalize();
+
+    UErrorCode status = U_ZERO_ERROR;
+    m_icuNumberFormat = unum_open(UNUM_DECIMAL, nullptr, 0, dataLocaleWithExtensions->toNonGCUTF8StringData().data(), nullptr, &status);
+    if (UNLIKELY(U_FAILURE(status))) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize RelativeTimeFormat");
+    }
+
+    unum_setAttribute(m_icuNumberFormat, UNUM_MIN_INTEGER_DIGITS, 1);
+    unum_setAttribute(m_icuNumberFormat, UNUM_MIN_FRACTION_DIGITS, 0);
+    unum_setAttribute(m_icuNumberFormat, UNUM_MAX_FRACTION_DIGITS, 3);
+    unum_setAttribute(m_icuNumberFormat, UNUM_GROUPING_USED, true);
+    unum_setAttribute(m_icuNumberFormat, UNUM_GROUPING_SIZE, UNUM_MINIMUM_GROUPING_DIGITS_AUTO);
+    unum_setAttribute(m_icuNumberFormat, UNUM_SECONDARY_GROUPING_SIZE, UNUM_MINIMUM_GROUPING_DIGITS_AUTO);
+    unum_setAttribute(m_icuNumberFormat, UNUM_MINIMUM_GROUPING_DIGITS, UNUM_MINIMUM_GROUPING_DIGITS_AUTO);
+    UNumberFormat* clonedNumberFormat = unum_clone(m_icuNumberFormat, &status);
+
+    if (UNLIKELY(U_FAILURE(status))) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize RelativeTimeFormat");
+    }
+
     UDateRelativeDateTimeFormatterStyle icuStyle;
     if (m_style->equals("short")) {
         icuStyle = UDAT_STYLE_SHORT;
@@ -153,8 +178,7 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
         icuStyle = UDAT_STYLE_LONG;
     }
 
-    UErrorCode status = U_ZERO_ERROR;
-    m_icuRelativeDateTimeFormatter = ureldatefmt_open(m_locale->toNonGCUTF8StringData().data(), nullptr, icuStyle, UDISPCTX_CAPITALIZATION_FOR_STANDALONE, &status);
+    m_icuRelativeDateTimeFormatter = ureldatefmt_open(dataLocaleWithExtensions->toNonGCUTF8StringData().data(), clonedNumberFormat, icuStyle, UDISPCTX_CAPITALIZATION_FOR_STANDALONE, &status);
 
     if (U_FAILURE(status)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize RelativeTimeFormat");
@@ -163,6 +187,7 @@ IntlRelativeTimeFormatObject::IntlRelativeTimeFormatObject(ExecutionState& state
     addFinalizer([](PointerValue* obj, void* data) {
         IntlRelativeTimeFormatObject* self = (IntlRelativeTimeFormatObject*)obj;
         ureldatefmt_close(self->m_icuRelativeDateTimeFormatter);
+        unum_close(self->m_icuNumberFormat);
     },
                  nullptr);
 }

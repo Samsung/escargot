@@ -72,6 +72,7 @@ protected:
     String* m_numeric;
 
     URelativeDateTimeFormatter* m_icuRelativeDateTimeFormatter;
+    UNumberFormat* m_icuNumberFormat;
 };
 
 } // namespace Escargot

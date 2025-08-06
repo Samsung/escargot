@@ -92,6 +92,7 @@
 #define unum_formatDouble RuntimeICUBinder::ICU::instance().unum_formatDouble
 #define unum_formatDoubleForFields RuntimeICUBinder::ICU::instance().unum_formatDoubleForFields
 #define unum_close RuntimeICUBinder::ICU::instance().unum_close
+#define unum_clone RuntimeICUBinder::ICU::instance().unum_clone
 
 #define udat_getAvailable RuntimeICUBinder::ICU::instance().udat_getAvailable
 #define udat_countAvailable RuntimeICUBinder::ICU::instance().udat_countAvailable
