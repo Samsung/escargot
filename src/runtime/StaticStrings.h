@@ -794,6 +794,8 @@ namespace Escargot {
     F(GetTextInfo, "getTextInfo")                           \
     F(GetTimeZones, "getTimeZones")                         \
     F(GetWeekInfo, "getWeekInfo")                           \
+    F(Grapheme, "grapheme")                                 \
+    F(Granularity, "granularity")                           \
     F(Group, "group")                                       \
     F(H11, "h11")                                           \
     F(H12, "h12")                                           \
@@ -877,6 +879,7 @@ namespace Escargot {
     F(Script, "script")                                     \
     F(Second, "second")                                     \
     F(Seconds, "seconds")                                   \
+    F(Sentence, "sentence")                                 \
     F(Sensitivity, "sensitivity")                           \
     F(Select, "select")                                     \
     F(SelectRange, "selectRange")                           \
@@ -913,6 +916,7 @@ namespace Escargot {
     F(Weeks, "weeks")                                       \
     F(Weekday, "weekday")                                   \
     F(WeekInfo, "weekInfo")                                 \
+    F(Word, "word")                                         \
     F(Year, "year")                                         \
     F(Years, "years")                                       \
     F(YearName, "yearName")

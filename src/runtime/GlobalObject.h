@@ -127,6 +127,13 @@ class FunctionObject;
 #else
 #define GLOBALOBJECT_BUILTIN_INTL_DURATIONFORMAT(F, objName)
 #endif
+#if defined(ENABLE_INTL_SEGMENTER)
+#define GLOBALOBJECT_BUILTIN_INTL_SEGMENTER(F, objName) \
+    F(intlSegmenter, FunctionObject, objName)           \
+    F(intlSegmenterPrototype, Object, objName)
+#else
+#define GLOBALOBJECT_BUILTIN_INTL_SEGMENTER(F, objName)
+#endif
 #define GLOBALOBJECT_BUILTIN_INTL(F, objName)                \
     F(intl, Object, objName)                                 \
     F(intlCollator, FunctionObject, objName)                 \
@@ -139,7 +146,8 @@ class FunctionObject;
     GLOBALOBJECT_BUILTIN_INTL_PLURALRULES(F, objName)        \
     GLOBALOBJECT_BUILTIN_INTL_RELATIVETIMEFORMAT(F, objName) \
     GLOBALOBJECT_BUILTIN_INTL_LISTFORMAT(F, objName)         \
-    GLOBALOBJECT_BUILTIN_INTL_DURATIONFORMAT(F, objName)
+    GLOBALOBJECT_BUILTIN_INTL_DURATIONFORMAT(F, objName)     \
+    GLOBALOBJECT_BUILTIN_INTL_SEGMENTER(F, objName)
 #else
 #define GLOBALOBJECT_BUILTIN_INTL(F, objName)
 #endif

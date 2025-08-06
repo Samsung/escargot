@@ -76,7 +76,7 @@ static std::vector<std::string> localeDataDurationFormat(String* locale, size_t 
 }
 
 IntlDurationFormatObject::IntlDurationFormatObject(ExecutionState& state, Value locales, Value options)
-    : IntlDurationFormatObject(state, state.context()->globalObject()->intlRelativeTimeFormatPrototype(), locales, options)
+    : IntlDurationFormatObject(state, state.context()->globalObject()->intlDurationFormatPrototype(), locales, options)
 {
 }
 
@@ -158,7 +158,7 @@ IntlDurationFormatObject::IntlDurationFormatObject(ExecutionState& state, Object
 #if defined(ENABLE_RUNTIME_ICU_BINDER)
     UVersionInfo versionArray;
     u_getVersion(versionArray);
-    if (versionArray[0] < 62) {
+    if (versionArray[0] < 67) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Intl.NumberFormat needs 67+ version of ICU");
     }
 #endif

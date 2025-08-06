@@ -973,6 +973,12 @@ const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& VMInstance::intlDur
     return m_intlAvailableLocales;
 }
 
+const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& VMInstance::intlSegmenterAvailableLocales()
+{
+    ensureIntlSupportedLocales();
+    return m_intlAvailableLocales;
+}
+
 const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& VMInstance::caseMappingAvailableLocales()
 {
     if (m_caseMappingAvailableLocales.size() == 0) {
