@@ -21,6 +21,7 @@
 #define __EscargotTypedArrayInlines__
 
 #include "util/Float16.h"
+#include "runtime/TypedArrayObject.h"
 
 namespace Escargot {
 
@@ -308,6 +309,22 @@ struct TypedArrayHelper {
             RELEASE_ASSERT_NOT_REACHED();
             break;
         }
+    }
+
+    static FunctionObject* typeToConstructor(ExecutionState& state, TypedArrayType type)
+    {
+        auto globalObject = state.context()->globalObject();
+#define DEFINE_TYPE(TYPE, type, siz, nativeType) \
+    case TypedArrayType::TYPE:                   \
+        return globalObject->type##Array();
+
+        switch (type) {
+            FOR_EACH_TYPEDARRAY_TYPES(DEFINE_TYPE)
+        default:
+            ASSERT_NOT_REACHED();
+            return nullptr;
+        }
+#undef DEFINE_TYPE
     }
 };
 } // namespace Escargot

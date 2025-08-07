@@ -84,7 +84,7 @@ public:
     virtual void sort(ExecutionState& state, uint64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override;
     virtual void toSorted(ExecutionState& state, Object* target, uint64_t length, const std::function<bool(const Value& a, const Value& b)>& comp) override;
 
-    static ArrayBuffer* validateTypedArray(ExecutionState& state, const Value& O);
+    static ArrayBuffer* validateTypedArray(ExecutionState& state, const Value& O, bool checkDetachedError = true);
 
 protected:
     explicit TypedArrayObject(ExecutionState& state, Object* proto)

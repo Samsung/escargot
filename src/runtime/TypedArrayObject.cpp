@@ -169,14 +169,18 @@ void TypedArrayObject::toSorted(ExecutionState& state, Object* target, uint64_t 
     }
 }
 
-ArrayBuffer* TypedArrayObject::validateTypedArray(ExecutionState& state, const Value& O)
+ArrayBuffer* TypedArrayObject::validateTypedArray(ExecutionState& state, const Value& O, bool checkDetachedError)
 {
     if (UNLIKELY(!O.isObject() || !O.asObject()->isTypedArrayObject())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ThisNotTypedArrayObject);
     }
-
     ArrayBuffer* buffer = O.asObject()->asTypedArrayObject()->buffer();
-    buffer->throwTypeErrorIfDetached(state);
+    if (checkDetachedError) {
+        buffer->throwTypeErrorIfDetached(state);
+    }
+    if (UNLIKELY(O.asObject()->asTypedArrayObject()->wasResetByInvalidByteLength())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().TypedArray.string(), false, String::emptyString(), ErrorObject::Messages::GlobalObject_DetachedBuffer);
+    }
     return buffer;
 }
 
