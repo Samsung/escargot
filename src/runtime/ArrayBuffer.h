@@ -164,6 +164,8 @@ public:
     {
         return m_wasResetByInvalidByteLength;
     }
+    ALWAYS_INLINE size_t originalByteLength() { return m_originalByteLength; }
+    ALWAYS_INLINE size_t originalByteOffset() { return m_originalByteOffset; }
 
     ALWAYS_INLINE void setBuffer(ArrayBuffer* bo, size_t byteOffset, size_t byteLength, size_t arrayLength, bool isAuto = false)
     {
@@ -192,6 +194,11 @@ public:
     virtual size_t elementSize()
     {
         return 1;
+    }
+
+    bool isAuto() const
+    {
+        return m_auto;
     }
 
     void* operator new(size_t size)
@@ -232,7 +239,7 @@ private:
             // auto mode within boundary
             self->m_byteOffset = self->m_originalByteOffset;
             if (newByteLength > self->m_byteOffset) {
-                self->m_byteLength = newByteLength - self->m_byteOffset;
+                self->m_byteLength = ((newByteLength - self->m_byteOffset) / self->elementSize()) * self->elementSize();
             } else {
                 self->m_byteLength = 0;
             }
