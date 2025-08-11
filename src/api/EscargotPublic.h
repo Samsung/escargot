@@ -186,6 +186,9 @@ public:
 
     static void gc();
 
+    static void disableGC();
+    static void enableGC();
+
     static size_t heapSize(); // Return the number of bytes in the heap.  Excludes bdwgc private data structures. Excludes the unmapped memory
     static size_t totalSize(); // Return the total number of bytes allocated in this process
 
