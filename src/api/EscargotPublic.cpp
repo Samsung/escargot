@@ -564,6 +564,16 @@ void Memory::gc()
     GC_gcollect_and_unmap();
 }
 
+void Memory::disableGC()
+{
+    GC_disable();
+}
+
+void Memory::enableGC()
+{
+    GC_enable();
+}
+
 void Memory::setGCFrequency(size_t value)
 {
     GC_set_free_space_divisor(value);
