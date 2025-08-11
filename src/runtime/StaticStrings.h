@@ -124,6 +124,7 @@ namespace Escargot {
     F(add)                        \
     F(all)                        \
     F(allSettled)                 \
+    F(alphabet)                   \
     F(alreadyCalled)              \
     F(alreadyResolved)            \
     F(anchor)                     \
@@ -219,6 +220,7 @@ namespace Escargot {
     F(forEach)                    \
     F(freeze)                     \
     F(from)                       \
+    F(fromBase64)                 \
     F(fromCharCode)               \
     F(fromCodePoint)              \
     F(fromEntries)                \
@@ -310,6 +312,7 @@ namespace Escargot {
     F(join)                       \
     F(keyFor)                     \
     F(keys)                       \
+    F(lastChunkHandling)          \
     F(lastIndex)                  \
     F(lastIndexOf)                \
     F(lastMatch)                  \
@@ -341,6 +344,7 @@ namespace Escargot {
     F(number)                     \
     F(object)                     \
     F(of)                         \
+    F(omitPadding)                \
     F(ownKeys)                    \
     F(package)                    \
     F(padEnd)                     \
@@ -387,6 +391,7 @@ namespace Escargot {
     F(setFloat16)                 \
     F(setFloat32)                 \
     F(setFloat64)                 \
+    F(setFromBase64)              \
     F(setFullYear)                \
     F(setHours)                   \
     F(setInt16)                   \
@@ -445,6 +450,7 @@ namespace Escargot {
     F(then)                       \
     F(toArray)                    \
     F(toDateString)               \
+    F(toBase64)                   \
     F(toExponential)              \
     F(toFixed)                    \
     F(toGMTString)                \
@@ -489,6 +495,7 @@ namespace Escargot {
     F(with)                       \
     F(withResolvers)              \
     F(writable)                   \
+    F(written)                    \
     F(yield)
 
 #if defined(ENABLE_WASM)

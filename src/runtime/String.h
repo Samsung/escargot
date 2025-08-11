@@ -49,6 +49,7 @@ std::vector<std::string> split(const std::string& s, const std::string& seperato
 bool isASCIIAlpha(char ch);
 bool isASCIIDigit(char ch);
 bool isASCIIAlphanumeric(char ch);
+bool isASCIIWhitespace(char character);
 bool isAllSpecialCharacters(const std::string& s, bool (*fn)(char));
 
 bool isAllASCII(const char* buf, const size_t len);

@@ -26,6 +26,8 @@
 #include "runtime/TypedArrayInlines.h"
 #include "runtime/IteratorObject.h"
 #include "runtime/NativeFunctionObject.h"
+#include "util/Base64.h"
+
 
 namespace Escargot {
 
@@ -2008,6 +2010,175 @@ static Value builtinTypedArrayAt(ExecutionState& state, Value thisValue, size_t 
     return obj->getIndexedPropertyValue(state, Value(Value::DoubleToIntConvertibleTestNeeds, relativeStart), thisValue);
 }
 
+static Value builtinUint8ArrayFromBase64(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!argv[0].isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Uint8Array.fromBase64 requires that input be an string");
+    }
+
+    Alphabet alphabet = Alphabet::Base64;
+    LastChunkHandling lastChunkHandling = LastChunkHandling::Loose;
+
+    String* string = argv[0].asString();
+    Value optionsValue = argc > 1 ? argv[1] : Value();
+    if (!optionsValue.isUndefined()) {
+        if (!optionsValue.isObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Uint8Array.fromBase64 requires that options be an object");
+        }
+
+        ObjectGetResult optionValueGetResult = optionsValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().alphabet));
+        if (optionValueGetResult.hasValue()) {
+            Value optionValue = optionValueGetResult.value(state, optionsValue);
+            if (!optionValue.isString()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Uint8Array.fromBase64 options value requires string");
+            }
+            if (optionValue.asString()->equals("base64url")) {
+                alphabet = Alphabet::Base64URL;
+            } else if (optionValue.asString()->equals("base64")) {
+            } else {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid value for Uint8Array.fromBase64 options");
+            }
+        }
+
+        optionValueGetResult = optionsValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lastChunkHandling));
+        if (optionValueGetResult.hasValue()) {
+            Value optionValue = optionValueGetResult.value(state, optionsValue);
+            if (!optionValue.isString()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Uint8Array.fromBase64 options value requires string");
+            }
+            if (optionValue.asString()->equals("loose")) {
+            } else if (optionValue.asString()->equals("strict")) {
+                lastChunkHandling = LastChunkHandling::Strict;
+            } else if (optionValue.asString()->equals("stop-before-partial")) {
+                lastChunkHandling = LastChunkHandling::StopBeforePartial;
+            } else {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid value for Uint8Array.fromBase64 options");
+            }
+        }
+    }
+
+    auto result = fromBase64(string, nullptr, 0, alphabet, lastChunkHandling);
+    if (UNLIKELY(std::get<0>(result) == FromBase64ShouldThrowError::Yes)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Failed to decode Base64 string");
+    }
+
+    Uint8ArrayObject* obj = new Uint8ArrayObject(state);
+    auto& v = std::get<3>(result);
+    ArrayBuffer* abo = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), v.size());
+    obj->setBuffer(abo, 0, v.size(), v.size());
+    memcpy(abo->data(), v.data(), v.size());
+    return obj;
+}
+
+static Value builtinUint8ArraySetFromBase64(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject() || thisValue.asObject()->asTypedArrayObject()->typedArrayType() != TypedArrayType::Uint8) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Uint8Array.string(), true, state.context()->staticStrings().toBase64.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    if (!argv[0].isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Uint8Array.protype.setFromBase64 requires that input be an string");
+    }
+
+    Alphabet alphabet = Alphabet::Base64;
+    LastChunkHandling lastChunkHandling = LastChunkHandling::Loose;
+
+    String* string = argv[0].asString();
+    Value optionsValue = argc > 1 ? argv[1] : Value();
+    if (!optionsValue.isUndefined()) {
+        if (!optionsValue.isObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Uint8Array.protype.setFromBase64 requires that options be an object");
+        }
+
+        ObjectGetResult optionValueGetResult = optionsValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().alphabet));
+        if (optionValueGetResult.hasValue()) {
+            Value optionValue = optionValueGetResult.value(state, optionsValue);
+            if (!optionValue.isString()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Uint8Array.protype.setFromBase64 options value requires string");
+            }
+            if (optionValue.asString()->equals("base64url")) {
+                alphabet = Alphabet::Base64URL;
+            } else if (optionValue.asString()->equals("base64")) {
+            } else {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid value for Uint8Array.protype.setFromBase64 options");
+            }
+        }
+
+        optionValueGetResult = optionsValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().lastChunkHandling));
+        if (optionValueGetResult.hasValue()) {
+            Value optionValue = optionValueGetResult.value(state, optionsValue);
+            if (!optionValue.isString()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Uint8Array.protype.setFromBase64 options value requires string");
+            }
+            if (optionValue.asString()->equals("loose")) {
+            } else if (optionValue.asString()->equals("strict")) {
+                lastChunkHandling = LastChunkHandling::Strict;
+            } else if (optionValue.asString()->equals("stop-before-partial")) {
+                lastChunkHandling = LastChunkHandling::StopBeforePartial;
+            } else {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid value for Uint8Array.protype.setFromBase64 options");
+            }
+        }
+    }
+
+    TypedArrayObject::validateTypedArray(state, thisValue);
+
+    auto o = thisValue.asObject()->asTypedArrayObject();
+    auto result = fromBase64(string, o->rawBuffer(), o->arrayLength(), alphabet, lastChunkHandling);
+    if (UNLIKELY(std::get<0>(result) == FromBase64ShouldThrowError::Yes)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Failed to decode Base64 string");
+    }
+
+    Object* obj = new Object(state);
+
+    obj->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().read), ObjectPropertyDescriptor(Value(std::get<1>(result)), ObjectPropertyDescriptor::AllPresent));
+    obj->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().written), ObjectPropertyDescriptor(Value(std::get<2>(result)), ObjectPropertyDescriptor::AllPresent));
+
+    return obj;
+}
+
+static Value builtinUint8ArrayToBase64(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject() || thisValue.asObject()->asTypedArrayObject()->typedArrayType() != TypedArrayType::Uint8) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Uint8Array.string(), true, state.context()->staticStrings().toBase64.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    Base64EncodeOption option = (Base64EncodeOption)0;
+    Value optionsValue = argc ? argv[0] : Value();
+    if (!optionsValue.isUndefined()) {
+        if (!optionsValue.isObject()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Uint8Array.prototype.toBase64 requires that options be an object");
+        }
+
+        ObjectGetResult optionValueGetResult = optionsValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().alphabet));
+        if (optionValueGetResult.hasValue()) {
+            Value optionValue = optionValueGetResult.value(state, optionsValue);
+            if (!optionValue.isString()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Uint8Array.prototype.toBase64 options value requires string");
+            }
+            if (optionValue.asString()->equals("base64url")) {
+                option = (Base64EncodeOption)((int)option | (int)Base64EncodeOption::URL);
+            } else if (optionValue.asString()->equals("base64")) {
+            } else {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid value for Uint8Array.prototype.toBase64 options");
+            }
+        }
+
+        optionValueGetResult = optionsValue.asObject()->get(state, ObjectPropertyName(state.context()->staticStrings().omitPadding));
+        if (optionValueGetResult.hasValue()) {
+            Value optionValue = optionValueGetResult.value(state, optionsValue);
+            if (optionValue.toBoolean()) {
+                option = (Base64EncodeOption)((int)option | (int)Base64EncodeOption::OmitPadding);
+            }
+        }
+    }
+
+    TypedArrayObject::validateTypedArray(state, thisValue);
+
+    auto ta = thisValue.asObject()->asTypedArrayObject();
+    return base64EncodeToString(ta->rawBuffer(), ta->arrayLength(), option, &state);
+}
+
 template <typename TA, int elementSize>
 FunctionObject* GlobalObject::installTypedArray(ExecutionState& state, AtomicString taName, Object** proto, FunctionObject* typedArrayFunction)
 {
@@ -2196,5 +2367,14 @@ void GlobalObject::installTypedArray(ExecutionState& state)
 
     FOR_EACH_TYPEDARRAY_TYPES(INSTALL_TYPEDARRAY)
 #undef INSTALL_TYPEDARRAY
+
+    m_uint8Array->directDefineOwnProperty(state, ObjectPropertyName(strings->fromBase64),
+                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromBase64, builtinUint8ArrayFromBase64, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_uint8ArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toBase64),
+                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toBase64, builtinUint8ArrayToBase64, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_uint8ArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->setFromBase64),
+                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->setFromBase64, builtinUint8ArraySetFromBase64, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

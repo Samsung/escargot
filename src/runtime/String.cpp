@@ -104,6 +104,11 @@ bool isASCIIAlphanumeric(char ch)
     return isASCIIAlpha(ch) || isASCIIDigit(ch);
 }
 
+bool isASCIIWhitespace(char character)
+{
+    return character == ' ' || character == '\n' || character == '\t' || character == '\r' || character == '\f';
+}
+
 bool isAllSpecialCharacters(const std::string& s, bool (*fn)(char))
 {
     bool isAllSpecial = true;
