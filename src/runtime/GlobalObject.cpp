@@ -224,23 +224,6 @@ Value GlobalObject::evalLocal(ExecutionState& state, const Value& arg, Value thi
     return arg;
 }
 
-static int parseDigit(char16_t c, int radix)
-{
-    int digit = -1;
-
-    if (c >= '0' && c <= '9')
-        digit = c - '0';
-    else if (c >= 'A' && c <= 'Z')
-        digit = c - 'A' + 10;
-    else if (c >= 'a' && c <= 'z')
-        digit = c - 'a' + 10;
-
-    if (digit >= radix)
-        return -1;
-
-    return digit;
-}
-
 static const int SizeOfInfinity = 8;
 
 static bool isInfinity(String* str, unsigned p, unsigned length)

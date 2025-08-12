@@ -2010,6 +2010,62 @@ static Value builtinTypedArrayAt(ExecutionState& state, Value thisValue, size_t 
     return obj->getIndexedPropertyValue(state, Value(Value::DoubleToIntConvertibleTestNeeds, relativeStart), thisValue);
 }
 
+template <typename T>
+std::tuple<bool, size_t, size_t> decodeHex(T* cursor, size_t srcLength, uint8_t* result, size_t resultLength)
+{
+    uint8_t* resultBegin = result;
+    uint8_t* resultEnd = result + resultLength;
+    T* begin = cursor;
+    T* end = cursor + srcLength;
+    for (; cursor < end; cursor += 2, result += 1) {
+        if (UNLIKELY(resultEnd == result)) {
+            return std::make_tuple(true, cursor - begin, result - resultBegin);
+        }
+        int r1 = parseDigit(*cursor, 16);
+        if (UNLIKELY(r1 == -1)) {
+            return std::make_tuple(false, cursor - begin, result - resultBegin);
+        }
+        int r2 = parseDigit(*(cursor + 1), 16);
+        if (UNLIKELY(r2 == -1)) {
+            return std::make_tuple(false, cursor - begin, result - resultBegin);
+        }
+        *result = (r1 * 16) + r2;
+    }
+    return std::make_tuple(true, cursor - begin, result - resultBegin);
+}
+
+static Value builtinUint8ArrayFromHex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!argv[0].isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Uint8Array.fromHex requires that input be an string");
+    }
+
+    String* string = argv[0].asString();
+    StringBufferAccessData bad = string->bufferAccessData();
+
+    if (bad.length % 2 == 1) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Invalid hex input");
+    }
+
+    size_t resultLength = bad.length / 2;
+    Uint8ArrayObject* obj = new Uint8ArrayObject(state);
+    ArrayBufferObject* abo = ArrayBufferObject::allocateArrayBuffer(state, state.context()->globalObject()->arrayBuffer(), resultLength);
+    obj->setBuffer(abo, 0, resultLength, resultLength);
+
+    std::tuple<bool, size_t, size_t> decodeResult;
+    if (bad.has8BitContent) {
+        decodeResult = decodeHex(bad.bufferAs8Bit, bad.length, obj->rawBuffer(), obj->arrayLength());
+    } else {
+        decodeResult = decodeHex(bad.bufferAs16Bit, bad.length, obj->rawBuffer(), obj->arrayLength());
+    }
+
+    if (!std::get<0>(decodeResult)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Invalid hex input");
+    }
+
+    return obj;
+}
+
 static Value builtinUint8ArrayFromBase64(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!argv[0].isString()) {
@@ -2068,6 +2124,69 @@ static Value builtinUint8ArrayFromBase64(ExecutionState& state, Value thisValue,
     obj->setBuffer(abo, 0, v.size(), v.size());
     memcpy(abo->data(), v.data(), v.size());
     return obj;
+}
+
+static Value builtinUint8ArraySetFromHex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject() || thisValue.asObject()->asTypedArrayObject()->typedArrayType() != TypedArrayType::Uint8) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Uint8Array.string(), true, state.context()->staticStrings().toBase64.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    if (!argv[0].isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Uint8Array.prototype.setFromHex requires that input be an string");
+    }
+
+    String* string = argv[0].asString();
+    StringBufferAccessData bad = string->bufferAccessData();
+    if (bad.length % 2 == 1) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Invalid hex input");
+    }
+
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    auto o = thisValue.asObject()->asTypedArrayObject();
+
+    if (!o->arrayLength()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Invalid Uint8Array length");
+    }
+
+    std::tuple<bool, size_t, size_t> decodeResult;
+    if (bad.has8BitContent) {
+        decodeResult = decodeHex(bad.bufferAs8Bit, bad.length, o->rawBuffer(), o->arrayLength());
+    } else {
+        decodeResult = decodeHex(bad.bufferAs16Bit, bad.length, o->rawBuffer(), o->arrayLength());
+    }
+
+    if (!std::get<0>(decodeResult)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::SyntaxError, "Invalid hex input");
+    }
+
+    Object* obj = new Object(state);
+
+    obj->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().read), ObjectPropertyDescriptor(Value(std::get<1>(decodeResult)), ObjectPropertyDescriptor::AllPresent));
+    obj->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().written), ObjectPropertyDescriptor(Value(std::get<2>(decodeResult)), ObjectPropertyDescriptor::AllPresent));
+
+    return obj;
+}
+
+static Value builtinUint8ArrayToHex(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!thisValue.isObject() || !thisValue.asObject()->isTypedArrayObject() || thisValue.asObject()->asTypedArrayObject()->typedArrayType() != TypedArrayType::Uint8) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().Uint8Array.string(), true, state.context()->staticStrings().toBase64.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+    }
+
+    TypedArrayObject::validateTypedArray(state, thisValue);
+    auto o = thisValue.asObject()->asTypedArrayObject();
+
+    constexpr char radixDigits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+    uint8_t* end = o->rawBuffer() + o->arrayLength();
+    LargeStringBuilder builder;
+    for (uint8_t* cursor = o->rawBuffer(); cursor < end; cursor++) {
+        auto character = *cursor;
+        builder.appendChar(radixDigits[character / 16], &state);
+        builder.appendChar(radixDigits[character % 16], &state);
+    }
+
+    return builder.finalize(&state);
 }
 
 static Value builtinUint8ArraySetFromBase64(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -2368,13 +2487,22 @@ void GlobalObject::installTypedArray(ExecutionState& state)
     FOR_EACH_TYPEDARRAY_TYPES(INSTALL_TYPEDARRAY)
 #undef INSTALL_TYPEDARRAY
 
+    m_uint8Array->directDefineOwnProperty(state, ObjectPropertyName(strings->fromHex),
+                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromHex, builtinUint8ArrayFromHex, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_uint8Array->directDefineOwnProperty(state, ObjectPropertyName(strings->fromBase64),
                                           ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->fromBase64, builtinUint8ArrayFromBase64, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_uint8ArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toHex),
+                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toHex, builtinUint8ArrayToHex, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_uint8ArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->setFromHex),
+                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->setFromHex, builtinUint8ArraySetFromHex, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_uint8ArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toBase64),
                                                    ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toBase64, builtinUint8ArrayToBase64, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_uint8ArrayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->setFromBase64),
-                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->setFromBase64, builtinUint8ArraySetFromBase64, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+                                                   ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->setFromBase64, builtinUint8ArraySetFromBase64, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 } // namespace Escargot

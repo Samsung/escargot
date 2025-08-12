@@ -224,6 +224,7 @@ namespace Escargot {
     F(fromCharCode)               \
     F(fromCodePoint)              \
     F(fromEntries)                \
+    F(fromHex)                    \
     F(fround)                     \
     F(function)                   \
     F(f16round)                   \
@@ -392,6 +393,7 @@ namespace Escargot {
     F(setFloat32)                 \
     F(setFloat64)                 \
     F(setFromBase64)              \
+    F(setFromHex)                 \
     F(setFullYear)                \
     F(setHours)                   \
     F(setInt16)                   \
@@ -454,6 +456,7 @@ namespace Escargot {
     F(toExponential)              \
     F(toFixed)                    \
     F(toGMTString)                \
+    F(toHex)                      \
     F(toISOString)                \
     F(toJSON)                     \
     F(toLocaleDateString)         \
