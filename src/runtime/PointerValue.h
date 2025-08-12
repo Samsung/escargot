@@ -88,6 +88,7 @@ class TemporalTimeZoneObject;
 class TypedArrayObject;
 class ModuleNamespaceObject;
 class SharedArrayBufferObject;
+class ShadowRealmObject;
 #if defined(ENABLE_INTL)
 class IntlLocaleObject;
 class IntlPluralRulesObject;
@@ -270,6 +271,11 @@ public:
     }
 
     virtual bool isScriptClassConstructorFunctionObject() const
+    {
+        return false;
+    }
+
+    virtual bool isShadowRealmObject() const
     {
         return false;
     }
@@ -727,6 +733,13 @@ public:
         return (ScriptClassConstructorPrototypeObject*)this;
     }
 
+#if defined(ESCARGOT_ENABLE_SHADOWREALM)
+    ShadowRealmObject* asShadowRealmObject()
+    {
+        ASSERT(isShadowRealmObject());
+        return (ShadowRealmObject*)this;
+    }
+#endif
     StringObject* asStringObject()
     {
         ASSERT(isStringObject());

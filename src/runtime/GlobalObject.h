@@ -207,6 +207,15 @@ class FunctionObject;
     F(set, FunctionObject, objName)          \
     F(setPrototypeObject, Object, objName)   \
     F(setIteratorPrototype, Object, objName)
+
+#if defined(ESCARGOT_ENABLE_SHADOWREALM)
+#define GLOBALOBJECT_BUILTIN_SHADOWREALM(F, objName) \
+    F(shadowRealm, FunctionObject, objName)          \
+    F(shadowRealmPrototype, Object, objName)
+#else
+#define GLOBALOBJECT_BUILTIN_SHADOWREALM(F, objName)
+#endif
+
 #define GLOBALOBJECT_BUILTIN_STRING(F, objName) \
     F(string, FunctionObject, objName)          \
     F(stringPrototype, Object, objName)         \
@@ -329,6 +338,7 @@ class FunctionObject;
     F(REFLECT, Reflect, ARG)                             \
     F(REGEXP, RegExp, ARG)                               \
     F(SET, Set, ARG)                                     \
+    F(SHADOWREALM, ShadowRealm, ARG)                     \
     F(SHAREDARRAYBUFFER, SharedArrayBuffer, ARG)         \
     F(STRING, String, ARG)                               \
     F(SYMBOL, Symbol, ARG)                               \
@@ -339,7 +349,6 @@ class FunctionObject;
     F(WEAKSET, WeakSet, ARG)                             \
     F(WEAKREF, WeakRef, ARG)                             \
     F(WASM, WebAssembly, ARG)
-
 
 #define DECLARE_BUILTIN_ALL_LIST(OBJNAME, objName, ARG) \
     GLOBALOBJECT_BUILTIN_##OBJNAME(ARG, objName)
