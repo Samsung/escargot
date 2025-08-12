@@ -813,8 +813,12 @@ static void setTypedArrayFromTypedArray(ExecutionState& state, TypedArrayObject*
         // Let srcByteLength be TypedArrayByteLength(srcRecord).
         size_t srcByteLength = source->byteLength();
         // Set srcBuffer to ? CloneArrayBuffer(srcBuffer, srcByteOffset, srcByteLength).
+#if defined(ENABLE_THREADING)
         srcBuffer = ArrayBufferObject::cloneArrayBuffer(state, srcBuffer, srcByteOffset, srcByteLength,
                                                         srcBuffer->isSharedArrayBufferObject() ? state.context()->globalObject()->sharedArrayBuffer() : state.context()->globalObject()->arrayBuffer());
+#else
+        srcBuffer = ArrayBufferObject::cloneArrayBuffer(state, srcBuffer, srcByteOffset, srcByteLength, state.context()->globalObject()->arrayBuffer());
+#endif
         // Let srcByteIndex be 0.
         srcByteIndex = 0;
     } else {
