@@ -781,6 +781,7 @@
   'invalid-lhs': [SKIP],
   'es6/string-iterator': [SKIP],
   'es6/iterator-prototype': [SKIP],
+  'es6/typedarray-proto': [SKIP],
 
   # can't set prototype of this object
   'getter-in-prototype': [SKIP],
