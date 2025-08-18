@@ -102,25 +102,31 @@ public:
         m_value = (size_t)AtomicString().string();
     }
 
-    ASTBlockContextNameInfo(AtomicString name, bool isConstBinding)
+    ASTBlockContextNameInfo(AtomicString name, bool isConstBinding, bool isUsingBinding)
     {
         m_value = (size_t)name.string();
         m_value |= isConstBinding ? 1 : 0;
+        m_value |= isUsingBinding ? 2 : 0;
     }
 
     AtomicString name() const
     {
-        return AtomicString((String *)((size_t)m_value & ~1));
+        return AtomicString((String *)((size_t)m_value & ~(1 | 2)));
     }
 
     void setName(AtomicString name)
     {
-        m_value = (size_t)name.string() | isConstBinding();
+        m_value = (size_t)name.string() | isConstBinding() | isUsingBinding();
     }
 
     bool isConstBinding() const
     {
         return m_value & 1;
+    }
+
+    bool isUsingBinding() const
+    {
+        return m_value & 2;
     }
 
     void setIsConstBinding(bool v)
@@ -545,7 +551,7 @@ struct ASTScopeContext {
         return newContext;
     }
 
-    bool insertNameAtBlock(AtomicString name, LexicalBlockIndex blockIndex, bool isConstBinding)
+    bool insertNameAtBlock(AtomicString name, LexicalBlockIndex blockIndex, bool isConstBinding, bool isUsingBinding)
     {
         ASTBlockContext *blockContext = findBlockFromBackward(blockIndex);
         for (size_t i = 0; i < blockContext->m_names.size(); i++) {
@@ -554,7 +560,7 @@ struct ASTScopeContext {
             }
         }
 
-        blockContext->m_names.push_back(ASTBlockContextNameInfo(name, isConstBinding));
+        blockContext->m_names.push_back(ASTBlockContextNameInfo(name, isConstBinding, isUsingBinding));
         return true;
     }
 

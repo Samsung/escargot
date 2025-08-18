@@ -47,6 +47,7 @@
 #include "runtime/ScriptGeneratorFunctionObject.h"
 #include "runtime/ScriptAsyncFunctionObject.h"
 #include "runtime/ScriptAsyncGeneratorFunctionObject.h"
+#include "runtime/DisposableObject.h"
 #include "parser/Script.h"
 #include "parser/ScriptParser.h"
 #include "CheckedArithmetic.h"
@@ -193,6 +194,9 @@ public:
     static void ensureArgumentsObjectOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, Value* registerFile);
 
     static int evaluateImportWithOperation(ExecutionState& state, const Value& options);
+
+    static void initializeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter);
+    static void finalizeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter);
 
 #if defined(ENABLE_TCO)
     static Value tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, ByteCodeBlock* byteCodeBlock, const Value& callee, Value* registerFile);
@@ -1532,6 +1536,20 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
             StoreByNameWithAddress* code = (StoreByNameWithAddress*)programCounter;
             InterpreterSlowPath::storeByNameWithAddress(*state, code, registerFile);
             ADD_PROGRAM_COUNTER(StoreByNameWithAddress);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(InitializeDisposable)
+            :
+        {
+            InterpreterSlowPath::initializeDisposable(*state, registerFile, programCounter);
+            NEXT_INSTRUCTION();
+        }
+
+        DEFINE_OPCODE(FinalizeDisposable)
+            :
+        {
+            InterpreterSlowPath::finalizeDisposable(*state, registerFile, programCounter);
             NEXT_INSTRUCTION();
         }
 
@@ -3255,7 +3273,7 @@ NEVER_INLINE Value InterpreterSlowPath::tryOperation(ExecutionState*& state, siz
     const bool isTryResumeProcess = code->m_isTryResumeProcess;
 
     const bool shouldUseHeapAllocatedState = inPauserScope && !inPauserResumeProcess;
-    ExecutionState* newState;
+    ExtendedExecutionState* newState;
 
     if (UNLIKELY(shouldUseHeapAllocatedState)) {
         newState = new ExtendedExecutionState(state, state->lexicalEnvironment(), state->inStrictMode());
@@ -3714,7 +3732,7 @@ NEVER_INLINE Value InterpreterSlowPath::openLexicalEnvironment(ExecutionState*& 
     OpenLexicalEnvironment* code = (OpenLexicalEnvironment*)programCounter;
     bool inWithStatement = code->m_kind == OpenLexicalEnvironment::WithStatement;
 
-    ExecutionState* newState = nullptr;
+    ExtendedExecutionState* newState = nullptr;
 
     if (LIKELY(inWithStatement)) {
         // with statement case
@@ -3797,7 +3815,11 @@ NEVER_INLINE void InterpreterSlowPath::replaceBlockLexicalEnvironmentOperation(E
     InterpretedCodeBlock::BlockInfo* blockInfo = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(code->m_blockInfo);
     ASSERT(blockInfo && blockInfo->shouldAllocateEnvironment());
     if (LIKELY(shouldUseIndexedStorage)) {
-        newRecord = new DeclarativeEnvironmentRecordIndexed(state, blockInfo);
+        if (byteCodeBlock->m_codeBlock->canAllocateEnvironmentOnStack()) {
+            newRecord = new (alloca(sizeof(DeclarativeEnvironmentRecordIndexedOnStack))) DeclarativeEnvironmentRecordIndexedOnStack(state, blockInfo);
+        } else {
+            newRecord = new DeclarativeEnvironmentRecordIndexed(state, blockInfo);
+        }
     } else {
         newRecord = new DeclarativeEnvironmentRecordNotIndexed(state);
 
@@ -3830,7 +3852,11 @@ NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, B
         InterpretedCodeBlock::BlockInfo* blockInfo = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(code->m_blockInfo);
         ASSERT(blockInfo->shouldAllocateEnvironment());
         if (LIKELY(shouldUseIndexedStorage)) {
-            newRecord = new DeclarativeEnvironmentRecordIndexed(*state, blockInfo);
+            if (byteCodeBlock->m_codeBlock->canAllocateEnvironmentOnStack()) {
+                newRecord = new (alloca(sizeof(DeclarativeEnvironmentRecordIndexedOnStack))) DeclarativeEnvironmentRecordIndexedOnStack(*state, blockInfo);
+            } else {
+                newRecord = new DeclarativeEnvironmentRecordIndexed(*state, blockInfo);
+            }
         } else {
             newRecord = new DeclarativeEnvironmentRecordNotIndexed(*state, false, blockInfo->fromCatchClauseNode());
 
@@ -3840,15 +3866,24 @@ NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, B
                 newRecord->createBinding(*state, iv[i].m_name, false, iv[i].m_isMutable, false);
             }
         }
-        newEnv = new LexicalEnvironment(newRecord, state->lexicalEnvironment());
-        ASSERT(newEnv->isAllocatedOnHeap());
+        if (LIKELY(blockInfo->canAllocateEnvironmentOnStack())) {
+            newEnv = new (alloca(sizeof(LexicalEnvironment))) LexicalEnvironment(newRecord, state->lexicalEnvironment()
+#ifndef NDEBUG
+                                                                                                ,
+                                                                                 false
+#endif
+            );
+        } else {
+            newEnv = new LexicalEnvironment(newRecord, state->lexicalEnvironment());
+            ASSERT(newEnv->isAllocatedOnHeap());
+        }
     } else {
         newRecord = nullptr;
         newEnv = nullptr;
     }
 
     bool shouldUseHeapAllocatedState = inPauserScope && !inPauserResumeProcess;
-    ExecutionState* newState;
+    ExtendedExecutionState* newState;
     if (UNLIKELY(shouldUseHeapAllocatedState)) {
         newState = new ExtendedExecutionState(state, newEnv, state->inStrictMode());
     } else {
@@ -3864,6 +3899,7 @@ NEVER_INLINE Value InterpreterSlowPath::blockOperation(ExecutionState*& state, B
     }
 
     Interpreter::interpret(newState, byteCodeBlock, newPc, registerFile);
+
     if (newState->inExecutionStopState() || (inPauserResumeProcess && newState->parent()->inExecutionStopState())) {
         return Value();
     }
@@ -4694,6 +4730,94 @@ NEVER_INLINE Value InterpreterSlowPath::decrementOperationSlowCase(ExecutionStat
     } else {
         return Value(Value::DoubleToIntConvertibleTestNeeds, value.toNumber(state) - 1);
     }
+}
+
+NEVER_INLINE void InterpreterSlowPath::initializeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter)
+{
+    InitializeDisposable* code = (InitializeDisposable*)programCounter;
+
+    if (registerFile[code->m_dstRegisterIndex].isUndefined()) {
+        registerFile[code->m_dstRegisterIndex] = new DisposableResourceRecord;
+    }
+    DisposableResourceRecord* record = registerFile[code->m_dstRegisterIndex].asPointerValue()->asDisposableResourceRecord();
+    record->m_records.pushBack(createDisposableResource(state, registerFile[code->m_srcRegisterIndex], false, NullOption));
+    ADD_PROGRAM_COUNTER(InitializeDisposable);
+}
+
+NEVER_INLINE void InterpreterSlowPath::finalizeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter)
+{
+    FinalizeDisposable* code = (FinalizeDisposable*)programCounter;
+    if (!registerFile[code->m_dataRegisterIndex].isUndefined()) {
+        DisposableResourceRecord* data = registerFile[code->m_dataRegisterIndex].asPointerValue()->asDisposableResourceRecord();
+        if (data->m_records.size()) {
+            DisposableResourceRecord::Record record = data->m_records.back();
+            data->m_records.pop_back();
+
+            // Let needsAwait be false.
+            // Let hasAwaited be false.
+            // For each element resource of disposeCapability.[[DisposableResourceStack]], in reverse list order, do
+
+            // Let value be resource.[[ResourceValue]].
+            Value value = record.m_resourceValue;
+            // Let hint be resource.[[Hint]].
+            // Let method be resource.[[DisposeMethod]].
+            Value method = record.m_disposbleMethod;
+            // If hint is sync-dispose and needsAwait is true and hasAwaited is false, then
+            if (!record.m_isAsyncDisposableResource && data->m_needsAwait) {
+                // TODO
+                // Perform ! Await(undefined).
+                // Set needsAwait to false.
+            }
+            // If method is not undefined, then
+            if (!method.isUndefined()) {
+                // Let result be Completion(Call(method, value)).
+                try {
+                    Object::call(state, method, value, 0, nullptr);
+                    // If result is a normal completion and hint is async-dispose, then
+                    if (record.m_isAsyncDisposableResource) {
+                        // TODO
+                        // Set result to Completion(Await(result.[[Value]])).
+                        // Set hasAwaited to true.
+                        data->m_hasAwaited = true;
+                    }
+                } catch (const Value& error) {
+                    // If result is a throw completion, then
+                    // If completion is a throw completion, then
+                    ASSERT(state.hasRareData());
+                    if (state.rareData()->controlFlowRecordVector()->back()
+                        && state.rareData()->controlFlowRecordVector()->back()->reason() == ControlFlowRecord::NeedsThrow) {
+                        // Set result to result.[[Value]].
+                        // Let suppressed be completion.[[Value]].
+                        // Let error be a newly created SuppressedError object.
+                        // Perform CreateNonEnumerableDataPropertyOrThrow(error, "error", result).
+                        // Perform CreateNonEnumerableDataPropertyOrThrow(error, "suppressed", suppressed).
+                        auto supressedError = new SuppressedErrorObject(state, state.context()->globalObject()->suppressedErrorPrototype(),
+                                                                        new ASCIIStringFromExternalMemory("An error was suppressed during disposal"),
+                                                                        true, true, error, state.rareData()->controlFlowRecordVector()->back()->value());
+                        // Set completion to ThrowCompletion(error).
+                        state.rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, supressedError);
+                    } else {
+                        // Else,
+                        // Set completion to result.
+                        state.rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, error);
+                    }
+                }
+            } else {
+                // Else,
+                // Assert: hint is async-dispose.
+                ASSERT(record.m_isAsyncDisposableResource);
+                // Set needsAwait to true.
+                // NOTE: This can only indicate a case where either null or undefined was the initialized value of an await using declaration.
+            }
+
+            // TODO If needsAwait is true and hasAwaited is false, then
+            // TODO Perform ! Await(undefined).
+            // TODO NOTE: After disposeCapability has been disposed, it will never be used again. The contents of disposeCapability.[[DisposableResourceStack]] can be discarded in implementations, such as by garbage collection, at this point.
+            // TODO Set disposeCapability.[[DisposableResourceStack]] to a new empty List.
+            // TODO Return ? completion.
+        }
+    }
+    ADD_PROGRAM_COUNTER(FinalizeDisposable);
 }
 
 NEVER_INLINE void InterpreterSlowPath::unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile)

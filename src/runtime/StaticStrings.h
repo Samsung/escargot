@@ -141,6 +141,7 @@ namespace Escargot {
     F(assert)                     \
     F(assign)                     \
     F(async)                      \
+    F(asyncDispose)               \
     F(asyncIterator)              \
     F(at)                         \
     F(atan)                       \
@@ -190,6 +191,7 @@ namespace Escargot {
     F(done)                       \
     F(dotAll)                     \
     F(difference)                 \
+    F(dispose)                    \
     F(drop)                       \
     F(encodeURI)                  \
     F(encodeURIComponent)         \
@@ -1035,6 +1037,7 @@ public:
     AtomicString stringTry;
     AtomicString stringTypeof;
     AtomicString stringUnion;
+    AtomicString stringUsing;
     AtomicString stringVoid;
     AtomicString stringWhile;
 #if defined(ENABLE_THREADING)

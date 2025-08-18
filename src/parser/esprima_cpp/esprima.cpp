@@ -1211,6 +1211,8 @@ public:
                 return this->parseIdentifierName(builder);
             } else if (!this->context->strict && this->matchKeyword(LetKeyword)) {
                 return this->parseIdentifierName(builder);
+            } else if (this->matchKeyword(UsingKeyword)) {
+                return this->parseIdentifierName(builder);
             } else {
                 this->context->isAssignmentTarget = false;
                 this->context->isBindingElement = false;
@@ -1360,7 +1362,7 @@ public:
                 if (this->context->inParameterParsing) {
                     this->currentScopeContext->m_functionBodyBlockIndex = 1;
                 }
-                if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
+                if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword || kind == KeywordKind::UsingKeyword) {
                     addDeclaredNameIntoContext(name, this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
                 }
                 shorthand = true;
@@ -1372,7 +1374,7 @@ public:
                 valueNode = this->finalize(this->startNode(keyToken), builder.createAssignmentPatternNode(keyNode, expr));
             } else if (!this->match(Colon)) {
                 params.push_back(*keyToken);
-                if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
+                if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword || kind == KeywordKind::UsingKeyword) {
                     addDeclaredNameIntoContext(name, this->lexicalBlockIndex, kind, isExplicitVariableDeclaration);
                 }
                 shorthand = true;
@@ -3607,6 +3609,24 @@ public:
             case ConstKeyword:
                 statement = this->parseVariableStatement(builder, KeywordKind::ConstKeyword);
                 break;
+            case UsingKeyword: {
+                bool canUseUsingAsDecl = this->context->inFunctionBody || this->sourceType == SourceType::Module || this->lexicalBlockIndex != 0;
+                if (canUseUsingAsDecl) {
+                    ScanState state = this->scanner->saveState();
+                    this->collectComments();
+                    ALLOC_TOKEN(next);
+                    this->scanner->lex(next);
+                    this->scanner->restoreState(state);
+                    if (next->lineNumber == this->lookahead.lineNumber) {
+                        statement = this->parseVariableStatement(builder, KeywordKind::UsingKeyword);
+                    } else {
+                        statement = this->parseStatement(builder);
+                    }
+                } else {
+                    statement = this->parseStatement(builder);
+                }
+                break;
+            }
             case LetKeyword:
                 // The `let` contextual keyword must not contain Unicode escape sequences
                 statement = (this->isLexicalDeclaration() && (this->lookahead.end - this->lookahead.start == 3)) ? this->parseLexicalDeclaration(builder, false) : this->parseStatement(builder);
@@ -3847,7 +3867,9 @@ public:
                 this->throwUnexpectedToken(*token);
             }
         } else if (token->type != Token::IdentifierToken) {
-            if (this->context->strict && token->type == Token::KeywordToken && token->isStrictModeReservedWord()) {
+            if (token->valueKeywordKind == KeywordKind::UsingKeyword) {
+                // always allow using keyword
+            } else if (this->context->strict && token->type == Token::KeywordToken && token->isStrictModeReservedWord()) {
                 this->throwUnexpectedToken(*token, Messages::StrictReservedWord);
             } else if (this->context->strict || token->type != Token::KeywordToken || !token->equalsToKeywordNoEscape(LetKeyword) || kind != VarKeyword) {
                 this->throwUnexpectedToken(*token);
@@ -3860,7 +3882,7 @@ public:
         }
 
         ASTNode id;
-        if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword) {
+        if (kind == KeywordKind::VarKeyword || kind == KeywordKind::LetKeyword || kind == KeywordKind::ConstKeyword || kind == KeywordKind::UsingKeyword) {
             TrackUsingNameBlocker blocker(this);
             id = finishIdentifier(builder, token);
 
@@ -3882,7 +3904,7 @@ public:
 
     void addDeclaredNameIntoContext(AtomicString name, LexicalBlockIndex blockIndex, KeywordKind kind, bool isExplicitVariableDeclaration = false)
     {
-        ASSERT(kind == VarKeyword || kind == LetKeyword || kind == ConstKeyword);
+        ASSERT(kind == VarKeyword || kind == LetKeyword || kind == ConstKeyword || kind == UsingKeyword);
 
         if (!this->isParsingSingleFunction) {
             /*
@@ -3907,7 +3929,8 @@ public:
             if (kind == VarKeyword) {
                 this->currentScopeContext->insertVarName(name, blockIndex, true, true);
             } else {
-                this->currentScopeContext->insertNameAtBlock(name, blockIndex, kind == ConstKeyword);
+                this->currentScopeContext->insertNameAtBlock(name, blockIndex,
+                                                             (kind == ConstKeyword) || (kind == UsingKeyword), kind == UsingKeyword);
             }
         }
 
@@ -6621,7 +6644,6 @@ public:
                     entry.m_exportName = this->escargotContext->staticStrings().stringDefault;
                     AtomicString fnName = declaration->asFunctionDeclaration()->functionName();
                     entry.m_localName = fnName.string()->length() ? fnName : this->escargotContext->staticStrings().stringStarDefaultStar;
-                    // addDeclaredNameIntoContext(entry.m_localName.value(), this->lexicalBlockIndex, KeywordKind::LetKeyword);
                     checkDuplicateExportName(this->moduleData->m_localExportEntries, entry.m_exportName.value());
                     addExportDeclarationEntry(entry);
                     exportDeclaration = this->finalize(node, builder.createExportDefaultDeclarationNode(declaration, entry.m_exportName.value(), entry.m_localName.value()));

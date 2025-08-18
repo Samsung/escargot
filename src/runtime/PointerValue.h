@@ -72,6 +72,7 @@ class AsyncGeneratorObject;
 class AsyncFromSyncIteratorObject;
 class GlobalObjectProxyObject;
 class PointerValue;
+struct DisposableResourceRecord;
 #if defined(ENABLE_TEMPORAL)
 class TemporalObject;
 class TemporalPlainDateObject;
@@ -504,6 +505,11 @@ public:
         return false;
     }
 
+    virtual bool isDisposableResourceRecord() const
+    {
+        return false;
+    }
+
 #if defined(ENABLE_INTL)
     virtual bool isIntlLocaleObject() const
     {
@@ -911,6 +917,12 @@ public:
     {
         ASSERT(isGlobalObjectProxyObject());
         return (GlobalObjectProxyObject*)this;
+    }
+
+    DisposableResourceRecord* asDisposableResourceRecord()
+    {
+        ASSERT(isDisposableResourceRecord());
+        return (DisposableResourceRecord*)this;
     }
 
 #if defined(ENABLE_THREADING)

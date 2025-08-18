@@ -762,6 +762,8 @@ public:
     SymbolRef* replaceSymbol();
     SymbolRef* splitSymbol();
     SymbolRef* asyncIteratorSymbol();
+    SymbolRef* disposeSymbol();
+    SymbolRef* asyncDisposeSymbol();
 
     bool hasPendingJob();
     Evaluator::EvaluatorResult executePendingJob();

@@ -1088,13 +1088,9 @@ Script::ModuleExecutionResult Script::moduleExecute(ExecutionState& state, Optio
     LexicalEnvironment* globalLexicalEnv = new LexicalEnvironment(
         new GlobalEnvironmentRecord(state, m_topCodeBlock, context()->globalObject(), context()->globalDeclarativeRecord(), context()->globalDeclarativeStorage()), nullptr);
 
-    ExecutionState* newState;
+    ExtendedExecutionState* newState;
     if (LIKELY(!m_topCodeBlock->isAsync())) {
-        if (byteCodeBlock->needsExtendedExecutionState()) {
-            newState = new (alloca(sizeof(ExtendedExecutionState))) ExtendedExecutionState(context());
-        } else {
-            newState = new (alloca(sizeof(ExecutionState))) ExecutionState(context());
-        }
+        newState = new (alloca(sizeof(ExtendedExecutionState))) ExtendedExecutionState(context());
     } else {
         newState = new ExtendedExecutionState(context(), nullptr, nullptr, 0, nullptr, false);
     }

@@ -190,6 +190,7 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
             const InterpretedCodeBlock::BlockIdentifierInfo& info = infoVector[j];
             m_buffer.put(info.m_needToAllocateOnStack);
             m_buffer.put(info.m_isMutable);
+            m_buffer.put(info.m_isUsing);
             m_buffer.put(info.m_indexForIndexedStorage);
             m_buffer.put(m_stringTable->add(info.m_name));
         }
@@ -757,6 +758,7 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
                 InterpretedCodeBlock::BlockIdentifierInfo idInfo;
                 idInfo.m_needToAllocateOnStack = m_buffer.get<bool>();
                 idInfo.m_isMutable = m_buffer.get<bool>();
+                idInfo.m_isUsing = m_buffer.get<bool>();
                 idInfo.m_indexForIndexedStorage = m_buffer.get<size_t>();
                 idInfo.m_name = m_stringTable->get(m_buffer.get<size_t>());
                 info->identifiers()[j] = idInfo;
