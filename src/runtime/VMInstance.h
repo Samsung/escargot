@@ -47,6 +47,7 @@ class CodeCache;
     F(hasInstance)               \
     F(isConcatSpreadable)        \
     F(iterator)                  \
+    F(asyncIterator)             \
     F(species)                   \
     F(split)                     \
     F(toPrimitive)               \
@@ -56,7 +57,8 @@ class CodeCache;
     F(match)                     \
     F(matchAll)                  \
     F(replace)                   \
-    F(asyncIterator)
+    F(dispose)                   \
+    F(asyncDispose)
 
 struct GlobalSymbols {
 #define DECLARE_GLOBAL_SYMBOLS(name) Symbol* name;

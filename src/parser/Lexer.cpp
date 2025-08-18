@@ -441,6 +441,8 @@ AtomicString keywordToString(::Escargot::Context* ctx, KeywordKind keyword)
         return ctx->staticStrings().as;
     case FromKeyword:
         return ctx->staticStrings().from;
+    case UsingKeyword:
+        return ctx->staticStrings().stringUsing;
     default:
         ASSERT_NOT_REACHED();
         return ctx->staticStrings().error;
@@ -2255,6 +2257,11 @@ static ALWAYS_INLINE KeywordKind getKeyword(const StringBufferAccessData& data)
             break;
         }
         break;
+    case 'u':
+        if (length == 5 && data.equalsSameLength("using", 1)) {
+            return UsingKeyword;
+        }
+        break;
     case 'v':
         if (length == 3 && data.equalsSameLength("var", 1)) {
             return VarKeyword;
@@ -2308,6 +2315,7 @@ ALWAYS_INLINE void Scanner::scanIdentifier(Scanner::ScannerResult* token, char32
             break;
         case YieldKeyword:
         case LetKeyword:
+        case UsingKeyword:
             token->setKeywordResult(this->lineNumber, this->lineStart, start, this->index, keywordKind);
             return;
         default:

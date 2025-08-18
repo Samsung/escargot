@@ -43,6 +43,7 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_isFunctionDeclarationBindingInitialization(false)
     , m_isVarDeclaredBindingInitialization(false)
     , m_isLexicallyDeclaredBindingInitialization(false)
+    , m_isUsingBindingInitialization(false)
     , m_canSkipCopyToRegister(true)
     , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
     , m_inCallingExpressionScope(false)
@@ -56,6 +57,7 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
 #endif
     , m_needsExtendedExecutionState(codeBlock->isAsync() || codeBlock->isGenerator())
     , m_registerStack(new std::vector<ByteCodeRegisterIndex>())
+    , m_disposableRecordRegisterStack(new std::vector<ByteCodeRegisterIndex>())
     , m_lexicallyDeclaredNames(new std::vector<std::pair<size_t, AtomicString>>())
     , m_positionToContinue(0)
     , m_lexicalBlockIndex(0)
@@ -883,6 +885,17 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
                 ASSERT(cd->m_operaton == TaggedTemplateOperation::FillCacheOperation);
                 ASSIGN_STACKINDEX_IF_NEEDED(cd->m_fillCacheOperationData.m_registerIndex, stackBase, stackBaseWillBe, stackVariableSize);
             }
+            break;
+        }
+        case InitializeDisposableOpcode: {
+            InitializeDisposable* cd = (InitializeDisposable*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_srcRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dstRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            break;
+        }
+        case FinalizeDisposableOpcode: {
+            FinalizeDisposable* cd = (FinalizeDisposable*)currentCode;
+            ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dataRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
             break;
         }
         default:

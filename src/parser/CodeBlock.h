@@ -218,6 +218,7 @@ public:
         bool m_isResultSaved : 1;
         bool m_isStackAllocated : 1;
         bool m_isMutable : 1;
+        bool m_isUsing : 1;
         bool m_isGlobalLexicalVariable : 1;
         enum DeclarationType ENSURE_ENUM_UNSIGNED {
             VarDeclared,
@@ -235,6 +236,7 @@ public:
             : m_isResultSaved(false)
             , m_isStackAllocated(false)
             , m_isMutable(false)
+            , m_isUsing(false)
             , m_isGlobalLexicalVariable(false)
             , m_type(VarDeclared)
             , m_blockIndex(LEXICAL_BLOCK_INDEX_MAX)
@@ -247,6 +249,7 @@ public:
     struct BlockIdentifierInfo {
         bool m_needToAllocateOnStack : 1;
         bool m_isMutable : 1;
+        bool m_isUsing : 1;
         size_t m_indexForIndexedStorage; // TODO reduce variable size into uint16_t.
         AtomicString m_name;
     };

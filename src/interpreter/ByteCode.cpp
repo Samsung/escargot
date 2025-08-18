@@ -284,13 +284,64 @@ void ByteCodeBlock::initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* 
     }
 }
 
+static TryStatementNode::TryStatementByteCodeContext initUsingBlock(ByteCodeBlock* byteCodeBlock, ByteCodeGenerateContext* context, size_t loc, InterpretedCodeBlock::BlockInfo* bi, size_t reg)
+{
+    TryStatementNode::TryStatementByteCodeContext tryCtx;
+    byteCodeBlock->pushCode(LoadLiteral(ByteCodeLOC(loc), reg, Value()), context, SIZE_MAX);
+    BlockStatementNode fakeNode(nullptr);
+    fakeNode.m_loc.index = loc;
+    TryStatementNode::generateTryStatementStartByteCode(byteCodeBlock, context, &fakeNode, tryCtx);
+
+    return tryCtx;
+}
+
+static void finalizeUsingBlock(ByteCodeBlock* byteCodeBlock, ByteCodeGenerateContext* context, size_t loc, InterpretedCodeBlock::BlockInfo* blockInfo, size_t reg, size_t tryStartPos)
+{
+    TryStatementNode::TryStatementByteCodeContext tryCtx;
+    tryCtx.tryStartPosition = tryStartPos;
+    BlockStatementNode fakeNode(nullptr);
+    fakeNode.m_loc.index = loc;
+    TryStatementNode::generateTryStatementBodyEndByteCode(byteCodeBlock, context, &fakeNode, tryCtx);
+    TryStatementNode::generateTryFinalizerStatementStartByteCode(byteCodeBlock, context, &fakeNode, tryCtx, true);
+
+    const auto& ids = blockInfo->identifiers();
+    for (size_t i = 0; i < ids.size(); i++) {
+        if (ids[i].m_isUsing) {
+            byteCodeBlock->pushCode(FinalizeDisposable(ByteCodeLOC(SIZE_MAX), reg), context, SIZE_MAX);
+        }
+    }
+
+    TryStatementNode::generateTryFinalizerStatementEndByteCode(byteCodeBlock, context, &fakeNode, tryCtx, true);
+
+    context->giveUpRegister();
+}
+
+
 ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, void* bi, Node* node, bool initFunctionDeclarationInside)
 {
     ASSERT(!!bi);
     InterpretedCodeBlock::BlockInfo* blockInfo = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(bi);
 
     ByteCodeBlock::ByteCodeLexicalBlockContext ctx;
+    ctx.loc = node->m_loc.index;
+    ctx.blockInfo = bi;
+#if defined(ENABLE_TCO)
+    ctx.tcoDisabledBefore = context->m_tcoDisabled;
+#endif
     ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
+
+    const auto& ids = blockInfo->identifiers();
+    for (size_t i = 0; i < ids.size(); i++) {
+        if (ids[i].m_isUsing) {
+#if defined(ENABLE_TCO)
+            // disable tco since meet using statement
+            context->m_tcoDisabled = true;
+#endif
+            context->m_disposableRecordRegisterStack->push_back(context->getRegister());
+            ctx.usingBlockTryStartPosition = initUsingBlock(this, context, ctx.loc, blockInfo, context->m_disposableRecordRegisterStack->back()).tryStartPosition;
+            break;
+        }
+    }
 
     if (blockInfo->shouldAllocateEnvironment()) {
         ctx.lexicalBlockSetupStartPosition = currentCodeSize();
@@ -303,13 +354,26 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
         initFunctionDeclarationWithinBlock(context, blockInfo, node);
     }
     ctx.lexicalBlockStartPosition = currentCodeSize();
-
     return ctx;
 }
 
 void ByteCodeBlock::finalizeLexicalBlock(ByteCodeGenerateContext* context, const ByteCodeBlock::ByteCodeLexicalBlockContext& ctx)
 {
+    InterpretedCodeBlock::BlockInfo* blockInfo = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(ctx.blockInfo);
+
+#if defined(ENABLE_TCO)
+    context->m_tcoDisabled = ctx.tcoDisabledBefore;
+#endif
     context->m_lexicallyDeclaredNames->resize(ctx.lexicallyDeclaredNamesCount);
+
+    const auto& ids = blockInfo->identifiers();
+    for (size_t i = 0; i < ids.size(); i++) {
+        if (ids[i].m_isUsing) {
+            finalizeUsingBlock(this, context, ctx.loc, blockInfo, context->m_disposableRecordRegisterStack->back(), ctx.usingBlockTryStartPosition);
+            context->m_disposableRecordRegisterStack->pop_back();
+            break;
+        }
+    }
 
     if (ctx.lexicalBlockSetupStartPosition == SIZE_MAX) {
         return;

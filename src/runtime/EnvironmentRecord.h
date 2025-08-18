@@ -404,9 +404,10 @@ public:
     }
 };
 
-class DeclarativeEnvironmentRecordIndexed : public DeclarativeEnvironmentRecord {
+template <const bool onHeap>
+class DeclarativeEnvironmentRecordIndexedImpl : public DeclarativeEnvironmentRecord {
 public:
-    DeclarativeEnvironmentRecordIndexed(ExecutionState& state, InterpretedCodeBlock::BlockInfo* blockInfo)
+    DeclarativeEnvironmentRecordIndexedImpl(ExecutionState& state, InterpretedCodeBlock::BlockInfo* blockInfo)
         : DeclarativeEnvironmentRecord()
         , m_blockInfo(blockInfo)
         , m_heapStorage()
@@ -423,8 +424,13 @@ public:
         m_heapStorage.resize(cnt, EncodedValueVectorElement(EncodedValueVectorElement::EmptyValue));
     }
 
-    ~DeclarativeEnvironmentRecordIndexed()
+    ~DeclarativeEnvironmentRecordIndexedImpl()
     {
+    }
+
+    virtual bool isAllocatedOnHeap() override
+    {
+        return onHeap;
     }
 
     virtual bool isDeclarativeEnvironmentRecordIndexed() override
@@ -451,7 +457,7 @@ public:
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
-                return GetBindingValueResult(DeclarativeEnvironmentRecordIndexed::getHeapValueByIndex(state, v[i].m_indexForIndexedStorage));
+                return GetBindingValueResult(DeclarativeEnvironmentRecordIndexedImpl::getHeapValueByIndex(state, v[i].m_indexForIndexedStorage));
             }
         }
         return GetBindingValueResult();
@@ -519,7 +525,7 @@ public:
 
         for (size_t i = 0; i < v.size(); i++) {
             if (v[i].m_name == name) {
-                DeclarativeEnvironmentRecordIndexed::setMutableBindingByIndex(state, v[i].m_indexForIndexedStorage, V);
+                DeclarativeEnvironmentRecordIndexedImpl::setMutableBindingByIndex(state, v[i].m_indexForIndexedStorage, V);
                 return;
             }
         }
@@ -544,10 +550,10 @@ public:
         static MAY_THREAD_LOCAL bool typeInited = false;
         static MAY_THREAD_LOCAL GC_descr descr;
         if (!typeInited) {
-            GC_word objBitmap[GC_BITMAP_SIZE(DeclarativeEnvironmentRecordIndexed)] = { 0 };
-            GC_set_bit(objBitmap, GC_WORD_OFFSET(DeclarativeEnvironmentRecordIndexed, m_blockInfo));
-            GC_set_bit(objBitmap, GC_WORD_OFFSET(DeclarativeEnvironmentRecordIndexed, m_heapStorage));
-            descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(DeclarativeEnvironmentRecordIndexed));
+            GC_word objBitmap[GC_BITMAP_SIZE(DeclarativeEnvironmentRecordIndexedImpl)] = { 0 };
+            GC_set_bit(objBitmap, GC_WORD_OFFSET(DeclarativeEnvironmentRecordIndexedImpl, m_blockInfo));
+            GC_set_bit(objBitmap, GC_WORD_OFFSET(DeclarativeEnvironmentRecordIndexedImpl, m_heapStorage));
+            descr = GC_make_descriptor(objBitmap, GC_WORD_LEN(DeclarativeEnvironmentRecordIndexedImpl));
             typeInited = true;
         }
         return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
@@ -556,6 +562,25 @@ public:
 private:
     InterpretedCodeBlock::BlockInfo* m_blockInfo;
     EncodedValueVector m_heapStorage;
+};
+
+class DeclarativeEnvironmentRecordIndexed : public DeclarativeEnvironmentRecordIndexedImpl<true> {
+public:
+    DeclarativeEnvironmentRecordIndexed(ExecutionState& state, InterpretedCodeBlock::BlockInfo* blockInfo)
+        : DeclarativeEnvironmentRecordIndexedImpl(state, blockInfo)
+    {
+    }
+};
+class DeclarativeEnvironmentRecordIndexedOnStack : public DeclarativeEnvironmentRecordIndexedImpl<false> {
+public:
+    DeclarativeEnvironmentRecordIndexedOnStack(ExecutionState& state, InterpretedCodeBlock::BlockInfo* blockInfo)
+        : DeclarativeEnvironmentRecordIndexedImpl(state, blockInfo)
+    {
+    }
+    void* operator new(size_t size, void* ptr)
+    {
+        return ptr;
+    }
 };
 
 // NOTE

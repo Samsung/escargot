@@ -175,6 +175,7 @@ void InterpretedCodeBlock::initBlockScopeInformation(ASTScopeContext* scopeCtx)
                 BlockIdentifierInfo idInfo;
                 idInfo.m_needToAllocateOnStack = m_canUseIndexedVariableStorage && !everyVariablesShouldUseHeapStorage;
                 idInfo.m_isMutable = !blockScopes[i]->m_names[j].isConstBinding();
+                idInfo.m_isUsing = blockScopes[i]->m_names[j].isUsingBinding();
                 idInfo.m_indexForIndexedStorage = SIZE_MAX;
                 idInfo.m_name = blockScopes[i]->m_names[j].name();
                 info->identifiers()[j] = idInfo;
@@ -570,7 +571,6 @@ void InterpretedCodeBlock::computeBlockVariables(LexicalBlockIndex currentBlockI
         }
     }
 
-    // if there is no heap indexed variable, we can skip allocate env
     bool isThereHeapVariable = false;
     for (size_t i = 0; i < bi->identifiers().size(); i++) {
         if (!bi->identifiers()[i].m_needToAllocateOnStack) {
@@ -880,6 +880,7 @@ InterpretedCodeBlock::IndexedIdentifierInfo InterpretedCodeBlock::indexedIdentif
                     }
                     info.m_upperIndex = upperIndex;
                     info.m_isMutable = bi->identifiers()[i].m_isMutable;
+                    info.m_isUsing = bi->identifiers()[i].m_isUsing;
                     info.m_type = IndexedIdentifierInfo::DeclarationType::LexicallyDeclared;
                     info.m_blockIndex = bi->blockIndex();
 

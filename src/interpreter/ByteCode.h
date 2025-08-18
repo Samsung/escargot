@@ -135,6 +135,8 @@ struct GlobalVariableAccessCacheItem;
     F(BindingCalleeIntoRegister)                      \
     F(ResolveNameAddress)                             \
     F(StoreByNameWithAddress)                         \
+    F(InitializeDisposable)                           \
+    F(FinalizeDisposable)                             \
     F(FillOpcodeTable)                                \
     F(End)
 
@@ -3150,6 +3152,42 @@ public:
 #endif
 };
 
+class InitializeDisposable : public ByteCode {
+public:
+    InitializeDisposable(const ByteCodeLOC& loc, const size_t srcRegisterIndex, const size_t dstRegisterIndex)
+        : ByteCode(Opcode::InitializeDisposableOpcode, loc)
+        , m_srcRegisterIndex(srcRegisterIndex)
+        , m_dstRegisterIndex(dstRegisterIndex)
+    {
+    }
+    ByteCodeRegisterIndex m_srcRegisterIndex;
+    ByteCodeRegisterIndex m_dstRegisterIndex;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("initialize disposable r%u <- r%u", m_dstRegisterIndex, m_srcRegisterIndex);
+    }
+#endif
+};
+
+class FinalizeDisposable : public ByteCode {
+public:
+    FinalizeDisposable(const ByteCodeLOC& loc, const size_t dataRegisterIndex)
+        : ByteCode(Opcode::FinalizeDisposableOpcode, loc)
+        , m_dataRegisterIndex(dataRegisterIndex)
+    {
+    }
+    ByteCodeRegisterIndex m_dataRegisterIndex;
+
+#ifndef NDEBUG
+    void dump()
+    {
+        printf("finalize disposable r%u", m_dataRegisterIndex);
+    }
+#endif
+};
+
 class FillOpcodeTable : public ByteCode {
 public:
     explicit FillOpcodeTable(const ByteCodeLOC& loc)
@@ -3241,16 +3279,28 @@ public:
     }
 
     struct ByteCodeLexicalBlockContext {
+        size_t loc;
         size_t lexicalBlockSetupStartPosition;
         size_t lexicalBlockStartPosition;
         size_t lexicallyDeclaredNamesCount;
         size_t lexicallyDeclaredNamesCountBefore;
+        size_t usingBlockTryStartPosition;
+        void* blockInfo;
+#if defined(ENABLE_TCO)
+        bool tcoDisabledBefore;
+#endif
 
         ByteCodeLexicalBlockContext()
-            : lexicalBlockSetupStartPosition(SIZE_MAX)
+            : loc(SIZE_MAX)
+            , lexicalBlockSetupStartPosition(SIZE_MAX)
             , lexicalBlockStartPosition(SIZE_MAX)
             , lexicallyDeclaredNamesCount(SIZE_MAX)
             , lexicallyDeclaredNamesCountBefore(SIZE_MAX)
+            , usingBlockTryStartPosition(SIZE_MAX)
+            , blockInfo(nullptr)
+#if defined(ENABLE_TCO)
+            , tcoDisabledBefore(false)
+#endif
         {
         }
     };

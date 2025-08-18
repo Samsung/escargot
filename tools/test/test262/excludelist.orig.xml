@@ -339,8 +339,6 @@
     <test id="built-ins/String/prototype/split/cstm-split-on-boolean-primitive"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/split/cstm-split-on-number-primitive"><reason>TODO</reason></test>
     <test id="built-ins/String/prototype/split/cstm-split-on-string-primitive"><reason>TODO</reason></test>
-    <test id="built-ins/Symbol/asyncDispose/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/Symbol/dispose/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Duration/basic"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Duration/builtin"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Duration/call-builtin"><reason>TODO</reason></test>
@@ -5329,7 +5327,6 @@
     <test id="language/statements/try/completion-values"><reason>TODO</reason></test>
     <test id="language/statements/try/early-catch-function"><reason>TODO</reason></test>
     <test id="language/statements/try/early-catch-lex"><reason>TODO</reason></test>
-    <test id="language/statements/using/throws-if-initializer-not-object"><reason>TODO</reason></test>
     <test id="language/statements/with/get-binding-value-call-with-proxy-env"><reason>TODO</reason></test>
     <test id="language/statements/with/get-binding-value-idref-with-proxy-env"><reason>TODO</reason></test>
     <test id="language/statements/with/get-mutable-binding-binding-deleted-in-get-unscopables"><reason>TODO</reason></test>
@@ -5402,7 +5399,6 @@
     <test id="staging/built-ins/Reflect/preventExtensions/preventExtensions-variable-length-typed-arrays"><reason>TODO</reason></test>
     <test id="staging/decorators/private-auto-accessor"><reason>TODO</reason></test>
     <test id="staging/decorators/public-auto-accessor"><reason>TODO</reason></test>
-    <test id="staging/explicit-resource-management/Symbol/dispose/prop-desc"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/async-disposable-stack-adopt-and-defer-not-callable"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/async-disposable-stack-constructor-and-prototype"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/async-disposable-stack-move"><reason>TODO</reason></test>
@@ -5439,7 +5435,6 @@
     <test id="staging/explicit-resource-management/disposable-stack-move"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/disposable-stack-re-entry"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/disposable-stack-use-and-dispose"><reason>TODO</reason></test>
-    <test id="staging/explicit-resource-management/exception-handling"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/mixed-call-dispose-methods"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/using-with-null-or-undefined"><reason>TODO</reason></test>
     <test id="staging/sm/Array/fill"><reason>TODO</reason></test>

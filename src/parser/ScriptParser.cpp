@@ -759,9 +759,14 @@ void ScriptParser::dumpCodeBlockTree(InterpretedCodeBlock* topCodeBlock)
             printf("Names : ");
 
             for (size_t j = 0; j < cb->m_blockInfos[i]->identifiers().size(); j++) {
+                std::string kind = cb->m_blockInfos[i]->identifiers()[j].m_isMutable ? "Mutable" : "Inmmutable";
+                if (cb->m_blockInfos[i]->identifiers()[j].m_isUsing) {
+                    kind += "+Using";
+                }
+
                 printf("%s(%s, %s, %d), ", cb->m_blockInfos[i]->identifiers()[j].m_name.string()->toUTF8StringData().data(),
                        cb->m_blockInfos[i]->identifiers()[j].m_needToAllocateOnStack ? "Stack" : "Heap",
-                       cb->m_blockInfos[i]->identifiers()[j].m_isMutable ? "Mutable" : "Inmmutable",
+                       kind.data(),
                        (int)cb->m_blockInfos[i]->identifiers()[j].m_indexForIndexedStorage);
             }
 

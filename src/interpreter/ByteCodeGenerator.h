@@ -83,6 +83,7 @@ struct ByteCodeGenerateContext {
         , m_isFunctionDeclarationBindingInitialization(contextBefore.m_isFunctionDeclarationBindingInitialization)
         , m_isVarDeclaredBindingInitialization(contextBefore.m_isVarDeclaredBindingInitialization)
         , m_isLexicallyDeclaredBindingInitialization(contextBefore.m_isLexicallyDeclaredBindingInitialization)
+        , m_isUsingBindingInitialization(contextBefore.m_isUsingBindingInitialization)
         , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
         , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
@@ -96,6 +97,7 @@ struct ByteCodeGenerateContext {
 #endif
         , m_needsExtendedExecutionState(contextBefore.m_needsExtendedExecutionState)
         , m_registerStack(contextBefore.m_registerStack)
+        , m_disposableRecordRegisterStack(contextBefore.m_disposableRecordRegisterStack)
         , m_lexicallyDeclaredNames(contextBefore.m_lexicallyDeclaredNames)
         , m_positionToContinue(contextBefore.m_positionToContinue)
         , m_recursiveStatementStack(contextBefore.m_recursiveStatementStack)
@@ -345,6 +347,7 @@ struct ByteCodeGenerateContext {
     bool m_isFunctionDeclarationBindingInitialization : 1;
     bool m_isVarDeclaredBindingInitialization : 1;
     bool m_isLexicallyDeclaredBindingInitialization : 1;
+    bool m_isUsingBindingInitialization : 1;
     bool m_canSkipCopyToRegister : 1;
     bool m_keepNumberalLiteralsInRegisterFile : 1;
     bool m_inCallingExpressionScope : 1;
@@ -359,6 +362,7 @@ struct ByteCodeGenerateContext {
     bool m_needsExtendedExecutionState : 1;
 
     std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_registerStack;
+    std::shared_ptr<std::vector<ByteCodeRegisterIndex>> m_disposableRecordRegisterStack;
     std::shared_ptr<std::vector<std::pair<size_t, AtomicString>>> m_lexicallyDeclaredNames;
     std::vector<AtomicString> m_initializedParameterNames;
     std::vector<size_t> m_breakStatementPositions;

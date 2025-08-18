@@ -160,6 +160,7 @@ enum KeywordKind : uint8_t {
     StaticKeyword,
     YieldKeyword,
     LetKeyword,
+    UsingKeyword,
     OtherKeyword, // Other keywords, which can be identifiers or tokens
     NullKeyword,
     TrueKeyword,

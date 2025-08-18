@@ -63,9 +63,11 @@ public:
             m_id->generateResolveAddressByteCode(codeBlock, context);
             m_init->generateExpressionByteCode(codeBlock, context, r);
             context->m_isLexicallyDeclaredBindingInitialization = m_kind != EscargotLexer::KeywordKind::VarKeyword;
+            context->m_isUsingBindingInitialization = m_kind == EscargotLexer::KeywordKind::UsingKeyword;
             m_id->generateStoreByteCode(codeBlock, context, r, false);
             context->giveUpRegister();
             ASSERT(!context->m_isLexicallyDeclaredBindingInitialization);
+            ASSERT(!context->m_isUsingBindingInitialization);
             context->giveUpRegister();
         }
 

@@ -82,12 +82,31 @@ public:
         }
     }
 
+    void initUsingVariable(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister,
+                           bool isLexicallyDeclaredBindingInitialization, bool isUsingBindingInitialization)
+    {
+        if (isLexicallyDeclaredBindingInitialization && isUsingBindingInitialization) {
+            auto* bi = context->m_codeBlock->blockInfo(context->m_lexicalBlockIndex);
+            size_t i;
+            for (i = 0; i < bi->identifiers().size(); i++) {
+                if (bi->identifiers()[i].m_name == m_name) {
+                    ASSERT(bi->identifiers()[i].m_isUsing);
+                    break;
+                }
+            }
+            ASSERT(i != bi->identifiers().size());
+            codeBlock->pushCode(InitializeDisposable(ByteCodeLOC(m_loc.index), srcRegister, context->m_disposableRecordRegisterStack->back()), context, this->m_loc.index);
+        }
+    }
+
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex srcRegister, bool needToReferenceSelf) override
     {
         bool isLexicallyDeclaredBindingInitialization = context->m_isLexicallyDeclaredBindingInitialization;
+        bool isUsingBindingInitialization = context->m_isUsingBindingInitialization;
         bool isFunctionDeclarationBindingInitialization = context->m_isFunctionDeclarationBindingInitialization;
         bool isVarDeclaredBindingInitialization = context->m_isVarDeclaredBindingInitialization;
         context->m_isLexicallyDeclaredBindingInitialization = false;
+        context->m_isUsingBindingInitialization = false;
         context->m_isFunctionDeclarationBindingInitialization = false;
         context->m_isVarDeclaredBindingInitialization = false;
 
@@ -154,6 +173,7 @@ public:
                         if (isLexicallyDeclaredBindingInitialization || isVarDeclaredBindingInitialization) {
                             if (LIKELY(info.m_upperIndex == 0)) {
                                 codeBlock->pushCode(InitializeByHeapIndex(ByteCodeLOC(m_loc.index), srcRegister, info.m_index), context, this->m_loc.index);
+                                initUsingVariable(codeBlock, context, srcRegister, isLexicallyDeclaredBindingInitialization, isUsingBindingInitialization);
                                 return;
                             }
 
@@ -182,6 +202,8 @@ public:
                 }
             }
         }
+
+        initUsingVariable(codeBlock, context, srcRegister, isLexicallyDeclaredBindingInitialization, isUsingBindingInitialization);
     }
 
     virtual void generateExpressionByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex dstRegister) override
