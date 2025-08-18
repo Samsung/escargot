@@ -162,7 +162,7 @@ jobs:
         cmakeVersion: "~3.25.0"
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
-        sdk-version: 20348
+        sdk-version: 26100
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
@@ -173,7 +173,7 @@ jobs:
     - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: ${{ matrix.arch.cpu }}
-        sdk: "10.0.20348.0"
+        sdk: "10.0.26100.0"
     - uses: egor-tensin/setup-clang@v1
       with:
         version: 19.1.7
@@ -219,7 +219,7 @@ jobs:
         cmakeVersion: "~3.25.0"  # <--= optional, use most recent 3.25.x version
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
-        sdk-version: 20348
+        sdk-version: 26100
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
@@ -230,7 +230,7 @@ jobs:
     - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: ${{ matrix.arch }}
-        sdk: "10.0.20348.0"
+        sdk: "10.0.26100.0"
     - name: Build ${{ matrix.arch }} Release
       run: |
         CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DESCARGOT_ARCH=${{ matrix.arch }} -Bout/ -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_WASM=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
@@ -267,11 +267,11 @@ jobs:
         cmakeVersion: "~3.25.0"  # <--= optional, use most recent 3.25.x version
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
-        sdk-version: 20348
+        sdk-version: 26100 
     - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: x64
-        sdk: "10.0.20348.0"
+        sdk: "10.0.26100.0"
         uwp: true
     - name: Build x64 UWP Release
       run: |
@@ -281,7 +281,7 @@ jobs:
     - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: x86
-        sdk: "10.0.20348.0"
+        sdk: "10.0.26100.0"
     - name: Build x86 DLL Release
       run: |
         CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=x86 -Bout/win32_release_shared/ -DESCARGOT_OUTPUT=shared_lib -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
