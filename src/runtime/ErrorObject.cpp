@@ -110,6 +110,9 @@ ErrorObject* ErrorObject::createBuiltinError(ExecutionState& state, ErrorCode co
     case ErrorCode::AggregateError:
         return new AggregateErrorObject(state, state.context()->globalObject()->aggregateErrorPrototype(), errorMessage, fillStackInfo);
         break;
+    case ErrorCode::SuppressedError:
+        return new SuppressedErrorObject(state, state.context()->globalObject()->suppressedErrorPrototype(), errorMessage, fillStackInfo);
+        break;
 #if defined(ENABLE_WASM)
     case ErrorCode::WASMCompileError:
         return new WASMCompileErrorObject(state, state.context()->globalObject()->wasmCompileErrorPrototype(), errorMessage, fillStackInfo);
@@ -234,6 +237,20 @@ EvalErrorObject::EvalErrorObject(ExecutionState& state, Object* proto, String* e
 AggregateErrorObject::AggregateErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback)
     : ErrorObject(state, proto, errorMessage, fillStackInfo, triggerCallback)
 {
+}
+
+SuppressedErrorObject::SuppressedErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo, bool triggerCallback, Value error, Value suppressed)
+    : ErrorObject(state, proto, errorMessage, fillStackInfo, triggerCallback)
+{
+    // test/built-ins/NativeErrors/SuppressedError/order-of-args-evaluation.js
+    if (!hasOwnProperty(state, state.context()->staticStrings().message)) {
+        defineOwnPropertyThrowsException(state, state.context()->staticStrings().message,
+                                         ObjectPropertyDescriptor(errorMessage, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    }
+    defineOwnPropertyThrowsException(state, state.context()->staticStrings().error,
+                                     ObjectPropertyDescriptor(error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
+    defineOwnPropertyThrowsException(state, state.context()->staticStrings().suppressed,
+                                     ObjectPropertyDescriptor(suppressed, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectStructurePropertyDescriptor::ConfigurablePresent)));
 }
 
 #if defined(ENABLE_WASM)

@@ -101,6 +101,7 @@ namespace Escargot {
     F(String)                     \
     F(StringIterator)             \
     F(Symbol)                     \
+    F(SuppressedError)            \
     F(SyntaxError)                \
     F(TypeError)                  \
     F(TypedArray)                 \
@@ -443,6 +444,7 @@ namespace Escargot {
     F(sumPrecise)                 \
     F(sup)                        \
     F(super)                      \
+    F(suppressed)                 \
     F(symbol)                     \
     F(symmetricDifference)        \
     F(take)                       \

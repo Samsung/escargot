@@ -84,6 +84,7 @@
     F(RangeErrorObject)            \
     F(ReferenceErrorObject)        \
     F(SyntaxErrorObject)           \
+    F(SuppressedErrorObject)       \
     F(TypeErrorObject)             \
     F(URIErrorObject)
 
@@ -1509,6 +1510,8 @@ public:
     ObjectRef* evalErrorPrototype();
     FunctionObjectRef* aggregateError();
     ObjectRef* aggregateErrorPrototype();
+    FunctionObjectRef* suppressedError();
+    ObjectRef* suppressedErrorPrototype();
     FunctionObjectRef* string();
     ObjectRef* stringPrototype();
     FunctionObjectRef* number();
@@ -1681,6 +1684,7 @@ public:
         URIError,
         EvalError,
         AggregateError,
+        SuppressedError,
     };
     static ErrorObjectRef* create(ExecutionStateRef* state, ErrorObjectRef::Code code, StringRef* errorMessage);
     void updateStackTraceData(ExecutionStateRef* state); // update stacktrace data
@@ -1719,6 +1723,11 @@ public:
 class ESCARGOT_EXPORT AggregateErrorObjectRef : public ErrorObjectRef {
 public:
     static AggregateErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage);
+};
+
+class ESCARGOT_EXPORT SuppressedErrorObjectRef : public ErrorObjectRef {
+public:
+    static SuppressedErrorObjectRef* create(ExecutionStateRef* state, StringRef* errorMessage, ValueRef* error, ValueRef* suppressed);
 };
 
 class ESCARGOT_EXPORT DateObjectRef : public ObjectRef {

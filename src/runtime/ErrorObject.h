@@ -36,6 +36,7 @@ enum class ErrorCode : uint8_t {
     URIError,
     EvalError,
     AggregateError,
+    SuppressedError,
 #if defined(ENABLE_WASM)
     WASMCompileError,
     WASMLinkError,
@@ -227,6 +228,11 @@ public:
 class AggregateErrorObject : public ErrorObject {
 public:
     AggregateErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false);
+};
+
+class SuppressedErrorObject : public ErrorObject {
+public:
+    SuppressedErrorObject(ExecutionState& state, Object* proto, String* errorMessage, bool fillStackInfo = true, bool triggerCallback = false, Value error = Value(), Value suppressed = Value());
 };
 
 #if defined(ENABLE_WASM)
