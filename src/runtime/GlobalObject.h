@@ -55,24 +55,26 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_DATE(F, objName) \
     F(date, FunctionObject, objName)          \
     F(datePrototype, Object, objName)
-#define GLOBALOBJECT_BUILTIN_ERROR(F, objName)  \
-    F(error, FunctionObject, objName)           \
-    F(errorPrototype, Object, objName)          \
-    F(referenceError, FunctionObject, objName)  \
-    F(referenceErrorPrototype, Object, objName) \
-    F(typeError, FunctionObject, objName)       \
-    F(typeErrorPrototype, Object, objName)      \
-    F(rangeError, FunctionObject, objName)      \
-    F(rangeErrorPrototype, Object, objName)     \
-    F(syntaxError, FunctionObject, objName)     \
-    F(syntaxErrorPrototype, Object, objName)    \
-    F(uriError, FunctionObject, objName)        \
-    F(uriErrorPrototype, Object, objName)       \
-    F(evalError, FunctionObject, objName)       \
-    F(evalErrorPrototype, Object, objName)      \
-    F(aggregateError, FunctionObject, objName)  \
-    F(aggregateErrorPrototype, Object, objName) \
-    F(throwTypeError, FunctionObject, objName)  \
+#define GLOBALOBJECT_BUILTIN_ERROR(F, objName)   \
+    F(error, FunctionObject, objName)            \
+    F(errorPrototype, Object, objName)           \
+    F(referenceError, FunctionObject, objName)   \
+    F(referenceErrorPrototype, Object, objName)  \
+    F(typeError, FunctionObject, objName)        \
+    F(typeErrorPrototype, Object, objName)       \
+    F(rangeError, FunctionObject, objName)       \
+    F(rangeErrorPrototype, Object, objName)      \
+    F(syntaxError, FunctionObject, objName)      \
+    F(syntaxErrorPrototype, Object, objName)     \
+    F(uriError, FunctionObject, objName)         \
+    F(uriErrorPrototype, Object, objName)        \
+    F(evalError, FunctionObject, objName)        \
+    F(evalErrorPrototype, Object, objName)       \
+    F(aggregateError, FunctionObject, objName)   \
+    F(aggregateErrorPrototype, Object, objName)  \
+    F(suppressedError, FunctionObject, objName)  \
+    F(suppressedErrorPrototype, Object, objName) \
+    F(throwTypeError, FunctionObject, objName)   \
     F(throwerGetterSetterData, JSGetterSetter, objName)
 #define GLOBALOBJECT_BUILTIN_FUNCTION(F, objName) \
     F(function, FunctionObject, objName)          \

@@ -161,6 +161,34 @@ static Value builtinAggregateErrorConstructor(ExecutionState& state, Value thisV
     return O;
 }
 
+static Value builtinSuppressedErrorConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!newTarget.hasValue()) {
+        newTarget = state.resolveCallee();
+    }
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->suppressedErrorPrototype();
+    });
+
+    String* message = String::emptyString();
+    if (!argv[2].isUndefined()) {
+        message = argv[2].toString(state);
+    }
+
+#if defined(ENABLE_EXTENDED_API)
+    ErrorObject* O = new SuppressedErrorObject(state, proto, message, true, state.context()->vmInstance()->isErrorCreationCallbackRegistered(), argv[0], argv[1]);
+#else
+    ErrorObject* O = new SuppressedErrorObject(state, proto, message, true, false, argv[0], argv[1]);
+#endif
+
+    // test/built-ins/NativeErrors/SuppressedError/message-undefined-no-prop.js
+    if (argv[2].isUndefined()) {
+        O->deleteOwnProperty(state, state.context()->staticStrings().message);
+    }
+
+    return O;
+}
+
 static Value builtinErrorThrowTypeError(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "");
@@ -238,6 +266,7 @@ void GlobalObject::initializeError(ExecutionState& state)
     DEFINE_ERROR_INIT(uri, URI);
     DEFINE_ERROR_INIT(eval, Eval);
     DEFINE_ERROR_INIT(aggregate, Aggregate);
+    DEFINE_ERROR_INIT(suppressed, Suppressed);
 
     {
         ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
@@ -300,6 +329,7 @@ void GlobalObject::installError(ExecutionState& state)
     DEFINE_ERROR(uri, URI, 1);
     DEFINE_ERROR(eval, Eval, 1);
     DEFINE_ERROR(aggregate, Aggregate, 2);
+    DEFINE_ERROR(suppressed, Suppressed, 3);
 
     redefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().Error),
                         ObjectPropertyDescriptor(m_error, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
