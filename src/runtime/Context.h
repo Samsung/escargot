@@ -212,6 +212,11 @@ public:
         return m_defaultStructureForClassConstructorFunctionObjectWithName;
     }
 
+    ObjectStructure* defaultStructureForWrappedFunctionObject()
+    {
+        return m_defaultStructureForWrappedFunctionObject;
+    }
+
     ObjectStructure* defaultStructureForStringObject()
     {
         return m_defaultStructureForStringObject;
@@ -359,6 +364,7 @@ private:
     ObjectStructure* m_defaultStructureForBoundFunctionObject;
     ObjectStructure* m_defaultStructureForClassConstructorFunctionObject;
     ObjectStructure* m_defaultStructureForClassConstructorFunctionObjectWithName;
+    ObjectStructure* m_defaultStructureForWrappedFunctionObject;
     ObjectStructure* m_defaultStructureForStringObject;
     ObjectStructure* m_defaultStructureForRegExpObject;
     ObjectStructure* m_defaultStructureForMappedArgumentsObject;

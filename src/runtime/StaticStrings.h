@@ -117,6 +117,7 @@ namespace Escargot {
     F(WeakMap)                    \
     F(WeakRef)                    \
     F(WeakSet)                    \
+    F(WrappedFunction)            \
     F(__defineGetter__)           \
     F(__defineSetter__)           \
     F(__lookupGetter__)           \
