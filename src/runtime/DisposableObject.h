@@ -56,6 +56,36 @@ struct DisposableResourceRecord : public PointerValue {
 
 DisposableResourceRecord::Record createDisposableResource(ExecutionState& state, Value V, bool isAsync, Optional<Value> method);
 
+class DisposableStackObject : public DerivedObject {
+public:
+    explicit DisposableStackObject(ExecutionState& state, Object* proto)
+        : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+        , m_isDisposed(false)
+        , m_record(new DisposableResourceRecord())
+    {
+    }
+
+    virtual bool isDisposableStackObject() const override
+    {
+        return true;
+    }
+
+    bool disposed() const
+    {
+        return m_isDisposed;
+    }
+
+    Value use(ExecutionState& state, const Value& value);
+    void dispose(ExecutionState& state);
+    Value adopt(ExecutionState& state, const Value& value, const Value& onDispose);
+    void defer(ExecutionState& state, const Value& onDispose);
+    DisposableStackObject* move(ExecutionState& state);
+
+protected:
+    bool m_isDisposed; // [[DisposableState]]
+    DisposableResourceRecord* m_record;
+};
+
 } // namespace Escargot
 
 #endif

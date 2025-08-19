@@ -109,6 +109,7 @@ void StaticStrings::initStaticStrings()
     INIT_STATIC_STRING(getgrowable, "get growable");
     INIT_STATIC_STRING(getmaxByteLength, "get maxByteLength");
     INIT_STATIC_STRING(getresizable, "get resizable");
+    INIT_STATIC_STRING(getdisposed, "get disposed");
     INIT_STATIC_STRING(set__proto__, "set __proto__");
     INIT_STATIC_STRING(symbolMatch, "[Symbol.match]");
     INIT_STATIC_STRING(symbolMatchAll, "[Symbol.matchAll]");

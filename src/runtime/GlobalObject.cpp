@@ -24,23 +24,25 @@
  */
 
 #include "Escargot.h"
-#include "GlobalObject.h"
-#include "Context.h"
-#include "ArrayObject.h"
-#include "ErrorObject.h"
-#include "StringObject.h"
-#include "NumberObject.h"
-#include "BooleanObject.h"
-#include "SymbolObject.h"
-#include "BigIntObject.h"
-#include "DateObject.h"
-#include "NativeFunctionObject.h"
+#include "runtime/GlobalObject.h"
+#include "runtime/Context.h"
+#include "runtime/ArrayObject.h"
+#include "runtime/ErrorObject.h"
+#include "runtime/StringObject.h"
+#include "runtime/NumberObject.h"
+#include "runtime/BooleanObject.h"
+#include "runtime/SymbolObject.h"
+#include "runtime/BigIntObject.h"
+#include "runtime/DateObject.h"
+#include "runtime/NativeFunctionObject.h"
+#include "runtime/GlobalObject.h"
+#include "runtime/DisposableObject.h"
+#include "runtime/EnvironmentRecord.h"
+#include "runtime/Environment.h"
 #include "parser/Lexer.h"
 #include "parser/Script.h"
 #include "parser/ScriptParser.h"
 #include "heap/LeakCheckerBridge.h"
-#include "EnvironmentRecord.h"
-#include "Environment.h"
 
 namespace Escargot {
 
@@ -119,6 +121,68 @@ static Value builtinEval(ExecutionState& state, Value thisValue, size_t argc, Va
     NativeFunctionObject* fn = (NativeFunctionObject*)state.resolveCallee();
     Context* realm = fn->codeBlock()->context();
     return realm->globalObject()->eval(state, argv[0]);
+}
+
+static Value builtinDisposableStackConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
+    }
+
+    // Let disposableStack be ? OrdinaryCreateFromConstructor(NewTarget, "%DisposableStack.prototype%", « [[DisposableState]], [[DisposeCapability]] »).
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->dispoableStackPrototype();
+    });
+    // Set disposableStack.[[DisposableState]] to pending.
+    // Set disposableStack.[[DisposeCapability]] to NewDisposeCapability().
+    // Return disposableStack.
+    return new DisposableStackObject(state, proto);
+}
+
+#define RESOLVE_THIS_BINDING_TO_DISPOSABLE_STACK(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                           \
+    if (!thisValue.isObject() || !thisValue.asObject()->isDisposableStackObject()) {                                                                                                                                                                   \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                  \
+    DisposableStackObject* NAME = thisValue.asObject()->asDisposableStackObject();
+
+static Value builtinDisposableStackUse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_DISPOSABLE_STACK(s, DisposableStack, use);
+    return s->use(state, argv[0]);
+}
+
+static Value builtinDisposableStackDispose(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_DISPOSABLE_STACK(s, DisposableStack, dispose);
+    s->dispose(state);
+    return Value();
+}
+
+static Value builtinDisposableStackAdopt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_DISPOSABLE_STACK(s, DisposableStack, adopt);
+    return s->adopt(state, argv[0], argv[1]);
+}
+
+static Value builtinDisposableStackDefer(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_DISPOSABLE_STACK(s, DisposableStack, defer);
+    s->defer(state, argv[0]);
+    return Value();
+}
+
+static Value builtinDisposableStackMove(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_DISPOSABLE_STACK(s, DisposableStack, move);
+    return s->move(state);
+}
+
+static Value builtinDisposableGetDisposed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_DISPOSABLE_STACK(s, DisposableStack, disposed);
+    return Value(s->disposed());
 }
 
 ObjectHasPropertyResult GlobalObject::hasProperty(ExecutionState& state, const ObjectPropertyName& P)
@@ -915,6 +979,52 @@ void GlobalObject::installOthers(ExecutionState& state)
     // This property has the attributes { [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
     defineOwnProperty(state, ObjectPropertyName(strings->globalThis),
                       ObjectPropertyDescriptor(this, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_dispoableStack = new NativeFunctionObject(state, NativeFunctionInfo(strings->DisposableStack, builtinDisposableStackConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_dispoableStack->setGlobalIntrinsicObject(state, true);
+    m_dispoableStackPrototype = new PrototypeObject(state);
+    m_dispoableStackPrototype->setGlobalIntrinsicObject(state, true);
+    m_dispoableStack->setFunctionPrototype(state, m_dispoableStackPrototype);
+
+    defineOwnProperty(state, ObjectPropertyName(strings->DisposableStack),
+                      ObjectPropertyDescriptor(m_dispoableStack,
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                 ObjectPropertyDescriptor(strings->DisposableStack.string(),
+                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    auto disposeFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->dispose, builtinDisposableStackDispose, 0, NativeFunctionInfo::Strict));
+    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().dispose),
+                                                 ObjectPropertyDescriptor(disposeFunction,
+                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->dispose),
+                                                 ObjectPropertyDescriptor(disposeFunction,
+                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->use),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->use, builtinDisposableStackUse, 1, NativeFunctionInfo::Strict)),
+                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->adopt),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->adopt, builtinDisposableStackAdopt, 2, NativeFunctionInfo::Strict)),
+                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->defer),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->defer, builtinDisposableStackDefer, 1, NativeFunctionInfo::Strict)),
+                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->move),
+                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->move, builtinDisposableStackMove, 0, NativeFunctionInfo::Strict)),
+                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getdisposed, builtinDisposableGetDisposed, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_dispoableStackPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->disposed), desc);
+    }
 }
 
 } // namespace Escargot

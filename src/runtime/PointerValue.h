@@ -23,6 +23,7 @@
 namespace Escargot {
 
 class Value;
+class PointerValue;
 class String;
 class Symbol;
 class BigInt;
@@ -71,7 +72,7 @@ class GeneratorObject;
 class AsyncGeneratorObject;
 class AsyncFromSyncIteratorObject;
 class GlobalObjectProxyObject;
-class PointerValue;
+class DisposableStackObject;
 struct DisposableResourceRecord;
 #if defined(ENABLE_TEMPORAL)
 class TemporalObject;
@@ -510,6 +511,11 @@ public:
         return false;
     }
 
+    virtual bool isDisposableStackObject() const
+    {
+        return false;
+    }
+
 #if defined(ENABLE_INTL)
     virtual bool isIntlLocaleObject() const
     {
@@ -923,6 +929,12 @@ public:
     {
         ASSERT(isDisposableResourceRecord());
         return (DisposableResourceRecord*)this;
+    }
+
+    DisposableStackObject* asDisposableStackObject()
+    {
+        ASSERT(isDisposableStackObject());
+        return (DisposableStackObject*)this;
     }
 
 #if defined(ENABLE_THREADING)
