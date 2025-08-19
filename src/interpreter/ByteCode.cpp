@@ -330,6 +330,13 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
 #endif
     ctx.lexicallyDeclaredNamesCount = context->m_lexicallyDeclaredNames->size();
 
+    if (blockInfo->shouldAllocateEnvironment()) {
+        ctx.lexicalBlockSetupStartPosition = currentCodeSize();
+        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Block, ctx.lexicalBlockSetupStartPosition));
+        this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), blockInfo), context, SIZE_MAX);
+        context->m_needsExtendedExecutionState = true;
+    }
+
     const auto& ids = blockInfo->identifiers();
     for (size_t i = 0; i < ids.size(); i++) {
         if (ids[i].m_isUsing) {
@@ -341,13 +348,6 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
             ctx.usingBlockTryStartPosition = initUsingBlock(this, context, ctx.loc, blockInfo, context->m_disposableRecordRegisterStack->back()).tryStartPosition;
             break;
         }
-    }
-
-    if (blockInfo->shouldAllocateEnvironment()) {
-        ctx.lexicalBlockSetupStartPosition = currentCodeSize();
-        context->m_recursiveStatementStack.push_back(std::make_pair(ByteCodeGenerateContext::Block, ctx.lexicalBlockSetupStartPosition));
-        this->pushCode(BlockOperation(ByteCodeLOC(node->m_loc.index), blockInfo), context, SIZE_MAX);
-        context->m_needsExtendedExecutionState = true;
     }
 
     if (initFunctionDeclarationInside) {

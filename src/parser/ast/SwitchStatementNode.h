@@ -80,7 +80,7 @@ public:
             nd = nd->nextSibling();
         }
 
-        ASSERT(rIndex0 == newContext.getLastRegisterIndex());
+        bool registerWasSame = rIndex0 == newContext.getLastRegisterIndex();
         nd = m_casesA->firstChild();
         while (nd) {
             SwitchCaseNode* caseNode = (SwitchCaseNode*)nd;
@@ -96,7 +96,9 @@ public:
         }
 
         newContext.giveUpRegister();
-        newContext.giveUpRegister();
+        if (registerWasSame) {
+            newContext.giveUpRegister();
+        }
 
         size_t jmpToDefault = SIZE_MAX;
         jmpToDefault = codeBlock->currentCodeSize();

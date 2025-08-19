@@ -5427,7 +5427,6 @@
     <test id="staging/explicit-resource-management/await-using-user-code-throws-before"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/await-using-with-no-async-dispose-method"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/await-using-with-sync-dispose-method"><reason>TODO</reason></test>
-    <test id="staging/explicit-resource-management/call-dispose-methods"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/disposable-stack-adopt-and-defer"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/disposable-stack-constructor-and-prototype"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/disposable-stack-dispose-return-undefined"><reason>TODO</reason></test>
@@ -5436,7 +5435,6 @@
     <test id="staging/explicit-resource-management/disposable-stack-re-entry"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/disposable-stack-use-and-dispose"><reason>TODO</reason></test>
     <test id="staging/explicit-resource-management/mixed-call-dispose-methods"><reason>TODO</reason></test>
-    <test id="staging/explicit-resource-management/using-with-null-or-undefined"><reason>TODO</reason></test>
     <test id="staging/sm/Array/fill"><reason>TODO</reason></test>
     <test id="staging/sm/Array/from-iterator-close"><reason>TODO</reason></test>
     <test id="staging/sm/Array/from_errors"><reason>TODO</reason></test>
