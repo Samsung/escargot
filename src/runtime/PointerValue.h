@@ -67,6 +67,7 @@ class SetObject;
 class WeakMapObject;
 class WeakRefObject;
 class WeakSetObject;
+class WrappedFunctionObject;
 class FinalizationRegistryObject;
 class GeneratorObject;
 class AsyncGeneratorObject;
@@ -409,6 +410,11 @@ public:
     }
 
     virtual bool isWeakSetObject() const
+    {
+        return false;
+    }
+
+    virtual bool isWrappedFunctionObject() const
     {
         return false;
     }
@@ -877,6 +883,14 @@ public:
         ASSERT(isWrapForValidIteratorObject());
         return (WrapForValidIteratorObject*)this;
     }
+
+#if defined(ESCARGOT_ENABLE_SHADOWREALM)
+    WrappedFunctionObject* asWrappedFunctionObject()
+    {
+        ASSERT(isWrappedFunctionObject());
+        return (WrappedFunctionObject*)this;
+    }
+#endif
 
     GenericIteratorObject* asGenericIteratorObject()
     {
