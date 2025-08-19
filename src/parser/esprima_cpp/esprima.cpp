@@ -3617,7 +3617,7 @@ public:
                     ALLOC_TOKEN(next);
                     this->scanner->lex(next);
                     this->scanner->restoreState(state);
-                    if (next->lineNumber == this->lookahead.lineNumber) {
+                    if (next->type == Token::IdentifierToken && next->lineNumber == this->lookahead.lineNumber) {
                         statement = this->parseVariableStatement(builder, KeywordKind::UsingKeyword);
                     } else {
                         statement = this->parseStatement(builder);
