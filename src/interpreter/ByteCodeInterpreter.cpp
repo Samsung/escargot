@@ -4802,8 +4802,10 @@ NEVER_INLINE void InterpreterSlowPath::finalizeDisposable(ExecutionState& state,
                         state.rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, error);
                     }
                 }
-            } else {
+            } else if (record.m_isAsyncDisposableResource) {
                 // Else,
+                // NOTE below assert could be wrong since method can be null
+                // so I added condition to this statement "record.m_isAsyncDisposableResource"
                 // Assert: hint is async-dispose.
                 ASSERT(record.m_isAsyncDisposableResource);
                 // Set needsAwait to true.
