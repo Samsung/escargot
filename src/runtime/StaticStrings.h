@@ -49,6 +49,7 @@ namespace Escargot {
     F(Boolean)                    \
     F(DataView)                   \
     F(Date)                       \
+    F(DisposableStack)            \
     F(E)                          \
     F(EPSILON)                    \
     F(Empty)                      \
@@ -123,6 +124,7 @@ namespace Escargot {
     F(acos)                       \
     F(acosh)                      \
     F(add)                        \
+    F(adopt)                      \
     F(all)                        \
     F(allSettled)                 \
     F(alphabet)                   \
@@ -183,6 +185,7 @@ namespace Escargot {
     F(debugger)                   \
     F(decodeURI)                  \
     F(decodeURIComponent)         \
+    F(defer)                      \
     F(defineProperties)           \
     F(defineProperty)             \
     F(deleteProperty)             \
@@ -192,6 +195,7 @@ namespace Escargot {
     F(dotAll)                     \
     F(difference)                 \
     F(dispose)                    \
+    F(disposed)                   \
     F(drop)                       \
     F(encodeURI)                  \
     F(encodeURIComponent)         \
@@ -338,6 +342,7 @@ namespace Escargot {
     F(maxByteLength)              \
     F(message)                    \
     F(min)                        \
+    F(move)                       \
     F(multiline)                  \
     F(name)                       \
     F(next)                       \
@@ -495,6 +500,7 @@ namespace Escargot {
     F(unregister)                 \
     F(unscopables)                \
     F(unshift)                    \
+    F(use)                        \
     F(value)                      \
     F(valueOf)                    \
     F(values)                     \
@@ -1076,6 +1082,7 @@ public:
     AtomicString getgrowable;
     AtomicString getmaxByteLength;
     AtomicString getresizable;
+    AtomicString getdisposed;
     AtomicString set__proto__;
     AtomicString symbolAsyncIterator;
     AtomicString symbolIterator;
