@@ -81,11 +81,6 @@
     <test id="built-ins/AsyncDisposableStack/undefined-newtarget-throws"><reason>TODO</reason></test>
     <test id="built-ins/AsyncGeneratorPrototype/return/return-state-completed-broken-promise"><reason>TODO</reason></test>
     <test id="built-ins/AsyncGeneratorPrototype/return/return-suspendedStart-broken-promise"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/is-function"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/length"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/name"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/AsyncIteratorPrototype/Symbol.asyncDispose/return-val"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-length"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-invalid-by-offset"><reason>TODO</reason></test>
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-valid-by-offset"><reason>TODO</reason></test>
@@ -137,12 +132,6 @@
     <test id="built-ins/Iterator/concat/throws-typeerror-when-generator-is-running-return"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/concat/throws-typeerror-when-iterator-not-an-object"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/concat/zero-arguments"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/Symbol.dispose/invokes-return"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/Symbol.dispose/is-function"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/Symbol.dispose/length"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/Symbol.dispose/name"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/Symbol.dispose/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/Iterator/prototype/Symbol.dispose/return-val"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/Symbol.toStringTag/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/Symbol.toStringTag/weird-setter"><reason>TODO</reason></test>
     <test id="built-ins/Iterator/prototype/constructor/prop-desc"><reason>TODO</reason></test>
