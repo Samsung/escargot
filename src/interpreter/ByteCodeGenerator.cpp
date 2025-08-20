@@ -44,6 +44,7 @@ ByteCodeGenerateContext::ByteCodeGenerateContext(InterpretedCodeBlock* codeBlock
     , m_isVarDeclaredBindingInitialization(false)
     , m_isLexicallyDeclaredBindingInitialization(false)
     , m_isUsingBindingInitialization(false)
+    , m_isAwaitUsingBindingInitialization(false)
     , m_canSkipCopyToRegister(true)
     , m_keepNumberalLiteralsInRegisterFile(numeralLiteralData)
     , m_inCallingExpressionScope(false)
@@ -896,6 +897,7 @@ void ByteCodeGenerator::relocateByteCode(ByteCodeBlock* block)
         case FinalizeDisposableOpcode: {
             FinalizeDisposable* cd = (FinalizeDisposable*)currentCode;
             ASSIGN_STACKINDEX_IF_NEEDED(cd->m_dataRegisterIndex, stackBase, stackBaseWillBe, stackVariableSize);
+            code += cd->m_tailDataLength;
             break;
         }
         default:

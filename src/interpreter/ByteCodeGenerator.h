@@ -84,6 +84,7 @@ struct ByteCodeGenerateContext {
         , m_isVarDeclaredBindingInitialization(contextBefore.m_isVarDeclaredBindingInitialization)
         , m_isLexicallyDeclaredBindingInitialization(contextBefore.m_isLexicallyDeclaredBindingInitialization)
         , m_isUsingBindingInitialization(contextBefore.m_isUsingBindingInitialization)
+        , m_isAwaitUsingBindingInitialization(contextBefore.m_isAwaitUsingBindingInitialization)
         , m_canSkipCopyToRegister(contextBefore.m_canSkipCopyToRegister)
         , m_keepNumberalLiteralsInRegisterFile(contextBefore.m_keepNumberalLiteralsInRegisterFile)
         , m_inCallingExpressionScope(contextBefore.m_inCallingExpressionScope)
@@ -348,6 +349,7 @@ struct ByteCodeGenerateContext {
     bool m_isVarDeclaredBindingInitialization : 1;
     bool m_isLexicallyDeclaredBindingInitialization : 1;
     bool m_isUsingBindingInitialization : 1;
+    bool m_isAwaitUsingBindingInitialization : 1;
     bool m_canSkipCopyToRegister : 1;
     bool m_keepNumberalLiteralsInRegisterFile : 1;
     bool m_inCallingExpressionScope : 1;

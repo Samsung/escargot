@@ -66,8 +66,6 @@ ExecutionPauser::ExecutionPauser(ExecutionState& state, Object* sourceObject, Ex
     , m_byteCodePosition(SIZE_MAX)
     , m_resumeByteCodePosition(SIZE_MAX)
     , m_pauseValue(nullptr)
-    , m_resumeValueIndex(REGISTER_LIMIT)
-    , m_resumeStateIndex(REGISTER_LIMIT)
 #ifdef ESCARGOT_DEBUGGER
     , m_savedStackTrace(nullptr)
 #endif /* ESCARGOT_DEBUGGER */
@@ -112,17 +110,17 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
 
     ExecutionPauserExecutionStateParentBinder parentBinder(state, originalState);
 
-    if (self->m_resumeValueIndex != REGISTER_LIMIT) {
-        self->m_registerFile[self->m_resumeValueIndex] = resumeValue;
+    if (self->m_resumeValueStore) {
+        *self->m_resumeValueStore.value() = resumeValue;
     }
 
-    if (self->m_resumeStateIndex != REGISTER_LIMIT) {
+    if (self->m_resumeStateStore) {
         if (isAbruptThrow) {
-            self->m_registerFile[self->m_resumeStateIndex] = Value(ResumeState::Throw);
+            *self->m_resumeStateStore.value() = Value(ResumeState::Throw);
         } else if (isAbruptReturn) {
-            self->m_registerFile[self->m_resumeStateIndex] = Value(ResumeState::Return);
+            *self->m_resumeStateStore.value() = Value(ResumeState::Return);
         } else {
-            self->m_registerFile[self->m_resumeStateIndex] = Value(ResumeState::Normal);
+            *self->m_resumeStateStore.value() = Value(ResumeState::Normal);
         }
     }
 
@@ -263,7 +261,8 @@ Value ExecutionPauser::start(ExecutionState& state, ExecutionPauser* self, Objec
     return result;
 }
 
-void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex, ByteCodeRegisterIndex dstStateRegisterIndex, PauseReason reason)
+void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter,
+                            Optional<Value*> resumeValueStore, Optional<Value*> resumeStateStore, PauseReason reason)
 {
     ExecutionState* originalState = &state;
     ExecutionPauser* self;
@@ -279,8 +278,8 @@ void ExecutionPauser::pause(ExecutionState& state, Value returnValue, size_t tai
     Object* pauser = self->m_sourceObject;
     self->m_executionState = &state;
     self->m_byteCodePosition = nextProgramCounter;
-    self->m_resumeValueIndex = dstRegisterIndex;
-    self->m_resumeStateIndex = dstStateRegisterIndex;
+    self->m_resumeValueStore = resumeValueStore;
+    self->m_resumeStateStore = resumeStateStore;
 
     bool isGenerator = pauser->isGeneratorObject();
     bool isAsyncGenerator = pauser->isAsyncGeneratorObject();

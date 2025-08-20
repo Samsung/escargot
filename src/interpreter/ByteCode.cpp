@@ -73,6 +73,8 @@ void ByteCode::dumpCode(const uint8_t* byteCodeStart, const size_t endPos)
             } else {
                 ASSERT_NOT_REACHED();
             }
+        } else if (curCode->m_orgOpcode == FinalizeDisposableOpcode) {
+            curPos += static_cast<FinalizeDisposable*>(curCode)->m_tailDataLength;
         }
 
         curPos += byteCodeLengths[curCode->m_orgOpcode];
@@ -307,7 +309,9 @@ static void finalizeUsingBlock(ByteCodeBlock* byteCodeBlock, ByteCodeGenerateCon
     const auto& ids = blockInfo->identifiers();
     for (size_t i = 0; i < ids.size(); i++) {
         if (ids[i].m_isUsing) {
-            byteCodeBlock->pushCode(FinalizeDisposable(ByteCodeLOC(SIZE_MAX), reg), context, SIZE_MAX);
+            size_t tailDataLength = context->m_recursiveStatementStack.size() * (sizeof(ByteCodeGenerateContext::RecursiveStatementKind) + sizeof(size_t));
+            byteCodeBlock->pushCode(FinalizeDisposable(ByteCodeLOC(SIZE_MAX), reg, tailDataLength), context, SIZE_MAX);
+            break;
         }
     }
 
@@ -344,7 +348,13 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
             // disable tco since meet using statement
             context->m_tcoDisabled = true;
 #endif
-            context->m_disposableRecordRegisterStack->push_back(context->getRegister());
+            // don't use reg0 for Script result
+            auto reg = context->getRegister();
+            if (reg == 0) {
+                reg = context->getRegister();
+                context->pushRegister(0);
+            }
+            context->m_disposableRecordRegisterStack->push_back(reg);
             ctx.usingBlockTryStartPosition = initUsingBlock(this, context, ctx.loc, blockInfo, context->m_disposableRecordRegisterStack->back()).tryStartPosition;
             break;
         }

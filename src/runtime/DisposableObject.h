@@ -38,13 +38,15 @@ struct DisposableResourceRecord : public PointerValue {
     };
     bool m_needsAwait;
     bool m_hasAwaited;
-    EncodedValue m_error;
+    unsigned char m_awaitResumeStage;
+    Value m_awaitResumeValueSlot;
+    Value m_awaitResumeStateSlot;
     Vector<Record, GCUtil::gc_malloc_allocator<Record>> m_records;
 
     DisposableResourceRecord()
         : m_needsAwait(false)
         , m_hasAwaited(false)
-        , m_error(EncodedValue::EmptyValue)
+        , m_awaitResumeStage(0)
     {
     }
 

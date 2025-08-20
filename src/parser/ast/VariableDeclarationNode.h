@@ -32,7 +32,13 @@ public:
         : DeclarationNode()
         , m_declarations(decl)
         , m_kind(kind)
+        , m_isAwaitUsing(false)
     {
+    }
+
+    void markAwaitUsing()
+    {
+        m_isAwaitUsing = true;
     }
 
     virtual ASTNodeType type() override { return ASTNodeType::VariableDeclaration; }
@@ -43,9 +49,11 @@ public:
 
     virtual void generateStatementByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context) override
     {
+        context->m_isAwaitUsingBindingInitialization = m_isAwaitUsing;
         for (SentinelNode* declaration = m_declarations.begin(); declaration != m_declarations.end(); declaration = declaration->next()) {
             declaration->astNode()->generateStatementByteCode(codeBlock, context);
         }
+        context->m_isAwaitUsingBindingInitialization = false;
     }
 
     virtual void generateStoreByteCode(ByteCodeBlock* codeBlock, ByteCodeGenerateContext* context, ByteCodeRegisterIndex src, bool needToReferenceSelf) override
@@ -77,6 +85,7 @@ public:
 private:
     NodeList m_declarations; // declarations: [ VariableDeclarator ];
     EscargotLexer::KeywordKind m_kind;
+    bool m_isAwaitUsing;
 };
 } // namespace Escargot
 

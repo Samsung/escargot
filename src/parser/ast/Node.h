@@ -53,6 +53,7 @@ class ImportDefaultSpecifierNode;
 class ImportNamespaceSpecifierNode;
 class ExportSpecifierNode;
 class ArrowParameterPlaceHolderNode;
+class VariableDeclarationNode;
 
 class Node {
 protected:
@@ -273,6 +274,12 @@ public:
     {
         ASSERT(type() == ArrowParameterPlaceHolder);
         return (ArrowParameterPlaceHolderNode*)this;
+    }
+
+    ALWAYS_INLINE VariableDeclarationNode* asVariableDeclaration()
+    {
+        ASSERT(type() == VariableDeclaration);
+        return (VariableDeclarationNode*)this;
     }
 
     bool isLiteral()

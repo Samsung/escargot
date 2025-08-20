@@ -3154,12 +3154,14 @@ public:
 
 class InitializeDisposable : public ByteCode {
 public:
-    InitializeDisposable(const ByteCodeLOC& loc, const size_t srcRegisterIndex, const size_t dstRegisterIndex)
+    InitializeDisposable(const ByteCodeLOC& loc, bool isAsyncDisposable, const size_t srcRegisterIndex, const size_t dstRegisterIndex)
         : ByteCode(Opcode::InitializeDisposableOpcode, loc)
+        , m_isAsyncDisposable(isAsyncDisposable)
         , m_srcRegisterIndex(srcRegisterIndex)
         , m_dstRegisterIndex(dstRegisterIndex)
     {
     }
+    bool m_isAsyncDisposable;
     ByteCodeRegisterIndex m_srcRegisterIndex;
     ByteCodeRegisterIndex m_dstRegisterIndex;
 
@@ -3173,13 +3175,14 @@ public:
 
 class FinalizeDisposable : public ByteCode {
 public:
-    FinalizeDisposable(const ByteCodeLOC& loc, const size_t dataRegisterIndex)
+    FinalizeDisposable(const ByteCodeLOC& loc, const size_t dataRegisterIndex, const size_t tailDataLength)
         : ByteCode(Opcode::FinalizeDisposableOpcode, loc)
         , m_dataRegisterIndex(dataRegisterIndex)
+        , m_tailDataLength(tailDataLength)
     {
     }
     ByteCodeRegisterIndex m_dataRegisterIndex;
-
+    ByteCodeRegisterIndex m_tailDataLength;
 #ifndef NDEBUG
     void dump()
     {
@@ -3273,7 +3276,7 @@ public:
         // TODO throw exception
         RELEASE_ASSERT(m_requiredOperandRegisterNumber < REGISTER_LIMIT);
 
-        if (std::is_same<CodeType, ExecutionPause>::value) {
+        if (std::is_same<CodeType, ExecutionPause>::value || std::is_same<CodeType, FinalizeDisposable>::value) {
             pushPauseStatementExtraData(context);
         }
     }
