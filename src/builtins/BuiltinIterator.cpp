@@ -23,6 +23,7 @@
 #include "runtime/VMInstance.h"
 #include "runtime/NativeFunctionObject.h"
 #include "runtime/ArrayObject.h"
+#include "runtime/PromiseObject.h"
 
 namespace Escargot {
 
@@ -218,6 +219,75 @@ static Value builtinIteratorMap(ExecutionState& state, Value thisValue, size_t a
     IteratorHelperObject* result = new IteratorHelperObject(state, iteratorMapClosure, iterated, new IteratorData(mapper));
     // Return result.
     return result;
+}
+
+static Value builtinIteratorDispose(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be the this value.
+    const Value& O = thisValue;
+    // Let return be ? GetMethod(O, "return").
+    Value returnValue = Object::getMethod(state, O, state.context()->staticStrings().stringReturn);
+    // If return is not undefined, then
+    if (!returnValue.isUndefined()) {
+        // Perform ? Call(return, O, « »).
+        Object::call(state, returnValue, O, 0, nullptr);
+    }
+    // Return NormalCompletion(empty).
+    return Value();
+}
+
+static Value builtinIteratorAsyncDispose(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let O be the this value.
+    const Value& O = thisValue;
+    // Let promiseCapability be ! NewPromiseCapability(%Promise%).
+    auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+    // Let return be Completion(GetMethod(O, "return")).
+    Value returnValue;
+    try {
+        returnValue = Object::getMethod(state, O, state.context()->staticStrings().stringReturn);
+    } catch (const Value& error) {
+        // IfAbruptRejectPromise(return, promiseCapability).
+        Value arg = error;
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &arg);
+        return promiseCapability.m_promise;
+    }
+    // If return is undefined, then
+    if (returnValue.isUndefined()) {
+        // Perform ! Call(promiseCapability.[[Resolve]], undefined, « undefined »).
+        Object::call(state, promiseCapability.m_resolveFunction, Value(), 1, &returnValue);
+    } else {
+        // Else,
+        // Let result be Completion(Call(return, O, « undefined »)).
+        Value result;
+        try {
+            Value argv;
+            result = Object::call(state, returnValue, Value(), 1, &argv);
+        } catch (const Value& error) {
+            // IfAbruptRejectPromise(result, promiseCapability).
+            Value arg = error;
+            Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &arg);
+            return promiseCapability.m_promise;
+        }
+        // Let resultWrapper be Completion(PromiseResolve(%Promise%, result)).
+        Value resultWrapper;
+        try {
+            resultWrapper = PromiseObject::promiseResolve(state, state.context()->globalObject()->promise(), result);
+        } catch (const Value& error) {
+            // IfAbruptRejectPromise(resultWrapper, promiseCapability).
+            Value arg = error;
+            Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &arg);
+            return promiseCapability.m_promise;
+        }
+        // Let unwrap be a new Abstract Closure that performs the following steps when called:
+        // i. Return undefined.
+        // Let onFulfilled be CreateBuiltinFunction(unwrap, 1, "", « »).
+        Value onFulfilled = new NativeFunctionObject(state, NativeFunctionInfo(AtomicString(), [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value { return Value(); }, 1, NativeFunctionInfo::Strict));
+        // Perform PerformPromiseThen(resultWrapper, onFulfilled, undefined, promiseCapability).
+        promiseCapability.m_promise->asPromiseObject()->then(state, onFulfilled, Value());
+    }
+    // Return promiseCapability.[[Promise]].
+    return promiseCapability.m_promise;
 }
 
 static std::pair<Value, bool> iteratorFilterClosure(ExecutionState& state, IteratorHelperObject* obj, void* data)
@@ -906,6 +976,9 @@ void GlobalObject::installIterator(ExecutionState& state)
                                                                ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolAsyncIterator, builtinSpeciesGetter, 0, NativeFunctionInfo::Strict)),
                                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_asyncIteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().asyncDispose),
+                                                               ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolAsyncDispose, builtinIteratorAsyncDispose, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_iteratorPrototype = new PrototypeObject(state);
     m_iteratorPrototype->setGlobalIntrinsicObject(state, true);
     // https://www.ecma-international.org/ecma-262/10.0/index.html#sec-%iteratorprototype%-@@iterator
@@ -914,6 +987,9 @@ void GlobalObject::installIterator(ExecutionState& state)
                                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state, Value(state.context()->vmInstance()->globalSymbols().toStringTag)),
                                                           ObjectPropertyDescriptor(Value(strings->Iterator.string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_iteratorPrototype->defineOwnPropertyThrowsException(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().dispose),
+                                                          ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->symbolDispose, builtinIteratorDispose, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_genericIteratorPrototype = new PrototypeObject(state, m_iteratorPrototype);
     m_genericIteratorPrototype->setGlobalIntrinsicObject(state, true);

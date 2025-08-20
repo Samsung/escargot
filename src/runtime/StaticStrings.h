@@ -1091,6 +1091,8 @@ public:
     AtomicString symbolReplace;
     AtomicString symbolSearch;
     AtomicString symbolSplit;
+    AtomicString symbolDispose;
+    AtomicString symbolAsyncDispose;
 
 #if defined(ENABLE_WASM)
     AtomicString getExports;
