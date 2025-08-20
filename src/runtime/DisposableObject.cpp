@@ -138,6 +138,7 @@ void DisposableStackObject::dispose(ExecutionState& state)
     // Set disposableStack.[[DisposableState]] to disposed.
     m_isDisposed = true;
     // Return ? DisposeResources(disposableStack.[[DisposeCapability]], NormalCompletion(undefined)).
+    Value resultError = Value(Value::EmptyValue);
     // Let needsAwait be false.
     // Let hasAwaited be false.
     // For each element resource of disposeCapability.[[DisposableResourceStack]], in reverse list order, do
@@ -170,7 +171,7 @@ void DisposableStackObject::dispose(ExecutionState& state)
             } catch (const Value& error) {
                 // If result is a throw completion, then
                 // If completion is a throw completion, then
-                if (!m_record->m_error.isEmpty()) {
+                if (!resultError.isEmpty()) {
                     // Set result to result.[[Value]].
                     // Let suppressed be completion.[[Value]].
                     // Let error be a newly created SuppressedError object.
@@ -179,12 +180,12 @@ void DisposableStackObject::dispose(ExecutionState& state)
                     // Set completion to ThrowCompletion(error).
                     auto supressedError = new SuppressedErrorObject(state, state.context()->globalObject()->suppressedErrorPrototype(),
                                                                     new ASCIIStringFromExternalMemory("An error was suppressed during disposal"),
-                                                                    true, true, error, m_record->m_error);
-                    m_record->m_error = supressedError;
+                                                                    true, true, error, resultError);
+                    resultError = supressedError;
                 } else {
                     // Else,
                     // Set completion to result.
-                    m_record->m_error = error;
+                    resultError = error;
                 }
             }
         } else if (record.m_isAsyncDisposableResource) {
@@ -203,8 +204,8 @@ void DisposableStackObject::dispose(ExecutionState& state)
     // NOTE: After disposeCapability has been disposed, it will never be used again. The contents of disposeCapability.[[DisposableResourceStack]] can be discarded in implementations, such as by garbage collection, at this point.
     // Set disposeCapability.[[DisposableResourceStack]] to a new empty List.
     // Return ? completion.
-    if (!m_record->m_error.isEmpty()) {
-        state.context()->throwException(state, m_record->m_error);
+    if (!resultError.isEmpty()) {
+        state.context()->throwException(state, resultError);
     }
 }
 

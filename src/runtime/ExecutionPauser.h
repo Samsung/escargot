@@ -75,7 +75,8 @@ public:
     };
 
     static Value start(ExecutionState& state, ExecutionPauser* self, Object* source, const Value& resumeValue, bool isAbruptReturn, bool isAbruptThrow, StartFrom from);
-    static void pause(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter, ByteCodeRegisterIndex dstRegisterIndex, ByteCodeRegisterIndex dstStateRegisterIndex, PauseReason reason);
+    static void pause(ExecutionState& state, Value returnValue, size_t tailDataPosition, size_t tailDataLength, size_t nextProgramCounter,
+                      Optional<Value*> resumeValueStore, Optional<Value*> resumeStateStore, PauseReason reason);
 
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
@@ -102,8 +103,8 @@ private:
     size_t m_resumeByteCodePosition; // this indicates where ResumeByteCode located in
     PauseValue* m_pauseValue;
     EncodedValue m_resumeValue;
-    ByteCodeRegisterIndex m_resumeValueIndex;
-    ByteCodeRegisterIndex m_resumeStateIndex;
+    Optional<Value*> m_resumeValueStore;
+    Optional<Value*> m_resumeStateStore;
     PromiseReaction::Capability m_promiseCapability; // async function needs this
 #ifdef ESCARGOT_DEBUGGER
     Debugger::SavedStackTraceDataVector* m_savedStackTrace;

@@ -224,6 +224,8 @@ public:
         m_string = string;
     }
 
+    void markAwaitUsing() {} // ignore
+
     bool async()
     {
         ASSERT(m_nodeType == ASTNodeType::ArrowParameterPlaceHolder);
@@ -347,6 +349,12 @@ public:
     ALWAYS_INLINE SyntaxNode* asMemberExpression()
     {
         ASSERT(m_nodeType == MemberExpression);
+        return this;
+    }
+
+    ALWAYS_INLINE SyntaxNode* asVariableDeclaration()
+    {
+        ASSERT(m_nodeType == VariableDeclaration);
         return this;
     }
 

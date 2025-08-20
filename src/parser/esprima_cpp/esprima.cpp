@@ -653,6 +653,11 @@ public:
         }
     }
 
+    bool canUseUsingAsDeclaration()
+    {
+        return this->context->inFunctionBody || this->sourceType == SourceType::Module || this->lexicalBlockIndex != 0;
+    }
+
     ALWAYS_INLINE void collectComments()
     {
         this->scanner->scanComments();
@@ -1534,6 +1539,26 @@ public:
         this->context->inParameterParsing = oldInParameterParsing;
         this->context->inParameterNameParsing = oldInParameterNameParsing;
         this->context->isAssignmentTarget = oldIsAssignmentTarget;
+    }
+
+    bool matchAwaitUsing()
+    {
+        if (this->canUseUsingAsDeclaration() && this->matchContextualKeyword(AwaitKeyword)) {
+            ScanState state = this->scanner->saveState();
+            this->collectComments();
+            ALLOC_TOKEN(next);
+            this->scanner->lex(next);
+            this->collectComments();
+            ALLOC_TOKEN(nextOfNext);
+            this->scanner->lex(nextOfNext);
+            this->scanner->restoreState(state);
+
+            if (nextOfNext->type == Token::IdentifierToken && nextOfNext->lineNumber == next->lineNumber) {
+                return (state.lineNumber == next->lineNumber) && (next->type == Token::KeywordToken) && (next->valueKeywordKind == KeywordKind::UsingKeyword);
+            }
+        }
+
+        return false;
     }
 
     bool matchAsyncFunction()
@@ -3610,8 +3635,7 @@ public:
                 statement = this->parseVariableStatement(builder, KeywordKind::ConstKeyword);
                 break;
             case UsingKeyword: {
-                bool canUseUsingAsDecl = this->context->inFunctionBody || this->sourceType == SourceType::Module || this->lexicalBlockIndex != 0;
-                if (canUseUsingAsDecl) {
+                if (this->canUseUsingAsDeclaration()) {
                     ScanState state = this->scanner->saveState();
                     this->collectComments();
                     ALLOC_TOKEN(next);
@@ -4872,7 +4896,18 @@ public:
             break;
         }
         case Token::IdentifierToken:
-            statement = this->matchAsyncFunction() ? this->parseFunctionDeclaration(builder, shouldTopLevelDeclaration) : this->parseLabelledStatement(builder, allowFunctionDeclaration);
+            if (UNLIKELY(this->matchAsyncFunction())) {
+                statement = this->parseFunctionDeclaration(builder, shouldTopLevelDeclaration);
+            } else if (UNLIKELY(this->matchAwaitUsing())) {
+                this->nextToken();
+                statement = this->parseVariableStatement(builder, KeywordKind::UsingKeyword);
+                statement->asVariableDeclaration()->markAwaitUsing();
+                if (this->sourceType == Module && inGlobalSourceCodeParsing()) {
+                    this->currentScopeContext->m_isAsync = true;
+                }
+            } else {
+                statement = this->parseLabelledStatement(builder, allowFunctionDeclaration);
+            }
             break;
         case Token::KeywordToken:
             switch (this->lookahead.valueKeywordKind) {

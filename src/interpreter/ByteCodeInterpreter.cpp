@@ -196,7 +196,7 @@ public:
     static int evaluateImportWithOperation(ExecutionState& state, const Value& options);
 
     static void initializeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter);
-    static void finalizeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter);
+    static bool finalizeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter, ByteCodeBlock* byteCodeBlock);
 
 #if defined(ENABLE_TCO)
     static Value tailRecursionSlowCase(ExecutionState& state, TailRecursion* code, ByteCodeBlock* byteCodeBlock, const Value& callee, Value* registerFile);
@@ -1549,7 +1549,10 @@ Value Interpreter::interpret(ExecutionState* state, ByteCodeBlock* byteCodeBlock
         DEFINE_OPCODE(FinalizeDisposable)
             :
         {
-            InterpreterSlowPath::finalizeDisposable(*state, registerFile, programCounter);
+            bool r = InterpreterSlowPath::finalizeDisposable(*state, registerFile, programCounter, byteCodeBlock);
+            if (!r) {
+                return Value();
+            }
             NEXT_INSTRUCTION();
         }
 
@@ -4337,21 +4340,39 @@ NEVER_INLINE void InterpreterSlowPath::executionPauseOperation(ExecutionState& s
 
         size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_yieldData.m_tailDataLength;
 
-        ExecutionPauser::pause(state, ret, programCounter + sizeof(ExecutionPause), code->m_yieldData.m_tailDataLength, nextProgramCounter, code->m_yieldData.m_dstIndex, code->m_yieldData.m_dstStateIndex, ExecutionPauser::PauseReason::Yield);
+        Optional<Value*> dstStore;
+        Optional<Value*> dstStateStore;
+        if (code->m_yieldData.m_dstIndex != REGISTER_LIMIT) {
+            dstStore = &registerFile[code->m_yieldData.m_dstIndex];
+        }
+        if (code->m_yieldData.m_dstStateIndex != REGISTER_LIMIT) {
+            dstStateStore = &registerFile[code->m_yieldData.m_dstStateIndex];
+        }
+        ExecutionPauser::pause(state, ret, programCounter + sizeof(ExecutionPause), code->m_yieldData.m_tailDataLength, nextProgramCounter,
+                               dstStore, dstStateStore, ExecutionPauser::PauseReason::Yield);
     } else if (code->m_reason == ExecutionPause::Await) {
         ExecutionPauser* executionPauser = state.executionPauser();
         const Value& awaitValue = registerFile[code->m_awaitData.m_awaitIndex];
         size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_awaitData.m_tailDataLength;
         size_t tailDataPosition = programCounter + sizeof(ExecutionPause);
         size_t tailDataLength = code->m_awaitData.m_tailDataLength;
+        Optional<Value*> dstStore;
+        Optional<Value*> dstStateStore;
+        if (code->m_awaitData.m_dstIndex != REGISTER_LIMIT) {
+            dstStore = &registerFile[code->m_awaitData.m_dstIndex];
+        }
+        if (code->m_awaitData.m_dstStateIndex != REGISTER_LIMIT) {
+            dstStateStore = &registerFile[code->m_awaitData.m_dstStateIndex];
+        }
 
         ScriptAsyncFunctionObject::awaitOperationBeforePause(state, executionPauser, awaitValue, executionPauser->sourceObject());
-        ExecutionPauser::pause(state, awaitValue, tailDataPosition, tailDataLength, nextProgramCounter, code->m_awaitData.m_dstIndex, code->m_awaitData.m_dstStateIndex, ExecutionPauser::PauseReason::Await);
+        ExecutionPauser::pause(state, awaitValue, tailDataPosition, tailDataLength, nextProgramCounter,
+                               dstStore, dstStateStore, ExecutionPauser::PauseReason::Await);
     } else if (code->m_reason == ExecutionPause::GeneratorsInitialize) {
         ExecutionPauser* executionPauser = state.executionPauser();
         size_t tailDataPosition = programCounter + sizeof(ExecutionPause);
         size_t nextProgramCounter = programCounter - (size_t)codeBuffer + sizeof(ExecutionPause) + code->m_asyncGeneratorInitializeData.m_tailDataLength;
-        ExecutionPauser::pause(state, Value(), tailDataPosition, code->m_asyncGeneratorInitializeData.m_tailDataLength, nextProgramCounter, REGISTER_LIMIT, REGISTER_LIMIT, ExecutionPauser::PauseReason::GeneratorsInitialize);
+        ExecutionPauser::pause(state, Value(), tailDataPosition, code->m_asyncGeneratorInitializeData.m_tailDataLength, nextProgramCounter, nullptr, nullptr, ExecutionPauser::PauseReason::GeneratorsInitialize);
     }
 }
 
@@ -4403,7 +4424,7 @@ NEVER_INLINE Value InterpreterSlowPath::executionResumeOperation(ExecutionState*
         return Value();
     }
 
-    if (state->executionPauser()->m_resumeStateIndex == REGISTER_LIMIT) {
+    if (!state->executionPauser()->m_resumeStateStore) {
         if (needsReturn) {
             if (state->rareData()->controlFlowRecordVector() && state->rareData()->controlFlowRecordVector()->size()) {
                 state->rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsReturn, data->m_resumeValue, state->rareData()->controlFlowRecordVector()->size());
@@ -4740,48 +4761,91 @@ NEVER_INLINE void InterpreterSlowPath::initializeDisposable(ExecutionState& stat
         registerFile[code->m_dstRegisterIndex] = new DisposableResourceRecord;
     }
     DisposableResourceRecord* record = registerFile[code->m_dstRegisterIndex].asPointerValue()->asDisposableResourceRecord();
-    record->m_records.pushBack(createDisposableResource(state, registerFile[code->m_srcRegisterIndex], false, NullOption));
+    record->m_records.pushBack(createDisposableResource(state, registerFile[code->m_srcRegisterIndex], code->m_isAsyncDisposable, NullOption));
     ADD_PROGRAM_COUNTER(InitializeDisposable);
 }
 
-NEVER_INLINE void InterpreterSlowPath::finalizeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter)
+static void finalizeDisposableAwaitOperation(ExecutionState& state, ByteCodeBlock* byteCodeBlock, DisposableResourceRecord* data,
+                                             const Value& awaitValue, size_t programCounter, FinalizeDisposable* code, size_t nextStage)
+{
+    data->m_awaitResumeStage = nextStage;
+    ExecutionPauser* executionPauser = state.executionPauser();
+    size_t tailDataPosition = programCounter + sizeof(FinalizeDisposable);
+    size_t tailDataLength = code->m_tailDataLength;
+    size_t nextProgramCounter = programCounter - (size_t)byteCodeBlock->m_code.data();
+
+    ScriptAsyncFunctionObject::awaitOperationBeforePause(state, executionPauser, awaitValue, executionPauser->sourceObject());
+    ExecutionPauser::pause(state, awaitValue, tailDataPosition, tailDataLength, nextProgramCounter,
+                           &data->m_awaitResumeValueSlot, &data->m_awaitResumeStateSlot, ExecutionPauser::PauseReason::Await);
+}
+
+NEVER_INLINE bool InterpreterSlowPath::finalizeDisposable(ExecutionState& state, Value* registerFile, size_t& programCounter, ByteCodeBlock* byteCodeBlock)
 {
     FinalizeDisposable* code = (FinalizeDisposable*)programCounter;
     if (!registerFile[code->m_dataRegisterIndex].isUndefined()) {
         DisposableResourceRecord* data = registerFile[code->m_dataRegisterIndex].asPointerValue()->asDisposableResourceRecord();
-        if (data->m_records.size()) {
+        Value result;
+        bool resultIsError = false;
+        // Let needsAwait be false.
+        // Let hasAwaited be false.
+        // For each element resource of disposeCapability.[[DisposableResourceStack]], in reverse list order, do
+        while (data->m_records.size()) {
             DisposableResourceRecord::Record record = data->m_records.back();
             data->m_records.pop_back();
-
-            // Let needsAwait be false.
-            // Let hasAwaited be false.
-            // For each element resource of disposeCapability.[[DisposableResourceStack]], in reverse list order, do
-
             // Let value be resource.[[ResourceValue]].
             Value value = record.m_resourceValue;
             // Let hint be resource.[[Hint]].
             // Let method be resource.[[DisposeMethod]].
             Value method = record.m_disposbleMethod;
+
+            if (data->m_awaitResumeStage == 1) {
+                data->m_awaitResumeStage = 0;
+                goto FinalizeDisposableAwaitResumeStage1;
+            } else if (data->m_awaitResumeStage == 2) {
+                data->m_awaitResumeStage = 0;
+                goto FinalizeDisposableAwaitResumeStage2;
+            } else if (data->m_awaitResumeStage == 3) {
+                data->m_awaitResumeStage = 0;
+                goto FinalizeDisposableAwaitResumeStage3;
+            }
+
+
             // If hint is sync-dispose and needsAwait is true and hasAwaited is false, then
             if (!record.m_isAsyncDisposableResource && data->m_needsAwait) {
-                // TODO
                 // Perform ! Await(undefined).
+                data->m_records.pushBack(record);
+                finalizeDisposableAwaitOperation(state, byteCodeBlock, data, Value(), programCounter, code, 1);
+                return false;
+            FinalizeDisposableAwaitResumeStage1:
                 // Set needsAwait to false.
+                data->m_needsAwait = false;
             }
-            // If method is not undefined, then
+            // If method is not undefined, thenS
             if (!method.isUndefined()) {
                 // Let result be Completion(Call(method, value)).
                 try {
-                    Object::call(state, method, value, 0, nullptr);
-                    // If result is a normal completion and hint is async-dispose, then
-                    if (record.m_isAsyncDisposableResource) {
-                        // TODO
-                        // Set result to Completion(Await(result.[[Value]])).
-                        // Set hasAwaited to true.
-                        data->m_hasAwaited = true;
-                    }
+                    resultIsError = false;
+                    result = Object::call(state, method, value, 0, nullptr);
                 } catch (const Value& error) {
-                    // If result is a throw completion, then
+                    result = error;
+                    resultIsError = true;
+                }
+
+                // If result is a normal completion and hint is async-dispose, then
+                if (!resultIsError && record.m_isAsyncDisposableResource) {
+                    // Set result to Completion(Await(result.[[Value]])).
+                    data->m_records.pushBack(record);
+                    finalizeDisposableAwaitOperation(state, byteCodeBlock, data, result, programCounter, code, 2);
+                    return false;
+                    // Set hasAwaited to true.
+                FinalizeDisposableAwaitResumeStage2:
+                    result = data->m_awaitResumeValueSlot;
+                    resultIsError = data->m_awaitResumeStateSlot == Value(ExecutionPauser::ResumeState::Throw);
+                    data->m_hasAwaited = true;
+                }
+
+                // If result is a throw completion, then
+                if (resultIsError) {
                     // If completion is a throw completion, then
                     ASSERT(state.hasRareData());
                     if (state.rareData()->controlFlowRecordVector()->back()
@@ -4793,13 +4857,13 @@ NEVER_INLINE void InterpreterSlowPath::finalizeDisposable(ExecutionState& state,
                         // Perform CreateNonEnumerableDataPropertyOrThrow(error, "suppressed", suppressed).
                         auto supressedError = new SuppressedErrorObject(state, state.context()->globalObject()->suppressedErrorPrototype(),
                                                                         new ASCIIStringFromExternalMemory("An error was suppressed during disposal"),
-                                                                        true, true, error, state.rareData()->controlFlowRecordVector()->back()->value());
+                                                                        true, true, result, state.rareData()->controlFlowRecordVector()->back()->value());
                         // Set completion to ThrowCompletion(error).
                         state.rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, supressedError);
                     } else {
                         // Else,
                         // Set completion to result.
-                        state.rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, error);
+                        state.rareData()->controlFlowRecordVector()->back() = new ControlFlowRecord(ControlFlowRecord::NeedsThrow, result);
                     }
                 }
             } else if (record.m_isAsyncDisposableResource) {
@@ -4809,17 +4873,26 @@ NEVER_INLINE void InterpreterSlowPath::finalizeDisposable(ExecutionState& state,
                 // Assert: hint is async-dispose.
                 ASSERT(record.m_isAsyncDisposableResource);
                 // Set needsAwait to true.
+                data->m_needsAwait = true;
                 // NOTE: This can only indicate a case where either null or undefined was the initialized value of an await using declaration.
             }
-
-            // TODO If needsAwait is true and hasAwaited is false, then
-            // TODO Perform ! Await(undefined).
-            // TODO NOTE: After disposeCapability has been disposed, it will never be used again. The contents of disposeCapability.[[DisposableResourceStack]] can be discarded in implementations, such as by garbage collection, at this point.
-            // TODO Set disposeCapability.[[DisposableResourceStack]] to a new empty List.
-            // TODO Return ? completion.
+        }
+        // If needsAwait is true and hasAwaited is false, then
+        if (data->m_needsAwait && !data->m_hasAwaited) {
+            data->m_needsAwait = false;
+            // Perform ! Await(undefined).
+            finalizeDisposableAwaitOperation(state, byteCodeBlock, data, Value(), programCounter, code, 3);
+            return false;
         }
     }
+// NOTE: After disposeCapability has been disposed, it will never be used again. The contents of disposeCapability.[[DisposableResourceStack]] can be discarded in implementations, such as by garbage collection, at this point.
+// Set disposeCapability.[[DisposableResourceStack]] to a new empty List.
+// Return ? completion.
+FinalizeDisposableAwaitResumeStage3:
+    size_t tailDataLength = code->m_tailDataLength;
     ADD_PROGRAM_COUNTER(FinalizeDisposable);
+    programCounter += tailDataLength;
+    return true;
 }
 
 NEVER_INLINE void InterpreterSlowPath::unaryTypeof(ExecutionState& state, UnaryTypeof* code, Value* registerFile)

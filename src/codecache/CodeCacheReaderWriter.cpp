@@ -626,6 +626,12 @@ void CodeCacheWriter::storeByteCodeStream(ByteCodeBlock* block)
                 }
                 break;
             }
+            case FinalizeDisposableOpcode: {
+                // add tail data length
+                FinalizeDisposable* bc = static_cast<FinalizeDisposable*>(currentCode);
+                code += bc->m_tailDataLength;
+                break;
+            }
             case ExecutionResumeOpcode:
                 RELEASE_ASSERT_NOT_REACHED();
                 break;

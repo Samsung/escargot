@@ -95,7 +95,9 @@ public:
                 }
             }
             ASSERT(i != bi->identifiers().size());
-            codeBlock->pushCode(InitializeDisposable(ByteCodeLOC(m_loc.index), srcRegister, context->m_disposableRecordRegisterStack->back()), context, this->m_loc.index);
+            codeBlock->pushCode(InitializeDisposable(ByteCodeLOC(m_loc.index), context->m_isAwaitUsingBindingInitialization,
+                                                     srcRegister, context->m_disposableRecordRegisterStack->back()),
+                                context, this->m_loc.index);
         }
     }
 
