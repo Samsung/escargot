@@ -73,6 +73,7 @@ class AsyncGeneratorObject;
 class AsyncFromSyncIteratorObject;
 class GlobalObjectProxyObject;
 class DisposableStackObject;
+class AsyncDisposableStackObject;
 struct DisposableResourceRecord;
 #if defined(ENABLE_TEMPORAL)
 class TemporalObject;
@@ -516,6 +517,11 @@ public:
         return false;
     }
 
+    virtual bool isAsyncDisposableStackObject() const
+    {
+        return false;
+    }
+
 #if defined(ENABLE_INTL)
     virtual bool isIntlLocaleObject() const
     {
@@ -935,6 +941,12 @@ public:
     {
         ASSERT(isDisposableStackObject());
         return (DisposableStackObject*)this;
+    }
+
+    AsyncDisposableStackObject* asAsyncDisposableStackObject()
+    {
+        ASSERT(isAsyncDisposableStackObject());
+        return (AsyncDisposableStackObject*)this;
     }
 
 #if defined(ENABLE_THREADING)

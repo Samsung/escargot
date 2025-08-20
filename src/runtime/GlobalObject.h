@@ -175,16 +175,18 @@ class FunctionObject;
     F(objectFreeze, FunctionObject, objName)    \
     F(objectPrototype, Object, objName)         \
     F(objectPrototypeToString, FunctionObject, objName)
-#define GLOBALOBJECT_BUILTIN_OTHERS(F, objName)  \
-    F(eval, FunctionObject, objName)             \
-    F(parseInt, FunctionObject, objName)         \
-    F(parseFloat, FunctionObject, objName)       \
-    F(arrayToString, FunctionObject, objName)    \
-    F(asyncIteratorPrototype, Object, objName)   \
-    F(iteratorPrototype, Object, objName)        \
-    F(genericIteratorPrototype, Object, objName) \
-    F(dispoableStack, FunctionObject, objName)   \
-    F(dispoableStackPrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_OTHERS(F, objName)      \
+    F(eval, FunctionObject, objName)                 \
+    F(parseInt, FunctionObject, objName)             \
+    F(parseFloat, FunctionObject, objName)           \
+    F(arrayToString, FunctionObject, objName)        \
+    F(asyncIteratorPrototype, Object, objName)       \
+    F(iteratorPrototype, Object, objName)            \
+    F(genericIteratorPrototype, Object, objName)     \
+    F(disposableStack, FunctionObject, objName)      \
+    F(disposableStackPrototype, Object, objName)     \
+    F(asyncDisposableStack, FunctionObject, objName) \
+    F(asyncDisposableStackPrototype, Object, objName)
 
 #define GLOBALOBJECT_BUILTIN_PROMISE(F, objName)  \
     F(promise, FunctionObject, objName)           \

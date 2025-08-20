@@ -21,8 +21,11 @@
 #define __EscargotDisposableObject__
 
 #include "runtime/Object.h"
+#include "runtime/PromiseObject.h"
 
 namespace Escargot {
+
+class PromiseObject;
 
 struct DisposableResourceRecord : public PointerValue {
     struct Record {
@@ -43,10 +46,16 @@ struct DisposableResourceRecord : public PointerValue {
     Value m_awaitResumeStateSlot;
     Vector<Record, GCUtil::gc_malloc_allocator<Record>> m_records;
 
+    // for AsyncDisposableStackObject::disposeAsync
+    Optional<PromiseReaction::Capability> m_promiseCapability;
+    bool m_resultIsError;
+    Value m_result;
+
     DisposableResourceRecord()
         : m_needsAwait(false)
         , m_hasAwaited(false)
         , m_awaitResumeStage(0)
+        , m_resultIsError(false)
     {
     }
 
@@ -85,6 +94,36 @@ public:
 
 protected:
     bool m_isDisposed; // [[DisposableState]]
+    DisposableResourceRecord* m_record;
+};
+
+class AsyncDisposableStackObject : public DerivedObject {
+public:
+    explicit AsyncDisposableStackObject(ExecutionState& state, Object* proto)
+        : DerivedObject(state, proto, ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER)
+        , m_isDisposed(false)
+        , m_record(new DisposableResourceRecord())
+    {
+    }
+
+    virtual bool isAsyncDisposableStackObject() const override
+    {
+        return true;
+    }
+
+    bool disposed() const
+    {
+        return m_isDisposed;
+    }
+
+    Value use(ExecutionState& state, const Value& value);
+    PromiseObject* asyncDispose(ExecutionState& state);
+    Value adopt(ExecutionState& state, const Value& value, const Value& onDisposeAsync);
+    void defer(ExecutionState& state, const Value& onDisposeAsync);
+    AsyncDisposableStackObject* move(ExecutionState& state);
+
+protected:
+    bool m_isDisposed; // [[AsyncDisposableState]]
     DisposableResourceRecord* m_record;
 };
 

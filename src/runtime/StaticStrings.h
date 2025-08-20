@@ -39,6 +39,7 @@ namespace Escargot {
     F(Array)                      \
     F(ArrayBuffer)                \
     F(ArrayIterator)              \
+    F(AsyncDisposableStack)       \
     F(AsyncFunction)              \
     F(AsyncGenerator)             \
     F(AsyncGeneratorFunction)     \
@@ -195,6 +196,7 @@ namespace Escargot {
     F(dotAll)                     \
     F(difference)                 \
     F(dispose)                    \
+    F(disposeAsync)               \
     F(disposed)                   \
     F(drop)                       \
     F(encodeURI)                  \
