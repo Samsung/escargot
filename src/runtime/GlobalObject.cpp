@@ -133,7 +133,7 @@ static Value builtinDisposableStackConstructor(ExecutionState& state, Value this
 
     // Let disposableStack be ? OrdinaryCreateFromConstructor(NewTarget, "%DisposableStack.prototype%", « [[DisposableState]], [[DisposeCapability]] »).
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
-        return constructorRealm->globalObject()->dispoableStackPrototype();
+        return constructorRealm->globalObject()->disposableStackPrototype();
     });
     // Set disposableStack.[[DisposableState]] to pending.
     // Set disposableStack.[[DisposeCapability]] to NewDisposeCapability().
@@ -179,9 +179,80 @@ static Value builtinDisposableStackMove(ExecutionState& state, Value thisValue, 
     return s->move(state);
 }
 
-static Value builtinDisposableGetDisposed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+static Value builtinDisposableStackGetDisposed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_DISPOSABLE_STACK(s, DisposableStack, disposed);
+    return Value(s->disposed());
+}
+
+static Value builtinAsyncDisposableStackConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
+    }
+
+    // Let asyncDisposableStack be ? OrdinaryCreateFromConstructor(NewTarget, "%AsyncDisposableStack.prototype%", « [[AsyncDisposableState]], [[DisposeCapability]] »).
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->asyncDisposableStackPrototype();
+    });
+    // Set asyncDisposableStack.[[AsyncDisposableState]] to pending.
+    // Set asyncDisposableStack.[[DisposeCapability]] to NewDisposeCapability().
+    // Return asyncDisposableStack.
+    return new AsyncDisposableStackObject(state, proto);
+}
+
+#define RESOLVE_THIS_BINDING_TO_DISPOSABLE_ASYNC_STACK(NAME, OBJ, BUILT_IN_METHOD)                                                                                                                                                                     \
+    if (!thisValue.isObject() || !thisValue.asObject()->isAsyncDisposableStackObject()) {                                                                                                                                                              \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().OBJ.string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                  \
+    AsyncDisposableStackObject* NAME = thisValue.asObject()->asAsyncDisposableStackObject();
+
+static Value builtinAsyncDisposableStackUse(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_DISPOSABLE_ASYNC_STACK(s, AsyncDisposableStack, use);
+    return s->use(state, argv[0]);
+}
+
+static Value builtinAsyncDisposableStackAsyncDispose(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If asyncDisposableStack does not have an [[AsyncDisposableState]] internal slot, then
+    if (!thisValue.isObject() || !thisValue.asObject()->isAsyncDisposableStackObject()) {
+        // Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+        auto promiseCapability = PromiseObject::newPromiseCapability(state, state.context()->globalObject()->promise());
+        Value argv(ErrorObject::createBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().AsyncDisposableStack.string(), true,
+                                                   state.context()->staticStrings().asyncDispose.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver, true));
+        Object::call(state, promiseCapability.m_rejectFunction, Value(), 1, &argv);
+        // Return promiseCapability.[[Promise]].
+        return promiseCapability.m_promise;
+    }
+    AsyncDisposableStackObject* s = thisValue.asObject()->asAsyncDisposableStackObject();
+    return s->asyncDispose(state);
+}
+
+static Value builtinAsyncDisposableStackAdopt(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_DISPOSABLE_ASYNC_STACK(s, AsyncDisposableStack, adopt);
+    return s->adopt(state, argv[0], argv[1]);
+}
+
+static Value builtinAsyncDisposableStackDefer(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_DISPOSABLE_ASYNC_STACK(s, AsyncDisposableStack, defer);
+    s->defer(state, argv[0]);
+    return Value();
+}
+
+static Value builtinAsyncDisposableStackMove(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_DISPOSABLE_ASYNC_STACK(s, AsyncDisposableStack, move);
+    return s->move(state);
+}
+
+static Value builtinAsyncDisposableStackGetDisposed(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_DISPOSABLE_ASYNC_STACK(s, AsyncDisposableStack, disposed);
     return Value(s->disposed());
 }
 
@@ -980,50 +1051,96 @@ void GlobalObject::installOthers(ExecutionState& state)
     defineOwnProperty(state, ObjectPropertyName(strings->globalThis),
                       ObjectPropertyDescriptor(this, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_dispoableStack = new NativeFunctionObject(state, NativeFunctionInfo(strings->DisposableStack, builtinDisposableStackConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
-    m_dispoableStack->setGlobalIntrinsicObject(state, true);
-    m_dispoableStackPrototype = new PrototypeObject(state);
-    m_dispoableStackPrototype->setGlobalIntrinsicObject(state, true);
-    m_dispoableStack->setFunctionPrototype(state, m_dispoableStackPrototype);
+    m_disposableStack = new NativeFunctionObject(state, NativeFunctionInfo(strings->DisposableStack, builtinDisposableStackConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_disposableStack->setGlobalIntrinsicObject(state, true);
+    m_disposableStackPrototype = new PrototypeObject(state);
+    m_disposableStackPrototype->setGlobalIntrinsicObject(state, true);
+    m_disposableStack->setFunctionPrototype(state, m_disposableStackPrototype);
 
     defineOwnProperty(state, ObjectPropertyName(strings->DisposableStack),
-                      ObjectPropertyDescriptor(m_dispoableStack,
+                      ObjectPropertyDescriptor(m_disposableStack,
                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                                 ObjectPropertyDescriptor(strings->DisposableStack.string(),
-                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_disposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                  ObjectPropertyDescriptor(strings->DisposableStack.string(),
+                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
     auto disposeFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->dispose, builtinDisposableStackDispose, 0, NativeFunctionInfo::Strict));
-    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().dispose),
-                                                 ObjectPropertyDescriptor(disposeFunction,
-                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_disposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().dispose),
+                                                  ObjectPropertyDescriptor(disposeFunction,
+                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->dispose),
-                                                 ObjectPropertyDescriptor(disposeFunction,
-                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_disposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->dispose),
+                                                  ObjectPropertyDescriptor(disposeFunction,
+                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->use),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->use, builtinDisposableStackUse, 1, NativeFunctionInfo::Strict)),
-                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_disposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->use),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->use, builtinDisposableStackUse, 1, NativeFunctionInfo::Strict)),
+                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->adopt),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->adopt, builtinDisposableStackAdopt, 2, NativeFunctionInfo::Strict)),
-                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_disposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->adopt),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->adopt, builtinDisposableStackAdopt, 2, NativeFunctionInfo::Strict)),
+                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->defer),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->defer, builtinDisposableStackDefer, 1, NativeFunctionInfo::Strict)),
-                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_disposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->defer),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->defer, builtinDisposableStackDefer, 1, NativeFunctionInfo::Strict)),
+                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    m_dispoableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->move),
-                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->move, builtinDisposableStackMove, 0, NativeFunctionInfo::Strict)),
-                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_disposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->move),
+                                                  ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->move, builtinDisposableStackMove, 0, NativeFunctionInfo::Strict)),
+                                                                           (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
-        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getdisposed, builtinDisposableGetDisposed, 0, NativeFunctionInfo::Strict));
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getdisposed, builtinDisposableStackGetDisposed, 0, NativeFunctionInfo::Strict));
         JSGetterSetter gs(getter, Value());
         ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
-        m_dispoableStackPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->disposed), desc);
+        m_disposableStackPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->disposed), desc);
+    }
+
+    m_asyncDisposableStack = new NativeFunctionObject(state, NativeFunctionInfo(strings->AsyncDisposableStack, builtinAsyncDisposableStackConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_asyncDisposableStack->setGlobalIntrinsicObject(state, true);
+    m_asyncDisposableStackPrototype = new PrototypeObject(state);
+    m_asyncDisposableStackPrototype->setGlobalIntrinsicObject(state, true);
+    m_asyncDisposableStack->setFunctionPrototype(state, m_asyncDisposableStackPrototype);
+
+    defineOwnProperty(state, ObjectPropertyName(strings->AsyncDisposableStack),
+                      ObjectPropertyDescriptor(m_asyncDisposableStack,
+                                               (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_asyncDisposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                       ObjectPropertyDescriptor(strings->AsyncDisposableStack.string(),
+                                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    auto disposeAsyncFunction = new NativeFunctionObject(state, NativeFunctionInfo(strings->disposeAsync, builtinAsyncDisposableStackAsyncDispose, 0, NativeFunctionInfo::Strict));
+    m_asyncDisposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().asyncDispose),
+                                                       ObjectPropertyDescriptor(disposeAsyncFunction,
+                                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_asyncDisposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->disposeAsync),
+                                                       ObjectPropertyDescriptor(disposeAsyncFunction,
+                                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_asyncDisposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->use),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->use, builtinAsyncDisposableStackUse, 1, NativeFunctionInfo::Strict)),
+                                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_asyncDisposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->adopt),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->adopt, builtinAsyncDisposableStackAdopt, 2, NativeFunctionInfo::Strict)),
+                                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_asyncDisposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->defer),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->defer, builtinAsyncDisposableStackDefer, 1, NativeFunctionInfo::Strict)),
+                                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_asyncDisposableStackPrototype->defineOwnProperty(state, ObjectPropertyName(strings->move),
+                                                       ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->move, builtinAsyncDisposableStackMove, 0, NativeFunctionInfo::Strict)),
+                                                                                (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    {
+        Value getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->getdisposed, builtinAsyncDisposableStackGetDisposed, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_asyncDisposableStackPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->disposed), desc);
     }
 }
 
