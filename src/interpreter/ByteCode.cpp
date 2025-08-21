@@ -321,7 +321,7 @@ static void finalizeUsingBlock(ByteCodeBlock* byteCodeBlock, ByteCodeGenerateCon
 }
 
 
-ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, void* bi, Node* node, bool initFunctionDeclarationInside)
+ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteCodeGenerateContext* context, void* bi, Node* node, bool initFunctionDeclarationInside, bool initUsingBlockInside)
 {
     ASSERT(!!bi);
     InterpretedCodeBlock::BlockInfo* blockInfo = reinterpret_cast<InterpretedCodeBlock::BlockInfo*>(bi);
@@ -341,22 +341,24 @@ ByteCodeBlock::ByteCodeLexicalBlockContext ByteCodeBlock::pushLexicalBlock(ByteC
         context->m_needsExtendedExecutionState = true;
     }
 
-    const auto& ids = blockInfo->identifiers();
-    for (size_t i = 0; i < ids.size(); i++) {
-        if (ids[i].m_isUsing) {
+    if (initUsingBlockInside) {
+        const auto& ids = blockInfo->identifiers();
+        for (size_t i = 0; i < ids.size(); i++) {
+            if (ids[i].m_isUsing) {
 #if defined(ENABLE_TCO)
-            // disable tco since meet using statement
-            context->m_tcoDisabled = true;
+                // disable tco since meet using statement
+                context->m_tcoDisabled = true;
 #endif
-            // don't use reg0 for Script result
-            auto reg = context->getRegister();
-            if (reg == 0) {
-                reg = context->getRegister();
-                context->pushRegister(0);
+                // don't use reg0 for Script result
+                auto reg = context->getRegister();
+                if (reg == 0) {
+                    reg = context->getRegister();
+                    context->pushRegister(0);
+                }
+                context->m_disposableRecordRegisterStack->push_back(reg);
+                ctx.usingBlockTryStartPosition = initUsingBlock(this, context, ctx.loc, blockInfo, context->m_disposableRecordRegisterStack->back()).tryStartPosition;
+                break;
             }
-            context->m_disposableRecordRegisterStack->push_back(reg);
-            ctx.usingBlockTryStartPosition = initUsingBlock(this, context, ctx.loc, blockInfo, context->m_disposableRecordRegisterStack->back()).tryStartPosition;
-            break;
         }
     }
 
@@ -376,12 +378,14 @@ void ByteCodeBlock::finalizeLexicalBlock(ByteCodeGenerateContext* context, const
 #endif
     context->m_lexicallyDeclaredNames->resize(ctx.lexicallyDeclaredNamesCount);
 
-    const auto& ids = blockInfo->identifiers();
-    for (size_t i = 0; i < ids.size(); i++) {
-        if (ids[i].m_isUsing) {
-            finalizeUsingBlock(this, context, ctx.loc, blockInfo, context->m_disposableRecordRegisterStack->back(), ctx.usingBlockTryStartPosition);
-            context->m_disposableRecordRegisterStack->pop_back();
-            break;
+    if (ctx.usingBlockTryStartPosition != SIZE_MAX) {
+        const auto& ids = blockInfo->identifiers();
+        for (size_t i = 0; i < ids.size(); i++) {
+            if (ids[i].m_isUsing) {
+                finalizeUsingBlock(this, context, ctx.loc, blockInfo, context->m_disposableRecordRegisterStack->back(), ctx.usingBlockTryStartPosition);
+                context->m_disposableRecordRegisterStack->pop_back();
+                break;
+            }
         }
     }
 
