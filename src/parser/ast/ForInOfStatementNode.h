@@ -23,6 +23,7 @@
 #include "ExpressionNode.h"
 #include "StatementNode.h"
 #include "TryStatementNode.h"
+#include "VariableDeclarationNode.h"
 
 namespace Escargot {
 
@@ -75,11 +76,16 @@ public:
                 id->generateExpressionByteCode(codeBlock, &newContext, nameRegisters[i]);
             }
 
+            for (size_t i = 0; i < bi->identifiers().size(); i++) {
+                newContext.giveUpRegister();
+            }
+
             newContext.m_lexicalBlockIndex = m_iterationLexicalBlockIndex;
             iterationBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
 
             for (size_t i = 0; i < bi->identifiers().size(); i++) {
                 newContext.addLexicallyDeclaredNames(bi->identifiers()[i].m_name);
+                nameRegisters.push_back(newContext.getRegister());
             }
 
             size_t reverse = bi->identifiers().size() - 1;
@@ -89,6 +95,15 @@ public:
                 newContext.m_isLexicallyDeclaredBindingInitialization = m_hasLexicalDeclarationOnInit;
                 id->generateStoreByteCode(codeBlock, &newContext, nameRegisters[reverse], true);
                 ASSERT(!newContext.m_isLexicallyDeclaredBindingInitialization);
+            }
+
+            for (size_t i = 0; i < bi->identifiers().size(); i++, reverse--) {
+                newContext.addLexicallyDeclaredNames(bi->identifiers()[i].m_name);
+                if (bi->identifiers()[i].m_isUsing) {
+                    codeBlock->pushCode(InitializeDisposable(ByteCodeLOC(m_loc.index), (m_left->type() == VariableDeclaration) && m_left->asVariableDeclaration()->isAwaitUsing(),
+                                                             nameRegisters[i], context->m_disposableRecordRegisterStack->back()),
+                                        context, this->m_loc.index);
+                }
                 newContext.giveUpRegister();
             }
         }
@@ -143,7 +158,7 @@ public:
         if (m_headLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
             context->m_lexicalBlockIndex = m_headLexicalBlockIndex;
             InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_headLexicalBlockIndex);
-            headBlockContext = codeBlock->pushLexicalBlock(context, bi, this);
+            headBlockContext = codeBlock->pushLexicalBlock(context, bi, this, true, false);
         }
 
         ByteCodeGenerateContext newContext(*context);
@@ -175,7 +190,7 @@ public:
             if (m_headRightLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
                 newContext.m_lexicalBlockIndex = m_headRightLexicalBlockIndex;
                 InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_headRightLexicalBlockIndex);
-                headRightBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
+                headRightBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this, true, false);
             }
             size_t rightIdx = m_right->getRegister(codeBlock, &newContext);
             m_right->generateExpressionByteCode(codeBlock, &newContext, rightIdx);
@@ -242,7 +257,7 @@ public:
             if (m_headRightLexicalBlockIndex != LEXICAL_BLOCK_INDEX_MAX) {
                 newContext.m_lexicalBlockIndex = m_headRightLexicalBlockIndex;
                 InterpretedCodeBlock::BlockInfo* bi = codeBlock->m_codeBlock->blockInfo(m_headRightLexicalBlockIndex);
-                headRightBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this);
+                headRightBlockContext = codeBlock->pushLexicalBlock(&newContext, bi, this, true, false);
             }
             size_t rightIdx = m_right->getRegister(codeBlock, &newContext);
             m_right->generateExpressionByteCode(codeBlock, &newContext, rightIdx);

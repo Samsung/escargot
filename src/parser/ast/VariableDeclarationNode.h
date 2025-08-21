@@ -41,6 +41,11 @@ public:
         m_isAwaitUsing = true;
     }
 
+    bool isAwaitUsing() const
+    {
+        return m_isAwaitUsing;
+    }
+
     virtual ASTNodeType type() override { return ASTNodeType::VariableDeclaration; }
     EscargotLexer::KeywordKind kind()
     {

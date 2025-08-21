@@ -3308,7 +3308,7 @@ public:
         }
     };
 
-    ByteCodeLexicalBlockContext pushLexicalBlock(ByteCodeGenerateContext* context, void* bi, Node* node, bool initFunctionDeclarationInside = true);
+    ByteCodeLexicalBlockContext pushLexicalBlock(ByteCodeGenerateContext* context, void* bi, Node* node, bool initFunctionDeclarationInside = true, bool initUsingBlockInside = true);
     void finalizeLexicalBlock(ByteCodeGenerateContext* context, const ByteCodeBlock::ByteCodeLexicalBlockContext& ctx);
     void initFunctionDeclarationWithinBlock(ByteCodeGenerateContext* context, void* bi, Node* node);
 

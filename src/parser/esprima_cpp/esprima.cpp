@@ -1541,23 +1541,32 @@ public:
         this->context->isAssignmentTarget = oldIsAssignmentTarget;
     }
 
-    bool matchAwaitUsing()
+    bool matchAwaitUsingWithSameLine()
     {
-        if (this->canUseUsingAsDeclaration() && this->matchContextualKeyword(AwaitKeyword)) {
-            ScanState state = this->scanner->saveState();
-            this->collectComments();
-            ALLOC_TOKEN(next);
-            this->scanner->lex(next);
-            this->collectComments();
-            ALLOC_TOKEN(nextOfNext);
-            this->scanner->lex(nextOfNext);
-            this->scanner->restoreState(state);
+        ASSERT(this->matchContextualKeyword(AwaitKeyword));
+        ScanState state = this->scanner->saveState();
+        this->collectComments();
+        ALLOC_TOKEN(next);
+        this->scanner->lex(next);
+        this->collectComments();
+        ALLOC_TOKEN(nextOfNext);
+        this->scanner->lex(nextOfNext);
+        this->scanner->restoreState(state);
 
-            if (nextOfNext->type == Token::IdentifierToken && nextOfNext->lineNumber == next->lineNumber) {
-                return (state.lineNumber == next->lineNumber) && (next->type == Token::KeywordToken) && (next->valueKeywordKind == KeywordKind::UsingKeyword);
-            }
+        if (nextOfNext->type == Token::IdentifierToken && nextOfNext->lineNumber == next->lineNumber) {
+            return (state.lineNumber == next->lineNumber) && (next->type == Token::KeywordToken) && (next->valueKeywordKind == KeywordKind::UsingKeyword);
         }
 
+        return false;
+    }
+
+    bool matchAwaitUsing()
+    {
+        if ((this->sourceType == Module && inGlobalSourceCodeParsing()) || this->context->await) {
+            if (this->canUseUsingAsDeclaration() && this->matchContextualKeyword(AwaitKeyword)) {
+                return matchAwaitUsingWithSameLine();
+            }
+        }
         return false;
     }
 
@@ -4208,6 +4217,8 @@ public:
         ParserBlockContext headBlockContext;
         openBlock(headBlockContext);
 
+        bool matchAwaitUsing = false;
+
         if (this->match(SemiColon)) {
             this->nextToken();
         } else {
@@ -4245,8 +4256,14 @@ public:
                     init = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, VarKeyword));
                     this->expect(SemiColon);
                 }
-            } else if (this->matchKeyword(ConstKeyword) || this->matchKeyword(LetKeyword)) {
+            } else if (this->matchKeyword(ConstKeyword) || this->matchKeyword(LetKeyword) || this->matchKeyword(UsingKeyword) || (matchAwaitUsing = this->matchAwaitUsing())) {
                 Marker letContstMarker = this->lastMarker;
+                if (matchAwaitUsing) {
+                    this->nextToken();
+                    if (this->sourceType == Module && inGlobalSourceCodeParsing()) {
+                        this->currentScopeContext->m_isAsync = true;
+                    }
+                }
                 Scanner::ScannerResult keywordToken = this->lookahead;
                 KeywordKind kind = keywordToken.valueKeywordKind;
                 this->nextToken();
@@ -4279,7 +4296,7 @@ public:
                     this->context->allowLexicalDeclaration = true;
 
                     if (!this->context->strict && this->matchKeyword(InKeyword)) {
-                        if (seenAwait) {
+                        if (seenAwait || matchAwaitUsing) {
                             this->throwUnexpectedToken(this->lookahead);
                         }
                         this->nextToken();
@@ -4300,7 +4317,7 @@ public:
                         this->context->allowIn = previousAllowIn;
 
                         if (declarationList.size() == 1 && !std::get<0>(declarations) && this->matchKeyword(InKeyword)) {
-                            if (seenAwait) {
+                            if (seenAwait || matchAwaitUsing) {
                                 this->throwUnexpectedToken(this->lookahead);
                             }
                             left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
@@ -4308,10 +4325,13 @@ public:
                             type = statementTypeForIn;
                         } else if (declarationList.size() == 1 && !std::get<0>(declarations) && this->lookahead.type == Token::IdentifierToken && this->lookahead.equalsToKeywordNoEscape(OfKeyword)) {
                             left = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));
+                            if (matchAwaitUsing) {
+                                left->asVariableDeclaration()->markAwaitUsing();
+                            }
                             this->nextToken();
                             type = statementTypeForOf;
                         } else {
-                            if (seenAwait) {
+                            if (seenAwait || matchAwaitUsing) {
                                 this->throwUnexpectedToken(this->lookahead);
                             }
                             init = this->finalize(this->createNode(), builder.createVariableDeclarationNode(declarationList, kind));

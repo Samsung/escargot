@@ -86,15 +86,6 @@ public:
                            bool isLexicallyDeclaredBindingInitialization, bool isUsingBindingInitialization)
     {
         if (isLexicallyDeclaredBindingInitialization && isUsingBindingInitialization) {
-            auto* bi = context->m_codeBlock->blockInfo(context->m_lexicalBlockIndex);
-            size_t i;
-            for (i = 0; i < bi->identifiers().size(); i++) {
-                if (bi->identifiers()[i].m_name == m_name) {
-                    ASSERT(bi->identifiers()[i].m_isUsing);
-                    break;
-                }
-            }
-            ASSERT(i != bi->identifiers().size());
             codeBlock->pushCode(InitializeDisposable(ByteCodeLOC(m_loc.index), context->m_isAwaitUsingBindingInitialization,
                                                      srcRegister, context->m_disposableRecordRegisterStack->back()),
                                 context, this->m_loc.index);

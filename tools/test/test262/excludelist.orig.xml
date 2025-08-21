@@ -5159,11 +5159,7 @@
     <test id="language/statements/for-of/dstr/obj-rest-non-string-computed-property-array-1e0"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-rest-non-string-computed-property-string-1"><reason>TODO</reason></test>
     <test id="language/statements/for-of/dstr/obj-rest-not-last-element-invalid"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/head-await-using-bound-names-fordecl-tdz"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/head-await-using-fresh-binding-per-iteration"><reason>TODO</reason></test>
     <test id="language/statements/for-of/head-lhs-async-dot"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/head-using-bound-names-fordecl-tdz"><reason>TODO</reason></test>
-    <test id="language/statements/for-of/head-using-fresh-binding-per-iteration"><reason>TODO</reason></test>
     <test id="language/statements/for-of/iterator-close-non-throw-get-method-is-null"><reason>TODO</reason></test>
     <test id="language/statements/for-of/iterator-close-throw-get-method-abrupt"><reason>TODO</reason></test>
     <test id="language/statements/function/eval-var-scope-syntax-err"><reason>TODO</reason></test>
