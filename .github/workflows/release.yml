@@ -180,7 +180,7 @@ jobs:
     - uses: lukka/get-cmake@latest
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
       with:
-        sdk-version: 20348
+        sdk-version: 26100
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
@@ -191,7 +191,7 @@ jobs:
     - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: ${{ matrix.arch }}
-        sdk: "10.0.20348.0"
+        sdk: "10.0.26100.0"
     - name: Install zip if not available
       run: |
         if (-Not (Get-Command zip -ErrorAction SilentlyContinue)) {
