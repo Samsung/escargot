@@ -36,7 +36,7 @@
 
 namespace Escargot {
 
-#if defined(ESCARGOT_ENABLE_SHADOWREALM)
+#if defined(ENABLE_SHADOWREALM)
 
 //  https://tc39.es/proposal-shadowrealm/#sec-shadowrealm
 static Value builtinShadowRealmConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

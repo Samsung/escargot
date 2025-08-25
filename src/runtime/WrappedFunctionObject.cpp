@@ -26,7 +26,7 @@
 
 namespace Escargot {
 
-#if defined(ESCARGOT_ENABLE_SHADOWREALM)
+#if defined(ENABLE_SHADOWREALM)
 
 WrappedFunctionObject::WrappedFunctionObject(ExecutionState& state, Object* wrappedTargetFunction, Context* realm, const Value& length, const Value& name)
     : DerivedObject(state, state.context()->globalObject()->objectPrototype(), ESCARGOT_OBJECT_BUILTIN_PROPERTY_NUMBER + 2)

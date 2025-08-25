@@ -214,7 +214,7 @@ class FunctionObject;
     F(setPrototypeObject, Object, objName)   \
     F(setIteratorPrototype, Object, objName)
 
-#if defined(ESCARGOT_ENABLE_SHADOWREALM)
+#if defined(ENABLE_SHADOWREALM)
 #define GLOBALOBJECT_BUILTIN_SHADOWREALM(F, objName) \
     F(shadowRealm, FunctionObject, objName)          \
     F(shadowRealmPrototype, Object, objName)

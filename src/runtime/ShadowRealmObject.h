@@ -27,7 +27,7 @@
 
 namespace Escargot {
 
-#if defined(ESCARGOT_ENABLE_SHADOWREALM)
+#if defined(ENABLE_SHADOWREALM)
 
 class ShadowRealmObject : public DerivedObject {
 public:
@@ -56,7 +56,7 @@ private:
     Context* m_realmContext;
 };
 
-#endif // defined(ESCARGOT_ENABLE_SHADOWREALM)
+#endif // defined(ENABLE_SHADOWREALM)
 
 } // namespace Escargot
 #endif
