@@ -41,7 +41,7 @@ Escargot is an open-source project that allows developers to contribute to its d
 
 ### Build Options
 
-The following build options are supported when generating ninja rules using cmake.
+The following build options are supported when generating build rules using cmake.
 
 | **Option** | **Description** | **Flag** | **Value** | **Default** |
 |-|-|-|-|-|
@@ -50,12 +50,14 @@ The following build options are supported when generating ninja rules using cmak
 | **MODE** | Choose release/debug mode | -DESCARGOT_MODE | release/debug | release |
 | **OUTPUT** | Choose build output type | -DESCARGOT_OUTPUT | shared_lib/static_lib/shell/cctest | shell |
 | **LIBICU** | Include libicu library | -DESCARGOT_LIBICU_SUPPORT | ON/OFF | ON |
-| **THREADING** | Enable threading features (e.g. Atomics, SharedArrayBuffer) | -DESCARGOT_THREADING | ON/OFF | ON |
 | **WASM** | Enable WebAssembly support | -DESCARGOT_WASM | ON/OFF | OFF |
 | **CODE_CACHE** | Enable code cache | -DESCARGOT_CODE_CACHE | ON/OFF | OFF |
 | **TCO** | Enable tail call optimization | -DESCARGOT_TCO | ON/OFF | OFF |
+| **THREADING** | Enable threading features (e.g. Atomics, SharedArrayBuffer) | -DESCARGOT_THREADING | ON/OFF | ON |
 | **TLS_ADDRESS_OFFSET** | Enable thread local storge access optimization(offset) | -DESCARGOT_TLS_ACCESS_BY_ADDRESS | ON/OFF | OFF |
 | **TLS_PTHREAD_KEY** | Enable thread local storge access optimization(pthread_key) | -DESCARGOT_TLS_ACCESS_BY_PTHREAD_KEY | ON/OFF | OFF |
+| **TEMPORAL** | Enable Temporal support | -ESCARGOT_TEMPORAL | ON/OFF | OFF |
+| **SHADOWREALM** | Enable ShadowRealm support | -ESCARGOT_SHADOWREALM | ON/OFF | OFF |
 | **SMALL_CONFIG** | Enable aggressive memory optimizations for tiny devices | -DESCARGOT_SMALL_CONFIG | ON/OFF | OFF |
 | **TEST** | Enable additional features used only for testing | -DESCARGOT_TEST | ON/OFF | OFF |
 
