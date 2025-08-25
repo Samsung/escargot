@@ -36,7 +36,7 @@
 
 namespace Escargot {
 
-#if defined(ESCARGOT_ENABLE_SHADOWREALM)
+#if defined(ENABLE_SHADOWREALM)
 
 ShadowRealmObject::ShadowRealmObject(ExecutionState& state)
     : DerivedObject(state)

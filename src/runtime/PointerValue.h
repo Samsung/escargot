@@ -757,7 +757,7 @@ public:
         return (ScriptClassConstructorPrototypeObject*)this;
     }
 
-#if defined(ESCARGOT_ENABLE_SHADOWREALM)
+#if defined(ENABLE_SHADOWREALM)
     ShadowRealmObject* asShadowRealmObject()
     {
         ASSERT(isShadowRealmObject());
@@ -884,7 +884,7 @@ public:
         return (WrapForValidIteratorObject*)this;
     }
 
-#if defined(ESCARGOT_ENABLE_SHADOWREALM)
+#if defined(ENABLE_SHADOWREALM)
     WrappedFunctionObject* asWrappedFunctionObject()
     {
         ASSERT(isWrappedFunctionObject());

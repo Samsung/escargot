@@ -28,7 +28,7 @@
 
 namespace Escargot {
 
-#if defined(ESCARGOT_ENABLE_SHADOWREALM)
+#if defined(ENABLE_SHADOWREALM)
 
 class WrappedFunctionObject : public DerivedObject {
     friend class Object;
