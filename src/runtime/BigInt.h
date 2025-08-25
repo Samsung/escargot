@@ -30,6 +30,7 @@ class BigIntData {
     friend class BigInt;
 
 public:
+    BigIntData(BigInt* src);
     BigIntData(const uint64_t& d = 0);
     BigIntData(const int64_t& d);
     BigIntData(const double& d);
@@ -40,23 +41,26 @@ public:
     BigIntData& operator=(const BigIntData& src);
     ~BigIntData();
 
-    void addition(const int64_t& d);
-    void addition(const BigIntData& src);
-    void multiply(const int64_t& d);
-    void division(const int64_t& d);
-    void remainder(const int64_t& d);
+    BigIntData addition(const int64_t& d) const;
+    BigIntData addition(const BigIntData& src) const;
+    BigIntData multiply(const int64_t& d) const;
+    BigIntData division(const int64_t& d) const;
+    BigIntData remainder(const int64_t& d) const;
 
     bool lessThan(BigInt* b) const;
     bool lessThanEqual(BigInt* b) const;
+    bool lessThan(const BigIntData& b) const;
     bool lessThanEqual(const BigIntData& b) const;
     bool greaterThan(BigInt* b) const;
     bool greaterThanEqual(BigInt* b) const;
+    bool greaterThan(const BigIntData& src) const;
     bool greaterThanEqual(const BigIntData& src) const;
 
-    bool isNaN();
-    bool isInfinity();
+    bool isNaN() const;
+    bool isInfinity() const;
 
     std::string toNonGCStdString();
+    int64_t toInt64() const;
 
 private:
     void init(const char* buf, size_t length, int radix);

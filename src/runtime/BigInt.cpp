@@ -29,6 +29,12 @@ BigIntData::~BigIntData()
     bf_delete(&m_data);
 }
 
+BigIntData::BigIntData(BigInt* src)
+{
+    bf_init(ThreadLocal::bfContext(), &m_data);
+    bf_set(&m_data, src->bf());
+}
+
 BigIntData::BigIntData(BigIntData&& src)
 {
     bf_init(src.m_data.ctx, &m_data);
@@ -131,81 +137,74 @@ void BigIntData::init(const char* buf, size_t length, int radix)
     }
 }
 
-void BigIntData::addition(const int64_t& d)
+BigIntData BigIntData::addition(const int64_t& d) const
 {
-    bf_t r;
-    bf_init(ThreadLocal::bfContext(), &r);
-    int ret = bf_add_si(&r, &m_data, d, BF_PREC_INF, BF_RNDZ);
+    BigIntData result;
+    int ret = bf_add_si(&result.m_data, &m_data, d, BF_PREC_INF, BF_RNDZ);
     if (UNLIKELY(ret)) {
         RELEASE_ASSERT_NOT_REACHED();
     }
-    bf_set(&m_data, &r);
-    bf_delete(&r);
+    return result;
 }
 
-void BigIntData::addition(const BigIntData& src)
+BigIntData BigIntData::addition(const BigIntData& src) const
 {
-    bf_t r;
-    bf_init(ThreadLocal::bfContext(), &r);
-    int ret = bf_add(&r, &m_data, &src.m_data, BF_PREC_INF, BF_RNDZ);
+    BigIntData result;
+    int ret = bf_add(&result.m_data, &m_data, &src.m_data, BF_PREC_INF, BF_RNDZ);
     if (UNLIKELY(ret)) {
         RELEASE_ASSERT_NOT_REACHED();
     }
-    bf_set(&m_data, &r);
-    bf_delete(&r);
+    return result;
 }
 
-void BigIntData::multiply(const int64_t& d)
+BigIntData BigIntData::multiply(const int64_t& d) const
 {
-    bf_t r;
-    bf_init(ThreadLocal::bfContext(), &r);
-    int ret = bf_mul_si(&r, &m_data, d, BF_PREC_INF, BF_RNDZ);
+    BigIntData result;
+    int ret = bf_mul_si(&result.m_data, &m_data, d, BF_PREC_INF, BF_RNDZ);
     if (UNLIKELY(ret)) {
         RELEASE_ASSERT_NOT_REACHED();
     }
-    bf_set(&m_data, &r);
-    bf_delete(&r);
+    return result;
 }
 
-void BigIntData::division(const int64_t& d)
+BigIntData BigIntData::division(const int64_t& d) const
 {
+    BigIntData result;
+
     int64_t a;
     if (bf_get_int64(&a, &m_data, BF_GET_INT_MOD) == 0) {
-        bf_set_si(&m_data, a / d);
-        return;
+        bf_set_si(&result.m_data, a / d);
+        return result;
     }
 
     bf_t src;
-    bf_t r;
-    bf_init(ThreadLocal::bfContext(), &r);
     bf_init(ThreadLocal::bfContext(), &src);
     bf_set_si(&src, d);
 
-    int ret = bf_div(&r, &m_data, &src, BF_PREC_INF, BF_RNDZ);
+    int ret = bf_div(&result.m_data, &m_data, &src, BF_PREC_INF, BF_RNDZ);
     if (UNLIKELY(ret) && UNLIKELY(ret != BF_ST_INEXACT)) {
         RELEASE_ASSERT_NOT_REACHED();
     }
-    bf_set(&m_data, &r);
-    bf_delete(&r);
     bf_delete(&src);
+    return result;
 }
 
-void BigIntData::remainder(const int64_t& d)
+BigIntData BigIntData::remainder(const int64_t& d) const
 {
-    bf_t r, src;
-    bf_init(ThreadLocal::bfContext(), &r);
+    BigIntData result;
+
+    bf_t src;
     bf_init(ThreadLocal::bfContext(), &src);
     bf_set_si(&src, d);
 
-    int ret = bf_rem(&r, &m_data, &src, BF_PREC_INF, BF_RNDZ,
+    int ret = bf_rem(&result.m_data, &m_data, &src, BF_PREC_INF, BF_RNDZ,
                      BF_RNDZ)
         & BF_ST_INVALID_OP;
     if (UNLIKELY(ret)) {
         RELEASE_ASSERT_NOT_REACHED();
     }
-    bf_set(&m_data, &r);
-    bf_delete(&r);
     bf_delete(&src);
+    return result;
 }
 
 bool BigIntData::lessThan(BigInt* b) const
@@ -216,6 +215,11 @@ bool BigIntData::lessThan(BigInt* b) const
 bool BigIntData::lessThanEqual(BigInt* b) const
 {
     return bf_cmp_le(&m_data, &b->m_bf);
+}
+
+bool BigIntData::lessThan(const BigIntData& b) const
+{
+    return bf_cmp_lt(&m_data, &b.m_data);
 }
 
 bool BigIntData::lessThanEqual(const BigIntData& b) const
@@ -233,19 +237,31 @@ bool BigIntData::greaterThanEqual(BigInt* b) const
     return bf_cmp(&m_data, &b->m_bf) >= 0;
 }
 
+bool BigIntData::greaterThan(const BigIntData& src) const
+{
+    return bf_cmp(&m_data, &src.m_data) > 0;
+}
+
 bool BigIntData::greaterThanEqual(const BigIntData& src) const
 {
     return bf_cmp(&m_data, &src.m_data) >= 0;
 }
 
-bool BigIntData::isNaN()
+bool BigIntData::isNaN() const
 {
     return bf_is_nan(&m_data);
 }
 
-bool BigIntData::isInfinity()
+bool BigIntData::isInfinity() const
 {
     return !bf_is_finite(&m_data);
+}
+
+int64_t BigIntData::toInt64() const
+{
+    int64_t d;
+    bf_get_int64(&d, &m_data, BF_GET_INT_MOD);
+    return d;
 }
 
 std::string BigIntData::toNonGCStdString()

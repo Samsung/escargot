@@ -447,12 +447,12 @@ static bool isValidDuration(const DurationRecord& record)
     BigIntData normalizedNanoSeconds = record.totalNanoseconds(DurationRecord::Type::Years);
     // If abs(normalizedSeconds) ≥ 2**53, return false.
     BigIntData limit(int64_t(1ULL << 53));
-    limit.multiply(1000000000ULL);
+    limit = limit.multiply(1000000000ULL);
     if (normalizedNanoSeconds.greaterThanEqual(limit)) {
         return false;
     }
     limit = BigIntData(int64_t(1ULL << 53));
-    limit.multiply(-1000000000ULL);
+    limit = limit.multiply(-1000000000ULL);
     if (normalizedNanoSeconds.lessThanEqual(limit)) {
         return false;
     }
@@ -580,40 +580,40 @@ BigIntData DurationRecord::totalNanoseconds(DurationRecord::Type unit) const
 
     if (unit <= DurationRecord::Type::Days) {
         BigIntData s(days());
-        s.multiply(86400);
-        s.multiply(nanoMultiplier);
-        resultNs.addition(s);
+        s = s.multiply(86400);
+        s = s.multiply(nanoMultiplier);
+        resultNs = resultNs.addition(s);
     }
     if (unit <= DurationRecord::Type::Hours) {
         BigIntData s(hours());
-        s.multiply(3600);
-        s.multiply(nanoMultiplier);
-        resultNs.addition(s);
+        s = s.multiply(3600);
+        s = s.multiply(nanoMultiplier);
+        resultNs = resultNs.addition(s);
     }
     if (unit <= DurationRecord::Type::Minutes) {
         BigIntData s(minutes());
-        s.multiply(60);
-        s.multiply(nanoMultiplier);
-        resultNs.addition(s);
+        s = s.multiply(60);
+        s = s.multiply(nanoMultiplier);
+        resultNs = resultNs.addition(s);
     }
     if (unit <= DurationRecord::Type::Seconds) {
         BigIntData s(seconds());
-        s.multiply(nanoMultiplier);
-        resultNs.addition(s);
+        s = s.multiply(nanoMultiplier);
+        resultNs = resultNs.addition(s);
     }
     if (unit <= DurationRecord::Type::Milliseconds) {
         BigIntData s(milliseconds());
-        s.multiply(milliMultiplier);
-        resultNs.addition(s);
+        s = s.multiply(milliMultiplier);
+        resultNs = resultNs.addition(s);
     }
     if (unit <= DurationRecord::Type::Microseconds) {
         BigIntData s(microseconds());
-        s.multiply(microMultiplier);
-        resultNs.addition(s);
+        s = s.multiply(microMultiplier);
+        resultNs = resultNs.addition(s);
     }
     if (unit <= DurationRecord::Type::Nanoseconds) {
         BigIntData s(nanoseconds());
-        resultNs.addition(s);
+        resultNs = resultNs.addition(s);
     }
 
     return resultNs;
@@ -648,10 +648,10 @@ static std::string buildDecimalFormat(DurationRecord::Type unit, BigIntData ns)
     }
 
     BigIntData integerPart = ns;
-    integerPart.division(exponent);
+    integerPart = integerPart.division(exponent);
 
     BigIntData fractionalPart(ns);
-    fractionalPart.remainder(exponent);
+    fractionalPart = fractionalPart.remainder(exponent);
 
     StringBuilder builder;
 

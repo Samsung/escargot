@@ -23,6 +23,8 @@
 #include "runtime/VMInstance.h"
 #include "runtime/BigIntObject.h"
 #include "runtime/TemporalObject.h"
+#include "runtime/TemporalInstantObject.h"
+#include "runtime/TemporalNowObject.h"
 #include "runtime/DateObject.h"
 #include "runtime/ArrayObject.h"
 
@@ -30,11 +32,65 @@ namespace Escargot {
 
 #if defined(ENABLE_TEMPORAL)
 
+static Value builtinTemporalNowTimeZoneId(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return TemporalNowObject::timeZoneId(state);
+}
 
-#define RESOLVE_THIS_BINDING_TO_PLAINDATE(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                           \
-    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainDateObject()) {                                                                                                                                                                                     \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyPlainDate().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
-    }                                                                                                                                                                                                                                                                      \
+static Value builtinTemporalNowInstant(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let ns be SystemUTCEpochNanoseconds().
+    auto ns = Temporal::systemUTCEpochNanoseconds();
+    // Return ! CreateTemporalInstant(ns).
+    return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(), ns);
+}
+
+static Value builtinTemporalInstantConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
+    }
+
+    // Let epochNanoseconds be ? ToBigInt(epochNanoseconds).
+    BigInt* epochNanoseconds = argv[0].toBigInt(state);
+
+    // If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
+    if (!Temporal::isValidEpochNanoseconds(epochNanoseconds)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid epoch value");
+    }
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->temporalInstantPrototype();
+    });
+
+    // Return ? CreateTemporalInstant(epochNanoseconds, NewTarget).
+    return new TemporalInstantObject(state, proto, epochNanoseconds);
+}
+
+#define RESOLVE_THIS_BINDING_TO_INSTANT(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalInstantObject()) {                                                                                                                                                                                            \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalInstant().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                           \
+    TemporalInstantObject* NAME = thisValue.asObject()->asTemporalInstantObject();
+
+static Value builtinTemporalInstantGetEpochMilliseconds(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_INSTANT(instant, GetEpochMilliseconds);
+    return instant->epochMilliseconds();
+}
+
+static Value builtinTemporalInstantGetEpochNanoseconds(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_INSTANT(instant, GetEpochNanoseconds);
+    return instant->epochNanoseconds();
+}
+
+#define RESOLVE_THIS_BINDING_TO_PLAINDATE(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainDateObject()) {                                                                                                                                                                                            \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainDate().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                             \
     TemporalPlainDateObject* NAME = thisValue.asObject()->asTemporalPlainDateObject();
 
 
@@ -166,15 +222,54 @@ void GlobalObject::initializeTemporal(ExecutionState& state)
         },
         nullptr);
 
-    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyTemporal()), nativeData, Value(Value::EmptyValue));
+    defineNativeDataAccessorProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyCapitalTemporal()), nativeData, Value(Value::EmptyValue));
 }
 
 void GlobalObject::installTemporal(ExecutionState& state)
 {
     StaticStrings* strings = &state.context()->staticStrings();
 
+    // Temporal.Now
+    m_temporalNow = new Object(state);
+    m_temporalNow->setGlobalIntrinsicObject(state, false);
+
+    m_temporalNow->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                           ObjectPropertyDescriptor(Value(strings->lazyTemporalDotNow().string()), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+
+    m_temporalNow->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyTimeZoneId()),
+                                           ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                             NativeFunctionInfo(strings->lazyTimeZoneId(), builtinTemporalNowTimeZoneId, 0, NativeFunctionInfo::Strict)),
+                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalNow->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyInstant()),
+                                           ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                             NativeFunctionInfo(strings->lazyInstant(), builtinTemporalNowInstant, 0, NativeFunctionInfo::Strict)),
+                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    // Temporal.Instant
+    m_temporalInstant = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalInstant(), builtinTemporalInstantConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_temporalInstant->setGlobalIntrinsicObject(state);
+
+    m_temporalInstantPrototype = m_temporalInstant->getFunctionPrototype(state).asObject();
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                        ObjectPropertyDescriptor(Value(strings->lazyTemporalDotInstant().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    {
+        auto getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetEpochMilliseconds(), builtinTemporalInstantGetEpochMilliseconds, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazyEpochMilliseconds()), desc);
+    }
+
+    {
+        auto getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetEpochNanoseconds(), builtinTemporalInstantGetEpochNanoseconds, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazyEpochNanoseconds()), desc);
+    }
+
+
     // Temporal.PlainDate
-    m_temporalPlainDate = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyPlainDate(), builtinTemporalPlainDateConstructor, 3), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_temporalPlainDate = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalPlainDate(), builtinTemporalPlainDateConstructor, 3), NativeFunctionObject::__ForBuiltinConstructor__);
     m_temporalPlainDate->setGlobalIntrinsicObject(state);
 
     m_temporalPlainDatePrototype = new PrototypeObject(state);
@@ -217,12 +312,18 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporal->setGlobalIntrinsicObject(state);
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
-                                        ObjectPropertyDescriptor(Value(strings->lazyTemporal().string()), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
+                                        ObjectPropertyDescriptor(Value(strings->lazyCapitalTemporal().string()), (ObjectPropertyDescriptor::PresentAttribute)ObjectPropertyDescriptor::ConfigurablePresent));
 
-    m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyPlainDate()),
+    m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalNow()),
+                                        ObjectPropertyDescriptor(m_temporalNow, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalInstant()),
+                                        ObjectPropertyDescriptor(m_temporalInstant, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalPlainDate()),
                                         ObjectPropertyDescriptor(m_temporalPlainDate, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
-    redefineOwnProperty(state, ObjectPropertyName(strings->lazyTemporal()),
+    redefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalTemporal()),
                         ObjectPropertyDescriptor(m_temporal, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 }
 

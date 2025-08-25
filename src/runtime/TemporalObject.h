@@ -21,8 +21,7 @@
 #ifndef __EscargotTemporalObject__
 #define __EscargotTemporalObject__
 
-#include "Escargot.h"
-#include "Context.h"
+#include "runtime/Context.h"
 #include "runtime/Object.h"
 #include "runtime/GlobalObject.h"
 #include "runtime/DateObject.h"
@@ -211,14 +210,19 @@ public:
     static bool ISODateWithinLimits(ExecutionState& state, const ISODate& date);
     static bool ISODateTimeWithinLimits(ExecutionState& state, const ISODateTime& dateTime);
 
-    static BigInt* nsMaxInstant();
-    static BigInt* nsMinInstant();
-    static BigInt* nsMaxConstant();
-    static BigInt* nsMinConstant();
+    static const BigIntData& nsMaxInstant();
+    static const BigIntData& nsMinInstant();
+    static const BigIntData& nsMaxConstant();
+    static const BigIntData& nsMinConstant();
     static int64_t nsPerDay();
 
     static Value createTemporalDate(ExecutionState& state, const ISODate& isoDate, String* calendar, Optional<Object*> newTarget);
     static Value toTemporalDate(ExecutionState& state, Value item, Value options = Value());
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
+    static BigInt* systemUTCEpochNanoseconds();
+    // https://tc39.es/proposal-temporal/#sec-temporal-isvalidepochnanoseconds
+    static bool isValidEpochNanoseconds(BigInt* s);
 };
 
 class TemporalObject : public DerivedObject {
