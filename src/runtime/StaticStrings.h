@@ -956,24 +956,38 @@ namespace Escargot {
 #endif
 
 #if defined(ENABLE_TEMPORAL)
-#define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)   \
-    F(CalendarId, "calendarId")                   \
-    F(DayOfWeek, "dayOfWeek")                     \
-    F(DayOfYear, "dayOfYear")                     \
-    F(DaysInMonth, "daysInMonth")                 \
-    F(DaysInWeek, "daysInWeek")                   \
-    F(DaysInYear, "daysInYear")                   \
-    F(EraYear, "eraYear")                         \
-    F(InLeapYear, "inLeapYear")                   \
-    F(ISO8601, "iso8601")                         \
-    F(MonthCode, "monthCode")                     \
-    F(MonthsInYear, "monthsInYear")               \
-    F(Overflow, "overflow")                       \
-    F(PlainDate, "PlainDate")                     \
-    F(Temporal, "Temporal")                       \
-    F(TemporalDotPlainDate, "Temporal.PlainDate") \
-    F(WeekOfYear, "weekOfYear")                   \
-    F(YearOfWeek, "yearOfWeek")
+#define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)      \
+    F(CalendarId, "calendarId")                      \
+    F(CapitalInstant, "Instant")                     \
+    F(CapitalNow, "Now")                             \
+    F(CapitalPlainDate, "PlainDate")                 \
+    F(CapitalTemporal, "Temporal")                   \
+    F(DayOfWeek, "dayOfWeek")                        \
+    F(DayOfYear, "dayOfYear")                        \
+    F(DaysInMonth, "daysInMonth")                    \
+    F(DaysInWeek, "daysInWeek")                      \
+    F(DaysInYear, "daysInYear")                      \
+    F(EraYear, "eraYear")                            \
+    F(EpochMilliseconds, "epochMilliseconds")        \
+    F(EpochNanoseconds, "epochNanoseconds")          \
+    F(GetEpochMilliseconds, "get epochMilliseconds") \
+    F(GetEpochNanoseconds, "get epochNanoseconds")   \
+    F(InLeapYear, "inLeapYear")                      \
+    F(Instant, "instant")                            \
+    F(ISO8601, "iso8601")                            \
+    F(MonthCode, "monthCode")                        \
+    F(MonthsInYear, "monthsInYear")                  \
+    F(Overflow, "overflow")                          \
+    F(PlainDateISO, "plainDateISO")                  \
+    F(PlainDateTimeISO, "plainDateTimeISO")          \
+    F(PlainTimeISO, "plainTimeISO")                  \
+    F(TemporalDotInstant, "Temporal.Instant")        \
+    F(TemporalDotNow, "Temporal.Now")                \
+    F(TemporalDotPlainDate, "Temporal.PlainDate")    \
+    F(TimeZoneId, "timeZoneId")                      \
+    F(WeekOfYear, "weekOfYear")                      \
+    F(YearOfWeek, "yearOfWeek")                      \
+    F(ZonedDateTimeISO, "zonedDateTimeISO")
 #else
 #define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)
 #endif

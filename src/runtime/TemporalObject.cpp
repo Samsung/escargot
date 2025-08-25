@@ -349,62 +349,37 @@ bool Temporal::ISODateTimeWithinLimits(ExecutionState& state, const ISODateTime&
     return true;
 }
 
-BigInt* Temporal::nsMaxInstant()
+const BigIntData& Temporal::nsMaxInstant()
 {
-    static MAY_THREAD_LOCAL BigInt* NSMaxInstant = nullptr;
-    if (!NSMaxInstant) {
-        const char* maxStr = "8640000000000000000000";
-        BigIntData dat(maxStr, strlen(maxStr), 10);
-        ASSERT(!dat.isNaN());
-        NSMaxInstant = new (GC_MALLOC_UNCOLLECTABLE(sizeof(BigInt))) BigInt(std::move(dat));
-    }
-
-    return NSMaxInstant;
+    const char* str = "8640000000000000000000";
+    static MAY_THREAD_LOCAL BigIntData constant(str, strlen(str), 10);
+    return constant;
 }
 
-BigInt* Temporal::nsMinInstant()
+const BigIntData& Temporal::nsMinInstant()
 {
-    static MAY_THREAD_LOCAL BigInt* NSMinInstant = nullptr;
-    if (!NSMinInstant) {
-        const char* minStr = "-8640000000000000000000";
-        BigIntData dat(minStr, strlen(minStr), 10);
-        ASSERT(!dat.isNaN());
-        NSMinInstant = new (GC_MALLOC_UNCOLLECTABLE(sizeof(BigInt))) BigInt(std::move(dat));
-    }
-
-    return NSMinInstant;
+    const char* str = "-8640000000000000000000";
+    static MAY_THREAD_LOCAL BigIntData constant(str, strlen(str), 10);
+    return constant;
 }
 
-BigInt* Temporal::nsMaxConstant()
+const BigIntData& Temporal::nsMaxConstant()
 {
-    static MAY_THREAD_LOCAL BigInt* NSMaxConstant = nullptr;
-    if (!NSMaxConstant) {
-        const char* maxStr = "8640000086400000000000";
-        BigIntData dat(maxStr, strlen(maxStr), 10);
-        ASSERT(!dat.isNaN());
-        NSMaxConstant = new (GC_MALLOC_UNCOLLECTABLE(sizeof(BigInt))) BigInt(std::move(dat));
-    }
-
-    return NSMaxConstant;
+    const char* str = "8640000086400000000000";
+    static MAY_THREAD_LOCAL BigIntData constant(str, strlen(str), 10);
+    return constant;
 }
 
-BigInt* Temporal::nsMinConstant()
+const BigIntData& Temporal::nsMinConstant()
 {
-    static MAY_THREAD_LOCAL BigInt* NSMinConstant = nullptr;
-    if (!NSMinConstant) {
-        const char* minStr = "-8640000086400000000000";
-        BigIntData dat(minStr, strlen(minStr), 10);
-        ASSERT(!dat.isNaN());
-        NSMinConstant = new (GC_MALLOC_UNCOLLECTABLE(sizeof(BigInt))) BigInt(std::move(dat));
-    }
-
-    return NSMinConstant;
+    const char* str = "-8640000086400000000000";
+    static MAY_THREAD_LOCAL BigIntData constant(str, strlen(str), 10);
+    return constant;
 }
 
 int64_t Temporal::nsPerDay()
 {
-    static MAY_THREAD_LOCAL int64_t NSPerDay = 86400000000000;
-    return NSPerDay;
+    return 86400000000000;
 }
 
 Value Temporal::createTemporalDate(ExecutionState& state, const ISODate& isoDate, String* calendar, Optional<Object*> newTarget)
@@ -439,6 +414,33 @@ Value Temporal::toTemporalDate(ExecutionState& state, Value item, Value options)
 
     // TODO ParseISODateTime
     return Value();
+}
+
+BigInt* Temporal::systemUTCEpochNanoseconds()
+{
+    std::chrono::system_clock::duration d = std::chrono::system_clock::now().time_since_epoch();
+
+    auto microSecondsSinceEpoch = std::chrono::duration_cast<std::chrono::microseconds>(d).count();
+    unsigned long nano = std::chrono::duration_cast<std::chrono::nanoseconds>(d - std::chrono::duration_cast<std::chrono::microseconds>(d)).count();
+
+    BigIntData ret = BigIntData(microSecondsSinceEpoch);
+    ret = ret.multiply(1000);
+    ret = ret.addition(nano);
+
+    return new BigInt(std::move(ret));
+}
+
+bool Temporal::isValidEpochNanoseconds(BigInt* s)
+{
+    BigIntData epochNanoseconds(s);
+    // If ℝ(epochNanoseconds) < nsMinInstant or ℝ(epochNanoseconds) > nsMaxInstant, then
+    if (epochNanoseconds.lessThan(Temporal::nsMinInstant()) || epochNanoseconds.greaterThan(Temporal::nsMaxInstant())) {
+        // Return false.
+        return false;
+    }
+
+    // Return true.
+    return true;
 }
 
 TemporalObject::TemporalObject(ExecutionState& state)
