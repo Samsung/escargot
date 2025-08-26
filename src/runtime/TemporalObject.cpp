@@ -20,9 +20,10 @@
 
 #include "Escargot.h"
 #include "TemporalObject.h"
-#include "DateObject.h"
 #include "runtime/ArrayObject.h"
 #include "runtime/BigInt.h"
+#include "runtime/DateObject.h"
+#include "runtime/TemporalDurationObject.h"
 
 namespace Escargot {
 
@@ -441,6 +442,56 @@ bool Temporal::isValidEpochNanoseconds(BigInt* s)
 
     // Return true.
     return true;
+}
+
+TemporalDurationObject* Temporal::toTemporalDuration(ExecutionState& state, const Value& item)
+{
+    // If item is an Object and item has an [[InitializedTemporalDuration]] internal slot, then
+    if (item.isObject() && item.asObject()->isTemporalDurationObject()) {
+        // Return ! CreateTemporalDuration(item.[[Years]], item.[[Months]], item.[[Weeks]], item.[[Days]], item.[[Hours]], item.[[Minutes]], item.[[Seconds]], item.[[Milliseconds]], item.[[Microseconds]], item.[[Nanoseconds]]).
+        return new TemporalDurationObject(state, item.asPointerValue()->asTemporalDurationObject()->duration());
+    }
+
+    constexpr auto msg = "The value you gave for toTemporalDuration is invalid";
+    if (!item.isObject()) {
+        // If item is not an Object, then
+        // If item is not a String, throw a TypeError exception.
+        if (!item.isString()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, msg);
+        }
+        // Return ? ParseTemporalDurationString(item).
+        auto duration = ISO8601::Duration::parseDurationString(item.asString());
+        if (!duration) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, msg);
+        }
+        return new TemporalDurationObject(state, duration.value());
+    }
+
+    // Let result be a new Partial Duration Record with each field set to 0.
+    // Let partial be ? ToTemporalPartialDurationRecord(item).
+    auto partial = ISO8601::PartialDuration::toTemporalPartialDurationRecord(state, item);
+    // If partial.[[Years]] is not undefined, set result.[[Years]] to partial.[[Years]].
+    // If partial.[[Months]] is not undefined, set result.[[Months]] to partial.[[Months]].
+    // If partial.[[Weeks]] is not undefined, set result.[[Weeks]] to partial.[[Weeks]].
+    // If partial.[[Days]] is not undefined, set result.[[Days]] to partial.[[Days]].
+    // If partial.[[Hours]] is not undefined, set result.[[Hours]] to partial.[[Hours]].
+    // If partial.[[Minutes]] is not undefined, set result.[[Minutes]] to partial.[[Minutes]].
+    // If partial.[[Seconds]] is not undefined, set result.[[Seconds]] to partial.[[Seconds]].
+    // If partial.[[Milliseconds]] is not undefined, set result.[[Milliseconds]] to partial.[[Milliseconds]].
+    // If partial.[[Microseconds]] is not undefined, set result.[[Microseconds]] to partial.[[Microseconds]].
+    // If partial.[[Nanoseconds]] is not undefined, set result.[[Nanoseconds]] to partial.[[Nanoseconds]].
+
+    ISO8601::Duration duration;
+    size_t idx = 0;
+    for (const auto& s : partial) {
+        if (s.hasValue()) {
+            duration[idx] = s.value();
+        }
+        idx++;
+    }
+
+    // Return ? CreateTemporalDuration(result.[[Years]], result.[[Months]], result.[[Weeks]], result.[[Days]], result.[[Hours]], result.[[Minutes]], result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]], result.[[Nanoseconds]]).
+    return new TemporalDurationObject(state, duration);
 }
 
 TemporalObject::TemporalObject(ExecutionState& state)

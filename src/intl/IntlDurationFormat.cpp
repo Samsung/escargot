@@ -339,7 +339,7 @@ std::pair<String*, String*> IntlDurationFormatObject::data(size_t index)
 #define DEFINE_GETTER(name, Name, index) \
     case index:                          \
         return std::make_pair(m_##name##Style, m_##name##Display);
-        FOR_EACH_DURATION_RECORD(DEFINE_GETTER)
+        FOR_EACH_DURATION(DEFINE_GETTER)
 #undef DEFINE_GETTER
     default:
         ASSERT_NOT_REACHED();
@@ -376,19 +376,6 @@ Object* IntlDurationFormatObject::resolvedOptions(ExecutionState& state)
         options->directDefineOwnProperty(state, ObjectPropertyName(ss.lazyFractionalDigits()), ObjectPropertyDescriptor(m_fractionalDigits, ObjectPropertyDescriptor::AllPresent));
     }
     return options;
-}
-
-// https://tc39.es/ecma402/#sec-tointegerifintegral
-static double toIntegerIfIntergral(ExecutionState& state, const Value& argument)
-{
-    // Let number be ? ToNumber(argument).
-    double number = argument.toNumber(state) + 0.0;
-    // If number is not an integral Number, throw a RangeError exception.
-    if (std::trunc(number) != number) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid input for ToDurationRecord");
-    }
-    // Return ℝ(number).
-    return number;
 }
 
 static bool isValidDurationWork(double v, int& sign)
@@ -477,7 +464,7 @@ static DurationRecord toDurationRecord(ExecutionState& state, const Value& input
 #define GET_ONCE(name, Name)                                                                                      \
     Value name = input.asObject()->get(state, state.context()->staticStrings().lazy##Name()).value(state, input); \
     if (!name.isUndefined()) {                                                                                    \
-        result.set##Name(toIntegerIfIntergral(state, name));                                                      \
+        result.set##Name(name.toIntegerIfIntergral(state));                                                       \
     }
 
     // Let days be ? Get(input, "days").
@@ -553,70 +540,6 @@ static DurationSignType getDurationSign(const DurationRecord& duration)
     }
 
     return DurationSignType::Zero;
-}
-
-String* DurationRecord::typeName(ExecutionState& state, Type t)
-{
-    switch (t) {
-#define DEFINE_GETTER(name, Name, index) \
-    case Type::Name:                     \
-        return state.context()->staticStrings().lazy##Name().string();
-        FOR_EACH_DURATION_RECORD(DEFINE_GETTER)
-#undef DEFINE_GETTER
-    default:
-        break;
-    }
-    ASSERT_NOT_REACHED();
-    return String::emptyString();
-}
-
-BigIntData DurationRecord::totalNanoseconds(DurationRecord::Type unit) const
-{
-    BigIntData resultNs;
-
-    constexpr int64_t nanoMultiplier = 1000000000ULL;
-    constexpr int64_t milliMultiplier = 1000000ULL;
-    constexpr int64_t microMultiplier = 1000ULL;
-
-    if (unit <= DurationRecord::Type::Days) {
-        BigIntData s(days());
-        s = s.multiply(86400);
-        s = s.multiply(nanoMultiplier);
-        resultNs = resultNs.addition(s);
-    }
-    if (unit <= DurationRecord::Type::Hours) {
-        BigIntData s(hours());
-        s = s.multiply(3600);
-        s = s.multiply(nanoMultiplier);
-        resultNs = resultNs.addition(s);
-    }
-    if (unit <= DurationRecord::Type::Minutes) {
-        BigIntData s(minutes());
-        s = s.multiply(60);
-        s = s.multiply(nanoMultiplier);
-        resultNs = resultNs.addition(s);
-    }
-    if (unit <= DurationRecord::Type::Seconds) {
-        BigIntData s(seconds());
-        s = s.multiply(nanoMultiplier);
-        resultNs = resultNs.addition(s);
-    }
-    if (unit <= DurationRecord::Type::Milliseconds) {
-        BigIntData s(milliseconds());
-        s = s.multiply(milliMultiplier);
-        resultNs = resultNs.addition(s);
-    }
-    if (unit <= DurationRecord::Type::Microseconds) {
-        BigIntData s(microseconds());
-        s = s.multiply(microMultiplier);
-        resultNs = resultNs.addition(s);
-    }
-    if (unit <= DurationRecord::Type::Nanoseconds) {
-        BigIntData s(nanoseconds());
-        resultNs = resultNs.addition(s);
-    }
-
-    return resultNs;
 }
 
 inline double purifyNaN(double value)

@@ -23,6 +23,7 @@
 #include "runtime/VMInstance.h"
 #include "runtime/BigIntObject.h"
 #include "runtime/TemporalObject.h"
+#include "runtime/TemporalDurationObject.h"
 #include "runtime/TemporalInstantObject.h"
 #include "runtime/TemporalNowObject.h"
 #include "runtime/DateObject.h"
@@ -44,6 +45,35 @@ static Value builtinTemporalNowInstant(ExecutionState& state, Value thisValue, s
     // Return ! CreateTemporalInstant(ns).
     return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(), ns);
 }
+
+static Value builtinTemporalDurationConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+        return Value();
+    }
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->temporalDurationPrototype();
+    });
+
+    return new TemporalDurationObject(state, proto, argc >= 1 ? argv[0] : Value(), argc >= 2 ? argv[1] : Value(),
+                                      argc >= 3 ? argv[2] : Value(), argc >= 4 ? argv[3] : Value(),
+                                      argc >= 5 ? argv[4] : Value(), argc >= 6 ? argv[5] : Value(),
+                                      argc >= 7 ? argv[6] : Value(), argc >= 8 ? argv[7] : Value(),
+                                      argc >= 9 ? argv[8] : Value(), argc >= 10 ? argv[9] : Value());
+}
+
+static Value builtinTemporalDurationFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return Temporal::toTemporalDuration(state, argv[0]);
+}
+
+#define RESOLVE_THIS_BINDING_TO_DURATION(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalDurationObject()) {                                                                                                                                                                                            \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalDuration().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                            \
+    TemporalDurationObject* NAME = thisValue.asObject()->asTemporalDurationObject();
 
 static Value builtinTemporalInstantConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
@@ -244,6 +274,62 @@ void GlobalObject::installTemporal(ExecutionState& state)
                                            ObjectPropertyDescriptor(new NativeFunctionObject(state,
                                                                                              NativeFunctionInfo(strings->lazyInstant(), builtinTemporalNowInstant, 0, NativeFunctionInfo::Strict)),
                                                                     (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    // Temporal.Duration
+    m_temporalDuration = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalDuration(), builtinTemporalDurationConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_temporalDuration->setGlobalIntrinsicObject(state);
+
+    m_temporalDuration->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                                  NativeFunctionInfo(strings->from, builtinTemporalDurationFrom, 1, NativeFunctionInfo::Strict)),
+                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporalDurationPrototype = m_temporalDuration->getFunctionPrototype(state).asObject();
+    m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                         ObjectPropertyDescriptor(Value(strings->lazyTemporalDotDuration().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+#define DEFINE_DURATION_PROTOTYPE_GETTER_PROPERTY(name, stringName, Name)                                                                                                                                                       \
+    {                                                                                                                                                                                                                           \
+        AtomicString name(state.context(), "get " stringName);                                                                                                                                                                  \
+        auto getter = new NativeFunctionObject(state, NativeFunctionInfo(name, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value { \
+            if (!thisValue.isObject() || !thisValue.asObject()->isTemporalDurationObject()) { \
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalDuration().string(), true, String::fromASCII(stringName), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+            } \
+            TemporalDurationObject* s = thisValue.asObject()->asTemporalDurationObject(); \
+            return Value(Value::DoubleToIntConvertibleTestNeeds, s->duration().name()); }, 0, NativeFunctionInfo::Strict)); \
+        JSGetterSetter gs(getter, Value());                                                                                                                                                                                     \
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);                                                                                                                                       \
+        m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazy##Name()), desc);                                                                                                    \
+    }
+
+#define DEFINE_GETTER(name, Name, index) DEFINE_DURATION_PROTOTYPE_GETTER_PROPERTY(name, #name, Name)
+    FOR_EACH_DURATION(DEFINE_GETTER)
+#undef DEFINE_GETTER
+
+    {
+        AtomicString name(state.context(), "get sign");
+        auto getter = new NativeFunctionObject(state, NativeFunctionInfo(name, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value {
+            if (!thisValue.isObject() || !thisValue.asObject()->isTemporalDurationObject()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalDuration().string(), true, String::fromASCII("get sign"), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+            }
+            TemporalDurationObject* s = thisValue.asObject()->asTemporalDurationObject();
+            return Value(s->sign()); }, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->sign), desc);
+    }
+
+    {
+        AtomicString name(state.context(), "get blank");
+        auto getter = new NativeFunctionObject(state, NativeFunctionInfo(name, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value {
+            if (!thisValue.isObject() || !thisValue.asObject()->isTemporalDurationObject()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalDuration().string(), true, String::fromASCII("get blank"), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+            }
+            TemporalDurationObject* s = thisValue.asObject()->asTemporalDurationObject();
+            return Value(s->sign() == 0); }, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazyBlank()), desc);
+    }
 
     // Temporal.Instant
     m_temporalInstant = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalInstant(), builtinTemporalInstantConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -316,6 +402,9 @@ void GlobalObject::installTemporal(ExecutionState& state)
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalNow()),
                                         ObjectPropertyDescriptor(m_temporalNow, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalDuration()),
+                                        ObjectPropertyDescriptor(m_temporalDuration, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalInstant()),
                                         ObjectPropertyDescriptor(m_temporalInstant, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

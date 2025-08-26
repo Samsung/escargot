@@ -239,6 +239,7 @@ public:
     std::pair<Value, bool> /* <Value, isBigInt> */
     toNumeric(ExecutionState& ec) const; // https://www.ecma-international.org/ecma-262/#sec-tonumeric
     double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
+    double toIntegerIfIntergral(ExecutionState& state) const; // https://tc39.es/ecma402/#sec-tointegerifintegral
     bool isInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
     uint64_t toLength(ExecutionState& ec) const;
     int32_t toInt32(ExecutionState& ec) const; // $7.1.5 ToInt32

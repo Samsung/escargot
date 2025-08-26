@@ -1073,6 +1073,63 @@ public:
     }
 };
 
+class ParserString {
+public:
+    MAKE_STACK_ALLOCATED();
+
+    ParserString(String* src)
+        : m_src(src)
+        , m_bad(src->bufferAccessData())
+        , m_position(0)
+    {
+    }
+
+    size_t lengthRemaining()
+    {
+        return m_bad.length - m_position;
+    }
+
+    void advance()
+    {
+        m_position++;
+    }
+
+    void advanceBy(size_t s)
+    {
+        m_position += s;
+    }
+
+    bool atEnd()
+    {
+        return m_position >= m_bad.length;
+    }
+
+    char16_t operator*()
+    {
+        return m_bad.charAt(m_position);
+    }
+
+    bool hasCharactersRemaining()
+    {
+        return m_position != m_bad.length;
+    }
+
+    char16_t operator[](size_t pos)
+    {
+        return m_bad.charAt(m_position + pos);
+    }
+
+    std::string first(size_t pos)
+    {
+        return m_src->toNonGCUTF8StringData().substr(m_position, pos);
+    }
+
+private:
+    String* m_src;
+    StringBufferAccessData m_bad;
+    size_t m_position;
+};
+
 } // namespace Escargot
 
 namespace std {

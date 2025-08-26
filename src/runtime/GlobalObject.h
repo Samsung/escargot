@@ -279,6 +279,8 @@ class FunctionObject;
 #define GLOBALOBJECT_BUILTIN_TEMPORAL(F, objName) \
     F(temporal, Object, objName)                  \
     F(temporalNow, Object, objName)               \
+    F(temporalDuration, FunctionObject, objName)  \
+    F(temporalDurationPrototype, Object, objName) \
     F(temporalInstant, FunctionObject, objName)   \
     F(temporalInstantPrototype, Object, objName)  \
     F(temporalPlainDate, FunctionObject, objName) \
