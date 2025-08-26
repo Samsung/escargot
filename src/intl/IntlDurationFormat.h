@@ -24,57 +24,12 @@
 
 #include "runtime/Object.h"
 #include "runtime/BigInt.h"
+#include "util/ISO8601.h"
 
 namespace Escargot {
 
 // https://tc39.es/ecma402/#sec-todurationrecord
-class DurationRecord {
-#define FOR_EACH_DURATION_RECORD(F)  \
-    F(years, Years, 0)               \
-    F(months, Months, 1)             \
-    F(weeks, Weeks, 2)               \
-    F(days, Days, 3)                 \
-    F(hours, Hours, 4)               \
-    F(minutes, Minutes, 5)           \
-    F(seconds, Seconds, 6)           \
-    F(milliseconds, Milliseconds, 7) \
-    F(microseconds, Microseconds, 8) \
-    F(nanoseconds, Nanoseconds, 9)
-
-    std::array<double, 10> m_data;
-
-public:
-    enum class Type : uint8_t {
-#define DEFINE_TYPE(name, Name, index) Name,
-        FOR_EACH_DURATION_RECORD(DEFINE_TYPE)
-#undef DEFINE_TYPE
-    };
-
-    DurationRecord()
-    {
-        m_data.fill(0);
-    }
-
-    static String* typeName(ExecutionState& state, Type t);
-    BigIntData totalNanoseconds(DurationRecord::Type type) const;
-
-    double operator[](DurationRecord::Type idx) const
-    {
-        return m_data[static_cast<unsigned>(idx)];
-    }
-    std::array<double, 10>::const_iterator begin() const { return m_data.begin(); }
-    std::array<double, 10>::const_iterator end() const { return m_data.end(); }
-
-#define DEFINE_GETTER(name, Name, index) \
-    double name() const { return m_data[index]; }
-    FOR_EACH_DURATION_RECORD(DEFINE_GETTER)
-#undef DEFINE_GETTER
-
-#define DEFINE_SETTER(name, Name, index) \
-    void set##Name(double v) { m_data[index] = v; }
-    FOR_EACH_DURATION_RECORD(DEFINE_SETTER)
-#undef DEFINE_SETTER
-};
+class DurationRecord : public ISO8601::Duration {};
 
 class IntlDurationFormatObject : public DerivedObject {
 public:

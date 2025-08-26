@@ -957,7 +957,9 @@ namespace Escargot {
 
 #if defined(ENABLE_TEMPORAL)
 #define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)      \
+    F(Blank, "blank")                                \
     F(CalendarId, "calendarId")                      \
+    F(CapitalDuration, "Duration")                   \
     F(CapitalInstant, "Instant")                     \
     F(CapitalNow, "Now")                             \
     F(CapitalPlainDate, "PlainDate")                 \
@@ -981,6 +983,7 @@ namespace Escargot {
     F(PlainDateISO, "plainDateISO")                  \
     F(PlainDateTimeISO, "plainDateTimeISO")          \
     F(PlainTimeISO, "plainTimeISO")                  \
+    F(TemporalDotDuration, "Temporal.Duration")      \
     F(TemporalDotInstant, "Temporal.Instant")        \
     F(TemporalDotNow, "Temporal.Now")                \
     F(TemporalDotPlainDate, "Temporal.PlainDate")    \

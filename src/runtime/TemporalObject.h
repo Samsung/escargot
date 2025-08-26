@@ -223,6 +223,9 @@ public:
     static BigInt* systemUTCEpochNanoseconds();
     // https://tc39.es/proposal-temporal/#sec-temporal-isvalidepochnanoseconds
     static bool isValidEpochNanoseconds(BigInt* s);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
+    static TemporalDurationObject* toTemporalDuration(ExecutionState& state, const Value& item);
 };
 
 class TemporalObject : public DerivedObject {

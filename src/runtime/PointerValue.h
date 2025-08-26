@@ -597,6 +597,11 @@ public:
         return false;
     }
 
+    virtual bool isTemporalDurationObject() const
+    {
+        return false;
+    }
+
     virtual bool isTemporalPlainDateObject() const
     {
         return false;
@@ -1067,6 +1072,12 @@ public:
     {
         ASSERT(isTemporalInstantObject());
         return (TemporalInstantObject*)this;
+    }
+
+    TemporalDurationObject* asTemporalDurationObject()
+    {
+        ASSERT(isTemporalDurationObject());
+        return (TemporalDurationObject*)this;
     }
 
     TemporalPlainDateObject* asTemporalPlainDateObject()
