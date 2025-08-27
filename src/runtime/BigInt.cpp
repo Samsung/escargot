@@ -765,4 +765,39 @@ bool BigInt::isNegative() const
     return m_bf.sign;
 }
 
+Optional<Int128> BigInt::toInt128()
+{
+    auto s = std::to_string(std::numeric_limits<Int128>::min());
+    BigIntData test(s.data(), s.length());
+    if (lessThan(test)) {
+        return NullOption;
+    }
+
+    s = std::to_string(std::numeric_limits<Int128>::max());
+    BigIntData test2(s.data(), s.length());
+    if (greaterThan(test2)) {
+        return NullOption;
+    }
+
+    BigIntData big(this);
+    s = big.toNonGCStdString();
+
+    bool sign = s.length() && s[0] == '-';
+    if (sign) {
+        s.erase(s.begin());
+    }
+
+    Int128 ret = 0;
+    for (char c : s) {
+        ret *= 10;
+        ret += c - '0';
+    }
+
+    if (sign) {
+        ret *= -1;
+    }
+
+    return ret;
+}
+
 } // namespace Escargot

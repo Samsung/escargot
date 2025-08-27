@@ -24,6 +24,7 @@
 #include "runtime/BigInt.h"
 #include "runtime/DateObject.h"
 #include "runtime/TemporalDurationObject.h"
+#include "runtime/TemporalInstantObject.h"
 
 namespace Escargot {
 
@@ -338,44 +339,14 @@ bool Temporal::ISODateTimeWithinLimits(ExecutionState& state, const ISODateTime&
     // Z(R(ms) × 10**6 + isoDateTime.[[Time]].[[Microsecond]] × 10**3 + isoDateTime.[[Time]].[[Nanosecond]]).
     int64_t ns = static_cast<int64_t>(ms) * 1000000 + dateTime.time.microsecond * 1000 + dateTime.time.nanosecond;
 
-    BigIntData nsData(ns);
-
-    if (nsData.lessThanEqual(Temporal::nsMinConstant())) {
+    if (ns <= Temporal::nsMinConstant()) {
         return false;
     }
-    if (nsData.greaterThanEqual(Temporal::nsMaxConstant())) {
+    if (ns >= Temporal::nsMaxConstant()) {
         return false;
     }
 
     return true;
-}
-
-const BigIntData& Temporal::nsMaxInstant()
-{
-    const char* str = "8640000000000000000000";
-    static MAY_THREAD_LOCAL BigIntData constant(str, strlen(str), 10);
-    return constant;
-}
-
-const BigIntData& Temporal::nsMinInstant()
-{
-    const char* str = "-8640000000000000000000";
-    static MAY_THREAD_LOCAL BigIntData constant(str, strlen(str), 10);
-    return constant;
-}
-
-const BigIntData& Temporal::nsMaxConstant()
-{
-    const char* str = "8640000086400000000000";
-    static MAY_THREAD_LOCAL BigIntData constant(str, strlen(str), 10);
-    return constant;
-}
-
-const BigIntData& Temporal::nsMinConstant()
-{
-    const char* str = "-8640000086400000000000";
-    static MAY_THREAD_LOCAL BigIntData constant(str, strlen(str), 10);
-    return constant;
 }
 
 int64_t Temporal::nsPerDay()
@@ -417,25 +388,24 @@ Value Temporal::toTemporalDate(ExecutionState& state, Value item, Value options)
     return Value();
 }
 
-BigInt* Temporal::systemUTCEpochNanoseconds()
+Int128 Temporal::systemUTCEpochNanoseconds()
 {
     std::chrono::system_clock::duration d = std::chrono::system_clock::now().time_since_epoch();
 
     auto microSecondsSinceEpoch = std::chrono::duration_cast<std::chrono::microseconds>(d).count();
     unsigned long nano = std::chrono::duration_cast<std::chrono::nanoseconds>(d - std::chrono::duration_cast<std::chrono::microseconds>(d)).count();
 
-    BigIntData ret = BigIntData(microSecondsSinceEpoch);
-    ret = ret.multiply(1000);
-    ret = ret.addition(nano);
+    Int128 ret = Int128(microSecondsSinceEpoch);
+    ret *= 1000;
+    ret += nano;
 
-    return new BigInt(std::move(ret));
+    return ret;
 }
 
-bool Temporal::isValidEpochNanoseconds(BigInt* s)
+bool Temporal::isValidEpochNanoseconds(Int128 epochNanoseconds)
 {
-    BigIntData epochNanoseconds(s);
     // If ℝ(epochNanoseconds) < nsMinInstant or ℝ(epochNanoseconds) > nsMaxInstant, then
-    if (epochNanoseconds.lessThan(Temporal::nsMinInstant()) || epochNanoseconds.greaterThan(Temporal::nsMaxInstant())) {
+    if (epochNanoseconds < Temporal::nsMinInstant() || epochNanoseconds > Temporal::nsMaxInstant()) {
         // Return false.
         return false;
     }
@@ -452,7 +422,7 @@ TemporalDurationObject* Temporal::toTemporalDuration(ExecutionState& state, cons
         return new TemporalDurationObject(state, item.asPointerValue()->asTemporalDurationObject()->duration());
     }
 
-    constexpr auto msg = "The value you gave for toTemporalDuration is invalid";
+    constexpr auto msg = "The value you gave for ToTemporalDuration is invalid";
     if (!item.isObject()) {
         // If item is not an Object, then
         // If item is not a String, throw a TypeError exception.
@@ -493,7 +463,41 @@ TemporalDurationObject* Temporal::toTemporalDuration(ExecutionState& state, cons
     // Return ? CreateTemporalDuration(result.[[Years]], result.[[Months]], result.[[Weeks]], result.[[Days]], result.[[Hours]], result.[[Minutes]], result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]], result.[[Nanoseconds]]).
     return new TemporalDurationObject(state, duration);
 }
+/*
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporalinstant
+TemporalInstantObject* Temporal::toTemporalInstant(ExecutionState& state, Value item)
+{
+    // If item is an Object, then
+    if (item.isObject()) {
+        // If item has an [[InitializedTemporalInstant]] or [[InitializedTemporalZonedDateTime]] internal slot, then
+        // TODO [[InitializedTemporalZonedDateTime]]
+        if (item.asObject()->isTemporalInstantObject()) {
+            // Return ! CreateTemporalInstant(item.[[EpochNanoseconds]]).
+            return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(),
+                item.asObject()->asTemporalInstantObject()->epochNanoseconds());
+        }
+        // NOTE: This use of ToPrimitive allows Instant-like objects to be converted.
+        // Set item to ? ToPrimitive(item, string).
+        item = item.toPrimitive(state, Value::PrimitiveTypeHint::PreferString);
+    }
+    constexpr auto msg = "The value you gave for ToTemporalInstant is invalid";
+    if (!item.isString()) {
+        // If item is not a String, throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, msg);
+    }
 
+    // Let parsed be ? ParseISODateTime(item, « TemporalInstantString »).
+    // Assert: Either parsed.[[TimeZone]].[[OffsetString]] is not empty or parsed.[[TimeZone]].[[Z]] is true, but not both.
+    // If parsed.[[TimeZone]].[[Z]] is true, let offsetNanoseconds be 0; otherwise, let offsetNanoseconds be ! ParseDateTimeUTCOffset(parsed.[[TimeZone]].[[OffsetString]]).
+    // If parsed.[[Time]] is start-of-day, let time be MidnightTimeRecord(); else let time be parsed.[[Time]].
+    // Let balanced be BalanceISODateTime(parsed.[[Year]], parsed.[[Month]], parsed.[[Day]], time.[[Hour]], time.[[Minute]], time.[[Second]], time.[[Millisecond]], time.[[Microsecond]], time.[[Nanosecond]] - offsetNanoseconds).
+    // Perform ? CheckISODaysRange(balanced.[[ISODate]]).
+    // Let epochNanoseconds be GetUTCEpochNanoseconds(balanced).
+    // If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
+    // Return ! CreateTemporalInstant(epochNanoseconds).
+    return nullptr;
+}
+*/
 TemporalObject::TemporalObject(ExecutionState& state)
     : TemporalObject(state, state.context()->globalObject()->objectPrototype())
 {

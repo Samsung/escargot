@@ -86,8 +86,9 @@ static Value builtinTemporalInstantConstructor(ExecutionState& state, Value this
     // Let epochNanoseconds be ? ToBigInt(epochNanoseconds).
     BigInt* epochNanoseconds = argv[0].toBigInt(state);
 
+    auto mayInt128 = epochNanoseconds->toInt128();
     // If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
-    if (!Temporal::isValidEpochNanoseconds(epochNanoseconds)) {
+    if (!mayInt128 || !Temporal::isValidEpochNanoseconds(mayInt128.value())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid epoch value");
     }
 
@@ -96,7 +97,7 @@ static Value builtinTemporalInstantConstructor(ExecutionState& state, Value this
     });
 
     // Return ? CreateTemporalInstant(epochNanoseconds, NewTarget).
-    return new TemporalInstantObject(state, proto, epochNanoseconds);
+    return new TemporalInstantObject(state, proto, mayInt128.value());
 }
 
 #define RESOLVE_THIS_BINDING_TO_INSTANT(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
@@ -114,7 +115,8 @@ static Value builtinTemporalInstantGetEpochMilliseconds(ExecutionState& state, V
 static Value builtinTemporalInstantGetEpochNanoseconds(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_INSTANT(instant, GetEpochNanoseconds);
-    return instant->epochNanoseconds();
+    auto s = std::to_string(instant->epochNanoseconds());
+    return BigInt::parseString(s.data(), s.length()).value();
 }
 
 #define RESOLVE_THIS_BINDING_TO_PLAINDATE(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \

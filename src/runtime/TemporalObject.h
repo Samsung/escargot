@@ -26,6 +26,7 @@
 #include "runtime/GlobalObject.h"
 #include "runtime/DateObject.h"
 #include "intl/Intl.h"
+#include "util/Int128.h"
 
 namespace Escargot {
 
@@ -210,22 +211,45 @@ public:
     static bool ISODateWithinLimits(ExecutionState& state, const ISODate& date);
     static bool ISODateTimeWithinLimits(ExecutionState& state, const ISODateTime& dateTime);
 
-    static const BigIntData& nsMaxInstant();
-    static const BigIntData& nsMinInstant();
-    static const BigIntData& nsMaxConstant();
-    static const BigIntData& nsMinConstant();
+    static Int128 nsMaxInstant()
+    {
+        Int128 ret = 864000000;
+        ret *= 10000000000000;
+        return ret;
+    }
+    static Int128 nsMinInstant()
+    {
+        Int128 ret = -864000000;
+        ret *= 10000000000000;
+        return ret;
+    }
+    static Int128 nsMaxConstant()
+    {
+        Int128 ret = 86400000864;
+        ret *= 100000000000;
+        return ret;
+    }
+    static Int128 nsMinConstant()
+    {
+        Int128 ret = -86400000864;
+        ret *= 100000000000;
+        return ret;
+    }
     static int64_t nsPerDay();
 
     static Value createTemporalDate(ExecutionState& state, const ISODate& isoDate, String* calendar, Optional<Object*> newTarget);
     static Value toTemporalDate(ExecutionState& state, Value item, Value options = Value());
 
     // https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
-    static BigInt* systemUTCEpochNanoseconds();
+    static Int128 systemUTCEpochNanoseconds();
     // https://tc39.es/proposal-temporal/#sec-temporal-isvalidepochnanoseconds
-    static bool isValidEpochNanoseconds(BigInt* s);
+    static bool isValidEpochNanoseconds(Int128 s);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
     static TemporalDurationObject* toTemporalDuration(ExecutionState& state, const Value& item);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporalinstant
+    static TemporalInstantObject* toTemporalInstant(ExecutionState& state, Value item);
 };
 
 class TemporalObject : public DerivedObject {
