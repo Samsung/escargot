@@ -23,17 +23,17 @@
 
 namespace Escargot {
 
-TemporalInstantObject::TemporalInstantObject(ExecutionState& state, Object* proto, BigInt* n)
+TemporalInstantObject::TemporalInstantObject(ExecutionState& state, Object* proto, Int128 n)
     : DerivedObject(state, proto)
-    , m_nanoseconds(n)
+    , m_nanoseconds(new(PointerFreeGC) Int128(n))
 {
 }
 
 Value TemporalInstantObject::epochMilliseconds() const
 {
-    BigIntData s(m_nanoseconds);
-    s = s.division(1000000);
-    return Value(s.toInt64());
+    Int128 s = *m_nanoseconds;
+    s /= 1000000;
+    return Value(static_cast<int64_t>(s));
 }
 
 TemporalInstantObject* TemporalInstantObject::addDurationToInstant(AddDurationOperation operation, const Value& temporalDurationLike)

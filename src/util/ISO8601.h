@@ -23,6 +23,7 @@
 
 #include "runtime/BigInt.h"
 #include "runtime/String.h"
+#include "util/Int128.h"
 
 namespace Escargot {
 class ExecutionState;
@@ -64,7 +65,7 @@ public:
     }
 
     static String* typeName(ExecutionState& state, Type t);
-    BigIntData totalNanoseconds(Duration::Type type) const;
+    Int128 totalNanoseconds(Duration::Type type) const;
 
     double operator[](size_t idx) const
     {

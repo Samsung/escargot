@@ -404,6 +404,54 @@ static bool isValidDurationWork(double v, int& sign)
     return true;
 }
 
+static BigIntData totalNanoseconds(const DurationRecord& record)
+{
+    BigIntData resultNs;
+    constexpr int64_t nanoMultiplier = 1000000000ULL;
+    constexpr int64_t milliMultiplier = 1000000ULL;
+    constexpr int64_t microMultiplier = 1000ULL;
+
+    {
+        BigIntData s(record.days());
+        s = s.multiply(86400);
+        s = s.multiply(nanoMultiplier);
+        resultNs = resultNs.addition(s);
+    }
+    {
+        BigIntData s(record.hours());
+        s = s.multiply(3600);
+        s = s.multiply(nanoMultiplier);
+        resultNs = resultNs.addition(s);
+    }
+    {
+        BigIntData s(record.minutes());
+        s = s.multiply(60);
+        s = s.multiply(nanoMultiplier);
+        resultNs = resultNs.addition(s);
+    }
+    {
+        BigIntData s(record.seconds());
+        s = s.multiply(nanoMultiplier);
+        resultNs = resultNs.addition(s);
+    }
+    {
+        BigIntData s(record.milliseconds());
+        s = s.multiply(milliMultiplier);
+        resultNs = resultNs.addition(s);
+    }
+    {
+        BigIntData s(record.microseconds());
+        s = s.multiply(microMultiplier);
+        resultNs = resultNs.addition(s);
+    }
+    {
+        BigIntData s(record.nanoseconds());
+        resultNs = resultNs.addition(s);
+    }
+
+    return resultNs;
+}
+
 // https://tc39.es/ecma402/#sec-isvalidduration
 static bool isValidDuration(const DurationRecord& record)
 {
@@ -431,15 +479,14 @@ static bool isValidDuration(const DurationRecord& record)
 
     // Let normalizedSeconds be days × 86,400 + hours × 3600 + minutes × 60 + seconds + ℝ(𝔽(milliseconds)) × 10**-3 + ℝ(𝔽(microseconds)) × 10**-6 + ℝ(𝔽(nanoseconds)) × 10**-9.
     // NOTE: The above step cannot be implemented directly using floating-point arithmetic. Multiplying by 10**-3, 10**-6, and 10**-9 respectively may be imprecise when milliseconds, microseconds, or nanoseconds is an unsafe integer. This multiplication can be implemented in C++ with an implementation of std::remquo() with sufficient bits in the quotient. String manipulation will also give an exact result, since the multiplication is by a power of 10.
-    BigIntData normalizedNanoSeconds = record.totalNanoseconds(DurationRecord::Type::Years);
+    BigIntData normalizedNanoSeconds = totalNanoseconds(record);
     // If abs(normalizedSeconds) ≥ 2**53, return false.
     BigIntData limit(int64_t(1ULL << 53));
     limit = limit.multiply(1000000000ULL);
     if (normalizedNanoSeconds.greaterThanEqual(limit)) {
         return false;
     }
-    limit = BigIntData(int64_t(1ULL << 53));
-    limit = limit.multiply(-1000000000ULL);
+    limit = limit.multiply(-1);
     if (normalizedNanoSeconds.lessThanEqual(limit)) {
         return false;
     }
@@ -552,7 +599,7 @@ inline double purifyNaN(double value)
     return value;
 }
 
-static std::string buildDecimalFormat(DurationRecord::Type unit, BigIntData ns)
+static std::string buildDecimalFormat(DurationRecord::Type unit, Int128 ns)
 {
     ASSERT(unit == DurationRecord::Type::Seconds || unit == DurationRecord::Type::Milliseconds || unit == DurationRecord::Type::Microseconds);
 
@@ -570,19 +617,19 @@ static std::string buildDecimalFormat(DurationRecord::Type unit, BigIntData ns)
         exponent = 1000;
     }
 
-    BigIntData integerPart = ns;
-    integerPart = integerPart.division(exponent);
+    Int128 integerPart = ns;
+    integerPart /= exponent;
 
-    BigIntData fractionalPart(ns);
-    fractionalPart = fractionalPart.remainder(exponent);
+    Int128 fractionalPart = ns;
+    fractionalPart %= exponent;
 
     StringBuilder builder;
 
-    auto integerPartString = integerPart.toNonGCStdString();
+    auto integerPartString = std::to_string(integerPart);
     builder.appendString(integerPartString.data(), integerPartString.size());
     builder.appendChar('.');
 
-    auto fractionalString = fractionalPart.toNonGCStdString();
+    auto fractionalString = std::to_string(fractionalPart);
     if (fractionalString.size() && fractionalString[0] == '-') {
         fractionalString.erase(fractionalString.begin());
     }
@@ -648,7 +695,7 @@ std::vector<IntlDurationFormatObject::Element> IntlDurationFormatObject::collect
         DurationRecord::Type unit = static_cast<DurationRecord::Type>(index);
         auto unitData = durationFormat->data(index);
         double value = duration[unit];
-        Optional<BigIntData> totalNanosecondsValue;
+        Optional<Int128> totalNanosecondsValue;
 
         UTF16StringDataNonGCStd skeletonBuilder;
 

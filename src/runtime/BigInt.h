@@ -21,6 +21,7 @@
 #define __EscargotBigInt__
 
 #include "runtime/PointerValue.h"
+#include "util/Int128.h"
 
 namespace Escargot {
 
@@ -126,6 +127,8 @@ public:
     BigInt* bitwiseNot(ExecutionState& state) const;
     BigInt* negativeValue(ExecutionState& state);
     BigInt* negativeValue();
+
+    Optional<Int128> toInt128();
 
     bool isZero() const;
     bool isNaN() const;

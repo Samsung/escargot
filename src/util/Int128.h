@@ -1,4 +1,3 @@
-#if defined(ENABLE_TEMPORAL)
 /*
  * Copyright (c) 2025-present Samsung Electronics Co., Ltd
  *
@@ -17,41 +16,28 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
  *  USA
  */
+#ifndef __EscargotInt128__
+#define __EscargotInt128__
 
-#ifndef __EscargotTemporalInstantObject__
-#define __EscargotTemporalInstantObject__
-
-#include "runtime/TemporalObject.h"
+#define INT128_SPECIALIZATION
+#include "int128.h"
+#undef INT128_SPECIALIZATION
 
 namespace Escargot {
 
-class TemporalInstantObject : public DerivedObject {
-public:
-    TemporalInstantObject(ExecutionState& state, Object* proto, Int128 nanoseconds);
-
-    virtual bool isTemporalInstantObject() const override
-    {
-        return true;
-    }
-
-    Value epochMilliseconds() const;
-    Int128 epochNanoseconds() const
-    {
-        return *m_nanoseconds;
-    }
-
-private:
-    // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoinstant
-    enum class AddDurationOperation {
-        Add,
-        Subtract
-    };
-    TemporalInstantObject* addDurationToInstant(AddDurationOperation operation, const Value& temporalDurationLike);
-
-    Int128* m_nanoseconds; // [[EpochNanoseconds]]
-};
+using Int128 = large_int::int128_t;
 
 } // namespace Escargot
 
-#endif
+namespace std {
+
+inline string to_string(const Escargot::Int128& val)
+{
+    std::stringstream ss;
+    ss << val;
+    return ss.str();
+}
+
+} // namespace std
+
 #endif

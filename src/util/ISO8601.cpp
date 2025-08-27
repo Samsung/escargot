@@ -274,50 +274,54 @@ String* Duration::typeName(ExecutionState& state, Type t)
     return String::emptyString();
 }
 
-BigIntData Duration::totalNanoseconds(Duration::Type unit) const
+Int128 Duration::totalNanoseconds(Duration::Type unit) const
 {
-    BigIntData resultNs;
+    ASSERT(unit != Duration::Type::Years);
+    ASSERT(unit != Duration::Type::Months);
+    ASSERT(unit != Duration::Type::Weeks);
+
+    Int128 resultNs = 0;
 
     constexpr int64_t nanoMultiplier = 1000000000ULL;
     constexpr int64_t milliMultiplier = 1000000ULL;
     constexpr int64_t microMultiplier = 1000ULL;
 
     if (unit <= Duration::Type::Days) {
-        BigIntData s(days());
-        s = s.multiply(86400);
-        s = s.multiply(nanoMultiplier);
-        resultNs = resultNs.addition(s);
+        Int128 s(days());
+        s *= 86400;
+        s *= nanoMultiplier;
+        resultNs += s;
     }
     if (unit <= Duration::Type::Hours) {
-        BigIntData s(hours());
-        s = s.multiply(3600);
-        s = s.multiply(nanoMultiplier);
-        resultNs = resultNs.addition(s);
+        Int128 s(hours());
+        s *= 3600;
+        s *= nanoMultiplier;
+        resultNs += s;
     }
     if (unit <= Duration::Type::Minutes) {
-        BigIntData s(minutes());
-        s = s.multiply(60);
-        s = s.multiply(nanoMultiplier);
-        resultNs = resultNs.addition(s);
+        Int128 s(minutes());
+        s *= 60;
+        s *= nanoMultiplier;
+        resultNs += s;
     }
     if (unit <= Duration::Type::Seconds) {
-        BigIntData s(seconds());
-        s = s.multiply(nanoMultiplier);
-        resultNs = resultNs.addition(s);
+        Int128 s(seconds());
+        s *= nanoMultiplier;
+        resultNs += s;
     }
     if (unit <= Duration::Type::Milliseconds) {
-        BigIntData s(milliseconds());
-        s = s.multiply(milliMultiplier);
-        resultNs = resultNs.addition(s);
+        Int128 s(milliseconds());
+        s *= milliMultiplier;
+        resultNs += s;
     }
     if (unit <= Duration::Type::Microseconds) {
-        BigIntData s(microseconds());
-        s = s.multiply(microMultiplier);
-        resultNs = resultNs.addition(s);
+        Int128 s(microseconds());
+        s *= microMultiplier;
+        resultNs += s;
     }
     if (unit <= Duration::Type::Nanoseconds) {
-        BigIntData s(nanoseconds());
-        resultNs = resultNs.addition(s);
+        Int128 s(nanoseconds());
+        resultNs += s;
     }
 
     return resultNs;
