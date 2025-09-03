@@ -594,7 +594,13 @@ Optional<String*> Temporal::getTemporalUnitValuedOption(ExecutionState& state, O
     Value value;
     if (resolvedOptions) {
         value = Intl::getOption(state, resolvedOptions.value(), key, Intl::StringValue, allowedStrings, sizeof(allowedStrings) / sizeof(Value), defaultValue.value());
+        if (value.isEmpty()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Required options value is missing");
+        }
     } else {
+        if (defaultValue && defaultValue.value().isEmpty()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Required options value is missing");
+        }
         value = defaultValue.value();
     }
     // If value is undefined, return unset.
@@ -803,6 +809,24 @@ void Temporal::validateTemporalRoundingIncrement(ExecutionState& state, unsigned
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid dividend value");
     }
     // Return unused.
+}
+
+int32_t Temporal::getRoundingIncrementOption(ExecutionState& state, Object* options)
+{
+    // Let value be ? Get(options, "roundingIncrement").
+    Value value = options->get(state, ObjectPropertyName(state.context()->staticStrings().lazyRoundingIncrement())).value(state, options);
+    // If value is undefined, return 1𝔽.
+    if (value.isUndefined()) {
+        return 1;
+    }
+    // Let integerIncrement be ? ToIntegerWithTruncation(value).
+    auto integerIncrement = value.toIntegerWithTruncation(state);
+    // If integerIncrement < 1 or integerIncrement > 10**9, throw a RangeError exception.
+    if (integerIncrement < 1 || integerIncrement > 1000000000) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid roundingIncrement value");
+    }
+    // Return integerIncrement.
+    return integerIncrement;
 }
 
 TemporalObject::TemporalObject(ExecutionState& state)

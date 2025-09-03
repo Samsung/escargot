@@ -874,6 +874,18 @@ double Value::toIntegerIfIntergral(ExecutionState& state) const
     return number;
 }
 
+int64_t Value::toIntegerWithTruncation(ExecutionState& state) const
+{
+    // Let number be ? ToNumber(argument).
+    double number = toNumber(state);
+    // If number is NaN, +∞𝔽 or -∞𝔽, throw a RangeError exception.
+    if (std::isnan(number) || std::isinf(number)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Failed to execute ToIntegerWithTruncation");
+    }
+    // Return truncate(ℝ(number)).
+    return std::trunc(number);
+}
+
 #if defined(ESCARGOT_ENABLE_TEST)
 bool Value::checkIfObjectWithIsHTMLDDA() const
 {

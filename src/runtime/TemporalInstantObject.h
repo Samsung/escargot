@@ -42,6 +42,7 @@ public:
 
     String* toString(ExecutionState& state, Value options);
     static String* toString(ExecutionState& state, Int128 epochNanoseconds, TimeZone timeZone, Value precision);
+    TemporalInstantObject* round(ExecutionState& state, Value roundTo);
 
 private:
     // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoinstant

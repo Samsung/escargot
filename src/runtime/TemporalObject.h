@@ -306,7 +306,7 @@ public:
     static String* getRoundingModeOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* fallback);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalunitvaluedoption
-    static Optional<String*> getTemporalUnitValuedOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* key, Optional<Value> defaultValue);
+    static Optional<String*> getTemporalUnitValuedOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* key, Optional<Value> defaultValue /* give DefaultValue to EmptyValue means Required = true*/);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-validatetemporalunitvaluedoption
     static void validateTemporalUnitValue(ExecutionState& state, Optional<String*> value, ISO8601::DateTimeUnitCategory unitGroup, Optional<String*> extraValues, size_t extraValueSize);
@@ -324,6 +324,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-validatetemporalroundingincrement
     static void validateTemporalRoundingIncrement(ExecutionState& state, unsigned increment, Int128 dividend, bool inclusive);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-getroundingincrementoption
+    static int32_t getRoundingIncrementOption(ExecutionState& state, Object* options);
 };
 
 class TemporalObject : public DerivedObject {
