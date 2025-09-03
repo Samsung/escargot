@@ -619,6 +619,7 @@ using HashMap = tsl::robin_map<Key, T, Hash, KeyEqual, Allocator, StoreHash, Gro
 #include "heap/Heap.h"
 #include "util/Util.h"
 #include "util/Optional.h"
+#include "util/Variant.h"
 #include "runtime/ThreadLocal.h"
 
 #endif

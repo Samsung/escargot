@@ -35,12 +35,17 @@ public:
     {
     }
 
-    Optional(T value)
+    Optional(const T& value)
         : m_hasValue(true)
         , m_value(value)
     {
     }
 
+    Optional(T&& value)
+        : m_hasValue(true)
+        , m_value(std::move(value))
+    {
+    }
 
     Optional(NullOptionType)
         : m_hasValue(false)

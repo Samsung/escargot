@@ -145,9 +145,8 @@ public:
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
-protected:
-    struct timeinfo {
-        timeinfo()
+    struct DateTimeInfo {
+        DateTimeInfo()
             : year(0)
             , month(0)
             , mday(0)
@@ -174,9 +173,11 @@ protected:
         int isdst;
         // int yday;
     };
+    static void computeTimeInfoFromEpoch(time64_t t, struct DateTimeInfo& dst);
 
+protected:
     time64_t m_primitiveValue; // 1LL << 63 is reserved for represent NaN
-    struct timeinfo m_cachedLocal;
+    struct DateTimeInfo m_cachedLocal;
     bool m_isCacheDirty : 1;
 
     void resolveCache(ExecutionState& state);
@@ -193,7 +194,6 @@ protected:
     static int daysFromTime(time64_t t); // return the number of days after 1970.1.1
     static time64_t daysToMs(int year, int month, int date);
     static time64_t timeFromYear(int year) { return TimeConstant::MsPerDay * daysFromYear(year); }
-    static void getYMDFromTime(time64_t t, struct timeinfo& cachedLocal);
     static bool inLeapYear(int year);
 };
 } // namespace Escargot

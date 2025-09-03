@@ -1546,42 +1546,9 @@ static ValueVector availableTimeZone()
     //     i. Append timeZoneIdentifierRecord.[[Identifier]] to result.
     // 4. Return result.
     ValueVector resultVector;
-    UErrorCode status = U_ZERO_ERROR;
-
-    LocalResourcePointer<UEnumeration> tzs(ucal_openTimeZoneIDEnumeration(UCAL_ZONE_TYPE_CANONICAL_LOCATION, nullptr, nullptr, &status),
-                                           [](UEnumeration* fmt) { uenum_close(fmt); });
-
-    if (!U_SUCCESS(status)) {
-        return {};
-    }
-
-    const char* buffer;
-    int32_t bufferLength = 0;
-    while ((buffer = uenum_next(tzs.get(), &bufferLength, &status)) && U_SUCCESS(status)) {
-        std::string id(buffer, bufferLength);
-        if (id == "UTC" || (id.find("Etc/GMT") != std::string::npos)) {
-            continue;
-        }
-        resultVector.pushBack(String::fromUTF8(buffer, bufferLength));
-    }
-
-    resultVector.pushBack(String::fromASCII("UTC"));
-
-    for (int i = 1; i <= 12; i++) {
-        std::string s;
-        s += "Etc/GMT+" + std::to_string(i);
-        resultVector.pushBack(String::fromASCII(s.data(), s.length()));
-        s = "";
-        s += "Etc/GMT-" + std::to_string(i);
-        resultVector.pushBack(String::fromASCII(s.data(), s.length()));
-    }
-
-    resultVector.pushBack(String::fromASCII("Etc/GMT-13"));
-    resultVector.pushBack(String::fromASCII("Etc/GMT-14"));
-
-    if (!U_SUCCESS(status)) {
-        return {};
-    }
+    Intl::availableTimeZones([&](const char* data, size_t len) {
+        resultVector.pushBack(String::fromUTF8(data, len));
+    });
     return resultVector;
 }
 

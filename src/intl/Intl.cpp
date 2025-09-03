@@ -2336,6 +2336,42 @@ static String* removeUnicodeLocaleExtension(ExecutionState& state, String* local
     return builder.finalize();
 }
 
+void Intl::availableTimeZones(const std::function<void(const char* buf, size_t len)>& callback)
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    LocalResourcePointer<UEnumeration> tzs(ucal_openTimeZoneIDEnumeration(UCAL_ZONE_TYPE_CANONICAL_LOCATION, nullptr, nullptr, &status),
+                                           [](UEnumeration* fmt) { uenum_close(fmt); });
+
+    if (!U_SUCCESS(status)) {
+        return;
+    }
+
+    const char* buffer;
+    int32_t bufferLength = 0;
+    while ((buffer = uenum_next(tzs.get(), &bufferLength, &status)) && U_SUCCESS(status)) {
+        std::string id(buffer, bufferLength);
+        if (id == "UTC" || (id.find("Etc/GMT") != std::string::npos)) {
+            continue;
+        }
+        callback(id.data(), id.length());
+    }
+
+    callback("UTC", 3);
+
+    for (int i = 1; i <= 12; i++) {
+        std::string s;
+        s += "Etc/GMT+" + std::to_string(i);
+        callback(s.data(), s.length());
+        s = "";
+        s += "Etc/GMT-" + std::to_string(i);
+        callback(s.data(), s.length());
+    }
+
+    callback("Etc/GMT-13", 10);
+    callback("Etc/GMT-14", 10);
+}
+
 ValueVector Intl::canonicalizeLocaleList(ExecutionState& state, Value locales)
 {
     // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.1

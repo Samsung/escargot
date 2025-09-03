@@ -1,4 +1,10 @@
+#if defined(ENABLE_INTL)
 /*
+ * Copyright (C) 1999-2000 Harri Porten (porten@kde.org)
+ * Copyright (C) 2006-2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2009 Google Inc. All rights reserved.
+ * Copyright (C) 2012 the V8 project authors. All rights reserved.
+ * Copyright (C) 2010 Research In Motion Limited. All rights reserved.
  * Copyright (C) 2021 Sony Interactive Entertainment Inc.
  * Copyright (C) 2021 Apple Inc.
  *
@@ -46,15 +52,58 @@
 #include "ISO8601.h"
 #include "runtime/Context.h"
 #include "runtime/Object.h"
+#include "intl/Intl.h"
+#include "CheckedArithmetic.h"
 
 namespace Escargot {
 namespace ISO8601 {
+
+constexpr Int128 ExactTime::dayRangeSeconds;
+constexpr Int128 ExactTime::nsPerMicrosecond;
+constexpr Int128 ExactTime::nsPerMillisecond;
+constexpr Int128 ExactTime::nsPerSecond;
+constexpr Int128 ExactTime::nsPerMinute;
+constexpr Int128 ExactTime::nsPerHour;
+constexpr Int128 ExactTime::nsPerDay;
+constexpr Int128 ExactTime::minValue;
+constexpr Int128 ExactTime::maxValue;
 
 static constexpr int64_t nsPerHour = 1000LL * 1000 * 1000 * 60 * 60;
 static constexpr int64_t nsPerMinute = 1000LL * 1000 * 1000 * 60;
 static constexpr int64_t nsPerSecond = 1000LL * 1000 * 1000;
 static constexpr int64_t nsPerMillisecond = 1000LL * 1000;
 static constexpr int64_t nsPerMicrosecond = 1000LL;
+
+static constexpr int32_t maxYear = 275760;
+static constexpr int32_t minYear = -271821;
+
+static constexpr uint8_t daysInMonths[2][12] = {
+    { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
+    { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+};
+
+inline bool isLeapYear(int year)
+{
+    if (year % 4 != 0)
+        return false;
+    if (year % 400 == 0)
+        return true;
+    if (year % 100 == 0)
+        return false;
+    return true;
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-isodaysinmonth
+uint8_t daysInMonth(int32_t year, uint8_t month)
+{
+    return daysInMonths[isLeapYear(year)][month - 1];
+}
+
+uint8_t daysInMonth(uint8_t month)
+{
+    constexpr unsigned isLeapYear = 1;
+    return daysInMonths[isLeapYear][month - 1];
+}
 
 static int32_t parseDecimalInt32(const std::string& characters)
 {
@@ -262,10 +311,10 @@ Optional<Duration> Duration::parseDurationString(String* input)
 String* Duration::typeName(ExecutionState& state, Type t)
 {
     switch (t) {
-#define DEFINE_GETTER(name, Name, index) \
-    case Type::Name:                     \
-        return state.context()->staticStrings().lazy##Name().string();
-        FOR_EACH_DURATION(DEFINE_GETTER)
+#define DEFINE_GETTER(name, Name, names, Names, index, category) \
+    case Type::Names:                                            \
+        return state.context()->staticStrings().lazy##Names().string();
+        PLAIN_DATETIME_UNITS(DEFINE_GETTER)
 #undef DEFINE_GETTER
     default:
         break;
@@ -397,5 +446,1047 @@ PartialDuration PartialDuration::toTemporalPartialDurationRecord(ExecutionState&
     return result;
 }
 
+static bool canBeRFC9557Annotation(const ParserString& buffer)
+{
+    // https://tc39.es/proposal-temporal/#sec-temporal-parseisodatetime
+    // Step 4(a)(ii)(2)(a):
+    //  Let key be the source text matched by the AnnotationKey Parse Node contained within annotation
+    //
+    // https://tc39.es/proposal-temporal/#prod-Annotation
+    // Annotation :::
+    //     [ AnnotationCriticalFlag[opt] AnnotationKey = AnnotationValue ]
+    //
+    // AnnotationCriticalFlag :::
+    //     !
+    //
+    // AnnotationKey :::
+    //     AKeyLeadingChar
+    //     AnnotationKey AKeyChar
+    //
+    // AKeyLeadingChar :::
+    //     LowercaseAlpha
+    //     _
+    //
+    // AKeyChar :::
+    //     AKeyLeadingChar
+    //     DecimalDigit
+    //     -
+    //
+    // AnnotationValue :::
+    //     AnnotationValueComponent
+    //     AnnotationValueComponent - AnnotationValue
+    //
+    // AnnotationValueComponent :::
+    //     Alpha AnnotationValueComponent[opt]
+    //     DecimalDigit AnnotationValueComponent[opt]
+
+    // This just checks for '[', followed by an optional '!' (critical flag),
+    // followed by a valid key, followed by an '='.
+
+    size_t length = buffer.lengthRemaining();
+    // Because of `[`, `=`, `]`, `AnnotationKey`, and `AnnotationValue`,
+    // the annotation must have length >= 5.
+    if (length < 5)
+        return false;
+    if (*buffer != '[')
+        return false;
+    size_t index = 1;
+    if (buffer[index] == '!')
+        ++index;
+    if (!isASCIILower(buffer[index]) && buffer[index] != '_')
+        return false;
+    ++index;
+    while (index < length) {
+        if (buffer[index] == '=')
+            return true;
+        if (isASCIILower(buffer[index]) || isASCIIDigit(buffer[index]) || buffer[index] == '-' || buffer[index] == '_')
+            ++index;
+        else
+            return false;
+    }
+    return false;
+}
+
+static Optional<RFC9557Annotation> parseOneRFC9557Annotation(ParserString& buffer)
+{
+    // For BNF, see comment in canBeRFC9557Annotation()
+
+    if (!canBeRFC9557Annotation(buffer))
+        return NullOption;
+    RFC9557Flag flag = buffer[1] == '!' ? RFC9557Flag::Critical : RFC9557Flag::None;
+    // Skip '[' or '[!'
+    buffer.advanceBy(flag == RFC9557Flag::Critical ? 2 : 1);
+
+    // Parse the key
+    unsigned keyLength = 0;
+    while (buffer[keyLength] != '=')
+        keyLength++;
+    if (!keyLength)
+        return NullOption;
+    auto key(buffer.first(keyLength));
+    buffer.advanceBy(keyLength);
+
+    if (buffer.atEnd())
+        return NullOption;
+
+    // Consume the '='
+    buffer.advance();
+
+    unsigned nameLength = 0;
+    {
+        unsigned index = 0;
+        for (; index < buffer.lengthRemaining(); ++index) {
+            auto character = buffer[index];
+            if (character == ']')
+                break;
+            if (!isASCIIAlpha(character) && !isASCIIDigit(character) && character != '-')
+                return NullOption;
+        }
+        if (!index)
+            return NullOption;
+        nameLength = index;
+    }
+
+    // Check if the key is equal to "u-ca"
+    if (key.size() != 4
+        || key[0] != 'u' || key[1] != '-'
+        || key[2] != 'c' || key[3] != 'a') {
+        // Annotation is unknown
+        // Consume the rest of the annotation
+        buffer.advanceBy(nameLength);
+        if (buffer.atEnd() || *buffer != ']') {
+            // Parse error
+            return NullOption;
+        }
+        // Consume the ']'
+        buffer.advance();
+        return RFC9557Annotation{ flag, RFC9557Key::Other, {} };
+    }
+
+    auto isValidComponent = [&](unsigned start, unsigned end) {
+        unsigned componentLength = end - start;
+        if (componentLength < minCalendarLength)
+            return false;
+        if (componentLength > maxCalendarLength)
+            return false;
+        return true;
+    };
+
+    unsigned currentNameComponentStartIndex = 0;
+    bool isLeadingCharacterInNameComponent = true;
+    for (unsigned index = 0; index < nameLength; ++index) {
+        auto character = buffer[index];
+        if (isLeadingCharacterInNameComponent) {
+            if (!(isASCIIAlpha(character) || isASCIIDigit(character)))
+                return NullOption;
+
+            currentNameComponentStartIndex = index;
+            isLeadingCharacterInNameComponent = false;
+            continue;
+        }
+
+        if (character == '-') {
+            if (!isValidComponent(currentNameComponentStartIndex, index))
+                return NullOption;
+            isLeadingCharacterInNameComponent = true;
+            continue;
+        }
+
+        if (!(isASCIIAlpha(character) || isASCIIDigit(character)))
+            return NullOption;
+    }
+    if (isLeadingCharacterInNameComponent)
+        return NullOption;
+    if (!isValidComponent(currentNameComponentStartIndex, nameLength))
+        return NullOption;
+
+    std::string result(buffer.consume(nameLength));
+
+    if (buffer.atEnd())
+        return NullOption;
+    if (*buffer != ']')
+        return NullOption;
+    buffer.advance();
+    return RFC9557Annotation{ flag, RFC9557Key::Calendar, std::move(result) };
+}
+
+
+static Optional<std::vector<CalendarID>> parseCalendar(ParserString& buffer)
+{
+    // https://tc39.es/proposal-temporal/#prod-Annotations
+    //  Annotations :::
+    //      Annotation Annotations[opt]
+
+    if (!canBeRFC9557Annotation(buffer))
+        return NullOption;
+
+    std::vector<CalendarID> result;
+    // https://tc39.es/proposal-temporal/#sec-temporal-parseisodatetime
+    bool calendarWasCritical = false;
+    while (canBeRFC9557Annotation(buffer)) {
+        auto annotation = parseOneRFC9557Annotation(buffer);
+        if (!annotation)
+            return NullOption;
+        if (annotation->m_key == RFC9557Key::Calendar) {
+            result.push_back(annotation->m_value);
+        }
+        if (annotation->m_flag == RFC9557Flag::Critical) {
+            // Check for unknown annotations with critical flag
+            // step 4(a)(ii)(2)(d)(i)
+            if (annotation->m_key != RFC9557Key::Calendar)
+                return NullOption;
+            // Check for multiple calendars and critical flag
+            // step 4(a)(ii)(2)(c)(ii)
+            if (result.size() == 1)
+                calendarWasCritical = true;
+            else
+                return NullOption;
+        }
+        if (calendarWasCritical && result.size() > 1)
+            return NullOption;
+    }
+    return result;
+}
+
+enum class Second60Mode { Accept,
+                          Reject };
+static Optional<PlainTime> parseTimeSpec(ParserString& buffer, Second60Mode second60Mode, bool parseSubMinutePrecision = true)
+{
+    // https://tc39.es/proposal-temporal/#prod-TimeSpec
+    // TimeSpec :
+    //     TimeHour
+    //     TimeHour : TimeMinute
+    //     TimeHour TimeMinute
+    //     TimeHour : TimeMinute : TimeSecond TimeFraction[opt]
+    //     TimeHour TimeMinute TimeSecond TimeFraction[opt]
+    //
+    //  TimeSecond can be 60. And if it is 60, we interpret it as 59.
+    //  https://tc39.es/proposal-temporal/#sec-temporal-parseisodatetime
+
+    if (buffer.lengthRemaining() < 2)
+        return NullOption;
+
+    ASSERT(buffer.lengthRemaining() >= 2);
+    auto firstHourCharacter = *buffer;
+    if (!(firstHourCharacter >= '0' && firstHourCharacter <= '2'))
+        return NullOption;
+
+    buffer.advance();
+    auto secondHourCharacter = *buffer;
+    if (!isASCIIDigit(secondHourCharacter))
+        return NullOption;
+    unsigned hour = (secondHourCharacter - '0') + 10 * (firstHourCharacter - '0');
+    if (hour >= 24)
+        return NullOption;
+    buffer.advance();
+
+    if (buffer.atEnd())
+        return PlainTime(hour, 0, 0, 0, 0, 0);
+
+    bool splitByColon = false;
+    if (*buffer == ':') {
+        splitByColon = true;
+        buffer.advance();
+    } else if (!(*buffer >= '0' && *buffer <= '5'))
+        return PlainTime(hour, 0, 0, 0, 0, 0);
+
+    if (buffer.lengthRemaining() < 2)
+        return NullOption;
+    auto firstMinuteCharacter = *buffer;
+    if (!(firstMinuteCharacter >= '0' && firstMinuteCharacter <= '5'))
+        return NullOption;
+
+    buffer.advance();
+    auto secondMinuteCharacter = *buffer;
+    if (!isASCIIDigit(secondMinuteCharacter))
+        return NullOption;
+    unsigned minute = (secondMinuteCharacter - '0') + 10 * (firstMinuteCharacter - '0');
+    ASSERT(minute < 60);
+    buffer.advance();
+
+    if (buffer.atEnd())
+        return PlainTime(hour, minute, 0, 0, 0, 0);
+
+    if (splitByColon) {
+        if (*buffer == ':')
+            buffer.advance();
+        else
+            return PlainTime(hour, minute, 0, 0, 0, 0);
+    } else if (!(*buffer >= '0' && (second60Mode == Second60Mode::Accept ? (*buffer <= '6') : (*buffer <= '5'))))
+        return PlainTime(hour, minute, 0, 0, 0, 0);
+
+    if (!parseSubMinutePrecision)
+        return NullOption;
+
+    unsigned second = 0;
+    if (buffer.lengthRemaining() < 2)
+        return NullOption;
+    auto firstSecondCharacter = *buffer;
+    if (firstSecondCharacter >= '0' && firstSecondCharacter <= '5') {
+        buffer.advance();
+        auto secondSecondCharacter = *buffer;
+        if (!isASCIIDigit(secondSecondCharacter))
+            return NullOption;
+        second = (secondSecondCharacter - '0') + 10 * (firstSecondCharacter - '0');
+        ASSERT(second < 60);
+        buffer.advance();
+    } else if (second60Mode == Second60Mode::Accept && firstSecondCharacter == '6') {
+        buffer.advance();
+        auto secondSecondCharacter = *buffer;
+        if (secondSecondCharacter != '0')
+            return NullOption;
+        second = 59;
+        buffer.advance();
+    } else
+        return NullOption;
+
+    if (buffer.atEnd())
+        return PlainTime(hour, minute, second, 0, 0, 0);
+
+    if (*buffer != '.' && *buffer != ',')
+        return PlainTime(hour, minute, second, 0, 0, 0);
+    buffer.advance();
+
+    size_t digits = 0;
+    size_t maxCount = std::min<size_t>(buffer.lengthRemaining(), 9);
+    for (; digits < maxCount; ++digits) {
+        if (!isASCIIDigit(buffer[digits]))
+            break;
+    }
+    if (!digits)
+        return NullOption;
+
+    std::string padded("000000000");
+    for (size_t i = 0; i < digits; ++i)
+        padded[i] = buffer[i];
+    buffer.advanceBy(digits);
+
+    unsigned millisecond = parseDecimalInt32(padded.substr(0, 3));
+    unsigned microsecond = parseDecimalInt32(padded.substr(3, 3));
+    unsigned nanosecond = parseDecimalInt32(padded.substr(6, 3));
+
+    return PlainTime(hour, minute, second, millisecond, microsecond, nanosecond);
+}
+
+static bool canBeTimeZone(const ParserString& buffer, char16_t character)
+{
+    switch (character) {
+    // UTCDesignator
+    // https://tc39.es/proposal-temporal/#prod-UTCDesignator
+    case 'z':
+    case 'Z':
+    // TimeZoneUTCOffsetSign
+    // https://tc39.es/proposal-temporal/#prod-TimeZoneUTCOffsetSign
+    case '+':
+    case '-':
+        return true;
+    // TimeZoneBracketedAnnotation
+    // https://tc39.es/proposal-temporal/#prod-TimeZoneBracketedAnnotation
+    case '[': {
+        // We should reject calendar extension case.
+        // For BNF, see comment in canBeRFC9557Annotation()
+        if (canBeRFC9557Annotation(buffer))
+            return false;
+        return true;
+    }
+    default:
+        return false;
+    }
+}
+
+Optional<int64_t> parseUTCOffset(ParserString& buffer, bool parseSubMinutePrecision)
+{
+    // UTCOffset[SubMinutePrecision] :
+    //     ASCIISign Hour
+    //     ASCIISign Hour TimeSeparator[+Extended] MinuteSecond
+    //     ASCIISign Hour TimeSeparator[~Extended] MinuteSecond
+    //     [+SubMinutePrecision] ASCIISign Hour TimeSeparator[+Extended] MinuteSecond TimeSeparator[+Extended] MinuteSecond TemporalDecimalFractionopt
+    //     [+SubMinutePrecision] ASCIISign Hour TimeSeparator[~Extended] MinuteSecond TimeSeparator[~Extended] MinuteSecond TemporalDecimalFractionopt
+    //
+    //  This is the same to
+    //     ASCIISign TimeSpec
+    //
+    //  Maximum and minimum values are ±23:59:59.999999999 = ±86399999999999ns, which can be represented by int64_t / double's integer part.
+
+    // sign and hour.
+    if (buffer.lengthRemaining() < 3)
+        return NullOption;
+
+    int64_t factor = 1;
+    if (*buffer == '+')
+        buffer.advance();
+    else if (*buffer == '-') {
+        factor = -1;
+        buffer.advance();
+    } else
+        return NullOption;
+
+    auto plainTime = parseTimeSpec(buffer, Second60Mode::Reject, parseSubMinutePrecision);
+    if (!plainTime)
+        return NullOption;
+
+    int64_t hour = plainTime->hour();
+    int64_t minute = plainTime->minute();
+    int64_t second = plainTime->second();
+    int64_t millisecond = plainTime->millisecond();
+    int64_t microsecond = plainTime->microsecond();
+    int64_t nanosecond = plainTime->nanosecond();
+
+    return (nsPerHour * hour + nsPerMinute * minute + nsPerSecond * second + nsPerMillisecond * millisecond + nsPerMicrosecond * microsecond + nanosecond) * factor;
+}
+
+Optional<int64_t> parseUTCOffset(String* string, bool parseSubMinutePrecision)
+{
+    ParserString buffer(string);
+    auto result = parseUTCOffset(buffer, parseSubMinutePrecision);
+    if (!buffer.atEnd())
+        return NullOption;
+    return result;
+}
+
+static Optional<Variant<std::string, int64_t>> parseTimeZoneAnnotation(ParserString& buffer)
+{
+    // https://tc39.es/proposal-temporal/#prod-TimeZoneAnnotation
+    // TimeZoneAnnotation :
+    //     [ AnnotationCriticalFlag_opt TimeZoneIdentifier ]
+    // TimeZoneIdentifier :
+    //     UTCOffset_[~SubMinutePrecision]
+    //     TimeZoneIANAName
+
+    if (buffer.lengthRemaining() < 3)
+        return NullOption;
+
+    if (*buffer != '[')
+        return NullOption;
+    buffer.advance();
+
+    if (*buffer == '!')
+        buffer.advance();
+
+    switch (static_cast<char16_t>(*buffer)) {
+    case '+':
+    case '-': {
+        auto offset = parseUTCOffset(buffer, false);
+        if (!offset)
+            return NullOption;
+        if (buffer.atEnd())
+            return NullOption;
+        if (*buffer != ']')
+            return NullOption;
+        buffer.advance();
+        return Variant<std::string, int64_t>::create<1>(offset.value());
+    }
+    case 'E': {
+        // "Etc/GMT+20" and "]" => length is 11.
+        if (buffer.lengthRemaining() >= 11) {
+            if (buffer[0] == 'E' && buffer[1] == 't' && buffer[2] == 'c' && buffer[3] == '/' && buffer[4] == 'G' && buffer[5] == 'M' && buffer[6] == 'T') {
+                auto signCharacter = buffer[7];
+                // Not including minusSign since it is ASCIISign.
+                if (signCharacter == '+' || signCharacter == '-') {
+                    // Etc/GMT+01 is UTC-01:00. This sign is intentionally inverted.
+                    // https://en.wikipedia.org/wiki/Tz_database#Area
+                    int64_t factor = signCharacter == '+' ? -1 : 1;
+                    int64_t hour = 0;
+                    auto firstHourCharacter = buffer[8];
+                    if (firstHourCharacter >= '0' && firstHourCharacter <= '2') {
+                        auto secondHourCharacter = buffer[9];
+                        if (isASCIIDigit(secondHourCharacter)) {
+                            hour = (secondHourCharacter - '0') + 10 * (firstHourCharacter - '0');
+                            if (hour < 24 && buffer[10] == ']') {
+                                buffer.advanceBy(11);
+                                return Variant<std::string, int64_t>::create<1>(nsPerHour * hour * factor);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        [[fallthrough]];
+    }
+    default: {
+        // TZLeadingChar :
+        //     Alpha
+        //     .
+        //     _
+        //
+        // TZChar :
+        //     Alpha
+        //     .
+        //     -
+        //     _
+        //
+        // TimeZoneIANANameComponent :
+        //     TZLeadingChar TZChar[opt] TZChar[opt] TZChar[opt] TZChar[opt] TZChar[opt] TZChar[opt] TZChar[opt] TZChar[opt] TZChar[opt] TZChar[opt] TZChar[opt] TZChar[opt] TZChar[opt] but not one of . or ..
+        //
+        // TimeZoneIANAName :
+        //     TimeZoneIANANameComponent
+        //     TimeZoneIANAName / TimeZoneIANANameComponent
+
+        unsigned nameLength = 0;
+        {
+            unsigned index = 0;
+            for (; index < buffer.lengthRemaining(); ++index) {
+                auto character = buffer[index];
+                if (character == ']')
+                    break;
+                if (!isASCIIAlpha(character) && character != '.' && character != '_' && character != '-' && character != '/')
+                    return NullOption;
+            }
+            if (!index)
+                return NullOption;
+            nameLength = index;
+        }
+
+        auto isValidComponent = [&](unsigned start, unsigned end) {
+            unsigned componentLength = end - start;
+            if (!componentLength)
+                return false;
+            if (componentLength > 14)
+                return false;
+            if (componentLength == 1 && buffer[start] == '.')
+                return false;
+            if (componentLength == 2 && buffer[start] == '.' && buffer[start + 1] == '.')
+                return false;
+            return true;
+        };
+
+        unsigned currentNameComponentStartIndex = 0;
+        bool isLeadingCharacterInNameComponent = true;
+        for (unsigned index = 0; index < nameLength; ++index) {
+            auto character = buffer[index];
+            if (isLeadingCharacterInNameComponent) {
+                if (!(isASCIIAlpha(character) || character == '.' || character == '_'))
+                    return NullOption;
+
+                currentNameComponentStartIndex = index;
+                isLeadingCharacterInNameComponent = false;
+                continue;
+            }
+
+            if (character == '/') {
+                if (!isValidComponent(currentNameComponentStartIndex, index))
+                    return NullOption;
+                isLeadingCharacterInNameComponent = true;
+                continue;
+            }
+
+            if (!(isASCIIAlpha(character) || character == '.' || character == '_' || character == '-'))
+                return NullOption;
+        }
+        if (isLeadingCharacterInNameComponent)
+            return NullOption;
+        if (!isValidComponent(currentNameComponentStartIndex, nameLength))
+            return NullOption;
+
+        std::string result(buffer.consume(nameLength));
+
+        if (buffer.atEnd())
+            return NullOption;
+        if (*buffer != ']')
+            return NullOption;
+        buffer.advance();
+        return Variant<std::string, int64_t>::create<0>(result);
+    }
+    }
+}
+
+static Optional<TimeZoneRecord> parseTimeZone(ParserString& buffer, bool parseSubMinutePrecisionForTimeZone)
+{
+    if (buffer.atEnd())
+        return NullOption;
+    switch (static_cast<char16_t>(*buffer)) {
+    // UTCDesignator
+    // https://tc39.es/proposal-temporal/#prod-UTCDesignator
+    case 'z':
+    case 'Z': {
+        buffer.advance();
+        if (!buffer.atEnd() && *buffer == '[' && canBeTimeZone(buffer, *buffer)) {
+            auto timeZone = parseTimeZoneAnnotation(buffer);
+            if (!timeZone)
+                return NullOption;
+            return TimeZoneRecord{ true, NullOption, std::move(timeZone.value()) };
+        }
+        return TimeZoneRecord{ true, NullOption, {} };
+    }
+    // TimeZoneUTCOffsetSign
+    // https://tc39.es/proposal-temporal/#prod-TimeZoneUTCOffsetSign
+    case '+':
+    case '-': {
+        auto offset = parseUTCOffset(buffer, parseSubMinutePrecisionForTimeZone);
+        if (!offset)
+            return NullOption;
+        if (!buffer.atEnd() && *buffer == '[' && canBeTimeZone(buffer, *buffer)) {
+            auto timeZone = parseTimeZoneAnnotation(buffer);
+            if (!timeZone)
+                return NullOption;
+            return TimeZoneRecord{ false, offset.value(), std::move(timeZone.value()) };
+        }
+        return TimeZoneRecord{ false, offset.value(), {} };
+    }
+    // TimeZoneBracketedAnnotation
+    // https://tc39.es/proposal-temporal/#prod-TimeZoneBracketedAnnotation
+    case '[': {
+        auto timeZone = parseTimeZoneAnnotation(buffer);
+        if (!timeZone)
+            return NullOption;
+        return TimeZoneRecord{ false, NullOption, std::move(timeZone.value()) };
+    }
+    default:
+        return NullOption;
+    }
+}
+
+static Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(ParserString& buffer, bool parseSubMinutePrecisionForTimeZone = true)
+{
+    // https://tc39.es/proposal-temporal/#prod-Time
+    // Time :
+    //     TimeSpec TimeZone[opt]
+    auto plainTime = parseTimeSpec(buffer, Second60Mode::Accept);
+    if (!plainTime)
+        return NullOption;
+    if (buffer.atEnd())
+        return Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>>(std::make_tuple(std::move(plainTime.value()), NullOption));
+    if (canBeTimeZone(buffer, *buffer)) {
+        auto timeZone = parseTimeZone(buffer, parseSubMinutePrecisionForTimeZone);
+        if (!timeZone)
+            return NullOption;
+        return Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>>(std::make_tuple(std::move(plainTime.value()), std::move(timeZone)));
+    }
+    return Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>>(std::make_tuple(std::move(plainTime.value()), NullOption));
+}
+
+static Optional<PlainDate> parseDate(ParserString& buffer)
+{
+    // https://tc39.es/proposal-temporal/#prod-Date
+    // Date :
+    //     DateYear - DateMonth - DateDay
+    //     DateYear DateMonth DateDay
+    //
+    // DateYear :
+    //     DateFourDigitYear
+    //     DateExtendedYear
+    //
+    // DateFourDigitYear :
+    //     Digit Digit Digit Digit
+    //
+    // DateExtendedYear :
+    //     Sign Digit Digit Digit Digit Digit Digit
+    //
+    // DateMonth :
+    //     0 NonzeroDigit
+    //     10
+    //     11
+    //     12
+    //
+    // DateDay :
+    //     0 NonzeroDigit
+    //     1 Digit
+    //     2 Digit
+    //     30
+    //     31
+
+    if (buffer.atEnd())
+        return NullOption;
+
+    bool sixDigitsYear = false;
+    int yearFactor = 1;
+    if (*buffer == '+') {
+        buffer.advance();
+        sixDigitsYear = true;
+    } else if (*buffer == '-') {
+        yearFactor = -1;
+        buffer.advance();
+        sixDigitsYear = true;
+    } else if (!isASCIIDigit(*buffer))
+        return NullOption;
+
+    int32_t year = 0;
+    if (sixDigitsYear) {
+        if (buffer.lengthRemaining() < 6)
+            return NullOption;
+        for (unsigned index = 0; index < 6; ++index) {
+            if (!isASCIIDigit(buffer[index]))
+                return NullOption;
+        }
+        year = parseDecimalInt32(buffer.first(6)) * yearFactor;
+        if (!year && yearFactor < 0)
+            return NullOption;
+        buffer.advanceBy(6);
+    } else {
+        if (buffer.lengthRemaining() < 4)
+            return NullOption;
+        for (unsigned index = 0; index < 4; ++index) {
+            if (!isASCIIDigit(buffer[index]))
+                return NullOption;
+        }
+        year = parseDecimalInt32(buffer.first(4));
+        buffer.advanceBy(4);
+    }
+
+    if (buffer.atEnd())
+        return NullOption;
+
+    bool splitByHyphen = false;
+    if (*buffer == '-') {
+        splitByHyphen = true;
+        buffer.advance();
+        if (buffer.lengthRemaining() < 5)
+            return NullOption;
+    } else {
+        if (buffer.lengthRemaining() < 4)
+            return NullOption;
+    }
+    // We ensured that buffer has enough length for month and day. We do not need to check length.
+
+    unsigned month = 0;
+    auto firstMonthCharacter = *buffer;
+    if (firstMonthCharacter == '0' || firstMonthCharacter == '1') {
+        buffer.advance();
+        auto secondMonthCharacter = *buffer;
+        if (!isASCIIDigit(secondMonthCharacter))
+            return NullOption;
+        month = (secondMonthCharacter - '0') + 10 * (firstMonthCharacter - '0');
+        if (!month || month > 12)
+            return NullOption;
+        buffer.advance();
+    } else
+        return NullOption;
+
+    if (splitByHyphen) {
+        if (*buffer == '-')
+            buffer.advance();
+        else
+            return NullOption;
+    }
+
+    unsigned day = 0;
+    auto firstDayCharacter = *buffer;
+    if (firstDayCharacter >= '0' && firstDayCharacter <= '3') {
+        buffer.advance();
+        auto secondDayCharacter = *buffer;
+        if (!isASCIIDigit(secondDayCharacter))
+            return NullOption;
+        day = (secondDayCharacter - '0') + 10 * (firstDayCharacter - '0');
+        if (!day || day > daysInMonth(year, month))
+            return NullOption;
+        buffer.advance();
+    } else
+        return NullOption;
+
+    return PlainDate(year, month, day);
+}
+
+static Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>>> parseDateTime(ParserString& buffer, bool parseSubMinutePrecisionForTimeZone)
+{
+    // https://tc39.es/proposal-temporal/#prod-DateTime
+    // DateTime :
+    //     Date TimeSpecSeparator[opt] TimeZone[opt]
+    //
+    // TimeSpecSeparator :
+    //     DateTimeSeparator TimeSpec
+    auto plainDate = parseDate(buffer);
+    if (!plainDate)
+        return NullOption;
+    if (buffer.atEnd())
+        return Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>>>(std::make_tuple(std::move(plainDate.value()), NullOption, NullOption));
+
+    if (*buffer == ' ' || *buffer == 'T' || *buffer == 't') {
+        buffer.advance();
+        auto plainTimeAndTimeZone = parseTime(buffer, parseSubMinutePrecisionForTimeZone);
+        if (!plainTimeAndTimeZone)
+            return NullOption;
+        auto plainTime = std::get<0>(plainTimeAndTimeZone.value());
+        auto timeZone = std::get<1>(plainTimeAndTimeZone.value());
+        return Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>>>(std::make_tuple(std::move(plainDate.value()), std::move(plainTime), std::move(timeZone)));
+    }
+
+    if (canBeTimeZone(buffer, *buffer))
+        return NullOption;
+
+    return Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>>>(std::make_tuple(std::move(plainDate.value()), NullOption, NullOption));
+}
+
+static Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarDateTime(ParserString& buffer, bool parseSubMinutePrecisionForTimeZone)
+{
+    // https://tc39.es/proposal-temporal/#prod-DateTime
+    // CalendarDateTime :
+    //     DateTime CalendarName[opt]
+    //
+    auto dateTime = parseDateTime(buffer, parseSubMinutePrecisionForTimeZone);
+    if (!dateTime) {
+        return NullOption;
+    }
+
+    auto plainDate = std::get<0>(dateTime.value());
+    auto plainTimeOptional = std::get<1>(dateTime.value());
+    auto timeZoneOptional = std::get<2>(dateTime.value());
+
+    Optional<CalendarID> calendarOptional;
+    if (!buffer.atEnd() && canBeRFC9557Annotation(buffer)) {
+        auto calendars = parseCalendar(buffer);
+        if (!calendars)
+            return NullOption;
+        if (calendars.value().size() > 0)
+            calendarOptional = std::move(calendars.value()[0]);
+    }
+
+    return std::make_tuple(std::move(plainDate), std::move(plainTimeOptional), std::move(timeZoneOptional), std::move(calendarOptional));
+}
+
+
+Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarDateTime(String* input, bool parseSubMinutePrecisionForTimeZone)
+{
+    ParserString buffer(input);
+    auto result = parseCalendarDateTime(buffer, parseSubMinutePrecisionForTimeZone);
+    if (!buffer.atEnd()) {
+        return NullOption;
+    }
+    return result;
+}
+
+static double daysFrom1970ToYear(int year)
+{
+    // The Gregorian Calendar rules for leap years:
+    // Every fourth year is a leap year. 2004, 2008, and 2012 are leap years.
+    // However, every hundredth year is not a leap year. 1900 and 2100 are not leap years.
+    // Every four hundred years, there's a leap year after all. 2000 and 2400 are leap years.
+
+    static constexpr int leapDaysBefore1971By4Rule = 1970 / 4;
+    static constexpr int excludedLeapDaysBefore1971By100Rule = 1970 / 100;
+    static constexpr int leapDaysBefore1971By400Rule = 1970 / 400;
+
+    const double yearMinusOne = static_cast<double>(year) - 1;
+    const double yearsToAddBy4Rule = floor(yearMinusOne / 4.0) - leapDaysBefore1971By4Rule;
+    const double yearsToExcludeBy100Rule = floor(yearMinusOne / 100.0) - excludedLeapDaysBefore1971By100Rule;
+    const double yearsToAddBy400Rule = floor(yearMinusOne / 400.0) - leapDaysBefore1971By400Rule;
+
+    return 365.0 * (year - 1970.0) + yearsToAddBy4Rule - yearsToExcludeBy100Rule + yearsToAddBy400Rule;
+}
+
+static int dayInYear(int year, int month, int day)
+{
+    const std::array<std::array<int, 12>, 2> firstDayOfMonth{
+        std::array<int, 12>{ 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 },
+        std::array<int, 12>{ 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335 }
+    };
+    return firstDayOfMonth[isLeapYear(year)][month] + day - 1;
+}
+
+static double dateToDaysFrom1970(int year, int month, int day)
+{
+    year += month / 12;
+
+    month %= 12;
+    if (month < 0) {
+        month += 12;
+        --year;
+    }
+
+    double yearday = floor(daysFrom1970ToYear(year));
+    ASSERT((year >= 1970 && yearday >= 0) || (year < 1970 && yearday < 0));
+    return yearday + dayInYear(year, month, day);
+}
+
+ExactTime ExactTime::fromISOPartsAndOffset(int32_t year, uint8_t month, uint8_t day, unsigned hour, unsigned minute, unsigned second, unsigned millisecond, unsigned microsecond, unsigned nanosecond, int64_t offset)
+{
+    ASSERT(month >= 1 && month <= 12);
+    ASSERT(day >= 1 && day <= 31);
+    ASSERT(hour <= 23);
+    ASSERT(minute <= 59);
+    ASSERT(second <= 59);
+    ASSERT(millisecond <= 999);
+    ASSERT(microsecond <= 999);
+    ASSERT(nanosecond <= 999);
+
+    Int128 dateDays = static_cast<int64_t>(dateToDaysFrom1970(year, month - 1, day));
+    Int128 utcNanoseconds = dateDays * nsPerDay + hour * nsPerHour + minute * nsPerMinute + second * nsPerSecond + millisecond * nsPerMillisecond + microsecond * nsPerMicrosecond + nanosecond;
+    return ExactTime{ utcNanoseconds - offset };
+}
+
+static Int128 lengthInNanoseconds(String* unit)
+{
+    if (unit->equals("nanosecond")) {
+        return 1;
+    } else if (unit->equals("microsecond")) {
+        return 1000;
+    } else if (unit->equals("millisecond")) {
+        return 1000 * 1000;
+    } else if (unit->equals("second")) {
+        return Int128(1000 * 1000) * Int128(1000);
+    } else if (unit->equals("minute")) {
+        return Int128(1000 * 1000) * Int128(1000) * Int128(60);
+    } else if (unit->equals("hour")) {
+        return Int128(1000 * 1000) * Int128(1000) * Int128(60) * Int128(60);
+    } else {
+        ASSERT(unit->equals("day"));
+        return Int128(1000 * 1000) * Int128(1000) * Int128(60) * Int128(60) * Int128(24);
+    }
+}
+
+Int128 roundNumberToIncrementAsIfPositive(Int128 x, Int128 increment, String* roundingMode)
+{
+    // The following code follows the polyfill rather than the spec, because we don't have float128.
+    // ApplyUnsignedRoundingMode is inlined here to mirror the polyfill's implementation of it,
+    // which has a different type than in the spec.
+    // See https://github.com/tc39/proposal-temporal/blob/main/polyfill/lib/ecmascript.mjs#L4056
+    Int128 quotient = x / increment;
+    Int128 remainder = x % increment;
+    auto unsignedRoundingMode = getUnsignedRoundingMode(roundingMode, false);
+    auto r1 = quotient;
+    auto r2 = quotient + 1;
+    if (x < 0) {
+        r1 = quotient - 1;
+        r2 = quotient;
+    }
+    auto doubleRemainder = std::abs(remainder * 2);
+    auto even = r1 % 2;
+    if (quotient * increment == x)
+        return x;
+    if (unsignedRoundingMode == UnsignedRoundingMode::Zero)
+        return r1 * increment;
+    if (unsignedRoundingMode == UnsignedRoundingMode::Infinity)
+        return r2 * increment;
+    if (doubleRemainder < increment)
+        return r1 * increment;
+    if (doubleRemainder > increment)
+        return r2 * increment;
+    if (unsignedRoundingMode == UnsignedRoundingMode::HalfZero)
+        return r1 * increment;
+    if (unsignedRoundingMode == UnsignedRoundingMode::HalfInfinity)
+        return r2 * increment;
+    return !even ? r1 * increment : r2 * increment;
+}
+
+UnsignedRoundingMode getUnsignedRoundingMode(String* roundingMode, bool isNegative)
+{
+    if (roundingMode->equals("ceil")) {
+        return isNegative ? UnsignedRoundingMode::Zero : UnsignedRoundingMode::Infinity;
+    } else if (roundingMode->equals("floor")) {
+        return isNegative ? UnsignedRoundingMode::Infinity : UnsignedRoundingMode::Zero;
+    } else if (roundingMode->equals("expand")) {
+        return UnsignedRoundingMode::Infinity;
+    } else if (roundingMode->equals("trunc")) {
+        return UnsignedRoundingMode::Zero;
+    } else if (roundingMode->equals("halfCeil")) {
+        return isNegative ? UnsignedRoundingMode::HalfZero : UnsignedRoundingMode::HalfInfinity;
+    } else if (roundingMode->equals("halfFloor")) {
+        return isNegative ? UnsignedRoundingMode::HalfInfinity : UnsignedRoundingMode::HalfZero;
+    } else if (roundingMode->equals("halfExpand")) {
+        return UnsignedRoundingMode::HalfInfinity;
+    } else if (roundingMode->equals("halfTrunc")) {
+        return UnsignedRoundingMode::HalfZero;
+    }
+    return UnsignedRoundingMode::HalfEven;
+}
+
+static Int128 roundTemporalInstant(Int128 ns, unsigned increment, String* unit, String* roundingMode)
+{
+    auto unitLength = lengthInNanoseconds(unit);
+    auto incrementNs = increment * unitLength;
+    return roundNumberToIncrementAsIfPositive(ns, incrementNs, roundingMode);
+}
+
+ExactTime ExactTime::round(ExecutionState& state, unsigned increment, String* unit, String* roundingMode)
+{
+    auto roundedNs = roundTemporalInstant(m_epochNanoseconds, increment, unit, roundingMode);
+    return ExactTime{ roundedNs };
+}
+
+using CheckedInt128 = Checked<Int128, RecordOverflow>;
+
+static CheckedInt128 checkedCastDoubleToInt128(double n)
+{
+    // Based on __fixdfti() and __fixunsdfti() from compiler_rt:
+    // https://github.com/llvm/llvm-project/blob/f3671de5500ff1f8210419226a9603a7d83b1a31/compiler-rt/lib/builtins/fp_fixint_impl.inc
+    // https://github.com/llvm/llvm-project/blob/f3671de5500ff1f8210419226a9603a7d83b1a31/compiler-rt/lib/builtins/fp_fixuint_impl.inc
+
+    static constexpr int significandBits = std::numeric_limits<double>::digits - 1;
+    static constexpr int exponentBits = std::numeric_limits<uint64_t>::digits - std::numeric_limits<double>::digits;
+    static constexpr int exponentBias = std::numeric_limits<double>::max_exponent - 1;
+    static constexpr uint64_t implicitBit = uint64_t{ 1 } << significandBits;
+    static constexpr uint64_t significandMask = implicitBit - uint64_t{ 1 };
+    static constexpr uint64_t signMask = uint64_t{ 1 } << (significandBits + exponentBits);
+    static constexpr uint64_t absMask = signMask - uint64_t{ 1 };
+
+    // Break n into sign, exponent, significand parts.
+    const uint64_t bits = *reinterpret_cast<uint64_t*>(&n);
+    const uint64_t nAbs = bits & absMask;
+    const int sign = bits & signMask ? -1 : 1;
+    const int exponent = (nAbs >> significandBits) - exponentBias;
+    const uint64_t significand = (nAbs & significandMask) | implicitBit;
+
+    // If exponent is negative, the result is zero.
+    if (exponent < 0)
+        return { 0 };
+
+    // If the value is too large for the integer type, overflow.
+    if (exponent >= 128)
+        return { ResultOverflowed };
+
+    // If 0 <= exponent < significandBits, right shift to get the result.
+    // Otherwise, shift left.
+    Int128 result{ significand };
+    if (exponent < significandBits)
+        result >>= significandBits - exponent;
+    else
+        result <<= exponent - significandBits;
+    result *= sign;
+    return { result };
+}
+
+
+Optional<ExactTime> parseISODateTimeWithInstantFormat(String* input)
+{
+    // https://tc39.es/proposal-temporal/#prod-TemporalInstantString
+    // TemporalInstantString :
+    //     Date TimeZoneOffsetRequired
+    //     Date DateTimeSeparator TimeSpec TimeZoneOffsetRequired
+
+    // https://tc39.es/proposal-temporal/#prod-TimeZoneOffsetRequired
+    // TimeZoneOffsetRequired :
+    //     TimeZoneUTCOffset TimeZoneBracketedAnnotation_opt
+
+    ParserString buffer(input);
+    auto datetime = parseCalendarDateTime(buffer, true);
+    if (!datetime)
+        return NullOption;
+    auto plainDate = std::get<0>(datetime.value());
+    auto plainTimeOptional = std::get<1>(datetime.value());
+    auto timeZoneOptional = std::get<2>(datetime.value());
+    auto calendarOptional = std::get<3>(datetime.value());
+    if (!timeZoneOptional || (!timeZoneOptional->m_z && !timeZoneOptional->m_offset))
+        return NullOption;
+    if (!buffer.atEnd())
+        return NullOption;
+
+    PlainTime plainTime;
+    if (plainTimeOptional) {
+        plainTime = plainTimeOptional.value();
+    }
+
+    int64_t offset = timeZoneOptional->m_z ? 0 : timeZoneOptional->m_offset.value();
+    return ExactTime::fromISOPartsAndOffset(plainDate.year(), plainDate.month(), plainDate.day(), plainTime.hour(), plainTime.minute(), plainTime.second(), plainTime.millisecond(), plainTime.microsecond(), plainTime.nanosecond(), offset);
+}
+
+Optional<TimeZoneID> parseTimeZoneName(String* string)
+{
+    std::string lowerString = string->toNonGCUTF8StringData();
+    std::transform(lowerString.begin(), lowerString.end(), lowerString.begin(), tolower);
+
+    Optional<TimeZoneID> ret;
+    Intl::availableTimeZones([&](const char* buf, size_t len) {
+        if (len == lowerString.size()) {
+            char* newBuf = reinterpret_cast<char*>(alloca(len));
+            std::transform(buf, buf + len, newBuf, tolower);
+            if (memcmp(lowerString.data(), newBuf, len) == 0) {
+                ret = String::fromUTF8(buf, len);
+            }
+        }
+    });
+    return ret;
+}
+
 } // namespace ISO8601
 } // namespace Escargot
+
+#endif

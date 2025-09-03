@@ -1213,7 +1213,7 @@ inline bool DateObject::inLeapYear(int year)
 }
 
 
-void DateObject::getYMDFromTime(time64_t t, struct timeinfo& cachedLocal)
+void DateObject::computeTimeInfoFromEpoch(time64_t t, struct DateTimeInfo& cachedLocal)
 {
     int estimate = floor(t / TimeConstant::MsPerDay / 365.2425) + 1970;
     time64_t yearAsMs = daysToMs(estimate, 0, 1);
@@ -1239,6 +1239,19 @@ void DateObject::getYMDFromTime(time64_t t, struct timeinfo& cachedLocal)
     }
 
     cachedLocal.mday = dayWithinYear + 1 - firstDayOfMonth[leap][cachedLocal.month];
+
+    int days = daysFromTime(t);
+    int timeInDay = static_cast<int>(t - days * TimeConstant::MsPerDay);
+
+    ASSERT(timeInDay >= 0);
+
+    int weekday = (days + 4) % TimeConstant::DaysPerWeek;
+    cachedLocal.wday = weekday >= 0 ? weekday : weekday + TimeConstant::DaysPerWeek;
+    // Do not cast TimeConstant::MsPer[Hour|Minute|Second] into double
+    cachedLocal.hour = timeInDay / TimeConstant::MsPerHour;
+    cachedLocal.min = (timeInDay / TimeConstant::MsPerMinute) % TimeConstant::MinutesPerHour;
+    cachedLocal.sec = (timeInDay / TimeConstant::MsPerSecond) % TimeConstant::SecondsPerMinute;
+    cachedLocal.millisec = (timeInDay) % TimeConstant::MsPerSecond;
 }
 
 
@@ -1285,24 +1298,9 @@ void DateObject::resolveCache(ExecutionState& state)
     t += (stdOffset + dstOffset);
     t -= msBetweenYears;
 
-    getYMDFromTime(t, m_cachedLocal);
-
-    int days = daysFromTime(t);
-    int timeInDay = static_cast<int>(t - days * TimeConstant::MsPerDay);
-
-    ASSERT(timeInDay >= 0);
-
-    int weekday = (days + 4) % TimeConstant::DaysPerWeek;
-    m_cachedLocal.wday = weekday >= 0 ? weekday : weekday + TimeConstant::DaysPerWeek;
-    // Do not cast TimeConstant::MsPer[Hour|Minute|Second] into double
-    m_cachedLocal.hour = timeInDay / TimeConstant::MsPerHour;
-    m_cachedLocal.min = (timeInDay / TimeConstant::MsPerMinute) % TimeConstant::MinutesPerHour;
-    m_cachedLocal.sec = (timeInDay / TimeConstant::MsPerSecond) % TimeConstant::SecondsPerMinute;
-    m_cachedLocal.millisec = (timeInDay) % TimeConstant::MsPerSecond;
-
+    computeTimeInfoFromEpoch(t, m_cachedLocal);
     m_isCacheDirty = false;
 }
-
 
 time64_t DateObject::daysToMs(int year, int month, int date)
 {
@@ -1310,7 +1308,6 @@ time64_t DateObject::daysToMs(int year, int month, int date)
     time64_t t = timeFromYear(year) + daysFromMonth(year, month) * TimeConstant::MsPerDay;
     return t + (date - 1) * TimeConstant::MsPerDay;
 }
-
 
 String* DateObject::toDateString(ExecutionState& state)
 {

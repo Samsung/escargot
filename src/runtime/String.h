@@ -45,11 +45,16 @@ typedef std::basic_string<char32_t, std::char_traits<char32_t>> UTF32StringDataN
 
 std::vector<std::string> split(const std::string& s, char seperator);
 std::vector<std::string> split(const std::string& s, const std::string& seperator);
+std::string pad(char ch, unsigned min, const std::string& s);
 
 bool isASCIIAlpha(char ch);
 bool isASCIIDigit(char ch);
 bool isASCIIAlphanumeric(char ch);
 bool isASCIIWhitespace(char character);
+bool isASCIILower(char ch);
+bool isASCIIUpper(char ch);
+char toASCIILower(char ch);
+char toASCIIUpper(char ch);
 bool isAllSpecialCharacters(const std::string& s, bool (*fn)(char));
 
 ALWAYS_INLINE int parseDigit(char16_t c, int radix)
@@ -1084,7 +1089,7 @@ public:
     {
     }
 
-    size_t lengthRemaining()
+    size_t lengthRemaining() const
     {
         return m_bad.length - m_position;
     }
@@ -1099,29 +1104,36 @@ public:
         m_position += s;
     }
 
-    bool atEnd()
+    bool atEnd() const
     {
         return m_position >= m_bad.length;
     }
 
-    char16_t operator*()
+    char16_t operator*() const
     {
         return m_bad.charAt(m_position);
     }
 
-    bool hasCharactersRemaining()
+    bool hasCharactersRemaining() const
     {
         return m_position != m_bad.length;
     }
 
-    char16_t operator[](size_t pos)
+    char16_t operator[](size_t pos) const
     {
         return m_bad.charAt(m_position + pos);
     }
 
-    std::string first(size_t pos)
+    std::string first(size_t pos) const
     {
         return m_src->toNonGCUTF8StringData().substr(m_position, pos);
+    }
+
+    std::string consume(size_t pos)
+    {
+        auto ret = first(pos);
+        m_position += pos;
+        return ret;
     }
 
 private:

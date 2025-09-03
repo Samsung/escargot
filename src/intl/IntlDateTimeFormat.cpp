@@ -242,19 +242,6 @@ static Optional<int64_t> parseUTCOffsetInMinutes(const StringBufferAccessData& b
     return (hour * 60 + minute) * factor;
 }
 
-static std::string pad(char ch, unsigned min, const std::string& s)
-{
-    if (min > s.length()) {
-        std::string result = s;
-        for (unsigned i = 0; i < min - s.length(); i++) {
-            result = ch + result;
-        }
-        return result;
-    } else {
-        return s;
-    }
-}
-
 static String* canonicalizeTimeZoneName(ExecutionState& state, String* timeZoneName)
 {
     // 6.4.1 IsValidTimeZoneName (timeZone)

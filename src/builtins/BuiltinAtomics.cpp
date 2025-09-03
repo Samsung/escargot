@@ -579,11 +579,6 @@ static Value builtinAtomicsIsLockFree(ExecutionState& state, Value thisValue, si
 #endif
 }
 
-inline bool isIntegralNumber(double value)
-{
-    return std::isfinite(value) && std::trunc(value) == value;
-}
-
 // https://tc39.es/proposal-atomics-microwait/#Atomics.pause
 static Value builtinAtomicsPause(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {

@@ -84,6 +84,11 @@ private:
 template <typename T>
 using LocalResourcePointer = std::unique_ptr<T, void (*)(T*)>;
 
+inline bool isIntegralNumber(double value)
+{
+    return std::isfinite(value) && std::trunc(value) == value;
+}
+
 uint64_t fastTickCount(); // increase 1000 by 1 second(fast version. not super accurate)
 uint64_t tickCount(); // increase 1000 by 1 second
 uint64_t longTickCount(); // increase 1000000 by 1 second

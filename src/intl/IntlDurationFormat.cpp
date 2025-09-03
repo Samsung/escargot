@@ -336,10 +336,10 @@ IntlDurationFormatObject::IntlDurationFormatObject(ExecutionState& state, Object
 std::pair<String*, String*> IntlDurationFormatObject::data(size_t index)
 {
     switch (index) {
-#define DEFINE_GETTER(name, Name, index) \
-    case index:                          \
-        return std::make_pair(m_##name##Style, m_##name##Display);
-        FOR_EACH_DURATION(DEFINE_GETTER)
+#define DEFINE_GETTER(name, Name, names, Names, index, category) \
+    case index:                                                  \
+        return std::make_pair(m_##names##Style, m_##names##Display);
+        PLAIN_DATETIME_UNITS(DEFINE_GETTER)
 #undef DEFINE_GETTER
     default:
         ASSERT_NOT_REACHED();
@@ -355,21 +355,10 @@ Object* IntlDurationFormatObject::resolvedOptions(ExecutionState& state)
     options->directDefineOwnProperty(state, ObjectPropertyName(ss.lazyNumberingSystem()), ObjectPropertyDescriptor(m_numberingSystem, ObjectPropertyDescriptor::AllPresent));
     options->directDefineOwnProperty(state, ObjectPropertyName(ss.lazyStyle()), ObjectPropertyDescriptor(m_style, ObjectPropertyDescriptor::AllPresent));
 
-#define ADD_PROPERTY(name)                                                                                                                                                              \
-    options->directDefineOwnProperty(state, ObjectPropertyName(state, String::fromASCII(#name "s")), ObjectPropertyDescriptor(m_##name##sStyle, ObjectPropertyDescriptor::AllPresent)); \
-    options->directDefineOwnProperty(state, ObjectPropertyName(state, String::fromASCII(#name "sDisplay")), ObjectPropertyDescriptor(m_##name##sDisplay, ObjectPropertyDescriptor::AllPresent));
-
-    ADD_PROPERTY(year)
-    ADD_PROPERTY(month)
-    ADD_PROPERTY(week)
-    ADD_PROPERTY(day)
-    ADD_PROPERTY(hour)
-    ADD_PROPERTY(minute)
-    ADD_PROPERTY(second)
-    ADD_PROPERTY(millisecond)
-    ADD_PROPERTY(microsecond)
-    ADD_PROPERTY(nanosecond)
-
+#define ADD_PROPERTY(name, Name, names, Names, index, category)                                                                                                                      \
+    options->directDefineOwnProperty(state, ObjectPropertyName(state, String::fromASCII(#names)), ObjectPropertyDescriptor(m_##names##Style, ObjectPropertyDescriptor::AllPresent)); \
+    options->directDefineOwnProperty(state, ObjectPropertyName(state, String::fromASCII(#names "Display")), ObjectPropertyDescriptor(m_##names##Display, ObjectPropertyDescriptor::AllPresent));
+    PLAIN_DATETIME_UNITS(ADD_PROPERTY)
 #undef ADD_PROPERTY
 
     if (!m_fractionalDigits.isUndefined()) {
