@@ -40,6 +40,9 @@ public:
         return *m_nanoseconds;
     }
 
+    String* toString(ExecutionState& state, Value options);
+    static String* toString(ExecutionState& state, Int128 epochNanoseconds, TimeZone timeZone, Value precision);
+
 private:
     // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoinstant
     enum class AddDurationOperation {

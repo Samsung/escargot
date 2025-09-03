@@ -39,6 +39,7 @@ public:
         size_t extensionIndex;
     };
 
+    static void availableTimeZones(const std::function<void(const char* buf, size_t len)>& callback);
     static ValueVector canonicalizeLocaleList(ExecutionState& state, Value locales);
     static StringMap resolveLocale(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, const StringMap& options, const char* const relevantExtensionKeys[], size_t relevantExtensionKeyCount, LocaleDataImplFunction localeData);
     static Value supportedLocales(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, Value options);

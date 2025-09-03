@@ -27,8 +27,55 @@
 #include "runtime/DateObject.h"
 #include "intl/Intl.h"
 #include "util/Int128.h"
+#include "util/ISO8601.h"
 
 namespace Escargot {
+
+class TimeZone {
+public:
+    TimeZone()
+    {
+    }
+
+    TimeZone(String* timeZone)
+        : m_timeZoneName(timeZone)
+    {
+    }
+
+    TimeZone(int64_t offset)
+        : m_offset(offset)
+    {
+    }
+
+    bool empty() const
+    {
+        return !hasTimeZoneName() && !hasOffset();
+    }
+
+    bool hasTimeZoneName() const
+    {
+        return !!m_timeZoneName;
+    }
+
+    bool hasOffset() const
+    {
+        return !!m_offset;
+    }
+
+    String* timeZoneName()
+    {
+        return m_timeZoneName.value();
+    }
+
+    int64_t offset()
+    {
+        return m_offset.value();
+    }
+
+private:
+    Optional<String*> m_timeZoneName;
+    Optional<int64_t> m_offset;
+};
 
 struct TimeRecord {
     static TimeRecord noonTimeRecord()
@@ -250,6 +297,33 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporalinstant
     static TemporalInstantObject* toTemporalInstant(ExecutionState& state, Value item);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalfractionalseconddigitsoption
+    // NullOption means AUTO
+    static Optional<unsigned> getTemporalFractionalSecondDigitsOption(ExecutionState& state, Optional<Object*> resolvedOptions);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-getroundingmodeoption
+    static String* getRoundingModeOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* fallback);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalunitvaluedoption
+    static Optional<String*> getTemporalUnitValuedOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* key, Optional<Value> defaultValue);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-validatetemporalunitvaluedoption
+    static void validateTemporalUnitValue(ExecutionState& state, Optional<String*> value, ISO8601::DateTimeUnitCategory unitGroup, Optional<String*> extraValues, size_t extraValueSize);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimezoneidentifier
+    static TimeZone toTemporalTimezoneIdentifier(ExecutionState& state, const Value& temporalTimeZoneLike);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-tosecondsstringprecisionrecord
+    struct StringPrecisionRecord {
+        Value precision;
+        String* unit;
+        unsigned increment;
+    };
+    static StringPrecisionRecord toSecondsStringPrecisionRecord(ExecutionState& state, Optional<String*> smallestUnit, Optional<unsigned> fractionalDigitCount);
+
+    // https://tc39.es/proposal-temporal/#sec-validatetemporalroundingincrement
+    static void validateTemporalRoundingIncrement(ExecutionState& state, unsigned increment, Int128 dividend, bool inclusive);
 };
 
 class TemporalObject : public DerivedObject {

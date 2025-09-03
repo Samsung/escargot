@@ -871,7 +871,9 @@ namespace Escargot {
     F(MaximumFractionDigits, "maximumFractionDigits")       \
     F(MaximumSignificantDigits, "maximumSignificantDigits") \
     F(Medium, "medium")                                     \
+    F(Millisecond, "millisecond")                           \
     F(Milliseconds, "milliseconds")                         \
+    F(Microsecond, "microsecond")                           \
     F(Microseconds, "microseconds")                         \
     F(Minimize, "minimize")                                 \
     F(MinimumFractionDigits, "minimumFractionDigits")       \
@@ -883,6 +885,7 @@ namespace Escargot {
     F(Month, "month")                                       \
     F(Months, "months")                                     \
     F(MorePrecision, "morePrecision")                       \
+    F(Nanosecond, "nanosecond")                             \
     F(Nanoseconds, "nanoseconds")                           \
     F(Narrow, "narrow")                                     \
     F(NarrowSymbol, "narrowSymbol")                         \
@@ -956,40 +959,44 @@ namespace Escargot {
 #endif
 
 #if defined(ENABLE_TEMPORAL)
-#define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)      \
-    F(Blank, "blank")                                \
-    F(CalendarId, "calendarId")                      \
-    F(CapitalDuration, "Duration")                   \
-    F(CapitalInstant, "Instant")                     \
-    F(CapitalNow, "Now")                             \
-    F(CapitalPlainDate, "PlainDate")                 \
-    F(CapitalTemporal, "Temporal")                   \
-    F(DayOfWeek, "dayOfWeek")                        \
-    F(DayOfYear, "dayOfYear")                        \
-    F(DaysInMonth, "daysInMonth")                    \
-    F(DaysInWeek, "daysInWeek")                      \
-    F(DaysInYear, "daysInYear")                      \
-    F(EraYear, "eraYear")                            \
-    F(EpochMilliseconds, "epochMilliseconds")        \
-    F(EpochNanoseconds, "epochNanoseconds")          \
-    F(GetEpochMilliseconds, "get epochMilliseconds") \
-    F(GetEpochNanoseconds, "get epochNanoseconds")   \
-    F(InLeapYear, "inLeapYear")                      \
-    F(Instant, "instant")                            \
-    F(ISO8601, "iso8601")                            \
-    F(MonthCode, "monthCode")                        \
-    F(MonthsInYear, "monthsInYear")                  \
-    F(Overflow, "overflow")                          \
-    F(PlainDateISO, "plainDateISO")                  \
-    F(PlainDateTimeISO, "plainDateTimeISO")          \
-    F(PlainTimeISO, "plainTimeISO")                  \
-    F(TemporalDotDuration, "Temporal.Duration")      \
-    F(TemporalDotInstant, "Temporal.Instant")        \
-    F(TemporalDotNow, "Temporal.Now")                \
-    F(TemporalDotPlainDate, "Temporal.PlainDate")    \
-    F(TimeZoneId, "timeZoneId")                      \
-    F(WeekOfYear, "weekOfYear")                      \
-    F(YearOfWeek, "yearOfWeek")                      \
+#define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)       \
+    F(Blank, "blank")                                 \
+    F(CalendarId, "calendarId")                       \
+    F(CapitalDuration, "Duration")                    \
+    F(CapitalInstant, "Instant")                      \
+    F(CapitalNow, "Now")                              \
+    F(CapitalPlainDate, "PlainDate")                  \
+    F(CapitalTemporal, "Temporal")                    \
+    F(DayOfWeek, "dayOfWeek")                         \
+    F(DayOfYear, "dayOfYear")                         \
+    F(DaysInMonth, "daysInMonth")                     \
+    F(DaysInWeek, "daysInWeek")                       \
+    F(DaysInYear, "daysInYear")                       \
+    F(EraYear, "eraYear")                             \
+    F(EpochMilliseconds, "epochMilliseconds")         \
+    F(EpochNanoseconds, "epochNanoseconds")           \
+    F(Equals, "equals")                               \
+    F(FromEpochMilliseconds, "fromEpochMilliseconds") \
+    F(FromEpochNanoseconds, "fromEpochNanoseconds")   \
+    F(GetEpochMilliseconds, "get epochMilliseconds")  \
+    F(GetEpochNanoseconds, "get epochNanoseconds")    \
+    F(InLeapYear, "inLeapYear")                       \
+    F(Instant, "instant")                             \
+    F(ISO8601, "iso8601")                             \
+    F(MonthCode, "monthCode")                         \
+    F(MonthsInYear, "monthsInYear")                   \
+    F(Overflow, "overflow")                           \
+    F(PlainDateISO, "plainDateISO")                   \
+    F(PlainDateTimeISO, "plainDateTimeISO")           \
+    F(PlainTimeISO, "plainTimeISO")                   \
+    F(SmallestUnit, "smallestUnit")                   \
+    F(TemporalDotDuration, "Temporal.Duration")       \
+    F(TemporalDotInstant, "Temporal.Instant")         \
+    F(TemporalDotNow, "Temporal.Now")                 \
+    F(TemporalDotPlainDate, "Temporal.PlainDate")     \
+    F(TimeZoneId, "timeZoneId")                       \
+    F(WeekOfYear, "weekOfYear")                       \
+    F(YearOfWeek, "yearOfWeek")                       \
     F(ZonedDateTimeISO, "zonedDateTimeISO")
 #else
 #define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)

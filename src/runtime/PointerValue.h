@@ -87,7 +87,6 @@ class TemporalCalendarObject;
 class TemporalDurationObject;
 class TemporalPlainYearMonthObject;
 class TemporalPlainMonthDayObject;
-class TemporalTimeZoneObject;
 #endif
 class TypedArrayObject;
 class ModuleNamespaceObject;

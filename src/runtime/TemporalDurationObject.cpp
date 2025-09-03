@@ -44,11 +44,11 @@ TemporalDurationObject::TemporalDurationObject(ExecutionState& state, Object* pr
     // If microseconds is undefined, let mis be 0; else let mis be ? ToIntegerIfIntegral(microseconds).
     // If nanoseconds is undefined, let ns be 0; else let ns be ? ToIntegerIfIntegral(nanoseconds).
     // Return ? CreateTemporalDuration(y, mo, w, d, h, m, s, ms, mis, ns, NewTarget).
-#define DEFINE_SETTER(name, Name, index)                      \
-    if (!name.isUndefined()) {                                \
-        m_duration[index] = name.toIntegerIfIntergral(state); \
+#define DEFINE_SETTER(name, Name, names, Names, index, category) \
+    if (!names.isUndefined()) {                                  \
+        m_duration[index] = names.toIntegerIfIntergral(state);   \
     }
-    FOR_EACH_DURATION(DEFINE_SETTER)
+    PLAIN_DATETIME_UNITS(DEFINE_SETTER)
 #undef DEFINE_SETTER
 }
 

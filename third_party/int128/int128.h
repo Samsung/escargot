@@ -365,12 +365,12 @@ namespace large_int {
 
     template<>
     struct clz_helper<unsigned long> {
-        static constexpr int clz(unsigned long val_) { return __builtin_clzl(val_); }
+        static int clz(unsigned long val_) { return __builtin_clzl(val_); }
     };
 
     template<>
     struct clz_helper<unsigned long long> {
-        static constexpr int clz(unsigned long long val_) { return __builtin_clzll(val_); }
+        static int clz(unsigned long long val_) { return __builtin_clzll(val_); }
     };
 
     template<class _High, class _Low>

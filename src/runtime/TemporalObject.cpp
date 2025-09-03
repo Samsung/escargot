@@ -25,6 +25,7 @@
 #include "runtime/DateObject.h"
 #include "runtime/TemporalDurationObject.h"
 #include "runtime/TemporalInstantObject.h"
+#include "intl/Intl.h"
 
 namespace Escargot {
 
@@ -463,7 +464,7 @@ TemporalDurationObject* Temporal::toTemporalDuration(ExecutionState& state, cons
     // Return ? CreateTemporalDuration(result.[[Years]], result.[[Months]], result.[[Weeks]], result.[[Days]], result.[[Hours]], result.[[Minutes]], result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]], result.[[Nanoseconds]]).
     return new TemporalDurationObject(state, duration);
 }
-/*
+
 // https://tc39.es/proposal-temporal/#sec-temporal-totemporalinstant
 TemporalInstantObject* Temporal::toTemporalInstant(ExecutionState& state, Value item)
 {
@@ -474,7 +475,7 @@ TemporalInstantObject* Temporal::toTemporalInstant(ExecutionState& state, Value 
         if (item.asObject()->isTemporalInstantObject()) {
             // Return ! CreateTemporalInstant(item.[[EpochNanoseconds]]).
             return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(),
-                item.asObject()->asTemporalInstantObject()->epochNanoseconds());
+                                             item.asObject()->asTemporalInstantObject()->epochNanoseconds());
         }
         // NOTE: This use of ToPrimitive allows Instant-like objects to be converted.
         // Set item to ? ToPrimitive(item, string).
@@ -494,10 +495,316 @@ TemporalInstantObject* Temporal::toTemporalInstant(ExecutionState& state, Value 
     // Perform ? CheckISODaysRange(balanced.[[ISODate]]).
     // Let epochNanoseconds be GetUTCEpochNanoseconds(balanced).
     // If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
+    auto parsed = ISO8601::parseISODateTimeWithInstantFormat(item.asString());
+    if (!parsed || !parsed.value().isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+    }
     // Return ! CreateTemporalInstant(epochNanoseconds).
-    return nullptr;
+    return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(), parsed.value().epochNanoseconds());
 }
-*/
+
+Optional<unsigned> Temporal::getTemporalFractionalSecondDigitsOption(ExecutionState& state, Optional<Object*> resolvedOptions)
+{
+    constexpr auto msg = "The value you gave for GetTemporalFractionalSecondDigitsOption is invalid";
+    // Let digitsValue be ? Get(options, "fractionalSecondDigits").
+    if (!resolvedOptions) {
+        return NullOption;
+    }
+    Value digitsValue = resolvedOptions->get(state, state.context()->staticStrings().lazyFractionalSecondDigits()).value(state, resolvedOptions.value());
+    // If digitsValue is undefined, return auto.
+    if (digitsValue.isUndefined()) {
+        return NullOption;
+    }
+    // If digitsValue is not a Number, then
+    if (!digitsValue.isNumber()) {
+        // If ? ToString(digitsValue) is not "auto", throw a RangeError exception.
+        String* dv = digitsValue.toString(state);
+        if (!dv->equals("auto")) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+        }
+        // Return auto.
+        return NullOption;
+    }
+    double dv = digitsValue.asNumber();
+    // If digitsValue is NaN, +∞𝔽, or -∞𝔽, throw a RangeError exception.
+    if (std::isnan(dv) || std::isinf(dv)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+    }
+    // Let digitCount be floor(ℝ(digitsValue)).
+    double digitCount = floor(dv);
+    // If digitCount < 0 or digitCount > 9, throw a RangeError exception.
+    if (digitCount < 0 || digitCount > 9) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+    }
+    // Return digitCount.
+    return digitCount;
+}
+
+String* Temporal::getRoundingModeOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* fallback)
+{
+    // Let allowedStrings be the List of Strings from the "String Identifier" column of Table 27.
+    // Let stringFallback be the value from the "String Identifier" column of the row with fallback in its "Rounding Mode" column.
+    // Let stringValue be ? GetOption(options, "roundingMode", string, allowedStrings, stringFallback).
+    // Return the value from the "Rounding Mode" column of the row with stringValue in its "String Identifier" column.
+    if (!resolvedOptions) {
+        return fallback;
+    }
+
+    Value values[] = {
+        state.context()->staticStrings().ceil.string(),
+        state.context()->staticStrings().floor.string(),
+        state.context()->staticStrings().lazyExpand().string(),
+        state.context()->staticStrings().trunc.string(),
+        state.context()->staticStrings().lazyHalfCeil().string(),
+        state.context()->staticStrings().lazyHalfFloor().string(),
+        state.context()->staticStrings().lazyHalfExpand().string(),
+        state.context()->staticStrings().lazyHalfTrunc().string(),
+        state.context()->staticStrings().lazyHalfEven().string()
+    };
+
+    return Intl::getOption(state, resolvedOptions.value(), state.context()->staticStrings().lazyRoundingMode().string(), Intl::OptionValueType::StringValue, values, 9, fallback).asString();
+}
+
+Optional<String*> Temporal::getTemporalUnitValuedOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* key, Optional<Value> defaultValue)
+{
+    // Let allowedStrings be a List containing all values in the "Singular property name" and "Plural property name" columns of Table 21, except the header row.
+    // Append "auto" to allowedStrings.
+    // 3. NOTE: For each singular Temporal unit name that is contained within allowedStrings, the corresponding plural name is also contained within it.
+    Value allowedStrings[] = {
+#define DEFINE_STRING(name, Name, names, Names, index, category) \
+    state.context()->staticStrings().lazy##Name().string(),      \
+        state.context()->staticStrings().lazy##Names().string(),
+        PLAIN_DATETIME_UNITS(DEFINE_STRING)
+            state.context()
+                ->staticStrings()
+                .lazyAuto()
+                .string()
+    };
+#undef DEFINE_STRING
+    // If default is unset, then
+    if (!defaultValue) {
+        // Let defaultValue be undefined.
+        defaultValue = Value();
+    } else {
+        // Else,
+        // Let defaultValue be default.
+    }
+
+    // Let value be ? GetOption(options, key, string, allowedStrings, defaultValue).
+    Value value;
+    if (resolvedOptions) {
+        value = Intl::getOption(state, resolvedOptions.value(), key, Intl::StringValue, allowedStrings, sizeof(allowedStrings) / sizeof(Value), defaultValue.value());
+    } else {
+        value = defaultValue.value();
+    }
+    // If value is undefined, return unset.
+    if (value.isUndefined()) {
+        return nullptr;
+    }
+    String* stringValue = value.asString();
+    // If value is "auto", return auto.
+    if (stringValue->equals("auto")) {
+        return stringValue;
+    }
+    // Return the value in the "Value" column of Table 21 corresponding to the row with value in its "Singular property name" or "Plural property name" column.
+    if (false) {}
+#define DEFINE_COMPARE(name, Name, names, Names, index, category)      \
+    else if (stringValue->equals(#name))                               \
+    {                                                                  \
+        return state.context()->staticStrings().lazy##Name().string(); \
+    }                                                                  \
+    else if (stringValue->equals(#names))                              \
+    {                                                                  \
+        return state.context()->staticStrings().lazy##Name().string(); \
+    }
+    PLAIN_DATETIME_UNITS(DEFINE_COMPARE)
+#undef DEFINE_COMPARE
+
+    ASSERT_NOT_REACHED();
+    return String::emptyString();
+}
+
+void Temporal::validateTemporalUnitValue(ExecutionState& state, Optional<String*> value, ISO8601::DateTimeUnitCategory unitGroup, Optional<String*> extraValues, size_t extraValueSize)
+{
+    // If value is unset, return unused.
+    if (!value) {
+        return;
+    }
+    // If extraValues is present and extraValues contains value, return unused.
+    if (extraValues && value) {
+        for (size_t i = 0; i < extraValueSize; i++) {
+            if (extraValues.value()[i].equals(value.value())) {
+                return;
+            }
+        }
+    }
+    String* stringValue = value.value();
+    ISO8601::DateTimeUnitCategory categoryValue = ISO8601::DateTimeUnitCategory::DateTime;
+    const auto* msg = "Invalid temporal unit value";
+    // Let category be the value in the “Category” column of the row of Table 21 whose “Value” column contains value. If there is no such row, throw a RangeError exception.
+    if (false) {}
+#define DEFINE_COMPARE(name, Name, names, Names, index, category) \
+    else if (stringValue->equals(#name))                          \
+    {                                                             \
+        categoryValue = category;                                 \
+    }                                                             \
+    else if (stringValue->equals(#names))                         \
+    {                                                             \
+        categoryValue = category;                                 \
+    }
+    PLAIN_DATETIME_UNITS(DEFINE_COMPARE)
+#undef DEFINE_COMPARE
+    else
+    {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+    }
+
+    // If category is date and unitGroup is date or datetime, return unused.
+    if (categoryValue == ISO8601::DateTimeUnitCategory::Date && (unitGroup == ISO8601::DateTimeUnitCategory::Date || unitGroup == ISO8601::DateTimeUnitCategory::DateTime)) {
+        return;
+    }
+    // If category is time and unitGroup is time or datetime, return unused.
+    if (categoryValue == ISO8601::DateTimeUnitCategory::Time && (unitGroup == ISO8601::DateTimeUnitCategory::Time || unitGroup == ISO8601::DateTimeUnitCategory::DateTime)) {
+        return;
+    }
+    // Throw a RangeError exception.
+    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+}
+
+TimeZone Temporal::toTemporalTimezoneIdentifier(ExecutionState& state, const Value& temporalTimeZoneLike)
+{
+    // TODO If temporalTimeZoneLike is an Object, then
+    // TODO   If temporalTimeZoneLike has an [[InitializedTemporalZonedDateTime]] internal slot, then
+    // TODO     Return temporalTimeZoneLike.[[TimeZone]].
+
+    // If temporalTimeZoneLike is not a String, throw a TypeError exception.
+    if (!temporalTimeZoneLike.isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "temporalTimeZoneLike is not String");
+    }
+
+    String* temporalTimeZoneLikeString = temporalTimeZoneLike.asString();
+    // Let parseResult be ? ParseTemporalTimeZoneString(temporalTimeZoneLike).
+    // Let offsetMinutes be parseResult.[[OffsetMinutes]].
+    // If offsetMinutes is not empty, return FormatOffsetTimeZoneIdentifier(offsetMinutes).
+    // Let name be parseResult.[[Name]].
+    // Let timeZoneIdentifierRecord be GetAvailableNamedTimeZoneIdentifier(name).
+    // If timeZoneIdentifierRecord is empty, throw a RangeError exception.
+    // Return timeZoneIdentifierRecord.[[Identifier]].
+    Optional<int64_t> utcOffset = ISO8601::parseUTCOffset(temporalTimeZoneLikeString, false);
+    if (utcOffset) {
+        return TimeZone(utcOffset.value());
+    }
+
+    Optional<ISO8601::TimeZoneID> identifier = ISO8601::parseTimeZoneName(temporalTimeZoneLikeString);
+    if (identifier) {
+        return TimeZone(identifier.value());
+    }
+
+    // Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Optional<CalendarID>>>
+    auto complexTimeZone = ISO8601::parseCalendarDateTime(temporalTimeZoneLikeString, false);
+    if (complexTimeZone && std::get<2>(complexTimeZone.value())) {
+        ISO8601::TimeZoneRecord record = std::get<2>(complexTimeZone.value()).value();
+        if (record.m_z) {
+            return TimeZone(int64_t(0));
+        } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 0) {
+            const std::string& s = record.m_nameOrOffset.get<0>();
+            return TimeZone(String::fromUTF8(s.data(), s.length()));
+        } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 1) {
+            return TimeZone(record.m_nameOrOffset.get<1>());
+        } else if (record.m_offset) {
+            return TimeZone(record.m_offset.value());
+        }
+    }
+
+    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid timeZone string");
+    return TimeZone(String::emptyString());
+}
+
+Temporal::StringPrecisionRecord Temporal::toSecondsStringPrecisionRecord(ExecutionState& state, Optional<String*> smallestUnit, Optional<unsigned> fractionalDigitCount)
+{
+    if (smallestUnit) {
+        // If smallestUnit is minute, then
+        if (smallestUnit->equals("minute")) {
+            // Return the Record { [[Precision]]: minute, [[Unit]]: minute, [[Increment]]: 1  }.
+            return { state.context()->staticStrings().lazyMinute().string(), state.context()->staticStrings().lazyMinute().string(), 1 };
+        } else if (smallestUnit->equals("second")) {
+            // If smallestUnit is second, then
+            // Return the Record { [[Precision]]: 0, [[Unit]]: second, [[Increment]]: 1  }.
+            return { Value(0), state.context()->staticStrings().lazySecond().string(), 1 };
+        } else if (smallestUnit->equals("millisecond")) {
+            // If smallestUnit is millisecond, then
+            // Return the Record { [[Precision]]: 3, [[Unit]]: millisecond, [[Increment]]: 1  }.
+            return { Value(3), state.context()->staticStrings().lazyMillisecond().string(), 1 };
+        } else if (smallestUnit->equals("microsecond")) {
+            // If smallestUnit is millisecond, then
+            // Return the Record { [[Precision]]: 6, [[Unit]]: microsecond, [[Increment]]: 1  }.
+            return { Value(6), state.context()->staticStrings().lazyMicrosecond().string(), 1 };
+        } else if (smallestUnit->equals("nanosecond")) {
+            // If smallestUnit is nanosecond, then
+            // Return the Record { [[Precision]]: 9, [[Unit]]: nanosecond, [[Increment]]: 1  }.
+            return { Value(9), state.context()->staticStrings().lazyNanosecond().string(), 1 };
+        }
+    }
+    // Assert: smallestUnit is unset.
+    ASSERT(!smallestUnit.hasValue());
+    // If fractionalDigitCount is auto, then
+    if (!fractionalDigitCount.hasValue()) {
+        // Return the Record { [[Precision]]: auto, [[Unit]]: nanosecond, [[Increment]]: 1  }.
+        return { state.context()->staticStrings().lazyAuto().string(), state.context()->staticStrings().lazyNanosecond().string(), 1 };
+    }
+
+    auto pow10Unsigned = [](unsigned n) -> unsigned {
+        unsigned result = 1;
+        for (unsigned i = 0; i < n; ++i)
+            result *= 10;
+        return result;
+    };
+
+    // If fractionalDigitCount = 0, then
+    if (fractionalDigitCount && fractionalDigitCount.value() == 0) {
+        // Return the Record { [[Precision]]: 0, [[Unit]]: second, [[Increment]]: 1  }.
+        return { Value(0), state.context()->staticStrings().lazySecond().string(), 1 };
+    } else if (fractionalDigitCount && fractionalDigitCount.value() >= 1 && fractionalDigitCount.value() <= 3) {
+        // If fractionalDigitCount is in the inclusive interval from 1 to 3, then
+        // Return the Record { [[Precision]]: fractionalDigitCount, [[Unit]]: millisecond, [[Increment]]: 10**(3 - fractionalDigitCount)  }
+        return { Value(fractionalDigitCount.value()), state.context()->staticStrings().lazyMillisecond().string(), pow10Unsigned(3 - fractionalDigitCount.value()) };
+    } else if (fractionalDigitCount && fractionalDigitCount.value() >= 4 && fractionalDigitCount.value() <= 6) {
+        // If fractionalDigitCount is in the inclusive interval from 4 to 6, then
+        // Return the Record { [[Precision]]: fractionalDigitCount, [[Unit]]: microsecond, [[Increment]]: 10**(6 - fractionalDigitCount)  }.
+        return { Value(fractionalDigitCount.value()), state.context()->staticStrings().lazyMicrosecond().string(), pow10Unsigned(6 - fractionalDigitCount.value()) };
+    }
+    // Assert: fractionalDigitCount is in the inclusive interval from 7 to 9.
+    ASSERT(fractionalDigitCount && fractionalDigitCount.value() >= 7 && fractionalDigitCount.value() <= 9);
+    // Return the Record { [[Precision]]: fractionalDigitCount, [[Unit]]: nanosecond, [[Increment]]: 10**(9 - fractionalDigitCount)  }.
+    return { Value(fractionalDigitCount.value()), state.context()->staticStrings().lazyNanosecond().string(), pow10Unsigned(9 - fractionalDigitCount.value()) };
+}
+
+void Temporal::validateTemporalRoundingIncrement(ExecutionState& state, unsigned increment, Int128 dividend, bool inclusive)
+{
+    // If inclusive is true, then
+    Int128 maximum;
+    if (inclusive) {
+        // Let maximum be dividend.
+        maximum = dividend;
+    } else {
+        // Else,
+        // Assert: dividend > 1.
+        // Let maximum be dividend - 1.
+        maximum = dividend - 1;
+    }
+
+    // If increment > maximum, throw a RangeError exception.
+    if (increment > maximum) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid increment value");
+    }
+    // If dividend modulo increment ≠ 0, then
+    if (dividend % increment) {
+        // Throw a RangeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid dividend value");
+    }
+    // Return unused.
+}
+
 TemporalObject::TemporalObject(ExecutionState& state)
     : TemporalObject(state, state.context()->globalObject()->objectPrototype())
 {

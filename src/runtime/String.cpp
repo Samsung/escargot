@@ -89,6 +89,19 @@ std::vector<std::string> split(const std::string& str, const std::string& sepera
     return tokens;
 }
 
+std::string pad(char ch, unsigned min, const std::string& s)
+{
+    if (min > s.length()) {
+        std::string result = s;
+        for (unsigned i = 0; i < min - s.length(); i++) {
+            result = ch + result;
+        }
+        return result;
+    } else {
+        return s;
+    }
+}
+
 bool isASCIIAlpha(char ch)
 {
     return isalpha(ch);
@@ -107,6 +120,26 @@ bool isASCIIAlphanumeric(char ch)
 bool isASCIIWhitespace(char character)
 {
     return character == ' ' || character == '\n' || character == '\t' || character == '\r' || character == '\f';
+}
+
+bool isASCIILower(char ch)
+{
+    return islower(ch);
+}
+
+bool isASCIIUpper(char ch)
+{
+    return isupper(ch);
+}
+
+char toASCIILower(char ch)
+{
+    return tolower(ch);
+}
+
+char toASCIIUpper(char ch)
+{
+    return toupper(ch);
 }
 
 bool isAllSpecialCharacters(const std::string& s, bool (*fn)(char))

@@ -100,10 +100,50 @@ static Value builtinTemporalInstantConstructor(ExecutionState& state, Value this
     return new TemporalInstantObject(state, proto, mayInt128.value());
 }
 
+static Value builtinTemporalInstantFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return Temporal::toTemporalInstant(state, argv[0]);
+}
+
+static Value builtinTemporalInstantFromEpochMilliseconds(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Set epochMilliseconds to ? ToNumber(epochMilliseconds).
+    // Set epochMilliseconds to ? NumberToBigInt(epochMilliseconds).
+    double n = argv[0].toNumber(state);
+    Int128 epoch = static_cast<int64_t>(n);
+    // Let epochNanoseconds be epochMilliseconds × ℤ(10**6).
+    epoch *= 1000000;
+    // If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
+    if (!isIntegralNumber(n) || !ISO8601::ExactTime(epoch).isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid epoch value");
+    }
+    // Return ! CreateTemporalInstant(epochNanoseconds).
+    return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(), epoch);
+}
+
+static Value builtinTemporalInstantFromEpochNanoseconds(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Set epochNanoseconds to ? ToBigInt(epochNanoseconds).
+    BigInt* epoch = argv[0].toBigInt(state);
+    // If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
+    auto mayInt128 = epoch->toInt128();
+    if (!mayInt128 || !ISO8601::ExactTime(mayInt128.value()).isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid epoch value");
+    }
+    // Return ! CreateTemporalInstant(epochNanoseconds).
+    return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(), mayInt128.value());
+}
+
 #define RESOLVE_THIS_BINDING_TO_INSTANT(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
     if (!thisValue.isObject() || !thisValue.asObject()->isTemporalInstantObject()) {                                                                                                                                                                                            \
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalInstant().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
     }                                                                                                                                                                                                                                                                           \
+    TemporalInstantObject* NAME = thisValue.asObject()->asTemporalInstantObject();
+
+#define RESOLVE_THIS_BINDING_TO_INSTANT2(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                         \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalInstantObject()) {                                                                                                                                                                                    \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalInstant().string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                   \
     TemporalInstantObject* NAME = thisValue.asObject()->asTemporalInstantObject();
 
 static Value builtinTemporalInstantGetEpochMilliseconds(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -117,6 +157,30 @@ static Value builtinTemporalInstantGetEpochNanoseconds(ExecutionState& state, Va
     RESOLVE_THIS_BINDING_TO_INSTANT(instant, GetEpochNanoseconds);
     auto s = std::to_string(instant->epochNanoseconds());
     return BigInt::parseString(s.data(), s.length()).value();
+}
+
+static Value builtinTemporalInstantValueOf(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "can't convert Instant to primitive type");
+    return Value();
+}
+
+static Value builtinTemporalInstantEquals(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let instant be the this value.
+    RESOLVE_THIS_BINDING_TO_INSTANT(instant, GetEpochNanoseconds);
+    // Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+    // Set other to ? ToTemporalInstant(other).
+    auto other = Temporal::toTemporalInstant(state, argv[0]);
+    // If instant.[[EpochNanoseconds]] ≠ other.[[EpochNanoseconds]], return false.
+    // Return true.
+    return Value(instant->epochNanoseconds() == other->epochNanoseconds());
+}
+
+static Value builtinTemporalInstantToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_INSTANT2(instant, toString);
+    return instant->toString(state, argc ? argv[0] : Value());
 }
 
 #define RESOLVE_THIS_BINDING_TO_PLAINDATE(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
@@ -303,8 +367,8 @@ void GlobalObject::installTemporal(ExecutionState& state)
         m_temporalDurationPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazy##Name()), desc);                                                                                                    \
     }
 
-#define DEFINE_GETTER(name, Name, index) DEFINE_DURATION_PROTOTYPE_GETTER_PROPERTY(name, #name, Name)
-    FOR_EACH_DURATION(DEFINE_GETTER)
+#define DEFINE_GETTER(name, Name, names, Names, index, category) DEFINE_DURATION_PROTOTYPE_GETTER_PROPERTY(names, #names, Names)
+    PLAIN_DATETIME_UNITS(DEFINE_GETTER)
 #undef DEFINE_GETTER
 
     {
@@ -337,9 +401,29 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalInstant = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalInstant(), builtinTemporalInstantConstructor, 1), NativeFunctionObject::__ForBuiltinConstructor__);
     m_temporalInstant->setGlobalIntrinsicObject(state);
 
+    m_temporalInstant->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                                 NativeFunctionInfo(strings->from, builtinTemporalInstantFrom, 1, NativeFunctionInfo::Strict)),
+                                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporalInstant->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyFromEpochMilliseconds()),
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                                 NativeFunctionInfo(strings->lazyFromEpochMilliseconds(), builtinTemporalInstantFromEpochMilliseconds, 1, NativeFunctionInfo::Strict)),
+                                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporalInstant->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyFromEpochNanoseconds()),
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                                 NativeFunctionInfo(strings->lazyFromEpochNanoseconds(), builtinTemporalInstantFromEpochNanoseconds, 1, NativeFunctionInfo::Strict)),
+                                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+
     m_temporalInstantPrototype = m_temporalInstant->getFunctionPrototype(state).asObject();
     m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                         ObjectPropertyDescriptor(Value(strings->lazyTemporalDotInstant().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinTemporalInstantToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->valueOf), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinTemporalInstantValueOf, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalInstantEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
         auto getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetEpochMilliseconds(), builtinTemporalInstantGetEpochMilliseconds, 0, NativeFunctionInfo::Strict));
