@@ -215,6 +215,27 @@ struct CalendarDate {
     bool inLeapYear = false;
 };
 
+enum class TemporalUnit : uint8_t {
+#define DEFINE_TYPE(name, Name, names, Names, index, category) Name,
+    PLAIN_DATETIME_UNITS(DEFINE_TYPE)
+#undef DEFINE_TYPE
+        Auto
+};
+
+inline ISO8601::DateTimeUnit toDateTimeUnit(TemporalUnit u)
+{
+    ASSERT(u != TemporalUnit::Auto);
+    return static_cast<ISO8601::DateTimeUnit>(u);
+}
+
+inline Optional<ISO8601::DateTimeUnit> toDateTimeUnit(Optional<TemporalUnit> u)
+{
+    if (u) {
+        return toDateTimeUnit(u.value());
+    }
+    return NullOption;
+}
+
 class Temporal {
 public:
     /* TODO ParseISODateTime
@@ -287,6 +308,8 @@ public:
     static Value createTemporalDate(ExecutionState& state, const ISODate& isoDate, String* calendar, Optional<Object*> newTarget);
     static Value toTemporalDate(ExecutionState& state, Value item, Value options = Value());
 
+    static void formatSecondsStringFraction(StringBuilder& builder, Int128 fraction, Value precision);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
     static Int128 systemUTCEpochNanoseconds();
     // https://tc39.es/proposal-temporal/#sec-temporal-isvalidepochnanoseconds
@@ -303,13 +326,13 @@ public:
     static Optional<unsigned> getTemporalFractionalSecondDigitsOption(ExecutionState& state, Optional<Object*> resolvedOptions);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-getroundingmodeoption
-    static String* getRoundingModeOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* fallback);
+    static ISO8601::RoundingMode getRoundingModeOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* fallback);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalunitvaluedoption
-    static Optional<String*> getTemporalUnitValuedOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* key, Optional<Value> defaultValue /* give DefaultValue to EmptyValue means Required = true*/);
+    static Optional<TemporalUnit> getTemporalUnitValuedOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* key, Optional<Value> defaultValue /* give DefaultValue to EmptyValue means Required = true*/);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-validatetemporalunitvaluedoption
-    static void validateTemporalUnitValue(ExecutionState& state, Optional<String*> value, ISO8601::DateTimeUnitCategory unitGroup, Optional<String*> extraValues, size_t extraValueSize);
+    static void validateTemporalUnitValue(ExecutionState& state, Optional<TemporalUnit> value, ISO8601::DateTimeUnitCategory unitGroup, Optional<TemporalUnit*> extraValues, size_t extraValueSize);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimezoneidentifier
     static TimeZone toTemporalTimezoneIdentifier(ExecutionState& state, const Value& temporalTimeZoneLike);
@@ -317,16 +340,38 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-tosecondsstringprecisionrecord
     struct StringPrecisionRecord {
         Value precision;
-        String* unit;
+        ISO8601::DateTimeUnit unit;
         unsigned increment;
     };
-    static StringPrecisionRecord toSecondsStringPrecisionRecord(ExecutionState& state, Optional<String*> smallestUnit, Optional<unsigned> fractionalDigitCount);
+    static StringPrecisionRecord toSecondsStringPrecisionRecord(ExecutionState& state, Optional<ISO8601::DateTimeUnit> smallestUnit, Optional<unsigned> fractionalDigitCount);
 
     // https://tc39.es/proposal-temporal/#sec-validatetemporalroundingincrement
     static void validateTemporalRoundingIncrement(ExecutionState& state, unsigned increment, Int128 dividend, bool inclusive);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-getroundingincrementoption
-    static int32_t getRoundingIncrementOption(ExecutionState& state, Object* options);
+    static unsigned getRoundingIncrementOption(ExecutionState& state, Optional<Object*> options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-getdifferencesettings
+    struct DifferenceSettingsRecord {
+        ISO8601::DateTimeUnit smallestUnit;
+        ISO8601::DateTimeUnit largestUnit;
+        ISO8601::RoundingMode roundingMode;
+        unsigned roundingIncrement;
+    };
+    static DifferenceSettingsRecord getDifferenceSettings(ExecutionState& state, bool isSinceOperation, Optional<Object*> options, ISO8601::DateTimeUnitCategory unitGroup,
+                                                          Optional<TemporalUnit*> disallowedUnits, size_t disallowedUnitsLength, TemporalUnit fallbackSmallestUnit, TemporalUnit smallestLargestDefaultUnit);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-negateroundingmode
+    static ISO8601::RoundingMode negateRoundingMode(ExecutionState& state, ISO8601::RoundingMode roundingMode);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-largeroftwotemporalunits
+    static ISO8601::DateTimeUnit largerOfTwoTemporalUnits(ISO8601::DateTimeUnit u1, ISO8601::DateTimeUnit u2);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-maximumtemporaldurationroundingincrement
+    static Optional<unsigned> maximumTemporalDurationRoundingIncrement(ISO8601::DateTimeUnit unit);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-timedurationfromepochnanosecondsdifference
+    static Int128 timeDurationFromEpochNanosecondsDifference(Int128 one, Int128 two);
 };
 
 class TemporalObject : public DerivedObject {

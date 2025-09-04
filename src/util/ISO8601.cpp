@@ -68,6 +68,8 @@ constexpr Int128 ExactTime::nsPerDay;
 constexpr Int128 ExactTime::minValue;
 constexpr Int128 ExactTime::maxValue;
 
+constexpr Int128 InternalDuration::maxTimeDuration;
+
 static constexpr int64_t nsPerHour = 1000LL * 1000 * 1000 * 60 * 60;
 static constexpr int64_t nsPerMinute = 1000LL * 1000 * 1000 * 60;
 static constexpr int64_t nsPerSecond = 1000LL * 1000 * 1000;
@@ -117,7 +119,7 @@ static int32_t parseDecimalInt32(const std::string& characters)
 
 // DurationHandleFractions ( fHours, minutes, fMinutes, seconds, fSeconds, milliseconds, fMilliseconds, microseconds, fMicroseconds, nanoseconds, fNanoseconds )
 // https://tc39.es/proposal-temporal/#sec-temporal-durationhandlefractions
-static void handleFraction(Duration& duration, int factor, std::string fractionString, Duration::Type fractionType)
+static void handleFraction(Duration& duration, int factor, std::string fractionString, ISO8601::DateTimeUnit fractionType)
 {
     auto fractionLength = fractionString.length();
     std::string padded("000000000");
@@ -131,7 +133,7 @@ static void handleFraction(Duration& duration, int factor, std::string fractionS
     }
 
     static constexpr int64_t divisor = 1000000000LL;
-    if (fractionType == Duration::Type::Hours) {
+    if (fractionType == ISO8601::DateTimeUnit::Hour) {
         fraction *= 60;
         duration.setMinutes(fraction / divisor);
         fraction %= divisor;
@@ -139,7 +141,7 @@ static void handleFraction(Duration& duration, int factor, std::string fractionS
             return;
     }
 
-    if (fractionType != Duration::Type::Seconds) {
+    if (fractionType != ISO8601::DateTimeUnit::Second) {
         fraction *= 60;
         duration.setSeconds(fraction / divisor);
         fraction %= divisor;
@@ -155,6 +157,36 @@ static void handleFraction(Duration& duration, int factor, std::string fractionS
 static double parseInt(std::string src)
 {
     return std::stoi(src);
+}
+
+DateTimeUnitCategory toDateTimeCategory(DateTimeUnit u)
+{
+    if (false) {}
+#define DEFINE_TYPE(name, Name, names, Names, index, category) \
+    else if (u == DateTimeUnit::Name)                          \
+    {                                                          \
+        return category;                                       \
+    }
+    PLAIN_DATETIME_UNITS(DEFINE_TYPE)
+#undef DEFINE_TYPE
+
+    ASSERT_NOT_REACHED();
+    return DateTimeUnitCategory::Date;
+}
+
+DateTimeUnit toDateTimeUnit(String* unit)
+{
+    if (false) {}
+#define DEFINE_TYPE(name, Name, names, Names, index, category) \
+    else if (unit->equals(#name))                              \
+    {                                                          \
+        return DateTimeUnit::Name;                             \
+    }
+    PLAIN_DATETIME_UNITS(DEFINE_TYPE)
+#undef DEFINE_TYPE
+
+    ASSERT_NOT_REACHED();
+    return DateTimeUnit::Year;
 }
 
 Optional<Duration> Duration::parseDurationString(String* input)
@@ -272,7 +304,7 @@ Optional<Duration> Duration::parseDurationString(String* input)
                 return NullOption;
             result.setHours(integer);
             if (fractionalPart.size()) {
-                handleFraction(result, factor, fractionalPart, Duration::Type::Hours);
+                handleFraction(result, factor, fractionalPart, ISO8601::DateTimeUnit::Hour);
                 timePartIndex = 3;
             } else {
                 timePartIndex = 1;
@@ -283,7 +315,7 @@ Optional<Duration> Duration::parseDurationString(String* input)
                 return NullOption;
             result.setMinutes(integer);
             if (fractionalPart.size()) {
-                handleFraction(result, factor, fractionalPart, Duration::Type::Minutes);
+                handleFraction(result, factor, fractionalPart, ISO8601::DateTimeUnit::Minute);
                 timePartIndex = 3;
             } else {
                 timePartIndex = 2;
@@ -292,7 +324,7 @@ Optional<Duration> Duration::parseDurationString(String* input)
         case 'S':
             result.setSeconds(integer);
             if (fractionalPart.size()) {
-                handleFraction(result, factor, fractionalPart, Duration::Type::Seconds);
+                handleFraction(result, factor, fractionalPart, ISO8601::DateTimeUnit::Second);
             }
             timePartIndex = 3;
             break;
@@ -308,11 +340,11 @@ Optional<Duration> Duration::parseDurationString(String* input)
     return result;
 }
 
-String* Duration::typeName(ExecutionState& state, Type t)
+String* Duration::typeName(ExecutionState& state, ISO8601::DateTimeUnit t)
 {
     switch (t) {
 #define DEFINE_GETTER(name, Name, names, Names, index, category) \
-    case Type::Names:                                            \
+    case ISO8601::DateTimeUnit::Name:                            \
         return state.context()->staticStrings().lazy##Names().string();
         PLAIN_DATETIME_UNITS(DEFINE_GETTER)
 #undef DEFINE_GETTER
@@ -323,11 +355,11 @@ String* Duration::typeName(ExecutionState& state, Type t)
     return String::emptyString();
 }
 
-Int128 Duration::totalNanoseconds(Duration::Type unit) const
+Int128 Duration::totalNanoseconds(ISO8601::DateTimeUnit unit) const
 {
-    ASSERT(unit != Duration::Type::Years);
-    ASSERT(unit != Duration::Type::Months);
-    ASSERT(unit != Duration::Type::Weeks);
+    ASSERT(unit != ISO8601::DateTimeUnit::Year);
+    ASSERT(unit != ISO8601::DateTimeUnit::Month);
+    ASSERT(unit != ISO8601::DateTimeUnit::Week);
 
     Int128 resultNs = 0;
 
@@ -335,40 +367,40 @@ Int128 Duration::totalNanoseconds(Duration::Type unit) const
     constexpr int64_t milliMultiplier = 1000000ULL;
     constexpr int64_t microMultiplier = 1000ULL;
 
-    if (unit <= Duration::Type::Days) {
+    if (unit <= ISO8601::DateTimeUnit::Day) {
         Int128 s(days());
         s *= 86400;
         s *= nanoMultiplier;
         resultNs += s;
     }
-    if (unit <= Duration::Type::Hours) {
+    if (unit <= ISO8601::DateTimeUnit::Hour) {
         Int128 s(hours());
         s *= 3600;
         s *= nanoMultiplier;
         resultNs += s;
     }
-    if (unit <= Duration::Type::Minutes) {
+    if (unit <= ISO8601::DateTimeUnit::Minute) {
         Int128 s(minutes());
         s *= 60;
         s *= nanoMultiplier;
         resultNs += s;
     }
-    if (unit <= Duration::Type::Seconds) {
+    if (unit <= ISO8601::DateTimeUnit::Second) {
         Int128 s(seconds());
         s *= nanoMultiplier;
         resultNs += s;
     }
-    if (unit <= Duration::Type::Milliseconds) {
+    if (unit <= ISO8601::DateTimeUnit::Millisecond) {
         Int128 s(milliseconds());
         s *= milliMultiplier;
         resultNs += s;
     }
-    if (unit <= Duration::Type::Microseconds) {
+    if (unit <= ISO8601::DateTimeUnit::Microsecond) {
         Int128 s(microseconds());
         s *= microMultiplier;
         resultNs += s;
     }
-    if (unit <= Duration::Type::Nanoseconds) {
+    if (unit <= ISO8601::DateTimeUnit::Nanosecond) {
         Int128 s(nanoseconds());
         resultNs += s;
     }
@@ -1303,27 +1335,103 @@ ExactTime ExactTime::fromISOPartsAndOffset(int32_t year, uint8_t month, uint8_t 
     return ExactTime{ utcNanoseconds - offset };
 }
 
-static Int128 lengthInNanoseconds(String* unit)
+Int128 lengthInNanoseconds(DateTimeUnit unit)
 {
-    if (unit->equals("nanosecond")) {
+    if (unit == DateTimeUnit::Nanosecond) {
         return 1;
-    } else if (unit->equals("microsecond")) {
+    } else if (unit == DateTimeUnit::Microsecond) {
         return 1000;
-    } else if (unit->equals("millisecond")) {
+    } else if (unit == DateTimeUnit::Millisecond) {
         return 1000 * 1000;
-    } else if (unit->equals("second")) {
+    } else if (unit == DateTimeUnit::Second) {
         return Int128(1000 * 1000) * Int128(1000);
-    } else if (unit->equals("minute")) {
+    } else if (unit == DateTimeUnit::Minute) {
         return Int128(1000 * 1000) * Int128(1000) * Int128(60);
-    } else if (unit->equals("hour")) {
+    } else if (unit == DateTimeUnit::Hour) {
         return Int128(1000 * 1000) * Int128(1000) * Int128(60) * Int128(60);
     } else {
-        ASSERT(unit->equals("day"));
+        ASSERT(unit == DateTimeUnit::Day);
         return Int128(1000 * 1000) * Int128(1000) * Int128(60) * Int128(60) * Int128(24);
     }
 }
 
-Int128 roundNumberToIncrementAsIfPositive(Int128 x, Int128 increment, String* roundingMode)
+double roundNumberToIncrement(double x, double increment, RoundingMode roundingMode)
+{
+    auto quotient = x / increment;
+    auto truncatedQuotient = std::trunc(quotient);
+    if (truncatedQuotient == quotient)
+        return truncatedQuotient * increment;
+
+    auto isNegative = quotient < 0;
+    auto expandedQuotient = isNegative ? truncatedQuotient - 1 : truncatedQuotient + 1;
+
+    if (roundingMode >= RoundingMode::HalfCeil) {
+        auto unsignedFractionalPart = std::abs(quotient - truncatedQuotient);
+        if (unsignedFractionalPart < 0.5)
+            return truncatedQuotient * increment;
+        if (unsignedFractionalPart > 0.5)
+            return expandedQuotient * increment;
+    }
+
+    if (roundingMode == RoundingMode::Ceil) {
+        return (isNegative ? truncatedQuotient : expandedQuotient) * increment;
+    } else if (roundingMode == RoundingMode::Floor) {
+        return (isNegative ? expandedQuotient : truncatedQuotient) * increment;
+    } else if (roundingMode == RoundingMode::Expand) {
+        return expandedQuotient * increment;
+    } else if (roundingMode == RoundingMode::Trunc) {
+        return truncatedQuotient * increment;
+    } else if (roundingMode == RoundingMode::HalfCeil) {
+        return (isNegative ? truncatedQuotient : expandedQuotient) * increment;
+    } else if (roundingMode == RoundingMode::HalfFloor) {
+        return (isNegative ? expandedQuotient : truncatedQuotient) * increment;
+    } else if (roundingMode == RoundingMode::HalfExpand) {
+        return expandedQuotient * increment;
+    } else if (roundingMode == RoundingMode::HalfTrunc) {
+        return truncatedQuotient * increment;
+    } else if (roundingMode == RoundingMode::HalfEven) {
+        return (!std::fmod(truncatedQuotient, 2) ? truncatedQuotient : expandedQuotient) * increment;
+    }
+
+    ASSERT_NOT_REACHED();
+    return 0;
+}
+
+Int128 roundNumberToIncrement(Int128 x, Int128 increment, RoundingMode roundingMode)
+{
+    // This follows the polyfill code rather than the spec, in order to work around
+    // being unable to apply floating-point division in x / increment.
+    // See https://github.com/tc39/proposal-temporal/blob/main/polyfill/lib/ecmascript.mjs#L4043
+    Int128 quotient = x / increment;
+    Int128 remainder = x % increment;
+    bool isNegative = x < 0;
+    Int128 r1 = std::abs(quotient);
+    Int128 r2 = r1 + 1;
+    Int128 even = r1 % 2;
+    auto unsignedRoundingMode = getUnsignedRoundingMode(roundingMode, isNegative);
+    Int128 rounded = 0;
+    if (std::abs(x) == r1 * increment)
+        rounded = r1;
+    else if (unsignedRoundingMode == UnsignedRoundingMode::Zero)
+        rounded = r1;
+    else if (unsignedRoundingMode == UnsignedRoundingMode::Infinity)
+        rounded = r2;
+    else if (std::abs(remainder * 2) < increment)
+        rounded = r1;
+    else if (std::abs(remainder * 2) > increment)
+        rounded = r2;
+    else if (unsignedRoundingMode == UnsignedRoundingMode::HalfZero)
+        rounded = r1;
+    else if (unsignedRoundingMode == UnsignedRoundingMode::HalfInfinity)
+        rounded = r2;
+    else
+        rounded = !even ? r1 : r2;
+    if (isNegative)
+        rounded = -rounded;
+    return rounded * increment;
+}
+
+Int128 roundNumberToIncrementAsIfPositive(Int128 x, Int128 increment, RoundingMode roundingMode)
 {
     // The following code follows the polyfill rather than the spec, because we don't have float128.
     // ApplyUnsignedRoundingMode is inlined here to mirror the polyfill's implementation of it,
@@ -1357,39 +1465,79 @@ Int128 roundNumberToIncrementAsIfPositive(Int128 x, Int128 increment, String* ro
     return !even ? r1 * increment : r2 * increment;
 }
 
-UnsignedRoundingMode getUnsignedRoundingMode(String* roundingMode, bool isNegative)
+UnsignedRoundingMode getUnsignedRoundingMode(RoundingMode roundingMode, bool isNegative)
 {
-    if (roundingMode->equals("ceil")) {
+    if (roundingMode == RoundingMode::Ceil) {
         return isNegative ? UnsignedRoundingMode::Zero : UnsignedRoundingMode::Infinity;
-    } else if (roundingMode->equals("floor")) {
+    } else if (roundingMode == RoundingMode::Floor) {
         return isNegative ? UnsignedRoundingMode::Infinity : UnsignedRoundingMode::Zero;
-    } else if (roundingMode->equals("expand")) {
+    } else if (roundingMode == RoundingMode::Expand) {
         return UnsignedRoundingMode::Infinity;
-    } else if (roundingMode->equals("trunc")) {
+    } else if (roundingMode == RoundingMode::Trunc) {
         return UnsignedRoundingMode::Zero;
-    } else if (roundingMode->equals("halfCeil")) {
+    } else if (roundingMode == RoundingMode::HalfCeil) {
         return isNegative ? UnsignedRoundingMode::HalfZero : UnsignedRoundingMode::HalfInfinity;
-    } else if (roundingMode->equals("halfFloor")) {
+    } else if (roundingMode == RoundingMode::HalfFloor) {
         return isNegative ? UnsignedRoundingMode::HalfInfinity : UnsignedRoundingMode::HalfZero;
-    } else if (roundingMode->equals("halfExpand")) {
+    } else if (roundingMode == RoundingMode::HalfExpand) {
         return UnsignedRoundingMode::HalfInfinity;
-    } else if (roundingMode->equals("halfTrunc")) {
+    } else if (roundingMode == RoundingMode::HalfTrunc) {
         return UnsignedRoundingMode::HalfZero;
     }
     return UnsignedRoundingMode::HalfEven;
 }
 
-static Int128 roundTemporalInstant(Int128 ns, unsigned increment, String* unit, String* roundingMode)
+static Int128 roundTemporalInstant(Int128 ns, unsigned increment, DateTimeUnit unit, RoundingMode roundingMode)
 {
     auto unitLength = lengthInNanoseconds(unit);
     auto incrementNs = increment * unitLength;
     return roundNumberToIncrementAsIfPositive(ns, incrementNs, roundingMode);
 }
 
-ExactTime ExactTime::round(ExecutionState& state, unsigned increment, String* unit, String* roundingMode)
+ExactTime ExactTime::round(ExecutionState& state, unsigned increment, DateTimeUnit unit, RoundingMode roundingMode)
 {
     auto roundedNs = roundTemporalInstant(m_epochNanoseconds, increment, unit, roundingMode);
     return ExactTime{ roundedNs };
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-datedurationsign
+static int32_t dateDurationSign(const Duration& d)
+{
+    if (d.years() > 0)
+        return 1;
+    if (d.years() < 0)
+        return -1;
+    if (d.months() > 0)
+        return 1;
+    if (d.months() < 0)
+        return -1;
+    if (d.weeks() > 0)
+        return 1;
+    if (d.weeks() < 0)
+        return -1;
+    if (d.days() > 0)
+        return 1;
+    if (d.days() < 0)
+        return -1;
+    return 0;
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-internaldurationsign
+int32_t ISO8601::InternalDuration::sign() const
+{
+    int32_t sign = dateDurationSign(m_dateDuration);
+    if (sign)
+        return sign;
+    return timeDurationSign();
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-combinedateandtimeduration
+InternalDuration InternalDuration::combineDateAndTimeDuration(Duration dateDuration, Int128 timeDuration)
+{
+    int32_t dateSign = dateDurationSign(dateDuration);
+    int32_t timeSign = timeDuration < 0 ? -1 : timeDuration > 0 ? 1
+                                                                : 0;
+    return InternalDuration{ std::move(dateDuration), timeDuration };
 }
 
 using CheckedInt128 = Checked<Int128, RecordOverflow>;
@@ -1484,6 +1632,31 @@ Optional<TimeZoneID> parseTimeZoneName(String* string)
         }
     });
     return ret;
+}
+
+Int128 resolveNanosecondsValueByUnit(DateTimeUnit unit)
+{
+    Int128 maximum = 0;
+    constexpr int64_t hoursPerDay = 24;
+    constexpr int64_t minutesPerHour = 60;
+    constexpr int64_t secondsPerMinute = 60;
+    constexpr int64_t msPerDay = hoursPerDay * minutesPerHour * secondsPerMinute * 1000;
+
+    if (unit == DateTimeUnit::Hour) {
+        maximum = static_cast<Int128>(hoursPerDay);
+    } else if (unit == DateTimeUnit::Minute) {
+        maximum = static_cast<Int128>(minutesPerHour * hoursPerDay);
+    } else if (unit == DateTimeUnit::Second) {
+        maximum = static_cast<Int128>(secondsPerMinute * minutesPerHour * hoursPerDay);
+    } else if (unit == DateTimeUnit::Millisecond) {
+        maximum = static_cast<Int128>(msPerDay);
+    } else if (unit == DateTimeUnit::Microsecond) {
+        maximum = static_cast<Int128>(msPerDay * 1000);
+    } else if (unit == DateTimeUnit::Nanosecond) {
+        maximum = ISO8601::ExactTime::nsPerDay;
+    }
+
+    return maximum;
 }
 
 } // namespace ISO8601

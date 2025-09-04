@@ -20,6 +20,7 @@
 
 #include "Escargot.h"
 #include "TemporalInstantObject.h"
+#include "TemporalDurationObject.h"
 #include "intl/Intl.h"
 #include "util/ISO8601.h"
 
@@ -39,42 +40,11 @@ Value TemporalInstantObject::epochMilliseconds() const
 }
 
 
-static Int128 resolveNanosecondsValueByUnit(String* unit)
-{
-    Int128 maximum = 0;
-    constexpr int64_t hoursPerDay = 24;
-    constexpr int64_t minutesPerHour = 60;
-    constexpr int64_t secondsPerMinute = 60;
-    constexpr int64_t msPerDay = hoursPerDay * minutesPerHour * secondsPerMinute * 1000;
-
-    if (unit->equals("hour")) {
-        maximum = static_cast<Int128>(hoursPerDay);
-    } else if (unit->equals("minute")) {
-        maximum = static_cast<Int128>(minutesPerHour * hoursPerDay);
-    } else if (unit->equals("second")) {
-        maximum = static_cast<Int128>(secondsPerMinute * minutesPerHour * hoursPerDay);
-    } else if (unit->equals("millisecond")) {
-        maximum = static_cast<Int128>(msPerDay);
-    } else if (unit->equals("microsecond")) {
-        maximum = static_cast<Int128>(msPerDay * 1000);
-    } else if (unit->equals("nanosecond")) {
-        maximum = ISO8601::ExactTime::nsPerDay;
-    }
-
-    return maximum;
-}
-
 String* TemporalInstantObject::toString(ExecutionState& state, Value options)
 {
     const char* msg = "Invalid options value";
     // Let resolvedOptions be ? GetOptionsObject(options).
-    Optional<Object*> resolvedOptions;
-    if (options.isObject()) {
-        resolvedOptions = options.asObject();
-    } else if (!options.isUndefined()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, msg);
-    }
-
+    Optional<Object*> resolvedOptions = Intl::getOptionsObject(state, options);
     // Let digits be ? GetTemporalFractionalSecondDigitsOption(resolvedOptions).
     auto digits = Temporal::getTemporalFractionalSecondDigitsOption(state, resolvedOptions);
     // Let roundingMode be ? GetRoundingModeOption(resolvedOptions, trunc).
@@ -91,7 +61,7 @@ String* TemporalInstantObject::toString(ExecutionState& state, Value options)
     // Perform ? ValidateTemporalUnitValue(smallestUnit, time).
     Temporal::validateTemporalUnitValue(state, smallestUnit, ISO8601::DateTimeUnitCategory::Time, nullptr, 0);
     // If smallestUnit is hour, throw a RangeError exception.
-    if (smallestUnit.hasValue() && smallestUnit.value()->equals("hour")) {
+    if (smallestUnit.hasValue() && smallestUnit == TemporalUnit::Hour) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
     }
     // If timeZone is not undefined, then
@@ -100,10 +70,10 @@ String* TemporalInstantObject::toString(ExecutionState& state, Value options)
         computedTimeZone = Temporal::toTemporalTimezoneIdentifier(state, timeZone);
     }
     // Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
-    auto precision = Temporal::toSecondsStringPrecisionRecord(state, smallestUnit, digits);
+    auto precision = Temporal::toSecondsStringPrecisionRecord(state, toDateTimeUnit(smallestUnit), digits);
     // Let roundedNs be RoundTemporalInstant(instant.[[EpochNanoseconds]], precision.[[Increment]], precision.[[Unit]], roundingMode).
     // Let roundedInstant be ! CreateTemporalInstant(roundedNs).
-    Int128 maximum = resolveNanosecondsValueByUnit(precision.unit);
+    Int128 maximum = ISO8601::resolveNanosecondsValueByUnit(precision.unit);
 
     Temporal::validateTemporalRoundingIncrement(state, precision.increment, maximum, true);
 
@@ -196,22 +166,7 @@ String* TemporalInstantObject::toString(ExecutionState& state, Int128 epochNanos
         builder.appendChar(':');
         auto s = pad('0', 2, std::to_string(second));
         builder.appendString(String::fromASCII(s.data(), s.length()));
-
-        if ((precision.isString() && precision.asString()->equals("auto") && fraction) || (precision.isInt32() && precision.asInt32())) {
-            auto padded = pad('0', 9, std::to_string(fraction));
-            padded = '.' + padded;
-
-            if (precision.isInt32()) {
-                padded = padded.substr(0, padded.length() - (9 - precision.asInt32()));
-            } else {
-                auto lengthWithoutTrailingZeroes = padded.length();
-                while (padded[lengthWithoutTrailingZeroes - 1] == '0') {
-                    lengthWithoutTrailingZeroes--;
-                }
-                padded = padded.substr(0, lengthWithoutTrailingZeroes);
-            }
-            builder.appendString(String::fromASCII(padded.data(), padded.length()));
-        }
+        Temporal::formatSecondsStringFraction(builder, fraction, precision);
     }
 
     if (timeZone.empty()) {
@@ -290,14 +245,36 @@ TemporalInstantObject* TemporalInstantObject::round(ExecutionState& state, Value
     // Else,
     // Assert: smallestUnit is nanosecond.
     // Let maximum be nsPerDay.
-    Int128 maximum = resolveNanosecondsValueByUnit(smallestUnit);
+    Int128 maximum = ISO8601::resolveNanosecondsValueByUnit(toDateTimeUnit(smallestUnit));
 
     // Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, true).
     Temporal::validateTemporalRoundingIncrement(state, roundingIncrement, maximum, true);
     // Let roundedNs be RoundTemporalInstant(instant.[[EpochNanoseconds]], roundingIncrement, smallestUnit, roundingMode).
     // Return ! CreateTemporalInstant(roundedNs).
-    auto roundedInstant = ISO8601::ExactTime(*m_nanoseconds).round(state, roundingIncrement, smallestUnit, roundingMode);
+    auto roundedInstant = ISO8601::ExactTime(*m_nanoseconds).round(state, roundingIncrement, toDateTimeUnit(smallestUnit), roundingMode);
     return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(), roundedInstant.epochNanoseconds());
+}
+
+TemporalDurationObject* TemporalInstantObject::differenceTemporalInstant(ExecutionState& state, DifferenceTemporalInstantOperation operation, Value otherInput, Value options)
+{
+    // Set other to ? ToTemporalInstant(other).
+    TemporalInstantObject* other = Temporal::toTemporalInstant(state, otherInput);
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    Optional<Object*> resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let settings be ? GetDifferenceSettings(operation, resolvedOptions, time, « », nanosecond, second).
+    auto settings = Temporal::getDifferenceSettings(state, operation == DifferenceTemporalInstantOperation::Since, resolvedOptions, ISO8601::DateTimeUnitCategory::Time, nullptr, 0,
+                                                    TemporalUnit::Nanosecond, TemporalUnit::Second);
+    // Let internalDuration be DifferenceInstant(instant.[[EpochNanoseconds]], other.[[EpochNanoseconds]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+    auto internalDuration = differenceInstant(state, epochNanoseconds(), other->epochNanoseconds(), settings.roundingIncrement, settings.smallestUnit, settings.roundingMode);
+    // Let result be ! TemporalDurationFromInternal(internalDuration, settings.[[LargestUnit]]).
+    auto result = TemporalDurationObject::temporalDurationFromInternal(state, internalDuration, settings.largestUnit);
+    // If operation is since, set result to CreateNegatedTemporalDuration(result).
+    if (operation == DifferenceTemporalInstantOperation::Since) {
+        result = TemporalDurationObject::createNegatedTemporalDuration(result);
+    }
+
+    // Return result.
+    return new TemporalDurationObject(state, result);
 }
 
 TemporalInstantObject* TemporalInstantObject::addDurationToInstant(AddDurationOperation operation, const Value& temporalDurationLike)
@@ -305,6 +282,17 @@ TemporalInstantObject* TemporalInstantObject::addDurationToInstant(AddDurationOp
     TemporalInstantObject* instant = this;
     // TODO
     return nullptr;
+}
+
+ISO8601::InternalDuration TemporalInstantObject::differenceInstant(ExecutionState& state, Int128 ns1, Int128 ns2, unsigned roundingIncrement,
+                                                                   ISO8601::DateTimeUnit smallestUnit, ISO8601::RoundingMode roundingMode)
+{
+    // Let timeDuration be TimeDurationFromEpochNanosecondsDifference(ns2, ns1).
+    Int128 timeDuration = Temporal::timeDurationFromEpochNanosecondsDifference(ns2, ns1);
+    // Set timeDuration to ! RoundTimeDuration(timeDuration, roundingIncrement, smallestUnit, roundingMode).
+    timeDuration = TemporalDurationObject::roundTimeDuration(state, timeDuration, roundingIncrement, smallestUnit, roundingMode);
+    // Return CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
+    return ISO8601::InternalDuration(ISO8601::Duration(), timeDuration);
 }
 
 } // namespace Escargot

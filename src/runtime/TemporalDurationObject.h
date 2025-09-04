@@ -35,6 +35,12 @@ public:
 
     TemporalDurationObject(ExecutionState& state, const ISO8601::Duration& duration);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-temporaldurationfrominternal
+    static ISO8601::Duration temporalDurationFromInternal(ExecutionState& state, ISO8601::InternalDuration internalDuration, ISO8601::DateTimeUnit largestUnit);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-createnegatedtemporalduration
+    static ISO8601::Duration createNegatedTemporalDuration(ISO8601::Duration duration);
+
     virtual bool isTemporalDurationObject() const override
     {
         return true;
@@ -50,7 +56,7 @@ public:
         return m_duration[static_cast<unsigned>(idx)];
     }
 
-    double operator[](ISO8601::Duration::Type idx) const
+    double operator[](ISO8601::DateTimeUnit idx) const
     {
         return operator[](static_cast<size_t>(idx));
     }
@@ -60,7 +66,7 @@ public:
         return m_duration[static_cast<unsigned>(idx)];
     }
 
-    double& operator[](ISO8601::Duration::Type idx)
+    double& operator[](ISO8601::DateTimeUnit idx)
     {
         return operator[](static_cast<size_t>(idx));
     }
@@ -68,16 +74,19 @@ public:
     // https://tc39.es/proposal-temporal/#sec-durationsign
     int sign() const
     {
-        for (const auto& v : m_duration) {
-            if (v < 0) {
-                return -1;
-            }
-            if (v > 0) {
-                return 1;
-            }
-        }
-        return 0;
+        return m_duration.sign();
     }
+
+    String* toString(ExecutionState& state, Value options);
+    static String* temporalDurationToString(ISO8601::Duration duration, Value precision);
+    // https://tc39.es/proposal-temporal/#sec-temporal-tointernaldurationrecord
+    static ISO8601::InternalDuration toInternalDurationRecord(ISO8601::Duration duration);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-roundtimeduration
+    static Int128 roundTimeDuration(ExecutionState& state, Int128 timeDuration, unsigned increment, ISO8601::DateTimeUnit unit, ISO8601::RoundingMode roundingMode);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-roundtimedurationtoincrement
+    static Int128 roundTimeDurationToIncrement(ExecutionState& state, Int128 d, Int128 increment, ISO8601::RoundingMode roundingMode);
 
 private:
     ISO8601::Duration m_duration;

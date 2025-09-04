@@ -43,6 +43,7 @@ public:
     static ValueVector canonicalizeLocaleList(ExecutionState& state, Value locales);
     static StringMap resolveLocale(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, const StringMap& options, const char* const relevantExtensionKeys[], size_t relevantExtensionKeyCount, LocaleDataImplFunction localeData);
     static Value supportedLocales(ExecutionState& state, const Vector<String*, GCUtil::gc_malloc_allocator<String*>>& availableLocales, const ValueVector& requestedLocales, Value options);
+    static Optional<Object*> getOptionsObject(ExecutionState& state, const Value& options); // https://tc39.es/proposal-temporal/#sec-getoptionsobject
     enum OptionValueType {
         StringValue,
         BooleanValue,

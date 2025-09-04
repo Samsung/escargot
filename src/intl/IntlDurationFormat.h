@@ -56,7 +56,7 @@ protected:
     struct Element {
         ElementType m_type;
         bool m_valueSignBit;
-        DurationRecord::Type m_unit;
+        ISO8601::DateTimeUnit m_unit;
         UTF16StringDataNonGCStd m_string;
         LocalResourcePointer<UFormattedNumber> m_formattedNumber;
     };
