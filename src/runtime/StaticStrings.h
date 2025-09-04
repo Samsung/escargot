@@ -983,18 +983,22 @@ namespace Escargot {
     F(InLeapYear, "inLeapYear")                       \
     F(Instant, "instant")                             \
     F(ISO8601, "iso8601")                             \
+    F(LargestUnit, "largestUnit")                     \
     F(MonthCode, "monthCode")                         \
     F(MonthsInYear, "monthsInYear")                   \
+    F(Negated, "negated")                             \
     F(Overflow, "overflow")                           \
     F(PlainDateISO, "plainDateISO")                   \
     F(PlainDateTimeISO, "plainDateTimeISO")           \
     F(PlainTimeISO, "plainTimeISO")                   \
+    F(Since, "since")                                 \
     F(SmallestUnit, "smallestUnit")                   \
     F(TemporalDotDuration, "Temporal.Duration")       \
     F(TemporalDotInstant, "Temporal.Instant")         \
     F(TemporalDotNow, "Temporal.Now")                 \
     F(TemporalDotPlainDate, "Temporal.PlainDate")     \
     F(TimeZoneId, "timeZoneId")                       \
+    F(Until, "until")                                 \
     F(WeekOfYear, "weekOfYear")                       \
     F(YearOfWeek, "yearOfWeek")                       \
     F(ZonedDateTimeISO, "zonedDateTimeISO")

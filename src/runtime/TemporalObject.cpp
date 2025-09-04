@@ -389,6 +389,25 @@ Value Temporal::toTemporalDate(ExecutionState& state, Value item, Value options)
     return Value();
 }
 
+void Temporal::formatSecondsStringFraction(StringBuilder& builder, Int128 fraction, Value precision)
+{
+    if ((precision.isString() && precision.asString()->equals("auto") && fraction) || (precision.isInt32() && precision.asInt32())) {
+        auto padded = pad('0', 9, std::to_string(fraction));
+        padded = '.' + padded;
+
+        if (precision.isInt32()) {
+            padded = padded.substr(0, padded.length() - (9 - precision.asInt32()));
+        } else {
+            auto lengthWithoutTrailingZeroes = padded.length();
+            while (padded[lengthWithoutTrailingZeroes - 1] == '0') {
+                lengthWithoutTrailingZeroes--;
+            }
+            padded = padded.substr(0, lengthWithoutTrailingZeroes);
+        }
+        builder.appendString(String::fromASCII(padded.data(), padded.length()));
+    }
+}
+
 Int128 Temporal::systemUTCEpochNanoseconds()
 {
     std::chrono::system_clock::duration d = std::chrono::system_clock::now().time_since_epoch();
@@ -540,14 +559,37 @@ Optional<unsigned> Temporal::getTemporalFractionalSecondDigitsOption(ExecutionSt
     return digitCount;
 }
 
-String* Temporal::getRoundingModeOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* fallback)
+static ISO8601::RoundingMode toRoundingMode(String* roundingMode)
+{
+    if (roundingMode->equals("ceil")) {
+        return ISO8601::RoundingMode::Ceil;
+    } else if (roundingMode->equals("floor")) {
+        return ISO8601::RoundingMode::Floor;
+    } else if (roundingMode->equals("expand")) {
+        return ISO8601::RoundingMode::Expand;
+    } else if (roundingMode->equals("trunc")) {
+        return ISO8601::RoundingMode::Trunc;
+    } else if (roundingMode->equals("halfCeil")) {
+        return ISO8601::RoundingMode::HalfCeil;
+    } else if (roundingMode->equals("halfFloor")) {
+        return ISO8601::RoundingMode::HalfFloor;
+    } else if (roundingMode->equals("halfExpand")) {
+        return ISO8601::RoundingMode::HalfExpand;
+    } else if (roundingMode->equals("halfTrunc")) {
+        return ISO8601::RoundingMode::HalfTrunc;
+    }
+    ASSERT(roundingMode->equals("halfEven"));
+    return ISO8601::RoundingMode::HalfEven;
+}
+
+ISO8601::RoundingMode Temporal::getRoundingModeOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* fallback)
 {
     // Let allowedStrings be the List of Strings from the "String Identifier" column of Table 27.
     // Let stringFallback be the value from the "String Identifier" column of the row with fallback in its "Rounding Mode" column.
     // Let stringValue be ? GetOption(options, "roundingMode", string, allowedStrings, stringFallback).
     // Return the value from the "Rounding Mode" column of the row with stringValue in its "String Identifier" column.
     if (!resolvedOptions) {
-        return fallback;
+        return toRoundingMode(fallback);
     }
 
     Value values[] = {
@@ -562,10 +604,11 @@ String* Temporal::getRoundingModeOption(ExecutionState& state, Optional<Object*>
         state.context()->staticStrings().lazyHalfEven().string()
     };
 
-    return Intl::getOption(state, resolvedOptions.value(), state.context()->staticStrings().lazyRoundingMode().string(), Intl::OptionValueType::StringValue, values, 9, fallback).asString();
+    String* roundingMode = Intl::getOption(state, resolvedOptions.value(), state.context()->staticStrings().lazyRoundingMode().string(), Intl::OptionValueType::StringValue, values, 9, fallback).asString();
+    return toRoundingMode(roundingMode);
 }
 
-Optional<String*> Temporal::getTemporalUnitValuedOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* key, Optional<Value> defaultValue)
+Optional<TemporalUnit> Temporal::getTemporalUnitValuedOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* key, Optional<Value> defaultValue)
 {
     // Let allowedStrings be a List containing all values in the "Singular property name" and "Plural property name" columns of Table 21, except the header row.
     // Append "auto" to allowedStrings.
@@ -605,32 +648,32 @@ Optional<String*> Temporal::getTemporalUnitValuedOption(ExecutionState& state, O
     }
     // If value is undefined, return unset.
     if (value.isUndefined()) {
-        return nullptr;
+        return NullOption;
     }
     String* stringValue = value.asString();
     // If value is "auto", return auto.
     if (stringValue->equals("auto")) {
-        return stringValue;
+        return TemporalUnit::Auto;
     }
     // Return the value in the "Value" column of Table 21 corresponding to the row with value in its "Singular property name" or "Plural property name" column.
     if (false) {}
-#define DEFINE_COMPARE(name, Name, names, Names, index, category)      \
-    else if (stringValue->equals(#name))                               \
-    {                                                                  \
-        return state.context()->staticStrings().lazy##Name().string(); \
-    }                                                                  \
-    else if (stringValue->equals(#names))                              \
-    {                                                                  \
-        return state.context()->staticStrings().lazy##Name().string(); \
+#define DEFINE_COMPARE(name, Name, names, Names, index, category) \
+    else if (stringValue->equals(#name))                          \
+    {                                                             \
+        return TemporalUnit::Name;                                \
+    }                                                             \
+    else if (stringValue->equals(#names))                         \
+    {                                                             \
+        return TemporalUnit::Name;                                \
     }
     PLAIN_DATETIME_UNITS(DEFINE_COMPARE)
 #undef DEFINE_COMPARE
 
     ASSERT_NOT_REACHED();
-    return String::emptyString();
+    return TemporalUnit::Auto;
 }
 
-void Temporal::validateTemporalUnitValue(ExecutionState& state, Optional<String*> value, ISO8601::DateTimeUnitCategory unitGroup, Optional<String*> extraValues, size_t extraValueSize)
+void Temporal::validateTemporalUnitValue(ExecutionState& state, Optional<TemporalUnit> value, ISO8601::DateTimeUnitCategory unitGroup, Optional<TemporalUnit*> extraValues, size_t extraValueSize)
 {
     // If value is unset, return unused.
     if (!value) {
@@ -639,24 +682,19 @@ void Temporal::validateTemporalUnitValue(ExecutionState& state, Optional<String*
     // If extraValues is present and extraValues contains value, return unused.
     if (extraValues && value) {
         for (size_t i = 0; i < extraValueSize; i++) {
-            if (extraValues.value()[i].equals(value.value())) {
+            if (extraValues.value()[i] == value.value()) {
                 return;
             }
         }
     }
-    String* stringValue = value.value();
     ISO8601::DateTimeUnitCategory categoryValue = ISO8601::DateTimeUnitCategory::DateTime;
     const auto* msg = "Invalid temporal unit value";
     // Let category be the value in the “Category” column of the row of Table 21 whose “Value” column contains value. If there is no such row, throw a RangeError exception.
     if (false) {}
-#define DEFINE_COMPARE(name, Name, names, Names, index, category) \
-    else if (stringValue->equals(#name))                          \
-    {                                                             \
-        categoryValue = category;                                 \
-    }                                                             \
-    else if (stringValue->equals(#names))                         \
-    {                                                             \
-        categoryValue = category;                                 \
+#define DEFINE_COMPARE(name, Name, names, Names, index, category)          \
+    else if (toDateTimeUnit(value.value()) == ISO8601::DateTimeUnit::Name) \
+    {                                                                      \
+        categoryValue = category;                                          \
     }
     PLAIN_DATETIME_UNITS(DEFINE_COMPARE)
 #undef DEFINE_COMPARE
@@ -726,29 +764,29 @@ TimeZone Temporal::toTemporalTimezoneIdentifier(ExecutionState& state, const Val
     return TimeZone(String::emptyString());
 }
 
-Temporal::StringPrecisionRecord Temporal::toSecondsStringPrecisionRecord(ExecutionState& state, Optional<String*> smallestUnit, Optional<unsigned> fractionalDigitCount)
+Temporal::StringPrecisionRecord Temporal::toSecondsStringPrecisionRecord(ExecutionState& state, Optional<ISO8601::DateTimeUnit> smallestUnit, Optional<unsigned> fractionalDigitCount)
 {
     if (smallestUnit) {
         // If smallestUnit is minute, then
-        if (smallestUnit->equals("minute")) {
+        if (smallestUnit.value() == ISO8601::DateTimeUnit::Minute) {
             // Return the Record { [[Precision]]: minute, [[Unit]]: minute, [[Increment]]: 1  }.
-            return { state.context()->staticStrings().lazyMinute().string(), state.context()->staticStrings().lazyMinute().string(), 1 };
-        } else if (smallestUnit->equals("second")) {
+            return { state.context()->staticStrings().lazyMinute().string(), ISO8601::DateTimeUnit::Minute, 1 };
+        } else if (smallestUnit.value() == ISO8601::DateTimeUnit::Second) {
             // If smallestUnit is second, then
             // Return the Record { [[Precision]]: 0, [[Unit]]: second, [[Increment]]: 1  }.
-            return { Value(0), state.context()->staticStrings().lazySecond().string(), 1 };
-        } else if (smallestUnit->equals("millisecond")) {
+            return { Value(0), ISO8601::DateTimeUnit::Second, 1 };
+        } else if (smallestUnit.value() == ISO8601::DateTimeUnit::Millisecond) {
             // If smallestUnit is millisecond, then
             // Return the Record { [[Precision]]: 3, [[Unit]]: millisecond, [[Increment]]: 1  }.
-            return { Value(3), state.context()->staticStrings().lazyMillisecond().string(), 1 };
-        } else if (smallestUnit->equals("microsecond")) {
-            // If smallestUnit is millisecond, then
+            return { Value(3), ISO8601::DateTimeUnit::Millisecond, 1 };
+        } else if (smallestUnit.value() == ISO8601::DateTimeUnit::Microsecond) {
+            // If smallestUnit is microsecond, then
             // Return the Record { [[Precision]]: 6, [[Unit]]: microsecond, [[Increment]]: 1  }.
-            return { Value(6), state.context()->staticStrings().lazyMicrosecond().string(), 1 };
-        } else if (smallestUnit->equals("nanosecond")) {
+            return { Value(6), ISO8601::DateTimeUnit::Microsecond, 1 };
+        } else if (smallestUnit.value() == ISO8601::DateTimeUnit::Nanosecond) {
             // If smallestUnit is nanosecond, then
             // Return the Record { [[Precision]]: 9, [[Unit]]: nanosecond, [[Increment]]: 1  }.
-            return { Value(9), state.context()->staticStrings().lazyNanosecond().string(), 1 };
+            return { Value(9), ISO8601::DateTimeUnit::Nanosecond, 1 };
         }
     }
     // Assert: smallestUnit is unset.
@@ -756,7 +794,7 @@ Temporal::StringPrecisionRecord Temporal::toSecondsStringPrecisionRecord(Executi
     // If fractionalDigitCount is auto, then
     if (!fractionalDigitCount.hasValue()) {
         // Return the Record { [[Precision]]: auto, [[Unit]]: nanosecond, [[Increment]]: 1  }.
-        return { state.context()->staticStrings().lazyAuto().string(), state.context()->staticStrings().lazyNanosecond().string(), 1 };
+        return { state.context()->staticStrings().lazyAuto().string(), ISO8601::DateTimeUnit::Nanosecond, 1 };
     }
 
     auto pow10Unsigned = [](unsigned n) -> unsigned {
@@ -769,20 +807,20 @@ Temporal::StringPrecisionRecord Temporal::toSecondsStringPrecisionRecord(Executi
     // If fractionalDigitCount = 0, then
     if (fractionalDigitCount && fractionalDigitCount.value() == 0) {
         // Return the Record { [[Precision]]: 0, [[Unit]]: second, [[Increment]]: 1  }.
-        return { Value(0), state.context()->staticStrings().lazySecond().string(), 1 };
+        return { Value(0), ISO8601::DateTimeUnit::Second, 1 };
     } else if (fractionalDigitCount && fractionalDigitCount.value() >= 1 && fractionalDigitCount.value() <= 3) {
         // If fractionalDigitCount is in the inclusive interval from 1 to 3, then
         // Return the Record { [[Precision]]: fractionalDigitCount, [[Unit]]: millisecond, [[Increment]]: 10**(3 - fractionalDigitCount)  }
-        return { Value(fractionalDigitCount.value()), state.context()->staticStrings().lazyMillisecond().string(), pow10Unsigned(3 - fractionalDigitCount.value()) };
+        return { Value(fractionalDigitCount.value()), ISO8601::DateTimeUnit::Millisecond, pow10Unsigned(3 - fractionalDigitCount.value()) };
     } else if (fractionalDigitCount && fractionalDigitCount.value() >= 4 && fractionalDigitCount.value() <= 6) {
         // If fractionalDigitCount is in the inclusive interval from 4 to 6, then
         // Return the Record { [[Precision]]: fractionalDigitCount, [[Unit]]: microsecond, [[Increment]]: 10**(6 - fractionalDigitCount)  }.
-        return { Value(fractionalDigitCount.value()), state.context()->staticStrings().lazyMicrosecond().string(), pow10Unsigned(6 - fractionalDigitCount.value()) };
+        return { Value(fractionalDigitCount.value()), ISO8601::DateTimeUnit::Microsecond, pow10Unsigned(6 - fractionalDigitCount.value()) };
     }
     // Assert: fractionalDigitCount is in the inclusive interval from 7 to 9.
     ASSERT(fractionalDigitCount && fractionalDigitCount.value() >= 7 && fractionalDigitCount.value() <= 9);
     // Return the Record { [[Precision]]: fractionalDigitCount, [[Unit]]: nanosecond, [[Increment]]: 10**(9 - fractionalDigitCount)  }.
-    return { Value(fractionalDigitCount.value()), state.context()->staticStrings().lazyNanosecond().string(), pow10Unsigned(9 - fractionalDigitCount.value()) };
+    return { Value(fractionalDigitCount.value()), ISO8601::DateTimeUnit::Nanosecond, pow10Unsigned(9 - fractionalDigitCount.value()) };
 }
 
 void Temporal::validateTemporalRoundingIncrement(ExecutionState& state, unsigned increment, Int128 dividend, bool inclusive)
@@ -811,10 +849,13 @@ void Temporal::validateTemporalRoundingIncrement(ExecutionState& state, unsigned
     // Return unused.
 }
 
-int32_t Temporal::getRoundingIncrementOption(ExecutionState& state, Object* options)
+unsigned Temporal::getRoundingIncrementOption(ExecutionState& state, Optional<Object*> options)
 {
+    if (!options) {
+        return 1;
+    }
     // Let value be ? Get(options, "roundingIncrement").
-    Value value = options->get(state, ObjectPropertyName(state.context()->staticStrings().lazyRoundingIncrement())).value(state, options);
+    Value value = options.value()->get(state, ObjectPropertyName(state.context()->staticStrings().lazyRoundingIncrement())).value(state, options.value());
     // If value is undefined, return 1𝔽.
     if (value.isUndefined()) {
         return 1;
@@ -827,6 +868,153 @@ int32_t Temporal::getRoundingIncrementOption(ExecutionState& state, Object* opti
     }
     // Return integerIncrement.
     return integerIncrement;
+}
+
+Temporal::DifferenceSettingsRecord Temporal::getDifferenceSettings(ExecutionState& state, bool isSinceOperation, Optional<Object*> options, ISO8601::DateTimeUnitCategory unitGroup,
+                                                                   Optional<TemporalUnit*> disallowedUnits, size_t disallowedUnitsLength, TemporalUnit fallbackSmallestUnit, TemporalUnit smallestLargestDefaultUnit)
+{
+    // NOTE: The following steps read options and perform independent validation in alphabetical order.
+    // Let largestUnit be ? GetTemporalUnitValuedOption(options, "largestUnit", unset).
+    Optional<TemporalUnit> largestUnit = Temporal::getTemporalUnitValuedOption(state, options, state.context()->staticStrings().lazyLargestUnit().string(), NullOption);
+    // Let roundingIncrement be ? GetRoundingIncrementOption(options).
+    auto roundingIncrement = Temporal::getRoundingIncrementOption(state, options);
+    // Let roundingMode be ? GetRoundingModeOption(options, trunc).
+    auto roundingMode = Temporal::getRoundingModeOption(state, options, state.context()->staticStrings().trunc.string());
+    // Let smallestUnit be ? GetTemporalUnitValuedOption(options, "smallestUnit", unset).
+    Optional<TemporalUnit> smallestUnit = Temporal::getTemporalUnitValuedOption(state, options, state.context()->staticStrings().lazySmallestUnit().string(), NullOption);
+    // Perform ? ValidateTemporalUnitValue(largestUnit, unitGroup, « auto »).
+    TemporalUnit extraValues[1] = { TemporalUnit::Auto };
+    Temporal::validateTemporalUnitValue(state, largestUnit, unitGroup, extraValues, 1);
+    // If largestUnit is unset, then
+    if (!largestUnit) {
+        // Set largestUnit to auto.
+        largestUnit = TemporalUnit::Auto;
+    }
+
+    // If disallowedUnits contains largestUnit, throw a RangeError exception.
+    if (disallowedUnits) {
+        for (size_t i = 0; i < disallowedUnitsLength; i++) {
+            if (disallowedUnits.value()[i] == largestUnit.value()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid largestUnit value");
+            }
+        }
+    }
+    // If operation is since, then
+    if (isSinceOperation) {
+        // Set roundingMode to NegateRoundingMode(roundingMode).
+        roundingMode = Temporal::negateRoundingMode(state, roundingMode);
+    }
+
+    // Perform ? ValidateTemporalUnitValue(smallestUnit, unitGroup).
+    Temporal::validateTemporalUnitValue(state, smallestUnit, unitGroup, nullptr, 0);
+    // If smallestUnit is unset, then
+    if (!smallestUnit) {
+        // Set smallestUnit to fallbackSmallestUnit.
+        smallestUnit = fallbackSmallestUnit;
+    }
+
+    // If disallowedUnits contains smallestUnit, throw a RangeError exception.
+    if (disallowedUnits) {
+        for (size_t i = 0; i < disallowedUnitsLength; i++) {
+            if (disallowedUnits.value()[i] == smallestUnit.value()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid largestUnit value");
+            }
+        }
+    }
+    // Let defaultLargestUnit be LargerOfTwoTemporalUnits(smallestLargestDefaultUnit, smallestUnit).
+    auto defaultLargestUnit = Temporal::largerOfTwoTemporalUnits(toDateTimeUnit(smallestLargestDefaultUnit), toDateTimeUnit(smallestUnit.value()));
+    // If largestUnit is auto, set largestUnit to defaultLargestUnit.
+    if (largestUnit == TemporalUnit::Auto) {
+        largestUnit = static_cast<TemporalUnit>(defaultLargestUnit);
+    }
+    // If LargerOfTwoTemporalUnits(largestUnit, smallestUnit) is not largestUnit, throw a RangeError exception.
+    if (!(Temporal::largerOfTwoTemporalUnits(toDateTimeUnit(largestUnit.value()), toDateTimeUnit(smallestUnit.value())) == toDateTimeUnit(largestUnit.value()))) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid largestUnit or smallestUnit value");
+    }
+    // Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
+    auto maximum = Temporal::maximumTemporalDurationRoundingIncrement(toDateTimeUnit(smallestUnit.value()));
+    // If maximum is not unset, perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
+    if (maximum) {
+        Temporal::validateTemporalRoundingIncrement(state, roundingIncrement, maximum.value(), false);
+    }
+    // Return the Record { [[SmallestUnit]]: smallestUnit, [[LargestUnit]]: largestUnit, [[RoundingMode]]: roundingMode, [[RoundingIncrement]]: roundingIncrement,  }.
+    return { toDateTimeUnit(smallestUnit.value()), toDateTimeUnit(largestUnit.value()), roundingMode, roundingIncrement };
+}
+
+ISO8601::RoundingMode Temporal::negateRoundingMode(ExecutionState& state, ISO8601::RoundingMode roundingMode)
+{
+    // If roundingMode is ceil, return floor.
+    if (roundingMode == ISO8601::RoundingMode::Ceil) {
+        return ISO8601::RoundingMode::Floor;
+    }
+    // If roundingMode is floor, return ceil.
+    if (roundingMode == ISO8601::RoundingMode::Floor) {
+        return ISO8601::RoundingMode::Ceil;
+    }
+    // If roundingMode is half-ceil, return half-floor.
+    if (roundingMode == ISO8601::RoundingMode::HalfCeil) {
+        return ISO8601::RoundingMode::HalfFloor;
+    }
+    // If roundingMode is half-floor, return half-ceil.
+    if (roundingMode == ISO8601::RoundingMode::HalfFloor) {
+        return ISO8601::RoundingMode::HalfCeil;
+    }
+    // Return roundingMode
+    return roundingMode;
+}
+
+ISO8601::DateTimeUnit Temporal::largerOfTwoTemporalUnits(ISO8601::DateTimeUnit u1, ISO8601::DateTimeUnit u2)
+{
+    // For each row of Table 21, except the header row, in table order, do
+    //   Let unit be the value in the "Value" column of the row.
+    //   If u1 is unit, return unit.
+    //   If u2 is unit, return unit.
+    if (false) {}
+#define DEFINE_COMPARE(name, Name, names, Names, index, category) \
+    else if (u1 == ISO8601::DateTimeUnit::Name)                   \
+    {                                                             \
+        return u1;                                                \
+    }                                                             \
+    else if (u2 == ISO8601::DateTimeUnit::Name)                   \
+    {                                                             \
+        return u2;                                                \
+    }
+    PLAIN_DATETIME_UNITS(DEFINE_COMPARE)
+#undef DEFINE_COMPARE
+    else
+    {
+        ASSERT_NOT_REACHED();
+        return ISO8601::DateTimeUnit::Year;
+    }
+}
+
+Optional<unsigned> Temporal::maximumTemporalDurationRoundingIncrement(ISO8601::DateTimeUnit unit)
+{
+    // Return the value from the "Maximum duration rounding increment" column of the row of Table 21 in which unit is in the "Value" column.
+    if (unit == ISO8601::DateTimeUnit::Hour) {
+        return 24;
+    } else if (unit == ISO8601::DateTimeUnit::Minute) {
+        return 60;
+    } else if (unit == ISO8601::DateTimeUnit::Second) {
+        return 60;
+    } else if (unit == ISO8601::DateTimeUnit::Millisecond) {
+        return 1000;
+    } else if (unit == ISO8601::DateTimeUnit::Microsecond) {
+        return 1000;
+    } else if (unit == ISO8601::DateTimeUnit::Nanosecond) {
+        return 1000;
+    }
+    return NullOption;
+}
+
+Int128 Temporal::timeDurationFromEpochNanosecondsDifference(Int128 one, Int128 two)
+{
+    // Let result be ℝ(one) - ℝ(two).
+    auto result = one - two;
+    // Assert: abs(result) ≤ maxTimeDuration.
+    ASSERT(std::abs(result) < ISO8601::InternalDuration::maxTimeDuration);
+    // Return result.
+    return result;
 }
 
 TemporalObject::TemporalObject(ExecutionState& state)

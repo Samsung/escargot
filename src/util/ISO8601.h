@@ -77,6 +77,23 @@ enum class DateTimeUnitCategory {
     F(microsecond, Microsecond, microseconds, Microseconds, 8, ISO8601::DateTimeUnitCategory::Time) \
     F(nanosecond, Nanosecond, nanoseconds, Nanoseconds, 9, ISO8601::DateTimeUnitCategory::Time)
 
+enum class DateTimeUnit : uint8_t {
+#define DEFINE_TYPE(name, Name, names, Names, index, category) Name,
+    PLAIN_DATETIME_UNITS(DEFINE_TYPE)
+#undef DEFINE_TYPE
+};
+
+DateTimeUnitCategory toDateTimeCategory(DateTimeUnit u);
+
+DateTimeUnit toDateTimeUnit(String*);
+inline Optional<DateTimeUnit> toDateTimeUnit(Optional<String*> s)
+{
+    if (s) {
+        return toDateTimeUnit(s.value());
+    }
+    return NullOption;
+}
+
 #define PLAIN_DATE_UNITS(macro) \
     macro(year, Year)           \
         macro(month, Month)     \
@@ -89,6 +106,26 @@ enum class DateTimeUnitCategory {
                 macro(millisecond, Millisecond)     \
                     macro(microsecond, Microsecond) \
                         macro(nanosecond, Nanosecond)
+
+enum class RoundingMode : uint8_t {
+    Ceil,
+    Floor,
+    Expand,
+    Trunc,
+    HalfCeil,
+    HalfFloor,
+    HalfExpand,
+    HalfTrunc,
+    HalfEven,
+};
+
+enum class UnsignedRoundingMode : uint8_t {
+    Infinity,
+    Zero,
+    HalfInfinity,
+    HalfZero,
+    HalfEven
+};
 
 class ExactTime {
 public:
@@ -144,7 +181,7 @@ public:
         return m_epochNanoseconds >= ExactTime::minValue && m_epochNanoseconds <= ExactTime::maxValue;
     }
 
-    ExactTime round(ExecutionState& state, unsigned increment, String* unit, String* roundingMode);
+    ExactTime round(ExecutionState& state, unsigned increment, DateTimeUnit unit, RoundingMode roundingMode);
 
 private:
     Int128 m_epochNanoseconds{};
@@ -154,12 +191,6 @@ class Duration {
     std::array<double, 10> m_data;
 
 public:
-    enum class Type : uint8_t {
-#define DEFINE_TYPE(name, Name, names, Names, index, category) Names,
-        PLAIN_DATETIME_UNITS(DEFINE_TYPE)
-#undef DEFINE_TYPE
-    };
-
     // https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaldurationstring
     static Optional<Duration> parseDurationString(String* input);
 
@@ -173,15 +204,49 @@ public:
     {
     }
 
-    static String* typeName(ExecutionState& state, Type t);
-    Int128 totalNanoseconds(Duration::Type type) const;
+    Duration(std::initializer_list<double> list)
+    {
+        size_t idx = 0;
+        for (auto n : list) {
+            m_data[idx++] = n;
+        }
+    }
+
+    int sign() const
+    {
+        for (const auto& v : m_data) {
+            if (v < 0) {
+                return -1;
+            }
+            if (v > 0) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-defaulttemporallargestunit
+    DateTimeUnit defaultTemporalLargestUnit() const
+    {
+        size_t idx = 0;
+        for (auto n : m_data) {
+            if (n) {
+                return static_cast<DateTimeUnit>(idx);
+            }
+            idx++;
+        }
+        return DateTimeUnit::Nanosecond;
+    }
+
+    static String* typeName(ExecutionState& state, ISO8601::DateTimeUnit t);
+    Int128 totalNanoseconds(ISO8601::DateTimeUnit type) const;
 
     double operator[](size_t idx) const
     {
         return m_data[static_cast<unsigned>(idx)];
     }
 
-    double operator[](Duration::Type idx) const
+    double operator[](ISO8601::DateTimeUnit idx) const
     {
         return operator[](static_cast<size_t>(idx));
     }
@@ -191,7 +256,7 @@ public:
         return m_data[static_cast<unsigned>(idx)];
     }
 
-    double& operator[](Duration::Type idx)
+    double& operator[](ISO8601::DateTimeUnit idx)
     {
         return operator[](static_cast<size_t>(idx));
     }
@@ -222,7 +287,7 @@ public:
         return m_data[static_cast<unsigned>(idx)];
     }
 
-    Optional<double> operator[](Duration::Type idx) const
+    Optional<double> operator[](ISO8601::DateTimeUnit idx) const
     {
         return operator[](static_cast<size_t>(idx));
     }
@@ -232,7 +297,7 @@ public:
         return m_data[static_cast<unsigned>(idx)];
     }
 
-    Optional<double>& operator[](Duration::Type idx)
+    Optional<double>& operator[](ISO8601::DateTimeUnit idx)
     {
         return operator[](static_cast<size_t>(idx));
     }
@@ -249,6 +314,50 @@ public:
     void set##Names(Optional<double> v) { m_data[index] = v; }
     PLAIN_DATETIME_UNITS(DEFINE_SETTER)
 #undef DEFINE_SETTER
+};
+
+// https://tc39.es/proposal-temporal/#sec-temporal-internal-duration-records
+// Represents a duration as an ISO8601::Duration (in which all time fields
+// are ignored) along with an Int128 time duration that represents the sum
+// of all time fields. Used to avoid losing precision in intermediate calculations.
+class InternalDuration final {
+public:
+    InternalDuration(Duration d, Int128 t)
+        : m_dateDuration(d)
+        , m_time(t)
+    {
+    }
+    InternalDuration()
+        : m_dateDuration(Duration())
+        , m_time(0)
+    {
+    }
+    static constexpr Int128 maxTimeDuration = 9007199254740992 * ExactTime::nsPerSecond - 1;
+
+    int32_t sign() const;
+
+    int32_t timeDurationSign() const
+    {
+        return m_time < 0 ? -1 : m_time > 0 ? 1
+                                            : 0;
+    }
+
+    Int128 time() const { return m_time; }
+
+    Duration dateDuration() const { return m_dateDuration; }
+
+    static InternalDuration combineDateAndTimeDuration(Duration, Int128);
+
+private:
+    // Time fields are ignored
+    Duration m_dateDuration;
+
+    // A time duration is an integer in the inclusive interval from -maxTimeDuration
+    // to maxTimeDuration, where
+    // maxTimeDuration = 2**53 × 10**9 - 1 = 9,007,199,254,740,991,999,999,999.
+    // It represents the portion of a Temporal.Duration object that deals with time
+    // units, but as a combined value of total nanoseconds.
+    Int128 m_time;
 };
 
 class PlainTime {
@@ -351,18 +460,18 @@ Optional<int64_t> parseUTCOffset(String* string, bool parseSubMinutePrecision = 
 Optional<TimeZoneID> parseTimeZoneName(String* string);
 Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarDateTime(String* input, bool parseSubMinutePrecisionForTimeZone = true);
 
+// https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrement
+double roundNumberToIncrement(double x, double increment, RoundingMode roundingMode);
+Int128 roundNumberToIncrement(Int128 x, Int128 increment, RoundingMode roundingMode);
+
 // https://tc39.es/proposal-temporal/#sec-roundNumbertoincrementasifpositive
-Int128 roundNumberToIncrementAsIfPositive(Int128 x, Int128 increment, String* roundingMode);
+Int128 roundNumberToIncrementAsIfPositive(Int128 x, Int128 increment, RoundingMode roundingMode);
 
 // https://tc39.es/proposal-temporal/#sec-getunsignedroundingmode
-enum class UnsignedRoundingMode : uint8_t {
-    Infinity,
-    Zero,
-    HalfInfinity,
-    HalfZero,
-    HalfEven
-};
-UnsignedRoundingMode getUnsignedRoundingMode(String* roundingMode, bool isNegative);
+UnsignedRoundingMode getUnsignedRoundingMode(RoundingMode roundingMode, bool isNegative);
+
+Int128 lengthInNanoseconds(DateTimeUnit unit);
+Int128 resolveNanosecondsValueByUnit(DateTimeUnit unit);
 
 class TimeConstants {
 public:

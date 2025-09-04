@@ -2884,6 +2884,17 @@ Value Intl::supportedLocales(ExecutionState& state, const Vector<String*, GCUtil
     return Object::createArrayFromList(state, subset);
 }
 
+Optional<Object*> Intl::getOptionsObject(ExecutionState& state, const Value& options)
+{
+    Optional<Object*> resolvedOptions;
+    if (options.isObject()) {
+        resolvedOptions = options.asObject();
+    } else if (!options.isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid options value");
+    }
+    return resolvedOptions;
+}
+
 Value Intl::getOption(ExecutionState& state, Object* options, Value property, Intl::OptionValueType type, Value* values, size_t valuesLength, const Value& fallback)
 {
     // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.9

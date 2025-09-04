@@ -25,6 +25,8 @@
 
 namespace Escargot {
 
+class TemporalDurationObject;
+
 class TemporalInstantObject : public DerivedObject {
 public:
     TemporalInstantObject(ExecutionState& state, Object* proto, Int128 nanoseconds);
@@ -44,6 +46,13 @@ public:
     static String* toString(ExecutionState& state, Int128 epochNanoseconds, TimeZone timeZone, Value precision);
     TemporalInstantObject* round(ExecutionState& state, Value roundTo);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalinstant
+    enum class DifferenceTemporalInstantOperation {
+        Since,
+        Until
+    };
+    TemporalDurationObject* differenceTemporalInstant(ExecutionState& state, DifferenceTemporalInstantOperation operation, Value other, Value options);
+
 private:
     // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoinstant
     enum class AddDurationOperation {
@@ -51,6 +60,10 @@ private:
         Subtract
     };
     TemporalInstantObject* addDurationToInstant(AddDurationOperation operation, const Value& temporalDurationLike);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-differenceinstant
+    static ISO8601::InternalDuration differenceInstant(ExecutionState& state, Int128 ns1, Int128 ns2, unsigned roundingIncrement,
+                                                       ISO8601::DateTimeUnit smallestUnit, ISO8601::RoundingMode roundingMode);
 
     Int128* m_nanoseconds; // [[EpochNanoseconds]]
 };

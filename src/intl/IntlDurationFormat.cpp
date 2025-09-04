@@ -588,20 +588,20 @@ inline double purifyNaN(double value)
     return value;
 }
 
-static std::string buildDecimalFormat(DurationRecord::Type unit, Int128 ns)
+static std::string buildDecimalFormat(ISO8601::DateTimeUnit unit, Int128 ns)
 {
-    ASSERT(unit == DurationRecord::Type::Seconds || unit == DurationRecord::Type::Milliseconds || unit == DurationRecord::Type::Microseconds);
+    ASSERT(unit == ISO8601::DateTimeUnit::Second || unit == ISO8601::DateTimeUnit::Millisecond || unit == ISO8601::DateTimeUnit::Microsecond);
 
     int flactionalDigits = 0;
     int64_t exponent = 0;
-    if (unit == DurationRecord::Type::Seconds) {
+    if (unit == ISO8601::DateTimeUnit::Second) {
         flactionalDigits = 9;
         exponent = 1000000000;
-    } else if (unit == DurationRecord::Type::Milliseconds) {
+    } else if (unit == ISO8601::DateTimeUnit::Millisecond) {
         flactionalDigits = 6;
         exponent = 1000000;
     } else {
-        ASSERT(unit == DurationRecord::Type::Microseconds);
+        ASSERT(unit == ISO8601::DateTimeUnit::Microsecond);
         flactionalDigits = 3;
         exponent = 1000;
     }
@@ -681,7 +681,7 @@ std::vector<IntlDurationFormatObject::Element> IntlDurationFormatObject::collect
     std::vector<Element> elements;
     Optional<DurationSignType> durationSign;
     for (uint8_t index = 0; index < 10 && !done; ++index) {
-        DurationRecord::Type unit = static_cast<DurationRecord::Type>(index);
+        ISO8601::DateTimeUnit unit = static_cast<ISO8601::DateTimeUnit>(index);
         auto unitData = durationFormat->data(index);
         double value = duration[unit];
         Optional<Int128> totalNanosecondsValue;
@@ -690,27 +690,27 @@ std::vector<IntlDurationFormatObject::Element> IntlDurationFormatObject::collect
 
         switch (unit) {
         // 3.j. If unit is "seconds", "milliseconds", or "microseconds", then
-        case DurationRecord::Type::Seconds:
-        case DurationRecord::Type::Milliseconds:
-        case DurationRecord::Type::Microseconds: {
+        case ISO8601::DateTimeUnit::Second:
+        case ISO8601::DateTimeUnit::Millisecond:
+        case ISO8601::DateTimeUnit::Microsecond: {
             skeletonBuilder = u"rounding-mode-down";
             String* nextStyle = state.context()->staticStrings().lazyLong().string();
-            if (unit == DurationRecord::Type::Seconds)
-                nextStyle = durationFormat->data(static_cast<unsigned>(DurationRecord::Type::Milliseconds)).first;
-            else if (unit == DurationRecord::Type::Milliseconds)
-                nextStyle = durationFormat->data(static_cast<unsigned>(DurationRecord::Type::Microseconds)).first;
+            if (unit == ISO8601::DateTimeUnit::Second)
+                nextStyle = durationFormat->data(static_cast<unsigned>(ISO8601::DateTimeUnit::Millisecond)).first;
+            else if (unit == ISO8601::DateTimeUnit::Millisecond)
+                nextStyle = durationFormat->data(static_cast<unsigned>(ISO8601::DateTimeUnit::Microsecond)).first;
             else {
-                ASSERT(unit == DurationRecord::Type::Microseconds);
-                nextStyle = durationFormat->data(static_cast<unsigned>(DurationRecord::Type::Nanoseconds)).first;
+                ASSERT(unit == ISO8601::DateTimeUnit::Microsecond);
+                nextStyle = durationFormat->data(static_cast<unsigned>(ISO8601::DateTimeUnit::Nanosecond)).first;
             }
             if (nextStyle->equals("numeric")) {
-                if (unit == DurationRecord::Type::Seconds) {
-                    totalNanosecondsValue = duration.totalNanoseconds(DurationRecord::Type::Seconds);
-                } else if (unit == DurationRecord::Type::Milliseconds) {
-                    totalNanosecondsValue = duration.totalNanoseconds(DurationRecord::Type::Milliseconds);
+                if (unit == ISO8601::DateTimeUnit::Second) {
+                    totalNanosecondsValue = duration.totalNanoseconds(ISO8601::DateTimeUnit::Second);
+                } else if (unit == ISO8601::DateTimeUnit::Millisecond) {
+                    totalNanosecondsValue = duration.totalNanoseconds(ISO8601::DateTimeUnit::Millisecond);
                 } else {
-                    ASSERT(unit == DurationRecord::Type::Microseconds);
-                    totalNanosecondsValue = duration.totalNanoseconds(DurationRecord::Type::Microseconds);
+                    ASSERT(unit == ISO8601::DateTimeUnit::Microsecond);
+                    totalNanosecondsValue = duration.totalNanoseconds(ISO8601::DateTimeUnit::Microsecond);
                 }
                 ASSERT(totalNanosecondsValue);
 
@@ -807,7 +807,7 @@ std::vector<IntlDurationFormatObject::Element> IntlDurationFormatObject::collect
 
             auto formatIntl128AsDecimal = [&](const UTF16StringDataNonGCStd& skeleton) -> LocalResourcePointer<UFormattedNumber> {
                 ASSERT(totalNanosecondsValue);
-                ASSERT(unit == DurationRecord::Type::Seconds || unit == DurationRecord::Type::Milliseconds || unit == DurationRecord::Type::Microseconds);
+                ASSERT(unit == ISO8601::DateTimeUnit::Second || unit == ISO8601::DateTimeUnit::Millisecond || unit == ISO8601::DateTimeUnit::Microsecond);
 
                 UErrorCode status = U_ZERO_ERROR;
                 LocalResourcePointer<UNumberFormatter> numberFormatter(unumf_openForSkeletonAndLocale(skeleton.data(), skeleton.length(), durationFormat->m_dataLocaleWithExtensions->toNonGCUTF8StringData().data(), &status),
@@ -839,19 +839,19 @@ std::vector<IntlDurationFormatObject::Element> IntlDurationFormatObject::collect
             // 3.l.i. If style is "2-digit" or "numeric", then
             if (style->equals("2-digit") || style->equals("numeric")) {
                 // https://tc39.es/proposal-intl-duration-format/#sec-formatnumericunits
-                ASSERT(unit == DurationRecord::Type::Hours || unit == DurationRecord::Type::Minutes || unit == DurationRecord::Type::Seconds);
+                ASSERT(unit == ISO8601::DateTimeUnit::Hour || unit == ISO8601::DateTimeUnit::Minute || unit == ISO8601::DateTimeUnit::Second);
 
-                double secondsValue = duration[DurationRecord::Type::Seconds];
-                if (durationFormat->data(static_cast<unsigned>(DurationRecord::Type::Milliseconds)).first->equals("numeric")) {
-                    secondsValue = secondsValue + duration[DurationRecord::Type::Milliseconds] / 1000.0 + duration[DurationRecord::Type::Microseconds] / 1000000.0 + duration[DurationRecord::Type::Nanoseconds] / 1000000000.0;
+                double secondsValue = duration[ISO8601::DateTimeUnit::Second];
+                if (durationFormat->data(static_cast<unsigned>(ISO8601::DateTimeUnit::Millisecond)).first->equals("numeric")) {
+                    secondsValue = secondsValue + duration[ISO8601::DateTimeUnit::Millisecond] / 1000.0 + duration[ISO8601::DateTimeUnit::Microsecond] / 1000000.0 + duration[ISO8601::DateTimeUnit::Nanosecond] / 1000000000.0;
                 }
 
-                bool needsFormatHours = duration[DurationRecord::Type::Hours] || !durationFormat->data(static_cast<unsigned>(DurationRecord::Type::Hours)).second->equals("auto");
-                bool needsFormatSeconds = secondsValue || !durationFormat->data(static_cast<unsigned>(DurationRecord::Type::Seconds)).second->equals("auto");
-                bool needsFormatMinutes = (needsFormatHours && needsFormatSeconds) || duration[DurationRecord::Type::Minutes] || !durationFormat->data(static_cast<unsigned>(DurationRecord::Type::Minutes)).second->equals("auto");
+                bool needsFormatHours = duration[ISO8601::DateTimeUnit::Hour] || !durationFormat->data(static_cast<unsigned>(ISO8601::DateTimeUnit::Hour)).second->equals("auto");
+                bool needsFormatSeconds = secondsValue || !durationFormat->data(static_cast<unsigned>(ISO8601::DateTimeUnit::Second)).second->equals("auto");
+                bool needsFormatMinutes = (needsFormatHours && needsFormatSeconds) || duration[ISO8601::DateTimeUnit::Minute] || !durationFormat->data(static_cast<unsigned>(ISO8601::DateTimeUnit::Minute)).second->equals("auto");
 
-                bool needsFormat = (unit == DurationRecord::Type::Hours && needsFormatHours) || (unit == DurationRecord::Type::Minutes && needsFormatMinutes) || (unit == DurationRecord::Type::Seconds && needsFormatSeconds);
-                bool needsSeparator = (unit == DurationRecord::Type::Hours && needsFormatHours && needsFormatMinutes) || (unit == DurationRecord::Type::Minutes && needsFormatSeconds);
+                bool needsFormat = (unit == ISO8601::DateTimeUnit::Hour && needsFormatHours) || (unit == ISO8601::DateTimeUnit::Minute && needsFormatMinutes) || (unit == ISO8601::DateTimeUnit::Second && needsFormatSeconds);
+                bool needsSeparator = (unit == ISO8601::DateTimeUnit::Hour && needsFormatHours && needsFormatMinutes) || (unit == ISO8601::DateTimeUnit::Minute && needsFormatSeconds);
 
                 if (needsFormat) {
                     adjustSignDisplay();
