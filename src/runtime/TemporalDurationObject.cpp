@@ -344,6 +344,30 @@ ISO8601::InternalDuration TemporalDurationObject::toInternalDurationRecord(ISO86
     return ISO8601::InternalDuration(dateDuration, t);
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal-add24hourdaystonormalizedtimeduration
+Int128 TemporalDurationObject::add24HourDaysToTimeDuration(ExecutionState& state, Int128 d, double days)
+{
+    CheckedInt128 daysInNanoseconds = checkedCastDoubleToInt128(days) * ISO8601::ExactTime::nsPerDay;
+    CheckedInt128 result = d + daysInNanoseconds;
+    ASSERT(!result.hasOverflowed());
+    if (std::abs(result) > ISO8601::InternalDuration::maxTimeDuration) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Total time in duration is out of range");
+        return {};
+    }
+    return result;
+}
+
+ISO8601::InternalDuration TemporalDurationObject::toInternalDurationRecordWith24HourDays(ExecutionState& state, ISO8601::Duration duration)
+{
+    // Let timeDuration be TimeDurationFromComponents(duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]]).
+    auto timeDuration = timeDurationFromComponents(state, duration.hours(), duration.minutes(), duration.seconds(), duration.milliseconds(), duration.microseconds(), duration.nanoseconds());
+    // Set timeDuration to ! Add24HourDaysToTimeDuration(timeDuration, duration.[[Days]]).
+    timeDuration = add24HourDaysToTimeDuration(state, timeDuration, duration.days());
+    // Let dateDuration be ! CreateDateDurationRecord(duration.[[Years]], duration.[[Months]], duration.[[Weeks]], 0).
+    ISO8601::Duration dateDuration = ISO8601::Duration{ duration.years(), duration.months(), duration.weeks(), 0, 0, 0, 0, 0, 0, 0 };
+    return ISO8601::InternalDuration::combineDateAndTimeDuration(dateDuration, timeDuration);
+}
+
 Int128 TemporalDurationObject::roundTimeDuration(ExecutionState& state, Int128 timeDuration, unsigned increment, ISO8601::DateTimeUnit unit, ISO8601::RoundingMode roundingMode)
 {
     // Let divisor be the value in the "Length in Nanoseconds" column of the row of Table 21 whose "Value" column contains unit.
@@ -362,6 +386,24 @@ Int128 TemporalDurationObject::roundTimeDurationToIncrement(ExecutionState& stat
     }
     // 3. Return rounded.
     return rounded;
+}
+
+Int128 TemporalDurationObject::timeDurationFromComponents(ExecutionState& state, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds)
+{
+    CheckedInt128 min = checkedCastDoubleToInt128(minutes) + checkedCastDoubleToInt128(hours) * Int128{ 60 };
+    CheckedInt128 sec = checkedCastDoubleToInt128(seconds) + min * Int128{ 60 };
+    CheckedInt128 millis = checkedCastDoubleToInt128(milliseconds) + sec * Int128{ 1000 };
+    CheckedInt128 micros = checkedCastDoubleToInt128(microseconds) + millis * Int128{ 1000 };
+    CheckedInt128 nanos = checkedCastDoubleToInt128(nanoseconds) + micros * Int128{ 1000 };
+    if (nanos.hasOverflowed() || std::abs(nanos) > ISO8601::InternalDuration::maxTimeDuration) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "time duration exceeds maximum");
+    }
+    // The components come from a TemporalDuration, so as per
+    // TemporalDuration::tryCreateIfValid(), these components can at most add up
+    // to ISO8601::InternalDuration::maxTimeDuration
+    ASSERT(!nanos.hasOverflowed());
+    ASSERT(std::abs(nanos) <= ISO8601::InternalDuration::maxTimeDuration);
+    return nanos;
 }
 
 } // namespace Escargot

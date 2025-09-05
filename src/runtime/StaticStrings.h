@@ -993,6 +993,7 @@ namespace Escargot {
     F(PlainTimeISO, "plainTimeISO")                   \
     F(Since, "since")                                 \
     F(SmallestUnit, "smallestUnit")                   \
+    F(Subtract, "subtract")                           \
     F(TemporalDotDuration, "Temporal.Duration")       \
     F(TemporalDotInstant, "Temporal.Instant")         \
     F(TemporalDotNow, "Temporal.Now")                 \

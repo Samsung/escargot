@@ -34,9 +34,7 @@ TemporalInstantObject::TemporalInstantObject(ExecutionState& state, Object* prot
 
 Value TemporalInstantObject::epochMilliseconds() const
 {
-    Int128 s = *m_nanoseconds;
-    s /= 1000000;
-    return Value(static_cast<int64_t>(s));
+    return Value(static_cast<int64_t>(ISO8601::ExactTime(*m_nanoseconds).floorEpochMilliseconds()));
 }
 
 
@@ -277,11 +275,41 @@ TemporalDurationObject* TemporalInstantObject::differenceTemporalInstant(Executi
     return new TemporalDurationObject(state, result);
 }
 
-TemporalInstantObject* TemporalInstantObject::addDurationToInstant(AddDurationOperation operation, const Value& temporalDurationLike)
+TemporalInstantObject* TemporalInstantObject::addDurationToInstant(ExecutionState& state, AddDurationOperation operation, const Value& temporalDurationLike)
 {
-    TemporalInstantObject* instant = this;
-    // TODO
-    return nullptr;
+    // Let duration be ? ToTemporalDuration(temporalDurationLike).
+    auto duration = Temporal::toTemporalDuration(state, temporalDurationLike)->duration();
+
+    bool hasPositive = false;
+    bool hasNegative = false;
+    for (auto n : duration) {
+        if (n > 0) {
+            hasPositive = true;
+        } else if (n < 0) {
+            hasNegative = true;
+        }
+    }
+
+    if (hasPositive && hasNegative) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration");
+    }
+
+    // If operation is subtract, set duration to CreateNegatedTemporalDuration(duration).
+    if (operation == AddDurationOperation::Subtract) {
+        duration = TemporalDurationObject::createNegatedTemporalDuration(duration);
+    }
+    // Let largestUnit be DefaultTemporalLargestUnit(duration).
+    auto largestUnit = duration.defaultTemporalLargestUnit();
+    // If TemporalUnitCategory(largestUnit) is date, throw a RangeError exception.
+    if (ISO8601::toDateTimeCategory(largestUnit) == ISO8601::DateTimeUnitCategory::Date) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration");
+    }
+    // Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+    auto internalDuration = TemporalDurationObject::toInternalDurationRecordWith24HourDays(state, duration);
+    // Let ns be ? AddInstant(instant.[[EpochNanoseconds]], internalDuration.[[Time]]).
+    Int128 ns = addInstant(state, epochNanoseconds(), internalDuration.time());
+    // Return ! CreateTemporalInstant(ns).
+    return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(), ns);
 }
 
 ISO8601::InternalDuration TemporalInstantObject::differenceInstant(ExecutionState& state, Int128 ns1, Int128 ns2, unsigned roundingIncrement,
@@ -293,6 +321,18 @@ ISO8601::InternalDuration TemporalInstantObject::differenceInstant(ExecutionStat
     timeDuration = TemporalDurationObject::roundTimeDuration(state, timeDuration, roundingIncrement, smallestUnit, roundingMode);
     // Return CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
     return ISO8601::InternalDuration(ISO8601::Duration(), timeDuration);
+}
+
+Int128 TemporalInstantObject::addInstant(ExecutionState& state, Int128 epochNanoseconds, Int128 timeDuration)
+{
+    // Let result be AddTimeDurationToEpochNanoseconds(timeDuration, epochNanoseconds).
+    auto result = timeDuration + epochNanoseconds;
+    // If IsValidEpochNanoseconds(result) is false, throw a RangeError exception.
+    if (!ISO8601::ExactTime(result).isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid time or date");
+    }
+    // Return result.
+    return result;
 }
 
 } // namespace Escargot

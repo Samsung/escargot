@@ -123,6 +123,21 @@ static Value builtinTemporalInstantFrom(ExecutionState& state, Value thisValue, 
     return Temporal::toTemporalInstant(state, argv[0]);
 }
 
+static Value builtinTemporalInstantCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Set one to ? ToTemporalInstant(one).
+    auto one = Temporal::toTemporalInstant(state, argv[0]);
+    // Set two to ? ToTemporalInstant(two).
+    auto two = Temporal::toTemporalInstant(state, argv[1]);
+    // Return 𝔽(CompareEpochNanoseconds(one.[[EpochNanoseconds]], two.[[EpochNanoseconds]])).
+    if (one->epochNanoseconds() > two->epochNanoseconds()) {
+        return Value(1);
+    } else if (one->epochNanoseconds() < two->epochNanoseconds()) {
+        return Value(-1);
+    }
+    return Value(0);
+}
+
 static Value builtinTemporalInstantFromEpochMilliseconds(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // Set epochMilliseconds to ? ToNumber(epochMilliseconds).
@@ -229,6 +244,18 @@ static Value builtinTemporalInstantSince(ExecutionState& state, Value thisValue,
 {
     RESOLVE_THIS_BINDING_TO_INSTANT(instant, Since);
     return instant->differenceTemporalInstant(state, TemporalInstantObject::DifferenceTemporalInstantOperation::Since, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalInstantAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_INSTANT2(instant, add);
+    return instant->addDurationToInstant(state, TemporalInstantObject::AddDurationOperation::Add, argv[0]);
+}
+
+static Value builtinTemporalInstantSubtract(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_INSTANT(instant, Subtract);
+    return instant->addDurationToInstant(state, TemporalInstantObject::AddDurationOperation::Subtract, argv[0]);
 }
 
 #define RESOLVE_THIS_BINDING_TO_PLAINDATE(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
@@ -469,6 +496,11 @@ void GlobalObject::installTemporal(ExecutionState& state)
                                                                                                  NativeFunctionInfo(strings->lazyFromEpochNanoseconds(), builtinTemporalInstantFromEpochNanoseconds, 1, NativeFunctionInfo::Strict)),
                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_temporalInstant->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCompare()),
+                                               ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                                 NativeFunctionInfo(strings->lazyCompare(), builtinTemporalInstantCompare, 2, NativeFunctionInfo::Strict)),
+                                                                        (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
     m_temporalInstantPrototype = m_temporalInstant->getFunctionPrototype(state).asObject();
     m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
@@ -482,6 +514,8 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->round), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->round, builtinTemporalInstantRound, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyUntil()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyUntil(), builtinTemporalInstantUntil, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySince()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySince(), builtinTemporalInstantSince, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalInstantAdd, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalInstantPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalInstantSubtract, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
         auto getter = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyGetEpochMilliseconds(), builtinTemporalInstantGetEpochMilliseconds, 0, NativeFunctionInfo::Strict));

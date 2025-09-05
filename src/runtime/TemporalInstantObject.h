@@ -53,18 +53,21 @@ public:
     };
     TemporalDurationObject* differenceTemporalInstant(ExecutionState& state, DifferenceTemporalInstantOperation operation, Value other, Value options);
 
-private:
     // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoinstant
     enum class AddDurationOperation {
         Add,
         Subtract
     };
-    TemporalInstantObject* addDurationToInstant(AddDurationOperation operation, const Value& temporalDurationLike);
+    TemporalInstantObject* addDurationToInstant(ExecutionState& state, AddDurationOperation operation, const Value& temporalDurationLike);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-differenceinstant
     static ISO8601::InternalDuration differenceInstant(ExecutionState& state, Int128 ns1, Int128 ns2, unsigned roundingIncrement,
                                                        ISO8601::DateTimeUnit smallestUnit, ISO8601::RoundingMode roundingMode);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-addinstant
+    static Int128 addInstant(ExecutionState& state, Int128 epochNanoseconds, Int128 timeDuration);
+
+private:
     Int128* m_nanoseconds; // [[EpochNanoseconds]]
 };
 

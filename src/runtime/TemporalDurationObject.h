@@ -79,14 +79,24 @@ public:
 
     String* toString(ExecutionState& state, Value options);
     static String* temporalDurationToString(ISO8601::Duration duration, Value precision);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-tointernaldurationrecord
     static ISO8601::InternalDuration toInternalDurationRecord(ISO8601::Duration duration);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-tointernaldurationrecordwith24hourdays
+    static ISO8601::InternalDuration toInternalDurationRecordWith24HourDays(ExecutionState& state, ISO8601::Duration duration);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-roundtimeduration
     static Int128 roundTimeDuration(ExecutionState& state, Int128 timeDuration, unsigned increment, ISO8601::DateTimeUnit unit, ISO8601::RoundingMode roundingMode);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-roundtimedurationtoincrement
     static Int128 roundTimeDurationToIncrement(ExecutionState& state, Int128 d, Int128 increment, ISO8601::RoundingMode roundingMode);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-timedurationfromcomponents
+    static Int128 timeDurationFromComponents(ExecutionState& state, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-add24hourdaystonormalizedtimeduration
+    static Int128 add24HourDaysToTimeDuration(ExecutionState& state, Int128 d, double days);
 
 private:
     ISO8601::Duration m_duration;
