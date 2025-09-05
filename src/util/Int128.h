@@ -81,9 +81,13 @@ static __forceinline int __builtin_clzl(unsigned long x)
 #undef INT128_SPECIALIZATION
 #define INT128_NO_EXPORT
 
+#include "CheckedArithmetic.h"
+
 namespace Escargot {
 
 using Int128 = large_int::int128_t;
+using CheckedInt128 = Checked<Int128, RecordOverflow>;
+CheckedInt128 checkedCastDoubleToInt128(double n);
 
 } // namespace Escargot
 

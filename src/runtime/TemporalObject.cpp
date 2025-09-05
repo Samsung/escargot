@@ -452,7 +452,7 @@ TemporalDurationObject* Temporal::toTemporalDuration(ExecutionState& state, cons
         // Return ? ParseTemporalDurationString(item).
         auto duration = ISO8601::Duration::parseDurationString(item.asString());
         if (!duration) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, msg);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
         }
         return new TemporalDurationObject(state, duration.value());
     }
