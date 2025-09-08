@@ -225,6 +225,9 @@ public:
         return 0;
     }
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-isvalidduration
+    bool isValid() const;
+
     // https://tc39.es/proposal-temporal/#sec-temporal-defaulttemporallargestunit
     DateTimeUnit defaultTemporalLargestUnit() const
     {
@@ -261,6 +264,9 @@ public:
         return operator[](static_cast<size_t>(idx));
     }
 
+    std::array<double, 10>::iterator begin() { return m_data.begin(); }
+    std::array<double, 10>::iterator end() { return m_data.end(); }
+
     std::array<double, 10>::const_iterator begin() const { return m_data.begin(); }
     std::array<double, 10>::const_iterator end() const { return m_data.end(); }
 
@@ -279,9 +285,6 @@ class PartialDuration {
     std::array<Optional<double>, 10> m_data;
 
 public:
-    // https://tc39.es/proposal-temporal/#sec-temporal-totemporalpartialdurationrecord
-    static PartialDuration toTemporalPartialDurationRecord(ExecutionState& state, const Value& temporalDurationLike);
-
     Optional<double> operator[](size_t idx) const
     {
         return m_data[static_cast<unsigned>(idx)];

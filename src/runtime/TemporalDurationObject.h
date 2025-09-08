@@ -80,6 +80,12 @@ public:
     String* toString(ExecutionState& state, Value options);
     static String* temporalDurationToString(ISO8601::Duration duration, Value precision);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.with
+    TemporalDurationObject* with(ExecutionState& state, Value temporalDurationLike);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporalpartialdurationrecord
+    static ISO8601::PartialDuration toTemporalPartialDurationRecord(ExecutionState& state, Value temporalDurationLike);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-tointernaldurationrecord
     static ISO8601::InternalDuration toInternalDurationRecord(ISO8601::Duration duration);
 
@@ -97,6 +103,16 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-add24hourdaystonormalizedtimeduration
     static Int128 add24HourDaysToTimeDuration(ExecutionState& state, Int128 d, double days);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-addtimeduration
+    static Int128 addTimeDuration(ExecutionState& state, Int128 one, Int128 two);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-adddurations
+    enum class AddDurationsOperation {
+        Add,
+        Subtract
+    };
+    ISO8601::Duration addDurations(ExecutionState& state, AddDurationsOperation operation, Value other);
 
 private:
     ISO8601::Duration m_duration;

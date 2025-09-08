@@ -372,6 +372,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-timedurationfromepochnanosecondsdifference
     static Int128 timeDurationFromEpochNanosecondsDifference(Int128 one, Int128 two);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-iscalendarunit
+    static bool isCalendarUnit(ISO8601::DateTimeUnit unit);
 };
 
 class TemporalObject : public DerivedObject {

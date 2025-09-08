@@ -459,7 +459,7 @@ TemporalDurationObject* Temporal::toTemporalDuration(ExecutionState& state, cons
 
     // Let result be a new Partial Duration Record with each field set to 0.
     // Let partial be ? ToTemporalPartialDurationRecord(item).
-    auto partial = ISO8601::PartialDuration::toTemporalPartialDurationRecord(state, item);
+    auto partial = TemporalDurationObject::toTemporalPartialDurationRecord(state, item);
     // If partial.[[Years]] is not undefined, set result.[[Years]] to partial.[[Years]].
     // If partial.[[Months]] is not undefined, set result.[[Months]] to partial.[[Months]].
     // If partial.[[Weeks]] is not undefined, set result.[[Weeks]] to partial.[[Weeks]].
@@ -478,6 +478,10 @@ TemporalDurationObject* Temporal::toTemporalDuration(ExecutionState& state, cons
             duration[idx] = s.value();
         }
         idx++;
+    }
+
+    if (!duration.isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
     }
 
     // Return ? CreateTemporalDuration(result.[[Years]], result.[[Months]], result.[[Weeks]], result.[[Days]], result.[[Hours]], result.[[Minutes]], result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]], result.[[Nanoseconds]]).
@@ -1015,6 +1019,14 @@ Int128 Temporal::timeDurationFromEpochNanosecondsDifference(Int128 one, Int128 t
     ASSERT(std::abs(result) < ISO8601::InternalDuration::maxTimeDuration);
     // Return result.
     return result;
+}
+
+bool Temporal::isCalendarUnit(ISO8601::DateTimeUnit unit)
+{
+    if (unit == ISO8601::DateTimeUnit::Year || unit == ISO8601::DateTimeUnit::Month || unit == ISO8601::DateTimeUnit::Week) {
+        return true;
+    }
+    return false;
 }
 
 TemporalObject::TemporalObject(ExecutionState& state)

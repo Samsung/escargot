@@ -367,122 +367,6 @@ Object* IntlDurationFormatObject::resolvedOptions(ExecutionState& state)
     return options;
 }
 
-static bool isValidDurationWork(double v, int& sign)
-{
-    // If 𝔽(v) is not finite, return false.
-    if (!std::isfinite(v)) {
-        return false;
-    }
-    // If v < 0, then
-    if (v < 0) {
-        // If sign > 0, return false.
-        if (sign > 0) {
-            return false;
-        }
-        // Set sign to -1.
-        sign = -1;
-    } else if (v > 0) {
-        // Else if v > 0, then
-        // If sign < 0, return false.
-        if (sign < 0) {
-            return false;
-        }
-        // Set sign to 1.
-        sign = 1;
-    }
-    return true;
-}
-
-static BigIntData totalNanoseconds(const DurationRecord& record)
-{
-    BigIntData resultNs;
-    constexpr int64_t nanoMultiplier = 1000000000ULL;
-    constexpr int64_t milliMultiplier = 1000000ULL;
-    constexpr int64_t microMultiplier = 1000ULL;
-
-    {
-        BigIntData s(record.days());
-        s = s.multiply(86400);
-        s = s.multiply(nanoMultiplier);
-        resultNs = resultNs.addition(s);
-    }
-    {
-        BigIntData s(record.hours());
-        s = s.multiply(3600);
-        s = s.multiply(nanoMultiplier);
-        resultNs = resultNs.addition(s);
-    }
-    {
-        BigIntData s(record.minutes());
-        s = s.multiply(60);
-        s = s.multiply(nanoMultiplier);
-        resultNs = resultNs.addition(s);
-    }
-    {
-        BigIntData s(record.seconds());
-        s = s.multiply(nanoMultiplier);
-        resultNs = resultNs.addition(s);
-    }
-    {
-        BigIntData s(record.milliseconds());
-        s = s.multiply(milliMultiplier);
-        resultNs = resultNs.addition(s);
-    }
-    {
-        BigIntData s(record.microseconds());
-        s = s.multiply(microMultiplier);
-        resultNs = resultNs.addition(s);
-    }
-    {
-        BigIntData s(record.nanoseconds());
-        resultNs = resultNs.addition(s);
-    }
-
-    return resultNs;
-}
-
-// https://tc39.es/ecma402/#sec-isvalidduration
-static bool isValidDuration(const DurationRecord& record)
-{
-    // Let sign be 0.
-    int sign = 0;
-    // For each value v of « years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds », do
-    for (double v : record) {
-        if (!isValidDurationWork(v, sign)) {
-            return false;
-        }
-    }
-
-    // If abs(years) ≥ 2**32, return false.
-    if (std::abs(record.years()) >= (1ULL << 32)) {
-        return false;
-    }
-    // If abs(months) ≥ 2**32, return false.
-    if (std::abs(record.months()) >= (1ULL << 32)) {
-        return false;
-    }
-    // If abs(weeks) ≥ 2**32, return false.
-    if (std::abs(record.weeks()) >= (1ULL << 32)) {
-        return false;
-    }
-
-    // Let normalizedSeconds be days × 86,400 + hours × 3600 + minutes × 60 + seconds + ℝ(𝔽(milliseconds)) × 10**-3 + ℝ(𝔽(microseconds)) × 10**-6 + ℝ(𝔽(nanoseconds)) × 10**-9.
-    // NOTE: The above step cannot be implemented directly using floating-point arithmetic. Multiplying by 10**-3, 10**-6, and 10**-9 respectively may be imprecise when milliseconds, microseconds, or nanoseconds is an unsafe integer. This multiplication can be implemented in C++ with an implementation of std::remquo() with sufficient bits in the quotient. String manipulation will also give an exact result, since the multiplication is by a power of 10.
-    BigIntData normalizedNanoSeconds = totalNanoseconds(record);
-    // If abs(normalizedSeconds) ≥ 2**53, return false.
-    BigIntData limit(int64_t(1ULL << 53));
-    limit = limit.multiply(1000000000ULL);
-    if (normalizedNanoSeconds.greaterThanEqual(limit)) {
-        return false;
-    }
-    limit = limit.multiply(-1);
-    if (normalizedNanoSeconds.lessThanEqual(limit)) {
-        return false;
-    }
-    // Return true.
-    return true;
-}
-
 static DurationRecord toDurationRecord(ExecutionState& state, const Value& input)
 {
     // If input is not an Object, then
@@ -541,7 +425,7 @@ static DurationRecord toDurationRecord(ExecutionState& state, const Value& input
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid input for ToDurationRecord");
     }
     // If IsValidDuration( result.[[Years]], result.[[Months]], result.[[Weeks]], result.[[Days]], result.[[Hours]], result.[[Minutes]], result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]], result.[[Nanoseconds]]) is false, then
-    if (!isValidDuration(result)) {
+    if (!result.isValid()) {
         // Throw a RangeError exception.
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid input for ToDurationRecord");
     }
