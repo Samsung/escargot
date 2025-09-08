@@ -339,6 +339,124 @@ Optional<Duration> Duration::parseDurationString(String* input)
     return result;
 }
 
+static bool isValidDurationWork(double v, int& sign)
+{
+    // If 𝔽(v) is not finite, return false.
+    if (!std::isfinite(v)) {
+        return false;
+    }
+    // If v < 0, then
+    if (v < 0) {
+        // If sign > 0, return false.
+        if (sign > 0) {
+            return false;
+        }
+        // Set sign to -1.
+        sign = -1;
+    } else if (v > 0) {
+        // Else if v > 0, then
+        // If sign < 0, return false.
+        if (sign < 0) {
+            return false;
+        }
+        // Set sign to 1.
+        sign = 1;
+    }
+    return true;
+}
+
+
+static BigIntData totalDateTimeNanoseconds(const Duration& record)
+{
+    BigIntData resultNs;
+    constexpr int64_t nanoMultiplier = 1000000000ULL;
+    constexpr int64_t milliMultiplier = 1000000ULL;
+    constexpr int64_t microMultiplier = 1000ULL;
+
+    {
+        BigIntData s(record.days());
+        s = s.multiply(86400);
+        s = s.multiply(nanoMultiplier);
+        resultNs = resultNs.addition(s);
+    }
+    {
+        BigIntData s(record.hours());
+        s = s.multiply(3600);
+        s = s.multiply(nanoMultiplier);
+        resultNs = resultNs.addition(s);
+    }
+    {
+        BigIntData s(record.minutes());
+        s = s.multiply(60);
+        s = s.multiply(nanoMultiplier);
+        resultNs = resultNs.addition(s);
+    }
+    {
+        BigIntData s(record.seconds());
+        s = s.multiply(nanoMultiplier);
+        resultNs = resultNs.addition(s);
+    }
+    {
+        BigIntData s(record.milliseconds());
+        s = s.multiply(milliMultiplier);
+        resultNs = resultNs.addition(s);
+    }
+    {
+        BigIntData s(record.microseconds());
+        s = s.multiply(microMultiplier);
+        resultNs = resultNs.addition(s);
+    }
+    {
+        BigIntData s(record.nanoseconds());
+        resultNs = resultNs.addition(s);
+    }
+
+    return resultNs;
+}
+
+
+// https://tc39.es/ecma402/#sec-isvalidduration
+bool Duration::isValid() const
+{
+    // Let sign be 0.
+    int sign = 0;
+    // For each value v of « years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds », do
+    for (double v : m_data) {
+        if (!isValidDurationWork(v, sign)) {
+            return false;
+        }
+    }
+
+    // If abs(years) ≥ 2**32, return false.
+    if (std::abs(years()) >= (1ULL << 32)) {
+        return false;
+    }
+    // If abs(months) ≥ 2**32, return false.
+    if (std::abs(months()) >= (1ULL << 32)) {
+        return false;
+    }
+    // If abs(weeks) ≥ 2**32, return false.
+    if (std::abs(weeks()) >= (1ULL << 32)) {
+        return false;
+    }
+
+    // Let normalizedSeconds be days × 86,400 + hours × 3600 + minutes × 60 + seconds + ℝ(𝔽(milliseconds)) × 10**-3 + ℝ(𝔽(microseconds)) × 10**-6 + ℝ(𝔽(nanoseconds)) × 10**-9.
+    // NOTE: The above step cannot be implemented directly using floating-point arithmetic. Multiplying by 10**-3, 10**-6, and 10**-9 respectively may be imprecise when milliseconds, microseconds, or nanoseconds is an unsafe integer. This multiplication can be implemented in C++ with an implementation of std::remquo() with sufficient bits in the quotient. String manipulation will also give an exact result, since the multiplication is by a power of 10.
+    BigIntData normalizedNanoSeconds = totalDateTimeNanoseconds(*this);
+    // If abs(normalizedSeconds) ≥ 2**53, return false.
+    BigIntData limit(int64_t(1ULL << 53));
+    limit = limit.multiply(1000000000ULL);
+    if (normalizedNanoSeconds.greaterThanEqual(limit)) {
+        return false;
+    }
+    limit = limit.multiply(-1);
+    if (normalizedNanoSeconds.lessThanEqual(limit)) {
+        return false;
+    }
+    // Return true.
+    return true;
+}
+
 String* Duration::typeName(ExecutionState& state, ISO8601::DateTimeUnit t)
 {
     switch (t) {
@@ -367,114 +485,44 @@ Int128 Duration::totalNanoseconds(ISO8601::DateTimeUnit unit) const
     constexpr int64_t microMultiplier = 1000ULL;
 
     if (unit <= ISO8601::DateTimeUnit::Day) {
-        Int128 s(days());
+        Int128 s((int64_t)days());
         s *= 86400;
         s *= nanoMultiplier;
         resultNs += s;
     }
     if (unit <= ISO8601::DateTimeUnit::Hour) {
-        Int128 s(hours());
+        Int128 s((int64_t)hours());
         s *= 3600;
         s *= nanoMultiplier;
         resultNs += s;
     }
     if (unit <= ISO8601::DateTimeUnit::Minute) {
-        Int128 s(minutes());
+        Int128 s((int64_t)minutes());
         s *= 60;
         s *= nanoMultiplier;
         resultNs += s;
     }
     if (unit <= ISO8601::DateTimeUnit::Second) {
-        Int128 s(seconds());
+        Int128 s((int64_t)seconds());
         s *= nanoMultiplier;
         resultNs += s;
     }
     if (unit <= ISO8601::DateTimeUnit::Millisecond) {
-        Int128 s(milliseconds());
+        Int128 s((int64_t)milliseconds());
         s *= milliMultiplier;
         resultNs += s;
     }
     if (unit <= ISO8601::DateTimeUnit::Microsecond) {
-        Int128 s(microseconds());
+        Int128 s((int64_t)microseconds());
         s *= microMultiplier;
         resultNs += s;
     }
     if (unit <= ISO8601::DateTimeUnit::Nanosecond) {
-        Int128 s(nanoseconds());
+        Int128 s((int64_t)nanoseconds());
         resultNs += s;
     }
 
     return resultNs;
-}
-
-PartialDuration PartialDuration::toTemporalPartialDurationRecord(ExecutionState& state, const Value& temporalDurationLike)
-{
-    // If temporalDurationLike is not an Object, then
-    if (!temporalDurationLike.isObject()) {
-        // Throw a TypeError exception.
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "toTemporalPartialDurationRecord needs Object");
-    }
-
-    // Let result be a new partial Duration Record with each field set to undefined.
-    PartialDuration result;
-    // NOTE: The following steps read properties and perform independent validation in alphabetical order.
-    // Let days be ? Get(temporalDurationLike, "days").
-    // If days is not undefined, set result.[[Days]] to ? ToIntegerIfIntegral(days).
-    // Let hours be ? Get(temporalDurationLike, "hours").
-    // If hours is not undefined, set result.[[Hours]] to ? ToIntegerIfIntegral(hours).
-    // Let microseconds be ? Get(temporalDurationLike, "microseconds").
-    // If microseconds is not undefined, set result.[[Microseconds]] to ? ToIntegerIfIntegral(microseconds).
-    // Let milliseconds be ? Get(temporalDurationLike, "milliseconds").
-    // If milliseconds is not undefined, set result.[[Milliseconds]] to ? ToIntegerIfIntegral(milliseconds).
-    // Let minutes be ? Get(temporalDurationLike, "minutes").
-    // If minutes is not undefined, set result.[[Minutes]] to ? ToIntegerIfIntegral(minutes).
-    // Let months be ? Get(temporalDurationLike, "months").
-    // If months is not undefined, set result.[[Months]] to ? ToIntegerIfIntegral(months).
-    // Let nanoseconds be ? Get(temporalDurationLike, "nanoseconds").
-    // If nanoseconds is not undefined, set result.[[Nanoseconds]] to ? ToIntegerIfIntegral(nanoseconds).
-    // Let seconds be ? Get(temporalDurationLike, "seconds").
-    // If seconds is not undefined, set result.[[Seconds]] to ? ToIntegerIfIntegral(seconds).
-    // Let weeks be ? Get(temporalDurationLike, "weeks").
-    // If weeks is not undefined, set result.[[Weeks]] to ? ToIntegerIfIntegral(weeks).
-    // Let years be ? Get(temporalDurationLike, "years").
-    // If years is not undefined, set result.[[Years]] to ? ToIntegerIfIntegral(years).
-
-    Object* s = temporalDurationLike.asObject();
-    Value v;
-#define SET_ONCE(name)                                                                                    \
-    v = s->get(state, ObjectPropertyName(state.context()->staticStrings().lazy##name())).value(state, s); \
-    if (!v.isUndefined()) {                                                                               \
-        result.set##name(v.toIntegerIfIntergral(state));                                                  \
-    }
-
-    SET_ONCE(Days);
-    SET_ONCE(Hours);
-    SET_ONCE(Microseconds);
-    SET_ONCE(Milliseconds);
-    SET_ONCE(Minutes);
-    SET_ONCE(Months);
-    SET_ONCE(Nanoseconds);
-    SET_ONCE(Seconds);
-    SET_ONCE(Weeks);
-    SET_ONCE(Years);
-
-#undef SET_ONCE
-
-    // If years is undefined, and months is undefined, and weeks is undefined, and days is undefined, and hours is undefined, and minutes is undefined, and seconds is undefined, and milliseconds is undefined, and microseconds is undefined, and nanoseconds is undefined, throw a TypeError exception.
-    bool allUndefined = true;
-    for (const auto& s : result) {
-        if (s.hasValue()) {
-            allUndefined = false;
-            break;
-        }
-    }
-
-    if (allUndefined) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "toTemporalPartialDurationRecord needs at least one duration value");
-    }
-
-    // Return result.
-    return result;
 }
 
 static bool canBeRFC9557Annotation(const ParserString& buffer)

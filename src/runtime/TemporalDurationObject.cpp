@@ -234,11 +234,11 @@ static void appendInteger(StringBuilder& builder, Int128 value)
 
 String* TemporalDurationObject::temporalDurationToString(ISO8601::Duration duration, Value precision)
 {
-    auto balancedMicroseconds = static_cast<Int128>(duration.microseconds()) + static_cast<Int128>(std::trunc(duration.nanoseconds() / 1000));
-    auto balancedNanoseconds = static_cast<Int128>(duration.nanoseconds()) % 1000;
-    auto balancedMilliseconds = static_cast<Int128>(duration.milliseconds()) + (balancedMicroseconds / 1000);
+    auto balancedMicroseconds = static_cast<Int128>(static_cast<int64_t>(duration.microseconds())) + static_cast<Int128>(static_cast<int64_t>(std::trunc(duration.nanoseconds() / 1000)));
+    auto balancedNanoseconds = static_cast<Int128>(static_cast<int64_t>(duration.nanoseconds())) % 1000;
+    auto balancedMilliseconds = static_cast<Int128>(static_cast<int64_t>(duration.milliseconds())) + (balancedMicroseconds / 1000);
     balancedMicroseconds = balancedMicroseconds % 1000;
-    auto balancedSeconds = static_cast<Int128>(duration.seconds()) + (balancedMilliseconds / 1000);
+    auto balancedSeconds = static_cast<Int128>(static_cast<int64_t>(duration.seconds())) + (balancedMilliseconds / 1000);
     balancedMilliseconds = balancedMilliseconds % 1000;
 
     StringBuilder builder;
@@ -335,6 +335,104 @@ String* TemporalDurationObject::toString(ExecutionState& state, Value options)
     return temporalDurationToString(roundedDuration, precision.precision);
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.with
+TemporalDurationObject* TemporalDurationObject::with(ExecutionState& state, Value temporalDurationLike)
+{
+    // Let duration be the this value.
+    // Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
+    // Let temporalDurationLike be ? ToTemporalPartialDurationRecord(temporalDurationLike).
+    auto temporalPartialDuration = toTemporalPartialDurationRecord(state, temporalDurationLike);
+
+    // Step 4 to 23
+    ISO8601::Duration newDuration;
+    size_t idx = 0;
+    for (auto n : temporalPartialDuration) {
+        if (n) {
+            newDuration[idx] = n.value();
+        } else {
+            newDuration[idx] = m_duration[idx];
+        }
+        idx++;
+    }
+
+    // Return ? CreateTemporalDuration(years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds).
+    if (!newDuration.isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration value");
+    }
+
+    return new TemporalDurationObject(state, newDuration);
+}
+
+ISO8601::PartialDuration TemporalDurationObject::toTemporalPartialDurationRecord(ExecutionState& state, Value temporalDurationLike)
+{
+    // If temporalDurationLike is not an Object, then
+    if (!temporalDurationLike.isObject()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "toTemporalPartialDurationRecord needs Object");
+    }
+
+    // Let result be a new partial Duration Record with each field set to undefined.
+    ISO8601::PartialDuration result;
+    // NOTE: The following steps read properties and perform independent validation in alphabetical order.
+    // Let days be ? Get(temporalDurationLike, "days").
+    // If days is not undefined, set result.[[Days]] to ? ToIntegerIfIntegral(days).
+    // Let hours be ? Get(temporalDurationLike, "hours").
+    // If hours is not undefined, set result.[[Hours]] to ? ToIntegerIfIntegral(hours).
+    // Let microseconds be ? Get(temporalDurationLike, "microseconds").
+    // If microseconds is not undefined, set result.[[Microseconds]] to ? ToIntegerIfIntegral(microseconds).
+    // Let milliseconds be ? Get(temporalDurationLike, "milliseconds").
+    // If milliseconds is not undefined, set result.[[Milliseconds]] to ? ToIntegerIfIntegral(milliseconds).
+    // Let minutes be ? Get(temporalDurationLike, "minutes").
+    // If minutes is not undefined, set result.[[Minutes]] to ? ToIntegerIfIntegral(minutes).
+    // Let months be ? Get(temporalDurationLike, "months").
+    // If months is not undefined, set result.[[Months]] to ? ToIntegerIfIntegral(months).
+    // Let nanoseconds be ? Get(temporalDurationLike, "nanoseconds").
+    // If nanoseconds is not undefined, set result.[[Nanoseconds]] to ? ToIntegerIfIntegral(nanoseconds).
+    // Let seconds be ? Get(temporalDurationLike, "seconds").
+    // If seconds is not undefined, set result.[[Seconds]] to ? ToIntegerIfIntegral(seconds).
+    // Let weeks be ? Get(temporalDurationLike, "weeks").
+    // If weeks is not undefined, set result.[[Weeks]] to ? ToIntegerIfIntegral(weeks).
+    // Let years be ? Get(temporalDurationLike, "years").
+    // If years is not undefined, set result.[[Years]] to ? ToIntegerIfIntegral(years).
+
+    Object* s = temporalDurationLike.asObject();
+    Value v;
+#define SET_ONCE(name)                                                                                    \
+    v = s->get(state, ObjectPropertyName(state.context()->staticStrings().lazy##name())).value(state, s); \
+    if (!v.isUndefined()) {                                                                               \
+        result.set##name(v.toIntegerIfIntergral(state));                                                  \
+    }
+
+    SET_ONCE(Days);
+    SET_ONCE(Hours);
+    SET_ONCE(Microseconds);
+    SET_ONCE(Milliseconds);
+    SET_ONCE(Minutes);
+    SET_ONCE(Months);
+    SET_ONCE(Nanoseconds);
+    SET_ONCE(Seconds);
+    SET_ONCE(Weeks);
+    SET_ONCE(Years);
+
+#undef SET_ONCE
+
+    // If years is undefined, and months is undefined, and weeks is undefined, and days is undefined, and hours is undefined, and minutes is undefined, and seconds is undefined, and milliseconds is undefined, and microseconds is undefined, and nanoseconds is undefined, throw a TypeError exception.
+    bool allUndefined = true;
+    for (const auto& s : result) {
+        if (s.hasValue()) {
+            allUndefined = false;
+            break;
+        }
+    }
+
+    if (allUndefined) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "toTemporalPartialDurationRecord needs at least one duration value");
+    }
+
+    // Return result.
+    return result;
+}
+
 ISO8601::InternalDuration TemporalDurationObject::toInternalDurationRecord(ISO8601::Duration duration)
 {
     ISO8601::Duration dateDuration{
@@ -355,6 +453,54 @@ Int128 TemporalDurationObject::add24HourDaysToTimeDuration(ExecutionState& state
         return {};
     }
     return result;
+}
+
+Int128 TemporalDurationObject::addTimeDuration(ExecutionState& state, Int128 one, Int128 two)
+{
+    // Let result be one + two.
+    auto result = one + two;
+    // If abs(result) > maxTimeDuration, throw a RangeError exception.
+    if (std::abs(result) > ISO8601::InternalDuration::maxTimeDuration) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Total time in duration is out of range");
+        return {};
+    }
+    // Return result.
+    return result;
+}
+
+ISO8601::Duration TemporalDurationObject::addDurations(ExecutionState& state, AddDurationsOperation operation, Value otherInput)
+{
+    // Set other to ? ToTemporalDuration(other).
+    auto otherDurationObject = Temporal::toTemporalDuration(state, otherInput);
+    ISO8601::Duration other = otherDurationObject->duration();
+    // If operation is subtract, set other to CreateNegatedTemporalDuration(other).
+    if (operation == AddDurationsOperation::Subtract) {
+        other = createNegatedTemporalDuration(otherDurationObject->duration());
+    }
+    // Let largestUnit1 be DefaultTemporalLargestUnit(duration).
+    auto largestUnit1 = m_duration.defaultTemporalLargestUnit();
+    // Let largestUnit2 be DefaultTemporalLargestUnit(other).
+    auto largestUnit2 = other.defaultTemporalLargestUnit();
+    // Let largestUnit be LargerOfTwoTemporalUnits(largestUnit1, largestUnit2).
+    auto largestUnit = Temporal::largerOfTwoTemporalUnits(largestUnit1, largestUnit2);
+    // If IsCalendarUnit(largestUnit) is true, throw a RangeError exception.
+    if (Temporal::isCalendarUnit(largestUnit)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "can not add/subtract Calendar Unit duration");
+    }
+    // Let d1 be ToInternalDurationRecordWith24HourDays(duration).
+    auto d1 = toInternalDurationRecordWith24HourDays(state, m_duration);
+    // Let d2 be ToInternalDurationRecordWith24HourDays(other).
+    auto d2 = toInternalDurationRecordWith24HourDays(state, other);
+    // Let timeResult be ? AddTimeDuration(d1.[[Time]], d2.[[Time]]).
+    auto timeResult = addTimeDuration(state, d1.time(), d2.time());
+    // Let result be CombineDateAndTimeDuration(ZeroDateDuration(), timeResult).
+    auto result = ISO8601::InternalDuration::combineDateAndTimeDuration({}, timeResult);
+    // Return ? TemporalDurationFromInternal(result, largestUnit).
+    auto resultDuration = temporalDurationFromInternal(state, result, largestUnit);
+    if (!resultDuration.isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Result duration is out of range");
+    }
+    return resultDuration;
 }
 
 ISO8601::InternalDuration TemporalDurationObject::toInternalDurationRecordWith24HourDays(ExecutionState& state, ISO8601::Duration duration)
