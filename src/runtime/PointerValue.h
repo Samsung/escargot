@@ -78,15 +78,12 @@ class AsyncDisposableStackObject;
 struct DisposableResourceRecord;
 #if defined(ENABLE_TEMPORAL)
 class TemporalObject;
-class TemporalPlainDateObject;
-class TemporalZonedDateTimeObject;
 class TemporalPlainTimeObject;
+class TemporalPlainDateObject;
 class TemporalPlainDateTimeObject;
+class TemporalZonedDateTimeObject;
 class TemporalInstantObject;
-class TemporalCalendarObject;
 class TemporalDurationObject;
-class TemporalPlainYearMonthObject;
-class TemporalPlainMonthDayObject;
 #endif
 class TypedArrayObject;
 class ModuleNamespaceObject;
@@ -601,7 +598,17 @@ public:
         return false;
     }
 
+    virtual bool isTemporalPlainTimeObject() const
+    {
+        return false;
+    }
+
     virtual bool isTemporalPlainDateObject() const
+    {
+        return false;
+    }
+
+    virtual bool isTemporalPlainDateTimeObject() const
     {
         return false;
     }
@@ -1079,10 +1086,22 @@ public:
         return (TemporalDurationObject*)this;
     }
 
+    TemporalPlainTimeObject* asTemporalPlainTimeObject()
+    {
+        ASSERT(isTemporalPlainTimeObject());
+        return (TemporalPlainTimeObject*)this;
+    }
+
     TemporalPlainDateObject* asTemporalPlainDateObject()
     {
         ASSERT(isTemporalPlainDateObject());
         return (TemporalPlainDateObject*)this;
+    }
+
+    TemporalPlainDateTimeObject* asTemporalPlainDateTimeObject()
+    {
+        ASSERT(isTemporalPlainDateTimeObject());
+        return (TemporalPlainDateTimeObject*)this;
     }
 #endif
 

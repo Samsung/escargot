@@ -94,18 +94,26 @@ inline Optional<DateTimeUnit> toDateTimeUnit(Optional<String*> s)
     return NullOption;
 }
 
-#define PLAIN_DATE_UNITS(macro) \
-    macro(year, Year)           \
-        macro(month, Month)     \
-            macro(day, Day)
+#define PLAIN_DATE_UNITS(F) \
+    F(year, Year)           \
+    F(month, Month)         \
+    F(day, Day)
 
-#define PLAIN_TIME_UNITS(macro)                     \
-    macro(hour, Hour)                               \
-        macro(minute, Minute)                       \
-            macro(second, Second)                   \
-                macro(millisecond, Millisecond)     \
-                    macro(microsecond, Microsecond) \
-                        macro(nanosecond, Nanosecond)
+#define PLAIN_TIME_UNITS(F)     \
+    F(hour, Hour)               \
+    F(minute, Minute)           \
+    F(second, Second)           \
+    F(millisecond, Millisecond) \
+    F(microsecond, Microsecond) \
+    F(nanosecond, Nanosecond)
+
+#define PLAIN_TIME_UNITS_ALPHABET_ORDER(F) \
+    F(hour, Hour)                          \
+    F(microsecond, Microsecond)            \
+    F(millisecond, Millisecond)            \
+    F(minute, Minute)                      \
+    F(nanosecond, Nanosecond)              \
+    F(second, Second)
 
 enum class RoundingMode : uint8_t {
     Ceil,
@@ -382,10 +390,10 @@ public:
     {
     }
 
-#define JSC_DEFINE_ISO8601_PLAIN_TIME_FIELD(name, capitalizedName) \
+#define DEFINE_ISO8601_PLAIN_TIME_FIELD(name, capitalizedName) \
     unsigned name() const { return m_##name; }
-    PLAIN_TIME_UNITS(JSC_DEFINE_ISO8601_PLAIN_TIME_FIELD);
-#undef JSC_DEFINE_ISO8601_DURATION_FIELD
+    PLAIN_TIME_UNITS(DEFINE_ISO8601_PLAIN_TIME_FIELD);
+#undef DEFINE_ISO8601_PLAIN_TIME_FIELD
 
 private:
     uint8_t m_hour{ 0 };
@@ -396,6 +404,29 @@ private:
     uint32_t m_nanosecond : 10;
 };
 static_assert(sizeof(PlainTime) <= sizeof(uint64_t), "");
+
+class PartialPlainTime {
+public:
+    PartialPlainTime()
+    {
+    }
+
+#define DEFINE_ISO8601_PLAIN_TIME_FIELD(name, capitalizedName) \
+    Optional<int64_t> name() const { return m_##name; }
+    PLAIN_TIME_UNITS(DEFINE_ISO8601_PLAIN_TIME_FIELD);
+#undef DEFINE_ISO8601_PLAIN_TIME_FIELD
+
+#define DEFINE_ISO8601_PLAIN_TIME_FIELD(name, capitalizedName) \
+    void set##capitalizedName(Optional<int64_t> v) { m_##name = v; }
+    PLAIN_TIME_UNITS(DEFINE_ISO8601_PLAIN_TIME_FIELD);
+#undef DEFINE_ISO8601_PLAIN_TIME_FIELD
+
+private:
+#define DEFINE_ISO8601_PLAIN_TIME_FIELD(name, capitalizedName) \
+    Optional<int64_t> m_##name;
+    PLAIN_TIME_UNITS(DEFINE_ISO8601_PLAIN_TIME_FIELD);
+#undef DEFINE_ISO8601_PLAIN_TIME_FIELD
+};
 
 // Note that PlainDate does not include week unit.
 // year can be negative. And month and day starts with 1.
@@ -461,6 +492,8 @@ struct RFC9557Annotation {
 Optional<ExactTime> parseISODateTimeWithInstantFormat(String* input);
 Optional<int64_t> parseUTCOffset(String* string, bool parseSubMinutePrecision = true);
 Optional<TimeZoneID> parseTimeZoneName(String* string);
+Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(String* input);
+Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>>> parseDateTime(String* input);
 Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarDateTime(String* input, bool parseSubMinutePrecisionForTimeZone = true);
 
 // https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrement

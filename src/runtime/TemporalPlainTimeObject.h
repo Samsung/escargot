@@ -1,0 +1,59 @@
+#if defined(ENABLE_TEMPORAL)
+/*
+ * Copyright (c) 2025-present Samsung Electronics Co., Ltd
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2.1 of the License, or (at your option) any later version.
+ *
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+ *  USA
+ */
+
+#ifndef __EscargotTemporalPlainTimeObject__
+#define __EscargotTemporalPlainTimeObject__
+
+#include "runtime/TemporalObject.h"
+
+namespace Escargot {
+
+class TemporalPlainTimeObject : public DerivedObject {
+public:
+    TemporalPlainTimeObject(ExecutionState& state, Object* proto, ISO8601::PlainTime plainTime);
+
+    virtual bool isTemporalPlainTimeObject() const override
+    {
+        return true;
+    }
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporaltime
+    static TemporalPlainTimeObject* toTemporalTime(ExecutionState& state, Value item, Value optionsInput);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimerecord
+    static ISO8601::PartialPlainTime toTemporalTimeRecord(ExecutionState& state, Value temporalTimeLike, Optional<bool> completeness);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-regulatetime
+    static ISO8601::PlainTime regulateTime(ExecutionState& state, int64_t hour, int64_t minute, int64_t second,
+                                           int64_t millisecond, int64_t microsecond, int64_t nanosecond, TemporalOverflowOption overflow);
+
+    ISO8601::PlainTime plainTime() const
+    {
+        return *m_plainTime;
+    }
+
+private:
+    ISO8601::PlainTime* m_plainTime;
+};
+
+} // namespace Escargot
+
+#endif
+#endif
