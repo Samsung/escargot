@@ -1029,6 +1029,48 @@ bool Temporal::isCalendarUnit(ISO8601::DateTimeUnit unit)
     return false;
 }
 
+bool Temporal::isValidTime(int64_t hour, int64_t minute, int64_t second, int64_t millisecond, int64_t microsecond, int64_t nanosecond)
+{
+    if (hour < 0 || hour > 23) {
+        return false;
+    }
+    if (minute < 0 || minute > 59) {
+        return false;
+    }
+    if (second < 0 || second > 59) {
+        return false;
+    }
+    if (millisecond < 0 || millisecond > 999) {
+        return false;
+    }
+    if (microsecond < 0 || microsecond > 999) {
+        return false;
+    }
+    if (nanosecond < 0 || nanosecond > 999) {
+        return false;
+    }
+    return true;
+}
+
+TemporalOverflowOption Temporal::getTemporalOverflowOption(ExecutionState& state, Optional<Object*> options)
+{
+    // Let stringValue be ? GetOption(options, "overflow", string, « "constrain", "reject" », "constrain").
+    String* stringValue = state.context()->staticStrings().lazyConstrain().string();
+    if (options) {
+        Value values[2] = { state.context()->staticStrings().lazyConstrain().string(),
+                            state.context()->staticStrings().lazyReject().string() };
+        stringValue = Intl::getOption(state, options.value(), state.context()->staticStrings().lazyOverflow().string(), Intl::StringValue,
+                                      values, 2, state.context()->staticStrings().lazyConstrain().string())
+                          .asString();
+    }
+    // If stringValue is "constrain", return constrain.
+    if (stringValue->equals("constrain")) {
+        return TemporalOverflowOption::Constrain;
+    }
+    // Return reject.
+    return TemporalOverflowOption::Reject;
+}
+
 TemporalObject::TemporalObject(ExecutionState& state)
     : TemporalObject(state, state.context()->globalObject()->objectPrototype())
 {

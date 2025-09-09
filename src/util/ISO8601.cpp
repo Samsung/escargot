@@ -1121,8 +1121,9 @@ static Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(Parse
     // Time :
     //     TimeSpec TimeZone[opt]
     auto plainTime = parseTimeSpec(buffer, Second60Mode::Accept);
-    if (!plainTime)
+    if (!plainTime) {
         return NullOption;
+    }
     if (buffer.atEnd())
         return Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>>(std::make_tuple(std::move(plainTime.value()), NullOption));
     if (canBeTimeZone(buffer, *buffer)) {
@@ -1132,6 +1133,30 @@ static Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(Parse
         return Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>>(std::make_tuple(std::move(plainTime.value()), std::move(timeZone)));
     }
     return Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>>(std::make_tuple(std::move(plainTime.value()), NullOption));
+}
+
+Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(String* input)
+{
+    ParserString buffer(input);
+    if (toupper(*buffer) == 'T') {
+        buffer.advance();
+    }
+    auto result = parseTime(buffer, true);
+
+    Optional<CalendarID> calendarOptional;
+    if (!buffer.atEnd() && canBeRFC9557Annotation(buffer)) {
+        auto calendars = parseCalendar(buffer);
+        if (!calendars)
+            return NullOption;
+        if (calendars.value().size() > 0)
+            calendarOptional = std::move(calendars.value()[0]);
+    }
+
+    if (buffer.atEnd()) {
+        return result;
+    }
+
+    return NullOption;
 }
 
 static Optional<PlainDate> parseDate(ParserString& buffer)
@@ -1283,6 +1308,16 @@ static Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneReco
         return NullOption;
 
     return Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>>>(std::make_tuple(std::move(plainDate.value()), NullOption, NullOption));
+}
+
+Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>>> parseDateTime(String* input)
+{
+    ParserString ps(input);
+    auto result = parseDateTime(ps, true);
+    if (ps.atEnd()) {
+        return result;
+    }
+    return NullOption;
 }
 
 static Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarDateTime(ParserString& buffer, bool parseSubMinutePrecisionForTimeZone)

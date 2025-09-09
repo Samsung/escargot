@@ -236,6 +236,11 @@ inline Optional<ISO8601::DateTimeUnit> toDateTimeUnit(Optional<TemporalUnit> u)
     return NullOption;
 }
 
+enum class TemporalOverflowOption : uint8_t {
+    Constrain,
+    Reject
+};
+
 class Temporal {
 public:
     /* TODO ParseISODateTime
@@ -375,6 +380,12 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-iscalendarunit
     static bool isCalendarUnit(ISO8601::DateTimeUnit unit);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-isvalidtime
+    static bool isValidTime(int64_t hour, int64_t minute, int64_t second, int64_t millisecond, int64_t microsecond, int64_t nanosecond);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-gettemporaloverflowoption
+    static TemporalOverflowOption getTemporalOverflowOption(ExecutionState& state, Optional<Object*> options);
 };
 
 class TemporalObject : public DerivedObject {
