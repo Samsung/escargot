@@ -50,6 +50,7 @@
 #include "runtime/DateObject.h"
 #include "runtime/TemporalDurationObject.h"
 #include "runtime/TemporalInstantObject.h"
+#include "runtime/TemporalPlainTimeObject.h"
 #include "intl/Intl.h"
 
 namespace Escargot {
@@ -551,6 +552,66 @@ TemporalInstantObject* Temporal::toTemporalInstant(ExecutionState& state, Value 
     return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(), parsed.value().epochNanoseconds());
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal-totemporaltime
+TemporalPlainTimeObject* Temporal::toTemporalTime(ExecutionState& state, Value item, Value options)
+{
+    ISO8601::PlainTime result;
+    // If options is not present, set options to undefined.
+    // If item is an Object, then
+    if (item.isObject()) {
+        // If item has an [[InitializedTemporalTime]] internal slot, then
+        if (item.asObject()->isTemporalPlainTimeObject()) {
+            // Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolvedOptions = Intl::getOptionsObject(state, options);
+            // Perform ? GetTemporalOverflowOption(resolvedOptions).
+            if (resolvedOptions) {
+                Temporal::getTemporalOverflowOption(state, resolvedOptions);
+            }
+            // Return ! CreateTemporalTime(item.[[Time]]).
+            return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(),
+                                               item.asObject()->asTemporalPlainTimeObject()->plainTime());
+        }
+        // TODO If item has an [[InitializedTemporalDateTime]] internal slot, then...
+        // TODO If item has an [[InitializedTemporalDateTime]] internal slot, then...
+        // Let result be ? ToTemporalTimeRecord(item).
+        auto resultRecord = TemporalPlainTimeObject::toTemporalTimeRecord(state, item, NullOption);
+        // Let resolvedOptions be ? GetOptionsObject(options).
+        auto resolvedOptions = Intl::getOptionsObject(state, options);
+        // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+        auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
+        // Set result to ? RegulateTime(result.[[Hour]], result.[[Minute]], result.[[Second]], result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]], overflow).
+        result = TemporalPlainTimeObject::regulateTime(state, resultRecord.hour().value(), resultRecord.minute().value(), resultRecord.second().value(), resultRecord.millisecond().value(),
+                                                       resultRecord.microsecond().value(), resultRecord.nanosecond().value(), overflow);
+    } else {
+        // Else,
+        // If item is not a String, throw a TypeError exception.
+        if (!item.isString()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "ToTemporalTime needs Object or String");
+        }
+        // Let parseResult be ? ParseISODateTime(item, « TemporalTimeString »).
+        auto parseDateTimeResult = ISO8601::parseCalendarDateTime(item.asString());
+        auto parseTimeResult = ISO8601::parseTime(item.asString());
+        // If ParseText(StringToCodePoints(item), AmbiguousTemporalTimeString) is a Parse Node, throw a RangeError exception.
+        // Assert: parseResult.[[Time]] is not start-of-day.
+        if (!parseTimeResult && (!parseDateTimeResult || !std::get<1>(parseDateTimeResult.value()))) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalTime needs ISO Time string");
+        }
+        if ((parseDateTimeResult && std::get<2>(parseDateTimeResult.value()) && std::get<2>(parseDateTimeResult.value()).value().m_z) || (parseTimeResult && std::get<1>(parseTimeResult.value()) && std::get<1>(parseTimeResult.value()).value().m_z)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalTime needs ISO Time string without UTC designator");
+        }
+        // Set result to parseResult.[[Time]].
+        if (parseDateTimeResult && std::get<1>(parseDateTimeResult.value())) {
+            result = std::get<1>(parseDateTimeResult.value()).value();
+        } else {
+            result = std::get<0>(parseTimeResult.value());
+        }
+        // Let resolvedOptions be ? GetOptionsObject(options).
+        auto resolvedOptions = Intl::getOptionsObject(state, options);
+        // Perform ? GetTemporalOverflowOption(resolvedOptions).
+        Temporal::getTemporalOverflowOption(state, resolvedOptions);
+    }
+    return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(), result);
+}
 Optional<unsigned> Temporal::getTemporalFractionalSecondDigitsOption(ExecutionState& state, Optional<Object*> resolvedOptions)
 {
     constexpr auto msg = "The value you gave for GetTemporalFractionalSecondDigitsOption is invalid";
@@ -1187,6 +1248,36 @@ ISO8601::Duration Temporal::balanceTime(int64_t hour, int64_t minute, int64_t se
     int64_t days = int64Floor(hour, 24);
     hour = nonNegativeModulo(hour, 24);
     return ISO8601::Duration({ int64_t(0), int64_t(0), int64_t(0), days, hour, minute, second, millisecond, microsecond, nanosecond });
+}
+
+Int128 Temporal::differenceTime(ISO8601::PlainTime time1, ISO8601::PlainTime time2)
+{
+    // Let hours be time2.[[Hour]] - time1.[[Hour]].
+    // Let minutes be time2.[[Minute]] - time1.[[Minute]].
+    // Let seconds be time2.[[Second]] - time1.[[Second]].
+    // Let milliseconds be time2.[[Millisecond]] - time1.[[Millisecond]].
+    // Let microseconds be time2.[[Microsecond]] - time1.[[Microsecond]].
+    // Let nanoseconds be time2.[[Nanosecond]] - time1.[[Nanosecond]].
+#define DEFINE_DIFF(name, capitalizedName) \
+    int32_t name##s = time2.name() - time1.name();
+    PLAIN_TIME_UNITS(DEFINE_DIFF)
+#undef DEFINE_DIFF
+    // Let timeDuration be TimeDurationFromComponents(hours, minutes, seconds, milliseconds, microseconds, nanoseconds).
+    // Assert: abs(timeDuration) < nsPerDay.
+    // Return timeDuration.
+    return timeDurationFromComponents(hours, minutes, seconds, milliseconds, microseconds, nanoseconds);
+}
+
+Int128 Temporal::timeDurationFromComponents(double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds)
+{
+    // Set minutes to minutes + hours × 60.
+    // Set seconds to seconds + minutes × 60.
+    // Set milliseconds to milliseconds + seconds × 1000.
+    // Set microseconds to microseconds + milliseconds × 1000.
+    // Set nanoseconds to nanoseconds + microseconds × 1000.
+    // Assert: abs(nanoseconds) ≤ maxTimeDuration.
+    // Return nanoseconds.
+    return ISO8601::Duration({ 0.0, 0.0, 0.0, 0.0, hours, minutes, seconds, milliseconds, microseconds, nanoseconds }).totalNanoseconds(ISO8601::DateTimeUnit::Hour);
 }
 
 TemporalObject::TemporalObject(ExecutionState& state)

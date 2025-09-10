@@ -57,66 +57,6 @@ TemporalPlainTimeObject::TemporalPlainTimeObject(ExecutionState& state, Object* 
 {
 }
 
-TemporalPlainTimeObject* TemporalPlainTimeObject::toTemporalTime(ExecutionState& state, Value item, Value options)
-{
-    ISO8601::PlainTime result;
-    // If options is not present, set options to undefined.
-    // If item is an Object, then
-    if (item.isObject()) {
-        // If item has an [[InitializedTemporalTime]] internal slot, then
-        if (item.asObject()->isTemporalPlainTimeObject()) {
-            // Let resolvedOptions be ? GetOptionsObject(options).
-            auto resolvedOptions = Intl::getOptionsObject(state, options);
-            // Perform ? GetTemporalOverflowOption(resolvedOptions).
-            if (resolvedOptions) {
-                Temporal::getTemporalOverflowOption(state, resolvedOptions);
-            }
-            // Return ! CreateTemporalTime(item.[[Time]]).
-            return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(),
-                                               item.asObject()->asTemporalPlainTimeObject()->plainTime());
-        }
-        // TODO If item has an [[InitializedTemporalDateTime]] internal slot, then...
-        // TODO If item has an [[InitializedTemporalDateTime]] internal slot, then...
-        // Let result be ? ToTemporalTimeRecord(item).
-        auto resultRecord = toTemporalTimeRecord(state, item, NullOption);
-        // Let resolvedOptions be ? GetOptionsObject(options).
-        auto resolvedOptions = Intl::getOptionsObject(state, options);
-        // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
-        auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
-        // Set result to ? RegulateTime(result.[[Hour]], result.[[Minute]], result.[[Second]], result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]], overflow).
-        result = regulateTime(state, resultRecord.hour().value(), resultRecord.minute().value(), resultRecord.second().value(), resultRecord.millisecond().value(),
-                              resultRecord.microsecond().value(), resultRecord.nanosecond().value(), overflow);
-    } else {
-        // Else,
-        // If item is not a String, throw a TypeError exception.
-        if (!item.isString()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "ToTemporalTime needs Object or String");
-        }
-        // Let parseResult be ? ParseISODateTime(item, « TemporalTimeString »).
-        auto parseDateTimeResult = ISO8601::parseCalendarDateTime(item.asString());
-        auto parseTimeResult = ISO8601::parseTime(item.asString());
-        // If ParseText(StringToCodePoints(item), AmbiguousTemporalTimeString) is a Parse Node, throw a RangeError exception.
-        // Assert: parseResult.[[Time]] is not start-of-day.
-        if (!parseTimeResult && (!parseDateTimeResult || !std::get<1>(parseDateTimeResult.value()))) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalTime needs ISO Time string");
-        }
-        if ((parseDateTimeResult && std::get<2>(parseDateTimeResult.value()) && std::get<2>(parseDateTimeResult.value()).value().m_z) || (parseTimeResult && std::get<1>(parseTimeResult.value()) && std::get<1>(parseTimeResult.value()).value().m_z)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalTime needs ISO Time string without UTC designator");
-        }
-        // Set result to parseResult.[[Time]].
-        if (parseDateTimeResult && std::get<1>(parseDateTimeResult.value())) {
-            result = std::get<1>(parseDateTimeResult.value()).value();
-        } else {
-            result = std::get<0>(parseTimeResult.value());
-        }
-        // Let resolvedOptions be ? GetOptionsObject(options).
-        auto resolvedOptions = Intl::getOptionsObject(state, options);
-        // Perform ? GetTemporalOverflowOption(resolvedOptions).
-        Temporal::getTemporalOverflowOption(state, resolvedOptions);
-    }
-    return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(), result);
-}
-
 ISO8601::PartialPlainTime TemporalPlainTimeObject::toTemporalTimeRecord(ExecutionState& state, Value temporalTimeLike, Optional<bool> completeness)
 {
     // If completeness is not present, set completeness to complete.
@@ -251,6 +191,29 @@ ISO8601::Duration TemporalPlainTimeObject::roundTime(ExecutionState& state, ISO8
     return ISO8601::Duration();
 }
 
+ISO8601::Duration TemporalPlainTimeObject::differenceTemporalPlainTime(ExecutionState& state, DifferenceTemporalPlainTime operation, Value otherInput, Value options)
+{
+    // Set other to ? ToTemporalTime(other).
+    auto other = Temporal::toTemporalTime(state, otherInput, Value());
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let settings be ? GetDifferenceSettings(operation, resolvedOptions, time, « », nanosecond, hour).
+    auto settings = Temporal::getDifferenceSettings(state, operation == DifferenceTemporalPlainTime::Since, resolvedOptions, ISO8601::DateTimeUnitCategory::Time, nullptr, 0, TemporalUnit::Nanosecond, TemporalUnit::Hour);
+    // Let timeDuration be DifferenceTime(temporalTime.[[Time]], other.[[Time]]).
+    auto timeDuration = Temporal::differenceTime(plainTime(), other->plainTime());
+    // Set timeDuration to ! RoundTimeDuration(timeDuration, settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+    timeDuration = TemporalDurationObject::roundTimeDuration(state, timeDuration, settings.roundingIncrement, settings.smallestUnit, settings.roundingMode);
+    // Let duration be CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
+    auto duration = ISO8601::InternalDuration::combineDateAndTimeDuration({}, timeDuration);
+    // Let result be ! TemporalDurationFromInternal(duration, settings.[[LargestUnit]]).
+    auto result = TemporalDurationObject::temporalDurationFromInternal(state, duration, settings.largestUnit);
+    // If operation is since, set result to CreateNegatedTemporalDuration(result).
+    if (operation == DifferenceTemporalPlainTime::Since) {
+        result = TemporalDurationObject::createNegatedTemporalDuration(result);
+    }
+    // Return result.
+    return result;
+}
 
 TemporalPlainTimeObject* TemporalPlainTimeObject::addDurationToTime(ExecutionState& state, AddDurationToTimeOperation operation, Value temporalDurationLike)
 {
@@ -417,6 +380,83 @@ String* TemporalPlainTimeObject::toString(ExecutionState& state, Value options)
     return temporalTimeToString(ISO8601::PlainTime(roundResult.hours(), roundResult.minutes(), roundResult.seconds(), roundResult.milliseconds(),
                                                    roundResult.microseconds(), roundResult.nanoseconds()),
                                 precision.precision);
+}
+
+TemporalDurationObject* TemporalPlainTimeObject::since(ExecutionState& state, Value other, Value options)
+{
+    return new TemporalDurationObject(state, differenceTemporalPlainTime(state, DifferenceTemporalPlainTime::Since, other, options));
+}
+
+TemporalDurationObject* TemporalPlainTimeObject::until(ExecutionState& state, Value other, Value options)
+{
+    return new TemporalDurationObject(state, differenceTemporalPlainTime(state, DifferenceTemporalPlainTime::Until, other, options));
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.round
+TemporalPlainTimeObject* TemporalPlainTimeObject::round(ExecutionState& state, Value roundToInput)
+{
+    // Let plainTime be the this value.
+    // Perform ? RequireInternalSlot(plainTime, [[InitializedTemporalTime]]).
+    Optional<Object*> roundTo;
+    // If roundTo is undefined, then
+    if (roundToInput.isUndefined()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid roundTo value");
+    } else if (roundToInput.isString()) {
+        // If roundTo is a String, then
+        // Let paramString be roundTo.
+        // Set roundTo to OrdinaryObjectCreate(null).
+        // Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit", paramString).
+        roundTo = new Object(state, Object::PrototypeIsNull);
+        roundTo->directDefineOwnProperty(state, state.context()->staticStrings().lazySmallestUnit(),
+                                         ObjectPropertyDescriptor(roundToInput, ObjectPropertyDescriptor::AllPresent));
+    } else {
+        // Else,
+        // Set roundTo to ? GetOptionsObject(roundTo).
+        roundTo = Intl::getOptionsObject(state, roundToInput);
+    }
+    // NOTE: The following steps read options and perform independent validation in alphabetical order (GetRoundingIncrementOption reads "roundingIncrement" and GetRoundingModeOption reads "roundingMode").
+    // Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+    auto roundingIncrement = Temporal::getRoundingIncrementOption(state, roundTo);
+    // Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+    auto roundingMode = Temporal::getRoundingModeOption(state, roundTo, state.context()->staticStrings().lazyHalfExpand().string());
+    // Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", required).
+    auto smallestUnit = Temporal::getTemporalUnitValuedOption(state, roundTo,
+                                                              state.context()->staticStrings().lazySmallestUnit().string(), Value(Value::EmptyValue));
+    // Perform ? ValidateTemporalUnitValue(smallestUnit, time).
+    Temporal::validateTemporalUnitValue(state, smallestUnit, ISO8601::DateTimeUnitCategory::Time, nullptr, 0);
+    // Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
+    auto maximum = Temporal::maximumTemporalDurationRoundingIncrement(toDateTimeUnit(smallestUnit.value()));
+    // Assert: maximum is not unset.
+    // Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
+    Temporal::validateTemporalRoundingIncrement(state, roundingIncrement, maximum.value(), false);
+    // Let result be RoundTime(plainTime.[[Time]], roundingIncrement, smallestUnit, roundingMode).
+    // ExecutionState& state, ISO8601::PlainTime plainTime, double increment, ISO8601::DateTimeUnit unit, ISO8601::RoundingMode roundingMode
+    auto result = roundTime(state, plainTime(), roundingIncrement, toDateTimeUnit(smallestUnit.value()), roundingMode);
+    // Return ! CreateTemporalTime(result).
+    return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(),
+                                       ISO8601::PlainTime(result.hours(), result.minutes(), result.seconds(), result.milliseconds(), result.microseconds(), result.nanoseconds()));
+}
+
+bool TemporalPlainTimeObject::equals(ExecutionState& state, Value otherInput)
+{
+    auto other = Temporal::toTemporalTime(state, otherInput, Value());
+    return plainTime() == other->plainTime();
+}
+
+int TemporalPlainTimeObject::compare(ExecutionState& state, Value one, Value two)
+{
+    auto time1 = Temporal::toTemporalTime(state, one, Value())->plainTime();
+    auto time2 = Temporal::toTemporalTime(state, two, Value())->plainTime();
+
+#define DEFINE_ISO8601_PLAIN_TIME_FIELD(name, capitalizedName) \
+    if (time1.name() > time2.name())                           \
+        return 1;                                              \
+    if (time1.name() < time2.name())                           \
+        return -1;
+    PLAIN_TIME_UNITS(DEFINE_ISO8601_PLAIN_TIME_FIELD);
+#undef DEFINE_ISO8601_PLAIN_TIME_FIELD
+    return 0;
 }
 
 } // namespace Escargot

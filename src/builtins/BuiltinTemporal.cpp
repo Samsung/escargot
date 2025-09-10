@@ -349,7 +349,12 @@ static Value builtinTemporalPlainTimeConstructor(ExecutionState& state, Value th
 
 static Value builtinTemporalPlainTimeFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return TemporalPlainTimeObject::toTemporalTime(state, argv[0], argc > 1 ? argv[1] : Value());
+    return Temporal::toTemporalTime(state, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalPlainTimeCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return Value(TemporalPlainTimeObject::compare(state, argv[0], argv[1]));
 }
 
 #define RESOLVE_THIS_BINDING_TO_PLAINTIME(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
@@ -398,6 +403,30 @@ static Value builtinTemporalPlainTimeSubtract(ExecutionState& state, Value thisV
 {
     RESOLVE_THIS_BINDING_TO_PLAINTIME(plainTime, Subtract);
     return plainTime->addDurationToTime(state, TemporalPlainTimeObject::AddDurationToTimeOperation::Subtract, argv[0]);
+}
+
+static Value builtinTemporalPlainTimeSince(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINTIME(plainTime, Since);
+    return plainTime->since(state, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalPlainTimeUntil(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINTIME(plainTime, Until);
+    return plainTime->until(state, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalPlainTimeRound(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINTIME2(plainTime, round);
+    return plainTime->round(state, argv[0]);
+}
+
+static Value builtinTemporalPlainTimeEquals(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINTIME(plainTime, Equals);
+    return Value(plainTime->equals(state, argv[0]));
 }
 
 #define RESOLVE_THIS_BINDING_TO_PLAINDATE(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
@@ -684,6 +713,7 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalPlainTime->setGlobalIntrinsicObject(state);
 
     m_temporalPlainTime->directDefineOwnProperty(state, ObjectPropertyName(strings->from), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalPlainTimeFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTime->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCompare()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCompare(), builtinTemporalPlainTimeCompare, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_temporalPlainTimePrototype = m_temporalPlainTime->getFunctionPrototype(state).asObject();
     m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
@@ -696,6 +726,10 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->with), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->with, builtinTemporalPlainTimeWith, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainTimeAdd, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalPlainTimeSubtract, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySince()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySince(), builtinTemporalPlainTimeSince, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyUntil()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyUntil(), builtinTemporalPlainTimeUntil, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->round), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->round, builtinTemporalPlainTimeRound, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalPlainTimeEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 #define DEFINE_PLAINTIME_PROTOTYPE_GETTER_PROPERTY(name, stringName, Name)                                                                                                                                                      \
     {                                                                                                                                                                                                                           \

@@ -326,6 +326,9 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporalinstant
     static TemporalInstantObject* toTemporalInstant(ExecutionState& state, Value item);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporaltime
+    static TemporalPlainTimeObject* toTemporalTime(ExecutionState& state, Value item, Value optionsInput);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalfractionalseconddigitsoption
     // NullOption means AUTO
     static Optional<unsigned> getTemporalFractionalSecondDigitsOption(ExecutionState& state, Optional<Object*> resolvedOptions);
@@ -393,6 +396,12 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-balancetime
     static ISO8601::Duration balanceTime(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond);
     static ISO8601::Duration balanceTime(int64_t hour, int64_t minute, int64_t second, int64_t millisecond, int64_t microsecond, int64_t nanosecond);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-differencetime
+    static Int128 differenceTime(ISO8601::PlainTime time1, ISO8601::PlainTime time2);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-timedurationfromcomponents
+    static Int128 timeDurationFromComponents(double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds);
 };
 
 class TemporalObject : public DerivedObject {
