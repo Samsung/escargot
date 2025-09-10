@@ -352,6 +352,54 @@ static Value builtinTemporalPlainTimeFrom(ExecutionState& state, Value thisValue
     return TemporalPlainTimeObject::toTemporalTime(state, argv[0], argc > 1 ? argv[1] : Value());
 }
 
+#define RESOLVE_THIS_BINDING_TO_PLAINTIME(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainTimeObject()) {                                                                                                                                                                                            \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainTime().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                             \
+    TemporalPlainTimeObject* NAME = thisValue.asObject()->asTemporalPlainTimeObject();
+
+#define RESOLVE_THIS_BINDING_TO_PLAINTIME2(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                         \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainTimeObject()) {                                                                                                                                                                                    \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainTime().string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                     \
+    TemporalPlainTimeObject* NAME = thisValue.asObject()->asTemporalPlainTimeObject();
+
+static Value builtinTemporalPlainTimeToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINTIME2(plainTime, toString);
+    return plainTime->toString(state, argc ? argv[0] : Value());
+}
+
+static Value builtinTemporalPlainTimeToJSON(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINTIME2(plainTime, toJSON);
+    return plainTime->toString(state, Value());
+}
+
+static Value builtinTemporalPlainTimeToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINTIME2(plainTime, toLocaleString);
+    return plainTime->toString(state, Value());
+}
+
+static Value builtinTemporalPlainTimeWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINTIME2(plainTime, with);
+    return plainTime->with(state, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalPlainTimeAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINTIME2(plainTime, add);
+    return plainTime->addDurationToTime(state, TemporalPlainTimeObject::AddDurationToTimeOperation::Add, argv[0]);
+}
+
+static Value builtinTemporalPlainTimeSubtract(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINTIME(plainTime, Subtract);
+    return plainTime->addDurationToTime(state, TemporalPlainTimeObject::AddDurationToTimeOperation::Subtract, argv[0]);
+}
+
 #define RESOLVE_THIS_BINDING_TO_PLAINDATE(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
     if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainDateObject()) {                                                                                                                                                                                            \
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainDate().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
@@ -641,7 +689,13 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                           ObjectPropertyDescriptor(Value(strings->lazyTemporalDotPlainTime().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
 
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinTemporalPlainTimeToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toJSON), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toJSON, builtinTemporalPlainTimeToJSON, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toLocaleString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinTemporalPlainTimeToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->valueOf), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinTemporalAnyInstanceValueOf, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->with), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->with, builtinTemporalPlainTimeWith, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainTimeAdd, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalPlainTimeSubtract, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
 #define DEFINE_PLAINTIME_PROTOTYPE_GETTER_PROPERTY(name, stringName, Name)                                                                                                                                                      \
     {                                                                                                                                                                                                                           \

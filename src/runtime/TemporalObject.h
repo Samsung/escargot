@@ -386,6 +386,13 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-gettemporaloverflowoption
     static TemporalOverflowOption getTemporalOverflowOption(ExecutionState& state, Optional<Object*> options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-ispartialtemporalobject
+    static bool isPartialTemporalObject(ExecutionState& state, Value value);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-balancetime
+    static ISO8601::Duration balanceTime(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond);
+    static ISO8601::Duration balanceTime(int64_t hour, int64_t minute, int64_t second, int64_t millisecond, int64_t microsecond, int64_t nanosecond);
 };
 
 class TemporalObject : public DerivedObject {

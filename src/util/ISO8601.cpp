@@ -153,9 +153,13 @@ static void handleFraction(Duration& duration, int factor, std::string fractionS
     duration.setNanoseconds(fraction % nsPerMicrosecond);
 }
 
-static double parseInt(std::string src)
+static Optional<double> parseInt(std::string src)
 {
-    return std::stod(src);
+    try {
+        return std::stod(src);
+    } catch (...) {
+        return NullOption;
+    }
 }
 
 DateTimeUnitCategory toDateTimeCategory(DateTimeUnit u)
@@ -223,7 +227,12 @@ Optional<Duration> Duration::parseDurationString(String* input)
         while (digits < buffer.lengthRemaining() && isdigit(buffer[digits]))
             digits++;
 
-        double integer = factor * parseInt(buffer.first(digits));
+        auto mayInteger = parseInt(buffer.first(digits));
+        if (!mayInteger) {
+            return NullOption;
+        }
+
+        double integer = factor * mayInteger.value();
         buffer.advanceBy(digits);
         if (buffer.atEnd())
             return NullOption;
@@ -274,7 +283,12 @@ Optional<Duration> Duration::parseDurationString(String* input)
             digits++;
         }
 
-        double integer = factor * parseInt(buffer.first(digits));
+        auto mayInteger = parseInt(buffer.first(digits));
+        if (!mayInteger) {
+            return NullOption;
+        }
+
+        double integer = factor * mayInteger.value();
         buffer.advanceBy(digits);
         if (buffer.atEnd()) {
             return NullOption;

@@ -212,7 +212,8 @@ public:
     {
     }
 
-    Duration(std::initializer_list<double> list)
+    template <typename T>
+    Duration(std::initializer_list<T> list)
     {
         size_t idx = 0;
         for (auto n : list) {

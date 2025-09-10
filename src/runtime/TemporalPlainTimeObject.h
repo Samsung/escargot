@@ -44,10 +44,26 @@ public:
     static ISO8601::PlainTime regulateTime(ExecutionState& state, int64_t hour, int64_t minute, int64_t second,
                                            int64_t millisecond, int64_t microsecond, int64_t nanosecond, TemporalOverflowOption overflow);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-roundtime
+    static ISO8601::Duration roundTime(ExecutionState& state, ISO8601::PlainTime plainTime, double increment, ISO8601::DateTimeUnit unit, ISO8601::RoundingMode roundingMode);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtotime
+    enum class AddDurationToTimeOperation {
+        Add,
+        Subtract
+    };
+    TemporalPlainTimeObject* addDurationToTime(ExecutionState& state, AddDurationToTimeOperation operation, Value temporalDurationLike);
+
     ISO8601::PlainTime plainTime() const
     {
         return *m_plainTime;
     }
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.with
+    TemporalPlainTimeObject* with(ExecutionState& state, Value temporalTimeLike, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tostring
+    String* toString(ExecutionState& state, Value options);
 
 private:
     ISO8601::PlainTime* m_plainTime;
