@@ -1,5 +1,30 @@
 #if defined(ENABLE_TEMPORAL)
 /*
+ * Copyright (C) 2021 Apple Inc. All rights reserved.
+ * Copyright (C) 2022 Sony Interactive Entertainment Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS''
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE.
+ */
+/*
  * Copyright (c) 2022-present Samsung Electronics Co., Ltd
  *
  *  This library is free software; you can redistribute it and/or
@@ -1069,6 +1094,99 @@ TemporalOverflowOption Temporal::getTemporalOverflowOption(ExecutionState& state
     }
     // Return reject.
     return TemporalOverflowOption::Reject;
+}
+
+bool Temporal::isPartialTemporalObject(ExecutionState& state, Value value)
+{
+    // If value is not an Object, return false.
+    if (!value.isObject()) {
+        return false;
+    }
+    // TODO If value has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalTime]],
+    // [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]] internal slot, return false.
+    if (value.asObject()->isTemporalPlainTimeObject()) {
+        return false;
+    }
+    // Let calendarProperty be ? Get(value, "calendar").
+    Value calendarProperty = value.asObject()->get(state, state.context()->staticStrings().lazyCalendar()).value(state, value);
+    // If calendarProperty is not undefined, return false.
+    if (!calendarProperty.isUndefined()) {
+        return false;
+    }
+    // Let timeZoneProperty be ? Get(value, "timeZone").
+    Value timeZoneProperty = value.asObject()->get(state, state.context()->staticStrings().lazyTimeZone()).value(state, value);
+    // If timeZoneProperty is not undefined, return false.
+    if (!timeZoneProperty.isUndefined()) {
+        return false;
+    }
+    // Return true.
+    return true;
+}
+
+static double nonNegativeModulo(double x, double y)
+{
+    double result = std::fmod(x, y);
+    if (!result)
+        return 0;
+    if (result < 0)
+        result += y;
+    return result;
+}
+
+static double nonNegativeModulo(int64_t x, int64_t y)
+{
+    int64_t result = x % y;
+    if (!result)
+        return 0;
+    if (result < 0)
+        result += y;
+    return result;
+}
+
+static int64_t int64Floor(int64_t x, int64_t y)
+{
+    if (x > 0) {
+        return x / y;
+    }
+    if (x % y) {
+        return x / y - 1;
+    } else {
+        return x / y;
+    }
+}
+
+ISO8601::Duration Temporal::balanceTime(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond)
+{
+    microsecond += std::floor(nanosecond / 1000);
+    nanosecond = nonNegativeModulo(nanosecond, 1000);
+    millisecond += std::floor(microsecond / 1000);
+    microsecond = nonNegativeModulo(microsecond, 1000);
+    second += std::floor(millisecond / 1000);
+    millisecond = nonNegativeModulo(millisecond, 1000);
+    minute += std::floor(second / 60);
+    second = nonNegativeModulo(second, 60);
+    hour += std::floor(minute / 60);
+    minute = nonNegativeModulo(minute, 60);
+    double days = std::floor(hour / 24);
+    hour = nonNegativeModulo(hour, 24);
+    return ISO8601::Duration({ 0.0, 0.0, 0.0, days, hour, minute, second, millisecond, microsecond, nanosecond });
+}
+
+ISO8601::Duration Temporal::balanceTime(int64_t hour, int64_t minute, int64_t second, int64_t millisecond, int64_t microsecond, int64_t nanosecond)
+{
+    microsecond += int64Floor(nanosecond, 1000);
+    nanosecond = nonNegativeModulo(nanosecond, 1000);
+    millisecond += int64Floor(microsecond, 1000);
+    microsecond = nonNegativeModulo(microsecond, 1000);
+    second += int64Floor(millisecond, 1000);
+    millisecond = nonNegativeModulo(millisecond, 1000);
+    minute += int64Floor(second, 60);
+    second = nonNegativeModulo(second, 60);
+    hour += int64Floor(minute, 60);
+    minute = nonNegativeModulo(minute, 60);
+    int64_t days = int64Floor(hour, 24);
+    hour = nonNegativeModulo(hour, 24);
+    return ISO8601::Duration({ int64_t(0), int64_t(0), int64_t(0), days, hour, minute, second, millisecond, microsecond, nanosecond });
 }
 
 TemporalObject::TemporalObject(ExecutionState& state)
