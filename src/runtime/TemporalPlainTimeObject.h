@@ -34,9 +34,6 @@ public:
         return true;
     }
 
-    // https://tc39.es/proposal-temporal/#sec-temporal-totemporaltime
-    static TemporalPlainTimeObject* toTemporalTime(ExecutionState& state, Value item, Value optionsInput);
-
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimerecord
     static ISO8601::PartialPlainTime toTemporalTimeRecord(ExecutionState& state, Value temporalTimeLike, Optional<bool> completeness);
 
@@ -65,7 +62,29 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tostring
     String* toString(ExecutionState& state, Value options);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.since
+    TemporalDurationObject* since(ExecutionState& state, Value other, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.until
+    TemporalDurationObject* until(ExecutionState& state, Value other, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.round
+    TemporalPlainTimeObject* round(ExecutionState& state, Value roundToInput);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.equals
+    bool equals(ExecutionState& state, Value otherInput);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.compare
+    static int compare(ExecutionState& state, Value one, Value two);
+
 private:
+    // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaintime
+    enum class DifferenceTemporalPlainTime {
+        Until,
+        Since
+    };
+    ISO8601::Duration differenceTemporalPlainTime(ExecutionState& state, DifferenceTemporalPlainTime operation, Value other, Value options);
+
     ISO8601::PlainTime* m_plainTime;
 };
 

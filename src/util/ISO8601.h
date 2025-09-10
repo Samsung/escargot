@@ -396,6 +396,13 @@ public:
     PLAIN_TIME_UNITS(DEFINE_ISO8601_PLAIN_TIME_FIELD);
 #undef DEFINE_ISO8601_PLAIN_TIME_FIELD
 
+    bool operator==(const PlainTime& other) const
+    {
+        return m_hour == other.m_hour && m_minute == other.m_minute
+            && m_second == other.m_second && m_millisecond == other.m_millisecond
+            && m_microsecond == other.m_microsecond && m_nanosecond == other.m_nanosecond;
+    }
+
 private:
     uint8_t m_hour{ 0 };
     uint8_t m_minute{ 0 };

@@ -1152,7 +1152,7 @@ static Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(Parse
 Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(String* input)
 {
     ParserString buffer(input);
-    if (toupper(*buffer) == 'T') {
+    if (!buffer.atEnd() && toupper(*buffer) == 'T') {
         buffer.advance();
     }
     auto result = parseTime(buffer, true);
