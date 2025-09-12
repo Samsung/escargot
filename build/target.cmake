@@ -59,7 +59,7 @@ ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
         ENDIF()
     ENDIF()
     SET (ESCARGOT_THIRDPARTY_CFLAGS -w -g3 -fdata-sections -ffunction-sections -fno-omit-frame-pointer -fvisibility=hidden)
-ELSEIF (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+ELSEIF (${CMAKE_CXX_COMPILER_ID} MATCHES  "Clang") #include Clang and AppleClang both
     SET (ESCARGOT_CXXFLAGS
         ${ESCARGOT_CXXFLAGS}
         -std=c++11 -g3
