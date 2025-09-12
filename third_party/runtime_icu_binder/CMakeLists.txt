@@ -3,7 +3,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12 FATAL_ERROR)
 
 FILE(GLOB RIB_SRC *.cpp)
 
-IF (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
+IF (${CMAKE_CXX_COMPILER_ID} MATCHES "GNU|Clang|AppleClang") #include GNU, Clang and AppleClang all
     SET (RIB_CFLAGS_INTERNAL -g3 -fdata-sections -ffunction-sections -fvisibility=hidden)
     IF (${RIB_MODE} STREQUAL "debug")
         SET (RIB_CFLAGS_INTERNAL ${RIB_CFLAGS_INTERNAL} -O0)
