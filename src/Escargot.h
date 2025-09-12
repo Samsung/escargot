@@ -328,6 +328,11 @@ UBool vzone_getTZURL(VZone* zone, UChar*& url, int32_t& urlLength);
 void vzone_getOffset3(VZone* zone, UDate date, UBool local, int32_t& rawOffset,
                       int32_t& dstOffset, UErrorCode& ec);
 int32_t vzone_getRawOffset(VZone* zone);
+
+// uresimp.h
+U_CAPI UResourceBundle* U_EXPORT2
+ures_findResource(const char* pathToResource,
+                  UResourceBundle* fillIn, UErrorCode* status);
 }
 #endif // !defined(OS_WINDOWS_UWP)
 

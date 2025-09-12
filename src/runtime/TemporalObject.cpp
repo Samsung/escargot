@@ -51,368 +51,149 @@
 #include "runtime/TemporalDurationObject.h"
 #include "runtime/TemporalInstantObject.h"
 #include "runtime/TemporalPlainTimeObject.h"
+#include "runtime/TemporalPlainDateObject.h"
 #include "intl/Intl.h"
 
 namespace Escargot {
 
-//////////////////
-// helper function
-//////////////////
-static Value getOption(ExecutionState& state, Object* options, Value property, bool isBool, Value* values, size_t valuesLength, const Value& defaultValue)
+void Calendar::lookupICUEra(ExecutionState& state, const std::function<bool(size_t idx, const std::string& icuEra)>& fn) const
 {
-    Value value = options->get(state, ObjectPropertyName(state, property)).value(state, options);
-    if (value.isUndefined()) {
-        // TODO handle REQUIRED in default value
-        return defaultValue;
-    }
-    if (isBool) {
-        value = Value(value.toBoolean());
-    } else {
-        value = Value(value.toString(state));
+    std::string s = "root/calendar/";
+    s += toICUString();
+    s += "/eras/abbreviated";
+    UErrorCode status = U_ZERO_ERROR;
+    UResourceBundle* t = nullptr;
+    t = ures_findResource(s.data(), t, &status);
+
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Internal ICU error");
     }
 
-    if (valuesLength) {
-        bool contains = false;
-        for (size_t i = 0; i < valuesLength; i++) {
-            if (values[i].equalsTo(state, value)) {
-                contains = true;
+    size_t siz = ures_getSize(t);
+    for (size_t i = 0; i < siz; i++) {
+        int32_t len = 0;
+        auto u16 = ures_getStringByIndex(t, i, &len, &status);
+        if (U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Internal ICU error");
+        }
+        UTF16StringFromExternalMemory u16Str(u16, len);
+        const UNormalizer2* normalizer = unorm2_getNFDInstance(&status);
+        if (!normalizer || U_FAILURE(status)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "normalization fails");
+        }
+        int32_t normalizedStringLength = unorm2_normalize(normalizer, u16, len, nullptr, 0, &status);
+
+        if (U_FAILURE(status) && status != U_BUFFER_OVERFLOW_ERROR) {
+            // when normalize fails.
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "normalization fails");
+        }
+        UTF16StringData ret;
+        ret.resizeWithUninitializedValues(normalizedStringLength);
+        status = U_ZERO_ERROR;
+        unorm2_normalize(normalizer, u16, len, (UChar*)ret.data(), normalizedStringLength, &status);
+
+        std::string icuString;
+        for (int32_t i = 0; i < normalizedStringLength; i++) {
+            if (ret[i] < 128) {
+                icuString.push_back(tolower(ret[i]));
+            }
+            if (ret[i] == ' ') {
+                break;
             }
         }
-        if (!contains) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::TemporalError);
+
+        if (fn(i, icuString)) {
+            break;
         }
     }
-
-    return value;
+    ures_close(t);
 }
 
-static Object* getOptionsObject(ExecutionState& state, Value options)
+bool Calendar::isEraRelated() const
 {
-    if (options.isUndefined()) {
-        return new Object(state, Object::PrototypeIsNull);
+    switch (m_id) {
+    case ID::Gregorian:
+    case ID::Islamic:
+    case ID::IslamicCivil:
+    case ID::IslamicRGSA:
+    case ID::IslamicTabular:
+    case ID::IslamicUmmAlQura:
+    case ID::ROC:
+        return true;
+    case ID::Japanese:
+        return true;
+    default:
+        return false;
     }
-    if (options.isObject()) {
-        return options.asObject();
-    }
-    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::TemporalError);
-    return nullptr;
 }
 
-static bool getTemporalOverflowOptions(ExecutionState& state, Object* options)
+bool Calendar::shouldUseICUExtendedYear() const
 {
-    StaticStrings* strings = &state.context()->staticStrings();
-    Value stringConstrain = Value(strings->lazyConstrain().string());
-
-    Value values[2] = { stringConstrain, strings->reject.string() };
-    Value stringValue = getOption(state, options, Value(strings->lazyOverflow().string()), false, values, 2, stringConstrain);
-    if (stringValue.equalsTo(state, stringConstrain)) {
-        // return CONSTRAIN
+    if (id() == Calendar::ID::Dangi || id() == Calendar::ID::Japanese || id() == Calendar::ID::Chinese) {
         return true;
     }
-
-    // return REJECT
     return false;
 }
 
-static int64_t countModZerosInRange(int64_t mod, int64_t start, int64_t end)
+Optional<Calendar> Calendar::fromString(ISO8601::CalendarID id)
 {
-    int64_t divEnd = end - 1;
-    int negative = divEnd < 0;
-    int64_t endPos = (divEnd + negative) / mod - negative;
+    auto u = id;
+    std::transform(u.begin(), u.end(), u.begin(), tolower);
+    if (false) {}
+#define DEFINE_FIELD(name, string, icuString) \
+    else if (u == string)                     \
+    {                                         \
+        return Calendar(ID::name);            \
+    }
+    CALENDAR_ID_RECORDS(DEFINE_FIELD)
+#undef DEFINE_FIELD
 
-    divEnd = start - 1;
-    negative = divEnd < 0;
-    int64_t startPos = (divEnd + negative) / mod - negative;
-
-    return endPos - startPos;
+    return NullOption;
 }
 
-static int countDaysOfYear(int year, int month, int day)
+Optional<Calendar> Calendar::fromString(String* str)
 {
-    if (month < 1 || month > 12) {
-        return 0;
-    }
-
-    static const int seekTable[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
-    int daysOfYear = seekTable[month - 1] + day - 1;
-
-    if ((year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) && month >= 3) {
-        daysOfYear++;
-    }
-
-    return daysOfYear;
+    return fromString(str->toNonGCUTF8StringData());
 }
 
-static double makeDay(double year, double month, double date)
+String* Calendar::toString() const
 {
-    if (!std::isfinite(year) || !std::isfinite(month) || !std::isfinite(date)) {
-        return std::numeric_limits<double>::quiet_NaN();
+    switch (m_id) {
+#define DEFINE_FIELD(name, string, icuString) \
+    case ID::name:                            \
+        return new ASCIIStringFromExternalMemory(string);
+        CALENDAR_ID_RECORDS(DEFINE_FIELD)
+#undef DEFINE_FIELD
+    default:
+        ASSERT_NOT_REACHED();
     }
-
-    double ym = year + std::floor(month / TimeConstant::MonthsPerYear);
-    if (!std::isfinite(ym)) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-
-    double mn = ((int)month % TimeConstant::MonthsPerYear);
-    if ((ym > std::numeric_limits<int>::max()) || (ym < std::numeric_limits<int>::min())) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    if ((mn + 1 > std::numeric_limits<int>::max()) || (mn + 1 < std::numeric_limits<int>::min())) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-
-    int beginYear, endYear, leapSign;
-    if (ym < 1970) {
-        beginYear = static_cast<int>(ym);
-        endYear = 1970;
-        leapSign = -1;
-    } else {
-        beginYear = 1970;
-        endYear = static_cast<int>(ym);
-        leapSign = 1;
-    }
-    int64_t days = 365 * (static_cast<int64_t>(ym) - 1970);
-    int64_t extraLeapDays = 0;
-    extraLeapDays += countModZerosInRange(4, beginYear, endYear);
-    extraLeapDays += countModZerosInRange(100, beginYear, endYear);
-    extraLeapDays += countModZerosInRange(400, beginYear, endYear);
-    int64_t yearsToDays = days + extraLeapDays * leapSign;
-
-    int64_t daysOfYear = countDaysOfYear(static_cast<int>(ym), static_cast<int>(mn) + 1, 1);
-
-    int64_t t = (yearsToDays + daysOfYear) * TimeConstant::MsPerDay;
-    return (std::floor(t / TimeConstant::MsPerDay) + date - 1);
+    return new ASCIIStringFromExternalMemory("iso8601");
 }
 
-static double makeTime(double hour, double minute, double sec, double ms)
+std::string Calendar::toICUString() const
 {
-    if (!std::isfinite(hour) || !std::isfinite(minute) || !std::isfinite(sec) || !std::isfinite(ms)) {
-        return std::numeric_limits<double>::quiet_NaN();
+    switch (m_id) {
+#define DEFINE_FIELD(name, string, icuString) \
+    case ID::name:                            \
+        return icuString;
+        CALENDAR_ID_RECORDS(DEFINE_FIELD)
+#undef DEFINE_FIELD
+    default:
+        ASSERT_NOT_REACHED();
     }
-
-    return (hour * TimeConstant::MsPerHour + minute * TimeConstant::MsPerMinute + sec * TimeConstant::MsPerSecond + ms);
+    return "iso8601";
 }
 
-static double makeDate(double day, double time)
+UCalendar* Calendar::createICUCalendar(ExecutionState& state)
 {
-    if (!std::isfinite(day) || !std::isfinite(time)) {
-        return std::numeric_limits<double>::quiet_NaN();
+    std::string calName = "en@calendar=" + toICUString();
+    UErrorCode status = U_ZERO_ERROR;
+    auto icuCalendar = ucal_open(u"GMT", 3, calName.data(), UCalendarType::UCAL_DEFAULT, &status);
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to initialize ICU calendar");
     }
-
-    double tv = day * TimeConstant::MsPerDay + time;
-    if (!std::isfinite(tv)) {
-        return std::numeric_limits<double>::quiet_NaN();
-    }
-    return tv;
-}
-
-////////////////////////////
-// Temporal helper functions
-////////////////////////////
-double Temporal::epochDayNumberForYear(const double year)
-{
-    return 365.0 * (year - 1970.0) + std::floor((year - 1969.0) / 4.0) - std::floor((year - 1901.0) / 100.0) + std::floor((year - 1601.0) / 400.0);
-}
-
-int Temporal::epochTimeToEpochYear(const double time)
-{
-    return DateObject::yearFromTime(time);
-}
-
-double Temporal::epochTimeForYear(const double year)
-{
-    return TimeConstant::MsPerDay * epochDayNumberForYear(year);
-}
-
-int Temporal::mathematicalInLeapYear(const double time)
-{
-    int daysInYear = mathematicalDaysInYear(epochTimeToEpochYear(time));
-
-    if (daysInYear == 365) {
-        return 0;
-    } else {
-        ASSERT(daysInYear == 366);
-        return 1;
-    }
-}
-
-int Temporal::mathematicalDaysInYear(const int year)
-{
-    if ((year % 4) != 0) {
-        return 365;
-    }
-
-    if ((year % 100) != 0) {
-        return 366;
-    }
-
-    if ((year % 400) != 0) {
-        return 365;
-    }
-
-    return 366;
-}
-
-bool Temporal::isValidISODate(ExecutionState& state, const int year, const int month, const int day)
-{
-    if (month < 1 || month > 12) {
-        return false;
-    }
-
-    int daysInMonth = Temporal::ISODaysInMonth(year, month);
-    if (day < 1 || day > daysInMonth) {
-        return false;
-    }
-
-    return true;
-}
-
-int Temporal::ISODaysInMonth(const int year, const int month)
-{
-    if (month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12) {
-        return 31;
-    }
-
-    if (month == 4 || month == 6 || month == 9 || month == 11) {
-        return 30;
-    }
-
-    ASSERT(month == 2);
-
-    // Return 28 + MathematicalInLeapYear(EpochTimeForYear(year)).
-    return 28 + mathematicalInLeapYear(epochTimeForYear(year));
-}
-
-int Temporal::ISODayOfWeek(const ISODate& date)
-{
-    // Let epochDays be ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]]).
-    double epochDays = makeDay(date.year, date.month - 1, date.day);
-    int dayOfWeek = static_cast<int>(std::floor((epochDays * TimeConstant::MsPerDay) / TimeConstant::MsPerDay) + 4) % 7;
-
-    if (dayOfWeek == 0) {
-        return 7;
-    }
-
-    return dayOfWeek;
-}
-
-int Temporal::ISODayOfYear(const ISODate& date)
-{
-    // Let epochDays be ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]]).
-    double epochDays = makeDay(date.year, date.month - 1, date.day);
-    double t = epochDays * TimeConstant::MsPerDay;
-
-    return static_cast<int>(std::floor(t / TimeConstant::MsPerDay) - epochDayNumberForYear(DateObject::yearFromTime(t))) + 1;
-}
-
-YearWeek Temporal::ISOWeekOfYear(const ISODate& date)
-{
-    const int year = date.year;
-    const int wednesday = 3;
-    const int thursday = 4;
-    const int friday = 5;
-    const int saturday = 6;
-    const int daysInWeek = 7;
-    const int maxWeekNumber = 53;
-    const int dayOfYear = ISODayOfYear(date);
-    const int dayOfWeek = ISODayOfWeek(date);
-    const int week = static_cast<int>(std::floor((double)(dayOfYear + daysInWeek - dayOfWeek + wednesday) / daysInWeek));
-
-    if (week < 1) {
-        ISODate jan1st(year, 1, 1);
-        int dayOfJan1st = ISODayOfWeek(jan1st);
-        if (dayOfJan1st == friday) {
-            return YearWeek(maxWeekNumber, year - 1);
-        }
-        if ((dayOfJan1st == saturday) && (mathematicalInLeapYear(epochTimeForYear(year - 1)) == 1)) {
-            return YearWeek(maxWeekNumber, year - 1);
-        }
-        return YearWeek(maxWeekNumber - 1, year - 1);
-    }
-
-    if (week == maxWeekNumber) {
-        int daysInYear = mathematicalDaysInYear(year);
-        int daysLaterInYear = daysInYear - dayOfYear;
-        int daysAfterThursday = thursday - dayOfWeek;
-        if (daysLaterInYear < daysAfterThursday) {
-            return YearWeek(1, year + 1);
-        }
-    }
-
-    return YearWeek(week, year);
-}
-
-bool Temporal::ISODateWithinLimits(ExecutionState& state, const ISODate& date)
-{
-    // NoonTimeRecord
-    // { [[Days]]: 0, [[Hour]]: 12, [[Minute]]: 0, [[Second]]: 0, [[Millisecond]]: 0, [[Microsecond]]: 0, [[Nanosecond]]: 0  }
-    TimeRecord record = TimeRecord::noonTimeRecord();
-    ISODateTime dateTime = ISODateTime(date, record);
-
-    return Temporal::ISODateTimeWithinLimits(state, dateTime);
-}
-
-bool Temporal::ISODateTimeWithinLimits(ExecutionState& state, const ISODateTime& dateTime)
-{
-    double date = makeDay(dateTime.date.year, dateTime.date.month - 1, dateTime.date.day);
-    if (std::abs(date) > 100000001) {
-        return false;
-    }
-
-    double time = makeTime(dateTime.time.hour, dateTime.time.minute, dateTime.time.second, dateTime.time.millisecond);
-    double ms = makeDate(date, time);
-
-    // Z(R(ms) × 10**6 + isoDateTime.[[Time]].[[Microsecond]] × 10**3 + isoDateTime.[[Time]].[[Nanosecond]]).
-    int64_t ns = static_cast<int64_t>(ms) * 1000000 + dateTime.time.microsecond * 1000 + dateTime.time.nanosecond;
-
-    if (ns <= Temporal::nsMinConstant()) {
-        return false;
-    }
-    if (ns >= Temporal::nsMaxConstant()) {
-        return false;
-    }
-
-    return true;
-}
-
-int64_t Temporal::nsPerDay()
-{
-    return 86400000000000;
-}
-
-Value Temporal::createTemporalDate(ExecutionState& state, const ISODate& isoDate, String* calendar, Optional<Object*> newTarget)
-{
-    if (!Temporal::ISODateWithinLimits(state, isoDate)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, ErrorObject::Messages::TemporalError);
-    }
-
-    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.hasValue() ? newTarget.value() : state.context()->globalObject()->temporalPlainDate(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
-        return constructorRealm->globalObject()->temporalPlainDatePrototype();
-    });
-
-    return new TemporalPlainDateObject(state, proto, isoDate, calendar);
-}
-
-Value Temporal::toTemporalDate(ExecutionState& state, Value item, Value options)
-{
-    if (item.isObject()) {
-        if (item.asObject()->isTemporalPlainDateObject()) {
-            Object* resolvedOptions = getOptionsObject(state, options);
-            getTemporalOverflowOptions(state, resolvedOptions);
-            return Temporal::createTemporalDate(state, item.asObject()->asTemporalPlainDateObject()->date(), item.asObject()->asTemporalPlainDateObject()->calendar(), nullptr);
-        }
-
-        // TODO
-        return Value();
-    }
-
-    if (!item.isString()) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::TemporalError);
-    }
-
-    // TODO ParseISODateTime
-    return Value();
+    ucal_setMillis(icuCalendar, 0, &status);
+    return icuCalendar;
 }
 
 void Temporal::formatSecondsStringFraction(StringBuilder& builder, Int128 fraction, Value precision)
@@ -448,10 +229,23 @@ Int128 Temporal::systemUTCEpochNanoseconds()
     return ret;
 }
 
+static Int128 nsMaxInstant()
+{
+    Int128 ret = 864000000;
+    ret *= 10000000000000;
+    return ret;
+}
+static Int128 nsMinInstant()
+{
+    Int128 ret = -864000000;
+    ret *= 10000000000000;
+    return ret;
+}
+
 bool Temporal::isValidEpochNanoseconds(Int128 epochNanoseconds)
 {
     // If ℝ(epochNanoseconds) < nsMinInstant or ℝ(epochNanoseconds) > nsMaxInstant, then
-    if (epochNanoseconds < Temporal::nsMinInstant() || epochNanoseconds > Temporal::nsMaxInstant()) {
+    if (epochNanoseconds < nsMinInstant() || epochNanoseconds > nsMaxInstant()) {
         // Return false.
         return false;
     }
@@ -564,14 +358,12 @@ TemporalPlainTimeObject* Temporal::toTemporalTime(ExecutionState& state, Value i
             // Let resolvedOptions be ? GetOptionsObject(options).
             auto resolvedOptions = Intl::getOptionsObject(state, options);
             // Perform ? GetTemporalOverflowOption(resolvedOptions).
-            if (resolvedOptions) {
-                Temporal::getTemporalOverflowOption(state, resolvedOptions);
-            }
+            Temporal::getTemporalOverflowOption(state, resolvedOptions);
             // Return ! CreateTemporalTime(item.[[Time]]).
             return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(),
                                                item.asObject()->asTemporalPlainTimeObject()->plainTime());
         }
-        // TODO If item has an [[InitializedTemporalDateTime]] internal slot, then...
+        // TODO If item has an [[InitializedTemporalZonedDateTime]] internal slot, then...
         // TODO If item has an [[InitializedTemporalDateTime]] internal slot, then...
         // Let result be ? ToTemporalTimeRecord(item).
         auto resultRecord = TemporalPlainTimeObject::toTemporalTimeRecord(state, item, NullOption);
@@ -612,6 +404,77 @@ TemporalPlainTimeObject* Temporal::toTemporalTime(ExecutionState& state, Value i
     }
     return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(), result);
 }
+
+TemporalPlainDateObject* Temporal::toTemporalDate(ExecutionState& state, Value item, Value options)
+{
+    // If options is not present, set options to undefined.
+    // If item is an Object, then
+    if (item.isObject()) {
+        // If item has an [[InitializedTemporalDate]] internal slot, then
+        if (item.asObject()->isTemporalPlainDateObject()) {
+            // Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolvedOptions = Intl::getOptionsObject(state, options);
+            // Perform ? GetTemporalOverflowOption(resolvedOptions).
+            Temporal::getTemporalOverflowOption(state, resolvedOptions);
+            // Return ! CreateTemporalDate(item.[[ISODate]], item.[[Calendar]]).
+            return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
+                                               item.asObject()->asTemporalPlainDateObject()->plainDate(), item.asObject()->asTemporalPlainDateObject()->calendarID());
+        }
+        // TODO If item has an [[InitializedTemporalZonedDateTime]] internal slot, then...
+        // TODO If item has an [[InitializedTemporalDateTime]] internal slot, then...
+
+        // Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).
+        auto calendar = Temporal::getTemporalCalendarIdentifierWithISODefault(state, item);
+        // Let fields be ? PrepareCalendarFields(calendar, item, « year, month, month-code, day », «», «»).
+        CalendarField f[4] = { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day };
+        auto fields = prepareCalendarFields(state, calendar, item.asObject(), f, 4, nullptr, 0, nullptr, 0);
+        // Let resolvedOptions be ? GetOptionsObject(options).
+        auto resolvedOptions = Intl::getOptionsObject(state, options);
+        // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+        auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
+        // Let isoDate be ? CalendarDateFromFields(calendar, fields, overflow).
+        auto isoDate = calendarDateFromFields(state, calendar, fields, overflow);
+        // Return ! CreateTemporalDate(isoDate, calendar).
+        return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
+                                           isoDate, calendar);
+    }
+
+    // If item is not a String, throw a TypeError exception.
+    if (!item.isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "ToTemporalDate needs Object or String");
+    }
+    // Let result be ? ParseISODateTime(item, « TemporalDateTimeString[~Zoned] »).
+    ISO8601::DateTimeParseOption option;
+    option.allowTimeZoneTimeWithoutTime = true;
+    auto result = ISO8601::parseCalendarDateTime(item.asString(), option);
+    if (!result) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalDate needs ISO Date string");
+    }
+    if ((result && std::get<2>(result.value()) && std::get<2>(result.value()).value().m_z)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalDate needs ISO Time string without UTC designator");
+    }
+
+    // Let calendar be result.[[Calendar]].
+    // If calendar is empty, set calendar to "iso8601".
+    String* calendar = state.context()->staticStrings().lazyISO8601().string();
+    if (std::get<3>(result.value())) {
+        calendar = String::fromUTF8(std::get<3>(result.value()).value().data(), std::get<3>(result.value()).value().length());
+    }
+    // Set calendar to ? CanonicalizeCalendar(calendar).
+    auto mayID = Calendar::fromString(calendar);
+    if (!mayID) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid CalendarID");
+    }
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Perform ? GetTemporalOverflowOption(resolvedOptions).
+    Temporal::getTemporalOverflowOption(state, resolvedOptions);
+    // Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
+    // Return ? CreateTemporalDate(isoDate, calendar).
+    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
+                                       std::get<0>(result.value()), mayID.value());
+}
+
 Optional<unsigned> Temporal::getTemporalFractionalSecondDigitsOption(ExecutionState& state, Optional<Object*> resolvedOptions)
 {
     constexpr auto msg = "The value you gave for GetTemporalFractionalSecondDigitsOption is invalid";
@@ -824,7 +687,9 @@ TimeZone Temporal::toTemporalTimezoneIdentifier(ExecutionState& state, const Val
     // Let timeZoneIdentifierRecord be GetAvailableNamedTimeZoneIdentifier(name).
     // If timeZoneIdentifierRecord is empty, throw a RangeError exception.
     // Return timeZoneIdentifierRecord.[[Identifier]].
-    Optional<int64_t> utcOffset = ISO8601::parseUTCOffset(temporalTimeZoneLikeString, false);
+    ISO8601::DateTimeParseOption option;
+    option.parseSubMinutePrecisionForTimeZone = false;
+    Optional<int64_t> utcOffset = ISO8601::parseUTCOffset(temporalTimeZoneLikeString, option);
     if (utcOffset) {
         return TimeZone(utcOffset.value());
     }
@@ -834,8 +699,7 @@ TimeZone Temporal::toTemporalTimezoneIdentifier(ExecutionState& state, const Val
         return TimeZone(identifier.value());
     }
 
-    // Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Optional<CalendarID>>>
-    auto complexTimeZone = ISO8601::parseCalendarDateTime(temporalTimeZoneLikeString, false);
+    auto complexTimeZone = ISO8601::parseCalendarDateTime(temporalTimeZoneLikeString, option);
     if (complexTimeZone && std::get<2>(complexTimeZone.value())) {
         ISO8601::TimeZoneRecord record = std::get<2>(complexTimeZone.value()).value();
         if (record.m_z) {
@@ -1280,35 +1144,380 @@ Int128 Temporal::timeDurationFromComponents(double hours, double minutes, double
     return ISO8601::Duration({ 0.0, 0.0, 0.0, 0.0, hours, minutes, seconds, milliseconds, microseconds, nanoseconds }).totalNanoseconds(ISO8601::DateTimeUnit::Hour);
 }
 
-TemporalObject::TemporalObject(ExecutionState& state)
-    : TemporalObject(state, state.context()->globalObject()->objectPrototype())
+Calendar Temporal::getTemporalCalendarIdentifierWithISODefault(ExecutionState& state, Value item)
 {
-}
-
-TemporalObject::TemporalObject(ExecutionState& state, Object* proto)
-    : DerivedObject(state, proto)
-{
-}
-
-TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* proto, const ISODate& date, String* calendar)
-    : TemporalObject(state, proto)
-    , m_calendar(calendar)
-    , m_date(date)
-{
-}
-
-void* TemporalPlainDateObject::operator new(size_t size)
-{
-    static MAY_THREAD_LOCAL bool typeInited = false;
-    static MAY_THREAD_LOCAL GC_descr descr;
-    if (!typeInited) {
-        GC_word obj_bitmap[GC_BITMAP_SIZE(TemporalPlainDateObject)] = { 0 };
-        Object::fillGCDescriptor(obj_bitmap);
-        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(TemporalPlainDateObject, m_calendar));
-        descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(TemporalPlainDateObject));
-        typeInited = true;
+    // TODO [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]]
+    // If item has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]] internal slot, then
+    //   Return item.[[Calendar]].
+    if (item.isObject()) {
+        if (item.asObject()->isTemporalPlainDateObject()) {
+            return item.asObject()->asTemporalPlainDateObject()->calendarID();
+        }
     }
-    return GC_MALLOC_EXPLICITLY_TYPED(size, descr);
+
+    // Let calendarLike be ? Get(item, "calendar").
+    Value calendarLike = Object::getV(state, item, state.context()->staticStrings().lazyCalendar());
+    // If calendarLike is undefined, then
+    if (calendarLike.isUndefined()) {
+        // Return "iso8601".
+        return Calendar();
+    }
+    // Return ? ToTemporalCalendarIdentifier(calendarLike).
+    return toTemporalCalendarIdentifier(state, calendarLike);
+}
+
+Calendar Temporal::toTemporalCalendarIdentifier(ExecutionState& state, Value temporalCalendarLike)
+{
+    // TODO [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]]
+    // If temporalCalendarLike is an Object, then
+    //   If temporalCalendarLike has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]] internal slot, then
+    //     Return temporalCalendarLike.[[Calendar]].
+    if (temporalCalendarLike.isObject()) {
+        if (temporalCalendarLike.asObject()->isTemporalPlainDateObject()) {
+            return temporalCalendarLike.asObject()->asTemporalPlainDateObject()->calendarID();
+        }
+    }
+
+    // If temporalCalendarLike is not a String, throw a TypeError exception.
+    if (!temporalCalendarLike.isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "ToTemporalCalendarIdentifier needs Temporal date-like Object or String");
+    }
+    // Let identifier be ? ParseTemporalCalendarString(temporalCalendarLike).
+    // Return ? CanonicalizeCalendar(identifier).
+    auto mayCalendar = Calendar::fromString(temporalCalendarLike.asString());
+    auto parseResult = ISO8601::parseCalendarDateTime(temporalCalendarLike.asString());
+    // TODO parse m-d, y-m from when implement YearMonth, MonthDay
+    // test/built-ins/Temporal/PlainDate/from/argument-propertybag-calendar-iso-string.js
+    if (!mayCalendar && !parseResult) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar");
+    }
+
+    if (mayCalendar) {
+        return mayCalendar.value();
+    }
+    auto isoId = std::get<3>(parseResult.value());
+    if (isoId) {
+        mayCalendar = Calendar::fromString(isoId.value());
+        if (!mayCalendar) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar");
+        }
+        return mayCalendar.value();
+    }
+    return Calendar();
+}
+
+static AtomicString calendarFieldsRecordToString(ExecutionState& state, CalendarField f)
+{
+    if (false) {}
+#define DEFINE_FIELD(name, Name, type)                        \
+    else if (f == CalendarField::Name)                        \
+    {                                                         \
+        return state.context()->staticStrings().lazy##Name(); \
+    }
+    CALENDAR_FIELD_RECORDS(DEFINE_FIELD)
+#undef DEFINE_FIELD
+
+    ASSERT_NOT_REACHED();
+    return AtomicString();
+}
+
+static CalendarField stringToCalendarFieldsRecord(ExecutionState& state, AtomicString f)
+{
+    if (false) {}
+#define DEFINE_FIELD(name, Name, type)                           \
+    else if (f == state.context()->staticStrings().lazy##Name()) \
+    {                                                            \
+        return CalendarField::Name;                              \
+    }
+    CALENDAR_FIELD_RECORDS(DEFINE_FIELD)
+#undef DEFINE_FIELD
+
+    ASSERT_NOT_REACHED();
+    return CalendarField::Year;
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
+static MonthCode parseMonthCode(ExecutionState& state, Value input)
+{
+    constexpr auto msg = "Failed to parse month code";
+    // Let monthCode be ? ToPrimitive(argument, string).
+    Value monthCode = input.toPrimitive(state, Value::PrimitiveTypeHint::PreferString);
+    // If monthCode is not a String, throw a TypeError exception.
+    if (!monthCode.isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, msg);
+    }
+    // If ParseText(StringToCodePoints(monthCode), MonthCode) is a List of errors, throw a RangeError exception.
+    // Let isLeapMonth be false.
+    // If the length of monthCode is 4, then
+    //   Assert: The fourth code unit of monthCode is 0x004C (LATIN CAPITAL LETTER L).
+    //   Set isLeapMonth to true.
+    // Let monthCodeDigits be the substring of monthCode from 1 to 3.
+    // Let monthNumber be ℝ(StringToNumber(monthCodeDigits)).
+    ParserString buffer(monthCode.asString());
+
+    if (buffer.atEnd() || *buffer != 'M') {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+    }
+    buffer.advance();
+
+    bool isLeapMonth = false;
+    unsigned code = 0;
+    if (!buffer.atEnd() && *buffer == '0') {
+        buffer.advance();
+        if (!buffer.atEnd() && isASCIIDigit(*buffer) && *buffer != '0') {
+            code = *buffer - '0';
+            buffer.advance();
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+        }
+    } else if (!buffer.atEnd() && isASCIIDigit(*buffer)) {
+        code = (*buffer - '0') * 10;
+        buffer.advance();
+        if (!buffer.atEnd() && isASCIIDigit(*buffer)) {
+            code += *buffer - '0';
+            buffer.advance();
+        } else {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+        }
+    }
+
+    // process 'L'
+    if (!buffer.atEnd() && *buffer == 'L') {
+        buffer.advance();
+        isLeapMonth = true;
+    }
+
+    if (!buffer.atEnd()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+    }
+
+    // If monthNumber is 0 and isLeapMonth is false, throw a RangeError exception.
+    if (code == 0 && !isLeapMonth) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+    }
+
+    // Return the Record { [[MonthNumber]]: monthNumber, [[IsLeapMonth]]: isLeapMonth }.
+    MonthCode record;
+    record.monthNumber = code;
+    record.isLeapMonth = isLeapMonth;
+    return record;
+}
+
+void CalendarFieldsRecord::setValue(ExecutionState& state, CalendarField f, Value value)
+{
+    if (f == CalendarField::Era) {
+        era = value.toString(state);
+    } else if (f == CalendarField::EraYear) {
+        eraYear = value.toIntegerWithTruncation(state);
+    } else if (f == CalendarField::Year) {
+        year = value.toIntegerWithTruncation(state);
+    } else if (f == CalendarField::Month) {
+        month = value.toPostiveIntegerWithTruncation(state);
+    } else if (f == CalendarField::MonthCode) {
+        monthCode = parseMonthCode(state, value);
+    } else if (f == CalendarField::Day) {
+        day = value.toPostiveIntegerWithTruncation(state);
+    } else if (f == CalendarField::Hour) {
+        hour = value.toIntegerWithTruncation(state);
+    } else if (f == CalendarField::Minute) {
+        minute = value.toIntegerWithTruncation(state);
+    } else if (f == CalendarField::Second) {
+        second = value.toIntegerWithTruncation(state);
+    } else if (f == CalendarField::Millisecond) {
+        millisecond = value.toIntegerWithTruncation(state);
+    } else if (f == CalendarField::Microsecond) {
+        microsecond = value.toIntegerWithTruncation(state);
+    } else if (f == CalendarField::Nanosecond) {
+        nanosecond = value.toIntegerWithTruncation(state);
+    } else {
+        // TODO
+        ASSERT_NOT_REACHED();
+    }
+}
+
+CalendarFieldsRecord Temporal::prepareCalendarFields(ExecutionState& state, Calendar calendar, Object* fields, CalendarField* calendarFieldNames, size_t calendarFieldNamesLength,
+                                                     CalendarField* nonCalendarFieldNames, size_t nonCalendarFieldNamesLength, CalendarField* requiredFieldNames, size_t requiredFieldNamesLength)
+{
+    // Let fieldNames be the list-concatenation of calendarFieldNames and nonCalendarFieldNames.
+    std::vector<CalendarField> fieldName;
+    for (size_t i = 0; i < calendarFieldNamesLength; i++) {
+        fieldName.push_back(calendarFieldNames[i]);
+    }
+    for (size_t i = 0; i < nonCalendarFieldNamesLength; i++) {
+        fieldName.push_back(nonCalendarFieldNames[i]);
+    }
+    // Let extraFieldNames be CalendarExtraFields(calendar, calendarFieldNames).
+    // Set fieldNames to the list-concatenation of fieldNames and extraFieldNames.
+    if (calendar.isEraRelated()) {
+        fieldName.push_back(CalendarField::Era);
+        fieldName.push_back(CalendarField::EraYear);
+    }
+
+    // Assert: fieldNames contains no duplicate elements.
+    // Let any be false.
+    bool any = false;
+    // Let result be a Calendar Fields Record with all fields equal to unset.
+    CalendarFieldsRecord result;
+    std::vector<AtomicString> sortedPropertyNames;
+    for (auto n : fieldName) {
+        sortedPropertyNames.push_back(calendarFieldsRecordToString(state, n));
+    }
+
+    std::sort(sortedPropertyNames.begin(), sortedPropertyNames.end(), [](AtomicString lhs, AtomicString rhs) {
+        return *lhs.string() < *rhs.string();
+    });
+
+    // For each property name property of sortedPropertyNames, do
+    for (auto property : sortedPropertyNames) {
+        // Let key be the value in the Enumeration Key column of Table 19 corresponding to the row whose Property Key value is property.
+        // Let value be ? Get(fields, property).
+        Value value = fields->get(state, ObjectPropertyName(property)).value(state, fields);
+        // If value is not undefined, then
+        if (!value.isUndefined()) {
+            // Step i...ix
+            result.setValue(state, stringToCalendarFieldsRecord(state, property), value);
+            any = true;
+        } else if (requiredFieldNamesLength && requiredFieldNamesLength != SIZE_MAX) {
+            // Else if requiredFieldNames is a List, then
+            // If requiredFieldNames contains key, then
+            for (size_t i = 0; i < requiredFieldNamesLength; i++) {
+                // Throw a TypeError exception.
+                if (requiredFieldNames[i] == stringToCalendarFieldsRecord(state, property)) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
+                }
+            }
+            // TODO Set result's field whose name is given in the Field Name column of the same row to the corresponding Default value of the same row.
+        }
+    }
+
+    // If requiredFieldNames is partial and any is false, then
+    if (requiredFieldNamesLength == SIZE_MAX && !any) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
+    }
+
+    // Return result.
+    return result;
+}
+
+UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow)
+{
+    // CalendarResolveFields steps
+    if (calendar.isISO8601() || !calendar.isEraRelated()) {
+        if (!fields.year || !fields.day) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
+        }
+    } else {
+        if (!fields.day) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
+        }
+        if (!(fields.era && fields.eraYear) && !fields.year) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
+        }
+        if (fields.era && !fields.eraYear) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
+        }
+    }
+
+    if (!fields.monthCode && !fields.month) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
+    }
+    if (fields.monthCode && (fields.monthCode.value().isLeapMonth || fields.monthCode.value().monthNumber > 12)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Wrong month code");
+    }
+    if (fields.month && fields.monthCode && fields.month.value() != fields.monthCode.value().monthNumber) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Wrong month code or month");
+    }
+    if (fields.monthCode) {
+        fields.month = fields.monthCode.value().monthNumber;
+    }
+
+    auto icuCalendar = calendar.createICUCalendar(state);
+
+    if (calendar.isISO8601()) {
+        // CalendarDateToISO steps
+        if (overflow == TemporalOverflowOption::Constrain) {
+            fields.month = std::min<unsigned>(fields.month.value(), 12);
+            fields.day = std::min<unsigned>(fields.day.value(), ISO8601::daysInMonth(fields.year.value(), fields.month.value()));
+        }
+        auto plainDate = ISO8601::toPlainDate(ISO8601::Duration({ static_cast<double>(fields.year.value()), static_cast<double>(fields.month.value()), 0.0, static_cast<double>(fields.day.value()), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 }));
+        if (!plainDate || !ISO8601::isDateTimeWithinLimits(plainDate.value().year(), plainDate.value().month(), plainDate.value().day(), 12, 0, 0, 0, 0, 0)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date");
+        }
+
+        ucal_set(icuCalendar, UCAL_YEAR, fields.year.value());
+        ucal_set(icuCalendar, UCAL_MONTH, fields.month.value() - 1);
+        ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
+
+    } else if (calendar.isEraRelated() && (fields.era && fields.eraYear)) {
+        Optional<int32_t> eraIdx;
+
+        auto fieldEraValue = fields.era.value()->toNonGCUTF8StringData();
+        calendar.lookupICUEra(state, [&](size_t idx, const std::string& s) -> bool {
+            if (s == fieldEraValue) {
+                eraIdx = idx;
+                return true;
+            }
+            return false;
+        });
+
+        if (!eraIdx) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid era value");
+        }
+
+        ucal_set(icuCalendar, UCAL_ERA, eraIdx.value());
+        ucal_set(icuCalendar, UCAL_YEAR, fields.eraYear.value());
+
+        if (fields.year) {
+            UErrorCode status = U_ZERO_ERROR;
+            auto epochTime = ucal_getMillis(icuCalendar, &status);
+            DateObject::DateTimeInfo timeInfo;
+            DateObject::computeTimeInfoFromEpoch(epochTime, timeInfo);
+            if (timeInfo.year != fields.year.value()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "'year' and computed 'year' calendar fields are inconsistent");
+            }
+        }
+
+        ucal_set(icuCalendar, UCAL_MONTH, fields.month.value() - 1);
+        ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
+    } else {
+        if (calendar.shouldUseICUExtendedYear()) {
+            ucal_set(icuCalendar, UCAL_EXTENDED_YEAR, fields.year.value());
+        } else {
+            ucal_set(icuCalendar, UCAL_YEAR, fields.year.value());
+        }
+        ucal_set(icuCalendar, UCAL_MONTH, fields.month.value() - 1);
+        ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
+    }
+
+    return icuCalendar;
+}
+
+TemporalShowCalendarNameOption Temporal::getTemporalShowCalendarNameOption(ExecutionState& state, Optional<Object*> options)
+{
+    if (!options) {
+        return TemporalShowCalendarNameOption::Auto;
+    }
+    Value values[4] = { state.context()->staticStrings().lazyAuto().string(), state.context()->staticStrings().lazyAlways().string(),
+                        state.context()->staticStrings().lazyNever().string(), state.context()->staticStrings().lazyCritical().string() };
+    // Let stringValue be ? GetOption(options, "calendarName", string, « "auto", "always", "never", "critical" », "auto").
+    auto stringValue = Intl::getOption(state, options.value(), state.context()->staticStrings().lazyCalendarName().string(), Intl::StringValue,
+                                       values, 4, state.context()->staticStrings().lazyAuto().string())
+                           .asString();
+    // If stringValue is "always", return always.
+    if (stringValue->equals("always")) {
+        return TemporalShowCalendarNameOption::Always;
+    }
+    // If stringValue is "never", return never.
+    if (stringValue->equals("never")) {
+        return TemporalShowCalendarNameOption::Never;
+    }
+    // If stringValue is "critical", return critical.
+    if (stringValue->equals("critical")) {
+        return TemporalShowCalendarNameOption::Critical;
+    }
+    // Return auto.
+    return TemporalShowCalendarNameOption::Auto;
 }
 
 } // namespace Escargot

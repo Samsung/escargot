@@ -131,8 +131,12 @@
 #define ucal_getType RuntimeICUBinder::ICU::instance().ucal_getType
 #define ucal_getAttribute RuntimeICUBinder::ICU::instance().ucal_getAttribute
 #define ucal_getDayOfWeekType RuntimeICUBinder::ICU::instance().ucal_getDayOfWeekType
+#define ucal_getMillis RuntimeICUBinder::ICU::instance().ucal_getMillis
+#define ucal_set RuntimeICUBinder::ICU::instance().ucal_set
 #define ucal_setGregorianChange RuntimeICUBinder::ICU::instance().ucal_setGregorianChange
 #define ucal_setMillis RuntimeICUBinder::ICU::instance().ucal_setMillis
+#define ucal_setDate RuntimeICUBinder::ICU::instance().ucal_setDate
+#define ucal_setDateTime RuntimeICUBinder::ICU::instance().ucal_setDateTime
 #define ucal_clone RuntimeICUBinder::ICU::instance().ucal_clone
 
 #define udatpg_close RuntimeICUBinder::ICU::instance().udatpg_close
@@ -195,6 +199,7 @@
 
 #define ures_open RuntimeICUBinder::ICU::instance().ures_open
 #define ures_openDirect RuntimeICUBinder::ICU::instance().ures_openDirect
+#define ures_findResource RuntimeICUBinder::ICU::instance().ures_findResource
 #define ures_getByKey RuntimeICUBinder::ICU::instance().ures_getByKey
 #define ures_close RuntimeICUBinder::ICU::instance().ures_close
 #define ures_getKey RuntimeICUBinder::ICU::instance().ures_getKey

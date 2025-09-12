@@ -962,6 +962,7 @@ namespace Escargot {
 #define FOR_EACH_LAZY_TEMPORAL_STATIC_STRING(F)           \
     F(Blank, "blank")                                     \
     F(CalendarId, "calendarId")                           \
+    F(CalendarName, "calendarName")                       \
     F(CapitalDuration, "Duration")                        \
     F(CapitalInstant, "Instant")                          \
     F(CapitalNow, "Now")                                  \
@@ -969,6 +970,7 @@ namespace Escargot {
     F(CapitalPlainDateTime, "PlainDateTime")              \
     F(CapitalPlainTime, "PlainTime")                      \
     F(CapitalTemporal, "Temporal")                        \
+    F(Critical, "critical")                               \
     F(DayOfWeek, "dayOfWeek")                             \
     F(DayOfYear, "dayOfYear")                             \
     F(DaysInMonth, "daysInMonth")                         \
@@ -989,6 +991,7 @@ namespace Escargot {
     F(MonthCode, "monthCode")                             \
     F(MonthsInYear, "monthsInYear")                       \
     F(Negated, "negated")                                 \
+    F(Offset, "offset")                                   \
     F(Overflow, "overflow")                               \
     F(Reject, "reject")                                   \
     F(PlainDateISO, "plainDateISO")                       \
