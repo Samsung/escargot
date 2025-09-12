@@ -1,0 +1,109 @@
+name: Review Bot (PR)
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [ "master" ]
+
+concurrency:
+  group: review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: [self-hosted, escargot-review]
+
+    steps:
+      - name: Compute diff range (incremental on synchronize)
+        id: shas
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const action = context.payload.action;
+            const pr = context.payload.pull_request.number;
+            const baseSha = context.payload.pull_request.base.sha;
+            const headSha = context.payload.pull_request.head.sha;
+
+            let base = baseSha;
+            let skip = false;
+            if (action === 'synchronize') {
+              const before = context.payload.before;
+              if (before) {
+                base = before;
+              } else {
+                skip = true;
+              }
+            }
+
+            core.setOutput('base', base);
+            core.setOutput('head', headSha);
+            core.setOutput('pr', pr);
+            core.setOutput('skip', String(skip));
+      - name: Skip review (no before on synchronize)
+        if: ${{ steps.shas.outputs.skip == 'true' }}
+        run: |
+          echo "[Review Bot] Skipping review: 'before' SHA missing on synchronize event."
+      - name: Call review server
+        id: call
+        if: ${{ steps.shas.outputs.skip != 'true' }}
+        env:
+          REVIEW_SERVER: ${{ secrets.REVIEW_SERVER }}
+        run: |
+          set -euo pipefail
+          REVIEW_SERVER="${REVIEW_SERVER}"
+          BASE_SHA="${{ steps.shas.outputs.base }}"
+          HEAD_SHA="${{ steps.shas.outputs.head }}"
+          PR_NUMBER="${{ steps.shas.outputs.pr }}"
+
+          curl -sS --fail-with-body --show-error \
+            --connect-timeout 10 --max-time 7200 \
+            -X POST "${REVIEW_SERVER}/review" \
+            -H "Content-Type: application/json" \
+            -d "{\"base_sha\":\"${BASE_SHA}\",\"head_sha\":\"${HEAD_SHA}\",\"pull_request_number\":${PR_NUMBER}}" \
+            -o review.json
+
+          echo "==== review.json ===="
+          cat review.json
+
+      - name: Post review comments
+        if: ${{ steps.shas.outputs.skip != 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const pr = context.payload.pull_request.number;
+            let raw;
+            try {
+              raw = fs.readFileSync('review.json', 'utf8');
+            } catch (e) {
+              core.warning(`review.json not found: ${e}`);
+              return;
+            }
+            let data;
+            try {
+              data = JSON.parse(raw);
+            } catch (e) {
+              core.warning(`Failed to parse review.json as JSON: ${e}`);
+              return;
+            }
+            const comments = Array.isArray(data.comments) ? data.comments : [];
+
+            for (const c of comments) {
+              await github.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/comments', {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr,
+                body: c.body,
+                commit_id: c.commit_id,
+                path: c.path,
+                line: c.line,
+                side: c.side,
+                headers: { 'accept': 'application/vnd.github+json' }
+              });
+
+              await new Promise(r => setTimeout(r, 200));
+            }
