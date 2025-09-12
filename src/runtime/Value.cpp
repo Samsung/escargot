@@ -886,6 +886,18 @@ int64_t Value::toIntegerWithTruncation(ExecutionState& state) const
     return std::trunc(number);
 }
 
+int64_t Value::toPostiveIntegerWithTruncation(ExecutionState& state) const
+{
+    // Let integer be ? ToIntegerWithTruncation(argument).
+    auto integer = toIntegerWithTruncation(state);
+    // If integer ≤ 0, throw a RangeError exception.
+    if (integer <= 0) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Failed to execute ToPostiveIntegerWithTruncation");
+    }
+    // Return integer.
+    return integer;
+}
+
 #if defined(ESCARGOT_ENABLE_TEST)
 bool Value::checkIfObjectWithIsHTMLDDA() const
 {

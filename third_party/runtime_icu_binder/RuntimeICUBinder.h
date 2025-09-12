@@ -148,6 +148,7 @@ namespace RuntimeICUBinder {
     F(ucal_getAttribute, int32_t(CALLCONV*)(const UCalendar* cal, UCalendarAttribute attr), int32_t)                                                                                                                                       \
     F(ucal_getDayOfWeekType, UCalendarWeekdayType(CALLCONV*)(const UCalendar* cal, UCalendarDaysOfWeek dayOfWeek, UErrorCode* status), UCalendarWeekdayType)                                                                               \
     F(ucal_clone, UCalendar*(CALLCONV*)(const UCalendar* cal, UErrorCode* status), UCalendar*)                                                                                                                                             \
+    F(ucal_getMillis, UDate(CALLCONV*)(const UCalendar* cal, UErrorCode* status), UDate)                                                                                                                                                   \
     F(udatpg_open, UDateTimePatternGenerator*(CALLCONV*)(const char* locale, UErrorCode* pErrorCode), UDateTimePatternGenerator*)                                                                                                          \
     F(udatpg_getBestPattern, int32_t(CALLCONV*)(UDateTimePatternGenerator * dtpg, const UChar* skeleton, int32_t length, UChar* bestPattern, int32_t capacity, UErrorCode* pErrorCode), int32_t)                                           \
     F(udatpg_getBestPatternWithOptions, int32_t(CALLCONV*)(UDateTimePatternGenerator*, const UChar*, int32_t, UDateTimePatternMatchOptions, UChar*, int32_t, UErrorCode*), int32_t)                                                        \
@@ -175,6 +176,7 @@ namespace RuntimeICUBinder {
     F(ucsdet_getConfidence, int32_t(CALLCONV*)(const UCharsetMatch* ucsm, UErrorCode* status), int32_t)                                                                                                                                    \
     F(ures_open, UResourceBundle*(CALLCONV*)(const char* packageName, const char* locale, UErrorCode* status), UResourceBundle*)                                                                                                           \
     F(ures_openDirect, UResourceBundle*(CALLCONV*)(const char* packageName, const char* locale, UErrorCode* status), UResourceBundle*)                                                                                                     \
+    F(ures_findResource, UResourceBundle*(CALLCONV*)(const char* pathToResource, UResourceBundle *fillIn, UErrorCode *status), UResourceBundle*)                                                                                                     \
     F(ures_getByKey, UResourceBundle*(CALLCONV*)(const UResourceBundle* resourceBundle, const char* key, UResourceBundle* fillIn, UErrorCode* status), UResourceBundle*)                                                                   \
     F(ures_getKey, const char*(CALLCONV*)(const UResourceBundle* resourceBundle), const char*)                                                                                                                                             \
     F(ures_getNextResource, UResourceBundle*(CALLCONV*)(UResourceBundle * resourceBundle, UResourceBundle * fillIn, UErrorCode * status), UResourceBundle*)                                                                                \
@@ -230,8 +232,11 @@ namespace RuntimeICUBinder {
     F(ucol_close, void(CALLCONV*)(UCollator * coll), void)                                                                                                                  \
     F(unumsys_close, void(CALLCONV*)(UNumberingSystem*), void)                                                                                                              \
     F(ucal_close, void(CALLCONV*)(UCalendar * cal), void)                                                                                                                   \
+    F(ucal_set, void(CALLCONV*)(UCalendar* cal, UCalendarDateFields field, int32_t value), void)                                                                            \
     F(ucal_setGregorianChange, void(CALLCONV*)(UCalendar * cal, UDate date, UErrorCode * pErrorCode), void)                                                                 \
     F(ucal_setMillis, void(CALLCONV*)(UCalendar * cal, UDate date, UErrorCode * status), void)                                                                              \
+    F(ucal_setDate, void(CALLCONV*)(UCalendar *cal, int32_t, int32_t, int32_t, UErrorCode *), void)                                                                         \
+    F(ucal_setDateTime, void(CALLCONV*)(UCalendar *cal, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, UErrorCode *), void)                                          \
     F(udatpg_close, void(CALLCONV*)(UDateTimePatternGenerator * zone), void)                                                                                                \
     F(unum_close, void(CALLCONV*)(UNumberFormat*), void)                                                                                                                    \
     F(unum_setTextAttribute, void(CALLCONV*)(UNumberFormat * fmt, UNumberFormatTextAttribute tag, const UChar* newValue, int32_t newValueLength, UErrorCode* status), void) \

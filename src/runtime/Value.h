@@ -241,6 +241,7 @@ public:
     double toInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
     double toIntegerIfIntergral(ExecutionState& state) const; // https://tc39.es/ecma402/#sec-tointegerifintegral
     int64_t toIntegerWithTruncation(ExecutionState& state) const; // https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
+    int64_t toPostiveIntegerWithTruncation(ExecutionState& state) const; // https://tc39.es/proposal-temporal/#sec-topositiveintegerwithtruncation
     bool isInteger(ExecutionState& ec) const; // $7.1.4 ToInteger
     uint64_t toLength(ExecutionState& ec) const;
     int32_t toInt32(ExecutionState& ec) const; // $7.1.5 ToInt32

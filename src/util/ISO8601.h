@@ -497,12 +497,18 @@ struct RFC9557Annotation {
     RFC9557Value m_value;
 };
 
+struct DateTimeParseOption {
+    bool parseSubMinutePrecisionForTimeZone{ true };
+    bool allowTimeZoneTimeWithoutTime{ false };
+};
+
 Optional<ExactTime> parseISODateTimeWithInstantFormat(String* input);
-Optional<int64_t> parseUTCOffset(String* string, bool parseSubMinutePrecision = true);
+Optional<int64_t> parseUTCOffset(String* string, DateTimeParseOption option);
 Optional<TimeZoneID> parseTimeZoneName(String* string);
 Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(String* input);
 Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>>> parseDateTime(String* input);
-Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarDateTime(String* input, bool parseSubMinutePrecisionForTimeZone = true);
+Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarDateTime(String* input, DateTimeParseOption option = {});
+Optional<String*> parseCalendarString(String* input);
 
 // https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrement
 double roundNumberToIncrement(double x, double increment, RoundingMode roundingMode);
@@ -516,6 +522,13 @@ UnsignedRoundingMode getUnsignedRoundingMode(RoundingMode roundingMode, bool isN
 
 Int128 lengthInNanoseconds(DateTimeUnit unit);
 Int128 resolveNanosecondsValueByUnit(DateTimeUnit unit);
+
+uint8_t daysInMonth(int32_t year, uint8_t month);
+uint8_t daysInMonth(uint8_t month);
+// https://tc39.es/proposal-temporal/#sec-temporal-isodatetimewithinlimits
+bool isDateTimeWithinLimits(int32_t year, uint8_t month, uint8_t day, unsigned hour, unsigned minute, unsigned second, unsigned millisecond, unsigned microsecond, unsigned nanosecond);
+Optional<ISO8601::PlainDate> toPlainDate(const ISO8601::Duration& duration);
+
 
 class TimeConstants {
 public:

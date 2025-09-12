@@ -31,6 +31,68 @@
 
 namespace Escargot {
 
+class Calendar {
+public:
+#define CALENDAR_ID_RECORDS(F)                                  \
+    F(ISO8601, "iso8601", "iso8601")                            \
+    F(Buddhist, "buddhist", "buddhist")                         \
+    F(Chinese, "chinese", "chinese")                            \
+    F(Coptic, "coptic", "coptic")                               \
+    F(Dangi, "dangi", "dangi")                                  \
+    F(Ethiopian, "ethiopic", "ethiopic")                        \
+    F(EthiopianAmeteAlem, "ethioaa", "ethiopic-amete-alem")     \
+    F(Gregorian, "gregory", "gregorian")                        \
+    F(Hebrew, "hebrew", "hebrew")                               \
+    F(Indian, "indian", "indian")                               \
+    F(Islamic, "islamic", "islamic")                            \
+    F(IslamicCivil, "islamic-civil", "islamic-civil")           \
+    F(IslamicRGSA, "islamic-rgsa", "islamic-rgsa")              \
+    F(IslamicTabular, "islamic-tbla", "islamic-tbla")           \
+    F(IslamicUmmAlQura, "islamic-umalqura", "islamic-umalqura") \
+    F(Japanese, "japanese", "japanese")                         \
+    F(Persian, "persian", "persian")                            \
+    F(ROC, "roc", "roc")
+
+    enum class ID : int32_t {
+#define DEFINE_FIELD(name, string, icuString) name,
+        CALENDAR_ID_RECORDS(DEFINE_FIELD)
+#undef DEFINE_FIELD
+    };
+
+    Calendar(ID id = ID::ISO8601)
+        : m_id(id)
+    {
+    }
+
+    bool operator==(const Calendar& c) const
+    {
+        return m_id == c.m_id;
+    }
+
+    bool isISO8601() const
+    {
+        return m_id == ID::ISO8601;
+    }
+
+    ID id() const
+    {
+        return m_id;
+    }
+
+    bool isEraRelated() const;
+    bool shouldUseICUExtendedYear() const;
+
+    static Optional<Calendar> fromString(ISO8601::CalendarID);
+    static Optional<Calendar> fromString(String* str);
+    String* toString() const;
+    std::string toICUString() const;
+    UCalendar* createICUCalendar(ExecutionState& state);
+    void lookupICUEra(ExecutionState& state, const std::function<bool(size_t idx, const std::string& icuEra)>& fn) const;
+
+private:
+    ID m_id;
+};
+
 class TimeZone {
 public:
     TimeZone()
@@ -77,144 +139,6 @@ private:
     Optional<int64_t> m_offset;
 };
 
-struct TimeRecord {
-    static TimeRecord noonTimeRecord()
-    {
-        return TimeRecord(0, 12, 0, 0, 0, 0, 0);
-    }
-
-    TimeRecord(int d, int h, int m, int s, int ms, int microsec, int ns)
-        : days(d)
-        , hour(h)
-        , minute(m)
-        , second(s)
-        , millisecond(ms)
-        , microsecond(microsec)
-        , nanosecond(ns)
-    {
-    }
-
-    int days = 0;
-    int hour = 12;
-    int minute = 0;
-    int second = 0;
-    int millisecond = 0;
-    int microsecond = 0;
-    int nanosecond = 0;
-};
-
-struct ISODate {
-    ISODate(int y, int m, int d)
-        : year(y)
-        , month(m)
-        , day(d)
-    {
-    }
-
-    int year = 0;
-    int month = 0;
-    int day = 0;
-};
-
-struct ISODateTime {
-    ISODateTime(const ISODate& d, const TimeRecord& t)
-        : date(d)
-        , time(t)
-    {
-    }
-
-    MAKE_STACK_ALLOCATED();
-
-    ISODate date;
-    TimeRecord time;
-};
-
-struct YearWeek {
-    static const int UndefinedValue = std::numeric_limits<int>::max();
-
-    YearWeek(int w, int y)
-        : week(w)
-        , year(y)
-    {
-    }
-
-    Value weekValue() const
-    {
-        if (week == UndefinedValue) {
-            return Value();
-        }
-        return Value(week);
-    }
-
-    Value yearValue() const
-    {
-        if (year == UndefinedValue) {
-            return Value();
-        }
-        return Value(year);
-    }
-
-    int week = UndefinedValue;
-    int year = UndefinedValue;
-};
-
-struct CalendarDate {
-    static const int EraYearUndefinedValue = std::numeric_limits<int>::max();
-
-    CalendarDate(int y, int mon, String* monCode, int d, int dow, int doy, const YearWeek& yw, int diw, int dim, int diy, int miy, bool leapYear)
-        : era(nullptr)
-        , eraYear(EraYearUndefinedValue)
-        , year(y)
-        , month(mon)
-        , monthCode(monCode)
-        , day(d)
-        , dayOfWeek(dow)
-        , dayOfYear(doy)
-        , weekOfYear(yw)
-        , daysInWeek(diw)
-        , daysInMonth(dim)
-        , daysInYear(diy)
-        , monthsInYear(miy)
-        , inLeapYear(leapYear)
-    {
-    }
-
-    MAKE_STACK_ALLOCATED();
-
-    Value eraValue() const
-    {
-        if (!era) {
-            return Value();
-        }
-        return Value(era);
-    }
-
-    Value eraYearValue() const
-    {
-        if (eraYear == EraYearUndefinedValue) {
-            return Value();
-        }
-        return Value(eraYear);
-    }
-
-    // FIXME types of members could be changed to smaller types
-    // these members could be rearranged for better alignment as well
-    String* era = nullptr;
-    int eraYear = EraYearUndefinedValue;
-    int year = 0;
-    int month = 0;
-    String* monthCode = nullptr;
-    int day = 0;
-    int dayOfWeek = 0;
-    int dayOfYear = 0;
-    YearWeek weekOfYear;
-    int daysInWeek = 0;
-    int daysInMonth = 0;
-    int daysInYear = 0;
-    int monthsInYear = 0;
-    bool inLeapYear = false;
-};
-
 enum class TemporalUnit : uint8_t {
 #define DEFINE_TYPE(name, Name, names, Names, index, category) Name,
     PLAIN_DATETIME_UNITS(DEFINE_TYPE)
@@ -236,83 +160,55 @@ inline Optional<ISO8601::DateTimeUnit> toDateTimeUnit(Optional<TemporalUnit> u)
     return NullOption;
 }
 
+struct MonthCode {
+    unsigned monthNumber = 0;
+    bool isLeapMonth = false;
+};
+
+#define CALENDAR_FIELD_RECORDS(F)                   \
+    F(era, Era, Optional<String*>)                  \
+    F(eraYear, EraYear, Optional<int>)              \
+    F(year, Year, Optional<int>)                    \
+    F(month, Month, Optional<unsigned>)             \
+    F(monthCode, MonthCode, Optional<MonthCode>)    \
+    F(day, Day, Optional<unsigned>)                 \
+    F(hour, Hour, Optional<unsigned>)               \
+    F(minute, Minute, Optional<unsigned>)           \
+    F(second, Second, Optional<unsigned>)           \
+    F(millisecond, Millisecond, Optional<unsigned>) \
+    F(microsecond, Microsecond, Optional<unsigned>) \
+    F(nanosecond, Nanosecond, Optional<unsigned>)   \
+    F(offset, Offset, Optional<String*>)            \
+    F(timeZone, TimeZone, Optional<String*>)
+
+enum class CalendarField {
+#define DEFINE_FIELD(name, Name, type) Name,
+    CALENDAR_FIELD_RECORDS(DEFINE_FIELD)
+#undef DEFINE_FIELD
+};
+
+struct CalendarFieldsRecord {
+#define DEFINE_FIELD(name, Name, type) type name;
+    CALENDAR_FIELD_RECORDS(DEFINE_FIELD)
+#undef DEFINE_FIELD
+
+    void setValue(ExecutionState& state, CalendarField f, Value value);
+};
+
 enum class TemporalOverflowOption : uint8_t {
     Constrain,
     Reject
 };
 
+enum class TemporalShowCalendarNameOption : uint8_t {
+    Auto,
+    Always,
+    Never,
+    Critical
+};
+
 class Temporal {
 public:
-    /* TODO ParseISODateTime
-    struct ParseResult {
-        Optional<char> sign;
-
-        Optional<String*> dateYear;
-        Optional<String*> dateMonth;
-        Optional<String*> dateDay;
-        Optional<String*> timeHour;
-        Optional<String*> timeMinute;
-        Optional<String*> timeSecond;
-        Optional<String*> timeFraction;
-    };
-
-    enum class Production {
-        AnnotationValue,
-        DateMonth,
-        TemporalDateTimeString,
-        TemporalDurationString,
-        TemporalInstantString,
-        TemporalMonthDayString,
-        TemporalTimeString,
-        TemporalYearMonthString,
-        TemporalZonedDateTimeString,
-        TimeZoneIdentifier,
-    };
-    */
-
-    static double epochDayNumberForYear(const double year);
-    static int epochTimeToEpochYear(const double time);
-    static double epochTimeForYear(const double year);
-    static int mathematicalInLeapYear(const double time);
-    static int mathematicalDaysInYear(const int year);
-
-    static bool isValidISODate(ExecutionState& state, const int year, const int month, const int day);
-    static int ISODayOfWeek(const ISODate& date);
-    static int ISODayOfYear(const ISODate& date);
-    static int ISODaysInMonth(const int year, const int month);
-    static YearWeek ISOWeekOfYear(const ISODate& date);
-    static bool ISODateWithinLimits(ExecutionState& state, const ISODate& date);
-    static bool ISODateTimeWithinLimits(ExecutionState& state, const ISODateTime& dateTime);
-
-    static Int128 nsMaxInstant()
-    {
-        Int128 ret = 864000000;
-        ret *= 10000000000000;
-        return ret;
-    }
-    static Int128 nsMinInstant()
-    {
-        Int128 ret = -864000000;
-        ret *= 10000000000000;
-        return ret;
-    }
-    static Int128 nsMaxConstant()
-    {
-        Int128 ret = 86400000864;
-        ret *= 100000000000;
-        return ret;
-    }
-    static Int128 nsMinConstant()
-    {
-        Int128 ret = -86400000864;
-        ret *= 100000000000;
-        return ret;
-    }
-    static int64_t nsPerDay();
-
-    static Value createTemporalDate(ExecutionState& state, const ISODate& isoDate, String* calendar, Optional<Object*> newTarget);
-    static Value toTemporalDate(ExecutionState& state, Value item, Value options = Value());
-
     static void formatSecondsStringFraction(StringBuilder& builder, Int128 fraction, Value precision);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
@@ -327,7 +223,10 @@ public:
     static TemporalInstantObject* toTemporalInstant(ExecutionState& state, Value item);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporaltime
-    static TemporalPlainTimeObject* toTemporalTime(ExecutionState& state, Value item, Value optionsInput);
+    static TemporalPlainTimeObject* toTemporalTime(ExecutionState& state, Value item, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporaldate
+    static TemporalPlainDateObject* toTemporalDate(ExecutionState& state, Value item, Value options);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalfractionalseconddigitsoption
     // NullOption means AUTO
@@ -402,59 +301,22 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-timedurationfromcomponents
     static Int128 timeDurationFromComponents(double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds);
-};
 
-class TemporalObject : public DerivedObject {
-public:
-    explicit TemporalObject(ExecutionState& state);
-    explicit TemporalObject(ExecutionState& state, Object* proto);
+    // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalcalendarslotvaluewithisodefault
+    static Calendar getTemporalCalendarIdentifierWithISODefault(ExecutionState& state, Value item);
 
-    virtual bool isTemporalObject() const override
-    {
-        return true;
-    }
-};
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporalcalendaridentifier
+    static Calendar toTemporalCalendarIdentifier(ExecutionState& state, Value temporalCalendarLike);
 
-class TemporalPlainDateObject : public TemporalObject {
-public:
-    explicit TemporalPlainDateObject(ExecutionState& state, Object* proto, const ISODate& date, String* calendar);
+    // https://tc39.es/proposal-temporal/#sec-temporal-preparecalendarfields
+    static CalendarFieldsRecord prepareCalendarFields(ExecutionState& state, Calendar calendar, Object* fields, CalendarField* calendarFieldNames, size_t calendarFieldNamesLength,
+                                                      CalendarField* nonCalendarFieldNames, size_t nonCalendarFieldNamesLength, CalendarField* requiredFieldNames, size_t requiredFieldNamesLength /* SIZE_MAX means PARTIAL */);
 
-    void* operator new(size_t size);
-    void* operator new[](size_t size) = delete;
+    // https://tc39.es/proposal-temporal/#sec-temporal-calendardatefromfields
+    static UCalendar* calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow);
 
-    virtual bool isTemporalPlainDateObject() const override
-    {
-        return true;
-    }
-
-    int year() const
-    {
-        return m_date.year;
-    }
-
-    int month() const
-    {
-        return m_date.month;
-    }
-
-    int day() const
-    {
-        return m_date.day;
-    }
-
-    String* calendar() const
-    {
-        return m_calendar;
-    }
-
-    const ISODate& date()
-    {
-        return m_date;
-    }
-
-private:
-    String* m_calendar;
-    ISODate m_date;
+    // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowcalendarnameoption
+    static TemporalShowCalendarNameOption getTemporalShowCalendarNameOption(ExecutionState& state, Optional<Object*> options);
 };
 
 } // namespace Escargot
