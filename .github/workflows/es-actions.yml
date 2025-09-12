@@ -45,10 +45,10 @@ jobs:
         # add icu path to pkg_config_path
         export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
         echo $PKG_CONFIG_PATH
-        cmake -H. -Bout/debug/ -DESCARGOT_MODE=debug $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.10 -H. -Bout/debug/ -DESCARGOT_MODE=debug $BUILD_OPTIONS
         ninja -Cout/debug/
         $RUNNER --engine="./out/debug/escargot" new-es
-        cmake -H. -Bout/release/ -DESCARGOT_MODE=release $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.10 -H. -Bout/release/ -DESCARGOT_MODE=release $BUILD_OPTIONS
         ninja -Cout/release/
         cp test/octane/*.js .
         ./out/release/escargot run.js
@@ -72,10 +72,10 @@ jobs:
         # add icu path to pkg_config_path
         export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
         echo $PKG_CONFIG_PATH
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/debug/ -DESCARGOT_MODE=debug $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.10 -H. -Bout/debug/ -DESCARGOT_MODE=debug $BUILD_OPTIONS
         ninja -Cout/debug/
         $RUNNER --engine="./out/debug/escargot" new-es
-        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/release/ -DESCARGOT_MODE=release $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.10 -H. -Bout/release/ -DESCARGOT_MODE=release $BUILD_OPTIONS
         ninja -Cout/release/
         cp test/octane/*.js .
         ./out/release/escargot run.js
