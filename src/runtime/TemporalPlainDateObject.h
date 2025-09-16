@@ -56,12 +56,33 @@ public:
     Value daysInYear(ExecutionState& state);
     Value monthsInYear(ExecutionState& state);
     Value inLeapYear(ExecutionState& state);
+    Value monthCode(ExecutionState& state);
 
     // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tostring
     String* toString(ExecutionState& state, Value options);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.equals
+    bool equals(ExecutionState& state, Value other);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtodate
+    enum class AddDurationToDateOperation {
+        Add,
+        Subtract
+    };
+    TemporalPlainDateObject* addDurationToDate(ExecutionState& state, AddDurationToDateOperation operation, Value temporalDurationLike, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.with
+    TemporalPlainDateObject* with(ExecutionState& state, Value temporalDateLike, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.withcalendar
+    TemporalPlainDateObject* withCalendar(ExecutionState& state, Value calendarLike);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.compare
+    static int compare(ExecutionState& state, Value one, Value two);
+    static int compareISODate(ExecutionState& state, TemporalPlainDateObject* one, TemporalPlainDateObject* two);
+
 private:
-    void ensureICUCalendar();
+    ISO8601::PlainDate computeISODate(ExecutionState& state);
 
     ISO8601::PlainDate* m_plainDate;
     Calendar m_calendarID;

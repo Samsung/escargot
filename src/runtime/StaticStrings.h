@@ -1009,6 +1009,7 @@ namespace Escargot {
     F(TimeZoneId, "timeZoneId")                           \
     F(Until, "until")                                     \
     F(WeekOfYear, "weekOfYear")                           \
+    F(WithCalendar, "withCalendar")                       \
     F(YearOfWeek, "yearOfWeek")                           \
     F(ZonedDateTimeISO, "zonedDateTimeISO")
 #else

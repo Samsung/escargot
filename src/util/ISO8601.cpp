@@ -83,7 +83,7 @@ static constexpr uint8_t daysInMonths[2][12] = {
     { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 };
 
-inline bool isLeapYear(int year)
+bool isLeapYear(int year)
 {
     if (year % 4 != 0)
         return false;
@@ -110,10 +110,27 @@ uint8_t daysInMonth(uint8_t month)
 bool isDateTimeWithinLimits(int32_t year, uint8_t month, uint8_t day, unsigned hour, unsigned minute, unsigned second, unsigned millisecond, unsigned microsecond, unsigned nanosecond)
 {
     Int128 nanoseconds = ExactTime::fromISOPartsAndOffset(year, month, day, hour, minute, second, millisecond, microsecond, nanosecond, 0).epochNanoseconds();
+    return isoDateTimeWithinLimits(nanoseconds);
+}
+
+bool isoDateTimeWithinLimits(Int128 nanoseconds)
+{
     if (nanoseconds <= (ExactTime::minValue - ExactTime::nsPerDay))
         return false;
     if (nanoseconds >= (ExactTime::maxValue + ExactTime::nsPerDay))
         return false;
+    return true;
+}
+
+bool isValidEpochNanoseconds(Int128 s)
+{
+    // If ℝ(epochNanoseconds) < nsMinInstant or ℝ(epochNanoseconds) > nsMaxInstant, then
+    if (s < ExactTime::minValue || s > ExactTime::maxValue) {
+        // Return false.
+        return false;
+    }
+
+    // Return true.
     return true;
 }
 
@@ -1222,7 +1239,7 @@ Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(String* inpu
     return NullOption;
 }
 
-static Optional<PlainDate> parseDate(ParserString& buffer)
+static Optional<PlainDate> parseDate(ParserString& buffer, bool parseYear = true, bool parseMonth = true, bool parseDay = true)
 {
     // https://tc39.es/proposal-temporal/#prod-Date
     // Date :
@@ -1255,90 +1272,113 @@ static Optional<PlainDate> parseDate(ParserString& buffer)
     if (buffer.atEnd())
         return NullOption;
 
-    bool sixDigitsYear = false;
-    int yearFactor = 1;
-    if (*buffer == '+') {
-        buffer.advance();
-        sixDigitsYear = true;
-    } else if (*buffer == '-') {
-        yearFactor = -1;
-        buffer.advance();
-        sixDigitsYear = true;
-    } else if (!isASCIIDigit(*buffer))
-        return NullOption;
-
     int32_t year = 0;
-    if (sixDigitsYear) {
-        if (buffer.lengthRemaining() < 6)
-            return NullOption;
-        for (unsigned index = 0; index < 6; ++index) {
-            if (!isASCIIDigit(buffer[index]))
-                return NullOption;
-        }
-        year = parseDecimalInt32(buffer.first(6)) * yearFactor;
-        if (!year && yearFactor < 0)
-            return NullOption;
-        buffer.advanceBy(6);
-    } else {
-        if (buffer.lengthRemaining() < 4)
-            return NullOption;
-        for (unsigned index = 0; index < 4; ++index) {
-            if (!isASCIIDigit(buffer[index]))
-                return NullOption;
-        }
-        year = parseDecimalInt32(buffer.first(4));
-        buffer.advanceBy(4);
-    }
-
-    if (buffer.atEnd())
-        return NullOption;
+    unsigned month = 0;
+    unsigned day = 0;
 
     bool splitByHyphen = false;
-    if (*buffer == '-') {
-        splitByHyphen = true;
-        buffer.advance();
-        if (buffer.lengthRemaining() < 5)
-            return NullOption;
-    } else {
-        if (buffer.lengthRemaining() < 4)
-            return NullOption;
-    }
-    // We ensured that buffer has enough length for month and day. We do not need to check length.
-
-    unsigned month = 0;
-    auto firstMonthCharacter = *buffer;
-    if (firstMonthCharacter == '0' || firstMonthCharacter == '1') {
-        buffer.advance();
-        auto secondMonthCharacter = *buffer;
-        if (!isASCIIDigit(secondMonthCharacter))
-            return NullOption;
-        month = (secondMonthCharacter - '0') + 10 * (firstMonthCharacter - '0');
-        if (!month || month > 12)
-            return NullOption;
-        buffer.advance();
-    } else
-        return NullOption;
-
-    if (splitByHyphen) {
-        if (*buffer == '-')
+    if (parseYear) {
+        bool sixDigitsYear = false;
+        int yearFactor = 1;
+        if (*buffer == '+') {
             buffer.advance();
-        else
+            sixDigitsYear = true;
+        } else if (*buffer == '-') {
+            yearFactor = -1;
+            buffer.advance();
+            sixDigitsYear = true;
+        } else if (!isASCIIDigit(*buffer))
             return NullOption;
+
+        if (sixDigitsYear) {
+            if (buffer.lengthRemaining() < 6)
+                return NullOption;
+            for (unsigned index = 0; index < 6; ++index) {
+                if (!isASCIIDigit(buffer[index]))
+                    return NullOption;
+            }
+            year = parseDecimalInt32(buffer.first(6)) * yearFactor;
+            if (!year && yearFactor < 0)
+                return NullOption;
+            buffer.advanceBy(6);
+        } else {
+            if (buffer.lengthRemaining() < 4)
+                return NullOption;
+            for (unsigned index = 0; index < 4; ++index) {
+                if (!isASCIIDigit(buffer[index]))
+                    return NullOption;
+            }
+            year = parseDecimalInt32(buffer.first(4));
+            buffer.advanceBy(4);
+        }
+
+        ASSERT(parseDay || parseMonth);
+
+        if (buffer.atEnd())
+            return NullOption;
+
+        if (*buffer == '-') {
+            splitByHyphen = true;
+            buffer.advance();
+        }
     }
 
-    unsigned day = 0;
-    auto firstDayCharacter = *buffer;
-    if (firstDayCharacter >= '0' && firstDayCharacter <= '3') {
-        buffer.advance();
-        auto secondDayCharacter = *buffer;
-        if (!isASCIIDigit(secondDayCharacter))
+    // We ensured that buffer has enough length for month and day. We do not need to check length.
+    if (parseMonth) {
+        if (buffer.atEnd())
             return NullOption;
-        day = (secondDayCharacter - '0') + 10 * (firstDayCharacter - '0');
-        if (!day || day > daysInMonth(year, month))
+
+        auto firstMonthCharacter = *buffer;
+        if (firstMonthCharacter == '0' || firstMonthCharacter == '1') {
+            buffer.advance();
+            if (buffer.atEnd())
+                return NullOption;
+            auto secondMonthCharacter = *buffer;
+            if (!isASCIIDigit(secondMonthCharacter))
+                return NullOption;
+            month = (secondMonthCharacter - '0') + 10 * (firstMonthCharacter - '0');
+            if (!month || month > 12)
+                return NullOption;
+            buffer.advance();
+        } else
             return NullOption;
-        buffer.advance();
-    } else
-        return NullOption;
+
+        if (!parseYear) {
+            if (*buffer == '-') {
+                splitByHyphen = true;
+            }
+        }
+
+        if (parseDay) {
+            if (splitByHyphen) {
+                if (buffer.atEnd())
+                    return NullOption;
+                if (*buffer == '-') {
+                    buffer.advance();
+                } else
+                    return NullOption;
+            }
+        }
+    }
+
+    if (parseDay) {
+        if (buffer.atEnd())
+            return NullOption;
+        auto firstDayCharacter = *buffer;
+        if (firstDayCharacter >= '0' && firstDayCharacter <= '3') {
+            buffer.advance();
+            if (buffer.atEnd())
+                return NullOption;
+            auto secondDayCharacter = *buffer;
+            if (!isASCIIDigit(secondDayCharacter))
+                return NullOption;
+            day = (secondDayCharacter - '0') + 10 * (firstDayCharacter - '0');
+            if (!day || day > daysInMonth(year, month))
+                return NullOption;
+            buffer.advance();
+        } else
+            return NullOption;
+    }
 
     return PlainDate(year, month, day);
 }
@@ -1430,6 +1470,64 @@ Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Op
     return result;
 }
 
+static Optional<std::tuple<PlainDate, Optional<CalendarID>>> parseCalendarYearMonth(ParserString& buffer, DateTimeParseOption option)
+{
+    auto date = parseDate(buffer, true, true, false);
+    if (!date) {
+        return NullOption;
+    }
+
+    Optional<CalendarID> calendarOptional;
+    if (!buffer.atEnd() && canBeRFC9557Annotation(buffer)) {
+        auto calendars = parseCalendar(buffer);
+        if (!calendars)
+            return NullOption;
+        if (calendars.value().size() > 0)
+            calendarOptional = std::move(calendars.value()[0]);
+    }
+
+    return std::make_tuple(std::move(date.value()), std::move(calendarOptional));
+}
+
+static Optional<std::tuple<PlainDate, Optional<CalendarID>>> parseCalendarMonthDay(ParserString& buffer, DateTimeParseOption option)
+{
+    auto date = parseDate(buffer, false, true, true);
+    if (!date) {
+        return NullOption;
+    }
+
+    Optional<CalendarID> calendarOptional;
+    if (!buffer.atEnd() && canBeRFC9557Annotation(buffer)) {
+        auto calendars = parseCalendar(buffer);
+        if (!calendars)
+            return NullOption;
+        if (calendars.value().size() > 0)
+            calendarOptional = std::move(calendars.value()[0]);
+    }
+
+    return std::make_tuple(std::move(date.value()), std::move(calendarOptional));
+}
+
+Optional<std::tuple<PlainDate, Optional<CalendarID>>> parseCalendarYearMonth(String* input, DateTimeParseOption option)
+{
+    ParserString buffer(input);
+    auto result = parseCalendarYearMonth(buffer, option);
+    if (!buffer.atEnd()) {
+        return NullOption;
+    }
+    return result;
+}
+
+Optional<std::tuple<PlainDate, Optional<CalendarID>>> parseCalendarMonthDay(String* input, DateTimeParseOption option)
+{
+    ParserString buffer(input);
+    auto result = parseCalendarMonthDay(buffer, option);
+    if (!buffer.atEnd()) {
+        return NullOption;
+    }
+    return result;
+}
+
 Optional<String*> parseCalendarString(String* input)
 {
     ParserString buffer(input);
@@ -1450,7 +1548,7 @@ Optional<String*> parseCalendarString(String* input)
 }
 
 
-static double daysFrom1970ToYear(int year)
+double daysFrom1970ToYear(int year)
 {
     // The Gregorian Calendar rules for leap years:
     // Every fourth year is a leap year. 2004, 2008, and 2012 are leap years.
@@ -1478,7 +1576,7 @@ static int dayInYear(int year, int month, int day)
     return firstDayOfMonth[isLeapYear(year)][month] + day - 1;
 }
 
-static double dateToDaysFrom1970(int year, int month, int day)
+double dateToDaysFrom1970(int year, int month, int day)
 {
     year += month / 12;
 

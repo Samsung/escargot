@@ -94,6 +94,9 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-tointernaldurationrecordwith24hourdays
     static ISO8601::InternalDuration toInternalDurationRecordWith24HourDays(ExecutionState& state, ISO8601::Duration duration);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-todatedurationrecordwithouttime
+    static ISO8601::Duration toDateDurationRecordWithoutTime(ExecutionState& state, ISO8601::Duration duration);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-roundtimeduration
     static Int128 roundTimeDuration(ExecutionState& state, Int128 timeDuration, unsigned increment, ISO8601::DateTimeUnit unit, ISO8601::RoundingMode roundingMode);
 

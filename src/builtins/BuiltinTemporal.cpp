@@ -156,7 +156,7 @@ static Value builtinTemporalInstantConstructor(ExecutionState& state, Value this
 
     auto mayInt128 = epochNanoseconds->toInt128();
     // If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
-    if (!mayInt128 || !Temporal::isValidEpochNanoseconds(mayInt128.value())) {
+    if (!mayInt128 || !ISO8601::isValidEpochNanoseconds(mayInt128.value())) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid epoch value");
     }
 
@@ -472,7 +472,7 @@ static Value builtinTemporalPlainDateConstructor(ExecutionState& state, Value th
     // Set calendar to ? CanonicalizeCalendar(calendar).
     auto mayCalendar = Calendar::fromString(calendar.asString());
     if (!mayCalendar) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid calendar");
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar");
     }
     // If IsValidISODate(y, m, d) is false, throw a RangeError exception.
     if (m < 1 || m > 12 || d < 1 || d > ISO8601::daysInMonth(y, m) || !ISO8601::isDateTimeWithinLimits(y, m, d, 0, 0, 0, 0, 0, 0)) {
@@ -490,7 +490,7 @@ static Value builtinTemporalPlainDateFrom(ExecutionState& state, Value thisValue
 
 static Value builtinTemporalPlainDateCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    return Value();
+    return Value(TemporalPlainDateObject::compare(state, argv[0], argv[1]));
 }
 
 static Value builtinTemporalPlainDateToJSON(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
@@ -511,6 +511,12 @@ static Value builtinTemporalPlainDateToString(ExecutionState& state, Value thisV
     return plainDate->toString(state, argc ? argv[0] : Value());
 }
 
+static Value builtinTemporalPlainDateEquals(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATE(plainDate, Equals);
+    return Value(plainDate->equals(state, argv[0]));
+}
+
 static Value builtinTemporalPlainDateCalendarId(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_PLAINDATE(temporalDate, CalendarId);
@@ -524,18 +530,31 @@ static Value builtinTemporalPlainDateCalendarId(ExecutionState& state, Value thi
 static Value builtinTemporalPlainDateMonthCode(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_PLAINDATE(temporalDate, MonthCode);
-    StringBuilder sb;
-    sb.appendChar('M');
+    return temporalDate->monthCode(state);
+}
 
-    if (temporalDate->plainDate().month() < 10) {
-        sb.appendChar('0');
-    } else {
-        sb.appendChar('1');
-    }
+static Value builtinTemporalPlainDateAdd(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATE2(plainDate, add);
+    return plainDate->addDurationToDate(state, TemporalPlainDateObject::AddDurationToDateOperation::Add, argv[0], argc > 1 ? argv[1] : Value());
+}
 
-    sb.appendChar(static_cast<char>('0' + (temporalDate->plainDate().month() % 10)));
+static Value builtinTemporalPlainDateSubtract(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATE(plainDate, Subtract);
+    return plainDate->addDurationToDate(state, TemporalPlainDateObject::AddDurationToDateOperation::Subtract, argv[0], argc > 1 ? argv[1] : Value());
+}
 
-    return sb.finalize();
+static Value builtinTemporalPlainDateWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATE2(plainDate, with);
+    return plainDate->with(state, argv[0], argc > 1 ? argv[1] : argv[0]);
+}
+
+static Value builtinTemporalPlainDateWithCalendar(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATE(plainDate, WithCalendar);
+    return plainDate->withCalendar(state, argv[0]);
 }
 
 void GlobalObject::initializeTemporal(ExecutionState& state)
@@ -748,6 +767,11 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toJSON), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toJSON, builtinTemporalPlainDateToJSON, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toLocaleString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinTemporalPlainDateToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->valueOf), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinTemporalAnyInstanceValueOf, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalPlainDateEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalPlainDateAdd, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalPlainDateSubtract, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->with), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->with, builtinTemporalPlainDateWith, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWithCalendar()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWithCalendar(), builtinTemporalPlainDateWithCalendar, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
         AtomicString name(state.context(), "get calendarId");
