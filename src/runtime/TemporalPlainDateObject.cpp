@@ -20,8 +20,11 @@
 
 #include "Escargot.h"
 #include "TemporalPlainDateObject.h"
+#include "TemporalDurationObject.h"
 #include "intl/Intl.h"
 #include "util/ISO8601.h"
+#include "runtime/Context.h"
+#include "runtime/GlobalObject.h"
 
 namespace Escargot {
 
@@ -36,13 +39,10 @@ TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* 
     , m_calendarID(calendar)
 {
     m_icuCalendar = calendar.createICUCalendar(state);
-    if (calendar.shouldUseICUExtendedYear()) {
-        ucal_set(m_icuCalendar, UCAL_EXTENDED_YEAR, plainDate.year());
-    } else {
-        ucal_set(m_icuCalendar, UCAL_YEAR, plainDate.year());
-    }
-    ucal_set(m_icuCalendar, UCAL_MONTH, plainDate.month() - 1);
-    ucal_set(m_icuCalendar, UCAL_DAY_OF_MONTH, plainDate.day());
+
+    UErrorCode status = U_ZERO_ERROR;
+    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromISOPartsAndOffset(plainDate.year(), plainDate.month(), plainDate.day(), 0, 0, 0, 0, 0, 0, 0).epochMilliseconds(), &status);
+    CHECK_ICU()
 
     addFinalizer([](PointerValue* obj, void* data) {
         TemporalPlainDateObject* self = (TemporalPlainDateObject*)obj;
@@ -78,6 +78,20 @@ TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* 
         ucal_close(self->m_icuCalendar);
     },
                  nullptr);
+}
+
+ISO8601::PlainDate TemporalPlainDateObject::computeISODate(ExecutionState& state)
+{
+    auto pd = plainDate();
+    if (!m_calendarID.isISO8601()) {
+        UErrorCode status = U_ZERO_ERROR;
+        auto epochTime = ucal_getMillis(m_icuCalendar, &status);
+        CHECK_ICU()
+        DateObject::DateTimeInfo timeInfo;
+        DateObject::computeTimeInfoFromEpoch(epochTime, timeInfo);
+        pd = ISO8601::PlainDate(timeInfo.year, timeInfo.month + 1, timeInfo.mday);
+    }
+    return pd;
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-temporaldatetostring
@@ -135,17 +149,41 @@ String* TemporalPlainDateObject::toString(ExecutionState& state, Value options)
     // Let showCalendar be ? GetTemporalShowCalendarNameOption(resolvedOptions).
     auto showCalendar = Temporal::getTemporalShowCalendarNameOption(state, resolvedOptions);
     // Return TemporalDateToString(plainDate, showCalendar).
-    auto pd = plainDate();
-    if (!m_calendarID.isISO8601() && m_icuCalendar) {
-        UErrorCode status = U_ZERO_ERROR;
-        auto epochTime = ucal_getMillis(m_icuCalendar, &status);
-        CHECK_ICU()
-        DateObject::DateTimeInfo timeInfo;
-        DateObject::computeTimeInfoFromEpoch(epochTime, timeInfo);
-        pd = ISO8601::PlainDate(timeInfo.year, timeInfo.month + 1, timeInfo.mday);
-    }
+    return temporalDateToString(computeISODate(state), m_calendarID, showCalendar);
+}
 
-    return temporalDateToString(pd, m_calendarID, showCalendar);
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.equals
+bool TemporalPlainDateObject::equals(ExecutionState& state, Value other)
+{
+    auto otherDate = Temporal::toTemporalDate(state, other, Value());
+    int c = compareISODate(state, this, otherDate);
+    if (c == 0) {
+        if (calendarID() == otherDate->calendarID()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+TemporalPlainDateObject* TemporalPlainDateObject::addDurationToDate(ExecutionState& state, AddDurationToDateOperation operation, Value temporalDurationLike, Value options)
+{
+    // Let calendar be temporalDate.[[Calendar]].
+    // Let duration be ? ToTemporalDuration(temporalDurationLike).
+    ISO8601::Duration duration = Temporal::toTemporalDuration(state, temporalDurationLike)->duration();
+    // If operation is subtract, set duration to CreateNegatedTemporalDuration(duration).
+    if (operation == AddDurationToDateOperation::Subtract) {
+        duration = TemporalDurationObject::createNegatedTemporalDuration(duration);
+    }
+    // Let dateDuration be ToDateDurationRecordWithoutTime(duration).
+    auto dateDuration = TemporalDurationObject::toDateDurationRecordWithoutTime(state, duration);
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
+    // Let result be ? CalendarDateAdd(calendar, temporalDate.[[ISODate]], dateDuration, overflow).
+    auto result = Temporal::calendarDateAdd(state, calendarID(), plainDate(), m_icuCalendar, dateDuration, overflow);
+    // Return ! CreateTemporalDate(result, calendar).
+    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), result, m_calendarID);
 }
 
 Value TemporalPlainDateObject::era(ExecutionState& state)
@@ -183,8 +221,24 @@ Value TemporalPlainDateObject::dayOfWeek(ExecutionState& state)
 {
     UErrorCode status = U_ZERO_ERROR;
     auto s = ucal_get(m_icuCalendar, UCAL_DAY_OF_WEEK, &status);
-    CHECK_ICU()
-    return Value(s - 1);
+    switch (s) {
+    case UCAL_SUNDAY:
+        return Value(7);
+    case UCAL_MONDAY:
+        return Value(1);
+    case UCAL_TUESDAY:
+        return Value(2);
+    case UCAL_WEDNESDAY:
+        return Value(3);
+    case UCAL_THURSDAY:
+        return Value(4);
+    case UCAL_FRIDAY:
+        return Value(5);
+    case UCAL_SATURDAY:
+        return Value(6);
+    }
+    ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar");
+    return Value(0);
 }
 
 Value TemporalPlainDateObject::dayOfYear(ExecutionState& state)
@@ -335,6 +389,99 @@ Value TemporalPlainDateObject::inLeapYear(ExecutionState& state)
     }
 
     return Value(ret);
+}
+
+Value TemporalPlainDateObject::monthCode(ExecutionState& state)
+{
+    StringBuilder sb;
+    sb.appendChar('M');
+
+    if (plainDate().month() < 10) {
+        sb.appendChar('0');
+    } else {
+        sb.appendChar('1');
+    }
+
+    sb.appendChar(static_cast<char>('0' + (plainDate().month() % 10)));
+
+    UErrorCode status = U_ZERO_ERROR;
+    auto s = ucal_get(m_icuCalendar, UCAL_IS_LEAP_MONTH, &status);
+    CHECK_ICU()
+    if (s) {
+        sb.appendChar('L');
+    }
+
+    return sb.finalize();
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal.plaindate.compare
+int TemporalPlainDateObject::compare(ExecutionState& state, Value one, Value two)
+{
+    auto oneDate = Temporal::toTemporalDate(state, one, Value());
+    auto twoDate = Temporal::toTemporalDate(state, two, Value());
+    return compareISODate(state, oneDate, twoDate);
+}
+
+TemporalPlainDateObject* TemporalPlainDateObject::with(ExecutionState& state, Value temporalDateLike, Value options)
+{
+    // Let plainDate be the this value.
+    // Perform ? RequireInternalSlot(plainDate, [[InitializedTemporalDate]]).
+    // If ? IsPartialTemporalObject(temporalDateLike) is false, throw a TypeError exception.
+    if (!Temporal::isPartialTemporalObject(state, temporalDateLike)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid temporalDateLike");
+    }
+    // Let calendar be plainDate.[[Calendar]].
+    auto calendar = m_calendarID;
+    // Let fields be ISODateToFields(calendar, plainDate.[[ISODate]], date).
+    CalendarFieldsRecord fields;
+    auto isoDate = computeISODate(state);
+    fields.year = isoDate.year();
+    fields.month = isoDate.month();
+    MonthCode mc;
+    mc.monthNumber = isoDate.month();
+    fields.monthCode = mc;
+    fields.day = isoDate.day();
+    // Let partialDate be ? PrepareCalendarFields(calendar, temporalDateLike, « year, month, month-code, day », « », partial).
+    CalendarField fs[4] = { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day };
+    auto partialDate = Temporal::prepareCalendarFields(state, calendar, temporalDateLike.asObject(), fs, 4, nullptr, 0, nullptr, SIZE_MAX);
+    // Set fields to CalendarMergeFields(calendar, fields, partialDate).
+    fields = Temporal::calendarMergeFields(state, calendar, fields, partialDate);
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
+    // Let isoDate be ? CalendarDateFromFields(calendar, fields, overflow).
+    auto icuDate = Temporal::calendarDateFromFields(state, calendar, fields, overflow);
+    // Return ! CreateTemporalDate(isoDate, calendar).
+    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
+                                       icuDate, calendar);
+}
+
+TemporalPlainDateObject* TemporalPlainDateObject::withCalendar(ExecutionState& state, Value calendarLike)
+{
+    auto calendar = Temporal::toTemporalCalendarIdentifier(state, calendarLike);
+    auto icuCalendar = calendar.createICUCalendar(state);
+
+    UErrorCode status = U_ZERO_ERROR;
+    ucal_setMillis(icuCalendar, ucal_getMillis(m_icuCalendar, &status), &status);
+
+    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), icuCalendar, calendar);
+}
+
+int TemporalPlainDateObject::compareISODate(ExecutionState& state, TemporalPlainDateObject* one, TemporalPlainDateObject* two)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    auto epochTime1 = ucal_getMillis(one->m_icuCalendar, &status);
+    CHECK_ICU()
+    auto epochTime2 = ucal_getMillis(two->m_icuCalendar, &status);
+    CHECK_ICU()
+
+    if (epochTime1 > epochTime2) {
+        return 1;
+    } else if (epochTime1 < epochTime2) {
+        return -1;
+    }
+    return 0;
 }
 
 } // namespace Escargot

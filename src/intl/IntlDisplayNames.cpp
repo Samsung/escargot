@@ -220,6 +220,7 @@ static String* canonicalCodeForDisplayNames(ExecutionState& state, String* type,
         // b. Let code be the result of mapping code to lower case as described in 6.1.
         // c. Return code.
 
+        // sync with 'Calendar::fromString'
         if (code->equals("islamicc")) {
             code = String::fromASCII("islamic-civil", sizeof("islamic-civil") - 1);
         } else if (code->equals("ethioaa")) {

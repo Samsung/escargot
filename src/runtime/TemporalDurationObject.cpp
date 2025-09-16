@@ -575,6 +575,18 @@ Int128 TemporalDurationObject::timeDurationFromComponents(ExecutionState& state,
     return nanos;
 }
 
+ISO8601::Duration TemporalDurationObject::toDateDurationRecordWithoutTime(ExecutionState& state, ISO8601::Duration duration)
+{
+    // Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+    auto internalDuration = TemporalDurationObject::toInternalDurationRecordWith24HourDays(state, duration);
+    // Let days be truncate(internalDuration.[[Time]] / nsPerDay).
+    auto days = internalDuration.time() / ISO8601::ExactTime::nsPerDay;
+    // Return ! CreateDateDurationRecord(internalDuration.[[Date]].[[Years]], internalDuration.[[Date]].[[Months]], internalDuration.[[Date]].[[Weeks]], days).
+    ISO8601::Duration dateDuration = ISO8601::Duration{ duration.years(), duration.months(), duration.weeks(), static_cast<double>(days), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+    return dateDuration;
+}
+
+
 } // namespace Escargot
 
 #endif

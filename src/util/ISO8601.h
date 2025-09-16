@@ -508,6 +508,8 @@ Optional<TimeZoneID> parseTimeZoneName(String* string);
 Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(String* input);
 Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>>> parseDateTime(String* input);
 Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarDateTime(String* input, DateTimeParseOption option = {});
+Optional<std::tuple<PlainDate, Optional<CalendarID>>> parseCalendarYearMonth(String* input, DateTimeParseOption option = {});
+Optional<std::tuple<PlainDate, Optional<CalendarID>>> parseCalendarMonthDay(String* input, DateTimeParseOption option = {});
 Optional<String*> parseCalendarString(String* input);
 
 // https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrement
@@ -523,10 +525,17 @@ UnsignedRoundingMode getUnsignedRoundingMode(RoundingMode roundingMode, bool isN
 Int128 lengthInNanoseconds(DateTimeUnit unit);
 Int128 resolveNanosecondsValueByUnit(DateTimeUnit unit);
 
+bool isLeapYear(int year);
+bool isYearWithinLimits(double year);
+double dateToDaysFrom1970(int year, int month, int day);
+double daysFrom1970ToYear(int year);
 uint8_t daysInMonth(int32_t year, uint8_t month);
 uint8_t daysInMonth(uint8_t month);
 // https://tc39.es/proposal-temporal/#sec-temporal-isodatetimewithinlimits
 bool isDateTimeWithinLimits(int32_t year, uint8_t month, uint8_t day, unsigned hour, unsigned minute, unsigned second, unsigned millisecond, unsigned microsecond, unsigned nanosecond);
+bool isoDateTimeWithinLimits(Int128 t);
+// https://tc39.es/proposal-temporal/#sec-temporal-isvalidepochnanoseconds
+bool isValidEpochNanoseconds(Int128 s);
 Optional<ISO8601::PlainDate> toPlainDate(const ISO8601::Duration& duration);
 
 

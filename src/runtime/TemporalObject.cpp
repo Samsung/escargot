@@ -132,6 +132,9 @@ bool Calendar::shouldUseICUExtendedYear() const
     if (id() == Calendar::ID::Dangi || id() == Calendar::ID::Japanese || id() == Calendar::ID::Chinese) {
         return true;
     }
+    if (isEraRelated()) {
+        return true;
+    }
     return false;
 }
 
@@ -140,10 +143,10 @@ Optional<Calendar> Calendar::fromString(ISO8601::CalendarID id)
     auto u = id;
     std::transform(u.begin(), u.end(), u.begin(), tolower);
     if (false) {}
-#define DEFINE_FIELD(name, string, icuString) \
-    else if (u == string)                     \
-    {                                         \
-        return Calendar(ID::name);            \
+#define DEFINE_FIELD(name, string, icuString, fullName) \
+    else if (u == string || u == icuString)             \
+    {                                                   \
+        return Calendar(ID::name);                      \
     }
     CALENDAR_ID_RECORDS(DEFINE_FIELD)
 #undef DEFINE_FIELD
@@ -159,9 +162,9 @@ Optional<Calendar> Calendar::fromString(String* str)
 String* Calendar::toString() const
 {
     switch (m_id) {
-#define DEFINE_FIELD(name, string, icuString) \
-    case ID::name:                            \
-        return new ASCIIStringFromExternalMemory(string);
+#define DEFINE_FIELD(name, string, icuString, fullName) \
+    case ID::name:                                      \
+        return new ASCIIStringFromExternalMemory(fullName);
         CALENDAR_ID_RECORDS(DEFINE_FIELD)
 #undef DEFINE_FIELD
     default:
@@ -173,8 +176,8 @@ String* Calendar::toString() const
 std::string Calendar::toICUString() const
 {
     switch (m_id) {
-#define DEFINE_FIELD(name, string, icuString) \
-    case ID::name:                            \
+#define DEFINE_FIELD(name, string, icuString, fullName) \
+    case ID::name:                                      \
         return icuString;
         CALENDAR_ID_RECORDS(DEFINE_FIELD)
 #undef DEFINE_FIELD
@@ -227,31 +230,6 @@ Int128 Temporal::systemUTCEpochNanoseconds()
     ret += nano;
 
     return ret;
-}
-
-static Int128 nsMaxInstant()
-{
-    Int128 ret = 864000000;
-    ret *= 10000000000000;
-    return ret;
-}
-static Int128 nsMinInstant()
-{
-    Int128 ret = -864000000;
-    ret *= 10000000000000;
-    return ret;
-}
-
-bool Temporal::isValidEpochNanoseconds(Int128 epochNanoseconds)
-{
-    // If ℝ(epochNanoseconds) < nsMinInstant or ℝ(epochNanoseconds) > nsMaxInstant, then
-    if (epochNanoseconds < nsMinInstant() || epochNanoseconds > nsMaxInstant()) {
-        // Return false.
-        return false;
-    }
-
-    // Return true.
-    return true;
 }
 
 TemporalDurationObject* Temporal::toTemporalDuration(ExecutionState& state, const Value& item)
@@ -1186,22 +1164,44 @@ Calendar Temporal::toTemporalCalendarIdentifier(ExecutionState& state, Value tem
     // Return ? CanonicalizeCalendar(identifier).
     auto mayCalendar = Calendar::fromString(temporalCalendarLike.asString());
     auto parseResult = ISO8601::parseCalendarDateTime(temporalCalendarLike.asString());
+    auto parseResultYearMonth = ISO8601::parseCalendarYearMonth(temporalCalendarLike.asString());
+    auto parseResultMonthDay = ISO8601::parseCalendarMonthDay(temporalCalendarLike.asString());
     // TODO parse m-d, y-m from when implement YearMonth, MonthDay
     // test/built-ins/Temporal/PlainDate/from/argument-propertybag-calendar-iso-string.js
-    if (!mayCalendar && !parseResult) {
+    if (!mayCalendar && !parseResult && !parseResultYearMonth && !parseResultMonthDay) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar");
     }
 
     if (mayCalendar) {
         return mayCalendar.value();
     }
-    auto isoId = std::get<3>(parseResult.value());
-    if (isoId) {
-        mayCalendar = Calendar::fromString(isoId.value());
-        if (!mayCalendar) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar");
+    auto tryOnce = [](ExecutionState& state, Optional<ISO8601::CalendarID> cid) -> Optional<Calendar> {
+        if (cid) {
+            auto mayCalendar = Calendar::fromString(cid.value());
+            if (!mayCalendar) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar");
+            }
+            return mayCalendar.value();
         }
-        return mayCalendar.value();
+        return NullOption;
+    };
+    if (parseResult) {
+        auto cid = tryOnce(state, std::get<3>(parseResult.value()));
+        if (cid) {
+            return cid.value();
+        }
+    }
+    if (parseResultYearMonth) {
+        auto cid = tryOnce(state, std::get<1>(parseResultYearMonth.value()));
+        if (cid) {
+            return cid.value();
+        }
+    }
+    if (parseResultMonthDay) {
+        auto cid = tryOnce(state, std::get<1>(parseResultMonthDay.value()));
+        if (cid) {
+            return cid.value();
+        }
     }
     return Calendar();
 }
@@ -1414,7 +1414,7 @@ UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar cale
         if (!(fields.era && fields.eraYear) && !fields.year) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
         }
-        if (fields.era && !fields.eraYear) {
+        if ((fields.era && !fields.eraYear) || (!fields.era && fields.eraYear)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
         }
     }
@@ -1467,6 +1467,8 @@ UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar cale
 
         ucal_set(icuCalendar, UCAL_ERA, eraIdx.value());
         ucal_set(icuCalendar, UCAL_YEAR, fields.eraYear.value());
+        ucal_set(icuCalendar, UCAL_MONTH, fields.month.value() - 1);
+        ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
 
         if (fields.year) {
             UErrorCode status = U_ZERO_ERROR;
@@ -1477,9 +1479,6 @@ UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar cale
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "'year' and computed 'year' calendar fields are inconsistent");
             }
         }
-
-        ucal_set(icuCalendar, UCAL_MONTH, fields.month.value() - 1);
-        ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
     } else {
         if (calendar.shouldUseICUExtendedYear()) {
             ucal_set(icuCalendar, UCAL_EXTENDED_YEAR, fields.year.value());
@@ -1491,6 +1490,37 @@ UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar cale
     }
 
     return icuCalendar;
+}
+
+CalendarFieldsRecord Temporal::calendarMergeFields(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, const CalendarFieldsRecord& additionalFields)
+{
+    CalendarFieldsRecord merged;
+
+    CalendarFieldsRecord copiedAdditionalFields = additionalFields;
+
+    if (copiedAdditionalFields.month && !copiedAdditionalFields.monthCode) {
+        MonthCode mc;
+        mc.monthNumber = copiedAdditionalFields.month.value();
+        copiedAdditionalFields.monthCode = mc;
+    } else if (!copiedAdditionalFields.month && copiedAdditionalFields.monthCode) {
+        copiedAdditionalFields.month = copiedAdditionalFields.monthCode.value().monthNumber;
+    }
+
+#define COPY_FIELD(name, Name, type)               \
+    if (fields.name) {                             \
+        merged.name = fields.name;                 \
+    }                                              \
+    if (copiedAdditionalFields.name) {             \
+        merged.name = copiedAdditionalFields.name; \
+    }
+    CALENDAR_FIELD_RECORDS(COPY_FIELD)
+#undef COPY_FIELD
+
+    if (copiedAdditionalFields.era || copiedAdditionalFields.eraYear) {
+        merged.year = NullOption;
+    }
+
+    return merged;
 }
 
 TemporalShowCalendarNameOption Temporal::getTemporalShowCalendarNameOption(ExecutionState& state, Optional<Object*> options)
@@ -1518,6 +1548,152 @@ TemporalShowCalendarNameOption Temporal::getTemporalShowCalendarNameOption(Execu
     }
     // Return auto.
     return TemporalShowCalendarNameOption::Auto;
+}
+
+inline int daysInYear(int year)
+{
+    return 365 + ISO8601::isLeapYear(year);
+}
+
+static bool balanceISODate(double& year, double& month, double& day)
+{
+    ASSERT(month >= 1 && month <= 12);
+    if (!ISO8601::isYearWithinLimits(year))
+        return false;
+
+    double daysFrom1970 = day + ISO8601::dateToDaysFrom1970(static_cast<int>(year), static_cast<int>(month - 1), 1) - 1;
+
+    double balancedYear = std::floor(daysFrom1970 / 365.2425) + 1970;
+    if (!ISO8601::isYearWithinLimits(balancedYear))
+        return false;
+
+    double daysUntilYear = ISO8601::daysFrom1970ToYear(static_cast<int>(balancedYear));
+    if (daysUntilYear > daysFrom1970) {
+        balancedYear--;
+        daysUntilYear -= daysInYear(static_cast<int>(balancedYear));
+    } else {
+        double daysUntilFollowingYear = daysUntilYear + daysInYear(static_cast<int>(balancedYear));
+        if (daysUntilFollowingYear <= daysFrom1970) {
+            daysUntilYear = daysUntilFollowingYear;
+            balancedYear++;
+        }
+    }
+
+    ASSERT(daysFrom1970 - daysUntilYear >= 0);
+    auto dayInYear = static_cast<unsigned>(daysFrom1970 - daysUntilYear + 1);
+
+    unsigned daysUntilMonth = 0;
+    unsigned balancedMonth = 1;
+    for (; balancedMonth < 12; balancedMonth++) {
+        auto monthDays = balancedMonth != 2 ? ISO8601::daysInMonth(balancedMonth) : ISO8601::daysInMonth(static_cast<int>(balancedYear), balancedMonth);
+        if (daysUntilMonth + monthDays >= dayInYear)
+            break;
+        daysUntilMonth += monthDays;
+    }
+
+    year = balancedYear;
+    month = balancedMonth;
+    day = dayInYear - daysUntilMonth;
+    return true;
+}
+
+#define CHECK_ICU_CALENDAR()                                                                                  \
+    if (U_FAILURE(status)) {                                                                                  \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
+    }
+
+UCalendar* Temporal::calendarDateAdd(ExecutionState& state, Calendar calendar, ISO8601::PlainDate isoDate, UCalendar* icuDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    auto newCal = ucal_clone(icuDate, &status);
+    CHECK_ICU_CALENDAR()
+    if (calendar.isISO8601()) {
+        int32_t oldY = isoDate.year();
+        int32_t oldM = isoDate.month();
+        int32_t oldD = isoDate.day();
+
+        double year = oldY + duration.years();
+        double month = oldM + duration.months();
+        if (month < 1 || month > 12) {
+            year += std::floor((month - 1) / 12);
+            month = nonNegativeModulo((month - 1), 12) + 1;
+        }
+
+        double daysInMonth = ISO8601::daysInMonth(year, month);
+        double day = oldD;
+        if (overflow == TemporalOverflowOption::Constrain)
+            day = std::min<double>(day, daysInMonth);
+        else if (day > daysInMonth) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
+        }
+
+        day += duration.days() + 7 * duration.weeks();
+        if (day < 1 || day > daysInMonth) {
+            if (!balanceISODate(year, month, day)) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
+            }
+        }
+
+        ucal_set(newCal, UCAL_YEAR, year);
+        ucal_set(newCal, UCAL_MONTH, month - 1);
+        ucal_set(newCal, UCAL_DAY_OF_MONTH, day);
+
+        if (!ISO8601::isDateTimeWithinLimits(year, month, day, 12, 0, 0, 0, 0, 0)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
+        }
+
+        return newCal;
+    } else {
+        int32_t o, check;
+
+        o = ucal_get(newCal, UCAL_YEAR, &status);
+        CHECK_ICU_CALENDAR()
+        ucal_set(newCal, UCAL_YEAR, o + duration.years());
+        check = ucal_get(newCal, UCAL_YEAR, &status);
+        CHECK_ICU_CALENDAR()
+        if (check != (o + duration.years())) {
+            if (overflow == TemporalOverflowOption::Reject) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
+            }
+        }
+
+        o = ucal_get(newCal, UCAL_MONTH, &status);
+        CHECK_ICU_CALENDAR()
+        ucal_set(newCal, UCAL_MONTH, o + duration.months() - 1);
+        check = ucal_get(newCal, UCAL_MONTH, &status);
+        CHECK_ICU_CALENDAR()
+        if (check != (o + duration.months() - 1)) {
+            if (overflow == TemporalOverflowOption::Reject) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
+            }
+        }
+
+        o = ucal_get(newCal, UCAL_DAY_OF_MONTH, &status);
+        CHECK_ICU_CALENDAR()
+        ucal_set(newCal, UCAL_DAY_OF_MONTH, o + duration.days());
+        check = ucal_get(newCal, UCAL_DAY_OF_MONTH, &status);
+        CHECK_ICU_CALENDAR()
+        if (check != (o + duration.days())) {
+            if (overflow == TemporalOverflowOption::Reject) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
+            }
+        }
+
+        if (duration.weeks()) {
+            auto epochTime = ucal_getMillis(newCal, &status);
+            int32_t w = ucal_get(newCal, UCAL_WEEK_OF_YEAR, &status);
+            CHECK_ICU_CALENDAR()
+            w += duration.weeks();
+            ucal_set(newCal, UCAL_WEEK_OF_YEAR, w);
+        }
+
+        auto epoch = ucal_getMillis(newCal, &status);
+        CHECK_ICU_CALENDAR()
+        if (!ISO8601::isoDateTimeWithinLimits(Int128(epoch))) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
+        }
+    }
+    return newCal;
 }
 
 } // namespace Escargot

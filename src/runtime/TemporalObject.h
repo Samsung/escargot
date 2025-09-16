@@ -33,28 +33,30 @@ namespace Escargot {
 
 class Calendar {
 public:
-#define CALENDAR_ID_RECORDS(F)                                  \
-    F(ISO8601, "iso8601", "iso8601")                            \
-    F(Buddhist, "buddhist", "buddhist")                         \
-    F(Chinese, "chinese", "chinese")                            \
-    F(Coptic, "coptic", "coptic")                               \
-    F(Dangi, "dangi", "dangi")                                  \
-    F(Ethiopian, "ethiopic", "ethiopic")                        \
-    F(EthiopianAmeteAlem, "ethioaa", "ethiopic-amete-alem")     \
-    F(Gregorian, "gregory", "gregorian")                        \
-    F(Hebrew, "hebrew", "hebrew")                               \
-    F(Indian, "indian", "indian")                               \
-    F(Islamic, "islamic", "islamic")                            \
-    F(IslamicCivil, "islamic-civil", "islamic-civil")           \
-    F(IslamicRGSA, "islamic-rgsa", "islamic-rgsa")              \
-    F(IslamicTabular, "islamic-tbla", "islamic-tbla")           \
-    F(IslamicUmmAlQura, "islamic-umalqura", "islamic-umalqura") \
-    F(Japanese, "japanese", "japanese")                         \
-    F(Persian, "persian", "persian")                            \
-    F(ROC, "roc", "roc")
+    // sync with 'canonicalCodeForDisplayNames'
+#define CALENDAR_ID_RECORDS(F)                                                      \
+    F(ISO8601, "iso8601", "iso8601", "iso8601")                                     \
+    F(Buddhist, "buddhist", "buddhist", "buddhist")                                 \
+    F(Chinese, "chinese", "chinese", "chinese")                                     \
+    F(Coptic, "coptic", "coptic", "coptic")                                         \
+    F(Dangi, "dangi", "dangi", "dangi")                                             \
+    F(Ethiopian, "ethiopic", "ethiopic", "ethiopic")                                \
+    F(EthiopianAmeteAlem, "ethioaa", "ethiopic-amete-alem", "ethiopic-amete-alem")  \
+    F(Gregorian, "gregory", "gregorian", "gregory")                                 \
+    F(Hebrew, "hebrew", "hebrew", "hebrew")                                         \
+    F(Indian, "indian", "indian", "indian")                                         \
+    F(Islamic, "islamic", "islamic", "islamic")                                     \
+    F(IslamicCivil, "islamic-civil", "islamic-civil", "islamic-civil")              \
+    F(IslamicCivilLegacy, "islamicc", "islamic-civil", "islamic-civil")             \
+    F(IslamicRGSA, "islamic-rgsa", "islamic-rgsa", "islamic-rgsa")                  \
+    F(IslamicTabular, "islamic-tbla", "islamic-tbla", "islamic-tbla")               \
+    F(IslamicUmmAlQura, "islamic-umalqura", "islamic-umalqura", "islamic-umalqura") \
+    F(Japanese, "japanese", "japanese", "japanese")                                 \
+    F(Persian, "persian", "persian", "persian")                                     \
+    F(ROC, "roc", "roc", "roc")
 
     enum class ID : int32_t {
-#define DEFINE_FIELD(name, string, icuString) name,
+#define DEFINE_FIELD(name, string, icuString, fullName) name,
         CALENDAR_ID_RECORDS(DEFINE_FIELD)
 #undef DEFINE_FIELD
     };
@@ -66,7 +68,7 @@ public:
 
     bool operator==(const Calendar& c) const
     {
-        return m_id == c.m_id;
+        return toICUString() == c.toICUString();
     }
 
     bool isISO8601() const
@@ -213,8 +215,6 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
     static Int128 systemUTCEpochNanoseconds();
-    // https://tc39.es/proposal-temporal/#sec-temporal-isvalidepochnanoseconds
-    static bool isValidEpochNanoseconds(Int128 s);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
     static TemporalDurationObject* toTemporalDuration(ExecutionState& state, const Value& item);
@@ -315,8 +315,15 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-calendardatefromfields
     static UCalendar* calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-calendarmergefields
+    static CalendarFieldsRecord calendarMergeFields(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, const CalendarFieldsRecord& additionalFields);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowcalendarnameoption
     static TemporalShowCalendarNameOption getTemporalShowCalendarNameOption(ExecutionState& state, Optional<Object*> options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-calendardateadd
+    // returns new "UCalendar*"
+    static UCalendar* calendarDateAdd(ExecutionState& state, Calendar calendar, ISO8601::PlainDate isoDate, UCalendar* icuDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow);
 };
 
 } // namespace Escargot
