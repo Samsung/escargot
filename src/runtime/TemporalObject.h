@@ -71,6 +71,11 @@ public:
         return toICUString() == c.toICUString();
     }
 
+    bool operator!=(const Calendar& c) const
+    {
+        return !operator==(c);
+    }
+
     bool isISO8601() const
     {
         return m_id == ID::ISO8601;
@@ -162,6 +167,11 @@ inline Optional<ISO8601::DateTimeUnit> toDateTimeUnit(Optional<TemporalUnit> u)
     return NullOption;
 }
 
+inline TemporalUnit toTemporalUnit(ISO8601::DateTimeUnit u)
+{
+    return static_cast<TemporalUnit>(u);
+}
+
 struct MonthCode {
     unsigned monthNumber = 0;
     bool isLeapMonth = false;
@@ -209,9 +219,19 @@ enum class TemporalShowCalendarNameOption : uint8_t {
     Critical
 };
 
+enum class TemporalDisambiguationOption : uint8_t {
+    Compatible,
+    Earlier,
+    Later,
+    Reject,
+};
+
 class Temporal {
 public:
     static void formatSecondsStringFraction(StringBuilder& builder, Int128 fraction, Value precision);
+
+    // returns offset(milliseconds)
+    static int32_t computeTimeZoneOffset(ExecutionState& state, String* name, int64_t epoch);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
     static Int128 systemUTCEpochNanoseconds();
@@ -324,6 +344,24 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-calendardateadd
     // returns new "UCalendar*"
     static UCalendar* calendarDateAdd(ExecutionState& state, Calendar calendar, ISO8601::PlainDate isoDate, UCalendar* icuDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-calendardateuntil
+    static ISO8601::Duration calendarDateUntil(Calendar calendar, ISO8601::PlainDate one, ISO8601::PlainDate two, TemporalUnit largestUnit);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-balanceisoyearmonth
+    static ISO8601::PlainYearMonth balanceISOYearMonth(double year, double month);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-regulateisodate
+    static Optional<ISO8601::PlainDate> regulateISODate(double year, double month, double day, TemporalOverflowOption overflow);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-roundrelativeduration
+    static ISO8601::InternalDuration roundRelativeDuration(ExecutionState& state, ISO8601::InternalDuration duration, Int128 destEpochNs, ISO8601::PlainDateTime isoDateTime, Optional<TimeZone> timeZone, Calendar calendar, TemporalUnit largestUnit, double increment, TemporalUnit smallestUnit, ISO8601::RoundingMode roundingMode);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-addisodate
+    static ISO8601::PlainDate isoDateAdd(ExecutionState& state, const ISO8601::PlainDate& plainDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-getepochnanosecondsfor
+    static Int128 getEpochNanosecondsFor(ExecutionState& state, Optional<TimeZone> timeZone, ISO8601::PlainDateTime isoDateTime, TemporalDisambiguationOption disambiguation);
 };
 
 } // namespace Escargot

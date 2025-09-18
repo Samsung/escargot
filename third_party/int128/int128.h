@@ -115,9 +115,9 @@ namespace large_int {
         constexpr int128_base(_Tp val_, float_tag) :
                 int128_base(_Hi(std::ldexp(val_, -64)) - (val_ < 0), _Low(val_)) {}
 
-        constexpr explicit int128_base(float val_) : int128_base(val_, float_tag()) {}
+        constexpr explicit int128_base(float val_) : int128_base(static_cast<int32_t>(val_)) {}
 
-        constexpr explicit int128_base(double val_) : int128_base(val_, float_tag()) {}
+        constexpr explicit int128_base(double val_) : int128_base(static_cast<int64_t>(val_)) {}
 
         constexpr explicit int128_base(long double val_) : int128_base(val_, float_tag()) {}
 

@@ -181,7 +181,7 @@ TemporalPlainDateObject* TemporalPlainDateObject::addDurationToDate(ExecutionSta
     // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
     auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
     // Let result be ? CalendarDateAdd(calendar, temporalDate.[[ISODate]], dateDuration, overflow).
-    auto result = Temporal::calendarDateAdd(state, calendarID(), plainDate(), m_icuCalendar, dateDuration, overflow);
+    auto result = Temporal::calendarDateAdd(state, calendarID(), computeISODate(state), m_icuCalendar, dateDuration, overflow);
     // Return ! CreateTemporalDate(result, calendar).
     return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), result, m_calendarID);
 }
@@ -366,6 +366,7 @@ Value TemporalPlainDateObject::inLeapYear(ExecutionState& state)
     switch (m_calendarID.id()) {
     case Calendar::ID::Islamic:
     case Calendar::ID::IslamicCivil:
+    case Calendar::ID::IslamicCivilLegacy:
     case Calendar::ID::IslamicRGSA:
     case Calendar::ID::IslamicTabular:
     case Calendar::ID::IslamicUmmAlQura: {
@@ -468,6 +469,16 @@ TemporalPlainDateObject* TemporalPlainDateObject::withCalendar(ExecutionState& s
     return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), icuCalendar, calendar);
 }
 
+TemporalDurationObject* TemporalPlainDateObject::since(ExecutionState& state, Value other, Value options)
+{
+    return new TemporalDurationObject(state, differenceTemporalPlainDate(state, DifferenceTemporalPlainDate::Since, other, options));
+}
+
+TemporalDurationObject* TemporalPlainDateObject::until(ExecutionState& state, Value other, Value options)
+{
+    return new TemporalDurationObject(state, differenceTemporalPlainDate(state, DifferenceTemporalPlainDate::Until, other, options));
+}
+
 int TemporalPlainDateObject::compareISODate(ExecutionState& state, TemporalPlainDateObject* one, TemporalPlainDateObject* two)
 {
     UErrorCode status = U_ZERO_ERROR;
@@ -482,6 +493,51 @@ int TemporalPlainDateObject::compareISODate(ExecutionState& state, TemporalPlain
         return -1;
     }
     return 0;
+}
+
+ISO8601::Duration TemporalPlainDateObject::differenceTemporalPlainDate(ExecutionState& state, DifferenceTemporalPlainDate operation, Value otherInput, Value options)
+{
+    // Set other to ? ToTemporalDate(other).
+    auto other = Temporal::toTemporalDate(state, otherInput, Value());
+    // If CalendarEquals(temporalDate.[[Calendar]], other.[[Calendar]]) is false, throw a RangeError exception.
+    if (other->calendarID() != calendarID()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "other calendar is not same");
+    }
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let settings be ? GetDifferenceSettings(operation, resolvedOptions, date, « », day, day).
+    auto settings = Temporal::getDifferenceSettings(state, operation == DifferenceTemporalPlainDate::Since, resolvedOptions, ISO8601::DateTimeUnitCategory::Date, nullptr, 0, TemporalUnit::Day, TemporalUnit::Day);
+    // If CompareISODate(temporalDate.[[ISODate]], other.[[ISODate]]) = 0, then
+    if (computeISODate(state) == other->computeISODate(state)) {
+        // Return ! CreateTemporalDuration(0, 0, 0, 0, 0, 0, 0, 0, 0, 0).
+        return {};
+    }
+
+    // Let dateDifference be CalendarDateUntil(temporalDate.[[Calendar]], temporalDate.[[ISODate]], other.[[ISODate]], settings.[[LargestUnit]]).
+    auto dateDifference = Temporal::calendarDateUntil(m_calendarID, computeISODate(state), other->computeISODate(state), toTemporalUnit(settings.largestUnit));
+
+    // Let duration be CombineDateAndTimeDuration(dateDifference, 0).
+    auto duration = ISO8601::InternalDuration::combineDateAndTimeDuration(dateDifference, {});
+    // If settings.[[SmallestUnit]] is not day or settings.[[RoundingIncrement]] ≠ 1, then
+    if (settings.smallestUnit != ISO8601::DateTimeUnit::Day || settings.roundingIncrement != 1) {
+        // Let isoDateTime be CombineISODateAndTimeRecord(temporalDate.[[ISODate]], MidnightTimeRecord()).
+        auto isoDateTime = computeISODate(state);
+        // Let isoDateTimeOther be CombineISODateAndTimeRecord(other.[[ISODate]], MidnightTimeRecord()).
+        auto isoDateTimeOther = other->computeISODate(state);
+        // Let destEpochNs be GetUTCEpochNanoseconds(isoDateTimeOther).
+        auto destEpochNs = ISO8601::ExactTime::fromISOPartsAndOffset(isoDateTimeOther.year(), isoDateTimeOther.month(), isoDateTimeOther.day(), 0, 0, 0, 0, 0, 0, 0).epochNanoseconds();
+        duration = Temporal::roundRelativeDuration(state, duration, destEpochNs, ISO8601::PlainDateTime(isoDateTime, ISO8601::PlainTime()), NullOption, calendarID(), toTemporalUnit(settings.largestUnit), settings.roundingIncrement, toTemporalUnit(settings.smallestUnit), settings.roundingMode);
+    }
+
+    // Let result be ! TemporalDurationFromInternal(duration, day).
+    auto result = TemporalDurationObject::temporalDurationFromInternal(state, duration, ISO8601::DateTimeUnit::Day);
+    // If operation is since, set result to CreateNegatedTemporalDuration(result).
+    if (operation == DifferenceTemporalPlainDate::Since) {
+        result = TemporalDurationObject::createNegatedTemporalDuration(result);
+    }
+
+    // Return result.
+    return result;
 }
 
 } // namespace Escargot
