@@ -454,6 +454,30 @@ public:
     {
     }
 
+    bool operator==(const PlainDate& other) const
+    {
+        return m_year == other.m_year && m_month == other.m_month
+            && m_day == other.m_day;
+    }
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-compareisodate
+    int compare(const PlainDate& other)
+    {
+        if (year() > other.year())
+            return 1;
+        if (year() < other.year())
+            return -1;
+        if (month() > other.month())
+            return 1;
+        if (month() < other.month())
+            return -1;
+        if (day() > other.day())
+            return 1;
+        if (day() < other.day())
+            return -1;
+        return 0;
+    }
+
     int32_t year() const { return m_year; }
     uint8_t month() const { return m_month; }
     uint8_t day() const { return m_day; }
@@ -464,6 +488,45 @@ private:
     int32_t m_day : 6; // Starts with 1.
 };
 static_assert(sizeof(PlainDate) == sizeof(int32_t), "");
+
+class PlainYearMonth {
+public:
+    PlainYearMonth(int32_t y, int32_t m)
+        : m_year(y)
+        , m_month(m)
+    {
+    }
+
+    int32_t year() const { return m_year; }
+    int32_t month() const { return m_month; }
+
+private:
+    int32_t m_year;
+    int32_t m_month;
+};
+
+class PlainDateTime {
+public:
+    PlainDateTime(const PlainDate& pd, const PlainTime& pt)
+        : m_plainDate(pd)
+        , m_plainTime(pt)
+    {
+    }
+
+    const PlainDate& plainDate() const
+    {
+        return m_plainDate;
+    }
+
+    const PlainTime& plainTime() const
+    {
+        return m_plainTime;
+    }
+
+private:
+    PlainDate m_plainDate;
+    PlainTime m_plainTime;
+};
 
 using CalendarID = std::string;
 using TimeZoneID = String*;
@@ -537,7 +600,6 @@ bool isoDateTimeWithinLimits(Int128 t);
 // https://tc39.es/proposal-temporal/#sec-temporal-isvalidepochnanoseconds
 bool isValidEpochNanoseconds(Int128 s);
 Optional<ISO8601::PlainDate> toPlainDate(const ISO8601::Duration& duration);
-
 
 class TimeConstants {
 public:

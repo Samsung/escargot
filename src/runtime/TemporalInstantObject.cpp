@@ -88,29 +88,7 @@ String* TemporalInstantObject::toString(ExecutionState& state, Int128 epochNanos
         offsetNanoseconds = timeZone.offset();
         epochMilli += (offsetNanoseconds / (1000 * 1000));
     } else if (timeZone.hasTimeZoneName()) {
-        auto u16 = timeZone.timeZoneName()->toUTF16StringData();
-        UErrorCode status = U_ZERO_ERROR;
-        const char* msg = "Failed to get timeZone offset from ICU";
-        auto ucalendar = ucal_open(u16.data(), u16.length(), "en", UCAL_GREGORIAN, &status);
-        if (!ucalendar) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
-            return String::emptyString();
-        }
-
-        ucal_setMillis(ucalendar, epochMilli, &status);
-        if (U_FAILURE(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
-        }
-        auto zoneOffset = ucal_get(ucalendar, UCAL_ZONE_OFFSET, &status);
-        if (U_FAILURE(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
-        }
-        auto dstOffset = ucal_get(ucalendar, UCAL_DST_OFFSET, &status);
-        if (U_FAILURE(status)) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
-        }
-        ucal_close(ucalendar);
-        offsetNanoseconds = zoneOffset + dstOffset;
+        offsetNanoseconds = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), epochMilli);
         offsetNanoseconds *= 1000000;
     }
 

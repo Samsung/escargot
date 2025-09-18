@@ -77,12 +77,25 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.withcalendar
     TemporalPlainDateObject* withCalendar(ExecutionState& state, Value calendarLike);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.since
+    TemporalDurationObject* since(ExecutionState& state, Value other, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.until
+    TemporalDurationObject* until(ExecutionState& state, Value other, Value options);
+
     // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.compare
     static int compare(ExecutionState& state, Value one, Value two);
     static int compareISODate(ExecutionState& state, TemporalPlainDateObject* one, TemporalPlainDateObject* two);
 
 private:
     ISO8601::PlainDate computeISODate(ExecutionState& state);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindate
+    enum class DifferenceTemporalPlainDate {
+        Until,
+        Since
+    };
+    ISO8601::Duration differenceTemporalPlainDate(ExecutionState& state, DifferenceTemporalPlainDate operation, Value other, Value options);
 
     ISO8601::PlainDate* m_plainDate;
     Calendar m_calendarID;
