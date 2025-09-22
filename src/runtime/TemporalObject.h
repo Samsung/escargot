@@ -248,6 +248,9 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporaldate
     static TemporalPlainDateObject* toTemporalDate(ExecutionState& state, Value item, Value options);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporalyearmonth
+    static TemporalPlainYearMonthObject* toTemporalYearMonth(ExecutionState& state, Value item, Value options);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalfractionalseconddigitsoption
     // NullOption means AUTO
     static Optional<unsigned> getTemporalFractionalSecondDigitsOption(ExecutionState& state, Optional<Object*> resolvedOptions);
@@ -362,6 +365,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-getepochnanosecondsfor
     static Int128 getEpochNanosecondsFor(ExecutionState& state, Optional<TimeZone> timeZone, ISO8601::PlainDateTime isoDateTime, TemporalDisambiguationOption disambiguation);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-formatcalendarannotation
+    static void formatCalendarAnnotation(StringBuilder& builder, Calendar calendar, TemporalShowCalendarNameOption showCalendar);
 };
 
 } // namespace Escargot

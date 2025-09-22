@@ -87,7 +87,7 @@ public:
     static int compare(ExecutionState& state, Value one, Value two);
     static int compareISODate(ExecutionState& state, TemporalPlainDateObject* one, TemporalPlainDateObject* two);
 
-private:
+protected:
     ISO8601::PlainDate computeISODate(ExecutionState& state);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindate

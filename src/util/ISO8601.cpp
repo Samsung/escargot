@@ -1274,7 +1274,7 @@ static Optional<PlainDate> parseDate(ParserString& buffer, bool parseYear = true
 
     int32_t year = 0;
     unsigned month = 0;
-    unsigned day = 0;
+    unsigned day = 1;
 
     bool splitByHyphen = false;
     if (parseYear) {

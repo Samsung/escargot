@@ -122,19 +122,7 @@ static String* temporalDateToString(ISO8601::PlainDate plainDate, Calendar calen
         builder.appendString(String::fromASCII(s.data(), s.length()));
     }
 
-    // https://tc39.es/proposal-temporal/#sec-temporal-formatcalendarannotation
-    // FormatCalendarAnnotation steps
-    if (showCalendar == TemporalShowCalendarNameOption::Never) {
-    } else if (showCalendar == TemporalShowCalendarNameOption::Auto && calendar == Calendar()) {
-    } else {
-        builder.appendChar('[');
-        if (showCalendar == TemporalShowCalendarNameOption::Critical) {
-            builder.appendChar('!');
-        }
-        builder.appendString("u-ca=");
-        builder.appendString(calendar.toString());
-        builder.appendChar(']');
-    }
+    Temporal::formatCalendarAnnotation(builder, calendar, showCalendar);
 
     return builder.finalize();
 }

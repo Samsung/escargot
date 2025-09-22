@@ -80,6 +80,8 @@ struct DisposableResourceRecord;
 class TemporalObject;
 class TemporalPlainTimeObject;
 class TemporalPlainDateObject;
+class TemporalPlainYearMonthObject;
+class TemporalPlainMonthDayObject;
 class TemporalPlainDateTimeObject;
 class TemporalZonedDateTimeObject;
 class TemporalInstantObject;
@@ -608,6 +610,16 @@ public:
         return false;
     }
 
+    virtual bool isTemporalPlainYearMonthObject() const
+    {
+        return false;
+    }
+
+    virtual bool isTemporalPlainMonthDayObject() const
+    {
+        return false;
+    }
+
     virtual bool isTemporalPlainDateTimeObject() const
     {
         return false;
@@ -1096,6 +1108,18 @@ public:
     {
         ASSERT(isTemporalPlainDateObject());
         return (TemporalPlainDateObject*)this;
+    }
+
+    TemporalPlainYearMonthObject* asTemporalPlainYearMonthObject()
+    {
+        ASSERT(isTemporalPlainYearMonthObject());
+        return (TemporalPlainYearMonthObject*)this;
+    }
+
+    TemporalPlainMonthDayObject* asTemporalPlainMonthDayObject()
+    {
+        ASSERT(isTemporalPlainMonthDayObject());
+        return (TemporalPlainMonthDayObject*)this;
     }
 
     TemporalPlainDateTimeObject* asTemporalPlainDateTimeObject()
