@@ -99,6 +99,10 @@ inline Optional<DateTimeUnit> toDateTimeUnit(Optional<String*> s)
     F(month, Month)         \
     F(day, Day)
 
+#define PLAIN_YEARMONTH_UNITS(F) \
+    F(year, Year)                \
+    F(month, Month)
+
 #define PLAIN_TIME_UNITS(F)     \
     F(hour, Hour)               \
     F(minute, Minute)           \
@@ -491,7 +495,7 @@ static_assert(sizeof(PlainDate) == sizeof(int32_t), "");
 
 class PlainYearMonth {
 public:
-    PlainYearMonth(int32_t y, int32_t m)
+    PlainYearMonth(int32_t y = 0, int32_t m = 0)
         : m_year(y)
         , m_month(m)
     {

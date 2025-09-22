@@ -276,17 +276,19 @@ class FunctionObject;
     F(finalizationRegistryPrototype, Object, objName)
 
 #if defined(ENABLE_TEMPORAL)
-#define GLOBALOBJECT_BUILTIN_TEMPORAL(F, objName)  \
-    F(temporal, Object, objName)                   \
-    F(temporalNow, Object, objName)                \
-    F(temporalDuration, FunctionObject, objName)   \
-    F(temporalDurationPrototype, Object, objName)  \
-    F(temporalInstant, FunctionObject, objName)    \
-    F(temporalInstantPrototype, Object, objName)   \
-    F(temporalPlainTime, FunctionObject, objName)  \
-    F(temporalPlainTimePrototype, Object, objName) \
-    F(temporalPlainDate, FunctionObject, objName)  \
-    F(temporalPlainDatePrototype, Object, objName)
+#define GLOBALOBJECT_BUILTIN_TEMPORAL(F, objName)      \
+    F(temporal, Object, objName)                       \
+    F(temporalNow, Object, objName)                    \
+    F(temporalDuration, FunctionObject, objName)       \
+    F(temporalDurationPrototype, Object, objName)      \
+    F(temporalInstant, FunctionObject, objName)        \
+    F(temporalInstantPrototype, Object, objName)       \
+    F(temporalPlainTime, FunctionObject, objName)      \
+    F(temporalPlainTimePrototype, Object, objName)     \
+    F(temporalPlainDate, FunctionObject, objName)      \
+    F(temporalPlainDatePrototype, Object, objName)     \
+    F(temporalPlainYearMonth, FunctionObject, objName) \
+    F(temporalPlainYearMonthPrototype, Object, objName)
 #else
 #define GLOBALOBJECT_BUILTIN_TEMPORAL(F, objName)
 #endif
