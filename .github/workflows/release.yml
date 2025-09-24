@@ -31,7 +31,7 @@ jobs:
         # add icu path to pkg_config_path
         export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig"
         echo $PKG_CONFIG_PATH
-        cmake -H. -Bout/ $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.10 -H. -Bout/ $BUILD_OPTIONS
         ninja -Cout/
     - name: Check
       run: |
@@ -109,8 +109,8 @@ jobs:
         sudo apt-get install -y libicu-dev:i386 # install i386 ICU
     - name: Build x86/x64
       run: |
-        cmake -H. -Bout/x86 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_TEMPORAL=ON $BUILD_OPTIONS
-        cmake -H. -Bout/x64 -DESCARGOT_TEMPORAL=ON $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/x86 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86 -DESCARGOT_TEMPORAL=ON $BUILD_OPTIONS
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -H. -Bout/x64 -DESCARGOT_TEMPORAL=ON $BUILD_OPTIONS
         ninja -Cout/x86
         ninja -Cout/x64
     - name: Check
@@ -200,7 +200,7 @@ jobs:
         }
     - name: Build ${{ matrix.arch }}
       run: |
-        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DESCARGOT_ARCH=${{ matrix.arch }} -Bout/ -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
+        CMake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION:STRING="10.0" -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} -DESCARGOT_ARCH=${{ matrix.arch }} -Bout/ -DESCARGOT_OUTPUT=shell -DESCARGOT_LIBICU_SUPPORT=ON -DESCARGOT_LIBICU_SUPPORT_WITH_DLOPEN=OFF -DESCARGOT_THREADING=ON -DESCARGOT_TCO=ON -DESCARGOT_TEST=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=release
         CMake --build out/ --config Release
     - name: Check
       run: |
