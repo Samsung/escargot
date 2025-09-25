@@ -32,6 +32,7 @@ class Script;
 class Value;
 class Object;
 struct ASTScopeContext;
+struct ASTBlockContext;
 struct ByteCodeGenerateContext;
 
 typedef HashMap<AtomicString, StorePositiveNumberAsOddNumber, std::hash<AtomicString>, std::equal_to<AtomicString>,
@@ -41,6 +42,13 @@ typedef HashMap<AtomicString, StorePositiveNumberAsOddNumber, std::hash<AtomicSt
 // length of argv is same with NativeFunctionInfo.m_argumentCount
 // only in construct call, newTarget have Object*
 typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
+
+typedef struct ParameterUsed {
+    AtomicString name;
+    bool isUsed;
+} ParamUsed;
+
+typedef TightVector<ParamUsed, GCUtil::gc_malloc_atomic_allocator<ParamUsed>> ParamUsedVector;
 
 struct NativeFunctionInfo {
     enum Flags {
@@ -938,6 +946,16 @@ public:
         return false;
     }
 
+    bool checkParameterUsed(const AtomicString& name)
+    {
+        for (size_t i = 0; i < m_parameterUsed.size(); i++) {
+            if (m_parameterUsed[i].name == name) {
+                return m_parameterUsed[i].isUsed;
+            }
+        }
+        return false;
+    }
+
     void markHeapAllocatedEnvironmentFromHere(LexicalBlockIndex blockIndex = 0, InterpretedCodeBlock* to = nullptr);
 
     void setConstructedObjectPropertyCount(size_t s)
@@ -969,6 +987,7 @@ protected:
 
     // all parameter names including targets of patterns and rest element
     AtomicStringTightVector m_parameterNames;
+    ParamUsedVector m_parameterUsed;
     IdentifierInfoVector m_identifierInfos;
     BlockInfo** m_blockInfos;
     static constexpr size_t maxBlockInfosLength = ((1 << 24) - 1);
@@ -1050,6 +1069,10 @@ protected:
     static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
     static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, bool needRareData = false);
+
+    bool innerIsParameterUsed(ASTBlockContext* block, AtomicString& name);
+    bool isParameterUsed(ASTScopeContext* scopeCtx, AtomicString& name);
+    void recordParameterUsage(ASTScopeContext* scopeCtx);
 
     void recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     void recordFunctionParsingInfo(ASTScopeContext* scopeCtxm, bool isEvalCode, bool isEvalCodeInFunction);
