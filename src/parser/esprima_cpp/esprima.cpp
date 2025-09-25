@@ -5032,7 +5032,14 @@ public:
                 Node* param = this->parseFormalParameter(builder, options);
 
                 switch (param->type()) {
-                case Identifier:
+                case Identifier: {
+                    if (this->codeBlock->checkParameterUsed(param->asIdentifier()->name())) {
+                        Node* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
+                        Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
+                        container->appendChild(statement);
+                    }
+                    break;
+                }
                 case AssignmentPattern:
                 case ArrayPattern:
                 case ObjectPattern: {

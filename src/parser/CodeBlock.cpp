@@ -54,6 +54,7 @@ void* InterpretedCodeBlock::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parent));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_children));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parameterNames));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_parameterUsed));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_identifierInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlock, m_blockInfos));
         descr = GC_make_descriptor(obj_bitmap, GC_WORD_LEN(InterpretedCodeBlock));
@@ -98,6 +99,7 @@ void* InterpretedCodeBlockWithRareData::operator new(size_t size)
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parent));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_children));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parameterNames));
+        GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_parameterUsed));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_identifierInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_blockInfos));
         GC_set_bit(obj_bitmap, GC_WORD_OFFSET(InterpretedCodeBlockWithRareData, m_rareData));
@@ -308,6 +310,48 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
 {
 }
 
+bool InterpretedCodeBlock::innerIsParameterUsed(ASTBlockContext* block, AtomicString& name)
+{
+    for (size_t i = 0; i < block->m_usingNames.size(); i++) {
+        if (block->m_usingNames[i] == name) {
+            return true;
+        } else if (block->m_usingNames[i] == "arguments") {
+            // if 'arguments' is used in body, all parameters are used
+            return true;
+        } else if (block->m_usingNames[i] == "eval") {
+            // if 'eval' is used in body, all parameters are used
+            return true;
+        }
+    }
+    return false;
+}
+
+bool InterpretedCodeBlock::isParameterUsed(ASTScopeContext* scopeCtx, AtomicString& name)
+{
+    for (size_t i = 0; i < scopeCtx->m_childBlockScopes.size(); i++) {
+        if (innerIsParameterUsed(scopeCtx->m_childBlockScopes[i], name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void InterpretedCodeBlock::recordParameterUsage(ASTScopeContext* scopeCtx)
+{
+    for (size_t i = 0; i < m_parameterUsed.size(); i++) {
+        if (isParameterUsed(scopeCtx, m_parameterUsed[i].name)) {
+            m_parameterUsed[i].isUsed = true;
+        }
+    }
+
+    ASTScopeContext* curCtx = scopeCtx->firstChild();
+    // check inner functions
+    while (curCtx) {
+        recordParameterUsage(curCtx);
+        curCtx = curCtx->nextSibling();
+    }
+}
+
 void InterpretedCodeBlock::recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
 {
     m_isStrict = scopeCtx->m_isStrict;
@@ -389,9 +433,17 @@ void InterpretedCodeBlock::recordFunctionParsingInfo(ASTScopeContext* scopeCtx, 
     if (parameterNames.size() > 0) {
         size_t parameterNamesCount = parameterNames.size();
         m_parameterNames.resizeWithUninitializedValues(parameterNamesCount);
+        m_parameterUsed.resizeWithUninitializedValues(parameterNamesCount);
         for (size_t i = 0; i < parameterNamesCount; i++) {
             m_parameterNames[i] = parameterNames[i];
+
+            ParamUsed paramUsedInfo;
+            paramUsedInfo.name = parameterNames[i];
+            paramUsedInfo.isUsed = false;
+            m_parameterUsed[i] = paramUsedInfo;
         }
+
+        recordParameterUsage(scopeCtx);
     }
 
     m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith;
