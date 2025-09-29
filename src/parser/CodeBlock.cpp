@@ -339,8 +339,8 @@ bool InterpretedCodeBlock::isParameterUsed(ASTScopeContext* scopeCtx, AtomicStri
 void InterpretedCodeBlock::recordParameterUsage(ASTScopeContext* scopeCtx)
 {
     for (size_t i = 0; i < m_parameterUsed.size(); i++) {
-        if (isParameterUsed(scopeCtx, m_parameterUsed[i].name)) {
-            m_parameterUsed[i].isUsed = true;
+        if (isParameterUsed(scopeCtx, m_parameterUsed[i].m_name)) {
+            m_parameterUsed[i].m_isUsed = true;
         }
     }
 
@@ -437,9 +437,9 @@ void InterpretedCodeBlock::recordFunctionParsingInfo(ASTScopeContext* scopeCtx, 
         for (size_t i = 0; i < parameterNamesCount; i++) {
             m_parameterNames[i] = parameterNames[i];
 
-            ParamUsed paramUsedInfo;
-            paramUsedInfo.name = parameterNames[i];
-            paramUsedInfo.isUsed = false;
+            ParameterUsed paramUsedInfo;
+            paramUsedInfo.m_name = parameterNames[i];
+            paramUsedInfo.m_isUsed = false;
             m_parameterUsed[i] = paramUsedInfo;
         }
 

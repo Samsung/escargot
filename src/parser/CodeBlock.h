@@ -43,13 +43,6 @@ typedef HashMap<AtomicString, StorePositiveNumberAsOddNumber, std::hash<AtomicSt
 // only in construct call, newTarget have Object*
 typedef Value (*NativeFunctionPointer)(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget);
 
-typedef struct ParameterUsed {
-    AtomicString name;
-    bool isUsed;
-} ParamUsed;
-
-typedef TightVector<ParamUsed, GCUtil::gc_malloc_atomic_allocator<ParamUsed>> ParamUsedVector;
-
 struct NativeFunctionInfo {
     enum Flags {
         Strict = 1,
@@ -411,6 +404,13 @@ public:
         LexicalBlockIndex m_blockIndex;
         BlockIdentifierInfoVector m_identifiers;
     };
+
+    struct ParameterUsed {
+        AtomicString m_name;
+        bool m_isUsed;
+    };
+
+    typedef TightVector<ParameterUsed, GCUtil::gc_malloc_atomic_allocator<ParameterUsed>> ParameterUsedVector;
 
     struct IdentifierInfo {
         bool m_needToAllocateOnStack : 1;
@@ -949,8 +949,8 @@ public:
     bool checkParameterUsed(const AtomicString& name)
     {
         for (size_t i = 0; i < m_parameterUsed.size(); i++) {
-            if (m_parameterUsed[i].name == name) {
-                return m_parameterUsed[i].isUsed;
+            if (m_parameterUsed[i].m_name == name) {
+                return m_parameterUsed[i].m_isUsed;
             }
         }
         return false;
@@ -987,7 +987,7 @@ protected:
 
     // all parameter names including targets of patterns and rest element
     AtomicStringTightVector m_parameterNames;
-    ParamUsedVector m_parameterUsed;
+    ParameterUsedVector m_parameterUsed;
     IdentifierInfoVector m_identifierInfos;
     BlockInfo** m_blockInfos;
     static constexpr size_t maxBlockInfosLength = ((1 << 24) - 1);
