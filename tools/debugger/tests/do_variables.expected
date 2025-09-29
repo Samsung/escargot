@@ -30,7 +30,7 @@ Global Environment
 (escargot-debugger) variables
 c: undefined
 (escargot-debugger) variables 1
-a: number: 1
+a: undefined
 b: number: 2
 (escargot-debugger) s
 Stopped at tools/debugger/tests/do_variables.js:37

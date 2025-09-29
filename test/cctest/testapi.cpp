@@ -2733,7 +2733,7 @@ DebuggerOperationsRef::ResumeBreakpointOperation DebuggerTest::stopAtBreakpoint(
         EXPECT_EQ(properties.size(), 1);
         EXPECT_TRUE(properties[0].key->equalsWithASCIIString("arg", 3));
         EXPECT_TRUE(properties[0].value.hasValue());
-        EXPECT_TRUE(properties[0].value->isNull());
+        EXPECT_TRUE(properties[0].value->isUndefined());
 
         return DebuggerOperationsRef::Finish;
     }
