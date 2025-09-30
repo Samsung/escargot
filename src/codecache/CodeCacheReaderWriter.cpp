@@ -151,6 +151,17 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
         m_buffer.put(stringIndex);
     }
 
+    // InterpretedCodeBlock::m_parameterUsed
+    const InterpretedCodeBlock::ParameterUsedVector& parameterUsedVector = codeBlock->m_parameterUsed;
+    size = parameterUsedVector.size();
+    m_buffer.ensureSize(sizeof(size_t) + size * (sizeof(size_t) + sizeof(bool)));
+    m_buffer.put(size);
+    for (size_t i = 0; i < size; i++) {
+        const InterpretedCodeBlock::ParameterUsed& info = parameterUsedVector[i];
+        m_buffer.put(m_stringTable->add(info.m_name));
+        m_buffer.put(info.m_isUsed);
+    }
+
     // InterpretedCodeBlock::m_identifierInfos
     const InterpretedCodeBlock::IdentifierInfoVector& identifierVector = codeBlock->m_identifierInfos;
     size = identifierVector.size();
@@ -184,7 +195,7 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
         // InterpretedCodeBlock::BlockInfo::m_identifiers
         const InterpretedCodeBlock::BlockIdentifierInfoVector& infoVector = info->identifiers();
         const size_t vectorSize = infoVector.size();
-        m_buffer.ensureSize(sizeof(size_t) + vectorSize * (2 * sizeof(bool) + 2 * sizeof(size_t)));
+        m_buffer.ensureSize(sizeof(size_t) + vectorSize * (3 * sizeof(bool) + 2 * sizeof(size_t)));
         m_buffer.put(vectorSize);
         for (size_t j = 0; j < vectorSize; j++) {
             const InterpretedCodeBlock::BlockIdentifierInfo& info = infoVector[j];
@@ -721,6 +732,17 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
     for (size_t i = 0; i < size; i++) {
         size_t stringIndex = m_buffer.get<size_t>();
         atomicStringVector[i] = m_stringTable->get(stringIndex);
+    }
+
+    // InterpretedCodeBlock::m_parameterUsed
+    InterpretedCodeBlock::ParameterUsedVector& parameterUsedVector = codeBlock->m_parameterUsed;
+    size = m_buffer.get<size_t>();
+    parameterUsedVector.resizeWithUninitializedValues(size);
+    for (size_t i = 0; i < size; i++) {
+        InterpretedCodeBlock::ParameterUsed info;
+        info.m_name = m_stringTable->get(m_buffer.get<size_t>());
+        info.m_isUsed = m_buffer.get<bool>();
+        parameterUsedVector[i] = info;
     }
 
     // InterpretedCodeBlock::m_identifierInfos
