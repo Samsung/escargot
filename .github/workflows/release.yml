@@ -72,6 +72,14 @@ jobs:
         otool -L ./deploy/escargot
         otool -L ./deploy/libicu*.dylib
 
+        # Ad-hoc sign
+        set -e
+        cd deploy
+        for f in libicu*.dylib; do [ -e "$f" ] || continue; codesign -f -s - "$f"; done
+        codesign --force --deep -s - ./escargot
+        for f in ./escargot libicu*.dylib; do [ -e "$f" ] || continue; codesign --verify --strict --verbose=6 "$f"; done
+        cd ..
+
         # run test
         $RUNNER --engine="$GITHUB_WORKSPACE/deploy/escargot" new-es
 
