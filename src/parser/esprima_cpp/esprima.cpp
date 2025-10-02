@@ -337,6 +337,23 @@ public:
 #endif /* ESCARGOT_DEBUGGER */
     }
 
+#ifndef ESCARGOT_DEBUGGER
+    void setParameterUsed(ASTScopeContext* scopeCtx, AtomicString name)
+    {
+        for (size_t i = 0; i < scopeCtx->m_parameterUsed.size(); i++) {
+            if (scopeCtx->m_parameterUsed[i]) {
+                continue;
+            }
+
+            if (name == "eval" || name == "arguments") {
+                scopeCtx->m_parameterUsed[i] = true;
+            } else if (scopeCtx->m_parameters[i] == name) {
+                scopeCtx->m_parameterUsed[i] = true;
+            }
+        }
+    }
+#endif
+
     ASTScopeContext* pushScopeContext(AtomicString functionName)
     {
         auto parentContext = this->currentScopeContext;
@@ -353,6 +370,9 @@ public:
 
         if (parentContext) {
             parentContext->appendChild(this->currentScopeContext);
+#ifndef ESCARGOT_DEBUGGER
+            this->currentScopeContext->m_parent = parentContext;
+#endif
         }
 
         return parentContext;
@@ -432,6 +452,15 @@ public:
         ASSERT((VectorUtil::findInVector(this->currentBlockContext->m_usingNames, name) != VectorUtil::invalidIndex) == contains);
         if (!contains) {
             this->currentBlockContext->m_usingNames.push_back(name);
+#ifndef ESCARGOT_DEBUGGER
+            ASTScopeContext* scope = this->currentScopeContext;
+            while (scope) {
+                if (scope->m_parameters.size()) {
+                    setParameterUsed(scope, name);
+                }
+                scope = scope->m_parent;
+            }
+#endif
         }
     }
 
@@ -483,11 +512,18 @@ public:
         }
 #endif
         this->currentScopeContext->m_parameters.resizeWithUninitializedValues(paramNames.size());
+#ifndef ESCARGOT_DEBUGGER
+        this->currentScopeContext->m_parameterUsed.resizeWithUninitializedValues(paramNames.size());
+#endif
         LexicalBlockIndex functionBodyBlockIndex = this->currentScopeContext->m_functionBodyBlockIndex;
         for (size_t i = 0; i < paramNames.size(); i++) {
             ASSERT(paramNames[i].length() > 0);
             AtomicString as(this->escargotContext, paramNames[i]);
             this->currentScopeContext->m_parameters[i] = as;
+#ifndef ESCARGOT_DEBUGGER
+            // Set false basically, but true when parameter is not identifier.
+            this->currentScopeContext->m_parameterUsed[i] = hasParameterOtherThanIdentifier;
+#endif
             this->currentScopeContext->insertVarName(as, functionBodyBlockIndex, true, true, true);
         }
 
@@ -1710,6 +1746,10 @@ public:
                 this->currentScopeContext->m_parameterCount = 1;
                 this->currentScopeContext->m_parameters.resizeWithUninitializedValues(1);
                 this->currentScopeContext->m_parameters[0] = className;
+#ifndef ESCARGOT_DEBUGGER
+                this->currentScopeContext->m_parameterUsed.resizeWithUninitializedValues(1);
+                this->currentScopeContext->m_parameterUsed[0] = true;
+#endif
                 this->currentScopeContext->insertVarName(className, 0, true, true, true);
             }
 
@@ -3533,6 +3573,10 @@ public:
                 this->currentScopeContext->m_parameterCount = 1;
                 this->currentScopeContext->m_parameters.resizeWithUninitializedValues(1);
                 this->currentScopeContext->m_parameters[0] = paramName;
+#ifndef ESCARGOT_DEBUGGER
+                this->currentScopeContext->m_parameterUsed.resizeWithUninitializedValues(1);
+                this->currentScopeContext->m_parameterUsed[0] = true;
+#endif
                 this->currentScopeContext->insertVarName(paramName, 0, true, true, true);
             }
 
@@ -5033,11 +5077,15 @@ public:
 
                 switch (param->type()) {
                 case Identifier: {
+#ifndef ESCARGOT_DEBUGGER
                     if (this->codeBlock->checkParameterUsed(param->asIdentifier()->name())) {
+#endif
                         Node* init = this->finalize(node, builder.createInitializeParameterExpressionNode(param, paramIndex));
                         Node* statement = this->finalize(node, builder.createExpressionStatementNode(init));
                         container->appendChild(statement);
+#ifndef ESCARGOT_DEBUGGER
                     }
+#endif
                     break;
                 }
                 case AssignmentPattern:

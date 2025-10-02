@@ -151,16 +151,16 @@ void CodeCacheWriter::storeInterpretedCodeBlock(InterpretedCodeBlock* codeBlock)
         m_buffer.put(stringIndex);
     }
 
+#ifndef ESCARGOT_DEBUGGER
     // InterpretedCodeBlock::m_parameterUsed
-    const InterpretedCodeBlock::ParameterUsedVector& parameterUsedVector = codeBlock->m_parameterUsed;
+    const TightVector<bool, GCUtil::gc_malloc_atomic_allocator<bool>>& parameterUsedVector = codeBlock->m_parameterUsed;
     size = parameterUsedVector.size();
-    m_buffer.ensureSize(sizeof(size_t) + size * (sizeof(size_t) + sizeof(bool)));
+    m_buffer.ensureSize(sizeof(size_t) + size * sizeof(bool));
     m_buffer.put(size);
     for (size_t i = 0; i < size; i++) {
-        const InterpretedCodeBlock::ParameterUsed& info = parameterUsedVector[i];
-        m_buffer.put(m_stringTable->add(info.m_name));
-        m_buffer.put(info.m_isUsed);
+        m_buffer.put(parameterUsedVector[i]);
     }
+#endif
 
     // InterpretedCodeBlock::m_identifierInfos
     const InterpretedCodeBlock::IdentifierInfoVector& identifierVector = codeBlock->m_identifierInfos;
@@ -734,16 +734,16 @@ InterpretedCodeBlock* CodeCacheReader::loadInterpretedCodeBlock(Context* context
         atomicStringVector[i] = m_stringTable->get(stringIndex);
     }
 
+#ifndef ESCARGOT_DEBUGGER
     // InterpretedCodeBlock::m_parameterUsed
-    InterpretedCodeBlock::ParameterUsedVector& parameterUsedVector = codeBlock->m_parameterUsed;
+    TightVector<bool, GCUtil::gc_malloc_atomic_allocator<bool>>& parameterUsedVector = codeBlock->m_parameterUsed;
     size = m_buffer.get<size_t>();
     parameterUsedVector.resizeWithUninitializedValues(size);
     for (size_t i = 0; i < size; i++) {
-        InterpretedCodeBlock::ParameterUsed info;
-        info.m_name = m_stringTable->get(m_buffer.get<size_t>());
-        info.m_isUsed = m_buffer.get<bool>();
-        parameterUsedVector[i] = info;
+        bool isUsed = m_buffer.get<bool>();
+        parameterUsedVector[i] = isUsed;
     }
+#endif
 
     // InterpretedCodeBlock::m_identifierInfos
     InterpretedCodeBlock::IdentifierInfoVector& identifierVector = codeBlock->m_identifierInfos;

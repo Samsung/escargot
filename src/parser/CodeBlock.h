@@ -405,13 +405,6 @@ public:
         BlockIdentifierInfoVector m_identifiers;
     };
 
-    struct ParameterUsed {
-        AtomicString m_name;
-        bool m_isUsed;
-    };
-
-    typedef TightVector<ParameterUsed, GCUtil::gc_malloc_atomic_allocator<ParameterUsed>> ParameterUsedVector;
-
     struct IdentifierInfo {
         bool m_needToAllocateOnStack : 1;
         bool m_isMutable : 1;
@@ -946,15 +939,17 @@ public:
         return false;
     }
 
+#ifndef ESCARGOT_DEBUGGER
     bool checkParameterUsed(const AtomicString& name)
     {
         for (size_t i = 0; i < m_parameterUsed.size(); i++) {
-            if (m_parameterUsed[i].m_name == name) {
-                return m_parameterUsed[i].m_isUsed;
+            if (m_parameterNames[i] == name) {
+                return m_parameterUsed[i];
             }
         }
         return false;
     }
+#endif
 
     void markHeapAllocatedEnvironmentFromHere(LexicalBlockIndex blockIndex = 0, InterpretedCodeBlock* to = nullptr);
 
@@ -987,7 +982,9 @@ protected:
 
     // all parameter names including targets of patterns and rest element
     AtomicStringTightVector m_parameterNames;
-    ParameterUsedVector m_parameterUsed;
+#ifndef ESCARGOT_DEBUGGER
+    TightVector<bool, GCUtil::gc_malloc_atomic_allocator<bool>> m_parameterUsed;
+#endif
     IdentifierInfoVector m_identifierInfos;
     BlockInfo** m_blockInfos;
     static constexpr size_t maxBlockInfosLength = ((1 << 24) - 1);
@@ -1069,10 +1066,6 @@ protected:
     static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, StringView src, ASTScopeContext* scopeCtx, InterpretedCodeBlock* parentBlock, bool isEvalCode, bool isEvalCodeInFunction);
     static InterpretedCodeBlock* createInterpretedCodeBlock(Context* ctx, Script* script, bool needRareData = false);
-
-    bool innerIsParameterUsed(ASTBlockContext* block, AtomicString& name);
-    bool isParameterUsed(ASTScopeContext* scopeCtx, AtomicString& name);
-    void recordParameterUsage(ASTScopeContext* scopeCtx);
 
     void recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction);
     void recordFunctionParsingInfo(ASTScopeContext* scopeCtxm, bool isEvalCode, bool isEvalCodeInFunction);
