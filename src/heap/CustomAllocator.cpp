@@ -168,12 +168,19 @@ int getValidValueInInterpretedCodeBlock(void* ptr, GC_mark_custom_result* arr)
     arr[4].to = (GC_word*)current->m_children;
     arr[5].from = (GC_word*)&current->m_parameterNames;
     arr[5].to = (GC_word*)current->m_parameterNames.data();
+#ifndef ESCARGOT_DEBUGGER
     arr[6].from = (GC_word*)&current->m_parameterUsed;
     arr[6].to = (GC_word*)current->m_parameterUsed.data();
     arr[7].from = (GC_word*)&current->m_identifierInfos;
     arr[7].to = (GC_word*)current->m_identifierInfos.data();
     arr[8].from = (GC_word*)&current->m_blockInfos;
     arr[8].to = (GC_word*)current->m_blockInfos;
+#else
+    arr[6].from = (GC_word*)&current->m_identifierInfos;
+    arr[6].to = (GC_word*)current->m_identifierInfos.data();
+    arr[7].from = (GC_word*)&current->m_blockInfos;
+    arr[7].to = (GC_word*)current->m_blockInfos;
+#endif
     return 0;
 }
 
@@ -192,6 +199,7 @@ int getValidValueInInterpretedCodeBlockWithRareData(void* ptr, GC_mark_custom_re
     arr[4].to = (GC_word*)current->m_children;
     arr[5].from = (GC_word*)&current->m_parameterNames;
     arr[5].to = (GC_word*)current->m_parameterNames.data();
+#ifndef ESCARGOT_DEBUGGER
     arr[6].from = (GC_word*)&current->m_parameterUsed;
     arr[6].to = (GC_word*)current->m_parameterUsed.data();
     arr[7].from = (GC_word*)&current->m_identifierInfos;
@@ -200,6 +208,14 @@ int getValidValueInInterpretedCodeBlockWithRareData(void* ptr, GC_mark_custom_re
     arr[8].to = (GC_word*)current->m_blockInfos;
     arr[9].from = (GC_word*)&current->m_rareData;
     arr[9].to = (GC_word*)current->m_rareData;
+#else
+    arr[6].from = (GC_word*)&current->m_identifierInfos;
+    arr[6].to = (GC_word*)current->m_identifierInfos.data();
+    arr[7].from = (GC_word*)&current->m_blockInfos;
+    arr[7].to = (GC_word*)current->m_blockInfos;
+    arr[8].from = (GC_word*)&current->m_rareData;
+    arr[8].to = (GC_word*)current->m_rareData;
+#endif
     return 0;
 }
 
@@ -292,7 +308,7 @@ void initializeCustomAllocators()
                                                                               GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInArrayBufferObject, 5>), 0),
                                                                               FALSE,
                                                                               TRUE);
-
+#ifndef ESCARGOT_DEBUGGER
     s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind(GC_new_free_list(),
                                                                       GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 9>), 0),
                                                                       FALSE,
@@ -302,6 +318,17 @@ void initializeCustomAllocators()
                                                                                   GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlockWithRareData, 10>), 0),
                                                                                   FALSE,
                                                                                   TRUE);
+#else
+    s_gcKinds[HeapObjectKind::InterpretedCodeBlockKind] = GC_new_kind(GC_new_free_list(),
+                                                                      GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlock, 8>), 0),
+                                                                      FALSE,
+                                                                      TRUE);
+
+    s_gcKinds[HeapObjectKind::InterpretedCodeBlockWithRareDataKind] = GC_new_kind(GC_new_free_list(),
+                                                                                  GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInInterpretedCodeBlockWithRareData, 9>), 0),
+                                                                                  FALSE,
+                                                                                  TRUE);
+#endif
 
     s_gcKinds[HeapObjectKind::WeakRefObjectKind] = GC_new_kind(GC_new_free_list(),
                                                                GC_MAKE_PROC(GC_new_proc(markAndPushCustom<getValidValueInWeakRefObject, 3>), 0),

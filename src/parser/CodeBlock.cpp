@@ -310,48 +310,6 @@ InterpretedCodeBlock::InterpretedCodeBlock(Context* ctx, Script* script)
 {
 }
 
-bool InterpretedCodeBlock::innerIsParameterUsed(ASTBlockContext* block, AtomicString& name)
-{
-    for (size_t i = 0; i < block->m_usingNames.size(); i++) {
-        if (block->m_usingNames[i] == name) {
-            return true;
-        } else if (block->m_usingNames[i] == "arguments") {
-            // if 'arguments' is used in body, all parameters are used
-            return true;
-        } else if (block->m_usingNames[i] == "eval") {
-            // if 'eval' is used in body, all parameters are used
-            return true;
-        }
-    }
-    return false;
-}
-
-bool InterpretedCodeBlock::isParameterUsed(ASTScopeContext* scopeCtx, AtomicString& name)
-{
-    for (size_t i = 0; i < scopeCtx->m_childBlockScopes.size(); i++) {
-        if (innerIsParameterUsed(scopeCtx->m_childBlockScopes[i], name)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void InterpretedCodeBlock::recordParameterUsage(ASTScopeContext* scopeCtx)
-{
-    for (size_t i = 0; i < m_parameterUsed.size(); i++) {
-        if (isParameterUsed(scopeCtx, m_parameterUsed[i].m_name)) {
-            m_parameterUsed[i].m_isUsed = true;
-        }
-    }
-
-    ASTScopeContext* curCtx = scopeCtx->firstChild();
-    // check inner functions
-    while (curCtx) {
-        recordParameterUsage(curCtx);
-        curCtx = curCtx->nextSibling();
-    }
-}
-
 void InterpretedCodeBlock::recordGlobalParsingInfo(ASTScopeContext* scopeCtx, bool isEvalCode, bool isEvalCodeInFunction)
 {
     m_isStrict = scopeCtx->m_isStrict;
@@ -433,17 +391,15 @@ void InterpretedCodeBlock::recordFunctionParsingInfo(ASTScopeContext* scopeCtx, 
     if (parameterNames.size() > 0) {
         size_t parameterNamesCount = parameterNames.size();
         m_parameterNames.resizeWithUninitializedValues(parameterNamesCount);
+#ifndef ESCARGOT_DEBUGGER
         m_parameterUsed.resizeWithUninitializedValues(parameterNamesCount);
+#endif
         for (size_t i = 0; i < parameterNamesCount; i++) {
             m_parameterNames[i] = parameterNames[i];
-
-            ParameterUsed paramUsedInfo;
-            paramUsedInfo.m_name = parameterNames[i];
-            paramUsedInfo.m_isUsed = false;
-            m_parameterUsed[i] = paramUsedInfo;
+#ifndef ESCARGOT_DEBUGGER
+            m_parameterUsed[i] = scopeCtx->m_parameterUsed[i];
+#endif
         }
-
-        recordParameterUsage(scopeCtx);
     }
 
     m_canUseIndexedVariableStorage = !m_hasEval && !m_isEvalCode && !m_hasWith;
