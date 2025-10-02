@@ -515,7 +515,7 @@ TemporalPlainYearMonthObject* Temporal::toTemporalYearMonth(ExecutionState& stat
         // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
         auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
         // Let isoDate be ? CalendarDateFromFields(calendar, fields, overflow).
-        auto isoDate = calendarDateFromFields(state, calendar, fields, overflow);
+        auto isoDate = calendarDateFromFields(state, calendar, fields, overflow, CalendarDateFromFieldsMode::YearMonth);
         // Return ! CreateTemporalYearMonth(isoDate, calendar).
         return new TemporalPlainYearMonthObject(state, state.context()->globalObject()->temporalPlainYearMonthPrototype(),
                                                 isoDate, calendar);
@@ -533,37 +533,45 @@ TemporalPlainYearMonthObject* Temporal::toTemporalYearMonth(ExecutionState& stat
     if (!result && !parseResultYearMonth) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO Date string");
     }
-    if (result && std::get<2>(result.value()) && std::get<2>(result.value()).value().m_z) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO Time string without UTC designator");
-    }
-    if (result && !std::get<1>(result.value()) && std::get<2>(result.value()) && std::get<2>(result.value()).value().m_offset.hasValue() && !std::get<3>(result.value())) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO Date string");
-    }
 
     ISO8601::PlainDate plainDate;
-    ISO8601::CalendarID calendarID;
+    Optional<ISO8601::TimeZoneRecord> timeZone;
+    Optional<ISO8601::CalendarID> calendarID;
+
     if (result) {
         plainDate = std::get<0>(result.value());
         plainDate = ISO8601::PlainDate(plainDate.year(), plainDate.month(), 1);
-        if (std::get<3>(result.value())) {
-            calendarID = std::get<3>(result.value()).value();
+        timeZone = std::get<2>(result.value());
+        calendarID = std::get<3>(result.value());
+
+        if (!std::get<1>(result.value()) && timeZone && timeZone.value().m_offset) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO Time string without UTC designator");
         }
     } else {
         plainDate = std::get<0>(parseResultYearMonth.value());
-        if (std::get<1>(parseResultYearMonth.value())) {
-            calendarID = std::get<3>(result.value()).value();
-        }
+        timeZone = std::get<1>(parseResultYearMonth.value());
+        calendarID = std::get<2>(parseResultYearMonth.value());
     }
 
-    if (!ISO8601::isDateTimeWithinLimits(plainDate.year(), plainDate.month(), plainDate.day(), 12, 0, 0, 0, 0, 0)) {
+    if (timeZone && timeZone.value().m_z) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO Time string without UTC designator");
+    }
+    if (parseResultYearMonth && timeZone && timeZone.value().m_offset.hasValue() && !calendarID) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO Date string");
+    }
+    if (!result && parseResultYearMonth && calendarID && calendarID.value() != "iso8601") {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO8601 calendar");
+    }
+
+    if (!isoYearMonthWithinLimits(plainDate)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO Date string in valid range");
     }
 
     // Let calendar be result.[[Calendar]].
     // If calendar is empty, set calendar to "iso8601".
     String* calendar = state.context()->staticStrings().lazyISO8601().string();
-    if (calendarID.size()) {
-        calendar = String::fromUTF8(calendarID.data(), calendarID.length());
+    if (calendarID) {
+        calendar = String::fromUTF8(calendarID.value().data(), calendarID.value().length());
     }
     // Set calendar to ? CanonicalizeCalendar(calendar).
     auto mayID = Calendar::fromString(calendar);
@@ -1317,7 +1325,7 @@ Calendar Temporal::toTemporalCalendarIdentifier(ExecutionState& state, Value tem
         }
     }
     if (parseResultYearMonth) {
-        auto cid = tryOnce(state, std::get<1>(parseResultYearMonth.value()));
+        auto cid = tryOnce(state, std::get<2>(parseResultYearMonth.value()));
         if (cid) {
             return cid.value();
         }
@@ -1525,7 +1533,7 @@ CalendarFieldsRecord Temporal::prepareCalendarFields(ExecutionState& state, Cale
     return result;
 }
 
-UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow)
+UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode)
 {
     // CalendarResolveFields steps
     if (calendar.isISO8601() || !calendar.isEraRelated()) {
@@ -1566,7 +1574,19 @@ UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar cale
             fields.day = std::min<unsigned>(fields.day.value(), ISO8601::daysInMonth(fields.year.value(), fields.month.value()));
         }
         auto plainDate = ISO8601::toPlainDate(ISO8601::Duration({ static_cast<double>(fields.year.value()), static_cast<double>(fields.month.value()), 0.0, static_cast<double>(fields.day.value()), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 }));
-        if (!plainDate || !ISO8601::isDateTimeWithinLimits(plainDate.value().year(), plainDate.value().month(), plainDate.value().day(), 12, 0, 0, 0, 0, 0)) {
+        bool isValid = true;
+        if (mode == CalendarDateFromFieldsMode::YearMonth) {
+            if (!plainDate || !isoYearMonthWithinLimits(plainDate.value())) {
+                isValid = false;
+            }
+        } else {
+            if (!plainDate || !ISO8601::isDateTimeWithinLimits(plainDate.value().year(), plainDate.value().month(), plainDate.value().day(), 12, 0, 0, 0, 0, 0)) {
+                isValid = false;
+            }
+        }
+
+        if (!isValid) {
+            ucal_close(icuCalendar);
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date");
         }
 
@@ -1587,6 +1607,7 @@ UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar cale
         });
 
         if (!eraIdx) {
+            ucal_close(icuCalendar);
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid era value");
         }
 
@@ -1601,6 +1622,7 @@ UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar cale
             DateObject::DateTimeInfo timeInfo;
             DateObject::computeTimeInfoFromEpoch(epochTime, timeInfo);
             if (timeInfo.year != fields.year.value()) {
+                ucal_close(icuCalendar);
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "'year' and computed 'year' calendar fields are inconsistent");
             }
         }
@@ -2382,6 +2404,21 @@ void Temporal::formatCalendarAnnotation(StringBuilder& builder, Calendar calenda
         builder.appendString(calendar.toString());
         builder.appendChar(']');
     }
+}
+
+bool Temporal::isoYearMonthWithinLimits(ISO8601::PlainDate plainDate)
+{
+    bool isValid = true;
+    if (plainDate.year() < -271821 || plainDate.year() > 275760) {
+        isValid = false;
+    }
+    if (plainDate.year() == -271821 && plainDate.month() < 4) {
+        isValid = false;
+    }
+    if (plainDate.year() == 275760 && plainDate.month() > 9) {
+        isValid = false;
+    }
+    return isValid;
 }
 
 } // namespace Escargot

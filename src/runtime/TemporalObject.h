@@ -336,7 +336,11 @@ public:
                                                       CalendarField* nonCalendarFieldNames, size_t nonCalendarFieldNamesLength, CalendarField* requiredFieldNames, size_t requiredFieldNamesLength /* SIZE_MAX means PARTIAL */);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-calendardatefromfields
-    static UCalendar* calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow);
+    enum class CalendarDateFromFieldsMode {
+        Normal,
+        YearMonth
+    };
+    static UCalendar* calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode = CalendarDateFromFieldsMode::Normal);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-calendarmergefields
     static CalendarFieldsRecord calendarMergeFields(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, const CalendarFieldsRecord& additionalFields);
@@ -368,6 +372,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-formatcalendarannotation
     static void formatCalendarAnnotation(StringBuilder& builder, Calendar calendar, TemporalShowCalendarNameOption showCalendar);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-isoyearmonthwithinlimits
+    static bool isoYearMonthWithinLimits(ISO8601::PlainDate plainDate);
 };
 
 } // namespace Escargot

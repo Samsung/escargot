@@ -1420,12 +1420,6 @@
     <test id="built-ins/Temporal/PlainTime/prototype/until/argument-zoneddatetime-negative-epochnanoseconds"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/prototype/with/plaintimelike-invalid"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainTime/throws-if-time-is-invalid"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/argument-invalid"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/calendar-always"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/calendar-case-insensitive"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/calendar-invalid"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/calendar-invalid-iso-string"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/calendar-string"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainYearMonth/compare/argument-cast"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainYearMonth/compare/argument-propertybag-calendar-case-insensitive"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainYearMonth/compare/argument-propertybag-calendar-invalid-iso-string"><reason>TODO</reason></test>
@@ -1460,15 +1454,9 @@
     <test id="built-ins/Temporal/PlainYearMonth/compare/prop-desc"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainYearMonth/compare/use-internal-slots"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainYearMonth/compare/year-zero"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/from/argument-plainyearmonth"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/from/argument-string-date-with-utc-offset"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/from/argument-string-invalid"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/from/argument-string-limits"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainYearMonth/from/calendar-temporal-object"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainYearMonth/from/limits"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/infinity-throws-rangeerror"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainYearMonth/limits"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/PlainYearMonth/negative-infinity-throws-rangeerror"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainYearMonth/prototype/add/argument-duration-max"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainYearMonth/prototype/add/argument-duration-object"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainYearMonth/prototype/add/argument-duration-out-of-range"><reason>TODO</reason></test>
@@ -2727,7 +2715,6 @@
     <test id="intl402/Temporal/PlainTime/prototype/toLocaleString/options-undefined"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainTime/prototype/toLocaleString/resolved-time-zone"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainTime/prototype/toLocaleString/timeStyle-undefined"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainYearMonth/canonicalize-calendar"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/compare/compare-calendar"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/compare/exhaustive"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/compare/infinity-throws-rangeerror"><reason>TODO</reason></test>
@@ -2746,7 +2733,6 @@
     <test id="intl402/Temporal/PlainYearMonth/prototype/toLocaleString/calendar-mismatch"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle-undefined"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainYearMonth/prototype/toLocaleString/default-does-not-include-day-time-and-time-zone-name"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/toLocaleString/locales-undefined"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/toLocaleString/lone-options-accepted"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/toLocaleString/options-conflict"><reason>TODO</reason></test>
@@ -2758,7 +2744,6 @@
     <test id="intl402/Temporal/PlainYearMonth/prototype/toString/calendarname-never"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/toString/calendarname-undefined"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/toString/calendarname-wrong-type"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/PlainYearMonth/prototype/toString/options-undefined"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/until/canonicalize-calendar"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/until/infinity-throws-rangeerror"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainYearMonth/prototype/until/mixed-calendar-invalid"><reason>TODO</reason></test>
