@@ -624,6 +624,11 @@ public:
     {
         return false;
     }
+
+    virtual bool isTemporalZonedDateTimeObject() const
+    {
+        return false;
+    }
 #endif
 
 #if defined(ENABLE_WASM)
