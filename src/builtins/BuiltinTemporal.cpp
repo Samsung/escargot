@@ -593,7 +593,7 @@ static Value builtinTemporalPlainYearMonthConstructor(ExecutionState& state, Val
     // Let m be ? ToIntegerWithTruncation(isoMonth).
     auto m = argv[1].toIntegerWithTruncation(state);
     // If calendar is undefined, set calendar to "iso8601".
-    Value calendar = argc > 3 ? argv[3] : Value();
+    Value calendar = argc > 3 ? argv[2] : Value();
     if (calendar.isUndefined()) {
         calendar = state.context()->staticStrings().lazyISO8601().string();
     }
