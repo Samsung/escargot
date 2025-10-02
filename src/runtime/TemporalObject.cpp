@@ -514,8 +514,8 @@ TemporalPlainYearMonthObject* Temporal::toTemporalYearMonth(ExecutionState& stat
         auto resolvedOptions = Intl::getOptionsObject(state, options);
         // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
         auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
-        // Let isoDate be ? CalendarDateFromFields(calendar, fields, overflow).
-        auto isoDate = calendarDateFromFields(state, calendar, fields, overflow, CalendarDateFromFieldsMode::YearMonth);
+        // Let isoDate be ? CalendarDateFromYearMonth(calendar, fields, overflow).
+        auto isoDate = calendarDateFromYearMonth(state, calendar, fields, overflow);
         // Return ! CreateTemporalYearMonth(isoDate, calendar).
         return new TemporalPlainYearMonthObject(state, state.context()->globalObject()->temporalPlainYearMonthPrototype(),
                                                 isoDate, calendar);
@@ -1140,9 +1140,9 @@ bool Temporal::isPartialTemporalObject(ExecutionState& state, Value value)
     if (!value.isObject()) {
         return false;
     }
-    // TODO If value has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalTime]],
+    // If value has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalTime]],
     // [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]] internal slot, return false.
-    if (value.asObject()->isTemporalPlainTimeObject()) {
+    if (value.asObject()->isTemporalPlainDateObject() || value.asObject()->isTemporalPlainTimeObject() || value.asObject()->isTemporalPlainDateTimeObject() || value.asObject()->isTemporalPlainMonthDayObject() || value.asObject()->isTemporalPlainYearMonthObject() || value.asObject()->isTemporalZonedDateTimeObject()) {
         return false;
     }
     // Let calendarProperty be ? Get(value, "calendar").
@@ -1555,7 +1555,7 @@ UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar cale
     if (!fields.monthCode && !fields.month) {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
     }
-    if (fields.monthCode && (fields.monthCode.value().isLeapMonth || fields.monthCode.value().monthNumber > 12)) {
+    if (calendar.isISO8601() && (fields.monthCode && (fields.monthCode.value().isLeapMonth || fields.monthCode.value().monthNumber > 12))) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Wrong month code");
     }
     if (fields.month && fields.monthCode && fields.month.value() != fields.monthCode.value().monthNumber) {
@@ -1634,6 +1634,19 @@ UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar cale
         }
         ucal_set(icuCalendar, UCAL_MONTH, fields.month.value() - 1);
         ucal_set(icuCalendar, UCAL_DAY_OF_MONTH, fields.day.value());
+        if (fields.monthCode && fields.monthCode.value().isLeapMonth) {
+            ucal_set(icuCalendar, UCAL_IS_LEAP_MONTH, 1);
+        }
+    }
+
+    if (!calendar.isISO8601()) {
+        UErrorCode status = U_ZERO_ERROR;
+        unsigned test = ucal_get(icuCalendar, UCAL_MONTH, &status);
+        unsigned testLeap = ucal_get(icuCalendar, UCAL_IS_LEAP_MONTH, &status);
+        if (test != fields.month.value() - 1 || (fields.monthCode && testLeap != fields.monthCode.value().isLeapMonth)) {
+            ucal_close(icuCalendar);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid month or monthCode value");
+        }
     }
 
     return icuCalendar;

@@ -337,10 +337,14 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-calendardatefromfields
     enum class CalendarDateFromFieldsMode {
-        Normal,
+        Date,
         YearMonth
     };
-    static UCalendar* calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode = CalendarDateFromFieldsMode::Normal);
+    static UCalendar* calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode = CalendarDateFromFieldsMode::Date);
+    static UCalendar* calendarDateFromYearMonth(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow)
+    {
+        return calendarDateFromFields(state, calendar, fields, overflow, CalendarDateFromFieldsMode::YearMonth);
+    }
 
     // https://tc39.es/proposal-temporal/#sec-temporal-calendarmergefields
     static CalendarFieldsRecord calendarMergeFields(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, const CalendarFieldsRecord& additionalFields);

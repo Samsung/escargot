@@ -43,6 +43,15 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tostring
     String* toString(ExecutionState& state, Value options);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.compare
+    static int compare(ExecutionState& state, Value one, Value two);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.with
+    TemporalPlainYearMonthObject* with(ExecutionState& state, Value temporalYearMonthLike, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.toplaindate
+    TemporalPlainDateObject* toPlainDate(ExecutionState& state, Value item);
+
 private:
 };
 
