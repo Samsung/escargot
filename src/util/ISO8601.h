@@ -219,7 +219,7 @@ public:
     template <typename T>
     Duration(std::initializer_list<T> list)
     {
-        memset(m_data.data(), 0, sizeof(double) * m_data.size());
+        m_data.fill(0);
         size_t idx = 0;
         for (auto n : list) {
             m_data[idx++] = n;
@@ -542,9 +542,9 @@ using TimeZone = Variant<TimeZoneID, int64_t>;
 struct TimeZoneRecord {
     bool m_z;
     Optional<int64_t> m_offset;
-    Variant<std::string, int64_t> m_nameOrOffset;
+    Variant<TimeZoneID, int64_t> m_nameOrOffset = Variant<TimeZoneID, int64_t>::empty();
 
-    TimeZoneRecord(bool z = false, Optional<int64_t> offset = NullOption, Variant<std::string, int64_t> nameOrOffset = Variant<std::string, int64_t>())
+    TimeZoneRecord(bool z = false, Optional<int64_t> offset = NullOption, Variant<TimeZoneID, int64_t> nameOrOffset = Variant<TimeZoneID, int64_t>::empty())
         : m_z(z)
         , m_offset(offset)
         , m_nameOrOffset(nameOrOffset)

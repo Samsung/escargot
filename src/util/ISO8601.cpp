@@ -1000,7 +1000,7 @@ Optional<int64_t> parseUTCOffset(String* string, DateTimeParseOption option)
     return result;
 }
 
-static Optional<Variant<std::string, int64_t>> parseTimeZoneAnnotation(ParserString& buffer)
+static Optional<Variant<TimeZoneID, int64_t>> parseTimeZoneAnnotation(ParserString& buffer)
 {
     // https://tc39.es/proposal-temporal/#prod-TimeZoneAnnotation
     // TimeZoneAnnotation :
@@ -1032,7 +1032,7 @@ static Optional<Variant<std::string, int64_t>> parseTimeZoneAnnotation(ParserStr
         if (*buffer != ']')
             return NullOption;
         buffer.advance();
-        return Variant<std::string, int64_t>::create<1>(offset.value());
+        return Variant<TimeZoneID, int64_t>::create<1>(offset.value());
     }
     case 'E': {
         // "Etc/GMT+20" and "]" => length is 11.
@@ -1052,7 +1052,7 @@ static Optional<Variant<std::string, int64_t>> parseTimeZoneAnnotation(ParserStr
                             hour = (secondHourCharacter - '0') + 10 * (firstHourCharacter - '0');
                             if (hour < 24 && buffer[10] == ']') {
                                 buffer.advanceBy(11);
-                                return Variant<std::string, int64_t>::create<1>(nsPerHour * hour * factor);
+                                return Variant<TimeZoneID, int64_t>::create<1>(nsPerHour * hour * factor);
                             }
                         }
                     }
@@ -1143,7 +1143,7 @@ static Optional<Variant<std::string, int64_t>> parseTimeZoneAnnotation(ParserStr
         if (*buffer != ']')
             return NullOption;
         buffer.advance();
-        return Variant<std::string, int64_t>::create<0>(result);
+        return Variant<TimeZoneID, int64_t>::create<0>(String::fromASCII(result.data(), result.size()));
     }
     }
 }

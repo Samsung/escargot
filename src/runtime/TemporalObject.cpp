@@ -833,8 +833,7 @@ TimeZone Temporal::toTemporalTimezoneIdentifier(ExecutionState& state, const Val
         if (record.m_z) {
             return TimeZone(int64_t(0));
         } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 0) {
-            const std::string& s = record.m_nameOrOffset.get<0>();
-            return TimeZone(String::fromUTF8(s.data(), s.length()));
+            return TimeZone(record.m_nameOrOffset.get<0>());
         } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 1) {
             return TimeZone(record.m_nameOrOffset.get<1>());
         } else if (record.m_offset) {
@@ -2283,6 +2282,9 @@ static Nudged nudgeToCalendarUnit(ExecutionState& state, int32_t sign, const ISO
     auto endDateTime = ISO8601::PlainDateTime(end, isoDateTime.plainTime());
     Int128 startEpochNs = Temporal::getEpochNanosecondsFor(state, timeZone, startDateTime, TemporalDisambiguationOption::Compatible);
     Int128 endEpochNs = Temporal::getEpochNanosecondsFor(state, timeZone, endDateTime, TemporalDisambiguationOption::Compatible);
+    if (!(sign != 1 || ((startEpochNs <= destEpochNs) && (destEpochNs <= endEpochNs))) || !(sign == 1 || ((endEpochNs <= destEpochNs) && (destEpochNs <= startEpochNs)))) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date time is out of range of ECMAScript representation");
+    }
     ASSERT(sign != 1 || ((startEpochNs <= destEpochNs) && (destEpochNs <= endEpochNs)));
     ASSERT(sign == 1 || ((endEpochNs <= destEpochNs) && (destEpochNs <= startEpochNs)));
     ASSERT(startEpochNs != endEpochNs);
@@ -2462,6 +2464,20 @@ bool Temporal::isoYearMonthWithinLimits(ISO8601::PlainDate plainDate)
         isValid = false;
     }
     return isValid;
+}
+
+ISO8601::Duration Temporal::adjustDateDurationRecord(ExecutionState& state, ISO8601::Duration dateDuration, double days, Optional<double> weeks, Optional<double> months)
+{
+    // If weeks is not present, set weeks to dateDuration.[[Weeks]].
+    if (!weeks) {
+        weeks = dateDuration.weeks();
+    }
+    // If months is not present, set months to dateDuration.[[Months]].
+    if (!months) {
+        months = dateDuration.months();
+    }
+    // Return ? CreateDateDurationRecord(dateDuration.[[Years]], months, weeks, days).
+    return ISO8601::Duration({ dateDuration.years(), months.value(), weeks.value(), days });
 }
 
 } // namespace Escargot
