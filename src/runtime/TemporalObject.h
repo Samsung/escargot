@@ -228,6 +228,8 @@ enum class TemporalDisambiguationOption : uint8_t {
 
 class Temporal {
 public:
+    static ISO8601::PlainDate computeISODate(ExecutionState& state, UCalendar* ucal);
+
     static void formatSecondsStringFraction(StringBuilder& builder, Int128 fraction, Value precision);
 
     // returns offset(milliseconds)
@@ -341,10 +343,9 @@ public:
         YearMonth
     };
     static UCalendar* calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode = CalendarDateFromFieldsMode::Date);
-    static UCalendar* calendarDateFromYearMonth(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow)
-    {
-        return calendarDateFromFields(state, calendar, fields, overflow, CalendarDateFromFieldsMode::YearMonth);
-    }
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-calendarresolvefields
+    static UCalendar* calendarResolveFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-calendarmergefields
     static CalendarFieldsRecord calendarMergeFields(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, const CalendarFieldsRecord& additionalFields);
@@ -379,6 +380,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-isoyearmonthwithinlimits
     static bool isoYearMonthWithinLimits(ISO8601::PlainDate plainDate);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-balanceisodate
+    static ISO8601::PlainDate balanceISODate(ExecutionState& state, double year, double month, double day);
 };
 
 } // namespace Escargot

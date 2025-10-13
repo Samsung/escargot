@@ -52,6 +52,13 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.toplaindate
     TemporalPlainDateObject* toPlainDate(ExecutionState& state, Value item);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoyearmonth
+    enum class AddDurationToYearMonthOperation {
+        Add,
+        Subtract
+    };
+    TemporalPlainYearMonthObject* addDurationToYearMonth(ExecutionState& state, AddDurationToYearMonthOperation operation, Value temporalDurationLike, Value options);
+
 private:
 };
 

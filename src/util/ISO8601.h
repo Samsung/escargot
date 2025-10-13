@@ -219,6 +219,7 @@ public:
     template <typename T>
     Duration(std::initializer_list<T> list)
     {
+        memset(m_data.data(), 0, sizeof(double) * m_data.size());
         size_t idx = 0;
         for (auto n : list) {
             m_data[idx++] = n;

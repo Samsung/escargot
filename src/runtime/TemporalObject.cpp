@@ -57,6 +57,11 @@
 
 namespace Escargot {
 
+#define CHECK_ICU_CALENDAR()                                                                                  \
+    if (U_FAILURE(status)) {                                                                                  \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
+    }
+
 void Calendar::lookupICUEra(ExecutionState& state, const std::function<bool(size_t idx, const std::string& icuEra)>& fn) const
 {
     std::string s = "root/calendar/";
@@ -199,6 +204,16 @@ UCalendar* Calendar::createICUCalendar(ExecutionState& state)
     }
     ucal_setMillis(icuCalendar, 0, &status);
     return icuCalendar;
+}
+
+ISO8601::PlainDate Temporal::computeISODate(ExecutionState& state, UCalendar* ucal)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    auto epochTime = ucal_getMillis(ucal, &status);
+    CHECK_ICU_CALENDAR()
+    DateObject::DateTimeInfo timeInfo;
+    DateObject::computeTimeInfoFromEpoch(epochTime, timeInfo);
+    return ISO8601::PlainDate(timeInfo.year, timeInfo.month + 1, timeInfo.mday);
 }
 
 void Temporal::formatSecondsStringFraction(StringBuilder& builder, Int128 fraction, Value precision)
@@ -515,7 +530,7 @@ TemporalPlainYearMonthObject* Temporal::toTemporalYearMonth(ExecutionState& stat
         // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
         auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
         // Let isoDate be ? CalendarDateFromYearMonth(calendar, fields, overflow).
-        auto isoDate = calendarDateFromYearMonth(state, calendar, fields, overflow);
+        auto isoDate = calendarDateFromFields(state, calendar, fields, overflow, CalendarDateFromFieldsMode::YearMonth);
         // Return ! CreateTemporalYearMonth(isoDate, calendar).
         return new TemporalPlainYearMonthObject(state, state.context()->globalObject()->temporalPlainYearMonthPrototype(),
                                                 isoDate, calendar);
@@ -1533,9 +1548,9 @@ CalendarFieldsRecord Temporal::prepareCalendarFields(ExecutionState& state, Cale
     return result;
 }
 
-UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode)
+// https://tc39.es/proposal-temporal/#sec-temporal-calendarresolvefields
+UCalendar* Temporal::calendarResolveFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode)
 {
-    // CalendarResolveFields steps
     if (calendar.isISO8601() || !calendar.isEraRelated()) {
         if (!fields.year || !fields.day) {
             ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
@@ -1642,7 +1657,9 @@ UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar cale
     if (!calendar.isISO8601()) {
         UErrorCode status = U_ZERO_ERROR;
         unsigned test = ucal_get(icuCalendar, UCAL_MONTH, &status);
+        CHECK_ICU_CALENDAR();
         unsigned testLeap = ucal_get(icuCalendar, UCAL_IS_LEAP_MONTH, &status);
+        CHECK_ICU_CALENDAR();
         if (test != fields.month.value() - 1 || (fields.monthCode && testLeap != fields.monthCode.value().isLeapMonth)) {
             ucal_close(icuCalendar);
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid month or monthCode value");
@@ -1650,6 +1667,22 @@ UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar cale
     }
 
     return icuCalendar;
+}
+
+UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode)
+{
+    if (mode == CalendarDateFromFieldsMode::YearMonth) {
+        // Perform ? CalendarResolveFields(calendar, fields, year-month).
+        auto ucal = calendarResolveFields(state, calendar, fields, overflow, mode);
+        // Let firstDayIndex be the 1-based index of the first day of the month described by fields (i.e., 1 unless the month's first day is skipped by this calendar.)
+        // Set fields.[[Day]] to firstDayIndex.
+        ucal_set(ucal, UCAL_DAY_OF_MONTH, 1);
+        // TODO Let result be ? CalendarDateToISO(calendar, fields, overflow).
+        // TODO If ISOYearMonthWithinLimits(result) is false, throw a RangeError exception.
+        // Return result.
+        return ucal;
+    }
+    return calendarResolveFields(state, calendar, fields, overflow, mode);
 }
 
 CalendarFieldsRecord Temporal::calendarMergeFields(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, const CalendarFieldsRecord& additionalFields)
@@ -1715,60 +1748,53 @@ inline int daysInYear(int year)
     return 365 + ISO8601::isLeapYear(year);
 }
 
-static bool balanceISODate(double& year, double& month, double& day)
+ISO8601::PlainDate Temporal::balanceISODate(ExecutionState& state, double year, double month, double day)
 {
-    ASSERT(month >= 1 && month <= 12);
-    if (!ISO8601::isYearWithinLimits(year))
-        return false;
+    auto impl = [](double& year, double& month, double& day) -> bool {
+        ASSERT(month >= 1 && month <= 12);
+        if (!ISO8601::isYearWithinLimits(year))
+            return false;
 
-    double daysFrom1970 = day + ISO8601::dateToDaysFrom1970(static_cast<int>(year), static_cast<int>(month - 1), 1) - 1;
+        double daysFrom1970 = day + ISO8601::dateToDaysFrom1970(static_cast<int>(year), static_cast<int>(month - 1), 1) - 1;
 
-    double balancedYear = std::floor(daysFrom1970 / 365.2425) + 1970;
-    if (!ISO8601::isYearWithinLimits(balancedYear))
-        return false;
+        double balancedYear = std::floor(daysFrom1970 / 365.2425) + 1970;
+        if (!ISO8601::isYearWithinLimits(balancedYear))
+            return false;
 
-    double daysUntilYear = ISO8601::daysFrom1970ToYear(static_cast<int>(balancedYear));
-    if (daysUntilYear > daysFrom1970) {
-        balancedYear--;
-        daysUntilYear -= daysInYear(static_cast<int>(balancedYear));
-    } else {
-        double daysUntilFollowingYear = daysUntilYear + daysInYear(static_cast<int>(balancedYear));
-        if (daysUntilFollowingYear <= daysFrom1970) {
-            daysUntilYear = daysUntilFollowingYear;
-            balancedYear++;
+        double daysUntilYear = ISO8601::daysFrom1970ToYear(static_cast<int>(balancedYear));
+        if (daysUntilYear > daysFrom1970) {
+            balancedYear--;
+            daysUntilYear -= daysInYear(static_cast<int>(balancedYear));
+        } else {
+            double daysUntilFollowingYear = daysUntilYear + daysInYear(static_cast<int>(balancedYear));
+            if (daysUntilFollowingYear <= daysFrom1970) {
+                daysUntilYear = daysUntilFollowingYear;
+                balancedYear++;
+            }
         }
-    }
 
-    ASSERT(daysFrom1970 - daysUntilYear >= 0);
-    auto dayInYear = static_cast<unsigned>(daysFrom1970 - daysUntilYear + 1);
+        ASSERT(daysFrom1970 - daysUntilYear >= 0);
+        auto dayInYear = static_cast<unsigned>(daysFrom1970 - daysUntilYear + 1);
 
-    unsigned daysUntilMonth = 0;
-    unsigned balancedMonth = 1;
-    for (; balancedMonth < 12; balancedMonth++) {
-        auto monthDays = balancedMonth != 2 ? ISO8601::daysInMonth(balancedMonth) : ISO8601::daysInMonth(static_cast<int>(balancedYear), balancedMonth);
-        if (daysUntilMonth + monthDays >= dayInYear)
-            break;
-        daysUntilMonth += monthDays;
-    }
+        unsigned daysUntilMonth = 0;
+        unsigned balancedMonth = 1;
+        for (; balancedMonth < 12; balancedMonth++) {
+            auto monthDays = balancedMonth != 2 ? ISO8601::daysInMonth(balancedMonth) : ISO8601::daysInMonth(static_cast<int>(balancedYear), balancedMonth);
+            if (daysUntilMonth + monthDays >= dayInYear)
+                break;
+            daysUntilMonth += monthDays;
+        }
 
-    year = balancedYear;
-    month = balancedMonth;
-    day = dayInYear - daysUntilMonth;
-    return true;
-}
-
-static ISO8601::PlainDate balanceISODate(ExecutionState& state, double year, double month, double day)
-{
-    if (!balanceISODate(year, month, day)) {
+        year = balancedYear;
+        month = balancedMonth;
+        day = dayInYear - daysUntilMonth;
+        return true;
+    };
+    if (!impl(year, month, day)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
     }
     return ISO8601::PlainDate(year, month, day);
 }
-
-#define CHECK_ICU_CALENDAR()                                                                                  \
-    if (U_FAILURE(status)) {                                                                                  \
-        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
-    }
 
 UCalendar* Temporal::calendarDateAdd(ExecutionState& state, Calendar calendar, ISO8601::PlainDate isoDate, UCalendar* icuDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow)
 {
@@ -1797,9 +1823,10 @@ UCalendar* Temporal::calendarDateAdd(ExecutionState& state, Calendar calendar, I
 
         day += duration.days() + 7 * duration.weeks();
         if (day < 1 || day > daysInMonth) {
-            if (!balanceISODate(year, month, day)) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
-            }
+            auto balancedDate = balanceISODate(state, year, month, day);
+            year = balancedDate.year();
+            month = balancedDate.month();
+            day = balancedDate.day();
         }
 
         ucal_set(newCal, UCAL_YEAR, year);
@@ -2144,7 +2171,10 @@ ISO8601::PlainDate Temporal::isoDateAdd(ExecutionState& state, const ISO8601::Pl
     }
     auto d = intermediate1.value().day() + duration.days() + (7 * duration.weeks());
     double yy = intermediate1.value().year(), mm = intermediate1.value().month(), dd = d;
-    balanceISODate(yy, mm, dd);
+    auto balancedDate = balanceISODate(state, yy, mm, dd);
+    yy = balancedDate.year();
+    mm = balancedDate.month();
+    dd = balancedDate.day();
     if (!ISO8601::isDateTimeWithinLimits(yy, mm, dd, 12, 0, 0, 0, 0, 0)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date time is out of range of ECMAScript representation");
     }
@@ -2224,7 +2254,7 @@ static Nudged nudgeToCalendarUnit(ExecutionState& state, int32_t sign, const ISO
     case TemporalUnit::Week: {
         auto yearsMonths = adjustDateDurationRecord(state, duration.dateDuration(), 0, 0, NullOption);
         auto weeksStart = Temporal::isoDateAdd(state, isoDateTime.plainDate(), yearsMonths, TemporalOverflowOption::Constrain);
-        auto weeksEnd = balanceISODate(state, weeksStart.year(), weeksStart.month(), weeksStart.day() + duration.dateDuration().days());
+        auto weeksEnd = Temporal::balanceISODate(state, weeksStart.year(), weeksStart.month(), weeksStart.day() + duration.dateDuration().days());
         auto untilResult = Temporal::calendarDateUntil(calendar, weeksStart, weeksEnd, TemporalUnit::Week);
         Int128 weeks = roundNumberToIncrementInt128((Int128)(duration.dateDuration().weeks() + untilResult.weeks()),
                                                     (Int128)increment, ISO8601::RoundingMode::Trunc);
