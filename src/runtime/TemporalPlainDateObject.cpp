@@ -82,16 +82,10 @@ TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* 
 
 ISO8601::PlainDate TemporalPlainDateObject::computeISODate(ExecutionState& state)
 {
-    auto pd = plainDate();
     if (!m_calendarID.isISO8601()) {
-        UErrorCode status = U_ZERO_ERROR;
-        auto epochTime = ucal_getMillis(m_icuCalendar, &status);
-        CHECK_ICU()
-        DateObject::DateTimeInfo timeInfo;
-        DateObject::computeTimeInfoFromEpoch(epochTime, timeInfo);
-        pd = ISO8601::PlainDate(timeInfo.year, timeInfo.month + 1, timeInfo.mday);
+        return Temporal::computeISODate(state, m_icuCalendar);
     }
-    return pd;
+    return plainDate();
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-temporaldatetostring
