@@ -383,6 +383,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-balanceisodate
     static ISO8601::PlainDate balanceISODate(ExecutionState& state, double year, double month, double day);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-adjustdatedurationrecord
+    static ISO8601::Duration adjustDateDurationRecord(ExecutionState& state, ISO8601::Duration dateDuration, double days, Optional<double> weeks, Optional<double> months);
 };
 
 } // namespace Escargot

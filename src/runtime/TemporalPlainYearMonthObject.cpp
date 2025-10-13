@@ -255,6 +255,85 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
                                             icuDate, calendar);
 }
 
+ISO8601::Duration TemporalPlainYearMonthObject::differenceTemporalPlainYearMonth(ExecutionState& state, DifferenceTemporalYearMonth operation, Value otherInput, Value options)
+{
+    // Set other to ? ToTemporalYearMonth(other).
+    auto other = Temporal::toTemporalYearMonth(state, otherInput, Value());
+    // Let calendar be yearMonth.[[Calendar]].
+    auto calendar = calendarID();
+    // If CalendarEquals(calendar, other.[[Calendar]]) is false, throw a RangeError exception.
+    if (calendar != other->calendarID()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Calendar mismatch");
+    }
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let settings be ? GetDifferenceSettings(operation, resolvedOptions, date, « week, day », month, year).
+    TemporalUnit disallowedUnits[2] = { TemporalUnit::Week, TemporalUnit::Day };
+    auto settings = Temporal::getDifferenceSettings(state, operation == DifferenceTemporalYearMonth::Since, resolvedOptions, ISO8601::DateTimeUnitCategory::Date, disallowedUnits, 2, TemporalUnit::Month, TemporalUnit::Year);
+    // If CompareISODate(yearMonth.[[ISODate]], other.[[ISODate]]) = 0, then
+    if (TemporalPlainDateObject::compareISODate(state, this, other) == 0) {
+        // Return ! CreateTemporalDuration(0, 0, 0, 0, 0, 0, 0, 0, 0, 0).
+        return ISO8601::Duration();
+    }
+    // Let thisFields be ISODateToFields(calendar, yearMonth.[[ISODate]], year-month).
+    // Set thisFields.[[Day]] to 1.
+    CalendarFieldsRecord thisFields;
+    auto isoDate = computeISODate(state);
+    thisFields.year = isoDate.year();
+    thisFields.month = isoDate.month();
+    thisFields.day = 1;
+    // Let thisDate be ? CalendarDateFromFields(calendar, thisFields, constrain).
+    auto thisDate = new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
+                                                Temporal::calendarDateFromFields(state, calendar, thisFields, TemporalOverflowOption::Constrain), calendar);
+    // Let otherFields be ISODateToFields(calendar, other.[[ISODate]], year-month).
+    // Set otherFields.[[Day]] to 1.
+    CalendarFieldsRecord otherFields;
+    isoDate = other->computeISODate(state);
+    otherFields.year = isoDate.year();
+    otherFields.month = isoDate.month();
+    otherFields.day = 1;
+    // Let otherDate be ? CalendarDateFromFields(calendar, otherFields, constrain).
+    auto otherDate = new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
+                                                 Temporal::calendarDateFromFields(state, calendar, otherFields, TemporalOverflowOption::Constrain), calendar);
+    // Let dateDifference be CalendarDateUntil(calendar, thisDate, otherDate, settings.[[LargestUnit]]).
+    auto dateDifference = Temporal::calendarDateUntil(calendar, thisDate->computeISODate(state), otherDate->computeISODate(state), toTemporalUnit(settings.largestUnit));
+
+    // Let yearsMonthsDifference be ! AdjustDateDurationRecord(dateDifference, 0, 0).
+    auto yearsMonthsDifference = Temporal::adjustDateDurationRecord(state, dateDifference, 0, 0, NullOption);
+    // Let duration be CombineDateAndTimeDuration(yearsMonthsDifference, 0).
+    auto duration = ISO8601::InternalDuration::combineDateAndTimeDuration(yearsMonthsDifference, 0);
+
+    // If settings.[[SmallestUnit]] is not month or settings.[[RoundingIncrement]] ≠ 1, then
+    if (settings.smallestUnit != ISO8601::DateTimeUnit::Day || settings.roundingIncrement != 1) {
+        // Let isoDateTime be CombineISODateAndTimeRecord(thisDate, MidnightTimeRecord()).
+        auto isoDateTime = computeISODate(state);
+        // Let isoDateTimeOther be CombineISODateAndTimeRecord(otherDate, MidnightTimeRecord()).
+        auto isoDateTimeOther = other->computeISODate(state);
+        // Let destEpochNs be GetUTCEpochNanoseconds(isoDateTimeOther).
+        auto destEpochNs = ISO8601::ExactTime::fromISOPartsAndOffset(isoDateTimeOther.year(), isoDateTimeOther.month(), isoDateTimeOther.day(), 0, 0, 0, 0, 0, 0, 0).epochNanoseconds();
+        // Set duration to ? RoundRelativeDuration(duration, destEpochNs, isoDateTime, unset, calendar, settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+        duration = Temporal::roundRelativeDuration(state, duration, destEpochNs, ISO8601::PlainDateTime(isoDateTime, ISO8601::PlainTime()), NullOption, calendar, toTemporalUnit(settings.largestUnit), settings.roundingIncrement, toTemporalUnit(settings.smallestUnit), settings.roundingMode);
+    }
+    // Let result be ! TemporalDurationFromInternal(duration, day).
+    auto result = TemporalDurationObject::temporalDurationFromInternal(state, duration, ISO8601::DateTimeUnit::Day);
+    // If operation is since, set result to CreateNegatedTemporalDuration(result).
+    if (operation == DifferenceTemporalYearMonth::Since) {
+        result = TemporalDurationObject::createNegatedTemporalDuration(result);
+    }
+    // Return result.
+    return result;
+}
+
+TemporalDurationObject* TemporalPlainYearMonthObject::since(ExecutionState& state, Value other, Value options)
+{
+    return new TemporalDurationObject(state, differenceTemporalPlainYearMonth(state, DifferenceTemporalYearMonth::Since, other, options));
+}
+
+TemporalDurationObject* TemporalPlainYearMonthObject::until(ExecutionState& state, Value other, Value options)
+{
+    return new TemporalDurationObject(state, differenceTemporalPlainYearMonth(state, DifferenceTemporalYearMonth::Until, other, options));
+}
+
 } // namespace Escargot
 
 #endif

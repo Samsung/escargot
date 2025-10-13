@@ -59,7 +59,16 @@ public:
     };
     TemporalPlainYearMonthObject* addDurationToYearMonth(ExecutionState& state, AddDurationToYearMonthOperation operation, Value temporalDurationLike, Value options);
 
+    TemporalDurationObject* since(ExecutionState& state, Value other, Value options);
+    TemporalDurationObject* until(ExecutionState& state, Value other, Value options);
+
 private:
+    // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplainyearmonth
+    enum class DifferenceTemporalYearMonth {
+        Until,
+        Since
+    };
+    ISO8601::Duration differenceTemporalPlainYearMonth(ExecutionState& state, DifferenceTemporalYearMonth operation, Value other, Value options);
 };
 
 } // namespace Escargot
