@@ -1328,6 +1328,11 @@ static Optional<PlainDate> parseDate(ParserString& buffer, bool parseYear = true
         if (buffer.atEnd())
             return NullOption;
 
+        // --10-01 form
+        if (!parseYear && parseMonth && parseDay && *buffer == '-' && buffer.lengthRemaining() > 2 && buffer[1] == '-') {
+            buffer.advanceBy(2);
+        }
+
         auto firstMonthCharacter = *buffer;
         if (firstMonthCharacter == '0' || firstMonthCharacter == '1') {
             buffer.advance();
@@ -1497,11 +1502,18 @@ static Optional<std::tuple<PlainDate, Optional<TimeZoneRecord>, Optional<Calenda
     return std::make_tuple(std::move(date.value()), tz, std::move(calendarOptional));
 }
 
-static Optional<std::tuple<PlainDate, Optional<CalendarID>>> parseCalendarMonthDay(ParserString& buffer, DateTimeParseOption option)
+static Optional<std::tuple<PlainDate, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarMonthDay(ParserString& buffer, DateTimeParseOption option)
 {
     auto date = parseDate(buffer, false, true, true);
     if (!date) {
         return NullOption;
+    }
+
+    Optional<TimeZoneRecord> tz;
+    if (!buffer.atEnd() && canBeTimeZone(buffer, *buffer)) {
+        tz = parseTimeZone(buffer, option);
+        if (!tz)
+            return NullOption;
     }
 
     Optional<CalendarID> calendarOptional;
@@ -1513,7 +1525,7 @@ static Optional<std::tuple<PlainDate, Optional<CalendarID>>> parseCalendarMonthD
             calendarOptional = std::move(calendars.value()[0]);
     }
 
-    return std::make_tuple(std::move(date.value()), std::move(calendarOptional));
+    return std::make_tuple(std::move(date.value()), tz, std::move(calendarOptional));
 }
 
 Optional<std::tuple<PlainDate, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarYearMonth(String* input, DateTimeParseOption option)
@@ -1526,7 +1538,7 @@ Optional<std::tuple<PlainDate, Optional<TimeZoneRecord>, Optional<CalendarID>>> 
     return result;
 }
 
-Optional<std::tuple<PlainDate, Optional<CalendarID>>> parseCalendarMonthDay(String* input, DateTimeParseOption option)
+Optional<std::tuple<PlainDate, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarMonthDay(String* input, DateTimeParseOption option)
 {
     ParserString buffer(input);
     auto result = parseCalendarMonthDay(buffer, option);

@@ -969,6 +969,7 @@ namespace Escargot {
     F(CapitalPlainDate, "PlainDate")                        \
     F(CapitalPlainDateTime, "PlainDateTime")                \
     F(CapitalPlainTime, "PlainTime")                        \
+    F(CapitalPlainMonthDay, "PlainMonthDay")                \
     F(CapitalPlainYearMonth, "PlainYearMonth")              \
     F(CapitalTemporal, "Temporal")                          \
     F(Critical, "critical")                                 \
@@ -1007,6 +1008,7 @@ namespace Escargot {
     F(TemporalDotPlainDate, "Temporal.PlainDate")           \
     F(TemporalDotPlainDateTime, "Temporal.PlainDateTime")   \
     F(TemporalDotPlainTime, "Temporal.PlainTime")           \
+    F(TemporalDotPlainMonthDay, "Temporal.PlainMonthDay")   \
     F(TemporalDotPlainYearMonth, "Temporal.PlainYearMonth") \
     F(ToPlainDate, "toPlainDate")                           \
     F(TimeZoneId, "timeZoneId")                             \

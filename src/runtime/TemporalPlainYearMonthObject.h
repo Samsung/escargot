@@ -62,6 +62,8 @@ public:
     TemporalDurationObject* since(ExecutionState& state, Value other, Value options);
     TemporalDurationObject* until(ExecutionState& state, Value other, Value options);
 
+    bool equals(ExecutionState& state, Value other);
+
 private:
     // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplainyearmonth
     enum class DifferenceTemporalYearMonth {

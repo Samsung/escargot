@@ -334,6 +334,18 @@ TemporalDurationObject* TemporalPlainYearMonthObject::until(ExecutionState& stat
     return new TemporalDurationObject(state, differenceTemporalPlainYearMonth(state, DifferenceTemporalYearMonth::Until, other, options));
 }
 
+bool TemporalPlainYearMonthObject::equals(ExecutionState& state, Value other)
+{
+    auto otherDate = Temporal::toTemporalYearMonth(state, other, Value());
+    int c = compareISODate(state, this, otherDate);
+    if (c == 0) {
+        if (calendarID() == otherDate->calendarID()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace Escargot
 
 #endif

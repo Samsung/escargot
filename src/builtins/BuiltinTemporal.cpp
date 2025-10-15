@@ -27,6 +27,7 @@
 #include "runtime/TemporalInstantObject.h"
 #include "runtime/TemporalPlainTimeObject.h"
 #include "runtime/TemporalPlainDateObject.h"
+#include "runtime/TemporalPlainMonthDayObject.h"
 #include "runtime/TemporalPlainYearMonthObject.h"
 #include "runtime/TemporalNowObject.h"
 #include "runtime/DateObject.h"
@@ -593,7 +594,7 @@ static Value builtinTemporalPlainYearMonthConstructor(ExecutionState& state, Val
     // Let m be ? ToIntegerWithTruncation(isoMonth).
     auto m = argv[1].toIntegerWithTruncation(state);
     // If calendar is undefined, set calendar to "iso8601".
-    Value calendar = argc > 3 ? argv[2] : Value();
+    Value calendar = argc >= 3 ? argv[2] : Value();
     if (calendar.isUndefined()) {
         calendar = state.context()->staticStrings().lazyISO8601().string();
     }
@@ -708,6 +709,129 @@ static Value builtinTemporalPlainYearMonthSince(ExecutionState& state, Value thi
 {
     RESOLVE_THIS_BINDING_TO_PLAINYEARMONTH(plainYearMonth, Since);
     return plainYearMonth->since(state, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalPlainYearMonthEquals(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINYEARMONTH(plainYearMonth, Equals);
+    return Value(plainYearMonth->equals(state, argv[0]));
+}
+
+static Value builtinTemporalPlainMonthDayConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+    }
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->temporalPlainMonthDayPrototype();
+    });
+
+    Value referenceISOYear = argc > 3 ? argv[3] : Value();
+    // If referenceISOYear is undefined, then
+    if (referenceISOYear.isUndefined()) {
+        // Set referenceISOYear to 1972𝔽 (the first ISO 8601 leap year after the epoch).
+        referenceISOYear = Value(1972);
+    }
+
+    // Let m be ? ToIntegerWithTruncation(isoMonth).
+    auto m = argv[0].toIntegerWithTruncation(state);
+    // Let d be ? ToIntegerWithTruncation(isoDay).
+    auto d = argv[1].toIntegerWithTruncation(state);
+    // If calendar is undefined, set calendar to "iso8601".
+    Value calendar = argc >= 3 ? argv[2] : Value();
+    if (calendar.isUndefined()) {
+        calendar = state.context()->staticStrings().lazyISO8601().string();
+    }
+    // If calendar is not a String, throw a TypeError exception.
+    if (!calendar.isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "calendar must be String");
+    }
+    // Set calendar to ? CanonicalizeCalendar(calendar).
+    auto mayCalendar = Calendar::fromString(calendar.asString());
+    if (!mayCalendar) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar");
+    }
+    // Let y be ? ToIntegerWithTruncation(referenceISOYear).
+    auto y = referenceISOYear.toIntegerWithTruncation(state);
+    // If IsValidISODate(y, m, ref) is false, throw a RangeError exception.
+    // If IsValidISODate(y, m, d) is false, throw a RangeError exception.
+    if (m < 1 || m > 12 || d < 1 || d > ISO8601::daysInMonth(y, m) || !ISO8601::isDateTimeWithinLimits(y, m, d, 12, 0, 0, 0, 0, 0)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date is out of range");
+    }
+    // Let isoDate be CreateISODateRecord(y, m, d).
+    // Return ? CreateTemporalMonthDay(isoDate, calendar, NewTarget).
+    return new TemporalPlainMonthDayObject(state, proto, ISO8601::PlainDate(y, m, d), mayCalendar.value());
+}
+
+static Value builtinTemporalPlainMonthDayFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return Temporal::toTemporalMonthDay(state, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+#define RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainMonthDayObject()) {                                                                                                                                                                                            \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainMonthDay().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                                 \
+    TemporalPlainMonthDayObject* NAME = thisValue.asObject()->asTemporalPlainMonthDayObject();
+
+#define RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY2(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                         \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainMonthDayObject()) {                                                                                                                                                                                    \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainMonthDay().string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                         \
+    TemporalPlainMonthDayObject* NAME = thisValue.asObject()->asTemporalPlainMonthDayObject();
+
+static Value builtinTemporalPlainMonthDayCalendarId(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY(temporalMonthDay, CalendarId);
+    if (temporalMonthDay->calendarID() == Calendar(Calendar::ID::ISO8601)) {
+        return state.context()->staticStrings().lazyISO8601().string();
+    } else {
+        return temporalMonthDay->calendarID().toString();
+    }
+}
+
+static Value builtinTemporalPlainMonthDayMonthCode(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY(temporalMonthDay, MonthCode);
+    return temporalMonthDay->monthCode(state);
+}
+
+static Value builtinTemporalPlainMonthDayToJSON(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY2(plainMonthDay, toJSON);
+    return plainMonthDay->toString(state, Value());
+}
+
+static Value builtinTemporalPlainMonthDayToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY2(plainMonthDay, toLocaleString);
+    return plainMonthDay->toString(state, Value());
+}
+
+static Value builtinTemporalPlainMonthDayToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY2(plainMonthDay, toString);
+    return plainMonthDay->toString(state, argc ? argv[0] : Value());
+}
+
+static Value builtinTemporalPlainMonthDayWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY2(plainMonthDay, with);
+    return plainMonthDay->with(state, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalPlainMonthDayEquals(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY(plainMonthDay, Equals);
+    return Value(plainMonthDay->equals(state, argv[0]));
+}
+
+static Value builtinTemporalPlainMonthDayToPlainDate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINMONTHDAY(plainMonthDay, ToPlainDate);
+    return plainMonthDay->toPlainDate(state, argv[0]);
 }
 
 void GlobalObject::initializeTemporal(ExecutionState& state)
@@ -905,6 +1029,7 @@ void GlobalObject::installTemporal(ExecutionState& state)
 #define DEFINE_GETTER(name, Name) DEFINE_PLAINTIME_PROTOTYPE_GETTER_PROPERTY(name, #name, Name)
     PLAIN_TIME_UNITS(DEFINE_GETTER)
 #undef DEFINE_GETTER
+#undef DEFINE_PLAINTIME_PROTOTYPE_GETTER_PROPERTY
 
     // Temporal.PlainDate
     m_temporalPlainDate = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalPlainDate(), builtinTemporalPlainDateConstructor, 3), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -963,6 +1088,7 @@ void GlobalObject::installTemporal(ExecutionState& state)
 #define DEFINE_GETTER(name, Name) DEFINE_PLAINDATE_PROTOTYPE_GETTER_PROPERTY(name, #name, Name)
     PLAIN_DATE_UNITS(DEFINE_GETTER)
 #undef DEFINE_GETTER
+#undef DEFINE_PLAINDATE_PROTOTYPE_GETTER_PROPERTY
 
 #define PLAINDATE_EXTRA_PROPERTY(F) \
     F(era, Era)                     \
@@ -994,6 +1120,7 @@ void GlobalObject::installTemporal(ExecutionState& state)
 #define DEFINE_GETTER(name, Name) DEFINE_PLAINDATE_PROTOTYPE_EXTRA_GETTER_PROPERTY(name, #name, Name)
     PLAINDATE_EXTRA_PROPERTY(DEFINE_GETTER)
 #undef DEFINE_GETTER
+#undef DEFINE_PLAINDATE_PROTOTYPE_EXTRA_GETTER_PROPERTY
 
     m_temporalPlainDate->setFunctionPrototype(state, m_temporalPlainDatePrototype);
 
@@ -1017,6 +1144,7 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalPlainYearMonthSubtract, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyUntil()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyUntil(), builtinTemporalPlainYearMonthUntil, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySince()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySince(), builtinTemporalPlainYearMonthSince, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalPlainYearMonthEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
         AtomicString name(state.context(), "get calendarId");
@@ -1036,7 +1164,7 @@ void GlobalObject::installTemporal(ExecutionState& state)
         m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), desc);
     }
 
-#define DEFINE_PLAINYEAR_PROTOTYPE_GETTER_PROPERTY(name, stringName, Name)                                                                                                                                                      \
+#define DEFINE_PLAINYEARMONTH_PROTOTYPE_GETTER_PROPERTY(name, stringName, Name)                                                                                                                                                 \
     {                                                                                                                                                                                                                           \
         AtomicString name(state.context(), "get " stringName);                                                                                                                                                                  \
         auto getter = new NativeFunctionObject(state, NativeFunctionInfo(name, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value { \
@@ -1050,9 +1178,10 @@ void GlobalObject::installTemporal(ExecutionState& state)
         m_temporalPlainYearMonthPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazy##Name()), desc);                                                                                              \
     }
 
-#define DEFINE_GETTER(name, Name) DEFINE_PLAINYEAR_PROTOTYPE_GETTER_PROPERTY(name, #name, Name)
+#define DEFINE_GETTER(name, Name) DEFINE_PLAINYEARMONTH_PROTOTYPE_GETTER_PROPERTY(name, #name, Name)
     PLAIN_YEARMONTH_UNITS(DEFINE_GETTER)
 #undef DEFINE_GETTER
+#undef DEFINE_PLAINYEARMONTH_PROTOTYPE_GETTER_PROPERTY
 
 #define PLAINYEARMONTH_EXTRA_PROPERTY(F) \
     F(era, Era)                          \
@@ -1079,7 +1208,54 @@ void GlobalObject::installTemporal(ExecutionState& state)
 #define DEFINE_GETTER(name, Name) DEFINE_PLAINYEARMONTH_PROTOTYPE_EXTRA_GETTER_PROPERTY(name, #name, Name)
     PLAINYEARMONTH_EXTRA_PROPERTY(DEFINE_GETTER)
 #undef DEFINE_GETTER
+#undef DEFINE_PLAINYEARMONTH_PROTOTYPE_EXTRA_GETTER_PROPERTY
 
+    // Temporal.PlainMonthDay
+    m_temporalPlainMonthDay = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalPlainMonthDay(), builtinTemporalPlainMonthDayConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_temporalPlainMonthDay->setGlobalIntrinsicObject(state);
+
+    m_temporalPlainMonthDay->directDefineOwnProperty(state, ObjectPropertyName(strings->from), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalPlainMonthDayFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainMonthDayPrototype = m_temporalPlainMonthDay->getFunctionPrototype(state).asObject();
+    m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                              ObjectPropertyDescriptor(Value(strings->lazyTemporalDotPlainMonthDay().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinTemporalPlainMonthDayToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toJSON), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toJSON, builtinTemporalPlainMonthDayToJSON, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toLocaleString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinTemporalPlainMonthDayToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->valueOf), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinTemporalAnyInstanceValueOf, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->with), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->with, builtinTemporalPlainMonthDayWith, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalPlainMonthDayEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToPlainDate()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToPlainDate(), builtinTemporalPlainMonthDayToPlainDate, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    {
+        AtomicString name(state.context(), "get calendarId");
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(name, builtinTemporalPlainMonthDayCalendarId, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCalendarId()), desc);
+    }
+
+    {
+        AtomicString name(state.context(), "get monthCode");
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(name, builtinTemporalPlainMonthDayMonthCode, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), desc);
+    }
+
+    {
+        AtomicString day(state.context(), "get day");
+        auto getter = new NativeFunctionObject(state, NativeFunctionInfo(day, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value {
+            if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainMonthDayObject()) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainMonthDay().string(), true, String::fromASCII("day"), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver);
+            }
+            TemporalPlainMonthDayObject* s = thisValue.asObject()->asTemporalPlainMonthDayObject();
+            return Value(s->plainDate().day()); }, 0, NativeFunctionInfo::Strict));
+        JSGetterSetter gs(getter, Value());
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazyDay()), desc);
+    }
 
     m_temporal = new Object(state);
     m_temporal->setGlobalIntrinsicObject(state);
@@ -1104,6 +1280,9 @@ void GlobalObject::installTemporal(ExecutionState& state)
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalPlainYearMonth()),
                                         ObjectPropertyDescriptor(m_temporalPlainYearMonth, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalPlainMonthDay()),
+                                        ObjectPropertyDescriptor(m_temporalPlainMonthDay, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     redefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalTemporal()),
                         ObjectPropertyDescriptor(m_temporal, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
