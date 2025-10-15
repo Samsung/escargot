@@ -287,6 +287,8 @@ class FunctionObject;
     F(temporalPlainTimePrototype, Object, objName)     \
     F(temporalPlainDate, FunctionObject, objName)      \
     F(temporalPlainDatePrototype, Object, objName)     \
+    F(temporalPlainMonthDay, FunctionObject, objName)  \
+    F(temporalPlainMonthDayPrototype, Object, objName) \
     F(temporalPlainYearMonth, FunctionObject, objName) \
     F(temporalPlainYearMonthPrototype, Object, objName)
 #else

@@ -577,7 +577,7 @@ Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(String* inpu
 Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>>> parseDateTime(String* input);
 Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarDateTime(String* input, DateTimeParseOption option = {});
 Optional<std::tuple<PlainDate, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarYearMonth(String* input, DateTimeParseOption option = {});
-Optional<std::tuple<PlainDate, Optional<CalendarID>>> parseCalendarMonthDay(String* input, DateTimeParseOption option = {});
+Optional<std::tuple<PlainDate, Optional<TimeZoneRecord>, Optional<CalendarID>>> parseCalendarMonthDay(String* input, DateTimeParseOption option = {});
 Optional<String*> parseCalendarString(String* input);
 
 // https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrement

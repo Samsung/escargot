@@ -253,6 +253,9 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporalyearmonth
     static TemporalPlainYearMonthObject* toTemporalYearMonth(ExecutionState& state, Value item, Value options);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporalmonthday
+    static TemporalPlainMonthDayObject* toTemporalMonthDay(ExecutionState& state, Value item, Value options);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalfractionalseconddigitsoption
     // NullOption means AUTO
     static Optional<unsigned> getTemporalFractionalSecondDigitsOption(ExecutionState& state, Optional<Object*> resolvedOptions);
@@ -340,7 +343,8 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-calendardatefromfields
     enum class CalendarDateFromFieldsMode {
         Date,
-        YearMonth
+        YearMonth,
+        MonthDay
     };
     static UCalendar* calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode = CalendarDateFromFieldsMode::Date);
 
