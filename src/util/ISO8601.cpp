@@ -106,6 +106,12 @@ uint8_t daysInMonth(uint8_t month)
     return daysInMonths[isLeapYear][month - 1];
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal-isodatewithinlimits
+bool isoDateTimeWithinLimits(int32_t year, uint8_t month, uint8_t day)
+{
+    return ISO8601::isDateTimeWithinLimits(year, month, day, 12, 0, 0, 0, 0, 0);
+}
+
 // https://tc39.es/proposal-temporal/#sec-temporal-isodatetimewithinlimits
 bool isDateTimeWithinLimits(int32_t year, uint8_t month, uint8_t day, unsigned hour, unsigned minute, unsigned second, unsigned millisecond, unsigned microsecond, unsigned nanosecond)
 {

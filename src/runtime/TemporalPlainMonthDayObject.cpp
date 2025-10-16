@@ -21,7 +21,6 @@
 #include "Escargot.h"
 #include "TemporalPlainMonthDayObject.h"
 #include "TemporalPlainDateObject.h"
-#include "TemporalDurationObject.h"
 #include "intl/Intl.h"
 #include "util/ISO8601.h"
 #include "runtime/Context.h"
@@ -127,7 +126,7 @@ TemporalPlainMonthDayObject* TemporalPlainMonthDayObject::with(ExecutionState& s
     // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
     auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
     // Let isoDate be ? CalendarMonthDayFromFields(calendar, fields, overflow).
-    auto icuDate = Temporal::calendarDateFromFields(state, calendar, fields, overflow, Temporal::CalendarDateFromFieldsMode::MonthDay);
+    auto icuDate = Temporal::calendarDateFromFields(state, calendar, fields, overflow, Temporal::CalendarDateFromFieldsMode::MonthDay).first;
     // Return ! CreateTemporalMonthDay(isoDate, calendar).
     return new TemporalPlainMonthDayObject(state, state.context()->globalObject()->temporalPlainMonthDayPrototype(),
                                            icuDate, calendar);
@@ -170,14 +169,10 @@ TemporalPlainDateObject* TemporalPlainMonthDayObject::toPlainDate(ExecutionState
     // Let mergedFields be CalendarMergeFields(calendar, fields, inputFields).
     auto mergedFields = Temporal::calendarMergeFields(state, calendar, fields, inputFields);
     // Let isoDate be ? CalendarDateFromFields(calendar, mergedFields, constrain).
-    auto icuDate = Temporal::calendarDateFromFields(state, calendar, mergedFields, TemporalOverflowOption::Constrain);
+    auto result = Temporal::calendarDateFromFields(state, calendar, mergedFields, TemporalOverflowOption::Constrain);
     // Return ! CreateTemporalDate(isoDate, calendar).
-    if (calendar.isISO8601() && !ISO8601::isDateTimeWithinLimits(mergedFields.year.value(), mergedFields.monthCode ? mergedFields.monthCode.value().monthNumber : mergedFields.month.value(), mergedFields.day.value(), 12, 0, 0, 0, 0, 0)) {
-        ucal_close(icuDate);
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date is out of range");
-    }
     return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
-                                       icuDate, calendar);
+                                       result, calendar);
 }
 
 } // namespace Escargot

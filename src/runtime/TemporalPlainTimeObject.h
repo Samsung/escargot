@@ -43,6 +43,8 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-roundtime
     static ISO8601::Duration roundTime(ExecutionState& state, ISO8601::PlainTime plainTime, double increment, ISO8601::DateTimeUnit unit, ISO8601::RoundingMode roundingMode);
+    // https://tc39.es/proposal-temporal/#sec-temporal-isvalidtime
+    static ISO8601::PlainTime toPlainTime(ExecutionState& state, const ISO8601::Duration& duration);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtotime
     enum class AddDurationToTimeOperation {
@@ -61,6 +63,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tostring
     String* toString(ExecutionState& state, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-timerecordtostring
+    static String* temporalTimeToString(ISO8601::PlainTime plainTime, Value precision);
 
     // https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.since
     TemporalDurationObject* since(ExecutionState& state, Value other, Value options);

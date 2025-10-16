@@ -250,6 +250,9 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporaldate
     static TemporalPlainDateObject* toTemporalDate(ExecutionState& state, Value item, Value options);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporaldatetime
+    static TemporalPlainDateTimeObject* toTemporalDateTime(ExecutionState& state, Value item, Value options);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporalyearmonth
     static TemporalPlainYearMonthObject* toTemporalYearMonth(ExecutionState& state, Value item, Value options);
 
@@ -346,13 +349,16 @@ public:
         YearMonth,
         MonthDay
     };
-    static UCalendar* calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode = CalendarDateFromFieldsMode::Date);
+    static std::pair<UCalendar*, Optional<ISO8601::PlainDate>> calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode = CalendarDateFromFieldsMode::Date);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-calendarresolvefields
-    static UCalendar* calendarResolveFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode);
+    static std::pair<UCalendar*, Optional<ISO8601::PlainDate>> calendarResolveFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-calendarmergefields
     static CalendarFieldsRecord calendarMergeFields(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, const CalendarFieldsRecord& additionalFields);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-interprettemporaldatetimefields
+    static ISO8601::PlainDateTime interpretTemporalDateTimeFields(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, TemporalOverflowOption overflow);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowcalendarnameoption
     static TemporalShowCalendarNameOption getTemporalShowCalendarNameOption(ExecutionState& state, Optional<Object*> options);

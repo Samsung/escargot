@@ -33,16 +33,58 @@ namespace Escargot {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
     }
 
-TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* proto, ISO8601::PlainDate plainDate, Calendar calendar)
+TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* proto, ISO8601::PlainDate plainDate, Calendar calendar, bool checkBoundery)
     : DerivedObject(state, proto)
     , m_plainDate(new(PointerFreeGC) ISO8601::PlainDate(plainDate))
     , m_calendarID(calendar)
 {
+    if (checkBoundery && !ISO8601::isoDateTimeWithinLimits(plainDate.year(), plainDate.month(), plainDate.day())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date");
+    }
+
     m_icuCalendar = calendar.createICUCalendar(state);
 
     UErrorCode status = U_ZERO_ERROR;
     ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromISOPartsAndOffset(plainDate.year(), plainDate.month(), plainDate.day(), 0, 0, 0, 0, 0, 0, 0).epochMilliseconds(), &status);
     CHECK_ICU()
+
+    addFinalizer([](PointerValue* obj, void* data) {
+        TemporalPlainDateObject* self = (TemporalPlainDateObject*)obj;
+        ucal_close(self->m_icuCalendar);
+    },
+                 nullptr);
+}
+
+TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* proto, std::pair<UCalendar*, Optional<ISO8601::PlainDate>> fieldResolveResult, Calendar calendar, bool checkBoundery)
+    : DerivedObject(state, proto)
+    , m_plainDate(new(PointerFreeGC) ISO8601::PlainDate())
+    , m_calendarID(calendar)
+    , m_icuCalendar(fieldResolveResult.first)
+{
+    if (fieldResolveResult.second) {
+        *m_plainDate = fieldResolveResult.second.value();
+    } else {
+        UErrorCode status = U_ZERO_ERROR;
+
+        int32_t y;
+        if (calendar.shouldUseICUExtendedYear()) {
+            y = ucal_get(m_icuCalendar, UCAL_EXTENDED_YEAR, &status);
+        } else {
+            y = ucal_get(m_icuCalendar, UCAL_YEAR, &status);
+        }
+        CHECK_ICU()
+        auto m = ucal_get(m_icuCalendar, UCAL_MONTH, &status) + 1;
+        CHECK_ICU()
+        auto d = ucal_get(m_icuCalendar, UCAL_DAY_OF_MONTH, &status);
+        CHECK_ICU()
+
+        *m_plainDate = ISO8601::PlainDate(y, m, d);
+    }
+
+    if (checkBoundery && !ISO8601::isoDateTimeWithinLimits(m_plainDate->year(), m_plainDate->month(), m_plainDate->day())) {
+        ucal_close(m_icuCalendar);
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid date");
+    }
 
     addFinalizer([](PointerValue* obj, void* data) {
         TemporalPlainDateObject* self = (TemporalPlainDateObject*)obj;
@@ -88,8 +130,7 @@ ISO8601::PlainDate TemporalPlainDateObject::computeISODate(ExecutionState& state
     return plainDate();
 }
 
-// https://tc39.es/proposal-temporal/#sec-temporal-temporaldatetostring
-static String* temporalDateToString(ISO8601::PlainDate plainDate, Calendar calendar, TemporalShowCalendarNameOption showCalendar)
+String* TemporalPlainDateObject::temporalDateToString(ISO8601::PlainDate plainDate, Calendar calendar, TemporalShowCalendarNameOption showCalendar)
 {
     StringBuilder builder;
     int32_t year = plainDate.year();
@@ -168,15 +209,15 @@ TemporalPlainDateObject* TemporalPlainDateObject::addDurationToDate(ExecutionSta
     return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), result, m_calendarID);
 }
 
-Value TemporalPlainDateObject::era(ExecutionState& state)
+Value TemporalPlainDateGetter::era(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
 {
-    if (m_calendarID.isEraRelated()) {
+    if (calendarID.isEraRelated()) {
         UErrorCode status = U_ZERO_ERROR;
-        auto ucalEra = ucal_get(m_icuCalendar, UCAL_ERA, &status);
+        auto ucalEra = ucal_get(icuCalendar, UCAL_ERA, &status);
         CHECK_ICU()
 
         std::string result;
-        m_calendarID.lookupICUEra(state, [&](size_t idx, const std::string& s) -> bool {
+        calendarID.lookupICUEra(state, [&](size_t idx, const std::string& s) -> bool {
             if (size_t(ucalEra) == idx) {
                 result = s;
                 return true;
@@ -188,21 +229,21 @@ Value TemporalPlainDateObject::era(ExecutionState& state)
     return Value();
 }
 
-Value TemporalPlainDateObject::eraYear(ExecutionState& state)
+Value TemporalPlainDateGetter::eraYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
 {
-    if (m_calendarID.isEraRelated()) {
+    if (calendarID.isEraRelated()) {
         UErrorCode status = U_ZERO_ERROR;
-        auto s = ucal_get(m_icuCalendar, UCAL_YEAR, &status);
+        auto s = ucal_get(icuCalendar, UCAL_YEAR, &status);
         CHECK_ICU()
         return Value(s);
     }
     return Value();
 }
 
-Value TemporalPlainDateObject::dayOfWeek(ExecutionState& state)
+Value TemporalPlainDateGetter::dayOfWeek(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
 {
     UErrorCode status = U_ZERO_ERROR;
-    auto s = ucal_get(m_icuCalendar, UCAL_DAY_OF_WEEK, &status);
+    auto s = ucal_get(icuCalendar, UCAL_DAY_OF_WEEK, &status);
     switch (s) {
     case UCAL_SUNDAY:
         return Value(7);
@@ -223,47 +264,47 @@ Value TemporalPlainDateObject::dayOfWeek(ExecutionState& state)
     return Value(0);
 }
 
-Value TemporalPlainDateObject::dayOfYear(ExecutionState& state)
+Value TemporalPlainDateGetter::dayOfYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
 {
     UErrorCode status = U_ZERO_ERROR;
-    auto s = ucal_get(m_icuCalendar, UCAL_DAY_OF_YEAR, &status);
+    auto s = ucal_get(icuCalendar, UCAL_DAY_OF_YEAR, &status);
     CHECK_ICU()
     return Value(s);
 }
 
-Value TemporalPlainDateObject::weekOfYear(ExecutionState& state)
+Value TemporalPlainDateGetter::weekOfYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
 {
-    if (m_calendarID.isISO8601()) {
+    if (calendarID.isISO8601()) {
         UErrorCode status = U_ZERO_ERROR;
-        auto s = ucal_get(m_icuCalendar, UCAL_WEEK_OF_YEAR, &status);
+        auto s = ucal_get(icuCalendar, UCAL_WEEK_OF_YEAR, &status);
         CHECK_ICU()
         return Value(s);
     }
     return Value();
 }
 
-Value TemporalPlainDateObject::yearOfWeek(ExecutionState& state)
+Value TemporalPlainDateGetter::yearOfWeek(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
 {
-    if (m_calendarID.isISO8601()) {
+    if (calendarID.isISO8601()) {
         UErrorCode status = U_ZERO_ERROR;
-        auto s = ucal_get(m_icuCalendar, UCAL_YEAR_WOY, &status);
+        auto s = ucal_get(icuCalendar, UCAL_YEAR_WOY, &status);
         CHECK_ICU()
         return Value(s);
     }
     return Value();
 }
 
-Value TemporalPlainDateObject::daysInWeek(ExecutionState& state)
+Value TemporalPlainDateGetter::daysInWeek(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
 {
     UErrorCode status = U_ZERO_ERROR;
-    LocalResourcePointer<UCalendar> newCal(ucal_clone(m_icuCalendar, &status), [](UCalendar* r) {
+    LocalResourcePointer<UCalendar> newCal(ucal_clone(icuCalendar, &status), [](UCalendar* r) {
         ucal_close(r);
     });
     CHECK_ICU()
 
     int count = 0;
     for (int i = UCAL_SUNDAY; i <= UCAL_SATURDAY; i++) {
-        ucal_set(newCal.get(), UCAL_DAY_OF_MONTH, plainDate().day());
+        ucal_set(newCal.get(), UCAL_DAY_OF_MONTH, plainDate.day());
         ucal_set(newCal.get(), UCAL_DAY_OF_WEEK, i);
         if (ucal_get(newCal.get(), UCAL_DAY_OF_WEEK, &status) == i) {
             count++;
@@ -273,10 +314,10 @@ Value TemporalPlainDateObject::daysInWeek(ExecutionState& state)
     return Value(count);
 }
 
-Value TemporalPlainDateObject::daysInMonth(ExecutionState& state)
+Value TemporalPlainDateGetter::daysInMonth(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
 {
     UErrorCode status = U_ZERO_ERROR;
-    LocalResourcePointer<UCalendar> newCal(ucal_clone(m_icuCalendar, &status), [](UCalendar* r) {
+    LocalResourcePointer<UCalendar> newCal(ucal_clone(icuCalendar, &status), [](UCalendar* r) {
         ucal_close(r);
     });
     CHECK_ICU()
@@ -294,10 +335,10 @@ Value TemporalPlainDateObject::daysInMonth(ExecutionState& state)
     return Value(dayCount - 1);
 }
 
-Value TemporalPlainDateObject::daysInYear(ExecutionState& state)
+Value TemporalPlainDateGetter::daysInYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
 {
     UErrorCode status = U_ZERO_ERROR;
-    LocalResourcePointer<UCalendar> newCal(ucal_clone(m_icuCalendar, &status), [](UCalendar* r) {
+    LocalResourcePointer<UCalendar> newCal(ucal_clone(icuCalendar, &status), [](UCalendar* r) {
         ucal_close(r);
     });
     CHECK_ICU()
@@ -315,10 +356,10 @@ Value TemporalPlainDateObject::daysInYear(ExecutionState& state)
     return Value(dayCount - 1);
 }
 
-Value TemporalPlainDateObject::monthsInYear(ExecutionState& state)
+Value TemporalPlainDateGetter::monthsInYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
 {
     UErrorCode status = U_ZERO_ERROR;
-    LocalResourcePointer<UCalendar> newCal(ucal_clone(m_icuCalendar, &status), [](UCalendar* r) {
+    LocalResourcePointer<UCalendar> newCal(ucal_clone(icuCalendar, &status), [](UCalendar* r) {
         ucal_close(r);
     });
     CHECK_ICU()
@@ -337,22 +378,22 @@ Value TemporalPlainDateObject::monthsInYear(ExecutionState& state)
     return Value(monthCount);
 }
 
-Value TemporalPlainDateObject::inLeapYear(ExecutionState& state)
+Value TemporalPlainDateGetter::inLeapYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
 {
-    if (m_calendarID.isISO8601()) {
-        auto year = m_plainDate->year();
+    if (calendarID.isISO8601()) {
+        auto year = plainDate.year();
         return Value((year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0)));
     }
 
     bool ret = false;
-    switch (m_calendarID.id()) {
+    switch (calendarID.id()) {
     case Calendar::ID::Islamic:
     case Calendar::ID::IslamicCivil:
     case Calendar::ID::IslamicCivilLegacy:
     case Calendar::ID::IslamicRGSA:
     case Calendar::ID::IslamicTabular:
     case Calendar::ID::IslamicUmmAlQura: {
-        int32_t days = daysInYear(state).asInt32();
+        int32_t days = daysInYear(state, plainDate, calendarID, icuCalendar).asInt32();
         ret = days == 355;
         break;
     }
@@ -360,12 +401,12 @@ Value TemporalPlainDateObject::inLeapYear(ExecutionState& state)
     case Calendar::ID::Chinese:
     case Calendar::ID::Dangi:
     case Calendar::ID::Hebrew: {
-        int32_t months = monthsInYear(state).asInt32();
+        int32_t months = monthsInYear(state, plainDate, calendarID, icuCalendar).asInt32();
         ret = months == 13;
         break;
     }
     default: {
-        int32_t days = daysInYear(state).asInt32();
+        int32_t days = daysInYear(state, plainDate, calendarID, icuCalendar).asInt32();
         ret = days == 366;
         break;
     }
@@ -374,21 +415,21 @@ Value TemporalPlainDateObject::inLeapYear(ExecutionState& state)
     return Value(ret);
 }
 
-Value TemporalPlainDateObject::monthCode(ExecutionState& state)
+Value TemporalPlainDateGetter::monthCode(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
 {
     StringBuilder sb;
     sb.appendChar('M');
 
-    if (plainDate().month() < 10) {
+    if (plainDate.month() < 10) {
         sb.appendChar('0');
     } else {
         sb.appendChar('1');
     }
 
-    sb.appendChar(static_cast<char>('0' + (plainDate().month() % 10)));
+    sb.appendChar(static_cast<char>('0' + (plainDate.month() % 10)));
 
     UErrorCode status = U_ZERO_ERROR;
-    auto s = ucal_get(m_icuCalendar, UCAL_IS_LEAP_MONTH, &status);
+    auto s = ucal_get(icuCalendar, UCAL_IS_LEAP_MONTH, &status);
     CHECK_ICU()
     if (s) {
         sb.appendChar('L');
@@ -434,10 +475,9 @@ TemporalPlainDateObject* TemporalPlainDateObject::with(ExecutionState& state, Va
     // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
     auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
     // Let isoDate be ? CalendarDateFromFields(calendar, fields, overflow).
-    auto icuDate = Temporal::calendarDateFromFields(state, calendar, fields, overflow);
+    auto result = Temporal::calendarDateFromFields(state, calendar, fields, overflow);
     // Return ! CreateTemporalDate(isoDate, calendar).
-    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
-                                       icuDate, calendar);
+    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), result, calendar);
 }
 
 TemporalPlainDateObject* TemporalPlainDateObject::withCalendar(ExecutionState& state, Value calendarLike)
@@ -448,7 +488,7 @@ TemporalPlainDateObject* TemporalPlainDateObject::withCalendar(ExecutionState& s
     UErrorCode status = U_ZERO_ERROR;
     ucal_setMillis(icuCalendar, ucal_getMillis(m_icuCalendar, &status), &status);
 
-    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), icuCalendar, calendar);
+    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), std::make_pair(icuCalendar, plainDate()), calendar);
 }
 
 TemporalDurationObject* TemporalPlainDateObject::since(ExecutionState& state, Value other, Value options)
@@ -475,6 +515,28 @@ int TemporalPlainDateObject::compareISODate(ExecutionState& state, TemporalPlain
         return -1;
     }
     return 0;
+}
+
+ISO8601::PlainDate TemporalPlainDateObject::toPlainDate(ExecutionState& state, const ISO8601::Duration& duration)
+{
+    double yearDouble = duration.years();
+    unsigned month = duration.months();
+    unsigned day = duration.days();
+
+    if (!ISO8601::isYearWithinLimits(yearDouble)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "year is out of range");
+    }
+    int32_t year = static_cast<int32_t>(yearDouble);
+
+    if (!(month >= 1 && month <= 12)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "month is out of range");
+    }
+
+    double daysInMonth = ISO8601::daysInMonth(year, month);
+    if (!(day >= 1 && day <= daysInMonth)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "day is out of range");
+    }
+    return ISO8601::PlainDate(year, month, day);
 }
 
 ISO8601::Duration TemporalPlainDateObject::differenceTemporalPlainDate(ExecutionState& state, DifferenceTemporalPlainDate operation, Value otherInput, Value options)

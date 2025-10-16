@@ -65,6 +65,14 @@ public:
         return m_value;
     }
 
+    const T& valueOr(const T& defaultValue) const
+    {
+        if (hasValue()) {
+            return value();
+        }
+        return defaultValue;
+    }
+
     bool hasValue() const
     {
         return m_hasValue;

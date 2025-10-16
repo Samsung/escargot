@@ -29,6 +29,7 @@ class TemporalPlainYearMonthObject : public TemporalPlainDateObject {
 public:
     TemporalPlainYearMonthObject(ExecutionState& state, Object* proto, ISO8601::PlainDate plainYearMonth, Calendar calendar);
     TemporalPlainYearMonthObject(ExecutionState& state, Object* proto, UCalendar* icuCalendar, Calendar calendar);
+    TemporalPlainYearMonthObject(ExecutionState& state, Object* proto, std::pair<UCalendar*, Optional<ISO8601::PlainDate>> fieldResolveResult, Calendar calendar);
 
     virtual bool isTemporalPlainDateObject() const override
     {
