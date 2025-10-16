@@ -35,13 +35,24 @@ namespace Escargot {
     }
 
 TemporalPlainYearMonthObject::TemporalPlainYearMonthObject(ExecutionState& state, Object* proto, ISO8601::PlainDate plainDate, Calendar calendar)
-    : TemporalPlainDateObject(state, proto, plainDate, calendar)
+    : TemporalPlainDateObject(state, proto, plainDate, calendar, false)
 {
+    if (!Temporal::isoYearMonthWithinLimits(plainDate)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range YearMonth");
+    }
 }
 
 TemporalPlainYearMonthObject::TemporalPlainYearMonthObject(ExecutionState& state, Object* proto, UCalendar* icuCalendar, Calendar calendar)
     : TemporalPlainDateObject(state, proto, icuCalendar, calendar)
 {
+}
+
+TemporalPlainYearMonthObject::TemporalPlainYearMonthObject(ExecutionState& state, Object* proto, std::pair<UCalendar*, Optional<ISO8601::PlainDate>> fieldResolveResult, Calendar calendar)
+    : TemporalPlainDateObject(state, proto, fieldResolveResult, calendar, false)
+{
+    if (fieldResolveResult.second && !Temporal::isoYearMonthWithinLimits(fieldResolveResult.second.value())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range YearMonth");
+    }
 }
 
 String* TemporalPlainYearMonthObject::toString(ExecutionState& state, Value options)
@@ -136,7 +147,7 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::with(ExecutionState&
     auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
     // Let isoDate be ? CalendarYearMonthFromFields(calendar, fields, overflow).
     // Return ! CreateTemporalYearMonth(isoDate, calendar).
-    auto icuDate = Temporal::calendarResolveFields(state, calendar, fields, overflow, Temporal::CalendarDateFromFieldsMode::YearMonth);
+    auto icuDate = Temporal::calendarResolveFields(state, calendar, fields, overflow, Temporal::CalendarDateFromFieldsMode::YearMonth).first;
     return new TemporalPlainYearMonthObject(state, state.context()->globalObject()->temporalPlainYearMonthPrototype(),
                                             icuDate, calendar);
 }
@@ -164,13 +175,9 @@ TemporalPlainDateObject* TemporalPlainYearMonthObject::toPlainDate(ExecutionStat
     auto mergedFields = Temporal::calendarMergeFields(state, calendar, fields, inputFields);
     // Let isoDate be ? CalendarDateFromFields(calendar, mergedFields, constrain).
     // Return ! CreateTemporalDate(isoDate, calendar).
-    auto icuDate = Temporal::calendarDateFromFields(state, calendar, mergedFields, TemporalOverflowOption::Constrain);
-    if (calendar.isISO8601() && !ISO8601::isDateTimeWithinLimits(mergedFields.year.value(), mergedFields.monthCode ? mergedFields.monthCode.value().monthNumber : mergedFields.month.value(), mergedFields.day.value(), 12, 0, 0, 0, 0, 0)) {
-        ucal_close(icuDate);
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date is out of range");
-    }
+    auto result = Temporal::calendarDateFromFields(state, calendar, mergedFields, TemporalOverflowOption::Constrain);
     return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
-                                       icuDate, calendar);
+                                       result, calendar);
 }
 
 TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMonth(ExecutionState& state, AddDurationToYearMonthOperation operation, Value temporalDurationLike, Value options)
@@ -198,7 +205,7 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
     // Set fields.[[Day]] to 1.
     fields.day = 1;
     // Let intermediateDate be ? CalendarDateFromFields(calendar, fields, constrain).
-    LocalResourcePointer<UCalendar> intermediateDate(Temporal::calendarDateFromFields(state, calendar, fields, TemporalOverflowOption::Constrain), [](UCalendar* cal) {
+    LocalResourcePointer<UCalendar> intermediateDate(Temporal::calendarDateFromFields(state, calendar, fields, TemporalOverflowOption::Constrain).first, [](UCalendar* cal) {
         ucal_close(cal);
     });
     if (calendar.isISO8601() && !ISO8601::isDateTimeWithinLimits(fields.year.value(), fields.monthCode ? fields.monthCode.value().monthNumber : fields.month.value(), fields.day.value(), 12, 0, 0, 0, 0, 0)) {
@@ -250,7 +257,7 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
     addedDateFields.day = isoDate.day();
     // Let isoDate be ? CalendarYearMonthFromFields(calendar, addedDateFields, overflow).
     // Return ! CreateTemporalYearMonth(isoDate, calendar).
-    auto icuDate = Temporal::calendarDateFromFields(state, calendar, addedDateFields, overflow, Temporal::CalendarDateFromFieldsMode::YearMonth);
+    auto icuDate = Temporal::calendarDateFromFields(state, calendar, addedDateFields, overflow, Temporal::CalendarDateFromFieldsMode::YearMonth).first;
     return new TemporalPlainYearMonthObject(state, state.context()->globalObject()->temporalPlainYearMonthPrototype(),
                                             icuDate, calendar);
 }

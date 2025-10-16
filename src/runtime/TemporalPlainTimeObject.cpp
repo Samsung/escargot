@@ -140,6 +140,28 @@ ISO8601::PlainTime TemporalPlainTimeObject::regulateTime(ExecutionState& state, 
     return ISO8601::PlainTime(hour, minute, second, millisecond, microsecond, nanosecond);
 }
 
+ISO8601::PlainTime TemporalPlainTimeObject::toPlainTime(ExecutionState& state, const ISO8601::Duration& duration)
+{
+    double hour = duration.hours();
+    double minute = duration.minutes();
+    double second = duration.seconds();
+    double millisecond = duration.milliseconds();
+    double microsecond = duration.microseconds();
+    double nanosecond = duration.nanoseconds();
+    if (!(hour >= 0 && hour <= 23) || !(minute >= 0 && minute <= 59) || !(second >= 0 && second <= 59) || !(second >= 0 && second <= 59) || !(millisecond >= 0 && millisecond <= 999) || !(microsecond >= 0 && microsecond <= 999) || !(nanosecond >= 0 && nanosecond <= 999)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid time");
+        return {};
+    }
+    return ISO8601::PlainTime{
+        static_cast<unsigned>(hour),
+        static_cast<unsigned>(minute),
+        static_cast<unsigned>(second),
+        static_cast<unsigned>(millisecond),
+        static_cast<unsigned>(microsecond),
+        static_cast<unsigned>(nanosecond)
+    };
+}
+
 ISO8601::Duration TemporalPlainTimeObject::roundTime(ExecutionState& state, ISO8601::PlainTime plainTime, double increment, ISO8601::DateTimeUnit unit, ISO8601::RoundingMode roundingMode)
 {
     auto fractionalSecond = [](ISO8601::PlainTime plainTime) -> double {
@@ -267,7 +289,7 @@ TemporalPlainTimeObject* TemporalPlainTimeObject::with(ExecutionState& state, Va
     return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(), result);
 }
 
-static String* temporalTimeToString(ISO8601::PlainTime plainTime, Value precision)
+String* TemporalPlainTimeObject::temporalTimeToString(ISO8601::PlainTime plainTime, Value precision)
 {
     if (precision.isString() && precision.asString()->equals("minute")) {
         std::string s;
@@ -431,7 +453,6 @@ TemporalPlainTimeObject* TemporalPlainTimeObject::round(ExecutionState& state, V
     // Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
     Temporal::validateTemporalRoundingIncrement(state, roundingIncrement, maximum.value(), false);
     // Let result be RoundTime(plainTime.[[Time]], roundingIncrement, smallestUnit, roundingMode).
-    // ExecutionState& state, ISO8601::PlainTime plainTime, double increment, ISO8601::DateTimeUnit unit, ISO8601::RoundingMode roundingMode
     auto result = roundTime(state, plainTime(), roundingIncrement, toDateTimeUnit(smallestUnit.value()), roundingMode);
     // Return ! CreateTemporalTime(result).
     return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(),

@@ -25,9 +25,25 @@
 
 namespace Escargot {
 
+struct TemporalPlainDateGetter {
+    static Value era(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* ucalendar);
+    static Value eraYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* ucalendar);
+    static Value dayOfWeek(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* ucalendar);
+    static Value dayOfYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* ucalendar);
+    static Value weekOfYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* ucalendar);
+    static Value yearOfWeek(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* ucalendar);
+    static Value daysInWeek(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* ucalendar);
+    static Value daysInMonth(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* ucalendar);
+    static Value daysInYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* ucalendar);
+    static Value monthsInYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* ucalendar);
+    static Value inLeapYear(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* ucalendar);
+    static Value monthCode(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* ucalendar);
+};
+
 class TemporalPlainDateObject : public DerivedObject {
 public:
-    TemporalPlainDateObject(ExecutionState& state, Object* proto, ISO8601::PlainDate plainDate, Calendar calendar);
+    TemporalPlainDateObject(ExecutionState& state, Object* proto, ISO8601::PlainDate plainDate, Calendar calendar, bool checkBoundery = true);
+    TemporalPlainDateObject(ExecutionState& state, Object* proto, std::pair<UCalendar*, Optional<ISO8601::PlainDate>> fieldResolveResult, Calendar calendar, bool checkBoundery = true);
     TemporalPlainDateObject(ExecutionState& state, Object* proto, UCalendar* icuCalendar, Calendar calendar);
 
     virtual bool isTemporalPlainDateObject() const override
@@ -45,21 +61,60 @@ public:
         return m_calendarID;
     }
 
-    Value era(ExecutionState& state);
-    Value eraYear(ExecutionState& state);
-    Value dayOfWeek(ExecutionState& state);
-    Value dayOfYear(ExecutionState& state);
-    Value weekOfYear(ExecutionState& state);
-    Value yearOfWeek(ExecutionState& state);
-    Value daysInWeek(ExecutionState& state);
-    Value daysInMonth(ExecutionState& state);
-    Value daysInYear(ExecutionState& state);
-    Value monthsInYear(ExecutionState& state);
-    Value inLeapYear(ExecutionState& state);
-    Value monthCode(ExecutionState& state);
+    Value era(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::era(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value eraYear(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::eraYear(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value dayOfWeek(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::dayOfWeek(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value dayOfYear(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::dayOfYear(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value weekOfYear(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::weekOfYear(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value yearOfWeek(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::yearOfWeek(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value daysInWeek(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::daysInWeek(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value daysInMonth(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::daysInMonth(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value daysInYear(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::daysInYear(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value monthsInYear(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::monthsInYear(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value inLeapYear(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::inLeapYear(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value monthCode(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::monthCode(state, plainDate(), calendarID(), m_icuCalendar);
+    }
 
     // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tostring
     String* toString(ExecutionState& state, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-temporaldatetostring
+    static String* temporalDateToString(ISO8601::PlainDate plainDate, Calendar calendar, TemporalShowCalendarNameOption showCalendar);
 
     // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.equals
     bool equals(ExecutionState& state, Value other);
@@ -86,6 +141,7 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.compare
     static int compare(ExecutionState& state, Value one, Value two);
     static int compareISODate(ExecutionState& state, TemporalPlainDateObject* one, TemporalPlainDateObject* two);
+    static ISO8601::PlainDate toPlainDate(ExecutionState& state, const ISO8601::Duration& duration);
 
     ISO8601::PlainDate computeISODate(ExecutionState& state);
 

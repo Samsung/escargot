@@ -27,6 +27,7 @@
 #include "runtime/TemporalInstantObject.h"
 #include "runtime/TemporalPlainTimeObject.h"
 #include "runtime/TemporalPlainDateObject.h"
+#include "runtime/TemporalPlainDateTimeObject.h"
 #include "runtime/TemporalPlainMonthDayObject.h"
 #include "runtime/TemporalPlainYearMonthObject.h"
 #include "runtime/TemporalNowObject.h"
@@ -341,7 +342,9 @@ static Value builtinTemporalPlainTimeConstructor(ExecutionState& state, Value th
         nanosecond = argv[5].toIntegerWithTruncation(state);
     }
     // If IsValidTime(hour, minute, second, millisecond, microsecond, nanosecond) is false, throw a RangeError exception.
-    Temporal::isValidTime(hour, minute, second, millisecond, microsecond, nanosecond);
+    if (!Temporal::isValidTime(hour, minute, second, millisecond, microsecond, nanosecond)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid time");
+    }
     // Let time be CreateTimeRecord(hour, minute, second, millisecond, microsecond, nanosecond).
     // Return ? CreateTemporalTime(time, NewTarget).
     Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
@@ -571,6 +574,124 @@ static Value builtinTemporalPlainDateUntil(ExecutionState& state, Value thisValu
     return plainDate->until(state, argv[0], argc > 1 ? argv[1] : Value());
 }
 
+#define RESOLVE_THIS_BINDING_TO_PLAINDATETIME(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainDateTimeObject()) {                                                                                                                                                                                            \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainDateTime().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                                 \
+    TemporalPlainDateTimeObject* NAME = thisValue.asObject()->asTemporalPlainDateTimeObject();
+
+#define RESOLVE_THIS_BINDING_TO_PLAINDATETIME2(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                         \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainDateTimeObject()) {                                                                                                                                                                                    \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainDateTime().string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                         \
+    TemporalPlainDateTimeObject* NAME = thisValue.asObject()->asTemporalPlainDateTimeObject();
+
+static Value builtinTemporalPlainDateTimeConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+    }
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->temporalPlainDateTimePrototype();
+    });
+
+    // Let isoYear be ? ToIntegerWithTruncation(isoYear).
+    auto y = argv[0].toIntegerWithTruncation(state);
+    // Let isoMonth be ? ToIntegerWithTruncation(isoMonth).
+    auto m = argv[1].toIntegerWithTruncation(state);
+    // Let isoDay be ? ToIntegerWithTruncation(isoDay).
+    auto d = argv[2].toIntegerWithTruncation(state);
+
+#define GET_TIME(index, name)                              \
+    int64_t name = 0;                                      \
+    if (argc > index && !argv[index].isUndefined()) {      \
+        name = argv[index].toIntegerWithTruncation(state); \
+    }
+    // If hour is undefined, set hour to 0; else set hour to ? ToIntegerWithTruncation(hour).
+    GET_TIME(3, hour)
+    // If minute is undefined, set minute to 0; else set minute to ? ToIntegerWithTruncation(minute).
+    GET_TIME(4, minute)
+    // If second is undefined, set second to 0; else set second to ? ToIntegerWithTruncation(second).
+    GET_TIME(5, second)
+    // If millisecond is undefined, set millisecond to 0; else set millisecond to ? ToIntegerWithTruncation(millisecond).
+    GET_TIME(6, millisecond)
+    // If microsecond is undefined, set microsecond to 0; else set microsecond to ? ToIntegerWithTruncation(microsecond).
+    GET_TIME(7, microsecond)
+    // If nanosecond is undefined, set nanosecond to 0; else set nanosecond to ? ToIntegerWithTruncation(nanosecond).
+    GET_TIME(8, nanosecond)
+
+    // If calendar is undefined, set calendar to "iso8601".
+    Value calendar = argc > 9 ? argv[9] : Value();
+    if (calendar.isUndefined()) {
+        calendar = state.context()->staticStrings().lazyISO8601().string();
+    }
+    // If calendar is not a String, throw a TypeError exception.
+    if (!calendar.isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "calendar must be String");
+    }
+    // Set calendar to ? CanonicalizeCalendar(calendar).
+    auto mayCalendar = Calendar::fromString(calendar.asString());
+    if (!mayCalendar) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar");
+    }
+
+    // If IsValidISODate(isoYear, isoMonth, isoDay) is false, throw a RangeError exception.
+    if (m < 1 || m > 12 || d < 1 || d > ISO8601::daysInMonth(y, m) || !ISO8601::isDateTimeWithinLimits(y, m, d, 12, 0, 0, 0, 0, 0)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date is out of range");
+    }
+    // Let isoDate be CreateISODateRecord(y, m, d).
+
+    // If IsValidTime(hour, minute, second, millisecond, microsecond, nanosecond) is false, throw a RangeError exception.
+    if (!Temporal::isValidTime(hour, minute, second, millisecond, microsecond, nanosecond)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid time");
+    }
+    // Let time be CreateTimeRecord(hour, minute, second, millisecond, microsecond, nanosecond).
+    // Let isoDateTime be CombineISODateAndTimeRecord(isoDate, time).
+    // Return ? CreateTemporalDateTime(isoDateTime, calendar, NewTarget).
+    return new TemporalPlainDateTimeObject(state, proto, ISO8601::PlainDate(y, m, d), ISO8601::PlainTime(hour, minute, second, millisecond, microsecond, nanosecond), mayCalendar.value());
+}
+
+static Value builtinTemporalPlainDateTimeFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return Temporal::toTemporalDateTime(state, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalPlainDateTimeToJSON(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATETIME2(plainDateTime, toJSON);
+    return plainDateTime->toString(state, Value());
+}
+
+static Value builtinTemporalPlainDateTimeToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATETIME2(plainDateTime, toLocaleString);
+    return plainDateTime->toString(state, Value());
+}
+
+static Value builtinTemporalPlainDateTimeToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATETIME2(plainDateTime, toString);
+    return plainDateTime->toString(state, argc ? argv[0] : Value());
+}
+
+static Value builtinTemporalPlainDateTimeCalendarId(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATETIME(plainDateTime, CalendarId);
+    if (plainDateTime->calendarID() == Calendar(Calendar::ID::ISO8601)) {
+        return state.context()->staticStrings().lazyISO8601().string();
+    } else {
+        return plainDateTime->calendarID().toString();
+    }
+}
+
+static Value builtinTemporalPlainDateTimeMonthCode(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATETIME(plainDateTime, MonthCode);
+    return plainDateTime->monthCode(state);
+}
+
 static Value builtinTemporalPlainYearMonthConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
@@ -611,7 +732,7 @@ static Value builtinTemporalPlainYearMonthConstructor(ExecutionState& state, Val
     auto ref = referenceISODay.toIntegerWithTruncation(state);
     // If IsValidISODate(y, m, ref) is false, throw a RangeError exception.
     // If IsValidISODate(y, m, d) is false, throw a RangeError exception.
-    if (m < 1 || m > 12 || ref < 1 || ref > ISO8601::daysInMonth(y, m) || !ISO8601::isDateTimeWithinLimits(y, m, ref, 12, 0, 0, 0, 0, 0)) {
+    if (m < 1 || m > 12 || ref < 1 || ref > ISO8601::daysInMonth(y, m) || !Temporal::isoYearMonthWithinLimits(ISO8601::PlainDate(y, m, ref))) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date is out of range");
     }
     // Let isoDate be CreateISODateRecord(y, m, ref).
@@ -1122,7 +1243,94 @@ void GlobalObject::installTemporal(ExecutionState& state)
 #undef DEFINE_GETTER
 #undef DEFINE_PLAINDATE_PROTOTYPE_EXTRA_GETTER_PROPERTY
 
-    m_temporalPlainDate->setFunctionPrototype(state, m_temporalPlainDatePrototype);
+    // Temporal.PlainDateTime
+    m_temporalPlainDateTime = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalPlainDateTime(), builtinTemporalPlainDateTimeConstructor, 3), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_temporalPlainDateTime->setGlobalIntrinsicObject(state);
+
+    m_temporalPlainDateTime->directDefineOwnProperty(state, ObjectPropertyName(strings->from), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalPlainDateTimeFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporalPlainDateTimePrototype = m_temporalPlainDateTime->getFunctionPrototype(state).asObject();
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                              ObjectPropertyDescriptor(Value(strings->lazyTemporalDotPlainDateTime().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinTemporalPlainDateTimeToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toJSON), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toJSON, builtinTemporalPlainDateTimeToJSON, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toLocaleString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinTemporalPlainDateTimeToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->valueOf), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinTemporalAnyInstanceValueOf, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    {
+        AtomicString name(state.context(), "get calendarId");
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(name, builtinTemporalPlainDateTimeCalendarId, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCalendarId()), desc);
+    }
+
+    {
+        AtomicString name(state.context(), "get monthCode");
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(name, builtinTemporalPlainDateTimeMonthCode, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), desc);
+    }
+
+#define DEFINE_PLAINDATETIME_PROTOTYPE_GETTER_PROPERTY(name, stringName, Name)                                                                                                                                                  \
+    {                                                                                                                                                                                                                           \
+        AtomicString name(state.context(), "get " stringName);                                                                                                                                                                  \
+        auto getter = new NativeFunctionObject(state, NativeFunctionInfo(name, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value { \
+            if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainDateTimeObject()) { \
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainDateTime().string(), true, String::fromASCII(stringName), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+            } \
+            TemporalPlainDateTimeObject* s = thisValue.asObject()->asTemporalPlainDateTimeObject(); \
+            return Value(s->plainDate().name()); }, 0, NativeFunctionInfo::Strict)); \
+        JSGetterSetter gs(getter, Value());                                                                                                                                                                                     \
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);                                                                                                                                       \
+        m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazy##Name()), desc);                                                                                               \
+    }
+
+#define DEFINE_GETTER(name, Name) DEFINE_PLAINDATETIME_PROTOTYPE_GETTER_PROPERTY(name, #name, Name)
+    PLAIN_DATE_UNITS(DEFINE_GETTER)
+#undef DEFINE_GETTER
+#undef DEFINE_PLAINDATETIME_PROTOTYPE_GETTER_PROPERTY
+
+#define DEFINE_PLAINDATETIME_PROTOTYPE_EXTRA_GETTER_PROPERTY(name, stringName, Name)                                                                                                                                            \
+    {                                                                                                                                                                                                                           \
+        AtomicString name(state.context(), "get " stringName);                                                                                                                                                                  \
+        AtomicString pName(state.context(), stringName);                                                                                                                                                                        \
+        auto getter = new NativeFunctionObject(state, NativeFunctionInfo(name, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value { \
+            if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainDateTimeObject()) { \
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainDateTime().string(), true, String::fromASCII(stringName), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+            } \
+            TemporalPlainDateTimeObject* s = thisValue.asObject()->asTemporalPlainDateTimeObject(); \
+            return Value(s->name(state)); }, 0, NativeFunctionInfo::Strict)); \
+        JSGetterSetter gs(getter, Value());                                                                                                                                                                                     \
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);                                                                                                                                       \
+        m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazy##Name()), desc);                                                                                               \
+    }
+#define DEFINE_GETTER(name, Name) DEFINE_PLAINDATETIME_PROTOTYPE_EXTRA_GETTER_PROPERTY(name, #name, Name)
+    PLAINDATE_EXTRA_PROPERTY(DEFINE_GETTER)
+#undef DEFINE_GETTER
+#undef DEFINE_PLAINDATE_PROTOTYPE_EXTRA_GETTER_PROPERTY
+
+#define DEFINE_PLAINDATETIME_PROTOTYPE_GETTER_PROPERTY(name, stringName, Name)                                                                                                                                                  \
+    {                                                                                                                                                                                                                           \
+        AtomicString name(state.context(), "get " stringName);                                                                                                                                                                  \
+        auto getter = new NativeFunctionObject(state, NativeFunctionInfo(name, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value { \
+            if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainDateTimeObject()) { \
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainDateTime().string(), true, String::fromASCII(stringName), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+            } \
+            TemporalPlainDateTimeObject* s = thisValue.asObject()->asTemporalPlainDateTimeObject(); \
+            return Value(s->plainTime().name()); }, 0, NativeFunctionInfo::Strict)); \
+        JSGetterSetter gs(getter, Value());                                                                                                                                                                                     \
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);                                                                                                                                       \
+        m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazy##Name()), desc);                                                                                               \
+    }
+
+#define DEFINE_GETTER(name, Name) DEFINE_PLAINDATETIME_PROTOTYPE_GETTER_PROPERTY(name, #name, Name)
+    PLAIN_TIME_UNITS(DEFINE_GETTER)
+#undef DEFINE_GETTER
+#undef DEFINE_PLAINDATETIME_PROTOTYPE_GETTER_PROPERTY
 
     // Temporal.PlainYearMonth
     m_temporalPlainYearMonth = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalPlainYearMonth(), builtinTemporalPlainYearMonthConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__);
@@ -1277,6 +1485,9 @@ void GlobalObject::installTemporal(ExecutionState& state)
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalPlainDate()),
                                         ObjectPropertyDescriptor(m_temporalPlainDate, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalPlainDateTime()),
+                                        ObjectPropertyDescriptor(m_temporalPlainDateTime, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalPlainYearMonth()),
                                         ObjectPropertyDescriptor(m_temporalPlainYearMonth, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));

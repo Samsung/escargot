@@ -52,6 +52,7 @@
 #include "runtime/TemporalInstantObject.h"
 #include "runtime/TemporalPlainTimeObject.h"
 #include "runtime/TemporalPlainDateObject.h"
+#include "runtime/TemporalPlainDateTimeObject.h"
 #include "runtime/TemporalPlainMonthDayObject.h"
 #include "runtime/TemporalPlainYearMonthObject.h"
 #include "intl/Intl.h"
@@ -456,10 +457,10 @@ TemporalPlainDateObject* Temporal::toTemporalDate(ExecutionState& state, Value i
         // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
         auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
         // Let isoDate be ? CalendarDateFromFields(calendar, fields, overflow).
-        auto isoDate = calendarDateFromFields(state, calendar, fields, overflow);
         // Return ! CreateTemporalDate(isoDate, calendar).
+        auto result = calendarDateFromFields(state, calendar, fields, overflow);
         return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
-                                           isoDate, calendar);
+                                           result, calendar);
     }
 
     // If item is not a String, throw a TypeError exception.
@@ -504,6 +505,113 @@ TemporalPlainDateObject* Temporal::toTemporalDate(ExecutionState& state, Value i
                                        std::get<0>(result.value()), mayID.value());
 }
 
+TemporalPlainDateTimeObject* Temporal::toTemporalDateTime(ExecutionState& state, Value item, Value options)
+{
+    // If options is not present, set options to undefined.
+    // If item is an Object, then
+    if (item.isObject()) {
+        // If item has an [[InitializedTemporalDateTime]] internal slot, then
+        if (item.asObject()->isTemporalPlainDateTimeObject()) {
+            // Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolvedOptions = Intl::getOptionsObject(state, options);
+            // Perform ? GetTemporalOverflowOption(resolvedOptions).
+            Temporal::getTemporalOverflowOption(state, resolvedOptions);
+            // Return ! CreateTemporalDateTime(item.[[ISODateTime]], item.[[Calendar]]).
+            return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
+                                                   item.asObject()->asTemporalPlainDateTimeObject()->plainDate(),
+                                                   item.asObject()->asTemporalPlainDateTimeObject()->plainTime(),
+                                                   item.asObject()->asTemporalPlainDateTimeObject()->calendarID());
+        } else if (item.asObject()->isTemporalZonedDateTimeObject()) {
+            // TODO If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
+            // Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
+            // Let resolvedOptions be ? GetOptionsObject(options).
+            // Perform ? GetTemporalOverflowOption(resolvedOptions).
+            // Return ! CreateTemporalDateTime(isoDateTime, item.[[Calendar]]).
+            ASSERT_NOT_REACHED();
+        } else if (item.asObject()->isTemporalPlainDateObject()) {
+            // If item has an [[InitializedTemporalDate]] internal slot, then
+            // Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolvedOptions = Intl::getOptionsObject(state, options);
+            // Perform ? GetTemporalOverflowOption(resolvedOptions).
+            Temporal::getTemporalOverflowOption(state, resolvedOptions);
+            // Let isoDateTime be CombineISODateAndTimeRecord(item.[[ISODate]], MidnightTimeRecord()).
+            // Return ? CreateTemporalDateTime(isoDateTime, item.[[Calendar]]).
+            return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
+                                                   item.asObject()->asTemporalPlainDateObject()->plainDate(),
+                                                   ISO8601::PlainTime(),
+                                                   item.asObject()->asTemporalPlainDateObject()->calendarID());
+        }
+
+        // Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).
+        auto calendar = Temporal::getTemporalCalendarIdentifierWithISODefault(state, item);
+        // Let fields be ? PrepareCalendarFields(calendar, item, « year, month, month-code, day », « hour, minute, second, millisecond, microsecond, nanosecond », «»).
+        CalendarField calendarFieldNames[4] = { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day };
+        CalendarField noncalendarFieldNames[6] = { CalendarField::Hour, CalendarField::Minute, CalendarField::Second, CalendarField::Millisecond,
+                                                   CalendarField::Microsecond, CalendarField::Nanosecond };
+        auto fields = prepareCalendarFields(state, calendar, item.asObject(), calendarFieldNames, 4, noncalendarFieldNames, 6, nullptr, 0);
+        // Let resolvedOptions be ? GetOptionsObject(options).
+        auto resolvedOptions = Intl::getOptionsObject(state, options);
+        // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+        auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
+        // Let result be ? InterpretTemporalDateTimeFields(calendar, fields, overflow).
+        auto result = interpretTemporalDateTimeFields(state, calendar, fields, overflow);
+        // Return ? CreateTemporalDateTime(result, calendar).
+        return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
+                                               result.plainDate(), result.plainTime(), calendar);
+    }
+
+    // If item is not a String, throw a TypeError exception.
+    if (!item.isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "ToTemporalYearMonth needs Object or String");
+    }
+    // Let result be ? ParseISODateTime(item, « TemporalDateTimeString[~Zoned] »).
+    ISO8601::DateTimeParseOption option;
+    option.allowTimeZoneTimeWithoutTime = true;
+    auto result = ISO8601::parseCalendarDateTime(item.asString(), option);
+    // If result.[[Time]] is start-of-day, let time be MidnightTimeRecord(); else let time be result.[[Time]].
+    if (!result) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO Date string");
+    }
+
+    ISO8601::PlainDate plainDate = std::get<0>(result.value());
+    ISO8601::PlainTime plainTime = std::get<1>(result.value()) ? std::get<1>(result.value()).value() : ISO8601::PlainTime();
+    Optional<ISO8601::TimeZoneRecord> timeZone = std::get<2>(result.value());
+    Optional<ISO8601::CalendarID> calendarID = std::get<3>(result.value());
+
+    if (timeZone && timeZone.value().m_z) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO Time string without UTC designator");
+    }
+
+    if (timeZone && timeZone.value().m_offset.hasValue() && !calendarID && !std::get<1>(result.value())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO Date string");
+    }
+
+    if (!isoYearMonthWithinLimits(plainDate)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "ToTemporalYearMonth needs ISO Date string in valid range");
+    }
+
+    // Let calendar be result.[[Calendar]].
+    // If calendar is empty, set calendar to "iso8601".
+    String* calendar = state.context()->staticStrings().lazyISO8601().string();
+    if (calendarID) {
+        calendar = String::fromUTF8(calendarID.value().data(), calendarID.value().length());
+    }
+    // Set calendar to ? CanonicalizeCalendar(calendar).
+    auto mayID = Calendar::fromString(calendar);
+    if (!mayID) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid CalendarID");
+    }
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Perform ? GetTemporalOverflowOption(resolvedOptions).
+    Temporal::getTemporalOverflowOption(state, resolvedOptions);
+    // Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
+    // Let isoDateTime be CombineISODateAndTimeRecord(isoDate, time).
+    // Return ? CreateTemporalDateTime(isoDateTime, calendar).
+    return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
+                                           plainDate, plainTime, mayID.value());
+}
+
 TemporalPlainYearMonthObject* Temporal::toTemporalYearMonth(ExecutionState& state, Value item, Value options)
 {
     // If options is not present, set options to undefined.
@@ -531,10 +639,10 @@ TemporalPlainYearMonthObject* Temporal::toTemporalYearMonth(ExecutionState& stat
         // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
         auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
         // Let isoDate be ? CalendarDateFromYearMonth(calendar, fields, overflow).
-        auto isoDate = calendarDateFromFields(state, calendar, fields, overflow, CalendarDateFromFieldsMode::YearMonth);
         // Return ! CreateTemporalYearMonth(isoDate, calendar).
+        auto result = calendarDateFromFields(state, calendar, fields, overflow, CalendarDateFromFieldsMode::YearMonth);
         return new TemporalPlainYearMonthObject(state, state.context()->globalObject()->temporalPlainYearMonthPrototype(),
-                                                isoDate, calendar);
+                                                result, calendar);
     }
 
     // If item is not a String, throw a TypeError exception.
@@ -630,7 +738,7 @@ TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state,
         // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
         auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
         // Let isoDate be ? CalendarMonthDayFromFields(calendar, fields, overflow).
-        auto isoDate = calendarDateFromFields(state, calendar, fields, overflow, CalendarDateFromFieldsMode::MonthDay);
+        auto isoDate = calendarDateFromFields(state, calendar, fields, overflow, CalendarDateFromFieldsMode::MonthDay).first;
         // Return ! CreateTemporalMonthDay(isoDate, calendar).
         return new TemporalPlainMonthDayObject(state, state.context()->globalObject()->temporalPlainMonthDayPrototype(),
                                                isoDate, calendar);
@@ -1653,7 +1761,7 @@ CalendarFieldsRecord Temporal::prepareCalendarFields(ExecutionState& state, Cale
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-calendarresolvefields
-UCalendar* Temporal::calendarResolveFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode)
+std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarResolveFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode)
 {
     if (mode == CalendarDateFromFieldsMode::MonthDay && calendar.isISO8601() && !fields.year) {
         fields.year = 1972;
@@ -1689,7 +1797,7 @@ UCalendar* Temporal::calendarResolveFields(ExecutionState& state, Calendar calen
     }
 
     auto icuCalendar = calendar.createICUCalendar(state);
-
+    Optional<ISO8601::PlainDate> isoDateIfExist;
     if (calendar.isISO8601()) {
         // CalendarDateToISO steps
         if (overflow == TemporalOverflowOption::Constrain) {
@@ -1712,6 +1820,8 @@ UCalendar* Temporal::calendarResolveFields(ExecutionState& state, Calendar calen
             ucal_close(icuCalendar);
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date");
         }
+
+        isoDateIfExist = ISO8601::PlainDate(fields.year.value(), fields.month.value(), fields.day.value());
 
         ucal_set(icuCalendar, UCAL_YEAR, fields.year.value());
         ucal_set(icuCalendar, UCAL_MONTH, fields.month.value() - 1);
@@ -1774,33 +1884,45 @@ UCalendar* Temporal::calendarResolveFields(ExecutionState& state, Calendar calen
         }
     }
 
-    return icuCalendar;
+    return std::make_pair(icuCalendar, isoDateIfExist);
 }
 
-UCalendar* Temporal::calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode)
+std::pair<UCalendar*, Optional<ISO8601::PlainDate>> Temporal::calendarDateFromFields(ExecutionState& state, Calendar calendar, CalendarFieldsRecord fields, TemporalOverflowOption overflow, CalendarDateFromFieldsMode mode)
 {
     if (mode == CalendarDateFromFieldsMode::YearMonth) {
         // Perform ? CalendarResolveFields(calendar, fields, year-month).
-        auto ucal = calendarResolveFields(state, calendar, fields, overflow, mode);
+        auto result = calendarResolveFields(state, calendar, fields, overflow, mode);
         // Let firstDayIndex be the 1-based index of the first day of the month described by fields (i.e., 1 unless the month's first day is skipped by this calendar.)
         // Set fields.[[Day]] to firstDayIndex.
-        ucal_set(ucal, UCAL_DAY_OF_MONTH, 1);
-        // TODO Let result be ? CalendarDateToISO(calendar, fields, overflow).
-        // TODO If ISOYearMonthWithinLimits(result) is false, throw a RangeError exception.
+        ucal_set(result.first, UCAL_DAY_OF_MONTH, 1);
+        // Let result be ? CalendarDateToISO(calendar, fields, overflow).
+        // If ISOYearMonthWithinLimits(result) is false, throw a RangeError exception.
+        if (result.second) {
+            if (!isoYearMonthWithinLimits(ISO8601::PlainDate(result.second.value().year(), result.second.value().month(), result.second.value().day()))) {
+                ucal_close(result.first);
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid out of range Date");
+            }
+        }
         // Return result.
-        return ucal;
+        return result;
     } else if (mode == CalendarDateFromFieldsMode::MonthDay) {
         // Perform ? CalendarResolveFields(calendar, fields, month-day).
         // Let result be ? CalendarMonthDayToISOReferenceDate(calendar, fields, overflow).
-        auto ucal = calendarResolveFields(state, calendar, fields, overflow, mode);
+        auto result = calendarResolveFields(state, calendar, fields, overflow, mode);
 
+        // If ISODateWithinLimits(result) is false, throw a RangeError exception.
+        if (result.second) {
+            if (!ISO8601::isoDateTimeWithinLimits(result.second.value().year(), result.second.value().month(), result.second.value().day())) {
+                ucal_close(result.first);
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid out of range Date");
+            }
+        }
         if (calendar.isISO8601()) {
-            ucal_set(ucal, UCAL_YEAR, 1972);
+            ucal_set(result.first, UCAL_YEAR, 1972);
         }
 
-        // TODO If ISODateWithinLimits(result) is false, throw a RangeError exception.
         // Return result.
-        return ucal;
+        return result;
     }
     return calendarResolveFields(state, calendar, fields, overflow, mode);
 }
@@ -1834,6 +1956,33 @@ CalendarFieldsRecord Temporal::calendarMergeFields(ExecutionState& state, Calend
     }
 
     return merged;
+}
+
+ISO8601::PlainDateTime Temporal::interpretTemporalDateTimeFields(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, TemporalOverflowOption overflow)
+{
+    // Let isoDate be ? CalendarDateFromFields(calendar, fields, overflow).
+    auto fieldResult = calendarDateFromFields(state, calendar, fields, overflow);
+
+    ISO8601::PlainDate isoDate;
+    if (fieldResult.second) {
+        isoDate = fieldResult.second.value();
+    } else {
+        auto icuDate = fieldResult.first;
+        UErrorCode status = U_ZERO_ERROR;
+        auto epochTime = ucal_getMillis(icuDate, &status);
+        ucal_close(icuDate);
+        CHECK_ICU_CALENDAR()
+
+        DateObject::DateTimeInfo timeInfo;
+        DateObject::computeTimeInfoFromEpoch(epochTime, timeInfo);
+        isoDate = ISO8601::PlainDate(timeInfo.year, timeInfo.month + 1, timeInfo.mday);
+    }
+
+    // Let time be ? RegulateTime(fields.[[Hour]], fields.[[Minute]], fields.[[Second]], fields.[[Millisecond]], fields.[[Microsecond]], fields.[[Nanosecond]], overflow).
+    auto time = TemporalPlainTimeObject::regulateTime(state, fields.hour.valueOr(0), fields.minute.valueOr(0), fields.second.valueOr(0),
+                                                      fields.millisecond.valueOr(0), fields.microsecond.valueOr(0), fields.nanosecond.valueOr(0), overflow);
+    // Return CombineISODateAndTimeRecord(isoDate, time).
+    return ISO8601::PlainDateTime(isoDate, time);
 }
 
 TemporalShowCalendarNameOption Temporal::getTemporalShowCalendarNameOption(ExecutionState& state, Optional<Object*> options)
@@ -2295,9 +2444,6 @@ ISO8601::PlainDate Temporal::isoDateAdd(ExecutionState& state, const ISO8601::Pl
     yy = balancedDate.year();
     mm = balancedDate.month();
     dd = balancedDate.day();
-    if (!ISO8601::isDateTimeWithinLimits(yy, mm, dd, 12, 0, 0, 0, 0, 0)) {
-        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date time is out of range of ECMAScript representation");
-    }
     return ISO8601::PlainDate(yy, mm, dd);
 }
 

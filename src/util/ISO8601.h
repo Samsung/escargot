@@ -599,6 +599,8 @@ double dateToDaysFrom1970(int year, int month, int day);
 double daysFrom1970ToYear(int year);
 uint8_t daysInMonth(int32_t year, uint8_t month);
 uint8_t daysInMonth(uint8_t month);
+// https://tc39.es/proposal-temporal/#sec-temporal-isodatewithinlimits
+bool isoDateTimeWithinLimits(int32_t year, uint8_t month, uint8_t day);
 // https://tc39.es/proposal-temporal/#sec-temporal-isodatetimewithinlimits
 bool isDateTimeWithinLimits(int32_t year, uint8_t month, uint8_t day, unsigned hour, unsigned minute, unsigned second, unsigned millisecond, unsigned microsecond, unsigned nanosecond);
 bool isoDateTimeWithinLimits(Int128 t);
