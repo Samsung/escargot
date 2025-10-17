@@ -103,6 +103,17 @@ public:
         return TemporalPlainDateGetter::monthCode(state, plainDate(), calendarID(), m_icuCalendar);
     }
 
+    ISO8601::PlainDate computeISODate(ExecutionState& state);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.with
+    TemporalPlainDateTimeObject* with(ExecutionState& state, Value temporalDateTimeLike, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withplaintime
+    TemporalPlainDateTimeObject* withPlainTime(ExecutionState& state, Value plainTimeLike);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withcalendar
+    TemporalPlainDateTimeObject* withCalendar(ExecutionState& state, Value calendarLike);
+
 private:
     ISO8601::PlainDateTime* m_plainDateTime;
     Calendar m_calendarID;
