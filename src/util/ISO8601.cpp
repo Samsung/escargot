@@ -1220,31 +1220,6 @@ static Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(Parse
     return Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>>(std::make_tuple(std::move(plainTime.value()), NullOption));
 }
 
-Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(String* input)
-{
-    DateTimeParseOption option;
-    ParserString buffer(input);
-    if (!buffer.atEnd() && toupper(*buffer) == 'T') {
-        buffer.advance();
-    }
-    auto result = parseTime(buffer, option);
-
-    Optional<CalendarID> calendarOptional;
-    if (!buffer.atEnd() && canBeRFC9557Annotation(buffer)) {
-        auto calendars = parseCalendar(buffer);
-        if (!calendars)
-            return NullOption;
-        if (calendars.value().size() > 0)
-            calendarOptional = std::move(calendars.value()[0]);
-    }
-
-    if (buffer.atEnd()) {
-        return result;
-    }
-
-    return NullOption;
-}
-
 static Optional<PlainDate> parseDate(ParserString& buffer, bool parseYear = true, bool parseMonth = true, bool parseDay = true)
 {
     // https://tc39.es/proposal-temporal/#prod-Date
@@ -1392,6 +1367,43 @@ static Optional<PlainDate> parseDate(ParserString& buffer, bool parseYear = true
     }
 
     return PlainDate(year, month, day);
+}
+
+Optional<std::tuple<PlainTime, Optional<TimeZoneRecord>>> parseTime(String* input)
+{
+    DateTimeParseOption option;
+    ParserString buffer(input);
+    bool seenT = false;
+    if (!buffer.atEnd() && toupper(*buffer) == 'T') {
+        buffer.advance();
+        seenT = true;
+    }
+    auto result = parseTime(buffer, option);
+
+    // for ambiguous strings like "2021-12", "12-14"...
+    if (!seenT) {
+        ParserString buffer1(input);
+        ParserString buffer2(input);
+        ParserString buffer3(input);
+        if (parseDate(buffer1) || parseDate(buffer2, false, true, true) || parseDate(buffer3, true, true, false)) {
+            return NullOption;
+        }
+    }
+
+    Optional<CalendarID> calendarOptional;
+    if (!buffer.atEnd() && canBeRFC9557Annotation(buffer)) {
+        auto calendars = parseCalendar(buffer);
+        if (!calendars)
+            return NullOption;
+        if (calendars.value().size() > 0)
+            calendarOptional = std::move(calendars.value()[0]);
+    }
+
+    if (buffer.atEnd()) {
+        return result;
+    }
+
+    return NullOption;
 }
 
 static Optional<std::tuple<PlainDate, Optional<PlainTime>, Optional<TimeZoneRecord>>> parseDateTime(ParserString& buffer, DateTimeParseOption option)

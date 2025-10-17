@@ -692,6 +692,24 @@ static Value builtinTemporalPlainDateTimeMonthCode(ExecutionState& state, Value 
     return plainDateTime->monthCode(state);
 }
 
+static Value builtinTemporalPlainDateTimeWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATETIME2(plainDateTime, with);
+    return plainDateTime->with(state, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalPlainDateTimeWithPlainTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATETIME(plainDateTime, WithPlainTime);
+    return plainDateTime->withPlainTime(state, argc > 0 ? argv[0] : Value());
+}
+
+static Value builtinTemporalPlainDateTimeWithCalendar(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATETIME(plainDateTime, Calendar);
+    return plainDateTime->withCalendar(state, argv[0]);
+}
+
 static Value builtinTemporalPlainYearMonthConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If NewTarget is undefined, throw a TypeError exception.
@@ -1256,6 +1274,9 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toJSON), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toJSON, builtinTemporalPlainDateTimeToJSON, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toLocaleString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinTemporalPlainDateTimeToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->valueOf), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->valueOf, builtinTemporalAnyInstanceValueOf, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->with), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->with, builtinTemporalPlainDateTimeWith, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWithPlainTime()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWithPlainTime(), builtinTemporalPlainDateTimeWithPlainTime, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWithCalendar()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWithCalendar(), builtinTemporalPlainDateTimeWithCalendar, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
         AtomicString name(state.context(), "get calendarId");

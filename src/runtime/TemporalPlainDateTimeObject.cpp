@@ -183,6 +183,86 @@ String* TemporalPlainDateTimeObject::toString(ExecutionState& state, Value optio
     return sb.finalize();
 }
 
+ISO8601::PlainDate TemporalPlainDateTimeObject::computeISODate(ExecutionState& state)
+{
+    if (!m_calendarID.isISO8601()) {
+        return Temporal::computeISODate(state, m_icuCalendar);
+    }
+    return plainDate();
+}
+
+TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::with(ExecutionState& state, Value temporalDateTimeLike, Value options)
+{
+    // If ? IsPartialTemporalObject(temporalDateTimeLike) is false, throw a TypeError exception.
+    if (!Temporal::isPartialTemporalObject(state, temporalDateTimeLike)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid temporalDateTimeLike");
+    }
+    // Let calendar be plainDateTime.[[Calendar]].
+    auto calendar = m_calendarID;
+    // Let fields be ISODateToFields(calendar, plainDateTime.[[ISODateTime]].[[ISODate]], date).
+    CalendarFieldsRecord fields;
+    auto isoDate = computeISODate(state);
+    fields.year = isoDate.year();
+    fields.month = isoDate.month();
+    MonthCode mc;
+    mc.monthNumber = isoDate.month();
+    fields.monthCode = mc;
+    // Set fields.[[Hour]] to plainDateTime.[[ISODateTime]].[[Time]].[[Hour]].
+    // Set fields.[[Minute]] to plainDateTime.[[ISODateTime]].[[Time]].[[Minute]].
+    // Set fields.[[Second]] to plainDateTime.[[ISODateTime]].[[Time]].[[Second]].
+    // Set fields.[[Millisecond]] to plainDateTime.[[ISODateTime]].[[Time]].[[Millisecond]].
+    // Set fields.[[Microsecond]] to plainDateTime.[[ISODateTime]].[[Time]].[[Microsecond]].
+    // Set fields.[[Nanosecond]] to plainDateTime.[[ISODateTime]].[[Time]].[[Nanosecond]].
+    fields.day = isoDate.day();
+    fields.hour = plainTime().hour();
+    fields.minute = plainTime().minute();
+    fields.second = plainTime().second();
+    fields.millisecond = plainTime().millisecond();
+    fields.microsecond = plainTime().microsecond();
+    fields.nanosecond = plainTime().nanosecond();
+    // Let partialDateTime be ? PrepareCalendarFields(calendar, temporalDateTimeLike, « year, month, month-code, day », « hour, minute, second, millisecond, microsecond, nanosecond », partial).
+    CalendarField ds[4] = { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day };
+    CalendarField fs[6] = { CalendarField::Hour, CalendarField::Minute, CalendarField::Second,
+                            CalendarField::Millisecond, CalendarField::Microsecond, CalendarField::Nanosecond };
+    auto partialDateTime = Temporal::prepareCalendarFields(state, calendar, temporalDateTimeLike.asObject(), ds, 4, fs, 6, nullptr, SIZE_MAX);
+    // Set fields to CalendarMergeFields(calendar, fields, partialDateTime).
+    fields = Temporal::calendarMergeFields(state, calendar, fields, partialDateTime);
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
+    // Let result be ? InterpretTemporalDateTimeFields(calendar, fields, overflow).
+    // Return ? CreateTemporalDateTime(result, calendar).
+    auto result = Temporal::interpretTemporalDateTimeFields(state, calendar, fields, overflow);
+    return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
+                                           result.plainDate(), result.plainTime(), calendar);
+}
+
+TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::withPlainTime(ExecutionState& state, Value plainTimeLike)
+{
+    // Let time be ? ToTimeRecordOrMidnight(plainTimeLike).
+    auto time = Temporal::toTimeRecordOrMidnight(state, plainTimeLike);
+    // Let isoDateTime be CombineISODateAndTimeRecord(plainDateTime.[[ISODateTime]].[[ISODate]], time).
+    auto isoDate = computeISODate(state);
+    // Return ? CreateTemporalDateTime(isoDateTime, plainDateTime.[[Calendar]]).
+    return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
+                                           isoDate, time, calendarID());
+}
+
+TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::withCalendar(ExecutionState& state, Value calendarLike)
+{
+    // Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
+    auto calendar = Temporal::toTemporalCalendarIdentifier(state, calendarLike);
+    auto icuCalendar = calendar.createICUCalendar(state);
+
+    UErrorCode status = U_ZERO_ERROR;
+    ucal_setMillis(icuCalendar, ucal_getMillis(m_icuCalendar, &status), &status);
+
+    // Return ! CreateTemporalDateTime(plainDateTime.[[ISODateTime]], calendar).
+    return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
+                                           icuCalendar, plainTime().microsecond() * 1000 + plainTime().nanosecond(), calendar);
+}
+
 } // namespace Escargot
 
 #endif

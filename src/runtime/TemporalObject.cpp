@@ -816,6 +816,18 @@ TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state,
                                            plainDate, mayID.value());
 }
 
+ISO8601::PlainTime Temporal::toTimeRecordOrMidnight(ExecutionState& state, Value item)
+{
+    // If item is undefined, return MidnightTimeRecord().
+    if (item.isUndefined()) {
+        return ISO8601::PlainTime();
+    }
+    // Let plainTime be ? ToTemporalTime(item).
+    auto plainTime = toTemporalTime(state, item, Value());
+    // Return plainTime.[[Time]].
+    return plainTime->plainTime();
+}
+
 Optional<unsigned> Temporal::getTemporalFractionalSecondDigitsOption(ExecutionState& state, Optional<Object*> resolvedOptions)
 {
     constexpr auto msg = "The value you gave for GetTemporalFractionalSecondDigitsOption is invalid";

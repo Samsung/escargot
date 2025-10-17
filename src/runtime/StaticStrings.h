@@ -1015,6 +1015,7 @@ namespace Escargot {
     F(Until, "until")                                       \
     F(WeekOfYear, "weekOfYear")                             \
     F(WithCalendar, "withCalendar")                         \
+    F(WithPlainTime, "withPlainTime")                       \
     F(YearOfWeek, "yearOfWeek")                             \
     F(ZonedDateTimeISO, "zonedDateTimeISO")
 #else
