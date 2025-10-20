@@ -128,6 +128,13 @@ bool isoDateTimeWithinLimits(Int128 nanoseconds)
     return true;
 }
 
+bool isoDateTimeWithinLimits(PlainDateTime t)
+{
+    return isoDateTimeWithinLimits(ExactTime::fromISOPartsAndOffset(t.plainDate().year(), t.plainDate().month(), t.plainDate().day(),
+                                                                    t.plainTime().hour(), t.plainTime().minute(), t.plainTime().second(), t.plainTime().millisecond(), t.plainTime().microsecond(), t.plainTime().nanosecond(), 0)
+                                       .epochNanoseconds());
+}
+
 bool isValidEpochNanoseconds(Int128 s)
 {
     // If ℝ(epochNanoseconds) < nsMinInstant or ℝ(epochNanoseconds) > nsMaxInstant, then

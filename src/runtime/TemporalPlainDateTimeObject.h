@@ -49,6 +49,11 @@ public:
         return m_plainDateTime->plainTime();
     }
 
+    ISO8601::PlainDateTime plainDateTime() const
+    {
+        return *m_plainDateTime;
+    }
+
     Calendar calendarID() const
     {
         return m_calendarID;
@@ -120,6 +125,17 @@ public:
         Subtract
     };
     TemporalPlainDateTimeObject* addDurationToDateTime(ExecutionState& state, AddDurationToDateTimeOperation operation, Value temporalDurationLike, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-differenceplaindatetimewithrounding
+    ISO8601::InternalDuration differencePlainDateTimeWithRounding(ExecutionState& state, ISO8601::PlainDateTime isoDateTime1, ISO8601::PlainDateTime isoDateTime2, Calendar calendar,
+                                                                  ISO8601::DateTimeUnit largestUnit, unsigned roundingIncrement, ISO8601::DateTimeUnit smallestUnit, ISO8601::RoundingMode roundingMode);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindatetime
+    enum class DifferenceTemporalPlainDateTime {
+        Until,
+        Since
+    };
+    ISO8601::Duration differenceTemporalPlainDateTime(ExecutionState& state, DifferenceTemporalPlainDateTime operation, Value other, Value options);
 
 private:
     ISO8601::PlainDateTime* m_plainDateTime;
