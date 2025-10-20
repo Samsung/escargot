@@ -329,6 +329,7 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-balancetime
     static ISO8601::Duration balanceTime(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond);
     static ISO8601::Duration balanceTime(int64_t hour, int64_t minute, int64_t second, int64_t millisecond, int64_t microsecond, int64_t nanosecond);
+    static ISO8601::Duration balanceTime(Int128 hour, Int128 minute, Int128 second, Int128 millisecond, Int128 microsecond, Int128 nanosecond);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-differencetime
     static Int128 differenceTime(ISO8601::PlainTime time1, ISO8601::PlainTime time2);
@@ -367,8 +368,8 @@ public:
     static TemporalShowCalendarNameOption getTemporalShowCalendarNameOption(ExecutionState& state, Optional<Object*> options);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-calendardateadd
-    // returns new "UCalendar*"
-    static UCalendar* calendarDateAdd(ExecutionState& state, Calendar calendar, ISO8601::PlainDate isoDate, UCalendar* icuDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow);
+    // returns new "UCalendar*, ISODate"
+    static std::pair<UCalendar*, ISO8601::PlainDate> calendarDateAdd(ExecutionState& state, Calendar calendar, ISO8601::PlainDate isoDate, UCalendar* icuDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-calendardateuntil
     static ISO8601::Duration calendarDateUntil(Calendar calendar, ISO8601::PlainDate one, ISO8601::PlainDate two, TemporalUnit largestUnit);

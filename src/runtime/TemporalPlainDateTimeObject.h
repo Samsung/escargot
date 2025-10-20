@@ -114,6 +114,13 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withcalendar
     TemporalPlainDateTimeObject* withCalendar(ExecutionState& state, Value calendarLike);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtodatetime
+    enum class AddDurationToDateTimeOperation {
+        Add,
+        Subtract
+    };
+    TemporalPlainDateTimeObject* addDurationToDateTime(ExecutionState& state, AddDurationToDateTimeOperation operation, Value temporalDurationLike, Value options);
+
 private:
     ISO8601::PlainDateTime* m_plainDateTime;
     Calendar m_calendarID;

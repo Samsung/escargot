@@ -1400,7 +1400,19 @@ bool Temporal::isPartialTemporalObject(ExecutionState& state, Value value)
     return true;
 }
 
-static double nonNegativeModulo(double x, double y)
+template <typename T>
+T nonNegativeModulo(T x, int y)
+{
+    T result = x % y;
+    if (!result)
+        return 0;
+    if (result < 0)
+        result += y;
+    return result;
+}
+
+template <>
+double nonNegativeModulo(double x, int y)
 {
     double result = std::fmod(x, y);
     if (!result)
@@ -1410,17 +1422,8 @@ static double nonNegativeModulo(double x, double y)
     return result;
 }
 
-static double nonNegativeModulo(int64_t x, int64_t y)
-{
-    int64_t result = x % y;
-    if (!result)
-        return 0;
-    if (result < 0)
-        result += y;
-    return result;
-}
-
-static int64_t int64Floor(int64_t x, int64_t y)
+template <typename T>
+T intFloor(T x, int y)
 {
     if (x > 0) {
         return x / y;
@@ -1451,19 +1454,37 @@ ISO8601::Duration Temporal::balanceTime(double hour, double minute, double secon
 
 ISO8601::Duration Temporal::balanceTime(int64_t hour, int64_t minute, int64_t second, int64_t millisecond, int64_t microsecond, int64_t nanosecond)
 {
-    microsecond += int64Floor(nanosecond, 1000);
+    microsecond += intFloor(nanosecond, 1000);
     nanosecond = nonNegativeModulo(nanosecond, 1000);
-    millisecond += int64Floor(microsecond, 1000);
+    millisecond += intFloor(microsecond, 1000);
     microsecond = nonNegativeModulo(microsecond, 1000);
-    second += int64Floor(millisecond, 1000);
+    second += intFloor(millisecond, 1000);
     millisecond = nonNegativeModulo(millisecond, 1000);
-    minute += int64Floor(second, 60);
+    minute += intFloor(second, 60);
     second = nonNegativeModulo(second, 60);
-    hour += int64Floor(minute, 60);
+    hour += intFloor(minute, 60);
     minute = nonNegativeModulo(minute, 60);
-    int64_t days = int64Floor(hour, 24);
+    int64_t days = intFloor(hour, 24);
     hour = nonNegativeModulo(hour, 24);
     return ISO8601::Duration({ int64_t(0), int64_t(0), int64_t(0), days, hour, minute, second, millisecond, microsecond, nanosecond });
+}
+
+ISO8601::Duration Temporal::balanceTime(Int128 hour, Int128 minute, Int128 second, Int128 millisecond, Int128 microsecond, Int128 nanosecond)
+{
+    microsecond += intFloor(nanosecond, 1000);
+    nanosecond = nonNegativeModulo(nanosecond, 1000);
+    millisecond += intFloor(microsecond, 1000);
+    microsecond = nonNegativeModulo(microsecond, 1000);
+    second += intFloor(millisecond, 1000);
+    millisecond = nonNegativeModulo(millisecond, 1000);
+    minute += intFloor(second, 60);
+    second = nonNegativeModulo(second, 60);
+    hour += intFloor(minute, 60);
+    minute = nonNegativeModulo(minute, 60);
+    Int128 days = intFloor(hour, 24);
+    hour = nonNegativeModulo(hour, 24);
+    return ISO8601::Duration({ int64_t(0), int64_t(0), int64_t(0), int64_t(days), int64_t(hour),
+                               int64_t(minute), int64_t(second), int64_t(millisecond), int64_t(microsecond), int64_t(nanosecond) });
 }
 
 Int128 Temporal::differenceTime(ISO8601::PlainTime time1, ISO8601::PlainTime time2)
@@ -2077,10 +2098,12 @@ ISO8601::PlainDate Temporal::balanceISODate(ExecutionState& state, double year, 
     return ISO8601::PlainDate(year, month, day);
 }
 
-UCalendar* Temporal::calendarDateAdd(ExecutionState& state, Calendar calendar, ISO8601::PlainDate isoDate, UCalendar* icuDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow)
+std::pair<UCalendar*, ISO8601::PlainDate> Temporal::calendarDateAdd(ExecutionState& state, Calendar calendar, ISO8601::PlainDate isoDate, UCalendar* icuDate, const ISO8601::Duration& duration, TemporalOverflowOption overflow)
 {
     UErrorCode status = U_ZERO_ERROR;
-    auto newCal = ucal_clone(icuDate, &status);
+    LocalResourcePointer<UCalendar> newCal(ucal_clone(icuDate, &status), [](UCalendar* r) {
+        ucal_close(r);
+    });
     CHECK_ICU_CALENDAR()
     if (calendar.isISO8601()) {
         int32_t oldY = isoDate.year();
@@ -2110,22 +2133,22 @@ UCalendar* Temporal::calendarDateAdd(ExecutionState& state, Calendar calendar, I
             day = balancedDate.day();
         }
 
-        ucal_set(newCal, UCAL_YEAR, year);
-        ucal_set(newCal, UCAL_MONTH, month - 1);
-        ucal_set(newCal, UCAL_DAY_OF_MONTH, day);
+        ucal_set(newCal.get(), UCAL_YEAR, year);
+        ucal_set(newCal.get(), UCAL_MONTH, month - 1);
+        ucal_set(newCal.get(), UCAL_DAY_OF_MONTH, day);
 
         if (!ISO8601::isDateTimeWithinLimits(year, month, day, 12, 0, 0, 0, 0, 0)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
         }
 
-        return newCal;
+        return std::make_pair(newCal.release(), ISO8601::PlainDate(year, month, day));
     } else {
         int32_t o, check;
 
-        o = ucal_get(newCal, UCAL_YEAR, &status);
+        o = ucal_get(newCal.get(), UCAL_YEAR, &status);
         CHECK_ICU_CALENDAR()
-        ucal_set(newCal, UCAL_YEAR, o + duration.years());
-        check = ucal_get(newCal, UCAL_YEAR, &status);
+        ucal_set(newCal.get(), UCAL_YEAR, o + duration.years());
+        check = ucal_get(newCal.get(), UCAL_YEAR, &status);
         CHECK_ICU_CALENDAR()
         if (check != (o + duration.years())) {
             if (overflow == TemporalOverflowOption::Reject) {
@@ -2133,10 +2156,10 @@ UCalendar* Temporal::calendarDateAdd(ExecutionState& state, Calendar calendar, I
             }
         }
 
-        o = ucal_get(newCal, UCAL_MONTH, &status);
+        o = ucal_get(newCal.get(), UCAL_MONTH, &status);
         CHECK_ICU_CALENDAR()
-        ucal_set(newCal, UCAL_MONTH, o + duration.months() - 1);
-        check = ucal_get(newCal, UCAL_MONTH, &status);
+        ucal_set(newCal.get(), UCAL_MONTH, o + duration.months() - 1);
+        check = ucal_get(newCal.get(), UCAL_MONTH, &status);
         CHECK_ICU_CALENDAR()
         if (check != (o + duration.months() - 1)) {
             if (overflow == TemporalOverflowOption::Reject) {
@@ -2144,10 +2167,10 @@ UCalendar* Temporal::calendarDateAdd(ExecutionState& state, Calendar calendar, I
             }
         }
 
-        o = ucal_get(newCal, UCAL_DAY_OF_MONTH, &status);
+        o = ucal_get(newCal.get(), UCAL_DAY_OF_MONTH, &status);
         CHECK_ICU_CALENDAR()
-        ucal_set(newCal, UCAL_DAY_OF_MONTH, o + duration.days());
-        check = ucal_get(newCal, UCAL_DAY_OF_MONTH, &status);
+        ucal_set(newCal.get(), UCAL_DAY_OF_MONTH, o + duration.days());
+        check = ucal_get(newCal.get(), UCAL_DAY_OF_MONTH, &status);
         CHECK_ICU_CALENDAR()
         if (check != (o + duration.days())) {
             if (overflow == TemporalOverflowOption::Reject) {
@@ -2156,20 +2179,22 @@ UCalendar* Temporal::calendarDateAdd(ExecutionState& state, Calendar calendar, I
         }
 
         if (duration.weeks()) {
-            auto epochTime = ucal_getMillis(newCal, &status);
-            int32_t w = ucal_get(newCal, UCAL_WEEK_OF_YEAR, &status);
+            auto epochTime = ucal_getMillis(newCal.get(), &status);
+            int32_t w = ucal_get(newCal.get(), UCAL_WEEK_OF_YEAR, &status);
             CHECK_ICU_CALENDAR()
             w += duration.weeks();
-            ucal_set(newCal, UCAL_WEEK_OF_YEAR, w);
+            ucal_set(newCal.get(), UCAL_WEEK_OF_YEAR, w);
         }
 
-        auto epoch = ucal_getMillis(newCal, &status);
+        auto epoch = ucal_getMillis(newCal.get(), &status);
         CHECK_ICU_CALENDAR()
         if (!ISO8601::isoDateTimeWithinLimits(Int128(epoch))) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
         }
+
+        auto isoDate = computeISODate(state, newCal.get());
+        return std::make_pair(newCal.release(), isoDate);
     }
-    return newCal;
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-isodatesurpasses
@@ -2756,6 +2781,10 @@ ISO8601::Duration Temporal::adjustDateDurationRecord(ExecutionState& state, ISO8
         months = dateDuration.months();
     }
     // Return ? CreateDateDurationRecord(dateDuration.[[Years]], months, weeks, days).
+    auto duration = ISO8601::Duration({ dateDuration.years(), months.value(), weeks.value(), days });
+    if (!duration.isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration");
+    }
     return ISO8601::Duration({ dateDuration.years(), months.value(), weeks.value(), days });
 }
 

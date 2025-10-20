@@ -220,7 +220,7 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
         // Let oneMonthDuration be ! CreateDateDurationRecord(0, 1, 0, 0).
         ISO8601::Duration oneMonthDuration({ 0, 1 });
         // Let nextMonth be ? CalendarDateAdd(calendar, intermediateDate, oneMonthDuration, constrain).
-        auto nextMonth = Temporal::calendarDateAdd(state, calendar, Temporal::computeISODate(state, intermediateDate.get()), intermediateDate.get(), oneMonthDuration, TemporalOverflowOption::Constrain);
+        auto nextMonth = Temporal::calendarDateAdd(state, calendar, Temporal::computeISODate(state, intermediateDate.get()), intermediateDate.get(), oneMonthDuration, TemporalOverflowOption::Constrain).first;
         // Let date be BalanceISODate(nextMonth.[[Year]], nextMonth.[[Month]], nextMonth.[[Day]] - 1).
         UErrorCode status = U_ZERO_ERROR;
         auto year = ucal_get(nextMonth, UCAL_YEAR, &status);
@@ -245,13 +245,14 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::addDurationToYearMon
     // Let durationToAdd be ToDateDurationRecordWithoutTime(duration).
     auto durationToAdd = TemporalDurationObject::toDateDurationRecordWithoutTime(state, duration);
     // Let addedDate be ? CalendarDateAdd(calendar, date, durationToAdd, overflow).
-    LocalResourcePointer<UCalendar> addedDate(Temporal::calendarDateAdd(state, calendar, Temporal::computeISODate(state, date.get()), date.get(), durationToAdd, overflow),
+    auto addedDateResult = Temporal::calendarDateAdd(state, calendar, Temporal::computeISODate(state, date.get()), date.get(), durationToAdd, overflow);
+    LocalResourcePointer<UCalendar> addedDate(addedDateResult.first,
                                               [](UCalendar* cal) {
                                                   ucal_close(cal);
                                               });
     // Let addedDateFields be ISODateToFields(calendar, addedDate, year-month).
     CalendarFieldsRecord addedDateFields;
-    isoDate = Temporal::computeISODate(state, addedDate.get());
+    isoDate = addedDateResult.second;
     addedDateFields.year = isoDate.year();
     addedDateFields.month = isoDate.month();
     addedDateFields.day = isoDate.day();

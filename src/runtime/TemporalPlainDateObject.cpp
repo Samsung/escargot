@@ -206,7 +206,7 @@ TemporalPlainDateObject* TemporalPlainDateObject::addDurationToDate(ExecutionSta
     // Let result be ? CalendarDateAdd(calendar, temporalDate.[[ISODate]], dateDuration, overflow).
     auto result = Temporal::calendarDateAdd(state, calendarID(), computeISODate(state), m_icuCalendar, dateDuration, overflow);
     // Return ! CreateTemporalDate(result, calendar).
-    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), result, m_calendarID);
+    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), result.first, m_calendarID);
 }
 
 Value TemporalPlainDateGetter::era(ExecutionState& state, ISO8601::PlainDate plainDate, Calendar calendarID, UCalendar* icuCalendar)
