@@ -2455,10 +2455,6 @@ static NudgeResult nudgeToDayOrTime(ExecutionState& state, ISO8601::InternalDura
     auto nudgedEpochNs = diffTime + destEpochNs;
     auto days = 0;
     auto remainder = roundedTime;
-    if (largestUnit <= TemporalUnit::Day) {
-        days = roundedWholeDays;
-        remainder = roundedTime + Temporal::timeDurationFromComponents(-roundedWholeDays * 24, 0, 0, 0, 0, 0);
-    }
     auto dateDuration = adjustDateDurationRecord(state, duration.dateDuration(), days, NullOption, NullOption);
     auto resultDuration = ISO8601::InternalDuration::combineDateAndTimeDuration(dateDuration, remainder);
     return NudgeResult(resultDuration, nudgedEpochNs, didExpandDays);
@@ -2786,6 +2782,77 @@ ISO8601::Duration Temporal::adjustDateDurationRecord(ExecutionState& state, ISO8
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid duration");
     }
     return ISO8601::Duration({ dateDuration.years(), months.value(), weeks.value(), days });
+}
+
+ISO8601::InternalDuration Temporal::differencePlainDateTimeWithRounding(ExecutionState& state, ISO8601::PlainDateTime isoDateTime1, ISO8601::PlainDateTime isoDateTime2, Calendar calendar,
+                                                                        ISO8601::DateTimeUnit largestUnit, unsigned roundingIncrement, ISO8601::DateTimeUnit smallestUnit, ISO8601::RoundingMode roundingMode)
+{
+    // If CompareISODateTime(isoDateTime1, isoDateTime2) = 0, then
+    if (isoDateTime1 == isoDateTime2) {
+        // Return CombineDateAndTimeDuration(ZeroDateDuration(), 0).
+        return ISO8601::InternalDuration();
+    }
+    // If ISODateTimeWithinLimits(isoDateTime1) is false or ISODateTimeWithinLimits(isoDateTime2) is false, throw a RangeError exception.
+    if (!ISO8601::isoDateTimeWithinLimits(isoDateTime1) || !ISO8601::isoDateTimeWithinLimits(isoDateTime2)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "date-time is out of range");
+    }
+    // Let diff be DifferenceISODateTime(isoDateTime1, isoDateTime2, calendar, largestUnit).
+    auto diff = differenceISODateTime(state, isoDateTime1, isoDateTime2, calendar, largestUnit);
+    // If smallestUnit is nanosecond and roundingIncrement = 1, return diff.
+    if (smallestUnit == ISO8601::DateTimeUnit::Nanosecond && roundingIncrement == 1) {
+        return diff;
+    }
+    // Let originEpochNs be GetUTCEpochNanoseconds(isoDateTime1).
+    auto originEpochNs = ISO8601::ExactTime::fromISOPartsAndOffset(isoDateTime1.plainDate().year(), isoDateTime1.plainDate().month(), isoDateTime1.plainDate().day(),
+                                                                   isoDateTime1.plainTime().hour(), isoDateTime1.plainTime().minute(), isoDateTime1.plainTime().second(), isoDateTime1.plainTime().millisecond(), isoDateTime1.plainTime().microsecond(),
+                                                                   isoDateTime1.plainTime().nanosecond(), 0)
+                             .epochNanoseconds();
+    // Let destEpochNs be GetUTCEpochNanoseconds(isoDateTime2).
+    auto destEpochNs = ISO8601::ExactTime::fromISOPartsAndOffset(isoDateTime2.plainDate().year(), isoDateTime2.plainDate().month(), isoDateTime2.plainDate().day(),
+                                                                 isoDateTime2.plainTime().hour(), isoDateTime2.plainTime().minute(), isoDateTime2.plainTime().second(), isoDateTime2.plainTime().millisecond(), isoDateTime2.plainTime().microsecond(),
+                                                                 isoDateTime2.plainTime().nanosecond(), 0)
+                           .epochNanoseconds();
+    // Return ? RoundRelativeDuration(diff, originEpochNs, destEpochNs, isoDateTime1, unset, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
+    return roundRelativeDuration(state, diff, destEpochNs, isoDateTime1, NullOption, calendar, toTemporalUnit(largestUnit), roundingIncrement, toTemporalUnit(smallestUnit), roundingMode);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-differenceisodatetime
+ISO8601::InternalDuration Temporal::differenceISODateTime(ExecutionState& state, ISO8601::PlainDateTime isoDateTime1, ISO8601::PlainDateTime isoDateTime2, Calendar calendar, ISO8601::DateTimeUnit largestUnit)
+{
+    // Let timeDuration be DifferenceTime(isoDateTime1.[[Time]], isoDateTime2.[[Time]]).
+    auto timeDuration = differenceTime(isoDateTime1.plainTime(), isoDateTime2.plainTime());
+    // Let timeSign be TimeDurationSign(timeDuration).
+    int timeSign = 0;
+    if (timeDuration < 0) {
+        timeSign = -1;
+    } else if (timeDuration > 0) {
+        timeSign = 1;
+    }
+    // Let dateSign be CompareISODate(isoDateTime1.[[ISODate]], isoDateTime2.[[ISODate]]).
+    auto dateSign = isoDateTime1.plainDate().compare(isoDateTime2.plainDate());
+    // Let adjustedDate be isoDateTime2.[[ISODate]].
+    ISO8601::PlainDate adjustedDate = isoDateTime2.plainDate();
+    // If timeSign = dateSign, then
+    if (timeSign == dateSign) {
+        // Set adjustedDate to BalanceISODate(adjustedDate.[[Year]], adjustedDate.[[Month]], adjustedDate.[[Day]] + timeSign).
+        adjustedDate = balanceISODate(state, adjustedDate.year(), adjustedDate.month(), adjustedDate.day() + timeSign);
+        // Set timeDuration to ! Add24HourDaysToTimeDuration(timeDuration, -timeSign).
+        timeDuration = add24HourDaysToTimeDuration(state, timeDuration, -timeSign);
+    }
+
+    // Let dateLargestUnit be LargerOfTwoTemporalUnits(day, largestUnit).
+    auto dateLargestUnit = largerOfTwoTemporalUnits(ISO8601::DateTimeUnit::Day, largestUnit);
+    // Let dateDifference be CalendarDateUntil(calendar, isoDateTime1.[[ISODate]], adjustedDate, dateLargestUnit).
+    auto dateDifference = calendarDateUntil(calendar, isoDateTime1.plainDate(), adjustedDate, toTemporalUnit(dateLargestUnit));
+    // If largestUnit is not dateLargestUnit, then
+    if (largestUnit != dateLargestUnit) {
+        // Set timeDuration to ! Add24HourDaysToTimeDuration(timeDuration, dateDifference.[[Days]]).
+        timeDuration = add24HourDaysToTimeDuration(state, timeDuration, dateDifference.days());
+        // Set dateDifference.[[Days]] to 0.
+        dateDifference.setDays(0);
+    }
+    // Return CombineDateAndTimeDuration(dateDifference, timeDuration).
+    return ISO8601::InternalDuration(dateDifference, timeDuration);
 }
 
 } // namespace Escargot

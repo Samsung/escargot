@@ -400,6 +400,13 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-adjustdatedurationrecord
     static ISO8601::Duration adjustDateDurationRecord(ExecutionState& state, ISO8601::Duration dateDuration, double days, Optional<double> weeks, Optional<double> months);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-differenceplaindatetimewithrounding
+    static ISO8601::InternalDuration differencePlainDateTimeWithRounding(ExecutionState& state, ISO8601::PlainDateTime isoDateTime1, ISO8601::PlainDateTime isoDateTime2, Calendar calendar,
+                                                                         ISO8601::DateTimeUnit largestUnit, unsigned roundingIncrement, ISO8601::DateTimeUnit smallestUnit, ISO8601::RoundingMode roundingMode);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-differenceisodatetime
+    static ISO8601::InternalDuration differenceISODateTime(ExecutionState& state, ISO8601::PlainDateTime isoDateTime1, ISO8601::PlainDateTime isoDateTime2, Calendar calendar, ISO8601::DateTimeUnit largestUnit);
 };
 
 } // namespace Escargot

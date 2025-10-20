@@ -466,7 +466,7 @@ public:
     }
 
     // https://tc39.es/proposal-temporal/#sec-temporal-compareisodate
-    int compare(const PlainDate& other)
+    int compare(const PlainDate& other) const
     {
         if (year() > other.year())
             return 1;
@@ -526,6 +526,11 @@ public:
     const PlainTime& plainTime() const
     {
         return m_plainTime;
+    }
+
+    bool operator==(const PlainDateTime& other) const
+    {
+        return m_plainDate == other.plainDate() && m_plainTime == other.plainTime();
     }
 
 private:
@@ -604,6 +609,8 @@ bool isoDateTimeWithinLimits(int32_t year, uint8_t month, uint8_t day);
 // https://tc39.es/proposal-temporal/#sec-temporal-isodatetimewithinlimits
 bool isDateTimeWithinLimits(int32_t year, uint8_t month, uint8_t day, unsigned hour, unsigned minute, unsigned second, unsigned millisecond, unsigned microsecond, unsigned nanosecond);
 bool isoDateTimeWithinLimits(Int128 t);
+bool isoDateTimeWithinLimits(PlainDateTime t);
+
 // https://tc39.es/proposal-temporal/#sec-temporal-isvalidepochnanoseconds
 bool isValidEpochNanoseconds(Int128 s);
 Optional<ISO8601::PlainDate> toPlainDate(const ISO8601::Duration& duration);

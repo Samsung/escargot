@@ -293,6 +293,40 @@ TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::addDurationToDateTime(
     return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
                                            addedDate.second, ISO8601::PlainTime(timeResult.hours(), timeResult.minutes(), timeResult.seconds(), timeResult.milliseconds(), timeResult.microseconds(), timeResult.nanoseconds()), calendarID());
 }
+
+ISO8601::Duration TemporalPlainDateTimeObject::differenceTemporalPlainDateTime(ExecutionState& state, DifferenceTemporalPlainDateTime operation, Value otherInput, Value options)
+{
+    // Set other to ? ToTemporalDateTime(other).
+    auto other = Temporal::toTemporalDateTime(state, otherInput, options);
+    // If CalendarEquals(dateTime.[[Calendar]], other.[[Calendar]]) is false, throw a RangeError exception.
+    if (other->calendarID() != calendarID()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "other calendar is not same");
+    }
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let settings be ? GetDifferenceSettings(operation, resolvedOptions, datetime, « », nanosecond, day).
+    auto settings = Temporal::getDifferenceSettings(state, operation == DifferenceTemporalPlainDateTime::Since, resolvedOptions, ISO8601::DateTimeUnitCategory::DateTime, nullptr, 0, TemporalUnit::Nanosecond, TemporalUnit::Day);
+    // If CompareISODateTime(dateTime.[[ISODateTime]], other.[[ISODateTime]]) = 0, then
+    auto isoDateTime1 = computeISODate(state);
+    auto isoDateTime2 = other->computeISODate(state);
+
+    if (isoDateTime1 == isoDateTime2 && plainTime() == other->plainTime()) {
+        // Return ! CreateTemporalDuration(0, 0, 0, 0, 0, 0, 0, 0, 0, 0).
+        return {};
+    }
+    // Let internalDuration be ? DifferencePlainDateTimeWithRounding(dateTime.[[ISODateTime]], other.[[ISODateTime]], dateTime.[[Calendar]], settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+    auto internalDuration = Temporal::differencePlainDateTimeWithRounding(state, ISO8601::PlainDateTime(isoDateTime1, plainTime()), ISO8601::PlainDateTime(isoDateTime2, other->plainTime()),
+                                                                          calendarID(), settings.largestUnit, settings.roundingIncrement, settings.smallestUnit, settings.roundingMode);
+    // Let result be ! TemporalDurationFromInternal(internalDuration, settings.[[LargestUnit]]).
+    auto result = TemporalDurationObject::temporalDurationFromInternal(state, internalDuration, settings.largestUnit);
+    // If operation is since, set result to CreateNegatedTemporalDuration(result).
+    if (operation == DifferenceTemporalPlainDateTime::Since) {
+        result = TemporalDurationObject::createNegatedTemporalDuration(result);
+    }
+    // Return result.
+    return result;
+}
+
 } // namespace Escargot
 
 #endif
