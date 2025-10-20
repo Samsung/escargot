@@ -263,6 +263,36 @@ TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::withCalendar(Execution
                                            icuCalendar, plainTime().microsecond() * 1000 + plainTime().nanosecond(), calendar);
 }
 
+TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::addDurationToDateTime(ExecutionState& state, AddDurationToDateTimeOperation operation, Value temporalDurationLike, Value options)
+{
+    // Let duration be ? ToTemporalDuration(temporalDurationLike).
+    ISO8601::Duration duration = Temporal::toTemporalDuration(state, temporalDurationLike)->duration();
+    // If operation is subtract, set duration to CreateNegatedTemporalDuration(duration).
+    if (operation == AddDurationToDateTimeOperation::Subtract) {
+        duration = TemporalDurationObject::createNegatedTemporalDuration(duration);
+    }
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
+    // Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+    auto internalDuration = TemporalDurationObject::toInternalDurationRecordWith24HourDays(state, duration);
+    // Let timeResult be AddTime(dateTime.[[ISODateTime]].[[Time]], internalDuration.[[Time]]).
+    auto timeResult = Temporal::balanceTime(Int128(plainTime().hour()), Int128(plainTime().minute()), Int128(plainTime().second()),
+                                            Int128(plainTime().millisecond()), Int128(plainTime().microsecond()), Int128(internalDuration.time()) + Int128(plainTime().nanosecond()));
+
+    // Let dateDuration be ? AdjustDateDurationRecord(internalDuration.[[Date]], timeResult.[[Days]]).
+    auto dateDuration = Temporal::adjustDateDurationRecord(state, internalDuration.dateDuration(), timeResult.days(), NullOption, NullOption);
+
+    auto isoDate = computeISODate(state);
+    // Let addedDate be ? CalendarDateAdd(dateTime.[[Calendar]], dateTime.[[ISODateTime]].[[ISODate]], dateDuration, overflow).
+    auto addedDate = Temporal::calendarDateAdd(state, calendarID(), isoDate, m_icuCalendar, dateDuration, overflow);
+    ucal_close(addedDate.first);
+    // Let result be CombineISODateAndTimeRecord(addedDate, timeResult).
+    // Return ? CreateTemporalDateTime(result, dateTime.[[Calendar]]).
+    return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
+                                           addedDate.second, ISO8601::PlainTime(timeResult.hours(), timeResult.minutes(), timeResult.seconds(), timeResult.milliseconds(), timeResult.microseconds(), timeResult.nanoseconds()), calendarID());
+}
 } // namespace Escargot
 
 #endif
