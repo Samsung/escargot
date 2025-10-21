@@ -658,6 +658,11 @@ static Value builtinTemporalPlainDateTimeFrom(ExecutionState& state, Value thisV
     return Temporal::toTemporalDateTime(state, argv[0], argc > 1 ? argv[1] : Value());
 }
 
+static Value builtinTemporalPlainDateTimeCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return Value(TemporalPlainDateTimeObject::compare(state, argv[0], argv[1]));
+}
+
 static Value builtinTemporalPlainDateTimeToJSON(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_PLAINDATETIME2(plainDateTime, toJSON);
@@ -1314,6 +1319,7 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalPlainDateTime->setGlobalIntrinsicObject(state);
 
     m_temporalPlainDateTime->directDefineOwnProperty(state, ObjectPropertyName(strings->from), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalPlainDateTimeFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDateTime->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCompare()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCompare(), builtinTemporalPlainDateTimeCompare, 2, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_temporalPlainDateTimePrototype = m_temporalPlainDateTime->getFunctionPrototype(state).asObject();
     m_temporalPlainDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),

@@ -146,6 +146,9 @@ public:
     TemporalPlainDateObject* toPlainDate(ExecutionState& state);
     TemporalPlainTimeObject* toPlainTime(ExecutionState& state);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.compare
+    static int compare(ExecutionState& state, Value one, Value two);
+
 private:
     ISO8601::PlainDateTime* m_plainDateTime;
     Calendar m_calendarID;

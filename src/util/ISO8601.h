@@ -413,6 +413,18 @@ public:
         return !operator==(other);
     }
 
+    int compare(const PlainTime& other) const
+    {
+#define DEFINE_ISO8601_PLAIN_TIME_FIELD(name, capitalizedName) \
+    if (name() > other.name())                                 \
+        return 1;                                              \
+    if (name() < other.name())                                 \
+        return -1;
+        PLAIN_TIME_UNITS(DEFINE_ISO8601_PLAIN_TIME_FIELD);
+#undef DEFINE_ISO8601_PLAIN_TIME_FIELD
+        return 0;
+    }
+
 private:
     uint8_t m_hour{ 0 };
     uint8_t m_minute{ 0 };

@@ -470,14 +470,7 @@ int TemporalPlainTimeObject::compare(ExecutionState& state, Value one, Value two
     auto time1 = Temporal::toTemporalTime(state, one, Value())->plainTime();
     auto time2 = Temporal::toTemporalTime(state, two, Value())->plainTime();
 
-#define DEFINE_ISO8601_PLAIN_TIME_FIELD(name, capitalizedName) \
-    if (time1.name() > time2.name())                           \
-        return 1;                                              \
-    if (time1.name() < time2.name())                           \
-        return -1;
-    PLAIN_TIME_UNITS(DEFINE_ISO8601_PLAIN_TIME_FIELD);
-#undef DEFINE_ISO8601_PLAIN_TIME_FIELD
-    return 0;
+    return time1.compare(time2);
 }
 
 } // namespace Escargot

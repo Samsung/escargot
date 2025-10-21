@@ -385,6 +385,24 @@ TemporalPlainTimeObject* TemporalPlainDateTimeObject::toPlainTime(ExecutionState
     return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(), plainTime());
 }
 
+int TemporalPlainDateTimeObject::compare(ExecutionState& state, Value oneInput, Value twoInput)
+{
+    auto one = Temporal::toTemporalDateTime(state, oneInput, Value());
+    auto two = Temporal::toTemporalDateTime(state, twoInput, Value());
+
+    auto isoDateTime1 = one->computeISODate(state);
+    auto isoDateTime2 = two->computeISODate(state);
+    auto ret = isoDateTime1.compare(isoDateTime2);
+    if (ret) {
+        return ret;
+    }
+
+    auto time1 = one->plainTime();
+    auto time2 = two->plainTime();
+
+    return time1.compare(time2);
+}
+
 } // namespace Escargot
 
 #endif
