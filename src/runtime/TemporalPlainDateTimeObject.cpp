@@ -375,6 +375,16 @@ bool TemporalPlainDateTimeObject::equals(ExecutionState& state, Value otherInput
     return calendarID() == other->calendarID();
 }
 
+TemporalPlainDateObject* TemporalPlainDateTimeObject::toPlainDate(ExecutionState& state)
+{
+    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), computeISODate(state), calendarID());
+}
+
+TemporalPlainTimeObject* TemporalPlainDateTimeObject::toPlainTime(ExecutionState& state)
+{
+    return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(), plainTime());
+}
+
 } // namespace Escargot
 
 #endif
