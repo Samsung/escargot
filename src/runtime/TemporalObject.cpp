@@ -2855,6 +2855,44 @@ ISO8601::InternalDuration Temporal::differenceISODateTime(ExecutionState& state,
     return ISO8601::InternalDuration(dateDifference, timeDuration);
 }
 
+static void incrementDay(ISO8601::Duration& duration)
+{
+    double year = duration.years();
+    double month = duration.months();
+    double day = duration.days();
+
+    double daysInMonth = ISO8601::daysInMonth(year, month);
+    if (day < daysInMonth) {
+        duration.setDays(day + 1);
+        return;
+    }
+
+    duration.setDays(1);
+    if (month < 12) {
+        duration.setMonths(month + 1);
+        return;
+    }
+
+    duration.setMonths(1);
+    duration.setYears(year + 1);
+}
+
+ISO8601::PlainDateTime Temporal::roundISODateTime(ExecutionState& state, ISO8601::PlainDateTime isoDateTime, unsigned increment, ISO8601::DateTimeUnit sunit, ISO8601::RoundingMode roundingMode)
+{
+    auto roundedResult = TemporalPlainTimeObject::roundTime(state, isoDateTime.plainTime(), increment, sunit, roundingMode);
+    auto plainTime = TemporalPlainTimeObject::toPlainTime(state, roundedResult);
+    double extraDays = roundedResult.days();
+    roundedResult.setYears(isoDateTime.plainDate().year());
+    roundedResult.setMonths(isoDateTime.plainDate().month());
+    roundedResult.setDays(isoDateTime.plainDate().day());
+    if (extraDays) {
+        ASSERT(extraDays == 1);
+        incrementDay(roundedResult);
+    }
+    auto plainDate = TemporalPlainDateObject::toPlainDate(state, roundedResult);
+    return ISO8601::PlainDateTime(plainDate, plainTime);
+}
+
 } // namespace Escargot
 
 #endif

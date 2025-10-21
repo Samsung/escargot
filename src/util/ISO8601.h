@@ -408,6 +408,11 @@ public:
             && m_microsecond == other.m_microsecond && m_nanosecond == other.m_nanosecond;
     }
 
+    bool operator!=(const PlainTime& other) const
+    {
+        return !operator==(other);
+    }
+
 private:
     uint8_t m_hour{ 0 };
     uint8_t m_minute{ 0 };
@@ -463,6 +468,11 @@ public:
     {
         return m_year == other.m_year && m_month == other.m_month
             && m_day == other.m_day;
+    }
+
+    bool operator!=(const PlainDate& other) const
+    {
+        return !operator==(other);
     }
 
     // https://tc39.es/proposal-temporal/#sec-temporal-compareisodate
