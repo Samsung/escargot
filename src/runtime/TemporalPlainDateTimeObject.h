@@ -137,6 +137,12 @@ public:
     };
     ISO8601::Duration differenceTemporalPlainDateTime(ExecutionState& state, DifferenceTemporalPlainDateTime operation, Value other, Value options);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.round
+    TemporalPlainDateTimeObject* round(ExecutionState& state, Value roundToInput);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.equals
+    bool equals(ExecutionState& state, Value otherInput);
+
 private:
     ISO8601::PlainDateTime* m_plainDateTime;
     Calendar m_calendarID;

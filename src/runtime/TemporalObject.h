@@ -407,6 +407,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-differenceisodatetime
     static ISO8601::InternalDuration differenceISODateTime(ExecutionState& state, ISO8601::PlainDateTime isoDateTime1, ISO8601::PlainDateTime isoDateTime2, Calendar calendar, ISO8601::DateTimeUnit largestUnit);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-roundisodatetime
+    static ISO8601::PlainDateTime roundISODateTime(ExecutionState& state, ISO8601::PlainDateTime isoDateTime, unsigned increment, ISO8601::DateTimeUnit sunit, ISO8601::RoundingMode roundingMode);
 };
 
 } // namespace Escargot

@@ -119,28 +119,6 @@ TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, 
                  nullptr);
 }
 
-static void incrementDay(ISO8601::Duration& duration)
-{
-    double year = duration.years();
-    double month = duration.months();
-    double day = duration.days();
-
-    double daysInMonth = ISO8601::daysInMonth(year, month);
-    if (day < daysInMonth) {
-        duration.setDays(day + 1);
-        return;
-    }
-
-    duration.setDays(1);
-    if (month < 12) {
-        duration.setMonths(month + 1);
-        return;
-    }
-
-    duration.setMonths(1);
-    duration.setYears(year + 1);
-}
-
 String* TemporalPlainDateTimeObject::toString(ExecutionState& state, Value options)
 {
     // Let resolvedOptions be ? GetOptionsObject(options).
@@ -163,23 +141,13 @@ String* TemporalPlainDateTimeObject::toString(ExecutionState& state, Value optio
     // Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
     auto precision = Temporal::toSecondsStringPrecisionRecord(state, toDateTimeUnit(smallestUnit), digits);
     // Let result be RoundISODateTime(plainDateTime.[[ISODateTime]], precision.[[Increment]], precision.[[Unit]], roundingMode).
+    auto result = Temporal::roundISODateTime(state, ISO8601::PlainDateTime(computeISODate(state), plainTime()), precision.increment, precision.unit, roundingMode);
     // If ISODateTimeWithinLimits(result) is false, throw a RangeError exception.
-    auto roundedResult = TemporalPlainTimeObject::roundTime(state, m_plainDateTime->plainTime(), precision.increment, precision.unit, roundingMode);
-    auto plainTime = TemporalPlainTimeObject::toPlainTime(state, roundedResult);
-    double extraDays = roundedResult.days();
-    roundedResult.setYears(m_plainDateTime->plainDate().year());
-    roundedResult.setMonths(m_plainDateTime->plainDate().month());
-    roundedResult.setDays(m_plainDateTime->plainDate().day());
-    if (extraDays) {
-        ASSERT(extraDays == 1);
-        incrementDay(roundedResult);
-    }
-    auto plainDate = TemporalPlainDateObject::toPlainDate(state, roundedResult);
     // Return ISODateTimeToString(result, plainDateTime.[[Calendar]], precision.[[Precision]], showCalendar).
     StringBuilder sb;
-    sb.appendString(TemporalPlainDateObject::temporalDateToString(plainDate, m_calendarID, showCalendar));
+    sb.appendString(TemporalPlainDateObject::temporalDateToString(result.plainDate(), m_calendarID, showCalendar));
     sb.appendChar('T');
-    sb.appendString(TemporalPlainTimeObject::temporalTimeToString(plainTime, precision.precision));
+    sb.appendString(TemporalPlainTimeObject::temporalTimeToString(result.plainTime(), precision.precision));
     return sb.finalize();
 }
 
@@ -325,6 +293,86 @@ ISO8601::Duration TemporalPlainDateTimeObject::differenceTemporalPlainDateTime(E
     }
     // Return result.
     return result;
+}
+
+TemporalPlainDateTimeObject* TemporalPlainDateTimeObject::round(ExecutionState& state, Value roundToInput)
+{
+    Optional<Object*> roundTo;
+
+    // If roundTo is undefined, then
+    if (roundToInput.isUndefined()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid roundTo value");
+    } else if (roundToInput.isString()) {
+        // If roundTo is a String, then
+        // Let paramString be roundTo.
+        // Set roundTo to OrdinaryObjectCreate(null).
+        // Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit", paramString).
+        roundTo = new Object(state, Object::PrototypeIsNull);
+        roundTo->directDefineOwnProperty(state, state.context()->staticStrings().lazySmallestUnit(),
+                                         ObjectPropertyDescriptor(roundToInput, ObjectPropertyDescriptor::AllPresent));
+    } else {
+        // Else,
+        // Set roundTo to ? GetOptionsObject(roundTo).
+        roundTo = Intl::getOptionsObject(state, roundToInput);
+    }
+
+    // NOTE: The following steps read options and perform independent validation in alphabetical order (GetRoundingIncrementOption reads "roundingIncrement" and GetRoundingModeOption reads "roundingMode").
+    // Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+    auto roundingIncrement = Temporal::getRoundingIncrementOption(state, roundTo);
+    // Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+    auto roundingMode = Temporal::getRoundingModeOption(state, roundTo, state.context()->staticStrings().lazyHalfExpand().string());
+    // Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", required).
+    auto smallestUnit = Temporal::getTemporalUnitValuedOption(state, roundTo,
+                                                              state.context()->staticStrings().lazySmallestUnit().string(), Value(Value::EmptyValue));
+    // Perform ? ValidateTemporalUnitValue(smallestUnit, time, « day »).
+    TemporalUnit extraValues[1] = { TemporalUnit::Day };
+    Temporal::validateTemporalUnitValue(state, smallestUnit, ISO8601::DateTimeUnitCategory::Time, extraValues, 1);
+
+    Optional<unsigned> maximum;
+    bool inclusive;
+    // If smallestUnit is day, then
+    if (smallestUnit == TemporalUnit::Day) {
+        // Let maximum be 1.
+        maximum = 1;
+        // Let inclusive be true.
+        inclusive = true;
+    } else {
+        // Else,
+        // Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
+        maximum = Temporal::maximumTemporalDurationRoundingIncrement(toDateTimeUnit(smallestUnit.value()));
+        // Assert: maximum is not unset.
+        // Let inclusive be false.
+        inclusive = false;
+    }
+
+    // Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, inclusive).
+    Temporal::validateTemporalRoundingIncrement(state, roundingIncrement, maximum.value(), inclusive);
+    // If smallestUnit is nanosecond and roundingIncrement = 1, then
+    if (smallestUnit == TemporalUnit::Nanosecond && roundingIncrement == 1) {
+        // Return ! CreateTemporalDateTime(plainDateTime.[[ISODateTime]], plainDateTime.[[Calendar]]).
+        return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(), computeISODate(state), plainTime(), calendarID());
+    }
+
+    // Let result be RoundISODateTime(plainDateTime.[[ISODateTime]], roundingIncrement, smallestUnit, roundingMode).
+    auto result = Temporal::roundISODateTime(state, ISO8601::PlainDateTime(computeISODate(state), plainTime()), roundingIncrement, toDateTimeUnit(smallestUnit).value(), roundingMode);
+    // Return ? CreateTemporalDateTime(result, plainDateTime.[[Calendar]]).
+    return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(), result.plainDate(), result.plainTime(), calendarID());
+}
+
+bool TemporalPlainDateTimeObject::equals(ExecutionState& state, Value otherInput)
+{
+    // Set other to ? ToTemporalDateTime(other).
+    auto other = Temporal::toTemporalDateTime(state, otherInput, Value());
+
+    // If CompareISODateTime(plainDateTime.[[ISODateTime]], other.[[ISODateTime]]) ≠ 0, return false.
+    auto isoDateTime1 = computeISODate(state);
+    auto isoDateTime2 = other->computeISODate(state);
+    if (isoDateTime1 != isoDateTime2 || plainTime() != other->plainTime()) {
+        return false;
+    }
+    // Return CalendarEquals(plainDateTime.[[Calendar]], other.[[Calendar]]).
+    return calendarID() == other->calendarID();
 }
 
 } // namespace Escargot
