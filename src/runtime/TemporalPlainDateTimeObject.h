@@ -143,6 +143,9 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.equals
     bool equals(ExecutionState& state, Value otherInput);
 
+    TemporalPlainDateObject* toPlainDate(ExecutionState& state);
+    TemporalPlainTimeObject* toPlainTime(ExecutionState& state);
+
 private:
     ISO8601::PlainDateTime* m_plainDateTime;
     Calendar m_calendarID;

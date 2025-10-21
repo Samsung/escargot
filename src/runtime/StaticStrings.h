@@ -1011,6 +1011,8 @@ namespace Escargot {
     F(TemporalDotPlainMonthDay, "Temporal.PlainMonthDay")   \
     F(TemporalDotPlainYearMonth, "Temporal.PlainYearMonth") \
     F(ToPlainDate, "toPlainDate")                           \
+    F(ToPlainDateTime, "toPlainDateTime")                   \
+    F(ToPlainTime, "toPlainTime")                           \
     F(TimeZoneId, "timeZoneId")                             \
     F(Until, "until")                                       \
     F(WeekOfYear, "weekOfYear")                             \
