@@ -1132,6 +1132,12 @@ public:
         ASSERT(isTemporalPlainDateTimeObject());
         return (TemporalPlainDateTimeObject*)this;
     }
+
+    TemporalZonedDateTimeObject* asTemporalZonedDateTimeObject()
+    {
+        ASSERT(isTemporalZonedDateTimeObject());
+        return (TemporalZonedDateTimeObject*)this;
+    }
 #endif
 
 #if defined(ENABLE_WASM)

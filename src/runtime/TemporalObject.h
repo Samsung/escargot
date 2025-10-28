@@ -226,10 +226,28 @@ enum class TemporalDisambiguationOption : uint8_t {
     Reject,
 };
 
+enum class TemporalShowOffsetOption : uint8_t {
+    Auto,
+    Never
+};
+
+enum class TemporalShowTimeZoneNameOption : uint8_t {
+    Auto,
+    Never,
+    Critical
+};
+
+enum class TemporalOffsetOption : uint8_t {
+    Prefer,
+    Use,
+    Ignore,
+    Reject,
+};
+
 class Temporal {
 public:
     static ISO8601::PlainDate computeISODate(ExecutionState& state, UCalendar* ucal);
-
+    static TimeZone parseTimeZone(ExecutionState& state, String* input);
     static void formatSecondsStringFraction(StringBuilder& builder, Int128 fraction, Value precision);
 
     // returns offset(milliseconds)
@@ -259,6 +277,9 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporalmonthday
     static TemporalPlainMonthDayObject* toTemporalMonthDay(ExecutionState& state, Value item, Value options);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-totemporalzoneddatetime
+    static TemporalZonedDateTimeObject* toTemporalZonedDateTime(ExecutionState& state, Value item, Value options);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-totimerecordormidnight
     static ISO8601::PlainTime toTimeRecordOrMidnight(ExecutionState& state, Value item);
 
@@ -271,6 +292,18 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalunitvaluedoption
     static Optional<TemporalUnit> getTemporalUnitValuedOption(ExecutionState& state, Optional<Object*> resolvedOptions, String* key, Optional<Value> defaultValue /* give DefaultValue to EmptyValue means Required = true*/);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowoffsetoption
+    static TemporalShowOffsetOption getTemporalShowOffsetOption(ExecutionState& state, Optional<Object*> resolvedOptions);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowtimezonenameoption
+    static TemporalShowTimeZoneNameOption getTemporalShowTimeZoneNameOption(ExecutionState& state, Optional<Object*> resolvedOptions);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-gettemporaldisambiguationoption
+    static TemporalDisambiguationOption getTemporalDisambiguationOption(ExecutionState& state, Optional<Object*> resolvedOptions);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-gettemporaloffsetoption
+    static TemporalOffsetOption getTemporalOffsetOption(ExecutionState& state, Optional<Object*> resolvedOptions, TemporalOffsetOption fallback);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-validatetemporalunitvaluedoption
     static void validateTemporalUnitValue(ExecutionState& state, Optional<TemporalUnit> value, ISO8601::DateTimeUnitCategory unitGroup, Optional<TemporalUnit*> extraValues, size_t extraValueSize);
@@ -388,6 +421,7 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-getepochnanosecondsfor
     static Int128 getEpochNanosecondsFor(ExecutionState& state, Optional<TimeZone> timeZone, ISO8601::PlainDateTime isoDateTime, TemporalDisambiguationOption disambiguation);
+    static Int128 getEpochNanosecondsFor(ExecutionState& state, Optional<TimeZone> timeZone, Int128 epochNanoValue, TemporalDisambiguationOption disambiguation);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-formatcalendarannotation
     static void formatCalendarAnnotation(StringBuilder& builder, Calendar calendar, TemporalShowCalendarNameOption showCalendar);
@@ -410,6 +444,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-roundisodatetime
     static ISO8601::PlainDateTime roundISODateTime(ExecutionState& state, ISO8601::PlainDateTime isoDateTime, unsigned increment, ISO8601::DateTimeUnit sunit, ISO8601::RoundingMode roundingMode);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-formatoffsettimezoneidentifier
+    static void formatOffsetTimeZoneIdentifier(ExecutionState& state, int offsetMinutes, StringBuilder& sb, bool isSeparated = true);
 };
 
 } // namespace Escargot

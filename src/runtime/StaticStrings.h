@@ -972,12 +972,16 @@ namespace Escargot {
     F(CapitalPlainMonthDay, "PlainMonthDay")                \
     F(CapitalPlainYearMonth, "PlainYearMonth")              \
     F(CapitalTemporal, "Temporal")                          \
+    F(CapitalZonedDateTime, "ZonedDateTime")                \
     F(Critical, "critical")                                 \
+    F(Compatible, "compatible")                             \
     F(DayOfWeek, "dayOfWeek")                               \
     F(DayOfYear, "dayOfYear")                               \
     F(DaysInMonth, "daysInMonth")                           \
     F(DaysInWeek, "daysInWeek")                             \
     F(DaysInYear, "daysInYear")                             \
+    F(Disambiguation, "disambiguation")                     \
+    F(Earlier, "earlier")                                   \
     F(EraYear, "eraYear")                                   \
     F(EpochMilliseconds, "epochMilliseconds")               \
     F(EpochNanoseconds, "epochNanoseconds")                 \
@@ -986,10 +990,12 @@ namespace Escargot {
     F(FromEpochNanoseconds, "fromEpochNanoseconds")         \
     F(GetEpochMilliseconds, "get epochMilliseconds")        \
     F(GetEpochNanoseconds, "get epochNanoseconds")          \
+    F(Ignore, "ignore")                                     \
     F(InLeapYear, "inLeapYear")                             \
     F(Instant, "instant")                                   \
     F(ISO8601, "iso8601")                                   \
     F(LargestUnit, "largestUnit")                           \
+    F(Later, "later")                                       \
     F(MonthCode, "monthCode")                               \
     F(MonthsInYear, "monthsInYear")                         \
     F(Negated, "negated")                                   \
@@ -999,6 +1005,7 @@ namespace Escargot {
     F(PlainDateISO, "plainDateISO")                         \
     F(PlainDateTimeISO, "plainDateTimeISO")                 \
     F(PlainTimeISO, "plainTimeISO")                         \
+    F(Prefer, "prefer")                                     \
     F(Since, "since")                                       \
     F(SmallestUnit, "smallestUnit")                         \
     F(Subtract, "subtract")                                 \
@@ -1010,9 +1017,11 @@ namespace Escargot {
     F(TemporalDotPlainTime, "Temporal.PlainTime")           \
     F(TemporalDotPlainMonthDay, "Temporal.PlainMonthDay")   \
     F(TemporalDotPlainYearMonth, "Temporal.PlainYearMonth") \
+    F(TemporalDotZonedDateTime, "Temporal.ZonedDateTime")   \
     F(ToPlainDate, "toPlainDate")                           \
     F(ToPlainDateTime, "toPlainDateTime")                   \
     F(ToPlainTime, "toPlainTime")                           \
+    F(ToZonedDateTime, "toZonedDateTime")                   \
     F(TimeZoneId, "timeZoneId")                             \
     F(Until, "until")                                       \
     F(WeekOfYear, "weekOfYear")                             \
