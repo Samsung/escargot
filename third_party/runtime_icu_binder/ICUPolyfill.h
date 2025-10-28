@@ -137,6 +137,7 @@
 #define ucal_setMillis RuntimeICUBinder::ICU::instance().ucal_setMillis
 #define ucal_setDate RuntimeICUBinder::ICU::instance().ucal_setDate
 #define ucal_setDateTime RuntimeICUBinder::ICU::instance().ucal_setDateTime
+#define ucal_setTimeZone RuntimeICUBinder::ICU::instance().ucal_setTimeZone
 #define ucal_clone RuntimeICUBinder::ICU::instance().ucal_clone
 
 #define udatpg_close RuntimeICUBinder::ICU::instance().udatpg_close

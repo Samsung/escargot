@@ -237,6 +237,7 @@ namespace RuntimeICUBinder {
     F(ucal_setMillis, void(CALLCONV*)(UCalendar * cal, UDate date, UErrorCode * status), void)                                                                              \
     F(ucal_setDate, void(CALLCONV*)(UCalendar *cal, int32_t, int32_t, int32_t, UErrorCode *), void)                                                                         \
     F(ucal_setDateTime, void(CALLCONV*)(UCalendar *cal, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, UErrorCode *), void)                                          \
+    F(ucal_setTimeZone, void(CALLCONV*)(UCalendar*, const UChar*, int32_t, UErrorCode*), void)                                                                              \
     F(udatpg_close, void(CALLCONV*)(UDateTimePatternGenerator * zone), void)                                                                                                \
     F(unum_close, void(CALLCONV*)(UNumberFormat*), void)                                                                                                                    \
     F(unum_setTextAttribute, void(CALLCONV*)(UNumberFormat * fmt, UNumberFormatTextAttribute tag, const UChar* newValue, int32_t newValueLength, UErrorCode* status), void) \

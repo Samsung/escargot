@@ -30,6 +30,7 @@
 #include "runtime/TemporalPlainDateTimeObject.h"
 #include "runtime/TemporalPlainMonthDayObject.h"
 #include "runtime/TemporalPlainYearMonthObject.h"
+#include "runtime/TemporalZonedDateTimeObject.h"
 #include "runtime/TemporalNowObject.h"
 #include "runtime/DateObject.h"
 #include "runtime/ArrayObject.h"
@@ -1026,6 +1027,78 @@ static Value builtinTemporalPlainMonthDayToPlainDate(ExecutionState& state, Valu
     return plainMonthDay->toPlainDate(state, argv[0]);
 }
 
+#define RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalZonedDateTimeObject()) {                                                                                                                                                                                            \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalZonedDateTime().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                                 \
+    TemporalZonedDateTimeObject* NAME = thisValue.asObject()->asTemporalZonedDateTimeObject();
+
+#define RESOLVE_THIS_BINDING_TO_ZONEDDATETIME2(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                         \
+    if (!thisValue.isObject() || !thisValue.asObject()->isTemporalZonedDateTimeObject()) {                                                                                                                                                                                    \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalZonedDateTime().string(), true, state.context()->staticStrings().BUILT_IN_METHOD.string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+    }                                                                                                                                                                                                                                                                         \
+    TemporalZonedDateTimeObject* NAME = thisValue.asObject()->asTemporalZonedDateTimeObject();
+
+static Value builtinTemporalZonedDateTimeConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // If NewTarget is undefined, throw a TypeError exception.
+    if (!newTarget.hasValue()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, ErrorObject::Messages::GlobalObject_ConstructorRequiresNew);
+    }
+
+    Object* proto = Object::getPrototypeFromConstructor(state, newTarget.value(), [](ExecutionState& state, Context* constructorRealm) -> Object* {
+        return constructorRealm->globalObject()->temporalPlainDateTimePrototype();
+    });
+    // Set epochNanoseconds to ? ToBigInt(epochNanoseconds).
+    auto epochNanoseconds = argv[0].toBigInt(state);
+    auto mayInt128 = epochNanoseconds->toInt128();
+    // If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
+    if (!mayInt128 || !ISO8601::isValidEpochNanoseconds(mayInt128.value())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid epoch value");
+    }
+
+    // If timeZone is not a String, throw a TypeError exception.
+    if (!argv[1].isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "timeZone should be String");
+    }
+    // Let timeZoneParse be ? ParseTimeZoneIdentifier(timeZone).
+    // If timeZoneParse.[[OffsetMinutes]] is empty, then
+    //   Let identifierRecord be GetAvailableNamedTimeZoneIdentifier(timeZoneParse.[[Name]]).
+    //   If identifierRecord is empty, throw a RangeError exception.
+    //   Set timeZone to identifierRecord.[[Identifier]].
+    // Else,
+    //   Set timeZone to FormatOffsetTimeZoneIdentifier(timeZoneParse.[[OffsetMinutes]]).
+    auto timeZone = Temporal::parseTimeZone(state, argv[1].asString());
+
+    // If calendar is undefined, set calendar to "iso8601".
+    Value calendar = argc > 2 ? argv[2] : Value();
+    if (argc < 3 || argv[2].isUndefined()) {
+        calendar = state.context()->staticStrings().lazyISO8601().string();
+    }
+    // If calendar is not a String, throw a TypeError exception.
+    if (!calendar.isString()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "calendar must be String");
+    }
+    // Set calendar to ? CanonicalizeCalendar(calendar).
+    auto mayCalendar = Calendar::fromString(calendar.asString());
+    if (!mayCalendar) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid calendar");
+    }
+    // Return ? CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar, NewTarget).
+    return new TemporalZonedDateTimeObject(state, proto, mayInt128.value(), timeZone, mayCalendar.value());
+}
+
+static Value builtinTemporalZonedDateTimeFrom(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return Temporal::toTemporalZonedDateTime(state, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalZonedDateTimeToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME2(zonedDateTime, toString);
+    return zonedDateTime->toString(state, argc ? argv[0] : Value());
+}
+
 void GlobalObject::initializeTemporal(ExecutionState& state)
 {
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(
@@ -1548,6 +1621,17 @@ void GlobalObject::installTemporal(ExecutionState& state)
         m_temporalPlainMonthDayPrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazyDay()), desc);
     }
 
+    // Temporal.ZonedDateTime
+    m_temporalZonedDateTime = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalPlainMonthDay(), builtinTemporalZonedDateTimeConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_temporalZonedDateTime->setGlobalIntrinsicObject(state);
+
+    m_temporalZonedDateTime->directDefineOwnProperty(state, ObjectPropertyName(strings->from), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalZonedDateTimeFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype = m_temporalZonedDateTime->getFunctionPrototype(state).asObject();
+
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
+                                                              ObjectPropertyDescriptor(Value(strings->lazyTemporalDotZonedDateTime().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinTemporalZonedDateTimeToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
     m_temporal = new Object(state);
     m_temporal->setGlobalIntrinsicObject(state);
 
@@ -1577,6 +1661,9 @@ void GlobalObject::installTemporal(ExecutionState& state)
 
     m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalPlainMonthDay()),
                                         ObjectPropertyDescriptor(m_temporalPlainMonthDay, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporal->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalZonedDateTime()),
+                                        ObjectPropertyDescriptor(m_temporalZonedDateTime, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     redefineOwnProperty(state, ObjectPropertyName(strings->lazyCapitalTemporal()),
                         ObjectPropertyDescriptor(m_temporal, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
