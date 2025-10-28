@@ -155,21 +155,7 @@ String* TemporalInstantObject::toString(ExecutionState& state, Int128 epochNanos
             quotient += (offsetNanoseconds > 0 ? 1 : -1);
         }
         int32_t offsetMinutes = int32_t(quotient);
-        // FormatOffsetTimeZoneIdentifier
-        char sign = offsetMinutes >= 0 ? '+' : '-';
-        int32_t absoluteMinutes = std::abs(offsetMinutes);
-        int32_t hours = absoluteMinutes / 60;
-        int32_t minutes = absoluteMinutes % 60;
-        builder.appendChar(sign);
-        {
-            auto s = pad('0', 2, std::to_string(hours));
-            builder.appendString(String::fromASCII(s.data(), s.length()));
-        }
-        builder.appendChar(':');
-        {
-            auto s = pad('0', 2, std::to_string(minutes));
-            builder.appendString(String::fromASCII(s.data(), s.length()));
-        }
+        Temporal::formatOffsetTimeZoneIdentifier(state, offsetMinutes, builder);
     }
 
     return builder.finalize();

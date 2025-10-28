@@ -55,6 +55,7 @@
 #include "runtime/TemporalPlainDateTimeObject.h"
 #include "runtime/TemporalPlainMonthDayObject.h"
 #include "runtime/TemporalPlainYearMonthObject.h"
+#include "runtime/TemporalZonedDateTimeObject.h"
 #include "intl/Intl.h"
 
 namespace Escargot {
@@ -816,6 +817,12 @@ TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state,
                                            plainDate, mayID.value());
 }
 
+TemporalZonedDateTimeObject* Temporal::toTemporalZonedDateTime(ExecutionState& state, Value item, Value options)
+{
+    RELEASE_ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
 ISO8601::PlainTime Temporal::toTimeRecordOrMidnight(ExecutionState& state, Value item)
 {
     // If item is undefined, return MidnightTimeRecord().
@@ -979,6 +986,115 @@ Optional<TemporalUnit> Temporal::getTemporalUnitValuedOption(ExecutionState& sta
     return TemporalUnit::Auto;
 }
 
+TemporalShowOffsetOption Temporal::getTemporalShowOffsetOption(ExecutionState& state, Optional<Object*> options)
+{
+    if (!options) {
+        return TemporalShowOffsetOption::Auto;
+    }
+    Value values[2] = { state.context()->staticStrings().lazyAuto().string(), state.context()->staticStrings().lazyNever().string() };
+    // Let stringValue be ? GetOption(options, "offset", string, « "auto", "never" », "auto").
+    auto stringValue = Intl::getOption(state, options.value(), state.context()->staticStrings().lazyOffset().string(), Intl::StringValue,
+                                       values, 2, state.context()->staticStrings().lazyAuto().string())
+                           .asString();
+    // If stringValue is "never", return never.
+    if (stringValue->equals("never")) {
+        return TemporalShowOffsetOption::Never;
+    }
+
+    // Return auto.
+    return TemporalShowOffsetOption::Auto;
+}
+
+TemporalShowTimeZoneNameOption Temporal::getTemporalShowTimeZoneNameOption(ExecutionState& state, Optional<Object*> options)
+{
+    if (!options) {
+        return TemporalShowTimeZoneNameOption::Auto;
+    }
+    Value values[3] = { state.context()->staticStrings().lazyAuto().string(), state.context()->staticStrings().lazyNever().string(),
+                        state.context()->staticStrings().lazyCritical().string() };
+    // Let stringValue be ? GetOption(options, "timeZoneName", string, « "auto", "never", "critical" », "auto").
+    auto stringValue = Intl::getOption(state, options.value(), state.context()->staticStrings().lazyTimeZoneName().string(), Intl::StringValue,
+                                       values, 3, state.context()->staticStrings().lazyAuto().string())
+                           .asString();
+    // If stringValue is "never", return never.
+    if (stringValue->equals("never")) {
+        return TemporalShowTimeZoneNameOption::Never;
+    }
+    // If stringValue is "critical", return critical.
+    if (stringValue->equals("critical")) {
+        return TemporalShowTimeZoneNameOption::Critical;
+    }
+    // Return auto.
+    return TemporalShowTimeZoneNameOption::Auto;
+}
+
+TemporalDisambiguationOption Temporal::getTemporalDisambiguationOption(ExecutionState& state, Optional<Object*> options)
+{
+    if (!options) {
+        return TemporalDisambiguationOption::Compatible;
+    }
+    // Let stringValue be ? GetOption(options, "disambiguation", string, « "compatible", "earlier", "later", "reject" », "compatible").
+    Value values[4] = { state.context()->staticStrings().lazyCompatible().string(), state.context()->staticStrings().lazyEarlier().string(),
+                        state.context()->staticStrings().lazyLater().string(), state.context()->staticStrings().reject.string() };
+    auto stringValue = Intl::getOption(state, options.value(), state.context()->staticStrings().lazyDisambiguation().string(), Intl::StringValue,
+                                       values, 4, state.context()->staticStrings().lazyCompatible().string())
+                           .asString();
+    // If stringValue is "compatible", return compatible.
+    if (stringValue->equals("compatible")) {
+        return TemporalDisambiguationOption::Compatible;
+    }
+    // If stringValue is "earlier", return earlier.
+    if (stringValue->equals("earlier")) {
+        return TemporalDisambiguationOption::Earlier;
+    }
+    // If stringValue is "later", return later.
+    if (stringValue->equals("later")) {
+        return TemporalDisambiguationOption::Later;
+    }
+    // Return reject.
+    return TemporalDisambiguationOption::Reject;
+}
+
+TemporalOffsetOption Temporal::getTemporalOffsetOption(ExecutionState& state, Optional<Object*> options, TemporalOffsetOption fallback)
+{
+    if (!options) {
+        return fallback;
+    }
+    // If fallback is prefer, let stringFallback be "prefer".
+    // Else if fallback is use, let stringFallback be "use".
+    // Else if fallback is ignore, let stringFallback be "ignore".
+    // Else, let stringFallback be "reject".
+    String* stringFallback = state.context()->staticStrings().reject.string();
+    if (fallback == TemporalOffsetOption::Prefer) {
+        stringFallback = state.context()->staticStrings().lazyPrefer().string();
+    } else if (fallback == TemporalOffsetOption::Use) {
+        stringFallback = state.context()->staticStrings().use.string();
+    } else if (fallback == TemporalOffsetOption::Ignore) {
+        stringFallback = state.context()->staticStrings().lazyIgnore().string();
+    }
+
+    // Let stringValue be ? GetOption(options, "offset", string, « "prefer", "use", "ignore", "reject" », stringFallback).
+    Value values[4] = { state.context()->staticStrings().lazyPrefer().string(), state.context()->staticStrings().use.string(),
+                        state.context()->staticStrings().lazyIgnore().string(), state.context()->staticStrings().reject.string() };
+    auto stringValue = Intl::getOption(state, options.value(), state.context()->staticStrings().lazyDisambiguation().string(), Intl::StringValue,
+                                       values, 4, stringFallback)
+                           .asString();
+    // If stringValue is "prefer", return prefer.
+    if (stringValue->equals("prefer")) {
+        return TemporalOffsetOption::Prefer;
+    }
+    // If stringValue is "use", return use.
+    if (stringValue->equals("use")) {
+        return TemporalOffsetOption::Use;
+    }
+    // If stringValue is "ignore", return ignore.
+    if (stringValue->equals("ignore")) {
+        return TemporalOffsetOption::Ignore;
+    }
+    // Return reject.
+    return TemporalOffsetOption::Reject;
+}
+
 void Temporal::validateTemporalUnitValue(ExecutionState& state, Optional<TemporalUnit> value, ISO8601::DateTimeUnitCategory unitGroup, Optional<TemporalUnit*> extraValues, size_t extraValueSize)
 {
     // If value is unset, return unused.
@@ -1021,6 +1137,38 @@ void Temporal::validateTemporalUnitValue(ExecutionState& state, Optional<Tempora
     ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
 }
 
+TimeZone Temporal::parseTimeZone(ExecutionState& state, String* input)
+{
+    ISO8601::DateTimeParseOption option;
+    option.parseSubMinutePrecisionForTimeZone = false;
+    Optional<int64_t> utcOffset = ISO8601::parseUTCOffset(input, option);
+    if (utcOffset) {
+        return TimeZone(utcOffset.value());
+    }
+
+    Optional<ISO8601::TimeZoneID> identifier = ISO8601::parseTimeZoneName(input);
+    if (identifier) {
+        return TimeZone(identifier.value());
+    }
+
+    auto complexTimeZone = ISO8601::parseCalendarDateTime(input, option);
+    if (complexTimeZone && std::get<2>(complexTimeZone.value())) {
+        ISO8601::TimeZoneRecord record = std::get<2>(complexTimeZone.value()).value();
+        if (record.m_z) {
+            return TimeZone(int64_t(0));
+        } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 0) {
+            return TimeZone(record.m_nameOrOffset.get<0>());
+        } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 1) {
+            return TimeZone(record.m_nameOrOffset.get<1>());
+        } else if (record.m_offset) {
+            return TimeZone(record.m_offset.value());
+        }
+    }
+
+    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid timeZone string");
+    return TimeZone(String::emptyString());
+}
+
 TimeZone Temporal::toTemporalTimezoneIdentifier(ExecutionState& state, const Value& temporalTimeZoneLike)
 {
     // TODO If temporalTimeZoneLike is an Object, then
@@ -1040,34 +1188,7 @@ TimeZone Temporal::toTemporalTimezoneIdentifier(ExecutionState& state, const Val
     // Let timeZoneIdentifierRecord be GetAvailableNamedTimeZoneIdentifier(name).
     // If timeZoneIdentifierRecord is empty, throw a RangeError exception.
     // Return timeZoneIdentifierRecord.[[Identifier]].
-    ISO8601::DateTimeParseOption option;
-    option.parseSubMinutePrecisionForTimeZone = false;
-    Optional<int64_t> utcOffset = ISO8601::parseUTCOffset(temporalTimeZoneLikeString, option);
-    if (utcOffset) {
-        return TimeZone(utcOffset.value());
-    }
-
-    Optional<ISO8601::TimeZoneID> identifier = ISO8601::parseTimeZoneName(temporalTimeZoneLikeString);
-    if (identifier) {
-        return TimeZone(identifier.value());
-    }
-
-    auto complexTimeZone = ISO8601::parseCalendarDateTime(temporalTimeZoneLikeString, option);
-    if (complexTimeZone && std::get<2>(complexTimeZone.value())) {
-        ISO8601::TimeZoneRecord record = std::get<2>(complexTimeZone.value()).value();
-        if (record.m_z) {
-            return TimeZone(int64_t(0));
-        } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 0) {
-            return TimeZone(record.m_nameOrOffset.get<0>());
-        } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 1) {
-            return TimeZone(record.m_nameOrOffset.get<1>());
-        } else if (record.m_offset) {
-            return TimeZone(record.m_offset.value());
-        }
-    }
-
-    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid timeZone string");
-    return TimeZone(String::emptyString());
+    return parseTimeZone(state, temporalTimeZoneLikeString);
 }
 
 Temporal::StringPrecisionRecord Temporal::toSecondsStringPrecisionRecord(ExecutionState& state, Optional<ISO8601::DateTimeUnit> smallestUnit, Optional<unsigned> fractionalDigitCount)
@@ -1519,12 +1640,19 @@ Int128 Temporal::timeDurationFromComponents(double hours, double minutes, double
 
 Calendar Temporal::getTemporalCalendarIdentifierWithISODefault(ExecutionState& state, Value item)
 {
-    // TODO [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]]
     // If item has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]] internal slot, then
     //   Return item.[[Calendar]].
     if (item.isObject()) {
         if (item.asObject()->isTemporalPlainDateObject()) {
             return item.asObject()->asTemporalPlainDateObject()->calendarID();
+        } else if (item.asObject()->isTemporalPlainMonthDayObject()) {
+            return item.asObject()->asTemporalPlainMonthDayObject()->calendarID();
+        } else if (item.asObject()->isTemporalPlainYearMonthObject()) {
+            return item.asObject()->asTemporalPlainYearMonthObject()->calendarID();
+        } else if (item.asObject()->isTemporalPlainDateTimeObject()) {
+            return item.asObject()->asTemporalPlainDateTimeObject()->calendarID();
+        } else if (item.asObject()->isTemporalZonedDateTimeObject()) {
+            return item.asObject()->asTemporalZonedDateTimeObject()->calendarID();
         }
     }
 
@@ -2485,6 +2613,11 @@ Int128 Temporal::getEpochNanosecondsFor(ExecutionState& state, Optional<TimeZone
     const auto& date = isoDateTime.plainDate();
     const auto& time = isoDateTime.plainTime();
     auto epochNanoValue = ISO8601::ExactTime::fromISOPartsAndOffset(date.year(), date.month(), date.day(), time.hour(), time.minute(), time.second(), time.millisecond(), time.microsecond(), time.nanosecond(), 0).epochNanoseconds();
+    return getEpochNanosecondsFor(state, timeZone, epochNanoValue, disambiguation);
+}
+
+Int128 Temporal::getEpochNanosecondsFor(ExecutionState& state, Optional<TimeZone> timeZone, Int128 epochNanoValue, TemporalDisambiguationOption disambiguation)
+{
     if (!timeZone) {
         return epochNanoValue;
     }
@@ -2495,7 +2628,7 @@ Int128 Temporal::getEpochNanosecondsFor(ExecutionState& state, Optional<TimeZone
     }
     // TODO https://tc39.es/proposal-temporal/#sec-temporal-disambiguatepossibleepochnanoseconds
     auto offset = computeTimeZoneOffset(state, timeZone.value().timeZoneName(), ISO8601::ExactTime(epochNanoValue).epochMilliseconds());
-    return epochNanoValue + offset;
+    return epochNanoValue + Int128(offset) * 1000000;
 }
 
 // https://tc39.es/proposal-temporal/#sec-applyunsignedroundingmode
@@ -2891,6 +3024,26 @@ ISO8601::PlainDateTime Temporal::roundISODateTime(ExecutionState& state, ISO8601
     }
     auto plainDate = TemporalPlainDateObject::toPlainDate(state, roundedResult);
     return ISO8601::PlainDateTime(plainDate, plainTime);
+}
+
+void Temporal::formatOffsetTimeZoneIdentifier(ExecutionState& state, int offsetMinutes, StringBuilder& builder, bool isSeparated)
+{
+    char sign = offsetMinutes >= 0 ? '+' : '-';
+    int32_t absoluteMinutes = std::abs(offsetMinutes);
+    int32_t hours = absoluteMinutes / 60;
+    int32_t minutes = absoluteMinutes % 60;
+    builder.appendChar(sign);
+    {
+        auto s = pad('0', 2, std::to_string(hours));
+        builder.appendString(String::fromASCII(s.data(), s.length()));
+    }
+    if (isSeparated) {
+        builder.appendChar(':');
+    }
+    {
+        auto s = pad('0', 2, std::to_string(minutes));
+        builder.appendString(String::fromASCII(s.data(), s.length()));
+    }
 }
 
 } // namespace Escargot
