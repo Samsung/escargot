@@ -22,6 +22,7 @@
 #define __EscargotTemporalZonedDateTimeObject__
 
 #include "runtime/TemporalObject.h"
+#include "runtime/TemporalPlainDateObject.h"
 #include "util/ISO8601.h"
 
 namespace Escargot {
@@ -30,23 +31,45 @@ class TemporalZonedDateTimeObject : public DerivedObject {
 public:
     class ComputedTimeZone {
     public:
-        ComputedTimeZone(String* timeZoneName = String::emptyString(), int64_t offset = 0)
-            : m_timeZoneName(timeZoneName)
+        ComputedTimeZone(bool hasOffsetTimeZoneName = false, String* timeZoneName = String::emptyString(), int64_t offset = 0)
+            : m_hasOffsetTimeZoneName(hasOffsetTimeZoneName)
+            , m_timeZoneName(timeZoneName)
             , m_offset(offset)
         {
         }
 
-        String* timeZoneName()
+        bool hasOffsetTimeZoneName() const
         {
+            return m_hasOffsetTimeZoneName;
+        }
+
+        String* timeZoneName() const
+        {
+            ASSERT(m_timeZoneName->length());
             return m_timeZoneName;
         }
 
-        int64_t offset()
+        int64_t offset() const
         {
             return m_offset;
         }
 
+        bool equals(const ComputedTimeZone& src) const
+        {
+            return m_timeZoneName->equals(src.timeZoneName()) && offset() == src.offset();
+        }
+
+        operator TimeZone() const
+        {
+            if (hasOffsetTimeZoneName()) {
+                return TimeZone(offset());
+            } else {
+                return TimeZone(m_timeZoneName);
+            }
+        }
+
     private:
+        bool m_hasOffsetTimeZoneName;
         String* m_timeZoneName;
         int64_t m_offset;
     };
@@ -89,8 +112,63 @@ public:
         return m_timeZone;
     }
 
-    // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tostring
+    Value era(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::era(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value eraYear(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::eraYear(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value dayOfWeek(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::dayOfWeek(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value dayOfYear(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::dayOfYear(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value weekOfYear(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::weekOfYear(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value yearOfWeek(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::yearOfWeek(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value daysInWeek(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::daysInWeek(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value daysInMonth(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::daysInMonth(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value daysInYear(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::daysInYear(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value monthsInYear(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::monthsInYear(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value inLeapYear(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::inLeapYear(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+    Value monthCode(ExecutionState& state)
+    {
+        return TemporalPlainDateGetter::monthCode(state, plainDate(), calendarID(), m_icuCalendar);
+    }
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tostring
     String* toString(ExecutionState& state, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.equals
+    bool equals(ExecutionState& state, Value otherInput);
+
+    // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hoursinday
+    int hoursInDay(ExecutionState& state);
 
 private:
     void init(ExecutionState& state, ComputedTimeZone timeZone);

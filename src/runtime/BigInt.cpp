@@ -72,6 +72,17 @@ BigIntData::BigIntData(const uint64_t& d)
     bf_set_ui(&m_data, d);
 }
 
+BigIntData::BigIntData(const Int128& d)
+{
+    if (d < std::numeric_limits<Int128>::max() && d > std::numeric_limits<Int128>::min()) {
+        bf_init(ThreadLocal::bfContext(), &m_data);
+        bf_set_si(&m_data, int64_t(d));
+    } else {
+        auto s = std::to_string(d);
+        init(s.data(), s.length(), 10);
+    }
+}
+
 BigIntData::BigIntData(String* src, int radix)
 {
     const auto& bd = src->bufferAccessData();

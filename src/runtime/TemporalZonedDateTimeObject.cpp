@@ -33,6 +33,31 @@ namespace Escargot {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
     }
 
+// https://tc39.es/proposal-temporal/#sec-temporal-timezoneequals
+static bool timeZoneEquals(const TemporalZonedDateTimeObject::ComputedTimeZone& one, const TemporalZonedDateTimeObject::ComputedTimeZone& two)
+{
+    // If one is two, return true.
+    if (one.equals(two)) {
+        return true;
+    }
+    // Let offsetMinutesOne be ! ParseTimeZoneIdentifier(one).[[OffsetMinutes]].
+    // Let offsetMinutesTwo be ! ParseTimeZoneIdentifier(two).[[OffsetMinutes]].
+    // If offsetMinutesOne is empty and offsetMinutesTwo is empty, then
+    if (!one.hasOffsetTimeZoneName() && !two.hasOffsetTimeZoneName()) {
+        // Let recordOne be GetAvailableNamedTimeZoneIdentifier(one).
+        // Let recordTwo be GetAvailableNamedTimeZoneIdentifier(two).
+        // If recordOne is not empty and recordTwo is not empty and recordOne.[[PrimaryIdentifier]] is recordTwo.[[PrimaryIdentifier]], return true.
+        return one.timeZoneName()->equals(two.timeZoneName());
+    } else {
+        // Else,
+        // If offsetMinutesOne is not empty and offsetMinutesTwo is not empty and offsetMinutesOne = offsetMinutesTwo, return true.
+        if (one.hasOffsetTimeZoneName() && two.hasOffsetTimeZoneName()) {
+            return one.offset() == two.offset();
+        }
+    }
+    return false;
+}
+
 void TemporalZonedDateTimeObject::init(ExecutionState& state, ComputedTimeZone timeZone)
 {
     m_timeZone = timeZone;
@@ -44,7 +69,7 @@ void TemporalZonedDateTimeObject::init(ExecutionState& state, ComputedTimeZone t
     *m_plainDateTime = ISO8601::PlainDateTime(ISO8601::PlainDate(timeInfo.year, timeInfo.month + 1, timeInfo.mday),
                                               ISO8601::PlainTime(d.hours(), d.minutes(), d.seconds(), d.milliseconds(), d.microseconds(), d.nanoseconds()));
 
-    if (!ISO8601::isoDateTimeWithinLimits(*m_epochNanoseconds)) {
+    if (!ISO8601::isValidEpochNanoseconds(*m_epochNanoseconds)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
     }
 
@@ -76,11 +101,11 @@ TemporalZonedDateTimeObject::TemporalZonedDateTimeObject(ExecutionState& state, 
     ComputedTimeZone computedTimeZone;
     if (timeZone.hasTimeZoneName()) {
         Int128 timezoneAppliedEpoch = Temporal::getEpochNanosecondsFor(state, timeZone, epochNanoseconds, TemporalDisambiguationOption::Compatible);
-        computedTimeZone = ComputedTimeZone(timeZone.timeZoneName(), int64_t(timezoneAppliedEpoch - epochNanoseconds));
+        computedTimeZone = ComputedTimeZone(false, timeZone.timeZoneName(), int64_t(epochNanoseconds - timezoneAppliedEpoch));
     } else {
         StringBuilder tz;
         Temporal::formatOffsetTimeZoneIdentifier(state, int(timeZone.offset() / ISO8601::ExactTime::nsPerMinute), tz);
-        computedTimeZone = ComputedTimeZone(tz.finalize(), timeZone.offset());
+        computedTimeZone = ComputedTimeZone(true, tz.finalize(), timeZone.offset());
     }
 
     init(state, computedTimeZone);
@@ -138,11 +163,11 @@ String* TemporalZonedDateTimeObject::toString(ExecutionState& state, Value optio
 
     if (showTimeZone != TemporalShowTimeZoneNameOption::Never) {
         // If showTimeZone is critical, let flag be "!"; else let flag be the empty String.
+        // Let timeZoneString be the string-concatenation of the code unit 0x005B (LEFT SQUARE BRACKET), flag, timeZone, and the code unit 0x005D (RIGHT SQUARE BRACKET).
+        sb.appendChar('[');
         if (showTimeZone == TemporalShowTimeZoneNameOption::Critical) {
             sb.appendChar('!');
         }
-        // Let timeZoneString be the string-concatenation of the code unit 0x005B (LEFT SQUARE BRACKET), flag, timeZone, and the code unit 0x005D (RIGHT SQUARE BRACKET).
-        sb.appendChar('[');
         sb.appendString(m_timeZone.timeZoneName());
         sb.appendChar(']');
     }
@@ -150,6 +175,43 @@ String* TemporalZonedDateTimeObject::toString(ExecutionState& state, Value optio
     Temporal::formatCalendarAnnotation(sb, calendarID(), showCalendar);
 
     return sb.finalize();
+}
+
+bool TemporalZonedDateTimeObject::equals(ExecutionState& state, Value otherInput)
+{
+    // Let zonedDateTime be the this value.
+    // Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    // Set other to ? ToTemporalZonedDateTime(other).
+    auto other = Temporal::toTemporalZonedDateTime(state, otherInput, Value());
+    // If zonedDateTime.[[EpochNanoseconds]] ≠ other.[[EpochNanoseconds]], return false.
+    if (epochNanoseconds() != other->epochNanoseconds()) {
+        return false;
+    }
+    // If TimeZoneEquals(zonedDateTime.[[TimeZone]], other.[[TimeZone]]) is false, return false.
+    if (!timeZoneEquals(timeZone(), other->timeZone())) {
+        return false;
+    }
+    // Return CalendarEquals(zonedDateTime.[[Calendar]], other.[[Calendar]]).
+    return calendarID() == other->calendarID();
+}
+
+int TemporalZonedDateTimeObject::hoursInDay(ExecutionState& state)
+{
+    // Let timeZone be zonedDateTime.[[TimeZone]].
+    TimeZone timeZone = this->timeZone();
+    // Let isoDateTime be GetISODateTimeFor(timeZone, zonedDateTime.[[EpochNanoseconds]]).
+    auto isoDateTime = Temporal::getISODateTimeFor(state, timeZone, *m_epochNanoseconds);
+    // Let today be isoDateTime.[[ISODate]].
+    auto today = isoDateTime.plainDate();
+    // Let tomorrow be BalanceISODate(today.[[Year]], today.[[Month]], today.[[Day]] + 1).
+    auto tomorrow = Temporal::balanceISODate(state, today.year(), today.month(), today.day() + 1);
+    // Let todayNs be ? GetStartOfDay(timeZone, today).
+    auto todayNs = Temporal::getStartOfDay(state, timeZone, today);
+    // Let tomorrowNs be ? GetStartOfDay(timeZone, tomorrow).
+    auto tomorrowNs = Temporal::getStartOfDay(state, timeZone, tomorrow);
+    // Let diff be TimeDurationFromEpochNanosecondsDifference(tomorrowNs, todayNs).
+    // Return 𝔽(TotalTimeDuration(diff, hour)).
+    return (int32_t)((tomorrowNs - todayNs) / ISO8601::ExactTime::nsPerHour);
 }
 
 } // namespace Escargot

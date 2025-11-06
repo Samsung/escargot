@@ -339,11 +339,15 @@ TemporalInstantObject* Temporal::toTemporalInstant(ExecutionState& state, Value 
     // If item is an Object, then
     if (item.isObject()) {
         // If item has an [[InitializedTemporalInstant]] or [[InitializedTemporalZonedDateTime]] internal slot, then
-        // TODO [[InitializedTemporalZonedDateTime]]
         if (item.asObject()->isTemporalInstantObject()) {
             // Return ! CreateTemporalInstant(item.[[EpochNanoseconds]]).
             return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(),
                                              item.asObject()->asTemporalInstantObject()->epochNanoseconds());
+        }
+        if (item.asObject()->isTemporalZonedDateTimeObject()) {
+            // Return ! CreateTemporalInstant(item.[[EpochNanoseconds]]).
+            return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(),
+                                             item.asObject()->asTemporalZonedDateTimeObject()->epochNanoseconds());
         }
         // NOTE: This use of ToPrimitive allows Instant-like objects to be converted.
         // Set item to ? ToPrimitive(item, string).
@@ -388,8 +392,28 @@ TemporalPlainTimeObject* Temporal::toTemporalTime(ExecutionState& state, Value i
             return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(),
                                                item.asObject()->asTemporalPlainTimeObject()->plainTime());
         }
-        // TODO If item has an [[InitializedTemporalZonedDateTime]] internal slot, then...
-        // TODO If item has an [[InitializedTemporalDateTime]] internal slot, then...
+        // If item has an [[InitializedTemporalDateTime]] internal slot, then
+        if (item.asObject()->isTemporalPlainDateTimeObject()) {
+            // Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolvedOptions = Intl::getOptionsObject(state, options);
+            // Perform ? GetTemporalOverflowOption(resolvedOptions).
+            Temporal::getTemporalOverflowOption(state, resolvedOptions);
+            // Return ! CreateTemporalTime(item.[[ISODateTime]].[[Time]]).
+            return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(),
+                                               item.asObject()->asTemporalPlainDateTimeObject()->plainTime());
+        }
+        // If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
+        if (item.asObject()->isTemporalZonedDateTimeObject()) {
+            // Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
+            auto isoDateTime = getISODateTimeFor(state, item.asObject()->asTemporalZonedDateTimeObject()->timeZone().operator Escargot::TimeZone(), item.asObject()->asTemporalZonedDateTimeObject()->epochNanoseconds());
+            // Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolvedOptions = Intl::getOptionsObject(state, options);
+            // Perform ? GetTemporalOverflowOption(resolvedOptions).
+            Temporal::getTemporalOverflowOption(state, resolvedOptions);
+            // Return ! CreateTemporalTime(isoDateTime.[[Time]]).
+            return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(),
+                                               isoDateTime.plainTime());
+        }
         // Let result be ? ToTemporalTimeRecord(item).
         auto resultRecord = TemporalPlainTimeObject::toTemporalTimeRecord(state, item, NullOption);
         // Let resolvedOptions be ? GetOptionsObject(options).
@@ -445,8 +469,29 @@ TemporalPlainDateObject* Temporal::toTemporalDate(ExecutionState& state, Value i
             return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
                                                item.asObject()->asTemporalPlainDateObject()->plainDate(), item.asObject()->asTemporalPlainDateObject()->calendarID());
         }
-        // TODO If item has an [[InitializedTemporalZonedDateTime]] internal slot, then...
-        // TODO If item has an [[InitializedTemporalDateTime]] internal slot, then...
+        // If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
+        if (item.asObject()->isTemporalZonedDateTimeObject()) {
+            // Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
+            auto isoDateTime = getISODateTimeFor(state, item.asObject()->asTemporalZonedDateTimeObject()->timeZone().operator Escargot::TimeZone(), item.asObject()->asTemporalZonedDateTimeObject()->epochNanoseconds());
+            // Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolvedOptions = Intl::getOptionsObject(state, options);
+            // Perform ? GetTemporalOverflowOption(resolvedOptions).
+            Temporal::getTemporalOverflowOption(state, resolvedOptions);
+            // Return ! CreateTemporalDate(isoDateTime.[[ISODate]], item.[[Calendar]]).
+            return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
+                                               isoDateTime.plainDate(), item.asObject()->asTemporalZonedDateTimeObject()->calendarID());
+        }
+        // If item has an [[InitializedTemporalDateTime]] internal slot, then
+        if (item.asObject()->isTemporalPlainDateTimeObject()) {
+            // Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolvedOptions = Intl::getOptionsObject(state, options);
+            // Perform ? GetTemporalOverflowOption(resolvedOptions).
+            Temporal::getTemporalOverflowOption(state, resolvedOptions);
+            // Return ! CreateTemporalDate(isoDateTime.[[ISODate]], item.[[Calendar]]).
+            auto isoDate = item.asObject()->asTemporalPlainDateTimeObject()->computeISODate(state);
+            return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
+                                               isoDate, item.asObject()->asTemporalPlainDateTimeObject()->calendarID());
+        }
 
         // Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).
         auto calendar = Temporal::getTemporalCalendarIdentifierWithISODefault(state, item);
@@ -523,12 +568,17 @@ TemporalPlainDateTimeObject* Temporal::toTemporalDateTime(ExecutionState& state,
                                                    item.asObject()->asTemporalPlainDateTimeObject()->plainTime(),
                                                    item.asObject()->asTemporalPlainDateTimeObject()->calendarID());
         } else if (item.asObject()->isTemporalZonedDateTimeObject()) {
-            // TODO If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
+            // If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
             // Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
+            auto isoDateTime = getISODateTimeFor(state, item.asObject()->asTemporalZonedDateTimeObject()->timeZone().operator Escargot::TimeZone(), item.asObject()->asTemporalZonedDateTimeObject()->epochNanoseconds());
             // Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolvedOptions = Intl::getOptionsObject(state, options);
             // Perform ? GetTemporalOverflowOption(resolvedOptions).
+            Temporal::getTemporalOverflowOption(state, resolvedOptions);
             // Return ! CreateTemporalDateTime(isoDateTime, item.[[Calendar]]).
-            ASSERT_NOT_REACHED();
+            return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
+                                                   isoDateTime.plainDate(), isoDateTime.plainTime(),
+                                                   item.asObject()->asTemporalZonedDateTimeObject()->calendarID());
         } else if (item.asObject()->isTemporalPlainDateObject()) {
             // If item has an [[InitializedTemporalDate]] internal slot, then
             // Let resolvedOptions be ? GetOptionsObject(options).
@@ -817,10 +867,270 @@ TemporalPlainMonthDayObject* Temporal::toTemporalMonthDay(ExecutionState& state,
                                            plainDate, mayID.value());
 }
 
+Int128 Temporal::getStartOfDay(ExecutionState& state, TimeZone timeZone, ISO8601::PlainDate isoDate)
+{
+    int64_t offset;
+    if (timeZone.hasOffset()) {
+        offset = timeZone.offset();
+    } else {
+        offset = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(),
+                                                 ISO8601::ExactTime::fromPlainDate(isoDate).epochMilliseconds());
+    }
+    auto epoch = ISO8601::ExactTime::fromISOPartsAndOffset(isoDate.year(), isoDate.month(), isoDate.day(),
+                                                           0, 0, 0, 0, 0, 0, offset)
+                     .epochNanoseconds();
+
+    if (!ISO8601::isValidEpochNanoseconds(epoch)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
+    }
+
+    return epoch;
+}
+
+Int128 Temporal::interpretISODateTimeOffset(ExecutionState& state, ISO8601::PlainDate isoDate, Optional<ISO8601::PlainTime> time,
+                                            TemporalOffsetBehaviour offsetBehaviour, int64_t offsetNanoseconds, TimeZone timeZone, bool hasUTCDesignator, TemporalDisambiguationOption disambiguation,
+                                            TemporalOffsetOption offsetOption, TemporalMatchBehaviour matchBehaviour)
+{
+    // If time is start-of-day, then
+    if (!time) {
+        // Return ? GetStartOfDay(timeZone, isoDate).
+        return getStartOfDay(state, timeZone, isoDate);
+    }
+    // Let isoDateTime be CombineISODateAndTimeRecord(isoDate, time).
+    auto isoDateTime = ISO8601::PlainDateTime(isoDate, time.value());
+
+    // If offsetBehaviour is wall, or offsetBehaviour is option and offsetOption is ignore, then
+    if ((offsetBehaviour == TemporalOffsetBehaviour::Wall || offsetBehaviour == TemporalOffsetBehaviour::Option) && offsetOption == TemporalOffsetOption::Ignore) {
+        // Return ? GetEpochNanosecondsFor(timeZone, isoDateTime, disambiguation).
+        return Temporal::getEpochNanosecondsFor(state, timeZone, ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds(), disambiguation);
+    }
+
+    // If offsetBehaviour is exact, or offsetBehaviour is option and offsetOption is use, then
+    if ((offsetBehaviour == TemporalOffsetBehaviour::Exact || offsetBehaviour == TemporalOffsetBehaviour::Option) && offsetOption == TemporalOffsetOption::Use) {
+        // TODO Let balanced be BalanceISODateTime(isoDate.[[Year]], isoDate.[[Month]], isoDate.[[Day]], time.[[Hour]], time.[[Minute]], time.[[Second]], time.[[Millisecond]], time.[[Microsecond]], time.[[Nanosecond]] - offsetNanoseconds).
+        // TODO Perform ? CheckISODaysRange(balanced.[[ISODate]]).
+        // TODO Let epochNanoseconds be GetUTCEpochNanoseconds(balanced).
+        // TODO If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
+        // Return epochNanoseconds.
+        return ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds() + offsetNanoseconds;
+    }
+
+    // TODO
+    // Assert: offsetBehaviour is option.
+    // Assert: offsetOption is prefer or reject.
+    // Perform ? CheckISODaysRange(isoDate).
+    // Let utcEpochNanoseconds be GetUTCEpochNanoseconds(isoDateTime).
+    // Let possibleEpochNs be ? GetPossibleEpochNanoseconds(timeZone, isoDateTime).
+    // For each element candidate of possibleEpochNs, do
+    //     Let candidateOffset be utcEpochNanoseconds - candidate.
+    //         If candidateOffset = offsetNanoseconds, then
+    //             Return candidate.
+    //         If matchBehaviour is match-minutes, then
+    //             Let roundedCandidateNanoseconds be RoundNumberToIncrement(candidateOffset, 60 × 10**9, half-expand).
+    //             If roundedCandidateNanoseconds = offsetNanoseconds, then
+    //                 Return candidate.
+    // If offsetOption is reject, throw a RangeError exception.
+    // Return ? DisambiguatePossibleEpochNanoseconds(possibleEpochNs, timeZone, isoDateTime, disambiguation).
+
+    Optional<int64_t> timeZoneOffsetNanoseconds;
+    if (timeZone.hasOffset()) {
+        timeZoneOffsetNanoseconds = timeZone.offset();
+    } else if (timeZone.hasTimeZoneName()) {
+        timeZoneOffsetNanoseconds = -Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochMilliseconds());
+    }
+
+    if (offsetOption == TemporalOffsetOption::Reject) {
+        if (offsetNanoseconds && timeZoneOffsetNanoseconds && offsetNanoseconds != timeZoneOffsetNanoseconds.value()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid offset value");
+        } else if (offsetNanoseconds && timeZoneOffsetNanoseconds && offsetNanoseconds == timeZoneOffsetNanoseconds.value()) {
+            offsetNanoseconds = 0;
+        }
+    }
+
+    if (hasUTCDesignator) {
+        return ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds();
+    }
+    return ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds() - timeZoneOffsetNanoseconds.valueOr(0);
+}
+
 TemporalZonedDateTimeObject* Temporal::toTemporalZonedDateTime(ExecutionState& state, Value item, Value options)
 {
-    RELEASE_ASSERT_NOT_REACHED();
-    return nullptr;
+    // If options is not present, set options to undefined.
+    // Let hasUTCDesignator be false.
+    bool hasUTCDesignator = false;
+    // Let matchBehaviour be match-exactly.
+    TemporalMatchBehaviour matchBehaviour = TemporalMatchBehaviour::MatchExactly;
+    ISO8601::PlainDate isoDate;
+    Optional<ISO8601::PlainTime> time;
+    Optional<String*> offsetString;
+    Optional<TimeZone> timeZone;
+    Calendar calendar;
+    TemporalDisambiguationOption disambiguation = TemporalDisambiguationOption::Compatible;
+    TemporalOffsetOption offsetOption = TemporalOffsetOption::Ignore;
+    TemporalOffsetBehaviour offsetBehaviour = TemporalOffsetBehaviour::Exact;
+
+    // If item is an Object, then
+    if (item.isObject()) {
+        // If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
+        if (item.asObject()->isTemporalZonedDateTimeObject()) {
+            // NOTE: The following steps, and similar ones below, read options and perform independent validation in alphabetical order (GetTemporalDisambiguationOption reads "disambiguation", GetTemporalOffsetOption reads "offset", and GetTemporalOverflowOption reads "overflow").
+            // Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolvedOptions = Intl::getOptionsObject(state, options);
+            // Perform ? GetTemporalDisambiguationOption(resolvedOptions).
+            Temporal::getTemporalDisambiguationOption(state, resolvedOptions);
+            // Perform ? GetTemporalOffsetOption(resolvedOptions, reject).
+            Temporal::getTemporalOffsetOption(state, resolvedOptions, TemporalOffsetOption::Reject);
+            // Perform ? GetTemporalOverflowOption(resolvedOptions).
+            Temporal::getTemporalOverflowOption(state, resolvedOptions);
+            // Return ! CreateTemporalZonedDateTime(item.[[EpochNanoseconds]], item.[[TimeZone]], item.[[Calendar]]).
+            return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(),
+                                                   item.asObject()->asTemporalZonedDateTimeObject()->epochNanoseconds(),
+                                                   item.asObject()->asTemporalZonedDateTimeObject()->timeZone(), item.asObject()->asTemporalZonedDateTimeObject()->calendarID());
+        }
+
+        // Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).
+        calendar = Temporal::getTemporalCalendarIdentifierWithISODefault(state, item);
+        // Let fields be ? PrepareCalendarFields(calendar, item, « year, month, month-code, day », « hour, minute, second, millisecond, microsecond, nanosecond, offset, time-zone », « time-zone »).
+        CalendarField d[4] = { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day };
+        CalendarField t[8] = { CalendarField::Hour, CalendarField::Minute, CalendarField::Second, CalendarField::Millisecond,
+                               CalendarField::Microsecond, CalendarField::Nanosecond, CalendarField::Offset, CalendarField::TimeZone };
+        CalendarField r[1] = { CalendarField::TimeZone };
+        auto fields = prepareCalendarFields(state, calendar, item.asObject(), d, 4, t, 8, r, 1);
+
+        // Let timeZone be fields.[[TimeZone]].
+        timeZone = fields.timeZone;
+        // Let offsetString be fields.[[OffsetString]].
+        offsetString = fields.offset;
+        // Let resolvedOptions be ? GetOptionsObject(options).
+        auto resolvedOptions = Intl::getOptionsObject(state, options);
+        // Let disambiguation be ? GetTemporalDisambiguationOption(resolvedOptions).
+        disambiguation = Temporal::getTemporalDisambiguationOption(state, resolvedOptions);
+        // Let offsetOption be ? GetTemporalOffsetOption(resolvedOptions, reject).
+        offsetOption = Temporal::getTemporalOffsetOption(state, resolvedOptions, TemporalOffsetOption::Reject);
+        // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+        auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
+        // Let result be ? InterpretTemporalDateTimeFields(calendar, fields, overflow).
+        auto result = Temporal::interpretTemporalDateTimeFields(state, calendar, fields, overflow);
+        // Let isoDate be result.[[ISODate]].
+        isoDate = result.plainDate();
+        // Let time be result.[[Time]].
+        time = result.plainTime();
+    } else {
+        // Else,
+        // If item is not a String, throw a TypeError exception.
+        constexpr auto msg = "The value you gave for ToTemporalZonedDateTime is invalid";
+        if (!item.isString()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, msg);
+        }
+        // Let result be ? ParseISODateTime(item, « TemporalDateTimeString[+Zoned] »).
+        ISO8601::DateTimeParseOption option;
+        option.allowTimeZoneTimeWithoutTime = true;
+        auto result = ISO8601::parseCalendarDateTime(item.asString(), option);
+        if (!result || !std::get<2>(result.value())) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+        }
+        auto unwrappedResult = result.value();
+        // Let annotation be result.[[TimeZone]].[[TimeZoneAnnotation]].
+        // Assert: annotation is not empty.
+        // Let timeZone be ? ToTemporalTimeZoneIdentifier(annotation).
+        ISO8601::TimeZoneRecord tr = std::get<2>(result.value()).value();
+        // Let offsetString be result.[[TimeZone]].[[OffsetString]].
+        if (tr.m_offset) {
+            StringBuilder sb;
+            Temporal::formatOffsetTimeZoneIdentifier(state, (int)(tr.m_offset.value() / ISO8601::ExactTime::nsPerMinute), sb);
+            offsetString = sb.finalize();
+        }
+        // If result.[[TimeZone]].[[Z]] is true, then
+        if (tr.m_z) {
+            // Set hasUTCDesignator to true.
+            hasUTCDesignator = true;
+        }
+
+        if (tr.m_z) {
+            if (tr.m_nameOrOffset && tr.m_nameOrOffset.id().value() == 0) {
+                timeZone = TimeZone(tr.m_nameOrOffset.get<0>());
+            } else if (tr.m_nameOrOffset && tr.m_nameOrOffset.id().value() == 1) {
+                timeZone = TimeZone(tr.m_nameOrOffset.get<1>());
+            } else if (tr.m_offset) {
+                timeZone = TimeZone(int64_t(0));
+            } else {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+            }
+            if (!std::get<1>(unwrappedResult)) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+            }
+        } else if (tr.m_nameOrOffset && tr.m_nameOrOffset.id().value() == 0) {
+            if (!std::get<1>(unwrappedResult)) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+            }
+            timeZone = TimeZone(tr.m_nameOrOffset.get<0>());
+        } else if (tr.m_nameOrOffset && tr.m_nameOrOffset.id().value() == 1) {
+            timeZone = TimeZone(tr.m_nameOrOffset.get<1>());
+        } else {
+            ASSERT(tr.m_offset);
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+        }
+
+        // Let calendar be result.[[Calendar]].
+        // If calendar is empty, set calendar to "iso8601".
+        // Set calendar to ? CanonicalizeCalendar(calendar).
+        if (std::get<3>(unwrappedResult)) {
+            auto mayCalendar = Calendar::fromString(std::get<3>(unwrappedResult).value());
+            if (!mayCalendar) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, msg);
+            }
+            calendar = mayCalendar.value();
+        }
+        // Set matchBehaviour to match-minutes.
+        matchBehaviour = TemporalMatchBehaviour::MatchMinutes;
+        // If offsetString is not empty, then
+        if (offsetString) {
+            // Let offsetParseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[+SubMinutePrecision]).
+            // Assert: offsetParseResult is a Parse Node.
+            // If offsetParseResult contains more than one MinuteSecond Parse Node, set matchBehaviour to match-exactly.
+            if (tr.m_offset.value() % ISO8601::ExactTime::nsPerHour) {
+                matchBehaviour = TemporalMatchBehaviour::MatchExactly;
+            }
+        }
+        // Let resolvedOptions be ? GetOptionsObject(options).
+        auto resolvedOptions = Intl::getOptionsObject(state, options);
+        // Let disambiguation be ? GetTemporalDisambiguationOption(resolvedOptions).
+        disambiguation = Temporal::getTemporalDisambiguationOption(state, resolvedOptions);
+        // Let offsetOption be ? GetTemporalOffsetOption(resolvedOptions, reject).
+        offsetOption = Temporal::getTemporalOffsetOption(state, resolvedOptions, TemporalOffsetOption::Reject);
+        // Perform ? GetTemporalOverflowOption(resolvedOptions).
+        Temporal::getTemporalOverflowOption(state, resolvedOptions);
+        // Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
+        isoDate = std::get<0>(unwrappedResult);
+        // Let time be result.[[Time]].
+        time = std::get<1>(unwrappedResult);
+    }
+    // If hasUTCDesignator is true, then
+    if (hasUTCDesignator) {
+        // Let offsetBehaviour be exact.
+        offsetBehaviour = TemporalOffsetBehaviour::Exact;
+    } else if (!offsetString || offsetString.value()->length() == 0) {
+        // Else if offsetString is empty or offsetString is unset, then
+        // Let offsetBehaviour be wall.
+        offsetBehaviour = TemporalOffsetBehaviour::Wall;
+    } else {
+        // Else,
+        // Let offsetBehaviour be option.
+        offsetBehaviour = TemporalOffsetBehaviour::Option;
+    }
+
+    // Let offsetNanoseconds be 0.
+    int64_t offsetNanoseconds = 0;
+    // If offsetBehaviour is option, then
+    if (offsetBehaviour == TemporalOffsetBehaviour::Option) {
+        // Set offsetNanoseconds to ! ParseDateTimeUTCOffset(offsetString).
+        offsetNanoseconds = ISO8601::parseUTCOffset(offsetString.value(), ISO8601::DateTimeParseOption{}).value();
+    }
+    // Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time, offsetBehaviour, offsetNanoseconds, timeZone, disambiguation, offsetOption, matchBehaviour).
+    auto epochNanoseconds = interpretISODateTimeOffset(state, isoDate, time, offsetBehaviour, offsetNanoseconds, timeZone.value(), hasUTCDesignator, disambiguation, offsetOption, matchBehaviour);
+    // 12. Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(),
+                                           epochNanoseconds, timeZone.value(), calendar);
 }
 
 ISO8601::PlainTime Temporal::toTimeRecordOrMidnight(ExecutionState& state, Value item)
@@ -1076,7 +1386,7 @@ TemporalOffsetOption Temporal::getTemporalOffsetOption(ExecutionState& state, Op
     // Let stringValue be ? GetOption(options, "offset", string, « "prefer", "use", "ignore", "reject" », stringFallback).
     Value values[4] = { state.context()->staticStrings().lazyPrefer().string(), state.context()->staticStrings().use.string(),
                         state.context()->staticStrings().lazyIgnore().string(), state.context()->staticStrings().reject.string() };
-    auto stringValue = Intl::getOption(state, options.value(), state.context()->staticStrings().lazyDisambiguation().string(), Intl::StringValue,
+    auto stringValue = Intl::getOption(state, options.value(), state.context()->staticStrings().lazyOffset().string(), Intl::StringValue,
                                        values, 4, stringFallback)
                            .asString();
     // If stringValue is "prefer", return prefer.
@@ -1155,7 +1465,7 @@ TimeZone Temporal::parseTimeZone(ExecutionState& state, String* input)
     if (complexTimeZone && std::get<2>(complexTimeZone.value())) {
         ISO8601::TimeZoneRecord record = std::get<2>(complexTimeZone.value()).value();
         if (record.m_z) {
-            return TimeZone(int64_t(0));
+            return TimeZone(state.context()->staticStrings().UTC.string());
         } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 0) {
             return TimeZone(record.m_nameOrOffset.get<0>());
         } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 1) {
@@ -1171,9 +1481,14 @@ TimeZone Temporal::parseTimeZone(ExecutionState& state, String* input)
 
 TimeZone Temporal::toTemporalTimezoneIdentifier(ExecutionState& state, const Value& temporalTimeZoneLike)
 {
-    // TODO If temporalTimeZoneLike is an Object, then
-    // TODO   If temporalTimeZoneLike has an [[InitializedTemporalZonedDateTime]] internal slot, then
-    // TODO     Return temporalTimeZoneLike.[[TimeZone]].
+    // If temporalTimeZoneLike is an Object, then
+    if (temporalTimeZoneLike.isObject()) {
+        // If temporalTimeZoneLike has an [[InitializedTemporalZonedDateTime]] internal slot, then
+        if (temporalTimeZoneLike.asObject()->isTemporalZonedDateTimeObject()) {
+            // Return temporalTimeZoneLike.[[TimeZone]].
+            return TimeZone(temporalTimeZoneLike.asObject()->asTemporalZonedDateTimeObject()->timeZone().timeZoneName());
+        }
+    }
 
     // If temporalTimeZoneLike is not a String, throw a TypeError exception.
     if (!temporalTimeZoneLike.isString()) {
@@ -1669,13 +1984,20 @@ Calendar Temporal::getTemporalCalendarIdentifierWithISODefault(ExecutionState& s
 
 Calendar Temporal::toTemporalCalendarIdentifier(ExecutionState& state, Value temporalCalendarLike)
 {
-    // TODO [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]]
     // If temporalCalendarLike is an Object, then
     //   If temporalCalendarLike has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]] internal slot, then
     //     Return temporalCalendarLike.[[Calendar]].
     if (temporalCalendarLike.isObject()) {
         if (temporalCalendarLike.asObject()->isTemporalPlainDateObject()) {
             return temporalCalendarLike.asObject()->asTemporalPlainDateObject()->calendarID();
+        } else if (temporalCalendarLike.asObject()->isTemporalPlainDateTimeObject()) {
+            return temporalCalendarLike.asObject()->asTemporalPlainDateTimeObject()->calendarID();
+        } else if (temporalCalendarLike.asObject()->isTemporalPlainMonthDayObject()) {
+            return temporalCalendarLike.asObject()->asTemporalPlainMonthDayObject()->calendarID();
+        } else if (temporalCalendarLike.asObject()->isTemporalPlainYearMonthObject()) {
+            return temporalCalendarLike.asObject()->asTemporalPlainYearMonthObject()->calendarID();
+        } else if (temporalCalendarLike.asObject()->isTemporalZonedDateTimeObject()) {
+            return temporalCalendarLike.asObject()->asTemporalZonedDateTimeObject()->calendarID();
         }
     }
 
@@ -1850,9 +2172,24 @@ void CalendarFieldsRecord::setValue(ExecutionState& state, CalendarField f, Valu
         microsecond = value.toIntegerWithTruncation(state);
     } else if (f == CalendarField::Nanosecond) {
         nanosecond = value.toIntegerWithTruncation(state);
+    } else if (f == CalendarField::Offset) {
+        // to-offset-string
+        // Let offset be ? ToPrimitive(argument, string).
+        auto offset = value.toPrimitive(state, Value::PreferString);
+        // If offset is not a String, throw a TypeError exception.
+        if (!offset.isString()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid offset value");
+        }
+        // Perform ? ParseDateTimeUTCOffset(offset).
+        auto p = ISO8601::parseUTCOffset(offset.asString(), ISO8601::DateTimeParseOption{});
+        if (!p) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid offset value");
+        }
+        // Return offset.
+        this->offset = offset.asString();
     } else {
-        // TODO
-        ASSERT_NOT_REACHED();
+        ASSERT(f == CalendarField::TimeZone);
+        timeZone = Temporal::toTemporalTimezoneIdentifier(state, value);
     }
 }
 
@@ -1907,7 +2244,7 @@ CalendarFieldsRecord Temporal::prepareCalendarFields(ExecutionState& state, Cale
                     ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Missing required field");
                 }
             }
-            // TODO Set result's field whose name is given in the Field Name column of the same row to the corresponding Default value of the same row.
+            // Set result's field whose name is given in the Field Name column of the same row to the corresponding Default value of the same row.
         }
     }
 
@@ -2612,7 +2949,7 @@ Int128 Temporal::getEpochNanosecondsFor(ExecutionState& state, Optional<TimeZone
 {
     const auto& date = isoDateTime.plainDate();
     const auto& time = isoDateTime.plainTime();
-    auto epochNanoValue = ISO8601::ExactTime::fromISOPartsAndOffset(date.year(), date.month(), date.day(), time.hour(), time.minute(), time.second(), time.millisecond(), time.microsecond(), time.nanosecond(), 0).epochNanoseconds();
+    auto epochNanoValue = ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds();
     return getEpochNanosecondsFor(state, timeZone, epochNanoValue, disambiguation);
 }
 
@@ -2623,12 +2960,12 @@ Int128 Temporal::getEpochNanosecondsFor(ExecutionState& state, Optional<TimeZone
     }
     if (timeZone.hasValue()) {
         if (timeZone.value().hasOffset()) {
-            return epochNanoValue + timeZone.value().offset();
+            return epochNanoValue - timeZone.value().offset();
         }
     }
     // TODO https://tc39.es/proposal-temporal/#sec-temporal-disambiguatepossibleepochnanoseconds
     auto offset = computeTimeZoneOffset(state, timeZone.value().timeZoneName(), ISO8601::ExactTime(epochNanoValue).epochMilliseconds());
-    return epochNanoValue + Int128(offset) * 1000000;
+    return epochNanoValue - Int128(offset) * 1000000;
 }
 
 // https://tc39.es/proposal-temporal/#sec-applyunsignedroundingmode
@@ -2936,15 +3273,9 @@ ISO8601::InternalDuration Temporal::differencePlainDateTimeWithRounding(Executio
         return diff;
     }
     // Let originEpochNs be GetUTCEpochNanoseconds(isoDateTime1).
-    auto originEpochNs = ISO8601::ExactTime::fromISOPartsAndOffset(isoDateTime1.plainDate().year(), isoDateTime1.plainDate().month(), isoDateTime1.plainDate().day(),
-                                                                   isoDateTime1.plainTime().hour(), isoDateTime1.plainTime().minute(), isoDateTime1.plainTime().second(), isoDateTime1.plainTime().millisecond(), isoDateTime1.plainTime().microsecond(),
-                                                                   isoDateTime1.plainTime().nanosecond(), 0)
-                             .epochNanoseconds();
+    auto originEpochNs = ISO8601::ExactTime::fromPlainDateTime(isoDateTime1).epochNanoseconds();
     // Let destEpochNs be GetUTCEpochNanoseconds(isoDateTime2).
-    auto destEpochNs = ISO8601::ExactTime::fromISOPartsAndOffset(isoDateTime2.plainDate().year(), isoDateTime2.plainDate().month(), isoDateTime2.plainDate().day(),
-                                                                 isoDateTime2.plainTime().hour(), isoDateTime2.plainTime().minute(), isoDateTime2.plainTime().second(), isoDateTime2.plainTime().millisecond(), isoDateTime2.plainTime().microsecond(),
-                                                                 isoDateTime2.plainTime().nanosecond(), 0)
-                           .epochNanoseconds();
+    auto destEpochNs = ISO8601::ExactTime::fromPlainDateTime(isoDateTime2).epochNanoseconds();
     // Return ? RoundRelativeDuration(diff, originEpochNs, destEpochNs, isoDateTime1, unset, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
     return roundRelativeDuration(state, diff, destEpochNs, isoDateTime1, NullOption, calendar, toTemporalUnit(largestUnit), roundingIncrement, toTemporalUnit(smallestUnit), roundingMode);
 }
@@ -3044,6 +3375,27 @@ void Temporal::formatOffsetTimeZoneIdentifier(ExecutionState& state, int offsetM
         auto s = pad('0', 2, std::to_string(minutes));
         builder.appendString(String::fromASCII(s.data(), s.length()));
     }
+}
+
+ISO8601::PlainDateTime Temporal::getISODateTimeFor(ExecutionState& state, Optional<TimeZone> timeZone, Int128 epochNs)
+{
+    // Let offsetNanoseconds be GetOffsetNanosecondsFor(timeZone, epochNs).
+    // Let result be GetISOPartsFromEpoch(ℝ(epochNs)).
+    // Return BalanceISODateTime(result.[[ISODate]].[[Year]], result.[[ISODate]].[[Month]], result.[[ISODate]].[[Day]], result.[[Time]].[[Hour]], result.[[Time]].[[Minute]], result.[[Time]].[[Second]], result.[[Time]].[[Millisecond]], result.[[Time]].[[Microsecond]], result.[[Time]].[[Nanosecond]] + offsetNanoseconds).
+    int64_t offsetNanoseconds = 0;
+    if (timeZone && timeZone.value().hasOffset()) {
+        offsetNanoseconds = timeZone.value().offset();
+    } else if (timeZone && timeZone.value().hasTimeZoneName()) {
+        offsetNanoseconds = Temporal::computeTimeZoneOffset(state, timeZone.value().timeZoneName(), ISO8601::ExactTime(epochNs).epochMilliseconds());
+        offsetNanoseconds *= 1000000;
+    }
+
+    epochNs += offsetNanoseconds;
+    DateObject::DateTimeInfo timeInfo;
+    DateObject::computeTimeInfoFromEpoch(ISO8601::ExactTime(epochNs).epochMilliseconds(), timeInfo);
+    auto d = Temporal::balanceTime(0, 0, 0, 0, 0, epochNs % ISO8601::ExactTime::nsPerDay);
+    return ISO8601::PlainDateTime(ISO8601::PlainDate(timeInfo.year, timeInfo.month + 1, timeInfo.mday),
+                                  ISO8601::PlainTime(d.hours(), d.minutes(), d.seconds(), d.milliseconds(), d.microseconds(), d.nanoseconds()));
 }
 
 } // namespace Escargot

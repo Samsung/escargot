@@ -70,7 +70,7 @@ TemporalPlainDateTimeObject::TemporalPlainDateTimeObject(ExecutionState& state, 
     m_icuCalendar = calendar.createICUCalendar(state);
 
     UErrorCode status = U_ZERO_ERROR;
-    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromISOPartsAndOffset(plainDate.year(), plainDate.month(), plainDate.day(), plainTime.hour(), plainTime.minute(), plainTime.second(), plainTime.millisecond(), plainTime.microsecond(), plainTime.microsecond(), 0).epochMilliseconds(), &status);
+    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromPlainDateTime(ISO8601::PlainDateTime(plainDate, plainTime)).epochMilliseconds(), &status);
     CHECK_ICU()
 
     addFinalizer([](PointerValue* obj, void* data) {

@@ -191,7 +191,7 @@ struct MonthCode {
     F(microsecond, Microsecond, Optional<unsigned>) \
     F(nanosecond, Nanosecond, Optional<unsigned>)   \
     F(offset, Offset, Optional<String*>)            \
-    F(timeZone, TimeZone, Optional<String*>)
+    F(timeZone, TimeZone, Optional<TimeZone>)
 
 enum class CalendarField {
 #define DEFINE_FIELD(name, Name, type) Name,
@@ -242,6 +242,17 @@ enum class TemporalOffsetOption : uint8_t {
     Use,
     Ignore,
     Reject,
+};
+
+enum class TemporalOffsetBehaviour : uint8_t {
+    Exact,
+    Wall,
+    Option
+};
+
+enum class TemporalMatchBehaviour : uint8_t {
+    MatchExactly,
+    MatchMinutes
 };
 
 class Temporal {
@@ -397,6 +408,14 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-interprettemporaldatetimefields
     static ISO8601::PlainDateTime interpretTemporalDateTimeFields(ExecutionState& state, Calendar calendar, const CalendarFieldsRecord& fields, TemporalOverflowOption overflow);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-interpretisodatetimeoffset
+    static Int128 interpretISODateTimeOffset(ExecutionState& state, ISO8601::PlainDate isoDate, Optional<ISO8601::PlainTime> time,
+                                             TemporalOffsetBehaviour offsetBehaviour, int64_t offsetNanoseconds, TimeZone timeZone, bool hasUTCDesignator, TemporalDisambiguationOption disambiguation,
+                                             TemporalOffsetOption offsetOption, TemporalMatchBehaviour matchBehaviour);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-getstartofday
+    static Int128 getStartOfDay(ExecutionState& state, TimeZone timeZone, ISO8601::PlainDate isoDate);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowcalendarnameoption
     static TemporalShowCalendarNameOption getTemporalShowCalendarNameOption(ExecutionState& state, Optional<Object*> options);
 
@@ -447,6 +466,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-formatoffsettimezoneidentifier
     static void formatOffsetTimeZoneIdentifier(ExecutionState& state, int offsetMinutes, StringBuilder& sb, bool isSeparated = true);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-getisodatetimefor
+    static ISO8601::PlainDateTime getISODateTimeFor(ExecutionState& state, Optional<TimeZone> timeZone, Int128 epochNs);
 };
 
 } // namespace Escargot
