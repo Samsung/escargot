@@ -1093,10 +1093,71 @@ static Value builtinTemporalZonedDateTimeFrom(ExecutionState& state, Value thisV
     return Temporal::toTemporalZonedDateTime(state, argv[0], argc > 1 ? argv[1] : Value());
 }
 
+static Value builtinTemporalZonedDateTimeCalendarId(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, CalendarId);
+    if (zonedDateTime->calendarID() == Calendar(Calendar::ID::ISO8601)) {
+        return state.context()->staticStrings().lazyISO8601().string();
+    } else {
+        return zonedDateTime->calendarID().toString();
+    }
+}
+
+static Value builtinTemporalZonedDateTimeMonthCode(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, MonthCode);
+    return zonedDateTime->monthCode(state);
+}
+
+static Value builtinTemporalZonedDateTimeTimeZoneId(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, TimeZoneId);
+    return zonedDateTime->timeZone().timeZoneName();
+}
+
+static Value builtinTemporalZonedDateTimeOffset(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, Offset);
+    StringBuilder sb;
+    Temporal::formatOffsetTimeZoneIdentifier(state, (int)(zonedDateTime->timeZone().offset() / ISO8601::ExactTime::nsPerMinute), sb);
+    return sb.finalize();
+}
+
+static Value builtinTemporalZonedDateTimeOffsetNanoseconds(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, OffsetNanoseconds);
+    return Value(zonedDateTime->timeZone().offset());
+}
+
+static Value builtinTemporalZonedDateTimeEpochNanoseconds(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, EpochNanoseconds);
+    BigIntData bd(zonedDateTime->epochNanoseconds());
+    return Value(new BigInt(std::move(bd)));
+}
+
+static Value builtinTemporalZonedDateTimeEpochMilliseconds(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, EpochMilliseconds);
+    return Value(ISO8601::ExactTime(zonedDateTime->epochNanoseconds()).epochMilliseconds());
+}
+
+static Value builtinTemporalZonedDateTimeHoursInDay(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, HoursInDay);
+    return Value(zonedDateTime->hoursInDay(state));
+}
+
 static Value builtinTemporalZonedDateTimeToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_ZONEDDATETIME2(zonedDateTime, toString);
     return zonedDateTime->toString(state, argc ? argv[0] : Value());
+}
+
+static Value builtinTemporalZonedDateTimeEquals(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, Equals);
+    return Value(zonedDateTime->equals(state, argv[0]));
 }
 
 void GlobalObject::initializeTemporal(ExecutionState& state)
@@ -1622,7 +1683,7 @@ void GlobalObject::installTemporal(ExecutionState& state)
     }
 
     // Temporal.ZonedDateTime
-    m_temporalZonedDateTime = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalPlainMonthDay(), builtinTemporalZonedDateTimeConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__);
+    m_temporalZonedDateTime = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalZonedDateTime(), builtinTemporalZonedDateTimeConstructor, 2), NativeFunctionObject::__ForBuiltinConstructor__);
     m_temporalZonedDateTime->setGlobalIntrinsicObject(state);
 
     m_temporalZonedDateTime->directDefineOwnProperty(state, ObjectPropertyName(strings->from), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->from, builtinTemporalZonedDateTimeFrom, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
@@ -1631,6 +1692,136 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                               ObjectPropertyDescriptor(Value(strings->lazyTemporalDotZonedDateTime().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinTemporalZonedDateTimeToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalZonedDateTimeEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    {
+        AtomicString name(state.context(), "get calendarId");
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(name, builtinTemporalZonedDateTimeCalendarId, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCalendarId()), desc);
+    }
+
+    {
+        AtomicString name(state.context(), "get monthCode");
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(name, builtinTemporalZonedDateTimeMonthCode, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyMonthCode()), desc);
+    }
+
+    {
+        AtomicString name(state.context(), "get timeZoneId");
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(name, builtinTemporalZonedDateTimeTimeZoneId, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyTimeZoneId()), desc);
+    }
+
+    {
+        AtomicString name(state.context(), "get offset");
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(name, builtinTemporalZonedDateTimeOffset, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyOffset()), desc);
+    }
+
+    {
+        AtomicString name(state.context(), "get offsetNanoseconds");
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(name, builtinTemporalZonedDateTimeOffsetNanoseconds, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyOffsetNanoseconds()), desc);
+    }
+
+    {
+        AtomicString name = state.context()->staticStrings().lazyGetEpochNanoseconds();
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(name, builtinTemporalZonedDateTimeEpochNanoseconds, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochNanoseconds()), desc);
+    }
+
+    {
+        AtomicString name = state.context()->staticStrings().lazyGetEpochMilliseconds();
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(name, builtinTemporalZonedDateTimeEpochMilliseconds, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEpochMilliseconds()), desc);
+    }
+
+    {
+        AtomicString name(state.context(), "get hoursInDay");
+        JSGetterSetter gs(
+            new NativeFunctionObject(state, NativeFunctionInfo(name, builtinTemporalZonedDateTimeHoursInDay, 0, NativeFunctionInfo::Strict)),
+            Value(Value::EmptyValue));
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);
+        m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyHoursInDay()), desc);
+    }
+
+#define DEFINE_ZONEDDATETIME_PROTOTYPE_GETTER_PROPERTY(name, stringName, Name)                                                                                                                                                  \
+    {                                                                                                                                                                                                                           \
+        AtomicString name(state.context(), "get " stringName);                                                                                                                                                                  \
+        auto getter = new NativeFunctionObject(state, NativeFunctionInfo(name, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value { \
+            if (!thisValue.isObject() || !thisValue.asObject()->isTemporalZonedDateTimeObject()) { \
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalZonedDateTime().string(), true, String::fromASCII(stringName), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+            } \
+            TemporalZonedDateTimeObject* s = thisValue.asObject()->asTemporalZonedDateTimeObject(); \
+            return Value(s->plainDate().name()); }, 0, NativeFunctionInfo::Strict)); \
+        JSGetterSetter gs(getter, Value());                                                                                                                                                                                     \
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);                                                                                                                                       \
+        m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazy##Name()), desc);                                                                                               \
+    }
+
+#define DEFINE_GETTER(name, Name) DEFINE_ZONEDDATETIME_PROTOTYPE_GETTER_PROPERTY(name, #name, Name)
+    PLAIN_DATE_UNITS(DEFINE_GETTER)
+#undef DEFINE_GETTER
+#undef DEFINE_ZONEDDATETIME_PROTOTYPE_GETTER_PROPERTY
+
+#define DEFINE_ZONEDDATETIME_PROTOTYPE_EXTRA_GETTER_PROPERTY(name, stringName, Name)                                                                                                                                            \
+    {                                                                                                                                                                                                                           \
+        AtomicString name(state.context(), "get " stringName);                                                                                                                                                                  \
+        AtomicString pName(state.context(), stringName);                                                                                                                                                                        \
+        auto getter = new NativeFunctionObject(state, NativeFunctionInfo(name, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value { \
+            if (!thisValue.isObject() || !thisValue.asObject()->isTemporalZonedDateTimeObject()) { \
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalZonedDateTime().string(), true, String::fromASCII(stringName), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+            } \
+            TemporalZonedDateTimeObject* s = thisValue.asObject()->asTemporalZonedDateTimeObject(); \
+            return Value(s->name(state)); }, 0, NativeFunctionInfo::Strict)); \
+        JSGetterSetter gs(getter, Value());                                                                                                                                                                                     \
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);                                                                                                                                       \
+        m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazy##Name()), desc);                                                                                               \
+    }
+#define DEFINE_GETTER(name, Name) DEFINE_ZONEDDATETIME_PROTOTYPE_EXTRA_GETTER_PROPERTY(name, #name, Name)
+    PLAINDATE_EXTRA_PROPERTY(DEFINE_GETTER)
+#undef DEFINE_GETTER
+#undef DEFINE_ZONEDDATE_PROTOTYPE_EXTRA_GETTER_PROPERTY
+
+#define DEFINE_ZONEDDATETIME_PROTOTYPE_GETTER_PROPERTY(name, stringName, Name)                                                                                                                                                  \
+    {                                                                                                                                                                                                                           \
+        AtomicString name(state.context(), "get " stringName);                                                                                                                                                                  \
+        auto getter = new NativeFunctionObject(state, NativeFunctionInfo(name, [](ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget) -> Value { \
+            if (!thisValue.isObject() || !thisValue.asObject()->isTemporalZonedDateTimeObject()) { \
+                ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalZonedDateTime().string(), true, String::fromASCII(stringName), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
+            } \
+            TemporalZonedDateTimeObject* s = thisValue.asObject()->asTemporalZonedDateTimeObject(); \
+            return Value(s->plainTime().name()); }, 0, NativeFunctionInfo::Strict)); \
+        JSGetterSetter gs(getter, Value());                                                                                                                                                                                     \
+        ObjectPropertyDescriptor desc(gs, ObjectPropertyDescriptor::ConfigurablePresent);                                                                                                                                       \
+        m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state, strings->lazy##Name()), desc);                                                                                               \
+    }
+
+#define DEFINE_GETTER(name, Name) DEFINE_ZONEDDATETIME_PROTOTYPE_GETTER_PROPERTY(name, #name, Name)
+    PLAIN_TIME_UNITS(DEFINE_GETTER)
+#undef DEFINE_GETTER
+#undef DEFINE_ZONEDDATETIME_PROTOTYPE_GETTER_PROPERTY
 
     m_temporal = new Object(state);
     m_temporal->setGlobalIntrinsicObject(state);

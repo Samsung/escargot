@@ -45,7 +45,7 @@ TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* 
     m_icuCalendar = calendar.createICUCalendar(state);
 
     UErrorCode status = U_ZERO_ERROR;
-    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromISOPartsAndOffset(plainDate.year(), plainDate.month(), plainDate.day(), 0, 0, 0, 0, 0, 0, 0).epochMilliseconds(), &status);
+    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromPlainDate(plainDate).epochMilliseconds(), &status);
     CHECK_ICU()
 
     addFinalizer([](PointerValue* obj, void* data) {
@@ -569,7 +569,7 @@ ISO8601::Duration TemporalPlainDateObject::differenceTemporalPlainDate(Execution
         // Let isoDateTimeOther be CombineISODateAndTimeRecord(other.[[ISODate]], MidnightTimeRecord()).
         auto isoDateTimeOther = other->computeISODate(state);
         // Let destEpochNs be GetUTCEpochNanoseconds(isoDateTimeOther).
-        auto destEpochNs = ISO8601::ExactTime::fromISOPartsAndOffset(isoDateTimeOther.year(), isoDateTimeOther.month(), isoDateTimeOther.day(), 0, 0, 0, 0, 0, 0, 0).epochNanoseconds();
+        auto destEpochNs = ISO8601::ExactTime::fromPlainDate(isoDateTimeOther).epochNanoseconds();
         duration = Temporal::roundRelativeDuration(state, duration, destEpochNs, ISO8601::PlainDateTime(isoDateTime, ISO8601::PlainTime()), NullOption, calendarID(), toTemporalUnit(settings.largestUnit), settings.roundingIncrement, toTemporalUnit(settings.smallestUnit), settings.roundingMode);
     }
 

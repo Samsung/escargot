@@ -1652,6 +1652,17 @@ ExactTime ExactTime::fromISOPartsAndOffset(int32_t year, uint8_t month, uint8_t 
     return ExactTime{ utcNanoseconds - offset };
 }
 
+ExactTime ExactTime::fromPlainDate(const ISO8601::PlainDate& src)
+{
+    return fromISOPartsAndOffset(src.year(), src.month(), src.day(), 0, 0, 0, 0, 0, 0, 0);
+}
+
+ExactTime ExactTime::fromPlainDateTime(const ISO8601::PlainDateTime& src)
+{
+    return fromISOPartsAndOffset(src.plainDate().year(), src.plainDate().month(), src.plainDate().day(),
+                                 src.plainTime().hour(), src.plainTime().minute(), src.plainTime().second(), src.plainTime().millisecond(), src.plainTime().microsecond(), src.plainTime().nanosecond(), 0);
+}
+
 Int128 lengthInNanoseconds(DateTimeUnit unit)
 {
     if (unit == DateTimeUnit::Nanosecond) {

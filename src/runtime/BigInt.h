@@ -35,6 +35,7 @@ public:
     BigIntData(const uint64_t& d = 0);
     BigIntData(const int64_t& d);
     BigIntData(const double& d);
+    BigIntData(const Int128& d);
     BigIntData(String* src, int radix = 10);
     BigIntData(const char* buf, size_t length, int radix = 10);
     BigIntData(BigIntData&& src);

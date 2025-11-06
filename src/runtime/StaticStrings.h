@@ -990,6 +990,7 @@ namespace Escargot {
     F(FromEpochNanoseconds, "fromEpochNanoseconds")         \
     F(GetEpochMilliseconds, "get epochMilliseconds")        \
     F(GetEpochNanoseconds, "get epochNanoseconds")          \
+    F(HoursInDay, "hoursInDay")                             \
     F(Ignore, "ignore")                                     \
     F(InLeapYear, "inLeapYear")                             \
     F(Instant, "instant")                                   \
@@ -1000,6 +1001,7 @@ namespace Escargot {
     F(MonthsInYear, "monthsInYear")                         \
     F(Negated, "negated")                                   \
     F(Offset, "offset")                                     \
+    F(OffsetNanoseconds, "offsetNanoseconds")               \
     F(Overflow, "overflow")                                 \
     F(Reject, "reject")                                     \
     F(PlainDateISO, "plainDateISO")                         \

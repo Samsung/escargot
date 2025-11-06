@@ -139,6 +139,9 @@ enum class UnsignedRoundingMode : uint8_t {
     HalfEven
 };
 
+class PlainDate;
+class PlainDateTime;
+
 class ExactTime {
 public:
     static constexpr Int128 dayRangeSeconds{ 8640000000000 }; // 1e8 days
@@ -163,6 +166,8 @@ public:
         return ExactTime(Int128{ epochMilliseconds } * ExactTime::nsPerMillisecond);
     }
     static ExactTime fromISOPartsAndOffset(int32_t y, uint8_t mon, uint8_t d, unsigned h, unsigned min, unsigned s, unsigned ms, unsigned micros, unsigned ns, int64_t offset);
+    static ExactTime fromPlainDate(const ISO8601::PlainDate& src);
+    static ExactTime fromPlainDateTime(const ISO8601::PlainDateTime& src);
 
     int64_t epochMilliseconds() const
     {
