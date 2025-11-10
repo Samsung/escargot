@@ -22,7 +22,9 @@
 #include "TemporalZonedDateTimeObject.h"
 #include "TemporalPlainDateObject.h"
 #include "TemporalPlainTimeObject.h"
+#include "TemporalPlainDateTimeObject.h"
 #include "TemporalDurationObject.h"
+#include "TemporalInstantObject.h"
 #include "intl/Intl.h"
 #include "util/ISO8601.h"
 
@@ -212,6 +214,39 @@ int TemporalZonedDateTimeObject::hoursInDay(ExecutionState& state)
     // Let diff be TimeDurationFromEpochNanosecondsDifference(tomorrowNs, todayNs).
     // Return 𝔽(TotalTimeDuration(diff, hour)).
     return (int32_t)((tomorrowNs - todayNs) / ISO8601::ExactTime::nsPerHour);
+}
+
+TemporalInstantObject* TemporalZonedDateTimeObject::toInstant(ExecutionState& state)
+{
+    // Return ! CreateTemporalInstant(zonedDateTime.[[EpochNanoseconds]]).
+    return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(), epochNanoseconds());
+}
+
+TemporalPlainDateObject* TemporalZonedDateTimeObject::toPlainDate(ExecutionState& state)
+{
+    // Let isoDateTime be GetISODateTimeFor(zonedDateTime.[[TimeZone]], zonedDateTime.[[EpochNanoseconds]]).
+    TimeZone timeZone = this->timeZone();
+    auto isoDateTime = Temporal::getISODateTimeFor(state, timeZone, *m_epochNanoseconds);
+    // Return ! CreateTemporalDate(isoDateTime.[[ISODate]], zonedDateTime.[[Calendar]]).
+    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), isoDateTime.plainDate(), calendarID());
+}
+
+TemporalPlainTimeObject* TemporalZonedDateTimeObject::toPlainTime(ExecutionState& state)
+{
+    // Let isoDateTime be GetISODateTimeFor(zonedDateTime.[[TimeZone]], zonedDateTime.[[EpochNanoseconds]]).
+    TimeZone timeZone = this->timeZone();
+    auto isoDateTime = Temporal::getISODateTimeFor(state, timeZone, *m_epochNanoseconds);
+    // Return ! CreateTemporalTime(isoDateTime.[[Time]]).
+    return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(), isoDateTime.plainTime());
+}
+
+TemporalPlainDateTimeObject* TemporalZonedDateTimeObject::toPlainDateTime(ExecutionState& state)
+{
+    // Let isoDateTime be GetISODateTimeFor(zonedDateTime.[[TimeZone]], zonedDateTime.[[EpochNanoseconds]]).
+    TimeZone timeZone = this->timeZone();
+    auto isoDateTime = Temporal::getISODateTimeFor(state, timeZone, *m_epochNanoseconds);
+    // Return ! CreateTemporalDateTime(isoDateTime, zonedDateTime.[[Calendar]]).
+    return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(), isoDateTime.plainDate(), isoDateTime.plainTime(), calendarID());
 }
 
 } // namespace Escargot

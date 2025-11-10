@@ -1184,10 +1184,46 @@ static Value builtinTemporalZonedDateTimeToString(ExecutionState& state, Value t
     return zonedDateTime->toString(state, argc ? argv[0] : Value());
 }
 
+static Value builtinTemporalZonedDateTimeToJSON(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME2(zonedDateTime, toJSON);
+    return zonedDateTime->toString(state, Value());
+}
+
+static Value builtinTemporalZonedDateTimeToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME2(zonedDateTime, toLocaleString);
+    return zonedDateTime->toString(state, Value());
+}
+
 static Value builtinTemporalZonedDateTimeEquals(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, Equals);
     return Value(zonedDateTime->equals(state, argv[0]));
+}
+
+static Value builtinTemporalZonedDateTimeToInstant(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, ToInstant);
+    return Value(zonedDateTime->toInstant(state));
+}
+
+static Value builtinTemporalZonedDateTimeToPlainDate(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, ToPlainDate);
+    return Value(zonedDateTime->toPlainDate(state));
+}
+
+static Value builtinTemporalZonedDateTimeToPlainTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, ToPlainTime);
+    return Value(zonedDateTime->toPlainTime(state));
+}
+
+static Value builtinTemporalZonedDateTimeToPlainDateTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, ToPlainDateTime);
+    return Value(zonedDateTime->toPlainDateTime(state));
 }
 
 void GlobalObject::initializeTemporal(ExecutionState& state)
@@ -1727,7 +1763,13 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->vmInstance()->globalSymbols().toStringTag),
                                                               ObjectPropertyDescriptor(Value(strings->lazyTemporalDotZonedDateTime().string()), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toString, builtinTemporalZonedDateTimeToString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toJSON), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toJSON, builtinTemporalZonedDateTimeToJSON, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->toLocaleString), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->toLocaleString, builtinTemporalZonedDateTimeToLocaleString, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyEquals()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyEquals(), builtinTemporalZonedDateTimeEquals, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToInstant()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToInstant(), builtinTemporalZonedDateTimeToInstant, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToPlainDate()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToPlainDate(), builtinTemporalZonedDateTimeToPlainDate, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToPlainTime()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToPlainTime(), builtinTemporalZonedDateTimeToPlainTime, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToPlainDateTime()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToPlainDateTime(), builtinTemporalZonedDateTimeToPlainDateTime, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
         AtomicString name(state.context(), "get calendarId");
