@@ -20,6 +20,11 @@
 
 #include "Escargot.h"
 #include "TemporalPlainDateObject.h"
+#include "TemporalPlainTimeObject.h"
+#include "TemporalPlainDateTimeObject.h"
+#include "TemporalPlainYearMonthObject.h"
+#include "TemporalPlainMonthDayObject.h"
+#include "TemporalZonedDateTimeObject.h"
 #include "TemporalDurationObject.h"
 #include "intl/Intl.h"
 #include "util/ISO8601.h"
@@ -582,6 +587,106 @@ ISO8601::Duration TemporalPlainDateObject::differenceTemporalPlainDate(Execution
 
     // Return result.
     return result;
+}
+
+TemporalPlainDateTimeObject* TemporalPlainDateObject::toPlainDateTime(ExecutionState& state, Value temporalTime)
+{
+    // Let time be ? ToTimeRecordOrMidnight(temporalTime).
+    auto time = Temporal::toTimeRecordOrMidnight(state, temporalTime);
+    // Let isoDateTime be CombineISODateAndTimeRecord(plainDate.[[ISODate]], time).
+    auto isoDate = computeISODate(state);
+    // Return ? CreateTemporalDateTime(isoDateTime, plainDate.[[Calendar]]).
+    return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
+                                           isoDate, time, calendarID());
+}
+
+
+TemporalPlainMonthDayObject* TemporalPlainDateObject::toPlainMonthDay(ExecutionState& state)
+{
+    // Let calendar be plainDate.[[Calendar]].
+    // Let fields be ISODateToFields(calendar, plainDate.[[ISODate]], date).
+    auto calendar = m_calendarID;
+    CalendarFieldsRecord fields;
+    auto isoDate = computeISODate(state);
+    fields.year = isoDate.year();
+    fields.month = isoDate.month();
+    MonthCode mc;
+    mc.monthNumber = isoDate.month();
+    fields.monthCode = mc;
+    fields.day = isoDate.day();
+    // Let isoDate be ? CalendarMonthDayFromFields(calendar, fields, constrain).
+    auto u = Temporal::calendarDateFromFields(state, calendar, fields, TemporalOverflowOption::Constrain, Temporal::CalendarDateFromFieldsMode::MonthDay);
+    // Return ! CreateTemporalMonthDay(isoDate, calendar).
+    return new TemporalPlainMonthDayObject(state, state.context()->globalObject()->temporalPlainMonthDayPrototype(), u.first, calendar);
+}
+
+TemporalPlainYearMonthObject* TemporalPlainDateObject::toPlainYearMonth(ExecutionState& state)
+{
+    // Let calendar be plainDate.[[Calendar]].
+    // Let fields be ISODateToFields(calendar, plainDate.[[ISODate]], date).
+    auto calendar = m_calendarID;
+    CalendarFieldsRecord fields;
+    auto isoDate = computeISODate(state);
+    fields.year = isoDate.year();
+    fields.month = isoDate.month();
+    MonthCode mc;
+    mc.monthNumber = isoDate.month();
+    fields.monthCode = mc;
+    fields.day = 1;
+    // Let isoDate be ? CalendarYearMonthFromFields(calendar, fields, constrain).
+    auto u = Temporal::calendarDateFromFields(state, calendar, fields, TemporalOverflowOption::Constrain, Temporal::CalendarDateFromFieldsMode::YearMonth);
+    // Return ! CreateTemporalYearMonth(isoDate, calendar).
+    return new TemporalPlainYearMonthObject(state, state.context()->globalObject()->temporalPlainYearMonthPrototype(), u, calendar);
+}
+
+TemporalZonedDateTimeObject* TemporalPlainDateObject::toZonedDateTime(ExecutionState& state, Value item)
+{
+    TimeZone timeZone;
+    Value temporalTime;
+    // If item is an Object, then
+    if (item.isObject()) {
+        // Let timeZoneLike be ? Get(item, "timeZone").
+        auto timeZoneLike = item.asObject()->get(state, state.context()->staticStrings().lazyTimeZone()).value(state, item);
+        // If timeZoneLike is undefined, then
+        if (timeZoneLike.isUndefined()) {
+            // Let timeZone be ? ToTemporalTimeZoneIdentifier(item).
+            timeZone = Temporal::toTemporalTimezoneIdentifier(state, item);
+            // Let temporalTime be undefined.
+        } else {
+            // Else,
+            // Let timeZone be ? ToTemporalTimeZoneIdentifier(timeZoneLike).
+            timeZone = Temporal::toTemporalTimezoneIdentifier(state, timeZoneLike);
+            // Let temporalTime be ? Get(item, "plainTime").
+            temporalTime = item.asObject()->get(state, state.context()->staticStrings().lazyPlainTime()).value(state, item);
+        }
+    } else {
+        // Else,
+        // Let timeZone be ? ToTemporalTimeZoneIdentifier(item).
+        timeZone = Temporal::toTemporalTimezoneIdentifier(state, item);
+        // Let temporalTime be undefined.
+    }
+
+    Int128 epochNs;
+    // If temporalTime is undefined, then
+    if (temporalTime.isUndefined()) {
+        // Let epochNs be ? GetStartOfDay(timeZone, plainDate.[[ISODate]]).
+        epochNs = Temporal::getStartOfDay(state, timeZone, computeISODate(state));
+    } else {
+        // Else,
+        // Set temporalTime to ? ToTemporalTime(temporalTime).
+        temporalTime = Temporal::toTemporalTime(state, temporalTime, Value());
+        // Let isoDateTime be CombineISODateAndTimeRecord(plainDate.[[ISODate]], temporalTime.[[Time]]).
+        auto isoDateTime = ISO8601::PlainDateTime(computeISODate(state), temporalTime.asObject()->asTemporalPlainTimeObject()->plainTime());
+        // If ISODateTimeWithinLimits(isoDateTime) is false, throw a RangeError exception.
+        if (!ISO8601::isoDateTimeWithinLimits(isoDateTime)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
+        }
+        // Let epochNs be ? GetEpochNanosecondsFor(timeZone, isoDateTime, compatible).
+        epochNs = Temporal::getEpochNanosecondsFor(state, timeZone, ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds(), TemporalDisambiguationOption::Compatible);
+    }
+
+    // Return ! CreateTemporalZonedDateTime(epochNs, timeZone, plainDate.[[Calendar]]).
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNs, timeZone, calendarID());
 }
 
 } // namespace Escargot

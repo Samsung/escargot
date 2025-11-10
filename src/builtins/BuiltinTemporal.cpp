@@ -575,6 +575,30 @@ static Value builtinTemporalPlainDateUntil(ExecutionState& state, Value thisValu
     return plainDate->until(state, argv[0], argc > 1 ? argv[1] : Value());
 }
 
+static Value builtinTemporalPlainDateToPlainDateTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATE(plainDate, ToPlainDateTime);
+    return plainDate->toPlainDateTime(state, argc ? argv[0] : Value());
+}
+
+static Value builtinTemporalPlainDateToPlainYearMonth(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATE(plainDate, ToPlainYearMonth);
+    return plainDate->toPlainYearMonth(state);
+}
+
+static Value builtinTemporalPlainDateToPlainMonthDay(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATE(plainDate, ToPlainMonthDay);
+    return plainDate->toPlainMonthDay(state);
+}
+
+static Value builtinTemporalPlainDateToZonedDateTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_PLAINDATE(plainDate, ToZonedDateTime);
+    return plainDate->toZonedDateTime(state, argv[0]);
+}
+
 #define RESOLVE_THIS_BINDING_TO_PLAINDATETIME(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
     if (!thisValue.isObject() || !thisValue.asObject()->isTemporalPlainDateTimeObject()) {                                                                                                                                                                                            \
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalPlainDateTime().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
@@ -1378,6 +1402,10 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWithCalendar()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWithCalendar(), builtinTemporalPlainDateWithCalendar, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyUntil()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyUntil(), builtinTemporalPlainDateUntil, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySince()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySince(), builtinTemporalPlainDateSince, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToPlainDateTime()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToPlainDateTime(), builtinTemporalPlainDateToPlainDateTime, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToPlainYearMonth()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToPlainYearMonth(), builtinTemporalPlainDateToPlainYearMonth, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToPlainMonthDay()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToPlainMonthDay(), builtinTemporalPlainDateToPlainMonthDay, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalPlainDatePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToZonedDateTime()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToZonedDateTime(), builtinTemporalPlainDateToZonedDateTime, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
         AtomicString name(state.context(), "get calendarId");

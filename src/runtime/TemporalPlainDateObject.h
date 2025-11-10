@@ -143,6 +143,16 @@ public:
     static int compareISODate(ExecutionState& state, TemporalPlainDateObject* one, TemporalPlainDateObject* two);
     static ISO8601::PlainDate toPlainDate(ExecutionState& state, const ISO8601::Duration& duration);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplaindatetime
+    TemporalPlainDateTimeObject* toPlainDateTime(ExecutionState& state, Value temporalTime);
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplainmonthday
+    TemporalPlainMonthDayObject* toPlainMonthDay(ExecutionState& state);
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplainyearmonth
+    TemporalPlainYearMonthObject* toPlainYearMonth(ExecutionState& state);
+    // https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tozoneddatetime
+    TemporalZonedDateTimeObject* toZonedDateTime(ExecutionState& state, Value item);
+
+
     ISO8601::PlainDate computeISODate(ExecutionState& state);
 
 protected:
