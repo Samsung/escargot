@@ -145,6 +145,7 @@ public:
 
     TemporalPlainDateObject* toPlainDate(ExecutionState& state);
     TemporalPlainTimeObject* toPlainTime(ExecutionState& state);
+    TemporalZonedDateTimeObject* toZonedDateTime(ExecutionState& state, Value temporalTimeZoneLike, Value options);
 
     // https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.compare
     static int compare(ExecutionState& state, Value one, Value two);
