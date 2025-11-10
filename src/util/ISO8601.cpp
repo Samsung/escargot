@@ -1917,7 +1917,33 @@ Optional<TimeZoneID> parseTimeZoneName(String* string)
             }
         }
     });
-    return ret;
+
+    if (ret) {
+        return ret;
+    }
+
+    // skip non-iana names like "ACT" in https://github.com/unicode-org/icu/blob/main/icu4c/source/tools/tzcode/icuzones
+    if (string->length() <= 3) {
+        return NullOption;
+    }
+
+    auto u16String = string->toUTF16StringData();
+    UTF16StringDataNonGCStd buffer;
+    buffer.resize(u16String.length());
+    UBool isSystemID = false;
+    UErrorCode status = U_ZERO_ERROR;
+    auto canonicalLength = ucal_getCanonicalTimeZoneID(u16String.data(), u16String.length(), (UChar*)buffer.data(), u16String.length(), &isSystemID, &status);
+    if (status == U_BUFFER_OVERFLOW_ERROR) {
+        buffer.resize(canonicalLength);
+        isSystemID = false;
+        status = U_ZERO_ERROR;
+        ucal_getCanonicalTimeZoneID(u16String.data(), u16String.length(), (UChar*)buffer.data(), canonicalLength, &isSystemID, &status);
+        ASSERT(U_SUCCESS(status));
+        return new UTF16String(buffer.data(), canonicalLength);
+    } else if (U_SUCCESS(status)) {
+        return new UTF16String(buffer.data(), canonicalLength);
+    }
+    return NullOption;
 }
 
 Int128 resolveNanosecondsValueByUnit(DateTimeUnit unit)
