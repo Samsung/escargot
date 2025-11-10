@@ -1006,6 +1006,7 @@ namespace Escargot {
     F(Reject, "reject")                                     \
     F(PlainDateISO, "plainDateISO")                         \
     F(PlainDateTimeISO, "plainDateTimeISO")                 \
+    F(PlainTime, "plainTime")                               \
     F(PlainTimeISO, "plainTimeISO")                         \
     F(Prefer, "prefer")                                     \
     F(Since, "since")                                       \
@@ -1023,6 +1024,8 @@ namespace Escargot {
     F(ToPlainDate, "toPlainDate")                           \
     F(ToPlainDateTime, "toPlainDateTime")                   \
     F(ToPlainTime, "toPlainTime")                           \
+    F(ToPlainMonthDay, "toPlainMonthDay")                   \
+    F(ToPlainYearMonth, "toPlainYearMonth")                 \
     F(ToZonedDateTime, "toZonedDateTime")                   \
     F(TimeZoneId, "timeZoneId")                             \
     F(Until, "until")                                       \
