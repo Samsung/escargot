@@ -46,6 +46,7 @@
 #include "TemporalPlainDateTimeObject.h"
 #include "TemporalPlainDateObject.h"
 #include "TemporalPlainTimeObject.h"
+#include "TemporalZonedDateTimeObject.h"
 #include "TemporalDurationObject.h"
 #include "intl/Intl.h"
 #include "util/ISO8601.h"
@@ -145,9 +146,10 @@ String* TemporalPlainDateTimeObject::toString(ExecutionState& state, Value optio
     // If ISODateTimeWithinLimits(result) is false, throw a RangeError exception.
     // Return ISODateTimeToString(result, plainDateTime.[[Calendar]], precision.[[Precision]], showCalendar).
     StringBuilder sb;
-    sb.appendString(TemporalPlainDateObject::temporalDateToString(result.plainDate(), m_calendarID, showCalendar));
+    sb.appendString(TemporalPlainDateObject::temporalDateToString(result.plainDate(), m_calendarID, TemporalShowCalendarNameOption::Never));
     sb.appendChar('T');
     sb.appendString(TemporalPlainTimeObject::temporalTimeToString(result.plainTime(), precision.precision));
+    Temporal::formatCalendarAnnotation(sb, m_calendarID, showCalendar);
     return sb.finalize();
 }
 
@@ -383,6 +385,20 @@ TemporalPlainDateObject* TemporalPlainDateTimeObject::toPlainDate(ExecutionState
 TemporalPlainTimeObject* TemporalPlainDateTimeObject::toPlainTime(ExecutionState& state)
 {
     return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(), plainTime());
+}
+
+TemporalZonedDateTimeObject* TemporalPlainDateTimeObject::toZonedDateTime(ExecutionState& state, Value temporalTimeZoneLike, Value options)
+{
+    // Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
+    auto timeZone = Temporal::toTemporalTimezoneIdentifier(state, temporalTimeZoneLike);
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let disambiguation be ? GetTemporalDisambiguationOption(resolvedOptions).
+    auto disambiguation = Temporal::getTemporalDisambiguationOption(state, resolvedOptions);
+    // Let epochNs be ? GetEpochNanosecondsFor(timeZone, plainDateTime.[[ISODateTime]], disambiguation).
+    auto epochNs = Temporal::getEpochNanosecondsFor(state, timeZone, plainDateTime(), disambiguation);
+    // Return ! CreateTemporalZonedDateTime(epochNs, timeZone, plainDateTime.[[Calendar]]).
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNs, timeZone, calendarID());
 }
 
 int TemporalPlainDateTimeObject::compare(ExecutionState& state, Value oneInput, Value twoInput)
