@@ -170,6 +170,15 @@ public:
     // https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.hoursinday
     int hoursInDay(ExecutionState& state);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toinstant
+    TemporalInstantObject* toInstant(ExecutionState& state);
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaindate
+    TemporalPlainDateObject* toPlainDate(ExecutionState& state);
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaintime
+    TemporalPlainTimeObject* toPlainTime(ExecutionState& state);
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaindatetime
+    TemporalPlainDateTimeObject* toPlainDateTime(ExecutionState& state);
+
 private:
     void init(ExecutionState& state, ComputedTimeZone timeZone);
     Int128* m_epochNanoseconds;
