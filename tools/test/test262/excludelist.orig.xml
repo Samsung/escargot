@@ -1133,8 +1133,6 @@
     <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/options-timeZone"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/options-timeZoneName-affects-instance-time-zone"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/options-undefined"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toLocaleString/time-zone-canonicalized"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/toPlainDateTime/basic"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/until/argument-propertybag-timezone-string-datetime"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/until/calendar-mismatch"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/until/canonicalize-calendar"><reason>TODO</reason></test>
