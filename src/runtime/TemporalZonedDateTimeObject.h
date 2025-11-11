@@ -179,6 +179,15 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaindatetime
     TemporalPlainDateTimeObject* toPlainDateTime(ExecutionState& state);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.with
+    TemporalZonedDateTimeObject* with(ExecutionState& state, Value temporalZonedDateTimeLike, Value options);
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withplaintime
+    TemporalZonedDateTimeObject* withPlainTime(ExecutionState& state, Value temporalTimeLike);
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withtimezone
+    TemporalZonedDateTimeObject* withTimeZone(ExecutionState& state, Value timeZoneLike);
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withcalendar
+    TemporalZonedDateTimeObject* withCalendar(ExecutionState& state, Value calendarLike);
+
 private:
     void init(ExecutionState& state, ComputedTimeZone timeZone);
     Int128* m_epochNanoseconds;

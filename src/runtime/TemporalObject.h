@@ -469,6 +469,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-getisodatetimefor
     static ISO8601::PlainDateTime getISODateTimeFor(ExecutionState& state, Optional<TimeZone> timeZone, Int128 epochNs);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-getoffsetnanosecondsfor
+    static int64_t getOffsetNanosecondsFor(ExecutionState& state, TimeZone timeZone, Int128 epochNs);
 };
 
 } // namespace Escargot

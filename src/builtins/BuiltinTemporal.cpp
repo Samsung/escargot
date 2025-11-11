@@ -1226,6 +1226,30 @@ static Value builtinTemporalZonedDateTimeToPlainDateTime(ExecutionState& state, 
     return Value(zonedDateTime->toPlainDateTime(state));
 }
 
+static Value builtinTemporalZonedDateTimeWith(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME2(zonedDateTime, with);
+    return zonedDateTime->with(state, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalZonedDateTimeWithPlainTime(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, WithPlainTime);
+    return zonedDateTime->withPlainTime(state, argc ? argv[0] : Value());
+}
+
+static Value builtinTemporalZonedDateTimeWithTimeZone(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, WithTimeZone);
+    return zonedDateTime->withTimeZone(state, argv[0]);
+}
+
+static Value builtinTemporalZonedDateTimeWithCalendar(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, WithCalendar);
+    return zonedDateTime->withCalendar(state, argv[0]);
+}
+
 void GlobalObject::initializeTemporal(ExecutionState& state)
 {
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(
@@ -1770,6 +1794,10 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToPlainDate()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToPlainDate(), builtinTemporalZonedDateTimeToPlainDate, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToPlainTime()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToPlainTime(), builtinTemporalZonedDateTimeToPlainTime, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyToPlainDateTime()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyToPlainDateTime(), builtinTemporalZonedDateTimeToPlainDateTime, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->with), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->with, builtinTemporalZonedDateTimeWith, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWithPlainTime()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWithPlainTime(), builtinTemporalZonedDateTimeWithPlainTime, 0, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWithTimeZone()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWithTimeZone(), builtinTemporalZonedDateTimeWithTimeZone, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWithCalendar()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWithCalendar(), builtinTemporalZonedDateTimeWithCalendar, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     {
         AtomicString name(state.context(), "get calendarId");
