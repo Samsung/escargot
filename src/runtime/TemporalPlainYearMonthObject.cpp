@@ -147,7 +147,7 @@ TemporalPlainYearMonthObject* TemporalPlainYearMonthObject::with(ExecutionState&
     auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
     // Let isoDate be ? CalendarYearMonthFromFields(calendar, fields, overflow).
     // Return ! CreateTemporalYearMonth(isoDate, calendar).
-    auto icuDate = Temporal::calendarResolveFields(state, calendar, fields, overflow, Temporal::CalendarDateFromFieldsMode::YearMonth).first;
+    auto icuDate = Temporal::calendarDateFromFields(state, calendar, fields, overflow, Temporal::CalendarDateFromFieldsMode::YearMonth).first;
     return new TemporalPlainYearMonthObject(state, state.context()->globalObject()->temporalPlainYearMonthPrototype(),
                                             icuDate, calendar);
 }

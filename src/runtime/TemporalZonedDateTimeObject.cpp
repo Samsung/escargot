@@ -249,6 +249,113 @@ TemporalPlainDateTimeObject* TemporalZonedDateTimeObject::toPlainDateTime(Execut
     return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(), isoDateTime.plainDate(), isoDateTime.plainTime(), calendarID());
 }
 
+// https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.with
+TemporalZonedDateTimeObject* TemporalZonedDateTimeObject::with(ExecutionState& state, Value temporalZonedDateTimeLike, Value options)
+{
+    // If ? IsPartialTemporalObject(temporalZonedDateTimeLike) is false, throw a TypeError exception.
+    if (!Temporal::isPartialTemporalObject(state, temporalZonedDateTimeLike)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid temporalZonedDateTimeLike");
+    }
+    // Let epochNs be zonedDateTime.[[EpochNanoseconds]].
+    auto epochNs = epochNanoseconds();
+    // Let timeZone be zonedDateTime.[[TimeZone]].
+    TimeZone timeZone = this->timeZone();
+    // Let calendar be zonedDateTime.[[Calendar]].
+    auto calendar = calendarID();
+    // Let offsetNanoseconds be GetOffsetNanosecondsFor(timeZone, epochNs).
+    auto offsetNanoseconds = Temporal::getOffsetNanosecondsFor(state, timeZone, epochNs);
+    // Let isoDateTime be GetISODateTimeFor(timeZone, epochNs).
+    auto isoDateTime = Temporal::getISODateTimeFor(state, timeZone, epochNs);
+    // Let fields be ISODateToFields(calendar, isoDateTime.[[ISODate]], date).
+    CalendarFieldsRecord fields;
+    fields.year = isoDateTime.plainDate().year();
+    fields.month = isoDateTime.plainDate().month();
+    fields.day = isoDateTime.plainDate().day();
+    // Set fields.[[Hour]] to plainDateTime.[[ISODateTime]].[[Time]].[[Hour]].
+    // Set fields.[[Minute]] to plainDateTime.[[ISODateTime]].[[Time]].[[Minute]].
+    // Set fields.[[Second]] to plainDateTime.[[ISODateTime]].[[Time]].[[Second]].
+    // Set fields.[[Millisecond]] to plainDateTime.[[ISODateTime]].[[Time]].[[Millisecond]].
+    // Set fields.[[Microsecond]] to plainDateTime.[[ISODateTime]].[[Time]].[[Microsecond]].
+    // Set fields.[[Nanosecond]] to plainDateTime.[[ISODateTime]].[[Time]].[[Nanosecond]].
+    fields.hour = plainTime().hour();
+    fields.minute = plainTime().minute();
+    fields.second = plainTime().second();
+    fields.millisecond = plainTime().millisecond();
+    fields.microsecond = plainTime().microsecond();
+    fields.nanosecond = plainTime().nanosecond();
+    // Set fields.[[OffsetString]] to FormatUTCOffsetNanoseconds(offsetNanoseconds).
+    StringBuilder sb;
+    Temporal::formatOffsetTimeZoneIdentifier(state, int32_t(offsetNanoseconds / ISO8601::ExactTime::nsPerMinute), sb);
+    fields.offset = sb.finalize();
+    // Let partialZonedDateTime be ? PrepareCalendarFields(calendar, temporalZonedDateTimeLike, « year, month, month-code, day », « hour, minute, second, millisecond, microsecond, nanosecond, offset », partial).
+    CalendarField ds[4] = { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day };
+    CalendarField fs[7] = { CalendarField::Hour, CalendarField::Minute, CalendarField::Second,
+                            CalendarField::Millisecond, CalendarField::Microsecond, CalendarField::Nanosecond,
+                            CalendarField::Offset };
+    auto partialZonedDateTime = Temporal::prepareCalendarFields(state, calendar, temporalZonedDateTimeLike.asObject(), ds, 4, fs, 7, nullptr, SIZE_MAX);
+    // Set fields to CalendarMergeFields(calendar, fields, partialZonedDateTime).
+    fields = Temporal::calendarMergeFields(state, calendar, fields, partialZonedDateTime);
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let disambiguation be ? GetTemporalDisambiguationOption(resolvedOptions).
+    auto disambiguation = Temporal::getTemporalDisambiguationOption(state, resolvedOptions);
+    // Let offset be ? GetTemporalOffsetOption(resolvedOptions, prefer).
+    auto offset = Temporal::getTemporalOffsetOption(state, resolvedOptions, TemporalOffsetOption::Prefer);
+    // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
+    // Let dateTimeResult be ? InterpretTemporalDateTimeFields(calendar, fields, overflow).
+    auto dateTimeResult = Temporal::interpretTemporalDateTimeFields(state, calendar, fields, overflow);
+    // Let newOffsetNanoseconds be ! ParseDateTimeUTCOffset(fields.[[OffsetString]]).
+    auto newOffsetNanoseconds = ISO8601::parseUTCOffset(fields.offset.value(), {}).value();
+    // Let epochNanoseconds be ? InterpretISODateTimeOffset(dateTimeResult.[[ISODate]], dateTimeResult.[[Time]], option, newOffsetNanoseconds, timeZone, disambiguation, offset, match-exactly).
+    auto epochNanoseconds = Temporal::interpretISODateTimeOffset(state, dateTimeResult.plainDate(), dateTimeResult.plainTime(),
+                                                                 TemporalOffsetBehaviour::Option, newOffsetNanoseconds, timeZone, false, disambiguation, offset, TemporalMatchBehaviour::MatchExactly);
+    // Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNanoseconds, timeZone, calendar);
+}
+
+TemporalZonedDateTimeObject* TemporalZonedDateTimeObject::withPlainTime(ExecutionState& state, Value temporalTimeLike)
+{
+    // Let timeZone be zonedDateTime.[[TimeZone]].
+    TimeZone timeZone = this->timeZone();
+    // Let calendar be zonedDateTime.[[Calendar]].
+    auto calendar = calendarID();
+    // Let isoDateTime be GetISODateTimeFor(timeZone, zonedDateTime.[[EpochNanoseconds]]).
+    auto isoDateTime = Temporal::getISODateTimeFor(state, timeZone, epochNanoseconds());
+    // If plainTimeLike is undefined, then
+    Int128 epochNs;
+    if (temporalTimeLike.isUndefined()) {
+        // Let epochNs be ? GetStartOfDay(timeZone, isoDateTime.[[ISODate]]).
+        epochNs = Temporal::getStartOfDay(state, timeZone, isoDateTime.plainDate());
+    } else {
+        // Else,
+        // Let plainTime be ? ToTemporalTime(plainTimeLike).
+        auto plainTime = Temporal::toTemporalTime(state, temporalTimeLike, Value());
+        // Let resultISODateTime be CombineISODateAndTimeRecord(isoDateTime.[[ISODate]], plainTime.[[Time]]).
+        // Let epochNs be ? GetEpochNanosecondsFor(timeZone, resultISODateTime, compatible).
+        epochNs = Temporal::getEpochNanosecondsFor(state, timeZone, ISO8601::PlainDateTime(isoDateTime.plainDate(), plainTime->plainTime()), TemporalDisambiguationOption::Compatible);
+    }
+
+    // Return ! CreateTemporalZonedDateTime(epochNs, timeZone, calendar).
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNs, timeZone, calendar);
+}
+
+TemporalZonedDateTimeObject* TemporalZonedDateTimeObject::withTimeZone(ExecutionState& state, Value timeZoneLike)
+{
+    // Let timeZone be ? ToTemporalTimeZoneIdentifier(timeZoneLike).
+    auto timeZone = Temporal::toTemporalTimezoneIdentifier(state, timeZoneLike);
+    // Return ! CreateTemporalZonedDateTime(zonedDateTime.[[EpochNanoseconds]], timeZone, zonedDateTime.[[Calendar]]).
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNanoseconds(), timeZone, calendarID());
+}
+
+TemporalZonedDateTimeObject* TemporalZonedDateTimeObject::withCalendar(ExecutionState& state, Value calendarLike)
+{
+    // Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
+    auto calendar = Temporal::toTemporalCalendarIdentifier(state, calendarLike);
+    // Return ! CreateTemporalZonedDateTime(zonedDateTime.[[EpochNanoseconds]], zonedDateTime.[[TimeZone]], calendar).
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNanoseconds(), timeZone(), calendar);
+}
+
 } // namespace Escargot
 
 #endif

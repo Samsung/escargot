@@ -3382,20 +3382,26 @@ ISO8601::PlainDateTime Temporal::getISODateTimeFor(ExecutionState& state, Option
     // Let offsetNanoseconds be GetOffsetNanosecondsFor(timeZone, epochNs).
     // Let result be GetISOPartsFromEpoch(ℝ(epochNs)).
     // Return BalanceISODateTime(result.[[ISODate]].[[Year]], result.[[ISODate]].[[Month]], result.[[ISODate]].[[Day]], result.[[Time]].[[Hour]], result.[[Time]].[[Minute]], result.[[Time]].[[Second]], result.[[Time]].[[Millisecond]], result.[[Time]].[[Microsecond]], result.[[Time]].[[Nanosecond]] + offsetNanoseconds).
-    int64_t offsetNanoseconds = 0;
-    if (timeZone && timeZone.value().hasOffset()) {
-        offsetNanoseconds = timeZone.value().offset();
-    } else if (timeZone && timeZone.value().hasTimeZoneName()) {
-        offsetNanoseconds = Temporal::computeTimeZoneOffset(state, timeZone.value().timeZoneName(), ISO8601::ExactTime(epochNs).epochMilliseconds());
-        offsetNanoseconds *= 1000000;
-    }
-
+    int64_t offsetNanoseconds = timeZone ? getOffsetNanosecondsFor(state, timeZone.value(), epochNs) : 0;
     epochNs += offsetNanoseconds;
     DateObject::DateTimeInfo timeInfo;
     DateObject::computeTimeInfoFromEpoch(ISO8601::ExactTime(epochNs).epochMilliseconds(), timeInfo);
     auto d = Temporal::balanceTime(0, 0, 0, 0, 0, epochNs % ISO8601::ExactTime::nsPerDay);
     return ISO8601::PlainDateTime(ISO8601::PlainDate(timeInfo.year, timeInfo.month + 1, timeInfo.mday),
                                   ISO8601::PlainTime(d.hours(), d.minutes(), d.seconds(), d.milliseconds(), d.microseconds(), d.nanoseconds()));
+}
+
+int64_t Temporal::getOffsetNanosecondsFor(ExecutionState& state, TimeZone timeZone, Int128 epochNs)
+{
+    int64_t offsetNanoseconds = 0;
+    if (timeZone.hasOffset()) {
+        offsetNanoseconds = timeZone.offset();
+    } else if (timeZone.hasTimeZoneName()) {
+        offsetNanoseconds = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), ISO8601::ExactTime(epochNs).epochMilliseconds());
+        offsetNanoseconds *= 1000000;
+    }
+
+    return offsetNanoseconds;
 }
 
 } // namespace Escargot
