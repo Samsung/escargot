@@ -82,7 +82,7 @@ String* TemporalInstantObject::toString(ExecutionState& state, Value options)
 
 String* TemporalInstantObject::toString(ExecutionState& state, Int128 epochNanoseconds, TimeZone timeZone, Value precision)
 {
-    auto epochMilli = ISO8601::ExactTime(epochNanoseconds).epochMilliseconds();
+    auto epochMilli = ISO8601::ExactTime(epochNanoseconds).floorEpochMilliseconds();
     int64_t offsetNanoseconds = 0;
     if (timeZone.hasOffset()) {
         offsetNanoseconds = timeZone.offset();

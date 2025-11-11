@@ -64,7 +64,7 @@ void TemporalZonedDateTimeObject::init(ExecutionState& state, ComputedTimeZone t
 {
     m_timeZone = timeZone;
     Int128 timezoneAppliedEpochNanoseconds = *m_epochNanoseconds + timeZone.offset();
-    int64_t computedEpoch = ISO8601::ExactTime(timezoneAppliedEpochNanoseconds).epochMilliseconds();
+    int64_t computedEpoch = ISO8601::ExactTime(timezoneAppliedEpochNanoseconds).floorEpochMilliseconds();
     DateObject::DateTimeInfo timeInfo;
     DateObject::computeTimeInfoFromEpoch(computedEpoch, timeInfo);
     auto d = Temporal::balanceTime(0, 0, 0, 0, 0, timezoneAppliedEpochNanoseconds % ISO8601::ExactTime::nsPerDay);
@@ -78,7 +78,7 @@ void TemporalZonedDateTimeObject::init(ExecutionState& state, ComputedTimeZone t
     m_icuCalendar = m_calendarID.createICUCalendar(state);
 
     UErrorCode status = U_ZERO_ERROR;
-    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime(*m_epochNanoseconds).epochMilliseconds(), &status);
+    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime(*m_epochNanoseconds).floorEpochMilliseconds(), &status);
     CHECK_ICU()
 
     auto tz = m_timeZone.timeZoneName()->toUTF16StringData();
@@ -354,6 +354,30 @@ TemporalZonedDateTimeObject* TemporalZonedDateTimeObject::withCalendar(Execution
     auto calendar = Temporal::toTemporalCalendarIdentifier(state, calendarLike);
     // Return ! CreateTemporalZonedDateTime(zonedDateTime.[[EpochNanoseconds]], zonedDateTime.[[TimeZone]], calendar).
     return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNanoseconds(), timeZone(), calendar);
+}
+
+TemporalZonedDateTimeObject* TemporalZonedDateTimeObject::addDurationToZonedDateTime(ExecutionState& state, TemporalZonedDateTimeObject::AddDurationToZonedDateTimeOperation operation, Value temporalDurationLike, Value options)
+{
+    // Let duration be ? ToTemporalDuration(temporalDurationLike).
+    ISO8601::Duration duration = Temporal::toTemporalDuration(state, temporalDurationLike)->duration();
+    // If operation is subtract, set duration to CreateNegatedTemporalDuration(duration).
+    if (operation == AddDurationToZonedDateTimeOperation::Subtract) {
+        duration = TemporalDurationObject::createNegatedTemporalDuration(duration);
+    }
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = Temporal::getTemporalOverflowOption(state, resolvedOptions);
+    // Let calendar be zonedDateTime.[[Calendar]].
+    auto calendar = calendarID();
+    // Let timeZone be zonedDateTime.[[TimeZone]].
+    TimeZone timeZone = this->timeZone();
+    // Let internalDuration be ToInternalDurationRecord(duration).
+    auto internalDuration = TemporalDurationObject::toInternalDurationRecord(duration);
+    // Let epochNanoseconds be ? AddZonedDateTime(zonedDateTime.[[EpochNanoseconds]], timeZone, calendar, internalDuration, overflow).
+    auto epochNanoseconds = Temporal::addZonedDateTime(state, this->epochNanoseconds(), timeZone, calendar, internalDuration, overflow);
+    // Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNanoseconds, timeZone, calendar);
 }
 
 } // namespace Escargot

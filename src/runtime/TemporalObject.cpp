@@ -874,7 +874,7 @@ Int128 Temporal::getStartOfDay(ExecutionState& state, TimeZone timeZone, ISO8601
         offset = timeZone.offset();
     } else {
         offset = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(),
-                                                 ISO8601::ExactTime::fromPlainDate(isoDate).epochMilliseconds());
+                                                 ISO8601::ExactTime::fromPlainDate(isoDate).floorEpochMilliseconds());
     }
     auto epoch = ISO8601::ExactTime::fromISOPartsAndOffset(isoDate.year(), isoDate.month(), isoDate.day(),
                                                            0, 0, 0, 0, 0, 0, offset)
@@ -936,7 +936,7 @@ Int128 Temporal::interpretISODateTimeOffset(ExecutionState& state, ISO8601::Plai
     if (timeZone.hasOffset()) {
         timeZoneOffsetNanoseconds = timeZone.offset();
     } else if (timeZone.hasTimeZoneName()) {
-        timeZoneOffsetNanoseconds = -Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochMilliseconds());
+        timeZoneOffsetNanoseconds = -Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), ISO8601::ExactTime::fromPlainDateTime(isoDateTime).floorEpochMilliseconds());
     }
 
     if (offsetOption == TemporalOffsetOption::Reject) {
@@ -2964,7 +2964,7 @@ Int128 Temporal::getEpochNanosecondsFor(ExecutionState& state, Optional<TimeZone
         }
     }
     // TODO https://tc39.es/proposal-temporal/#sec-temporal-disambiguatepossibleepochnanoseconds
-    auto offset = computeTimeZoneOffset(state, timeZone.value().timeZoneName(), ISO8601::ExactTime(epochNanoValue).epochMilliseconds());
+    auto offset = computeTimeZoneOffset(state, timeZone.value().timeZoneName(), ISO8601::ExactTime(epochNanoValue).floorEpochMilliseconds());
     return epochNanoValue - Int128(offset) * 1000000;
 }
 
@@ -3385,7 +3385,7 @@ ISO8601::PlainDateTime Temporal::getISODateTimeFor(ExecutionState& state, Option
     int64_t offsetNanoseconds = timeZone ? getOffsetNanosecondsFor(state, timeZone.value(), epochNs) : 0;
     epochNs += offsetNanoseconds;
     DateObject::DateTimeInfo timeInfo;
-    DateObject::computeTimeInfoFromEpoch(ISO8601::ExactTime(epochNs).epochMilliseconds(), timeInfo);
+    DateObject::computeTimeInfoFromEpoch(ISO8601::ExactTime(epochNs).floorEpochMilliseconds(), timeInfo);
     auto d = Temporal::balanceTime(0, 0, 0, 0, 0, epochNs % ISO8601::ExactTime::nsPerDay);
     return ISO8601::PlainDateTime(ISO8601::PlainDate(timeInfo.year, timeInfo.month + 1, timeInfo.mday),
                                   ISO8601::PlainTime(d.hours(), d.minutes(), d.seconds(), d.milliseconds(), d.microseconds(), d.nanoseconds()));
@@ -3397,11 +3397,54 @@ int64_t Temporal::getOffsetNanosecondsFor(ExecutionState& state, TimeZone timeZo
     if (timeZone.hasOffset()) {
         offsetNanoseconds = timeZone.offset();
     } else if (timeZone.hasTimeZoneName()) {
-        offsetNanoseconds = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), ISO8601::ExactTime(epochNs).epochMilliseconds());
+        offsetNanoseconds = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), ISO8601::ExactTime(epochNs).floorEpochMilliseconds());
         offsetNanoseconds *= 1000000;
     }
 
     return offsetNanoseconds;
+}
+
+Int128 Temporal::addInstant(ExecutionState& state, Int128 epochNanoseconds, Int128 timeDuration)
+{
+    // Let result be AddTimeDurationToEpochNanoseconds(timeDuration, epochNanoseconds).
+    auto result = epochNanoseconds + timeDuration;
+    // If IsValidEpochNanoseconds(result) is false, throw a RangeError exception.
+    if (!ISO8601::isValidEpochNanoseconds(result)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid time value");
+    }
+    // Return result.
+    return result;
+}
+
+Int128 Temporal::addZonedDateTime(ExecutionState& state, Int128 epochNanoseconds, TimeZone timeZone, Calendar calendar, ISO8601::InternalDuration duration, TemporalOverflowOption overflow)
+{
+    // If DateDurationSign(duration.[[Date]]) = 0, then
+    if (duration.sign() == 0) {
+        // Return ? AddInstant(epochNanoseconds, duration.[[Time]]).
+        return addInstant(state, epochNanoseconds, duration.time());
+    }
+    // Let isoDateTime be GetISODateTimeFor(timeZone, epochNanoseconds).
+    auto isoDateTime = getISODateTimeFor(state, timeZone, epochNanoseconds);
+    // Let addedDate be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], duration.[[Date]], overflow).
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UCalendar> newCal(calendar.createICUCalendar(state), [](UCalendar* r) {
+        ucal_close(r);
+    });
+    CHECK_ICU_CALENDAR();
+    ucal_setMillis(newCal.get(), ISO8601::ExactTime::fromPlainDate(isoDateTime.plainDate()).floorEpochMilliseconds(), &status);
+    CHECK_ICU_CALENDAR();
+    auto addedDate = calendarDateAdd(state, calendar, isoDateTime.plainDate(), newCal.get(), duration.dateDuration(), overflow);
+    // Let intermediateDateTime be CombineISODateAndTimeRecord(addedDate, isoDateTime.[[Time]]).
+    ucal_close(addedDate.first);
+    ISO8601::PlainDateTime intermediateDateTime(addedDate.second, isoDateTime.plainTime());
+    // If ISODateTimeWithinLimits(intermediateDateTime) is false, throw a RangeError exception.
+    if (!ISO8601::isoDateTimeWithinLimits(intermediateDateTime)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid time value");
+    }
+    // Let intermediateNs be ! GetEpochNanosecondsFor(timeZone, intermediateDateTime, compatible).
+    auto intermediateNs = getEpochNanosecondsFor(state, timeZone, intermediateDateTime, TemporalDisambiguationOption::Compatible);
+    // Return ? AddInstant(intermediateNs, duration.[[Time]]).
+    return addInstant(state, intermediateNs, duration.time());
 }
 
 } // namespace Escargot

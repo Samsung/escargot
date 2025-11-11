@@ -50,7 +50,7 @@ TemporalPlainDateObject::TemporalPlainDateObject(ExecutionState& state, Object* 
     m_icuCalendar = calendar.createICUCalendar(state);
 
     UErrorCode status = U_ZERO_ERROR;
-    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromPlainDate(plainDate).epochMilliseconds(), &status);
+    ucal_setMillis(m_icuCalendar, ISO8601::ExactTime::fromPlainDate(plainDate).floorEpochMilliseconds(), &status);
     CHECK_ICU()
 
     addFinalizer([](PointerValue* obj, void* data) {

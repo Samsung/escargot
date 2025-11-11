@@ -472,6 +472,12 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-getoffsetnanosecondsfor
     static int64_t getOffsetNanosecondsFor(ExecutionState& state, TimeZone timeZone, Int128 epochNs);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-addinstant
+    static Int128 addInstant(ExecutionState& state, Int128 epochNanoseconds, Int128 timeDuration);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-addzoneddatetime
+    static Int128 addZonedDateTime(ExecutionState& state, Int128 epochNanoseconds, TimeZone timeZone, Calendar calendar, ISO8601::InternalDuration duration, TemporalOverflowOption overflow);
 };
 
 } // namespace Escargot

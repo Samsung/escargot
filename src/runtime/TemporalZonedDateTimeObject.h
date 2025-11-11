@@ -188,6 +188,13 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withcalendar
     TemporalZonedDateTimeObject* withCalendar(ExecutionState& state, Value calendarLike);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-adddurationtozoneddatetime
+    enum class AddDurationToZonedDateTimeOperation {
+        Add,
+        Subtract
+    };
+    TemporalZonedDateTimeObject* addDurationToZonedDateTime(ExecutionState& state, AddDurationToZonedDateTimeOperation operation, Value temporalDurationLike, Value options);
+
 private:
     void init(ExecutionState& state, ComputedTimeZone timeZone);
     Int128* m_epochNanoseconds;
