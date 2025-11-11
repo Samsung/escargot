@@ -74,7 +74,7 @@ BigIntData::BigIntData(const uint64_t& d)
 
 BigIntData::BigIntData(const Int128& d)
 {
-    if (d < std::numeric_limits<Int128>::max() && d > std::numeric_limits<Int128>::min()) {
+    if (d < std::numeric_limits<int64_t>::max() && d > std::numeric_limits<int64_t>::min()) {
         bf_init(ThreadLocal::bfContext(), &m_data);
         bf_set_si(&m_data, int64_t(d));
     } else {
