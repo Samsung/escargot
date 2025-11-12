@@ -238,6 +238,16 @@ void Temporal::formatSecondsStringFraction(StringBuilder& builder, Int128 fracti
     }
 }
 
+ISO8601::PlainDateTime Temporal::toPlainDateTime(Int128 epochNanoseconds)
+{
+    int64_t computedEpoch = ISO8601::ExactTime(epochNanoseconds).floorEpochMilliseconds();
+    DateObject::DateTimeInfo timeInfo;
+    DateObject::computeTimeInfoFromEpoch(computedEpoch, timeInfo);
+    auto d = Temporal::balanceTime(0, 0, 0, 0, 0, epochNanoseconds % ISO8601::ExactTime::nsPerDay);
+    return ISO8601::PlainDateTime(ISO8601::PlainDate(timeInfo.year, timeInfo.month + 1, timeInfo.mday),
+                                  ISO8601::PlainTime(d.hours(), d.minutes(), d.seconds(), d.milliseconds(), d.microseconds(), d.nanoseconds()));
+}
+
 int32_t Temporal::computeTimeZoneOffset(ExecutionState& state, String* name, int64_t epoch)
 {
     auto u16 = name->toUTF16StringData();
@@ -912,7 +922,11 @@ Int128 Temporal::interpretISODateTimeOffset(ExecutionState& state, ISO8601::Plai
         // TODO Let epochNanoseconds be GetUTCEpochNanoseconds(balanced).
         // TODO If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
         // Return epochNanoseconds.
-        return ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds() + offsetNanoseconds;
+        auto ns = ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds() + offsetNanoseconds;
+        if (!ISO8601::isValidEpochNanoseconds(ns)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid date-time value");
+        }
+        return ns;
     }
 
     // TODO
@@ -947,10 +961,18 @@ Int128 Temporal::interpretISODateTimeOffset(ExecutionState& state, ISO8601::Plai
         }
     }
 
+    Int128 ns;
     if (hasUTCDesignator) {
-        return ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds();
+        ns = ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds();
+    } else {
+        ns = ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds() - timeZoneOffsetNanoseconds.valueOr(0);
     }
-    return ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds() - timeZoneOffsetNanoseconds.valueOr(0);
+
+    if (!ISO8601::isValidEpochNanoseconds(ns)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid date-time value");
+    }
+
+    return ns;
 }
 
 TemporalZonedDateTimeObject* Temporal::toTemporalZonedDateTime(ExecutionState& state, Value item, Value options)
@@ -1836,17 +1858,6 @@ bool Temporal::isPartialTemporalObject(ExecutionState& state, Value value)
     return true;
 }
 
-template <typename T>
-T nonNegativeModulo(T x, int y)
-{
-    T result = x % y;
-    if (!result)
-        return 0;
-    if (result < 0)
-        result += y;
-    return result;
-}
-
 template <>
 double nonNegativeModulo(double x, int y)
 {
@@ -1856,19 +1867,6 @@ double nonNegativeModulo(double x, int y)
     if (result < 0)
         result += y;
     return result;
-}
-
-template <typename T>
-T intFloor(T x, int y)
-{
-    if (x > 0) {
-        return x / y;
-    }
-    if (x % y) {
-        return x / y - 1;
-    } else {
-        return x / y;
-    }
 }
 
 ISO8601::Duration Temporal::balanceTime(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond)
@@ -3286,12 +3284,7 @@ ISO8601::InternalDuration Temporal::differenceISODateTime(ExecutionState& state,
     // Let timeDuration be DifferenceTime(isoDateTime1.[[Time]], isoDateTime2.[[Time]]).
     auto timeDuration = differenceTime(isoDateTime1.plainTime(), isoDateTime2.plainTime());
     // Let timeSign be TimeDurationSign(timeDuration).
-    int timeSign = 0;
-    if (timeDuration < 0) {
-        timeSign = -1;
-    } else if (timeDuration > 0) {
-        timeSign = 1;
-    }
+    int timeSign = timeDurationSign(timeDuration);
     // Let dateSign be CompareISODate(isoDateTime1.[[ISODate]], isoDateTime2.[[ISODate]]).
     auto dateSign = isoDateTime1.plainDate().compare(isoDateTime2.plainDate());
     // Let adjustedDate be isoDateTime2.[[ISODate]].
@@ -3384,11 +3377,7 @@ ISO8601::PlainDateTime Temporal::getISODateTimeFor(ExecutionState& state, Option
     // Return BalanceISODateTime(result.[[ISODate]].[[Year]], result.[[ISODate]].[[Month]], result.[[ISODate]].[[Day]], result.[[Time]].[[Hour]], result.[[Time]].[[Minute]], result.[[Time]].[[Second]], result.[[Time]].[[Millisecond]], result.[[Time]].[[Microsecond]], result.[[Time]].[[Nanosecond]] + offsetNanoseconds).
     int64_t offsetNanoseconds = timeZone ? getOffsetNanosecondsFor(state, timeZone.value(), epochNs) : 0;
     epochNs += offsetNanoseconds;
-    DateObject::DateTimeInfo timeInfo;
-    DateObject::computeTimeInfoFromEpoch(ISO8601::ExactTime(epochNs).floorEpochMilliseconds(), timeInfo);
-    auto d = Temporal::balanceTime(0, 0, 0, 0, 0, epochNs % ISO8601::ExactTime::nsPerDay);
-    return ISO8601::PlainDateTime(ISO8601::PlainDate(timeInfo.year, timeInfo.month + 1, timeInfo.mday),
-                                  ISO8601::PlainTime(d.hours(), d.minutes(), d.seconds(), d.milliseconds(), d.microseconds(), d.nanoseconds()));
+    return toPlainDateTime(epochNs);
 }
 
 int64_t Temporal::getOffsetNanosecondsFor(ExecutionState& state, TimeZone timeZone, Int128 epochNs)

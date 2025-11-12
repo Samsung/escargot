@@ -90,10 +90,44 @@ ISO8601::Duration TemporalDurationObject::temporalDurationFromInternal(Execution
     Int128 milliseconds = 0, microseconds = 0;
 
     // Let sign be TimeDurationSign(internalDuration.[[Time]]).
-    int32_t sign = internalDuration.sign();
-
     // Let nanoseconds be abs(internalDuration.[[Time]]).
-    auto nanoseconds = std::abs(internalDuration.time());
+    int32_t sign;
+    Int128 nanoseconds = internalDuration.time();
+    if (ISO8601::toDateTimeCategory(largestUnit) == ISO8601::DateTimeUnitCategory::Date) {
+        sign = internalDuration.sign();
+        nanoseconds = std::abs(nanoseconds);
+    } else {
+        sign = internalDuration.timeDurationSign();
+        if (sign == -1 && internalDuration.dateDuration().sign() == 1) {
+            if (largestUnit == ISO8601::DateTimeUnit::Hour) {
+                nanoseconds = nanoseconds + ISO8601::ExactTime::nsPerDay;
+            } else if (largestUnit == ISO8601::DateTimeUnit::Minute) {
+                nanoseconds = nanoseconds + ISO8601::ExactTime::nsPerHour;
+            } else if (largestUnit == ISO8601::DateTimeUnit::Second) {
+                nanoseconds = nanoseconds + ISO8601::ExactTime::nsPerMinute;
+            } else if (largestUnit == ISO8601::DateTimeUnit::Millisecond) {
+                nanoseconds = nanoseconds + ISO8601::ExactTime::nsPerSecond;
+            } else if (largestUnit == ISO8601::DateTimeUnit::Microsecond) {
+                nanoseconds = nanoseconds + ISO8601::ExactTime::nsPerMillisecond;
+            } else {
+                nanoseconds = nanoseconds + ISO8601::ExactTime::nsPerMicrosecond;
+            }
+        } else if (sign == 1 && internalDuration.dateDuration().sign() == -1) {
+            if (largestUnit == ISO8601::DateTimeUnit::Hour) {
+                nanoseconds = nanoseconds - ISO8601::ExactTime::nsPerDay;
+            } else if (largestUnit == ISO8601::DateTimeUnit::Minute) {
+                nanoseconds = nanoseconds - ISO8601::ExactTime::nsPerHour;
+            } else if (largestUnit == ISO8601::DateTimeUnit::Second) {
+                nanoseconds = nanoseconds - ISO8601::ExactTime::nsPerMinute;
+            } else if (largestUnit == ISO8601::DateTimeUnit::Millisecond) {
+                nanoseconds = nanoseconds - ISO8601::ExactTime::nsPerSecond;
+            } else if (largestUnit == ISO8601::DateTimeUnit::Microsecond) {
+                nanoseconds = nanoseconds - ISO8601::ExactTime::nsPerMillisecond;
+            } else {
+                nanoseconds = nanoseconds - ISO8601::ExactTime::nsPerMicrosecond;
+            }
+        }
+    }
 
     // If TemporalUnitCategory(largestUnit) is date, then
     if (ISO8601::toDateTimeCategory(largestUnit) == ISO8601::DateTimeUnitCategory::Date) {
@@ -195,30 +229,52 @@ ISO8601::Duration TemporalDurationObject::temporalDurationFromInternal(Execution
         // Assert: largestUnit is nanosecond.
     }
 
+    if (ISO8601::toDateTimeCategory(largestUnit) == ISO8601::DateTimeUnitCategory::Date) {
+        if (hours) {
+            hours *= sign;
+        }
+        if (minutes) {
+            minutes *= sign;
+        }
+        if (seconds) {
+            seconds *= sign;
+        }
+        if (milliseconds) {
+            milliseconds *= sign;
+        }
+        if (microseconds) {
+            microseconds *= sign;
+        }
+        if (nanoseconds) {
+            nanoseconds *= sign;
+        }
+    } else {
+        // remove -0.0
+        if (std::signbit(days) && !days) {
+            days = 0;
+        }
+        if (std::signbit(hours) && !hours) {
+            hours = 0;
+        }
+        if (std::signbit(minutes) && !minutes) {
+            minutes = 0;
+        }
+        if (std::signbit(seconds) && !seconds) {
+            seconds = 0;
+        }
+    }
+
     // Return ? CreateTemporalDuration(internalDuration.[[Date]].[[Years]], internalDuration.[[Date]].[[Months]],
     // internalDuration.[[Date]].[[Weeks]], internalDuration.[[Date]].[[Days]] + days × sign,
     // hours × sign, minutes × sign, seconds × sign, milliseconds × sign, microseconds × sign, nanoseconds × sign).
-    if (hours) {
-        hours *= sign;
-    }
-    if (minutes) {
-        minutes *= sign;
-    }
-    if (seconds) {
-        seconds *= sign;
-    }
-    if (milliseconds) {
-        milliseconds *= sign;
-    }
-    if (microseconds) {
-        microseconds *= sign;
-    }
-    if (nanoseconds) {
-        nanoseconds *= sign;
+    auto value = ISO8601::Duration{ internalDuration.dateDuration().years(), internalDuration.dateDuration().months(), internalDuration.dateDuration().weeks(), internalDuration.dateDuration().days() + days * sign, hours, minutes,
+                                    static_cast<double>(seconds), static_cast<double>(milliseconds), static_cast<double>(microseconds), static_cast<double>(nanoseconds) };
+
+    if (!value.isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid Duration value");
     }
 
-    return ISO8601::Duration{ internalDuration.dateDuration().years(), internalDuration.dateDuration().months(), internalDuration.dateDuration().weeks(), internalDuration.dateDuration().days() + days * sign, hours, minutes,
-                              static_cast<double>(seconds), static_cast<double>(milliseconds), static_cast<double>(microseconds), static_cast<double>(nanoseconds) };
+    return value;
 }
 
 ISO8601::Duration TemporalDurationObject::createNegatedTemporalDuration(ISO8601::Duration duration)

@@ -64,12 +64,7 @@ void TemporalZonedDateTimeObject::init(ExecutionState& state, ComputedTimeZone t
 {
     m_timeZone = timeZone;
     Int128 timezoneAppliedEpochNanoseconds = *m_epochNanoseconds + timeZone.offset();
-    int64_t computedEpoch = ISO8601::ExactTime(timezoneAppliedEpochNanoseconds).floorEpochMilliseconds();
-    DateObject::DateTimeInfo timeInfo;
-    DateObject::computeTimeInfoFromEpoch(computedEpoch, timeInfo);
-    auto d = Temporal::balanceTime(0, 0, 0, 0, 0, timezoneAppliedEpochNanoseconds % ISO8601::ExactTime::nsPerDay);
-    *m_plainDateTime = ISO8601::PlainDateTime(ISO8601::PlainDate(timeInfo.year, timeInfo.month + 1, timeInfo.mday),
-                                              ISO8601::PlainTime(d.hours(), d.minutes(), d.seconds(), d.milliseconds(), d.microseconds(), d.nanoseconds()));
+    *m_plainDateTime = Temporal::toPlainDateTime(timezoneAppliedEpochNanoseconds);
 
     if (!ISO8601::isValidEpochNanoseconds(*m_epochNanoseconds)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
@@ -378,6 +373,155 @@ TemporalZonedDateTimeObject* TemporalZonedDateTimeObject::addDurationToZonedDate
     auto epochNanoseconds = Temporal::addZonedDateTime(state, this->epochNanoseconds(), timeZone, calendar, internalDuration, overflow);
     // Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
     return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNanoseconds, timeZone, calendar);
+}
+
+TemporalDurationObject* TemporalZonedDateTimeObject::differenceTemporalZonedDateTime(ExecutionState& state, DifferenceTemporalZonedDateTime operation, Value otherInput, Value options)
+{
+    // Set other to ? ToTemporalZonedDateTime(other).
+    auto other = Temporal::toTemporalZonedDateTime(state, otherInput, Value());
+    // If CalendarEquals(zonedDateTime.[[Calendar]], other.[[Calendar]]) is false, then
+    if (other->calendarID() != calendarID()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "calendar is not same");
+    }
+
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let settings be ? GetDifferenceSettings(operation, resolvedOptions, datetime, « », nanosecond, hour).
+    auto settings = Temporal::getDifferenceSettings(state, operation == DifferenceTemporalZonedDateTime::Since, resolvedOptions, ISO8601::DateTimeUnitCategory::DateTime, nullptr, 0, TemporalUnit::Nanosecond, TemporalUnit::Hour);
+    // If TemporalUnitCategory(settings.[[LargestUnit]]) is time, then
+    if (ISO8601::toDateTimeCategory(settings.largestUnit) == ISO8601::DateTimeUnitCategory::Time) {
+        // Let internalDuration be DifferenceInstant(zonedDateTime.[[EpochNanoseconds]], other.[[EpochNanoseconds]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+        auto internalDuration = TemporalInstantObject::differenceInstant(state, epochNanoseconds(), other->epochNanoseconds(), settings.roundingIncrement, settings.smallestUnit, settings.roundingMode);
+        // Let result be ! TemporalDurationFromInternal(internalDuration, settings.[[LargestUnit]]).
+        auto result = TemporalDurationObject::temporalDurationFromInternal(state, internalDuration, settings.largestUnit);
+        // If operation is since, set result to CreateNegatedTemporalDuration(result).
+        if (operation == DifferenceTemporalZonedDateTime::Since) {
+            result = TemporalDurationObject::createNegatedTemporalDuration(result);
+        }
+        // Return result.
+        return new TemporalDurationObject(state, result);
+    }
+    // If TimeZoneEquals(zonedDateTime.[[TimeZone]], other.[[TimeZone]]) is false, then
+    if (!timeZoneEquals(timeZone(), other->timeZone())) {
+        // Throw a RangeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "timeZone is not same");
+    }
+    // If zonedDateTime.[[EpochNanoseconds]] = other.[[EpochNanoseconds]], then
+    if (epochNanoseconds() == other->epochNanoseconds()) {
+        // Return ! CreateTemporalDuration(0, 0, 0, 0, 0, 0, 0, 0, 0, 0).
+        return new TemporalDurationObject(state, {});
+    }
+
+    // Let internalDuration be ? DifferenceZonedDateTimeWithRounding(zonedDateTime.[[EpochNanoseconds]], other.[[EpochNanoseconds]], zonedDateTime.[[TimeZone]], zonedDateTime.[[Calendar]], settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+    auto internalDuration = differenceZonedDateTimeWithRounding(state, epochNanoseconds(), other->epochNanoseconds(), timeZone(), calendarID(), settings.largestUnit, settings.roundingIncrement, settings.smallestUnit, settings.roundingMode);
+    // Let result be ! TemporalDurationFromInternal(internalDuration, hour).
+    ISO8601::Duration result;
+    if (settings.smallestUnit <= ISO8601::DateTimeUnit::Day) {
+        result = TemporalDurationObject::temporalDurationFromInternal(state, internalDuration, settings.smallestUnit);
+    } else {
+        result = TemporalDurationObject::temporalDurationFromInternal(state, internalDuration, ISO8601::DateTimeUnit::Hour);
+    }
+    // If operation is since, set result to CreateNegatedTemporalDuration(result).
+    if (operation == DifferenceTemporalZonedDateTime::Since) {
+        result = TemporalDurationObject::createNegatedTemporalDuration(result);
+    }
+    // Return result.
+    return new TemporalDurationObject(state, result);
+}
+
+ISO8601::InternalDuration TemporalZonedDateTimeObject::differenceZonedDateTimeWithRounding(ExecutionState& state, Int128 ns1, Int128 ns2, TimeZone timeZone, Calendar calendar,
+                                                                                           ISO8601::DateTimeUnit largestUnit, unsigned roundingIncrement, ISO8601::DateTimeUnit smallestUnit, ISO8601::RoundingMode roundingMode)
+{
+    // If TemporalUnitCategory(largestUnit) is time, then
+    if (ISO8601::toDateTimeCategory(largestUnit) == ISO8601::DateTimeUnitCategory::Time) {
+        // Return DifferenceInstant(ns1, ns2, roundingIncrement, smallestUnit, roundingMode).
+        return TemporalInstantObject::differenceInstant(state, ns1, ns2, roundingIncrement, smallestUnit, roundingMode);
+    }
+
+    // Let difference be ? DifferenceZonedDateTime(ns1, ns2, timeZone, calendar, largestUnit).
+    auto difference = differenceZonedDateTime(state, ns1, ns2, timeZone, calendar, largestUnit);
+    // If smallestUnit is nanosecond and roundingIncrement = 1, return difference.
+    if (smallestUnit == ISO8601::DateTimeUnit::Nanosecond && roundingIncrement == 1) {
+        return difference;
+    }
+    // Let dateTime be GetISODateTimeFor(timeZone, ns1).
+    auto dateTime = Temporal::getISODateTimeFor(state, timeZone, ns1);
+    // Return ? RoundRelativeDuration(difference, ns1, ns2, dateTime, timeZone, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
+    return Temporal::roundRelativeDuration(state, difference, ns2, Temporal::toPlainDateTime(ns1), timeZone, calendar, toTemporalUnit(largestUnit), roundingIncrement, toTemporalUnit(smallestUnit), roundingMode);
+}
+
+ISO8601::InternalDuration TemporalZonedDateTimeObject::differenceZonedDateTime(ExecutionState& state, Int128 ns1, Int128 ns2, TimeZone timeZone, Calendar calendar, ISO8601::DateTimeUnit largestUnit)
+{
+    // If ns1 = ns2, return CombineDateAndTimeDuration(ZeroDateDuration(), 0).
+    if (ns1 == ns2) {
+        return {};
+    }
+    // Let startDateTime be GetISODateTimeFor(timeZone, ns1).
+    auto startDateTime = Temporal::getISODateTimeFor(state, timeZone, ns1);
+    // Let endDateTime be GetISODateTimeFor(timeZone, ns2).
+    auto endDateTime = Temporal::getISODateTimeFor(state, timeZone, ns2);
+    // If CompareISODate(startDateTime.[[ISODate]], endDateTime.[[ISODate]]) = 0, then
+    if (startDateTime.plainDate().compare(endDateTime.plainDate()) == 0) {
+        // Let timeDuration be TimeDurationFromEpochNanosecondsDifference(ns2, ns1).
+        // Return CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
+        Int128 timeDuration = Temporal::timeDurationFromEpochNanosecondsDifference(ns2, ns1);
+        return ISO8601::InternalDuration(ISO8601::Duration(), timeDuration);
+    }
+
+    int sign;
+    // If ns2 - ns1 < 0, let sign be -1; else let sign be 1.
+    if (ns2 - ns1 < 0) {
+        sign = -1;
+    } else {
+        sign = 1;
+    }
+    int maxDayCorrection;
+    // If sign = 1, let maxDayCorrection be 2; else let maxDayCorrection be 1.
+    if (sign == 1) {
+        maxDayCorrection = 2;
+    } else {
+        maxDayCorrection = 1;
+    }
+    // Let dayCorrection be 0.
+    int dayCorrection = 0;
+    // Let timeDuration be DifferenceTime(startDateTime.[[Time]], endDateTime.[[Time]]).
+    auto timeDuration = Temporal::differenceTime(startDateTime.plainTime(), endDateTime.plainTime());
+    // If TimeDurationSign(timeDuration) = -sign, set dayCorrection to dayCorrection + 1.
+    if (Temporal::timeDurationSign(timeDuration) == -sign) {
+        dayCorrection = dayCorrection + 1;
+    }
+
+    ISO8601::PlainDateTime intermediateDateTime = ISO8601::PlainDateTime(ISO8601::PlainDate(), ISO8601::PlainTime());
+    // Let success be false.
+    bool success = false;
+    // Repeat, while dayCorrection ≤ maxDayCorrection and success is false,
+    while (dayCorrection <= maxDayCorrection && !success) {
+        // Let intermediateDate be BalanceISODate(endDateTime.[[ISODate]].[[Year]], endDateTime.[[ISODate]].[[Month]], endDateTime.[[ISODate]].[[Day]] - dayCorrection × sign).
+        auto intermediateDate = Temporal::balanceISODate(state, endDateTime.plainDate().year(), endDateTime.plainDate().month(),
+                                                         endDateTime.plainDate().day() - dayCorrection * sign);
+        // Let intermediateDateTime be CombineISODateAndTimeRecord(intermediateDate, startDateTime.[[Time]]).
+        intermediateDateTime = ISO8601::PlainDateTime(intermediateDate, startDateTime.plainTime());
+        // Let intermediateNs be ? GetEpochNanosecondsFor(timeZone, intermediateDateTime, compatible).
+        auto intermediateNs = Temporal::getEpochNanosecondsFor(state, timeZone, intermediateDateTime,
+                                                               TemporalDisambiguationOption::Compatible);
+        // Set timeDuration to TimeDurationFromEpochNanosecondsDifference(ns2, intermediateNs).
+        Int128 timeDuration = Temporal::timeDurationFromEpochNanosecondsDifference(ns2, intermediateNs);
+        // Let timeSign be TimeDurationSign(timeDuration).
+        auto timeSign = Temporal::timeDurationSign(timeDuration);
+        // If sign ≠ -timeSign, then
+        if (sign != -timeSign) {
+            // Set success to true.
+            success = true;
+        }
+        // Set dayCorrection to dayCorrection + 1.
+        dayCorrection++;
+    }
+    // Let dateLargestUnit be LargerOfTwoTemporalUnits(largestUnit, day).
+    auto dateLargestUnit = Temporal::largerOfTwoTemporalUnits(largestUnit, ISO8601::DateTimeUnit::Day);
+    // Let dateDifference be CalendarDateUntil(calendar, startDateTime.[[ISODate]], intermediateDateTime.[[ISODate]], dateLargestUnit).
+    auto dateDifference = Temporal::calendarDateUntil(calendar, startDateTime.plainDate(), intermediateDateTime.plainDate(), toTemporalUnit(dateLargestUnit));
+    // Return CombineDateAndTimeDuration(dateDifference, timeDuration).
+    return ISO8601::InternalDuration(dateDifference, timeDuration);
 }
 
 } // namespace Escargot
