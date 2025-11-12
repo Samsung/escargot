@@ -195,6 +195,20 @@ public:
     };
     TemporalZonedDateTimeObject* addDurationToZonedDateTime(ExecutionState& state, AddDurationToZonedDateTimeOperation operation, Value temporalDurationLike, Value options);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalzoneddatetime
+    enum class DifferenceTemporalZonedDateTime {
+        Until,
+        Since
+    };
+    TemporalDurationObject* differenceTemporalZonedDateTime(ExecutionState& state, DifferenceTemporalZonedDateTime operation, Value other, Value options);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetimewithrounding
+    ISO8601::InternalDuration differenceZonedDateTimeWithRounding(ExecutionState& state, Int128 ns1, Int128 ns2, TimeZone timeZone, Calendar calendar,
+                                                                  ISO8601::DateTimeUnit largestUnit, unsigned roundingIncrement, ISO8601::DateTimeUnit smallestUnit, ISO8601::RoundingMode roundingMode);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetime
+    ISO8601::InternalDuration differenceZonedDateTime(ExecutionState& state, Int128 ns1, Int128 ns2, TimeZone timeZone, Calendar calendar, ISO8601::DateTimeUnit largestUnit);
+
 private:
     void init(ExecutionState& state, ComputedTimeZone timeZone);
     Int128* m_epochNanoseconds;

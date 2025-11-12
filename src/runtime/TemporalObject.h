@@ -31,6 +31,30 @@
 
 namespace Escargot {
 
+template <typename T>
+T nonNegativeModulo(T x, int y)
+{
+    T result = x % y;
+    if (!result)
+        return 0;
+    if (result < 0)
+        result += y;
+    return result;
+}
+
+template <typename T>
+T intFloor(T x, int y)
+{
+    if (x > 0) {
+        return x / y;
+    }
+    if (x % y) {
+        return x / y - 1;
+    } else {
+        return x / y;
+    }
+}
+
 class Calendar {
 public:
     // sync with 'canonicalCodeForDisplayNames'
@@ -260,6 +284,17 @@ public:
     static ISO8601::PlainDate computeISODate(ExecutionState& state, UCalendar* ucal);
     static TimeZone parseTimeZone(ExecutionState& state, String* input);
     static void formatSecondsStringFraction(StringBuilder& builder, Int128 fraction, Value precision);
+    static ISO8601::PlainDateTime toPlainDateTime(Int128 epochNanoseconds);
+
+    static int timeDurationSign(Int128 t)
+    {
+        if (t < 0) {
+            return -1;
+        } else if (t > 0) {
+            return 1;
+        }
+        return 0;
+    }
 
     // returns offset(milliseconds)
     static int32_t computeTimeZoneOffset(ExecutionState& state, String* name, int64_t epoch);

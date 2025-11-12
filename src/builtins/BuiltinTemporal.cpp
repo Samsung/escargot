@@ -1262,6 +1262,18 @@ static Value builtinTemporalZonedDateTimeSubtract(ExecutionState& state, Value t
     return zonedDateTime->addDurationToZonedDateTime(state, TemporalZonedDateTimeObject::AddDurationToZonedDateTimeOperation::Subtract, argv[0], argc > 1 ? argv[1] : Value());
 }
 
+static Value builtinTemporalZonedDateTimeSince(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, Since);
+    return zonedDateTime->differenceTemporalZonedDateTime(state, TemporalZonedDateTimeObject::DifferenceTemporalZonedDateTime::Since, argv[0], argc > 1 ? argv[1] : Value());
+}
+
+static Value builtinTemporalZonedDateTimeUntil(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, Until);
+    return zonedDateTime->differenceTemporalZonedDateTime(state, TemporalZonedDateTimeObject::DifferenceTemporalZonedDateTime::Until, argv[0], argc > 1 ? argv[1] : Value());
+}
+
 void GlobalObject::initializeTemporal(ExecutionState& state)
 {
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(
@@ -1812,6 +1824,9 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyWithCalendar()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyWithCalendar(), builtinTemporalZonedDateTimeWithCalendar, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->add), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->add, builtinTemporalZonedDateTimeAdd, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySubtract()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySubtract(), builtinTemporalZonedDateTimeSubtract, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyUntil()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyUntil(), builtinTemporalZonedDateTimeUntil, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalZonedDateTimePrototype->directDefineOwnProperty(state, ObjectPropertyName(strings->lazySince()), ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(strings->lazySince(), builtinTemporalZonedDateTimeSince, 1, NativeFunctionInfo::Strict)), (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
 
     {
         AtomicString name(state.context(), "get calendarId");
