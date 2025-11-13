@@ -50,6 +50,7 @@
 #include "runtime/DateObject.h"
 #include "runtime/TemporalDurationObject.h"
 #include "runtime/TemporalInstantObject.h"
+#include "runtime/TemporalNowObject.h"
 #include "runtime/TemporalPlainTimeObject.h"
 #include "runtime/TemporalPlainDateObject.h"
 #include "runtime/TemporalPlainDateTimeObject.h"
@@ -287,6 +288,25 @@ Int128 Temporal::systemUTCEpochNanoseconds()
     ret += nano;
 
     return ret;
+}
+
+ISO8601::PlainDateTime Temporal::systemDateTime(ExecutionState& state, Value temporalTimeZoneLike)
+{
+    TimeZone timeZone;
+    // If temporalTimeZoneLike is undefined, then
+    if (temporalTimeZoneLike.isUndefined()) {
+        // Let timeZone be SystemTimeZoneIdentifier().
+        timeZone = TemporalNowObject::timeZoneId(state);
+    } else {
+        // Else,
+        // Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
+        timeZone = toTemporalTimezoneIdentifier(state, temporalTimeZoneLike);
+    }
+
+    // Let epochNs be SystemUTCEpochNanoseconds().
+    auto epochNs = systemUTCEpochNanoseconds();
+    // Return GetISODateTimeFor(timeZone, epochNs).
+    return getISODateTimeFor(state, timeZone, epochNs);
 }
 
 TemporalDurationObject* Temporal::toTemporalDuration(ExecutionState& state, const Value& item)
@@ -1506,14 +1526,14 @@ TimeZone Temporal::parseTimeZone(ExecutionState& state, String* input, bool allo
         auto complexTimeZone = ISO8601::parseCalendarDateTime(input, option);
         if (complexTimeZone && std::get<2>(complexTimeZone.value())) {
             ISO8601::TimeZoneRecord record = std::get<2>(complexTimeZone.value()).value();
-            if (record.m_z) {
-                return TimeZone(state.context()->staticStrings().UTC.string());
-            } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 0) {
+            if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 0) {
                 return TimeZone(record.m_nameOrOffset.get<0>());
             } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 1) {
                 return TimeZone(record.m_nameOrOffset.get<1>());
             } else if (record.m_offset) {
                 return TimeZone(record.m_offset.value());
+            } else if (record.m_z) {
+                return TimeZone(state.context()->staticStrings().UTC.string());
             }
         }
     }

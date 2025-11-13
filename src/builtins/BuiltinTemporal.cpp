@@ -58,6 +58,51 @@ static Value builtinTemporalNowInstant(ExecutionState& state, Value thisValue, s
     return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(), ns);
 }
 
+static Value builtinTemporalNowPlainDateTimeISO(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let isoDateTime be ? SystemDateTime(temporalTimeZoneLike).
+    auto isoDateTime = Temporal::systemDateTime(state, argc ? argv[0] : Value());
+    // Return ! CreateTemporalDateTime(isoDateTime, "iso8601").
+    return new TemporalPlainDateTimeObject(state, state.context()->globalObject()->temporalPlainDateTimePrototype(),
+                                           isoDateTime.plainDate(), isoDateTime.plainTime(), Calendar());
+}
+
+static Value builtinTemporalNowZonedDateTimeISO(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    Value temporalTimeZoneLike = argc ? argv[0] : Value();
+    TimeZone timeZone;
+    // If temporalTimeZoneLike is undefined, then
+    if (temporalTimeZoneLike.isUndefined()) {
+        // Let timeZone be SystemTimeZoneIdentifier().
+        timeZone = TemporalNowObject::timeZoneId(state);
+    } else {
+        // Else,
+        // Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
+        timeZone = Temporal::toTemporalTimezoneIdentifier(state, temporalTimeZoneLike);
+    }
+
+    // Let ns be SystemUTCEpochNanoseconds().
+    auto epochNs = Temporal::systemUTCEpochNanoseconds();
+    // Return ! CreateTemporalZonedDateTime(ns, timeZone, "iso8601").
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNs, timeZone, Calendar());
+}
+
+static Value builtinTemporalNowPlainDateISO(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let isoDateTime be ? SystemDateTime(temporalTimeZoneLike).
+    auto isoDateTime = Temporal::systemDateTime(state, argc ? argv[0] : Value());
+    // Return ! CreateTemporalDate(isoDateTime.[[ISODate]], "iso8601").
+    return new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(), isoDateTime.plainDate(), Calendar());
+}
+
+static Value builtinTemporalNowPlainTimeISO(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    // Let isoDateTime be ? SystemDateTime(temporalTimeZoneLike).
+    auto isoDateTime = Temporal::systemDateTime(state, argc ? argv[0] : Value());
+    // Return ! CreateTemporalTime(isoDateTime.[[Time]]).
+    return new TemporalPlainTimeObject(state, state.context()->globalObject()->temporalPlainTimePrototype(), isoDateTime.plainTime());
+}
+
 static Value builtinTemporalDurationConstructor(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     if (!newTarget.hasValue()) {
@@ -1328,6 +1373,22 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalNow->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyInstant()),
                                            ObjectPropertyDescriptor(new NativeFunctionObject(state,
                                                                                              NativeFunctionInfo(strings->lazyInstant(), builtinTemporalNowInstant, 0, NativeFunctionInfo::Strict)),
+                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalNow->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyPlainDateTimeISO()),
+                                           ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                             NativeFunctionInfo(strings->lazyPlainDateTimeISO(), builtinTemporalNowPlainDateTimeISO, 0, NativeFunctionInfo::Strict)),
+                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalNow->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyZonedDateTimeISO()),
+                                           ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                             NativeFunctionInfo(strings->lazyZonedDateTimeISO(), builtinTemporalNowZonedDateTimeISO, 0, NativeFunctionInfo::Strict)),
+                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalNow->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyPlainDateISO()),
+                                           ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                             NativeFunctionInfo(strings->lazyPlainDateISO(), builtinTemporalNowPlainDateISO, 0, NativeFunctionInfo::Strict)),
+                                                                    (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+    m_temporalNow->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyPlainTimeISO()),
+                                           ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                             NativeFunctionInfo(strings->lazyPlainTimeISO(), builtinTemporalNowPlainTimeISO, 0, NativeFunctionInfo::Strict)),
                                                                     (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
     // Temporal.Duration
     m_temporalDuration = new NativeFunctionObject(state, NativeFunctionInfo(strings->lazyCapitalDuration(), builtinTemporalDurationConstructor, 0), NativeFunctionObject::__ForBuiltinConstructor__);
