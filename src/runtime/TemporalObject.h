@@ -307,6 +307,9 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
     static Int128 systemUTCEpochNanoseconds();
 
+    // https://tc39.es/proposal-temporal/#sec-temporal-systemdatetime
+    static ISO8601::PlainDateTime systemDateTime(ExecutionState& state, Value temporalTimeZoneLike);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
     static TemporalDurationObject* toTemporalDuration(ExecutionState& state, const Value& item);
 
