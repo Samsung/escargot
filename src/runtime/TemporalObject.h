@@ -279,10 +279,15 @@ enum class TemporalMatchBehaviour : uint8_t {
     MatchMinutes
 };
 
+enum class TemporalDirectionOption : uint8_t {
+    Next,
+    Previous
+};
+
 class Temporal {
 public:
     static ISO8601::PlainDate computeISODate(ExecutionState& state, UCalendar* ucal);
-    static TimeZone parseTimeZone(ExecutionState& state, String* input);
+    static TimeZone parseTimeZone(ExecutionState& state, String* input, bool allowISODateTimeString = true);
     static void formatSecondsStringFraction(StringBuilder& builder, Int128 fraction, Value precision);
     static ISO8601::PlainDateTime toPlainDateTime(Int128 epochNanoseconds);
 
@@ -350,6 +355,9 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-gettemporaloffsetoption
     static TemporalOffsetOption getTemporalOffsetOption(ExecutionState& state, Optional<Object*> resolvedOptions, TemporalOffsetOption fallback);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-getdirectionoption
+    static TemporalDirectionOption getTemporalDirectionOption(ExecutionState& state, Optional<Object*> resolvedOptions);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-validatetemporalunitvaluedoption
     static void validateTemporalUnitValue(ExecutionState& state, Optional<TemporalUnit> value, ISO8601::DateTimeUnitCategory unitGroup, Optional<TemporalUnit*> extraValues, size_t extraValueSize);

@@ -6005,6 +6005,15 @@ enum UCalendarWeekdayType {
 /** @stable ICU 4.4 */
 typedef enum UCalendarWeekdayType UCalendarWeekdayType;
 
+enum UTimeZoneTransitionType {
+    UCAL_TZ_TRANSITION_NEXT,
+    UCAL_TZ_TRANSITION_NEXT_INCLUSIVE,
+    UCAL_TZ_TRANSITION_PREVIOUS,
+    UCAL_TZ_TRANSITION_PREVIOUS_INCLUSIVE
+};
+
+typedef enum UTimeZoneTransitionType UTimeZoneTransitionType;
+
 // udatpg.h
 typedef void *UDateTimePatternGenerator;
 

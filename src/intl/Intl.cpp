@@ -2895,7 +2895,7 @@ Optional<Object*> Intl::getOptionsObject(ExecutionState& state, const Value& opt
     return resolvedOptions;
 }
 
-Value Intl::getOption(ExecutionState& state, Object* options, Value property, Intl::OptionValueType type, Value* values, size_t valuesLength, const Value& fallback)
+Value Intl::getOption(ExecutionState& state, Object* options, Value property, Intl::OptionValueType type, Value* values, size_t valuesLength, Optional<Value> fallback)
 {
     // http://www.ecma-international.org/ecma-402/1.0/index.html#sec-9.2.9
     // Let value be the result of calling the [[Get]] internal method of options with argument property.
@@ -2927,8 +2927,13 @@ Value Intl::getOption(ExecutionState& state, Object* options, Value property, In
         // Return value.
         return value;
     } else {
-        // Else return fallback.
-        return fallback;
+        // If default is required, throw a RangeError exception.
+        if (!fallback) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "got invalid value");
+        }
+
+        // return fallback.
+        return fallback.value();
     }
 }
 
