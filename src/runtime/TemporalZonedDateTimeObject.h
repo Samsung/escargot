@@ -209,6 +209,18 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetime
     ISO8601::InternalDuration differenceZonedDateTime(ExecutionState& state, Int128 ns1, Int128 ns2, TimeZone timeZone, Calendar calendar, ISO8601::DateTimeUnit largestUnit);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.round
+    TemporalZonedDateTimeObject* round(ExecutionState& state, Value roundTo);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.startofday
+    TemporalZonedDateTimeObject* startOfDay(ExecutionState& state);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.gettimezonetransition
+    Value getTimeZoneTransition(ExecutionState& state, Value directionParam);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.compare
+    static int compare(ExecutionState& state, Value one, Value two);
+
 private:
     void init(ExecutionState& state, ComputedTimeZone timeZone);
     Int128* m_epochNanoseconds;

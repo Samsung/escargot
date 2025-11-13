@@ -119,6 +119,16 @@ TemporalZonedDateTimeObject::TemporalZonedDateTimeObject(ExecutionState& state, 
     init(state, timeZone);
 }
 
+static int64_t computeTimeZoneOffset(ExecutionState& state, UCalendar* cal)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    auto zoneOffset = ucal_get(cal, UCAL_ZONE_OFFSET, &status);
+    CHECK_ICU();
+    auto dstOffset = ucal_get(cal, UCAL_DST_OFFSET, &status);
+    CHECK_ICU();
+    return (zoneOffset + dstOffset) * int64_t(ISO8601::ExactTime::nsPerMillisecond);
+}
+
 String* TemporalZonedDateTimeObject::toString(ExecutionState& state, Value options)
 {
     // Let resolvedOptions be ? GetOptionsObject(options).
@@ -522,6 +532,218 @@ ISO8601::InternalDuration TemporalZonedDateTimeObject::differenceZonedDateTime(E
     auto dateDifference = Temporal::calendarDateUntil(calendar, startDateTime.plainDate(), intermediateDateTime.plainDate(), toTemporalUnit(dateLargestUnit));
     // Return CombineDateAndTimeDuration(dateDifference, timeDuration).
     return ISO8601::InternalDuration(dateDifference, timeDuration);
+}
+
+TemporalZonedDateTimeObject* TemporalZonedDateTimeObject::round(ExecutionState& state, Value roundToInput)
+{
+    Optional<Object*> roundTo;
+    // If roundTo is undefined, then
+    if (roundToInput.isUndefined()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid roundTo value");
+    } else if (roundToInput.isString()) {
+        // If roundTo is a String, then
+        // Let paramString be roundTo.
+        // Set roundTo to OrdinaryObjectCreate(null).
+        // Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit", paramString).
+        roundTo = new Object(state, Object::PrototypeIsNull);
+        roundTo->directDefineOwnProperty(state, state.context()->staticStrings().lazySmallestUnit(),
+                                         ObjectPropertyDescriptor(roundToInput, ObjectPropertyDescriptor::AllPresent));
+    } else {
+        // Else,
+        // Set roundTo to ? GetOptionsObject(roundTo).
+        roundTo = Intl::getOptionsObject(state, roundToInput);
+    }
+
+    // Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+    auto roundingIncrement = Temporal::getRoundingIncrementOption(state, roundTo);
+    // Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+    auto roundingMode = Temporal::getRoundingModeOption(state, roundTo, state.context()->staticStrings().lazyHalfExpand().string());
+    // Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", required).
+    auto smallestUnit = Temporal::getTemporalUnitValuedOption(state, roundTo,
+                                                              state.context()->staticStrings().lazySmallestUnit().string(), Value(Value::EmptyValue));
+    // Perform ? ValidateTemporalUnitValue(smallestUnit, time, « day »).
+    TemporalUnit extraValues[1] = { TemporalUnit::Day };
+    Temporal::validateTemporalUnitValue(state, smallestUnit, ISO8601::DateTimeUnitCategory::Time, extraValues, 1);
+    Optional<unsigned> maximum;
+    bool inclusive;
+    // If smallestUnit is day, then
+    if (smallestUnit == TemporalUnit::Day) {
+        // Let maximum be 1.
+        maximum = 1;
+        // Let inclusive be true.
+        inclusive = true;
+    } else {
+        // Else,
+        // Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
+        maximum = Temporal::maximumTemporalDurationRoundingIncrement(toDateTimeUnit(smallestUnit.value()));
+        // Assert: maximum is not unset.
+        // Let inclusive be false.
+        inclusive = false;
+    }
+
+
+    // Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, inclusive).
+    Temporal::validateTemporalRoundingIncrement(state, roundingIncrement, maximum.value(), inclusive);
+    // If smallestUnit is nanosecond and roundingIncrement = 1, then
+    if (smallestUnit == TemporalUnit::Nanosecond && roundingIncrement == 1) {
+        // Return ! CreateTemporalZonedDateTime(zonedDateTime.[[EpochNanoseconds]], zonedDateTime.[[TimeZone]], zonedDateTime.[[Calendar]]).
+        return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNanoseconds(), timeZone(), calendarID());
+    }
+
+    // Let thisNs be zonedDateTime.[[EpochNanoseconds]].
+    auto thisNs = epochNanoseconds();
+    // Let timeZone be zonedDateTime.[[TimeZone]].
+    TimeZone timeZone = this->timeZone();
+    // Let calendar be zonedDateTime.[[Calendar]].
+    auto calendar = calendarID();
+    // Let isoDateTime be GetISODateTimeFor(timeZone, thisNs).
+    auto isoDateTime = Temporal::getISODateTimeFor(state, timeZone, thisNs);
+
+    Int128 epochNanoseconds;
+    // If smallestUnit is day, then
+    if (smallestUnit == TemporalUnit::Day) {
+        // Let dateStart be isoDateTime.[[ISODate]].
+        auto dateStart = isoDateTime.plainDate();
+        // Let dateEnd be BalanceISODate(dateStart.[[Year]], dateStart.[[Month]], dateStart.[[Day]] + 1).
+        auto dateEnd = Temporal::balanceISODate(state, dateStart.year(), dateStart.month(), dateStart.day() + 1);
+        // Let startNs be ? GetStartOfDay(timeZone, dateStart).
+        auto startNs = Temporal::getStartOfDay(state, timeZone, dateStart);
+        // Assert: thisNs ≥ startNs.
+        // Let endNs be ? GetStartOfDay(timeZone, dateEnd).
+        auto endNs = Temporal::getStartOfDay(state, timeZone, dateEnd);
+        // Assert: thisNs < endNs.
+        // Let dayLengthNs be ℝ(endNs - startNs).
+        Int128 dayLengthNs = endNs - startNs;
+        // Let dayProgressNs be TimeDurationFromEpochNanosecondsDifference(thisNs, startNs).
+        Int128 dayProgressNs = Temporal::timeDurationFromEpochNanosecondsDifference(thisNs, startNs);
+        // Let roundedDayNs be ! RoundTimeDurationToIncrement(dayProgressNs, dayLengthNs, roundingMode).
+        auto roundedDayNs = TemporalDurationObject::roundTimeDurationToIncrement(state, dayProgressNs, dayLengthNs, roundingMode);
+        // Let epochNanoseconds be AddTimeDurationToEpochNanoseconds(roundedDayNs, startNs).
+        epochNanoseconds = roundedDayNs + startNs;
+    } else {
+        // Else,
+        // Let roundResult be RoundISODateTime(isoDateTime, roundingIncrement, smallestUnit, roundingMode).
+        auto roundResult = Temporal::roundISODateTime(state, isoDateTime, roundingIncrement, toDateTimeUnit(smallestUnit.value()), roundingMode);
+        // Let offsetNanoseconds be GetOffsetNanosecondsFor(timeZone, thisNs).
+        auto offsetNanoseconds = Temporal::getOffsetNanosecondsFor(state, timeZone, thisNs);
+        // Let epochNanoseconds be ? InterpretISODateTimeOffset(roundResult.[[ISODate]], roundResult.[[Time]], option, offsetNanoseconds, timeZone, compatible, prefer, match-exactly).
+        epochNanoseconds = Temporal::interpretISODateTimeOffset(state, roundResult.plainDate(), roundResult.plainTime(), TemporalOffsetBehaviour::Option,
+                                                                offsetNanoseconds, timeZone, false, TemporalDisambiguationOption::Compatible, TemporalOffsetOption::Prefer, TemporalMatchBehaviour::MatchExactly);
+    }
+    // Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNanoseconds, timeZone, calendar);
+}
+
+TemporalZonedDateTimeObject* TemporalZonedDateTimeObject::startOfDay(ExecutionState& state)
+{
+    // Let timeZone be zonedDateTime.[[TimeZone]].
+    TimeZone timeZone = this->timeZone();
+    // Let calendar be zonedDateTime.[[Calendar]].
+    auto calendar = calendarID();
+    // Let isoDateTime be GetISODateTimeFor(timeZone, zonedDateTime.[[EpochNanoseconds]]).
+    auto isoDateTime = Temporal::getISODateTimeFor(state, timeZone, epochNanoseconds());
+    // Let epochNanoseconds be ? GetStartOfDay(timeZone, isoDateTime.[[ISODate]]).
+    auto epochNanoseconds = Temporal::getStartOfDay(state, timeZone, isoDateTime.plainDate());
+    // Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNanoseconds, timeZone, calendar);
+}
+
+Value TemporalZonedDateTimeObject::getTimeZoneTransition(ExecutionState& state, Value directionParamInput)
+{
+    // Let timeZone be zonedDateTime.[[TimeZone]].
+    TimeZone timeZone = this->timeZone();
+    // If directionParam is undefined, throw a TypeError exception.
+    if (directionParamInput.isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid directionParam");
+    }
+    Optional<Object*> directionParam;
+    // If directionParam is a String, then
+    if (directionParamInput.isString()) {
+        // Let paramString be directionParam.
+        // Set directionParam to OrdinaryObjectCreate(null).
+        // Perform ! CreateDataPropertyOrThrow(directionParam, "direction", paramString).
+        directionParam = new Object(state, Object::PrototypeIsNull);
+        directionParam->directDefineOwnProperty(state, state.context()->staticStrings().lazyDirection(),
+                                                ObjectPropertyDescriptor(directionParamInput, ObjectPropertyDescriptor::AllPresent));
+
+    } else {
+        // Else,
+        // Set directionParam to ? GetOptionsObject(directionParam).
+        directionParam = Intl::getOptionsObject(state, directionParamInput);
+    }
+
+    // Let direction be ? GetDirectionOption(directionParam).
+    auto direction = Temporal::getTemporalDirectionOption(state, directionParam);
+
+    // If IsOffsetTimeZoneIdentifier(timeZone) is true, return null.
+    if (timeZone.hasOffset()) {
+        return Value(Value::Null);
+    }
+
+    // If direction is next, then
+    UDate newEpoch = ISO8601::ExactTime(epochNanoseconds()).floorEpochMilliseconds();
+    UErrorCode status = U_ZERO_ERROR;
+    auto startOffset = computeTimeZoneOffset(state, m_icuCalendar);
+    LocalResourcePointer<UCalendar> newCal(ucal_clone(m_icuCalendar, &status), [](UCalendar* r) {
+        ucal_close(r);
+    });
+
+    UBool ret;
+
+    while (true) {
+        if (direction == TemporalDirectionOption::Next) {
+            // Let transition be GetNamedTimeZoneNextTransition(timeZone, zonedDateTime.[[EpochNanoseconds]]).
+            ret = ucal_getTimeZoneTransitionDate(newCal.get(), UTimeZoneTransitionType::UCAL_TZ_TRANSITION_NEXT, &newEpoch, &status);
+        } else {
+            // Else,
+            // Let transition be GetNamedTimeZonePreviousTransition(timeZone, zonedDateTime.[[EpochNanoseconds]]).
+            ret = ucal_getTimeZoneTransitionDate(newCal.get(), UTimeZoneTransitionType::UCAL_TZ_TRANSITION_PREVIOUS, &newEpoch, &status);
+        }
+        CHECK_ICU();
+
+        if (!ret) {
+            break;
+        }
+
+        ucal_setMillis(newCal.get(), newEpoch + (direction == TemporalDirectionOption::Next ? 1 : -1), &status);
+        CHECK_ICU()
+
+        if (startOffset != computeTimeZoneOffset(state, newCal.get())) {
+            break;
+        }
+    }
+
+    // If transition is null, return null.
+    if (!ret) {
+        return Value(Value::Null);
+    }
+
+    Int128 newEpochNs = int64_t(newEpoch) * ISO8601::ExactTime::nsPerMillisecond;
+    if (!ISO8601::isValidEpochNanoseconds(newEpochNs)) {
+        return Value(Value::Null);
+    }
+
+    // Return ! CreateTemporalZonedDateTime(transition, timeZone, zonedDateTime.[[Calendar]]).
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), newEpochNs, timeZone, calendarID());
+}
+
+int TemporalZonedDateTimeObject::compare(ExecutionState& state, Value oneInput, Value twoInput)
+{
+    // Set one to ? ToTemporalZonedDateTime(one).
+    // Set two to ? ToTemporalZonedDateTime(two).
+    auto one = Temporal::toTemporalZonedDateTime(state, oneInput, Value());
+    auto two = Temporal::toTemporalZonedDateTime(state, twoInput, Value());
+    // Return 𝔽(CompareEpochNanoseconds(one.[[EpochNanoseconds]], two.[[EpochNanoseconds]])).
+    auto epochNanosecondsOne = one->epochNanoseconds();
+    auto epochNanosecondsTwo = two->epochNanoseconds();
+    if (epochNanosecondsOne > epochNanosecondsTwo) {
+        return 1;
+    }
+    if (epochNanosecondsOne < epochNanosecondsTwo) {
+        return -1;
+    }
+    return 0;
 }
 
 } // namespace Escargot

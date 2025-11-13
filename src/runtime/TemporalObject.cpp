@@ -1427,6 +1427,25 @@ TemporalOffsetOption Temporal::getTemporalOffsetOption(ExecutionState& state, Op
     return TemporalOffsetOption::Reject;
 }
 
+TemporalDirectionOption Temporal::getTemporalDirectionOption(ExecutionState& state, Optional<Object*> resolvedOptions)
+{
+    if (!resolvedOptions) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid direction option");
+    }
+
+    Value values[2] = {
+        state.context()->staticStrings().next.string(),
+        state.context()->staticStrings().lazyPrevious().string(),
+    };
+    auto stringValue = Intl::getOption(state, resolvedOptions.value(), state.context()->staticStrings().lazyDirection().string(), Intl::StringValue,
+                                       values, 2, NullOption)
+                           .asString();
+    if (stringValue->equals("next")) {
+        return TemporalDirectionOption::Next;
+    }
+    return TemporalDirectionOption::Previous;
+}
+
 void Temporal::validateTemporalUnitValue(ExecutionState& state, Optional<TemporalUnit> value, ISO8601::DateTimeUnitCategory unitGroup, Optional<TemporalUnit*> extraValues, size_t extraValueSize)
 {
     // If value is unset, return unused.
@@ -1469,7 +1488,7 @@ void Temporal::validateTemporalUnitValue(ExecutionState& state, Optional<Tempora
     ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
 }
 
-TimeZone Temporal::parseTimeZone(ExecutionState& state, String* input)
+TimeZone Temporal::parseTimeZone(ExecutionState& state, String* input, bool allowISODateTimeString)
 {
     ISO8601::DateTimeParseOption option;
     option.parseSubMinutePrecisionForTimeZone = false;
@@ -1483,17 +1502,19 @@ TimeZone Temporal::parseTimeZone(ExecutionState& state, String* input)
         return TimeZone(identifier.value());
     }
 
-    auto complexTimeZone = ISO8601::parseCalendarDateTime(input, option);
-    if (complexTimeZone && std::get<2>(complexTimeZone.value())) {
-        ISO8601::TimeZoneRecord record = std::get<2>(complexTimeZone.value()).value();
-        if (record.m_z) {
-            return TimeZone(state.context()->staticStrings().UTC.string());
-        } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 0) {
-            return TimeZone(record.m_nameOrOffset.get<0>());
-        } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 1) {
-            return TimeZone(record.m_nameOrOffset.get<1>());
-        } else if (record.m_offset) {
-            return TimeZone(record.m_offset.value());
+    if (allowISODateTimeString) {
+        auto complexTimeZone = ISO8601::parseCalendarDateTime(input, option);
+        if (complexTimeZone && std::get<2>(complexTimeZone.value())) {
+            ISO8601::TimeZoneRecord record = std::get<2>(complexTimeZone.value()).value();
+            if (record.m_z) {
+                return TimeZone(state.context()->staticStrings().UTC.string());
+            } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 0) {
+                return TimeZone(record.m_nameOrOffset.get<0>());
+            } else if (record.m_nameOrOffset && record.m_nameOrOffset.id().value() == 1) {
+                return TimeZone(record.m_nameOrOffset.get<1>());
+            } else if (record.m_offset) {
+                return TimeZone(record.m_offset.value());
+            }
         }
     }
 
@@ -3413,14 +3434,15 @@ Int128 Temporal::addZonedDateTime(ExecutionState& state, Int128 epochNanoseconds
         return addInstant(state, epochNanoseconds, duration.time());
     }
     // Let isoDateTime be GetISODateTimeFor(timeZone, epochNanoseconds).
-    auto isoDateTime = getISODateTimeFor(state, timeZone, epochNanoseconds);
+    // Pass NullOption to timeZone to get utc date time
+    auto isoDateTime = getISODateTimeFor(state, NullOption, epochNanoseconds);
     // Let addedDate be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], duration.[[Date]], overflow).
     UErrorCode status = U_ZERO_ERROR;
     LocalResourcePointer<UCalendar> newCal(calendar.createICUCalendar(state), [](UCalendar* r) {
         ucal_close(r);
     });
     CHECK_ICU_CALENDAR();
-    ucal_setMillis(newCal.get(), ISO8601::ExactTime::fromPlainDate(isoDateTime.plainDate()).floorEpochMilliseconds(), &status);
+    ucal_setMillis(newCal.get(), ISO8601::ExactTime::fromPlainDateTime(isoDateTime).floorEpochMilliseconds(), &status);
     CHECK_ICU_CALENDAR();
     auto addedDate = calendarDateAdd(state, calendar, isoDateTime.plainDate(), newCal.get(), duration.dateDuration(), overflow);
     // Let intermediateDateTime be CombineISODateAndTimeRecord(addedDate, isoDateTime.[[Time]]).
@@ -3431,7 +3453,8 @@ Int128 Temporal::addZonedDateTime(ExecutionState& state, Int128 epochNanoseconds
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid time value");
     }
     // Let intermediateNs be ! GetEpochNanosecondsFor(timeZone, intermediateDateTime, compatible).
-    auto intermediateNs = getEpochNanosecondsFor(state, timeZone, intermediateDateTime, TemporalDisambiguationOption::Compatible);
+    // Pass NullOption to timeZone to get utc date time
+    auto intermediateNs = getEpochNanosecondsFor(state, NullOption, intermediateDateTime, TemporalDisambiguationOption::Compatible);
     // Return ? AddInstant(intermediateNs, duration.[[Time]]).
     return addInstant(state, intermediateNs, duration.time());
 }

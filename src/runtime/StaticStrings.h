@@ -980,6 +980,7 @@ namespace Escargot {
     F(DaysInMonth, "daysInMonth")                           \
     F(DaysInWeek, "daysInWeek")                             \
     F(DaysInYear, "daysInYear")                             \
+    F(Direction, "direction")                               \
     F(Disambiguation, "disambiguation")                     \
     F(Earlier, "earlier")                                   \
     F(EraYear, "eraYear")                                   \
@@ -990,6 +991,7 @@ namespace Escargot {
     F(FromEpochNanoseconds, "fromEpochNanoseconds")         \
     F(GetEpochMilliseconds, "get epochMilliseconds")        \
     F(GetEpochNanoseconds, "get epochNanoseconds")          \
+    F(GetTimeZoneTransition, "getTimeZoneTransition")       \
     F(HoursInDay, "hoursInDay")                             \
     F(Ignore, "ignore")                                     \
     F(InLeapYear, "inLeapYear")                             \
@@ -1009,7 +1011,9 @@ namespace Escargot {
     F(PlainTime, "plainTime")                               \
     F(PlainTimeISO, "plainTimeISO")                         \
     F(Prefer, "prefer")                                     \
+    F(Previous, "previous")                                 \
     F(Since, "since")                                       \
+    F(StartOfDay, "startOfDay")                             \
     F(SmallestUnit, "smallestUnit")                         \
     F(Subtract, "subtract")                                 \
     F(TemporalDotDuration, "Temporal.Duration")             \

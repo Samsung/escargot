@@ -48,7 +48,11 @@ public:
         StringValue,
         BooleanValue,
     };
-    static Value getOption(ExecutionState& state, Object* options, Value property, OptionValueType type, Value* values, size_t valuesLength, const Value& fallback);
+    static Value getOption(ExecutionState& state, Object* options, Value property, OptionValueType type, Value* values, size_t valuesLength, Optional<Value> fallback);
+    static Value getOption(ExecutionState& state, Object* options, Value property, OptionValueType type, Value* values, size_t valuesLength, Value fallback)
+    {
+        return getOption(state, options, property, type, values, valuesLength, Optional<Value>(fallback));
+    }
     template <typename T>
     static T getNumberOption(ExecutionState& state, Optional<Object*> options, String* property, double minimum, double maximum, const T& fallback);
     static std::string preferredLanguage(const std::string& language);
