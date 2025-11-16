@@ -50,9 +50,7 @@ if (ENABLE_SHELL)
     ADD_LINK_OPTIONS(-static-libstdc++)
     ADD_EXECUTABLE(escargot-shell ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../src/shell/Shell.cpp)
     TARGET_INCLUDE_DIRECTORIES(escargot-shell PRIVATE ADD_SUBDIRECTORY
-        (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/GCutil/)
-        (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/GCutil/bdwgc/include)
-        (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/GCutil/bdwgc/include/gc)
+        (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../third_party/GCutil/include)
         (${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../src))
     TARGET_LINK_LIBRARIES (escargot-shell PRIVATE escargot ${LOG_LIBRARY})
 

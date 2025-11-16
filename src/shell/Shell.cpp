@@ -131,7 +131,8 @@ void btSighandler(int sig, struct sigcontext ctx)
 }
 #endif
 
-#include <GCUtil.h>
+#include "GCUtil.h"
+
 void doFullGCWithoutSeeingStack()
 {
     GC_register_mark_stack_func([]() {
