@@ -290,7 +290,6 @@ public:
     static TimeZone parseTimeZone(ExecutionState& state, String* input, bool allowISODateTimeString = true);
     static void formatSecondsStringFraction(StringBuilder& builder, Int128 fraction, Value precision);
     static ISO8601::PlainDateTime toPlainDateTime(Int128 epochNanoseconds);
-
     static int timeDurationSign(Int128 t)
     {
         if (t < 0) {
@@ -524,6 +523,12 @@ public:
 
     // https://tc39.es/proposal-temporal/#sec-temporal-addzoneddatetime
     static Int128 addZonedDateTime(ExecutionState& state, Int128 epochNanoseconds, TimeZone timeZone, Calendar calendar, ISO8601::InternalDuration duration, TemporalOverflowOption overflow);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-totaltimeduration
+    static double totalTimeDuration(ExecutionState& state, Int128 timeDuration, TemporalUnit unit);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal-totalrelativeduration
+    static double totalRelativeDuration(ExecutionState& state, const ISO8601::InternalDuration& duration, Int128 originEpochNs, Int128 destEpochNs, ISO8601::PlainDateTime isoDateTime, Optional<TimeZone> timeZone, Calendar calendar, ISO8601::DateTimeUnit unit);
 };
 
 } // namespace Escargot

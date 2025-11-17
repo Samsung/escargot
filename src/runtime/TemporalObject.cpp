@@ -1511,7 +1511,7 @@ void Temporal::validateTemporalUnitValue(ExecutionState& state, Optional<Tempora
 TimeZone Temporal::parseTimeZone(ExecutionState& state, String* input, bool allowISODateTimeString)
 {
     ISO8601::DateTimeParseOption option;
-    option.parseSubMinutePrecisionForTimeZone = false;
+    option.parseSubMinutePrecisionForTimeZone = ISO8601::DateTimeParseOption::SubMinutePrecisionForTimeZoneMode::DenyAll;
     Optional<int64_t> utcOffset = ISO8601::parseUTCOffset(input, option);
     if (utcOffset) {
         return TimeZone(utcOffset.value());
@@ -2885,50 +2885,14 @@ static Int128 roundNumberToIncrementInt128(Int128 x, Int128 increment, ISO8601::
     return rounded * increment;
 }
 
-static void appendInteger(StringBuilder& builder, double value)
-{
-    ASSERT(std::isfinite(value));
-
-    auto absValue = std::abs(value);
-    if (absValue <= 9007199254740991.0 /* MAX_SAFE_INTEGER */) {
-        builder.appendString(String::fromDouble(absValue));
-        return;
-    }
-
-    BigIntData bi(absValue);
-    std::string s = bi.toNonGCStdString();
-    builder.appendString(String::fromASCII(s.data(), s.length()));
-}
-
-static double totalTimeDuration(ExecutionState& state, Int128 timeDuration, TemporalUnit unit)
+// https://tc39.es/proposal-temporal/#sec-temporal-totaltimeduration
+double Temporal::totalTimeDuration(ExecutionState& state, Int128 timeDuration, TemporalUnit unit)
 {
     Int128 divisor = ISO8601::lengthInNanoseconds(toDateTimeUnit(unit));
-    Int128 quotient = timeDuration / divisor;
-    Int128 remainder = timeDuration % divisor;
-    // Perform long division to calculate the fractional part of the quotient
-    // remainder / n with more accuracy than 64-bit floating point division
-    size_t precision = 50;
-    size_t size = 0;
-    StringBuilder decimalDigits;
-    int32_t digit = 0;
-    int32_t sign = timeDuration < 0 ? -1 : 1;
-    while (remainder && size < precision) {
-        remainder *= 10;
-        digit = (int32_t)(remainder / divisor);
-        remainder = remainder % divisor;
-        appendInteger(decimalDigits, std::abs(digit));
-        size++;
-    }
-    StringBuilder result;
-    appendInteger(result, (double)std::abs(quotient));
-    result.appendChar('.');
-    result.appendString(decimalDigits.finalize());
-    // NOTE: if result.toString() == 9007199254740992.999,
-    // the result is rounded down to 9007199254740992.
-    // This causes the test262 test
-    // Temporal/Duration/prototype/total/precision-exact-mathematical-values-7.js
-    // to fail when unit=milliseconds, smallerUnit=microseconds, integer=2**53, fraction=1999.
-    return sign * Value(result.finalize()).toNumber(state);
+    ASSERT(divisor < std::numeric_limits<int64_t>::max());
+    BigIntData bd(timeDuration);
+    auto r = bd.division(int64_t(divisor), 128);
+    return r.toDouble();
 }
 
 static ISO8601::Duration adjustDateDurationRecord(ExecutionState& state, const ISO8601::Duration& dateDuration, double days, Optional<double> weeks, Optional<double> months)
@@ -2949,16 +2913,24 @@ static NudgeResult nudgeToDayOrTime(ExecutionState& state, ISO8601::InternalDura
     Int128 roundedTime = roundNumberToIncrementInt128(timeDuration,
                                                       unitLength * (Int128)std::trunc(increment), roundingMode);
     Int128 diffTime = roundedTime - timeDuration;
-    double wholeDays = totalTimeDuration(state, timeDuration, TemporalUnit::Day);
-    double roundedWholeDays = totalTimeDuration(state, roundedTime, TemporalUnit::Day);
+    double wholeDays = Temporal::totalTimeDuration(state, timeDuration, TemporalUnit::Day);
+    double roundedWholeDays = Temporal::totalTimeDuration(state, roundedTime, TemporalUnit::Day);
     auto dayDelta = roundedWholeDays - wholeDays;
     auto dayDeltaSign = dayDelta < 0 ? -1 : dayDelta > 0 ? 1
                                                          : 0;
     bool didExpandDays = dayDeltaSign == (timeDuration < 0 ? -1 : timeDuration > 0 ? 1
                                                                                    : 0);
     auto nudgedEpochNs = diffTime + destEpochNs;
-    auto days = 0;
+    double days = 0;
     auto remainder = roundedTime;
+    // If TemporalUnitCategory(largestUnit) is date, then
+    if (ISO8601::toDateTimeCategory(toDateTimeUnit(largestUnit)) == ISO8601::DateTimeUnitCategory::Date && std::abs(roundedWholeDays) >= 1) {
+        // Set days to roundedWholeDays.
+        days = std::trunc(roundedWholeDays);
+        // Set remainder to ! AddTimeDuration(roundedTime, TimeDurationFromComponents(-roundedWholeDays * HoursPerDay, 0, 0, 0, 0, 0)).
+        remainder = TemporalDurationObject::addTimeDuration(state, roundedTime, -Int128(roundedWholeDays) * ISO8601::ExactTime::nsPerDay);
+    }
+
     auto dateDuration = adjustDateDurationRecord(state, duration.dateDuration(), days, NullOption, NullOption);
     auto resultDuration = ISO8601::InternalDuration::combineDateAndTimeDuration(dateDuration, remainder);
     return NudgeResult(resultDuration, nudgedEpochNs, didExpandDays);
@@ -3477,6 +3449,39 @@ Int128 Temporal::addZonedDateTime(ExecutionState& state, Int128 epochNanoseconds
     auto intermediateNs = getEpochNanosecondsFor(state, NullOption, intermediateDateTime, TemporalDisambiguationOption::Compatible);
     // Return ? AddInstant(intermediateNs, duration.[[Time]]).
     return addInstant(state, intermediateNs, duration.time());
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-internaldurationsign
+static int internalDurationSign(const ISO8601::InternalDuration& internalDuration)
+{
+    auto dateSign = internalDuration.dateDuration().sign();
+    if (dateSign) {
+        return dateSign;
+    }
+    return internalDuration.timeDurationSign();
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-totalrelativeduration
+double Temporal::totalRelativeDuration(ExecutionState& state, const ISO8601::InternalDuration& duration, Int128 originEpochNs, Int128 destEpochNs, ISO8601::PlainDateTime isoDateTime, Optional<TimeZone> timeZone, Calendar calendar, ISO8601::DateTimeUnit unit)
+{
+    // If IsCalendarUnit(unit) is true, or timeZone is not unset and unit is day, then
+    if (Temporal::isCalendarUnit(unit) || (timeZone && unit == ISO8601::DateTimeUnit::Day)) {
+        int sign;
+        // If InternalDurationSign(duration) < 0, let sign be -1; else let sign be 1.
+        if (internalDurationSign(duration) < 0) {
+            sign = -1;
+        } else {
+            sign = 1;
+        }
+        // Let record be ? NudgeToCalendarUnit(sign, duration, originEpochNs, destEpochNs, isoDateTime, timeZone, calendar, 1, unit, trunc).
+        auto record = nudgeToCalendarUnit(state, sign, duration, destEpochNs, isoDateTime, timeZone, calendar, 1, toTemporalUnit(unit), ISO8601::RoundingMode::Trunc);
+        // Return record.[[Total]].
+        return record.m_total;
+    }
+    // Let timeDuration be ! Add24HourDaysToTimeDuration(duration.[[Time]], duration.[[Date]].[[Days]]).
+    auto timeDuration = add24HourDaysToTimeDuration(state, duration.time(), duration.dateDuration().days());
+    // Return TotalTimeDuration(timeDuration, unit).
+    return totalTimeDuration(state, timeDuration, toTemporalUnit(unit));
 }
 
 } // namespace Escargot

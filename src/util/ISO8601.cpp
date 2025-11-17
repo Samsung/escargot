@@ -819,7 +819,7 @@ static Optional<std::vector<CalendarID>> parseCalendar(ParserString& buffer)
 
 enum class Second60Mode { Accept,
                           Reject };
-static Optional<PlainTime> parseTimeSpec(ParserString& buffer, Second60Mode second60Mode, bool parseSubMinutePrecision = true)
+static Optional<PlainTime> parseTimeSpec(ParserString& buffer, Second60Mode second60Mode, ISO8601::DateTimeParseOption::SubMinutePrecisionForTimeZoneMode parseSubMinutePrecision = ISO8601::DateTimeParseOption::SubMinutePrecisionForTimeZoneMode::AllowAll)
 {
     // https://tc39.es/proposal-temporal/#prod-TimeSpec
     // TimeSpec :
@@ -884,8 +884,20 @@ static Optional<PlainTime> parseTimeSpec(ParserString& buffer, Second60Mode seco
     } else if (!(*buffer >= '0' && (second60Mode == Second60Mode::Accept ? (*buffer <= '6') : (*buffer <= '5'))))
         return PlainTime(hour, minute, 0, 0, 0, 0);
 
-    if (!parseSubMinutePrecision)
+    if (parseSubMinutePrecision == ISO8601::DateTimeParseOption::SubMinutePrecisionForTimeZoneMode::DenyAll) {
         return NullOption;
+    } else if (parseSubMinutePrecision == ISO8601::DateTimeParseOption::SubMinutePrecisionForTimeZoneMode::Allow00) {
+        // allow 00
+        if (buffer.lengthRemaining() >= 2) {
+            if (buffer[0] == '0') {
+                if (buffer[1] == '0') {
+                    buffer.advanceBy(2);
+                    return PlainTime(hour, minute, 0, 0, 0, 0);
+                }
+            }
+        }
+        return NullOption;
+    }
 
     unsigned second = 0;
     if (buffer.lengthRemaining() < 2)
@@ -1036,7 +1048,7 @@ static Optional<Variant<TimeZoneID, int64_t>> parseTimeZoneAnnotation(ParserStri
     case '+':
     case '-': {
         DateTimeParseOption option;
-        option.parseSubMinutePrecisionForTimeZone = false;
+        option.parseSubMinutePrecisionForTimeZone = ISO8601::DateTimeParseOption::SubMinutePrecisionForTimeZoneMode::DenyAll;
         auto offset = parseUTCOffset(buffer, option);
         if (!offset)
             return NullOption;

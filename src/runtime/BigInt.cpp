@@ -178,21 +178,15 @@ BigIntData BigIntData::multiply(const int64_t& d) const
     return result;
 }
 
-BigIntData BigIntData::division(const int64_t& d) const
+BigIntData BigIntData::division(const int64_t& d, size_t prec) const
 {
     BigIntData result;
-
-    int64_t a;
-    if (bf_get_int64(&a, &m_data, BF_GET_INT_MOD) == 0) {
-        bf_set_si(&result.m_data, a / d);
-        return result;
-    }
 
     bf_t src;
     bf_init(ThreadLocal::bfContext(), &src);
     bf_set_si(&src, d);
 
-    int ret = bf_div(&result.m_data, &m_data, &src, BF_PREC_INF, BF_RNDZ);
+    int ret = bf_div(&result.m_data, &m_data, &src, prec, BF_RNDZ);
     if (UNLIKELY(ret) && UNLIKELY(ret != BF_ST_INEXACT)) {
         RELEASE_ASSERT_NOT_REACHED();
     }
@@ -200,7 +194,7 @@ BigIntData BigIntData::division(const int64_t& d) const
     return result;
 }
 
-BigIntData BigIntData::remainder(const int64_t& d) const
+BigIntData BigIntData::remainder(const int64_t& d, size_t prec) const
 {
     BigIntData result;
 
@@ -208,7 +202,7 @@ BigIntData BigIntData::remainder(const int64_t& d) const
     bf_init(ThreadLocal::bfContext(), &src);
     bf_set_si(&src, d);
 
-    int ret = bf_rem(&result.m_data, &m_data, &src, BF_PREC_INF, BF_RNDZ,
+    int ret = bf_rem(&result.m_data, &m_data, &src, prec, BF_RNDZ,
                      BF_RNDZ)
         & BF_ST_INVALID_OP;
     if (UNLIKELY(ret)) {
@@ -272,6 +266,13 @@ int64_t BigIntData::toInt64() const
 {
     int64_t d;
     bf_get_int64(&d, &m_data, BF_GET_INT_MOD);
+    return d;
+}
+
+double BigIntData::toDouble() const
+{
+    double d;
+    bf_get_float64(&m_data, &d, bf_rnd_t::BF_RNDN);
     return d;
 }
 
