@@ -598,7 +598,12 @@ struct RFC9557Annotation {
 };
 
 struct DateTimeParseOption {
-    bool parseSubMinutePrecisionForTimeZone{ true };
+    enum class SubMinutePrecisionForTimeZoneMode {
+        AllowAll,
+        DenyAll,
+        Allow00
+    };
+    SubMinutePrecisionForTimeZoneMode parseSubMinutePrecisionForTimeZone{ SubMinutePrecisionForTimeZoneMode::AllowAll };
     bool allowTimeZoneTimeWithoutTime{ false };
 };
 

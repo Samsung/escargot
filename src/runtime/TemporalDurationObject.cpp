@@ -45,10 +45,18 @@
 
 #include "Escargot.h"
 #include "TemporalDurationObject.h"
+#include "TemporalZonedDateTimeObject.h"
+#include "TemporalPlainDateObject.h"
+#include "TemporalPlainDateTimeObject.h"
 #include "runtime/Context.h"
 #include "runtime/GlobalObject.h"
 
 namespace Escargot {
+
+#define CHECK_ICU()                                                                                           \
+    if (U_FAILURE(status)) {                                                                                  \
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
+    }
 
 TemporalDurationObject::TemporalDurationObject(ExecutionState& state, Object* proto,
                                                const Value& years, const Value& months, const Value& weeks, const Value& days,
@@ -440,6 +448,500 @@ TemporalDurationObject* TemporalDurationObject::with(ExecutionState& state, Valu
     }
 
     return new TemporalDurationObject(state, newDuration);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-gettemporalrelativetooption
+struct TemporalRelativeToOptionRecord {
+    Optional<TemporalPlainDateObject*> plainRelativeTo;
+    Optional<TemporalZonedDateTimeObject*> zonedRelativeTo;
+};
+
+static TemporalRelativeToOptionRecord getTemporalRelativeToOption(ExecutionState& state, Object* options)
+{
+    // Let value be ? Get(options, "relativeTo").
+    Value value = options->get(state, state.context()->staticStrings().lazyRelativeTo()).value(state, options);
+    // If value is undefined, return the Record { [[PlainRelativeTo]]: undefined, [[ZonedRelativeTo]]: undefined }.
+    if (value.isUndefined()) {
+        return {};
+    }
+
+    Calendar calendar;
+    ISO8601::PlainDate isoDate;
+    ISO8601::PlainTime time;
+    Optional<TimeZone> timeZone;
+
+    // Let offsetBehaviour be option.
+    TemporalOffsetBehaviour offsetBehaviour = TemporalOffsetBehaviour::Option;
+    // Let matchBehaviour be match-exactly.
+    TemporalMatchBehaviour matchBehaviour = TemporalMatchBehaviour::MatchExactly;
+    // If value is an Object, then
+    if (value.isObject()) {
+        // If value has an [[InitializedTemporalZonedDateTime]] internal slot, then
+        if (value.asObject()->isTemporalZonedDateTimeObject()) {
+            // Return the Record { [[PlainRelativeTo]]: undefined, [[ZonedRelativeTo]]: value }.
+            return { NullOption, value.asObject()->asTemporalZonedDateTimeObject() };
+        } else if (value.asObject()->isTemporalPlainDateObject()) {
+            // If value has an [[InitializedTemporalDate]] internal slot, then
+            // Return the Record { [[PlainRelativeTo]]: value, [[ZonedRelativeTo]]: undefined }.
+            return { value.asObject()->asTemporalPlainDateObject(), NullOption };
+        } else if (value.asObject()->isTemporalPlainDateTimeObject()) {
+            // If value has an [[InitializedTemporalDateTime]] internal slot, then
+            auto pdt = value.asObject()->asTemporalPlainDateTimeObject();
+            // Let plainDate be ! CreateTemporalDate(value.[[ISODateTime]].[[ISODate]], value.[[Calendar]]).
+            // Return the Record { [[PlainRelativeTo]]: plainDate, [[ZonedRelativeTo]]: undefined }.
+            return { new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
+                                                 pdt->computeISODate(state), pdt->calendarID()),
+                     NullOption };
+        }
+        // Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(value).
+        auto calendar = Temporal::getTemporalCalendarIdentifierWithISODefault(state, value);
+        // Let fields be ? PrepareCalendarFields(calendar, value, « year, month, month-code, day », « hour, minute, second, millisecond, microsecond, nanosecond, offset, time-zone », «»).
+        CalendarField calendarFieldNames[4] = { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day };
+        CalendarField noncalendarFieldNames[8] = { CalendarField::Hour, CalendarField::Minute, CalendarField::Second, CalendarField::Millisecond,
+                                                   CalendarField::Microsecond, CalendarField::Nanosecond, CalendarField::Offset, CalendarField::TimeZone };
+        auto fields = Temporal::prepareCalendarFields(state, calendar, value.asObject(), calendarFieldNames, 4, noncalendarFieldNames, 8, nullptr, 0);
+        // Let result be ? InterpretTemporalDateTimeFields(calendar, fields, constrain).
+        auto result = Temporal::interpretTemporalDateTimeFields(state, calendar, fields, TemporalOverflowOption::Constrain);
+        // Let timeZone be fields.[[TimeZone]].
+        timeZone = fields.timeZone;
+        // Let offsetString be fields.[[OffsetString]].
+        // If offsetString is unset, then
+        if (!fields.offset) {
+            // Set offsetBehaviour to wall.
+            offsetBehaviour = TemporalOffsetBehaviour::Wall;
+        }
+        // Let isoDate be result.[[ISODate]].
+        isoDate = result.plainDate();
+        // Let time be result.[[Time]].
+        time = result.plainTime();
+    } else {
+        constexpr auto msg = "The value you gave for GetTemporalRelativeToOption is invalid";
+        // If value is not a String, throw a TypeError exception.
+        if (!value.isString()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, msg);
+        }
+
+        // Let result be ? ParseISODateTime(value, « TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned] »).
+        ISO8601::DateTimeParseOption option;
+        option.allowTimeZoneTimeWithoutTime = true;
+        option.parseSubMinutePrecisionForTimeZone = ISO8601::DateTimeParseOption::SubMinutePrecisionForTimeZoneMode::Allow00;
+        auto result = ISO8601::parseCalendarDateTime(value.asString(), option);
+        if (!result) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+        }
+        auto unwrappedResult = result.value();
+        // Let offsetString be result.[[TimeZone]].[[OffsetString]].
+        // Let annotation be result.[[TimeZone]].[[TimeZoneAnnotation]].
+        // If annotation is empty, then
+        //   Let timeZone be unset.
+        if (std::get<2>(unwrappedResult)) {
+            auto timeZoneRecord = std::get<2>(unwrappedResult).value();
+
+            if (timeZoneRecord.m_z && !timeZoneRecord.m_nameOrOffset) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+            }
+
+            if (timeZoneRecord.m_nameOrOffset && timeZoneRecord.m_nameOrOffset.id().value() == 0 && timeZoneRecord.m_offset) {
+                auto epoch = ISO8601::ExactTime::fromPlainDateTime(ISO8601::PlainDateTime(std::get<0>(unwrappedResult),
+                                                                                          std::get<1>(unwrappedResult) ? std::get<1>(unwrappedResult).value() : ISO8601::PlainTime()))
+                                 .floorEpochMilliseconds();
+                if (timeZoneRecord.m_offset.value() != Temporal::computeTimeZoneOffset(state, timeZoneRecord.m_nameOrOffset.get<0>(), epoch)) {
+                    ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+                }
+            }
+
+            // Else,
+            // Let timeZone be ? ToTemporalTimeZoneIdentifier(annotation).
+            if (timeZoneRecord.m_nameOrOffset && timeZoneRecord.m_nameOrOffset.id().value() == 0) {
+                timeZone = TimeZone(timeZoneRecord.m_nameOrOffset.get<0>());
+            } else if (timeZoneRecord.m_nameOrOffset && timeZoneRecord.m_nameOrOffset.id().value() == 1) {
+                timeZone = TimeZone(timeZoneRecord.m_nameOrOffset.get<1>());
+            } else if (timeZoneRecord.m_offset) {
+                timeZone = TimeZone(timeZoneRecord.m_offset.value());
+            }
+            // If result.[[TimeZone]].[[Z]] is true, then
+            if (timeZoneRecord.m_z) {
+                // Set offsetBehaviour to exact.
+                offsetBehaviour = TemporalOffsetBehaviour::Exact;
+            } else if (!timeZoneRecord.m_offset) {
+                // Else if offsetString is empty, then
+                // Set offsetBehaviour to wall.
+                offsetBehaviour = TemporalOffsetBehaviour::Wall;
+            }
+            // Set matchBehaviour to match-minutes.
+            matchBehaviour = TemporalMatchBehaviour::MatchMinutes;
+            // If offsetString is not empty, then
+            if (timeZoneRecord.m_offset) {
+                // Let offsetParseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[+SubMinutePrecision]).
+                // If offsetParseResult contains more than one MinuteSecond Parse Node, set matchBehaviour to match-exactly.
+                if (timeZoneRecord.m_offset.value() % ISO8601::ExactTime::nsPerHour) {
+                    matchBehaviour = TemporalMatchBehaviour::MatchExactly;
+                }
+            }
+        }
+        // Let calendar be result.[[Calendar]].
+        // If calendar is empty, set calendar to "iso8601".
+        // Set calendar to ? CanonicalizeCalendar(calendar).
+        if (std::get<3>(unwrappedResult)) {
+            auto mayID = Calendar::fromString(std::get<3>(unwrappedResult).value());
+            if (!mayID) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid CalendarID");
+            }
+            calendar = mayID.value();
+        }
+        // Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
+        isoDate = std::get<0>(unwrappedResult);
+        // Let time be result.[[Time]].
+        if (std::get<1>(unwrappedResult)) {
+            time = std::get<1>(unwrappedResult).value();
+        }
+    }
+
+    // If timeZone is unset, then
+    if (!timeZone) {
+        // Let plainDate be ? CreateTemporalDate(isoDate, calendar).
+        // Return the Record { [[PlainRelativeTo]]: plainDate, [[ZonedRelativeTo]]: undefined }.
+        return { new TemporalPlainDateObject(state, state.context()->globalObject()->temporalPlainDatePrototype(),
+                                             isoDate, calendar),
+                 NullOption };
+    }
+
+    int64_t offsetNs = 0;
+    // If offsetBehaviour is option, then
+    if (offsetBehaviour == TemporalOffsetBehaviour::Option) {
+        // Let offsetNs be ! ParseDateTimeUTCOffset(offsetString).
+        if (timeZone.value().hasOffset()) {
+            offsetNs = timeZone.value().offset();
+        }
+    }
+    // Else,
+    //   Let offsetNs be 0.
+    // Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time, offsetBehaviour, offsetNs, timeZone, compatible, reject, matchBehaviour).
+    auto epochNanoseconds = Temporal::interpretISODateTimeOffset(state, isoDate, time, offsetBehaviour, offsetNs, timeZone.value(), false, TemporalDisambiguationOption::Compatible, TemporalOffsetOption::Reject, matchBehaviour);
+    // Let zonedRelativeTo be ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    // Return the Record { [[PlainRelativeTo]]: undefined, [[ZonedRelativeTo]]: zonedRelativeTo }.
+    return { NullOption,
+             new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNanoseconds, timeZone.value(), calendar) };
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetimewithtotal
+static double differenceZonedDateTimeWithTotal(ExecutionState& state, Int128 ns1, Int128 ns2, TimeZone timeZone, Calendar calendar, ISO8601::DateTimeUnit unit)
+{
+    // If TemporalUnitCategory(unit) is time, then
+    if (ISO8601::toDateTimeCategory(unit) == ISO8601::DateTimeUnitCategory::Time) {
+        // Let difference be TimeDurationFromEpochNanosecondsDifference(ns2, ns1).
+        Int128 difference = Temporal::timeDurationFromEpochNanosecondsDifference(ns2, ns1);
+        // Return TotalTimeDuration(difference, unit).
+        return Temporal::totalTimeDuration(state, difference, toTemporalUnit(unit));
+    }
+    // Let difference be ? DifferenceZonedDateTime(ns1, ns2, timeZone, calendar, unit).
+    auto difference = TemporalZonedDateTimeObject::differenceZonedDateTime(state, ns1, ns2, timeZone, calendar, unit);
+    // Let dateTime be GetISODateTimeFor(timeZone, ns1).
+    auto dateTime = Temporal::getISODateTimeFor(state, timeZone, ns1);
+    // Return ? TotalRelativeDuration(difference, ns1, ns2, dateTime, timeZone, calendar, unit).
+    return Temporal::totalRelativeDuration(state, difference, ns1, ns2, dateTime, timeZone, calendar, unit);
+}
+
+// https://tc39.es/proposal-temporal/#sec-temporal-differenceplaindatetimewithtotal
+static double differencePlainDateTimeWithTotal(ExecutionState& state, ISO8601::PlainDateTime isoDateTime1, ISO8601::PlainDateTime isoDateTime2, Calendar calendar, ISO8601::DateTimeUnit unit)
+{
+    // If CompareISODateTime(isoDateTime1, isoDateTime2) = 0, then
+    if (isoDateTime1 == isoDateTime2) {
+        return 0;
+    }
+
+    // If ISODateTimeWithinLimits(isoDateTime1) is false or ISODateTimeWithinLimits(isoDateTime2) is false, throw a RangeError exception.
+    if (!ISO8601::isoDateTimeWithinLimits(isoDateTime1) || !ISO8601::isoDateTimeWithinLimits(isoDateTime2)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid datetime in DifferencePlainDateTimeWithTotal");
+    }
+    // Let diff be DifferenceISODateTime(isoDateTime1, isoDateTime2, calendar, unit).
+    auto diff = Temporal::differenceISODateTime(state, isoDateTime1, isoDateTime2, calendar, unit);
+    // If unit is nanosecond, return diff.[[Time]].
+    if (unit == ISO8601::DateTimeUnit::Nanosecond) {
+        return double(diff.time());
+    }
+    // Let originEpochNs be GetUTCEpochNanoseconds(isoDateTime1).
+    auto originEpochNs = ISO8601::ExactTime::fromPlainDateTime(isoDateTime1).epochNanoseconds();
+    // Let destEpochNs be GetUTCEpochNanoseconds(isoDateTime2).
+    auto destEpochNs = ISO8601::ExactTime::fromPlainDateTime(isoDateTime2).epochNanoseconds();
+    // Return ? TotalRelativeDuration(diff, originEpochNs, destEpochNs, isoDateTime1, unset, calendar, unit).
+    return Temporal::totalRelativeDuration(state, diff, originEpochNs, destEpochNs, isoDateTime1, NullOption, calendar, unit);
+}
+
+double TemporalDurationObject::total(ExecutionState& state, Value totalOfInput)
+{
+    Object* totalOf;
+    // If totalOf is undefined, throw a TypeError exception.
+    if (totalOfInput.isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid totalOfInput value");
+        ASSERT_NOT_REACHED();
+    }
+    // If totalOf is a String, then
+    if (totalOfInput.isString()) {
+        // Let paramString be totalOf.
+        // Set totalOf to OrdinaryObjectCreate(null).
+        totalOf = new Object(state, Object::PrototypeIsNull);
+        // Perform ! CreateDataPropertyOrThrow(totalOf, "unit", paramString).
+        totalOf->directDefineOwnProperty(state, state.context()->staticStrings().lazyUnit(),
+                                         ObjectPropertyDescriptor(totalOfInput, (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::AllPresent)));
+    } else {
+        // Else,
+        // Set totalOf to ? GetOptionsObject(totalOf).
+        totalOf = Intl::getOptionsObject(state, totalOfInput).value();
+    }
+
+    // Let relativeToRecord be ? GetTemporalRelativeToOption(totalOf).
+    auto relativeToRecord = getTemporalRelativeToOption(state, totalOf);
+    // Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
+    auto zonedRelativeTo = relativeToRecord.zonedRelativeTo;
+    // Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
+    auto plainRelativeTo = relativeToRecord.plainRelativeTo;
+    // Let unit be ? GetTemporalUnitValuedOption(totalOf, "unit", required).
+    auto unit = Temporal::getTemporalUnitValuedOption(state, totalOf, state.context()->staticStrings().lazyUnit().string(), Value(Value::EmptyValue));
+    // Perform ? ValidateTemporalUnitValue(unit, datetime).
+    Temporal::validateTemporalUnitValue(state, unit, ISO8601::DateTimeUnitCategory::DateTime, nullptr, 0);
+    // If zonedRelativeTo is not undefined, then
+    double total;
+    if (zonedRelativeTo) {
+        // Let internalDuration be ToInternalDurationRecord(duration).
+        ISO8601::InternalDuration internalDuration = toInternalDurationRecord(m_duration);
+        // Let timeZone be zonedRelativeTo.[[TimeZone]].
+        TimeZone timeZone = zonedRelativeTo->timeZone();
+        // Let calendar be zonedRelativeTo.[[Calendar]].
+        auto calendar = zonedRelativeTo->calendarID();
+        // Let relativeEpochNs be zonedRelativeTo.[[EpochNanoseconds]].
+        auto relativeEpochNs = zonedRelativeTo->epochNanoseconds();
+        // Let targetEpochNs be ? AddZonedDateTime(relativeEpochNs, timeZone, calendar, internalDuration, constrain).
+        auto targetEpochNs = Temporal::addZonedDateTime(state, relativeEpochNs, timeZone, calendar, internalDuration, TemporalOverflowOption::Constrain);
+        // Let total be ? DifferenceZonedDateTimeWithTotal(relativeEpochNs, targetEpochNs, timeZone, calendar, unit).
+        total = differenceZonedDateTimeWithTotal(state, relativeEpochNs, targetEpochNs, timeZone, calendar, toDateTimeUnit(unit.value()));
+    } else if (plainRelativeTo) {
+        // Else if plainRelativeTo is not undefined, then
+        // Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+        ISO8601::InternalDuration internalDuration = toInternalDurationRecordWith24HourDays(state, m_duration);
+        // Let targetTime be AddTime(MidnightTimeRecord(), internalDuration.[[Time]]).
+        auto targetTime = Temporal::balanceTime(0, 0, 0, 0, 0, internalDuration.time());
+        // Let calendar be plainRelativeTo.[[Calendar]].
+        auto calendar = plainRelativeTo->calendarID();
+        // Let dateDuration be ! AdjustDateDurationRecord(internalDuration.[[Date]], targetTime.[[Days]]).
+        auto dateDuration = Temporal::adjustDateDurationRecord(state, internalDuration.dateDuration(), targetTime.days(), NullOption, NullOption);
+        // Let targetDate be ? CalendarDateAdd(calendar, plainRelativeTo.[[ISODate]], dateDuration, constrain).
+        UErrorCode status = U_ZERO_ERROR;
+        LocalResourcePointer<UCalendar> newCal(calendar.createICUCalendar(state), [](UCalendar* r) {
+            ucal_close(r);
+        });
+        auto inputDate = plainRelativeTo->computeISODate(state);
+        ucal_setMillis(newCal.get(), ISO8601::ExactTime::fromPlainDate(inputDate).floorEpochMilliseconds(), &status);
+        CHECK_ICU();
+        auto targetDatePair = Temporal::calendarDateAdd(state, calendar, plainRelativeTo->computeISODate(state), newCal.get(), dateDuration, TemporalOverflowOption::Constrain);
+        ucal_close(targetDatePair.first);
+        auto targetDate = targetDatePair.second;
+        // Let isoDateTime be CombineISODateAndTimeRecord(plainRelativeTo.[[ISODate]], MidnightTimeRecord()).
+        ISO8601::PlainDateTime isoDateTime(inputDate, ISO8601::PlainTime());
+        // Let targetDateTime be CombineISODateAndTimeRecord(targetDate, targetTime).
+        ISO8601::PlainDateTime targetDateTime(targetDate, ISO8601::PlainTime(targetTime.hours(), targetTime.minutes(), targetTime.seconds(), targetTime.milliseconds(), targetTime.microseconds(), targetTime.nanoseconds()));
+        // Let total be ? DifferencePlainDateTimeWithTotal(isoDateTime, targetDateTime, calendar, unit).
+        total = differencePlainDateTimeWithTotal(state, isoDateTime, targetDateTime, calendar, toDateTimeUnit(unit.value()));
+    } else {
+        // Else,
+        // Let largestUnit be DefaultTemporalLargestUnit(duration).
+        auto largestUnit = m_duration.defaultTemporalLargestUnit();
+        // If IsCalendarUnit(largestUnit) is true, or IsCalendarUnit(unit) is true, throw a RangeError exception.
+        if (Temporal::isCalendarUnit(largestUnit) || Temporal::isCalendarUnit(toDateTimeUnit(unit.value()))) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid unit");
+        }
+        // Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+        auto internalDuration = toInternalDurationRecordWith24HourDays(state, m_duration);
+        // Let total be TotalTimeDuration(internalDuration.[[Time]], unit).
+        return Temporal::totalTimeDuration(state, internalDuration.time(), unit.value());
+    }
+
+    // Return 𝔽(total).
+    return total;
+}
+
+TemporalDurationObject* TemporalDurationObject::round(ExecutionState& state, Value roundToInput)
+{
+    Object* roundTo;
+    // If roundTo is undefined, then
+    if (roundToInput.isUndefined()) {
+        // Throw a TypeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid roundTo value");
+        ASSERT_NOT_REACHED();
+    } else if (roundToInput.isString()) {
+        // If roundTo is a String, then
+        // Let paramString be roundTo.
+        // Set roundTo to OrdinaryObjectCreate(null).
+        // Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit", paramString).
+        roundTo = new Object(state, Object::PrototypeIsNull);
+        roundTo->directDefineOwnProperty(state, state.context()->staticStrings().lazySmallestUnit(),
+                                         ObjectPropertyDescriptor(roundToInput, ObjectPropertyDescriptor::AllPresent));
+    } else {
+        // Else,
+        // Set roundTo to ? GetOptionsObject(roundTo).
+        roundTo = Intl::getOptionsObject(state, roundToInput).value();
+    }
+
+    // Let smallestUnitPresent be true.
+    bool smallestUnitPresent = true;
+    // Let largestUnitPresent be true.
+    bool largestUnitPresent = true;
+
+    // Let largestUnit be ? GetTemporalUnitValuedOption(roundTo, "largestUnit", unset).
+    auto largestUnit = Temporal::getTemporalUnitValuedOption(state, roundTo, state.context()->staticStrings().lazyLargestUnit().string(), NullOption);
+    // Let relativeToRecord be ? GetTemporalRelativeToOption(roundTo).
+    auto relativeToRecord = getTemporalRelativeToOption(state, roundTo);
+    // Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
+    auto zonedRelativeTo = relativeToRecord.zonedRelativeTo;
+    // Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
+    auto plainRelativeTo = relativeToRecord.plainRelativeTo;
+
+    // Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+    auto roundingIncrement = Temporal::getRoundingIncrementOption(state, roundTo);
+    // Let roundingMode be ? GetRoundingModeOption(roundTo, half-expand).
+    auto roundingMode = Temporal::getRoundingModeOption(state, roundTo, state.context()->staticStrings().lazyHalfExpand().string());
+    // Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", unset).
+    auto smallestUnit = Temporal::getTemporalUnitValuedOption(state, roundTo,
+                                                              state.context()->staticStrings().lazySmallestUnit().string(), NullOption);
+    // Perform ? ValidateTemporalUnitValue(smallestUnit, datetime).
+    Temporal::validateTemporalUnitValue(state, smallestUnit, ISO8601::DateTimeUnitCategory::DateTime, nullptr, 0);
+
+    // If smallestUnit is unset, then
+    if (!smallestUnit) {
+        // Set smallestUnitPresent to false.
+        smallestUnitPresent = false;
+        // Set smallestUnit to nanosecond.
+        smallestUnit = TemporalUnit::Nanosecond;
+    }
+
+    // Let existingLargestUnit be DefaultTemporalLargestUnit(duration).
+    auto existingLargestUnit = m_duration.defaultTemporalLargestUnit();
+    // Let defaultLargestUnit be LargerOfTwoTemporalUnits(existingLargestUnit, smallestUnit).
+    auto defaultLargestUnit = Temporal::largerOfTwoTemporalUnits(existingLargestUnit, toDateTimeUnit(smallestUnit.value()));
+
+    // If largestUnit is unset, then
+    if (!largestUnit) {
+        // Set largestUnitPresent to false.
+        largestUnitPresent = false;
+        // Set largestUnit to defaultLargestUnit.
+        largestUnit = toTemporalUnit(defaultLargestUnit);
+    } else if (largestUnit.value() == TemporalUnit::Auto) {
+        // Else if largestUnit is auto, then
+        // Set largestUnit to defaultLargestUnit.
+        largestUnit = toTemporalUnit(defaultLargestUnit);
+    }
+
+    // If smallestUnitPresent is false and largestUnitPresent is false, then
+    if (!smallestUnitPresent && !largestUnitPresent) {
+        // Throw a RangeError exception.
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid unit");
+    }
+
+    // If LargerOfTwoTemporalUnits(largestUnit, smallestUnit) is not largestUnit, throw a RangeError exception.
+    if (Temporal::largerOfTwoTemporalUnits(toDateTimeUnit(largestUnit.value()), toDateTimeUnit(smallestUnit.value())) != toDateTimeUnit(largestUnit.value())) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid unit");
+    }
+    // Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
+    auto maximum = Temporal::maximumTemporalDurationRoundingIncrement(toDateTimeUnit(smallestUnit.value()));
+    // If maximum is not unset, perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
+    if (maximum) {
+        Temporal::validateTemporalRoundingIncrement(state, roundingIncrement, maximum.value(), false);
+    }
+    // If roundingIncrement > 1, and largestUnit is not smallestUnit, and TemporalUnitCategory(smallestUnit) is date, throw a RangeError exception.
+    if (roundingIncrement > 1 && largestUnit.value() != smallestUnit.value() && ISO8601::toDateTimeCategory(toDateTimeUnit(smallestUnit.value())) == ISO8601::DateTimeUnitCategory::Date) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid unit");
+    }
+    // If zonedRelativeTo is not undefined, then
+    if (zonedRelativeTo) {
+        // Let internalDuration be ToInternalDurationRecord(duration).
+        ISO8601::InternalDuration internalDuration = toInternalDurationRecord(m_duration);
+        // Let timeZone be zonedRelativeTo.[[TimeZone]].
+        TimeZone timeZone = zonedRelativeTo->timeZone();
+        // Let calendar be zonedRelativeTo.[[Calendar]].
+        auto calendar = zonedRelativeTo->calendarID();
+        // Let relativeEpochNs be zonedRelativeTo.[[EpochNanoseconds]].
+        auto relativeEpochNs = zonedRelativeTo->epochNanoseconds();
+        // Let targetEpochNs be ? AddZonedDateTime(relativeEpochNs, timeZone, calendar, internalDuration, constrain).
+        auto targetEpochNs = Temporal::addZonedDateTime(state, relativeEpochNs, timeZone, calendar, internalDuration, TemporalOverflowOption::Constrain);
+        // Set internalDuration to ? DifferenceZonedDateTimeWithRounding(relativeEpochNs, targetEpochNs, timeZone, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
+        internalDuration = TemporalZonedDateTimeObject::differenceZonedDateTimeWithRounding(state, relativeEpochNs, targetEpochNs, timeZone, calendar, toDateTimeUnit(largestUnit.value()),
+                                                                                            roundingIncrement, toDateTimeUnit(smallestUnit.value()), roundingMode);
+        // If TemporalUnitCategory(largestUnit) is date, set largestUnit to hour.
+        if (ISO8601::toDateTimeCategory(toDateTimeUnit(largestUnit.value())) == ISO8601::DateTimeUnitCategory::Date) {
+            largestUnit = TemporalUnit::Hour;
+        }
+        // Return ? TemporalDurationFromInternal(internalDuration, largestUnit).
+        auto resultDuration = temporalDurationFromInternal(state, internalDuration, toDateTimeUnit(largestUnit.value()));
+        if (!resultDuration.isValid()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Result duration is out of range");
+        }
+        return new TemporalDurationObject(state, resultDuration);
+    }
+    // If plainRelativeTo is not undefined, then
+    if (plainRelativeTo) {
+        // Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+        ISO8601::InternalDuration internalDuration = toInternalDurationRecordWith24HourDays(state, m_duration);
+        // Let targetTime be AddTime(MidnightTimeRecord(), internalDuration.[[Time]]).
+        auto targetTime = Temporal::balanceTime(0, 0, 0, 0, 0, internalDuration.time());
+        // Let calendar be plainRelativeTo.[[Calendar]].
+        auto calendar = plainRelativeTo->calendarID();
+        // Let dateDuration be ! AdjustDateDurationRecord(internalDuration.[[Date]], targetTime.[[Days]]).
+        auto dateDuration = Temporal::adjustDateDurationRecord(state, internalDuration.dateDuration(), targetTime.days(), NullOption, NullOption);
+        // Let targetDate be ? CalendarDateAdd(calendar, plainRelativeTo.[[ISODate]], dateDuration, constrain).
+        UErrorCode status = U_ZERO_ERROR;
+        LocalResourcePointer<UCalendar> newCal(calendar.createICUCalendar(state), [](UCalendar* r) {
+            ucal_close(r);
+        });
+        auto inputDate = plainRelativeTo->computeISODate(state);
+        ucal_setMillis(newCal.get(), ISO8601::ExactTime::fromPlainDate(inputDate).floorEpochMilliseconds(), &status);
+        CHECK_ICU();
+        auto targetDatePair = Temporal::calendarDateAdd(state, calendar, plainRelativeTo->computeISODate(state), newCal.get(), dateDuration, TemporalOverflowOption::Constrain);
+        ucal_close(targetDatePair.first);
+        auto targetDate = targetDatePair.second;
+        // Let isoDateTime be CombineISODateAndTimeRecord(plainRelativeTo.[[ISODate]], MidnightTimeRecord()).
+        ISO8601::PlainDateTime isoDateTime(plainRelativeTo->computeISODate(state), ISO8601::PlainTime());
+        // Let targetDateTime be CombineISODateAndTimeRecord(targetDate, targetTime).
+        ISO8601::PlainDateTime targetDateTime(targetDate, ISO8601::PlainTime(targetTime.hours(), targetTime.minutes(), targetTime.seconds(), targetTime.milliseconds(), targetTime.microseconds(), targetTime.nanoseconds()));
+        // Set internalDuration to ? DifferencePlainDateTimeWithRounding(isoDateTime, targetDateTime, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
+        internalDuration = Temporal::differencePlainDateTimeWithRounding(state, isoDateTime, targetDateTime, calendar, toDateTimeUnit(largestUnit.value()),
+                                                                         roundingIncrement, toDateTimeUnit(smallestUnit.value()), roundingMode);
+        // Return ? TemporalDurationFromInternal(internalDuration, largestUnit).
+        auto resultDuration = temporalDurationFromInternal(state, internalDuration, toDateTimeUnit(largestUnit.value()));
+        if (!resultDuration.isValid()) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Result duration is out of range");
+        }
+        return new TemporalDurationObject(state, resultDuration);
+    }
+    // If IsCalendarUnit(existingLargestUnit) is true, or IsCalendarUnit(largestUnit) is true, throw a RangeError exception.
+    if (Temporal::isCalendarUnit(existingLargestUnit) || Temporal::isCalendarUnit(toDateTimeUnit(largestUnit.value()))) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid unit");
+    }
+    // Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+    ISO8601::InternalDuration internalDuration = toInternalDurationRecordWith24HourDays(state, m_duration);
+    // If smallestUnit is day, then
+    if (smallestUnit.value() == TemporalUnit::Day) {
+        // Let fractionalDays be TotalTimeDuration(internalDuration.[[Time]], day).
+        auto fractionalDays = Temporal::totalTimeDuration(state, internalDuration.time(), TemporalUnit::Day);
+        // Let days be RoundNumberToIncrement(fractionalDays, roundingIncrement, roundingMode).
+        auto days = ISO8601::roundNumberToIncrement(fractionalDays, roundingIncrement, roundingMode);
+        // Let dateDuration be ? CreateDateDurationRecord(0, 0, 0, days).
+        ISO8601::Duration dateDuration = ISO8601::Duration{ 0.0, 0.0, 0.0, double(days), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+        // Set internalDuration to CombineDateAndTimeDuration(dateDuration, 0).
+        internalDuration = ISO8601::InternalDuration::combineDateAndTimeDuration(dateDuration, 0);
+    } else {
+        // Else,
+        // Let timeDuration be ? RoundTimeDuration(internalDuration.[[Time]], roundingIncrement, smallestUnit, roundingMode).
+        auto timeDuration = roundTimeDuration(state, internalDuration.time(), roundingIncrement, toDateTimeUnit(smallestUnit.value()), roundingMode);
+        // Set internalDuration to CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
+        internalDuration = ISO8601::InternalDuration::combineDateAndTimeDuration(ISO8601::Duration{}, timeDuration);
+    }
+
+    // Return ? TemporalDurationFromInternal(internalDuration, largestUnit).
+    auto resultDuration = temporalDurationFromInternal(state, internalDuration, toDateTimeUnit(largestUnit.value()));
+    if (!resultDuration.isValid()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Result duration is out of range");
+    }
+    return new TemporalDurationObject(state, resultDuration);
 }
 
 ISO8601::PartialDuration TemporalDurationObject::toTemporalPartialDurationRecord(ExecutionState& state, Value temporalDurationLike)

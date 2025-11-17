@@ -83,6 +83,12 @@ public:
     // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.with
     TemporalDurationObject* with(ExecutionState& state, Value temporalDurationLike);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.total
+    double total(ExecutionState& state, Value totalOf);
+
+    // https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.round
+    TemporalDurationObject* round(ExecutionState& state, Value roundTo);
+
     // https://tc39.es/proposal-temporal/#sec-temporal-totemporalpartialdurationrecord
     static ISO8601::PartialDuration toTemporalPartialDurationRecord(ExecutionState& state, Value temporalDurationLike);
 

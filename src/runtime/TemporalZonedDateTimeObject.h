@@ -203,11 +203,11 @@ public:
     TemporalDurationObject* differenceTemporalZonedDateTime(ExecutionState& state, DifferenceTemporalZonedDateTime operation, Value other, Value options);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetimewithrounding
-    ISO8601::InternalDuration differenceZonedDateTimeWithRounding(ExecutionState& state, Int128 ns1, Int128 ns2, TimeZone timeZone, Calendar calendar,
-                                                                  ISO8601::DateTimeUnit largestUnit, unsigned roundingIncrement, ISO8601::DateTimeUnit smallestUnit, ISO8601::RoundingMode roundingMode);
+    static ISO8601::InternalDuration differenceZonedDateTimeWithRounding(ExecutionState& state, Int128 ns1, Int128 ns2, TimeZone timeZone, Calendar calendar,
+                                                                         ISO8601::DateTimeUnit largestUnit, unsigned roundingIncrement, ISO8601::DateTimeUnit smallestUnit, ISO8601::RoundingMode roundingMode);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetime
-    ISO8601::InternalDuration differenceZonedDateTime(ExecutionState& state, Int128 ns1, Int128 ns2, TimeZone timeZone, Calendar calendar, ISO8601::DateTimeUnit largestUnit);
+    static ISO8601::InternalDuration differenceZonedDateTime(ExecutionState& state, Int128 ns1, Int128 ns2, TimeZone timeZone, Calendar calendar, ISO8601::DateTimeUnit largestUnit);
 
     // https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.round
     TemporalZonedDateTimeObject* round(ExecutionState& state, Value roundTo);

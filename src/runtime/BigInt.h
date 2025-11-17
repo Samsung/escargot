@@ -46,8 +46,8 @@ public:
     BigIntData addition(const int64_t& d) const;
     BigIntData addition(const BigIntData& src) const;
     BigIntData multiply(const int64_t& d) const;
-    BigIntData division(const int64_t& d) const;
-    BigIntData remainder(const int64_t& d) const;
+    BigIntData division(const int64_t& d, size_t prec = BF_PREC_MAX) const;
+    BigIntData remainder(const int64_t& d, size_t prec = BF_PREC_MAX) const;
 
     bool lessThan(BigInt* b) const;
     bool lessThanEqual(BigInt* b) const;
@@ -63,6 +63,7 @@ public:
 
     std::string toNonGCStdString();
     int64_t toInt64() const;
+    double toDouble() const;
 
 private:
     void init(const char* buf, size_t length, int radix);

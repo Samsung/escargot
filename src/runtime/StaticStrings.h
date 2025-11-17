@@ -1005,6 +1005,7 @@ namespace Escargot {
     F(Offset, "offset")                                     \
     F(OffsetNanoseconds, "offsetNanoseconds")               \
     F(Overflow, "overflow")                                 \
+    F(RelativeTo, "relativeTo")                             \
     F(Reject, "reject")                                     \
     F(PlainDateISO, "plainDateISO")                         \
     F(PlainDateTimeISO, "plainDateTimeISO")                 \
@@ -1026,6 +1027,7 @@ namespace Escargot {
     F(TemporalDotPlainYearMonth, "Temporal.PlainYearMonth") \
     F(TemporalDotZonedDateTime, "Temporal.ZonedDateTime")   \
     F(ToInstant, "toInstant")                               \
+    F(Total, "total")                                       \
     F(ToPlainDate, "toPlainDate")                           \
     F(ToPlainDateTime, "toPlainDateTime")                   \
     F(ToPlainTime, "toPlainTime")                           \
