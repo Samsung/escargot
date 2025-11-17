@@ -21,6 +21,7 @@
 #include "Escargot.h"
 #include "TemporalInstantObject.h"
 #include "TemporalDurationObject.h"
+#include "TemporalZonedDateTimeObject.h"
 #include "intl/Intl.h"
 #include "util/ISO8601.h"
 
@@ -215,6 +216,14 @@ TemporalInstantObject* TemporalInstantObject::round(ExecutionState& state, Value
     // Return ! CreateTemporalInstant(roundedNs).
     auto roundedInstant = ISO8601::ExactTime(*m_nanoseconds).round(state, roundingIncrement, toDateTimeUnit(smallestUnit), roundingMode);
     return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(), roundedInstant.epochNanoseconds());
+}
+
+TemporalZonedDateTimeObject* TemporalInstantObject::toZonedDateTimeISO(ExecutionState& state, Value timeZoneInput)
+{
+    // Set timeZone to ? ToTemporalTimeZoneIdentifier(timeZone).
+    auto timeZone = Temporal::toTemporalTimezoneIdentifier(state, timeZoneInput);
+    // Return ! CreateTemporalZonedDateTime(instant.[[EpochNanoseconds]], timeZone, "iso8601").
+    return new TemporalZonedDateTimeObject(state, state.context()->globalObject()->temporalZonedDateTimePrototype(), epochNanoseconds(), timeZone, Calendar());
 }
 
 TemporalDurationObject* TemporalInstantObject::differenceTemporalInstant(ExecutionState& state, DifferenceTemporalInstantOperation operation, Value otherInput, Value options)

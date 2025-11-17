@@ -359,22 +359,6 @@
     <test id="built-ins/Temporal/Duration/prototype/total/unit-wrong-type"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Duration/prototype/total/year-zero"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/since/argument-zoneddatetime"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/branding"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/builtin"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/calendar-is-builtin"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/length"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/name"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/not-a-constructor"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-case-insensitive"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-string"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-string-datetime"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-string-leap-second"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-string-multiple-offsets"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-string-sub-minute-offset"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-string-year-zero"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-wrong-type"><reason>TODO</reason></test>
-    <test id="built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/to-zoned-date-time-iso"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/Instant/prototype/until/argument-zoneddatetime"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/prototype/add/argument-duration-max"><reason>TODO</reason></test>
     <test id="built-ins/Temporal/PlainDate/prototype/since/argument-plaindatetime"><reason>TODO</reason></test>
@@ -491,7 +475,6 @@
     <test id="intl402/Temporal/Instant/prototype/toLocaleString/options-conflict"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Instant/prototype/toLocaleString/options-undefined"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Instant/prototype/toString/timezone-offset"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-string-datetime"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/toLocaleString/calendar-mismatch"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/toLocaleString/dateStyle"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/toLocaleString/dateStyle-timeStyle-undefined"><reason>TODO</reason></test>
@@ -594,7 +577,6 @@
     <test id="intl402/Temporal/ZonedDateTime/prototype/hoursInDay/dst-midnight"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/hoursInDay/dst-skipped-cross-midnight"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/hoursInDay/same-date-starts-twice"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/ZonedDateTime/prototype/offsetNanoseconds/nanoseconds-subtracted-or-added-at-dst-transition"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/round/dst-skipped-cross-midnight"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/since/canonicalize-iana-identifiers-before-comparing"><reason>TODO</reason></test>
     <test id="intl402/Temporal/ZonedDateTime/prototype/since/dst-balancing-result"><reason>TODO</reason></test>
@@ -1240,7 +1222,6 @@
     <test id="staging/Temporal/Duration/old/balances-differently-depending-on-relativeto"><reason>TODO</reason></test>
     <test id="staging/Temporal/Duration/old/balances-up-to-next-unit-after-rounding"><reason>TODO</reason></test>
     <test id="staging/Temporal/Duration/old/relativeto-not-required-to-round-fixed-length-units-in-durations-without-variable-units"><reason>TODO</reason></test>
-    <test id="staging/Temporal/Regex/old/instant"><reason>TODO</reason></test>
     <test id="staging/built-ins/Object/preventExtensions/preventExtensions-variable-length-typed-arrays"><reason>TODO</reason></test>
     <test id="staging/built-ins/Object/seal/seal-variable-length-typed-arrays"><reason>TODO</reason></test>
     <test id="staging/built-ins/Reflect/preventExtensions/preventExtensions-variable-length-typed-arrays"><reason>TODO</reason></test>

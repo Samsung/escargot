@@ -1032,6 +1032,7 @@ namespace Escargot {
     F(ToPlainMonthDay, "toPlainMonthDay")                   \
     F(ToPlainYearMonth, "toPlainYearMonth")                 \
     F(ToZonedDateTime, "toZonedDateTime")                   \
+    F(ToZonedDateTimeISO, "toZonedDateTimeISO")             \
     F(TimeZoneId, "timeZoneId")                             \
     F(Until, "until")                                       \
     F(WeekOfYear, "weekOfYear")                             \
