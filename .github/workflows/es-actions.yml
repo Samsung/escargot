@@ -166,10 +166,24 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - name: Install msvc redist package
+    - name: Download and Install Visual C++ Redistributable
+      shell: powershell
       run: |
-        (new-object System.Net.WebClient).DownloadFile('https://github.com/abbodi1406/vcredist/releases/download/v0.73.0/VisualCppRedist_AIO_x86_x64.exe','VisualCppRedist_AIO_x86_x64.exe')
-        .\VisualCppRedist_AIO_x86_x64.exe /y
+        $vcRedistUrl64 = "https://aka.ms/vs/17/release/vc_redist.x64.exe" # Or the appropriate URL for your target architecture/version
+        $vcRedistPath64 = "$env:TEMP\vc_redist.x64.exe"
+        $vcRedistUrl32 = "https://aka.ms/vs/17/release/vc_redist.x86.exe" # Or the appropriate URL for your target architecture/version
+        $vcRedistPath32 = "$env:TEMP\vc_redist.x86.exe"
+
+        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl64"
+        Invoke-WebRequest -Uri $vcRedistUrl64 -OutFile $vcRedistPath64
+
+        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl32"
+        Invoke-WebRequest -Uri $vcRedistUrl32 -OutFile $vcRedistPath32
+
+        Write-Host "Installing Visual C++ Redistributable silently"
+        Start-Process -FilePath $vcRedistPath64 -ArgumentList "/install /quiet /norestart" -Wait
+        Start-Process -FilePath $vcRedistPath32 -ArgumentList "/install /quiet /norestart" -Wait
+        Write-Host "Visual C++ Redistributable installation complete."
     - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: ${{ matrix.arch.cpu }}
@@ -223,10 +237,24 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - name: Install msvc redist package
+    - name: Download and Install Visual C++ Redistributable
+      shell: powershell
       run: |
-        (new-object System.Net.WebClient).DownloadFile('https://github.com/abbodi1406/vcredist/releases/download/v0.73.0/VisualCppRedist_AIO_x86_x64.exe','VisualCppRedist_AIO_x86_x64.exe')
-        .\VisualCppRedist_AIO_x86_x64.exe /y
+        $vcRedistUrl64 = "https://aka.ms/vs/17/release/vc_redist.x64.exe" # Or the appropriate URL for your target architecture/version
+        $vcRedistPath64 = "$env:TEMP\vc_redist.x64.exe"
+        $vcRedistUrl32 = "https://aka.ms/vs/17/release/vc_redist.x86.exe" # Or the appropriate URL for your target architecture/version
+        $vcRedistPath32 = "$env:TEMP\vc_redist.x86.exe"
+
+        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl64"
+        Invoke-WebRequest -Uri $vcRedistUrl64 -OutFile $vcRedistPath64
+
+        Write-Host "Downloading Visual C++ Redistributable from $vcRedistUrl32"
+        Invoke-WebRequest -Uri $vcRedistUrl32 -OutFile $vcRedistPath32
+
+        Write-Host "Installing Visual C++ Redistributable silently"
+        Start-Process -FilePath $vcRedistPath64 -ArgumentList "/install /quiet /norestart" -Wait
+        Start-Process -FilePath $vcRedistPath32 -ArgumentList "/install /quiet /norestart" -Wait
+        Write-Host "Visual C++ Redistributable installation complete."
     - uses: ilammy/msvc-dev-cmd@v1.13.0
       with:
         arch: ${{ matrix.arch }}
