@@ -126,6 +126,11 @@ static Value builtinTemporalDurationFrom(ExecutionState& state, Value thisValue,
     return Temporal::toTemporalDuration(state, argv[0]);
 }
 
+static Value builtinTemporalDurationCompare(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    return Value(TemporalDurationObject::compare(state, argv[0], argv[1], argc >= 3 ? argv[2] : Value()));
+}
+
 #define RESOLVE_THIS_BINDING_TO_DURATION(NAME, BUILT_IN_METHOD)                                                                                                                                                                                                                  \
     if (!thisValue.isObject() || !thisValue.asObject()->isTemporalDurationObject()) {                                                                                                                                                                                            \
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, state.context()->staticStrings().lazyCapitalDuration().string(), true, state.context()->staticStrings().lazy##BUILT_IN_METHOD().string(), ErrorObject::Messages::GlobalObject_CalledOnIncompatibleReceiver); \
@@ -1415,6 +1420,11 @@ void GlobalObject::installTemporal(ExecutionState& state)
     m_temporalDuration->directDefineOwnProperty(state, ObjectPropertyName(strings->from),
                                                 ObjectPropertyDescriptor(new NativeFunctionObject(state,
                                                                                                   NativeFunctionInfo(strings->from, builtinTemporalDurationFrom, 1, NativeFunctionInfo::Strict)),
+                                                                         (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+
+    m_temporalDuration->directDefineOwnProperty(state, ObjectPropertyName(strings->lazyCompare()),
+                                                ObjectPropertyDescriptor(new NativeFunctionObject(state,
+                                                                                                  NativeFunctionInfo(strings->lazyCompare(), builtinTemporalDurationCompare, 2, NativeFunctionInfo::Strict)),
                                                                          (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     m_temporalDurationPrototype = m_temporalDuration->getFunctionPrototype(state).asObject();

@@ -123,6 +123,9 @@ public:
     };
     ISO8601::Duration addDurations(ExecutionState& state, AddDurationsOperation operation, Value other);
 
+    // https://tc39.es/proposal-temporal/#sec-temporal.duration.compare
+    static int compare(ExecutionState& state, Value one, Value two, Value options);
+
 private:
     ISO8601::Duration m_duration;
 };
