@@ -3421,7 +3421,7 @@ Int128 Temporal::addInstant(ExecutionState& state, Int128 epochNanoseconds, Int1
 Int128 Temporal::addZonedDateTime(ExecutionState& state, Int128 epochNanoseconds, TimeZone timeZone, Calendar calendar, ISO8601::InternalDuration duration, TemporalOverflowOption overflow)
 {
     // If DateDurationSign(duration.[[Date]]) = 0, then
-    if (duration.sign() == 0) {
+    if (duration.dateDuration().dateDurationSign() == 0) {
         // Return ? AddInstant(epochNanoseconds, duration.[[Time]]).
         return addInstant(state, epochNanoseconds, duration.time());
     }

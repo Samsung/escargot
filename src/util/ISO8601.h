@@ -244,6 +244,25 @@ public:
         return 0;
     }
 
+    int dateDurationSign()
+    {
+        for (size_t i = 0; i < 4; i++) {
+            const auto& v = m_data[i];
+            if (v < 0) {
+                return -1;
+            }
+            if (v > 0) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    bool operator==(const Duration& other) const
+    {
+        return m_data == other.m_data;
+    }
+
     // https://tc39.es/proposal-temporal/#sec-temporal-isvalidduration
     bool isValid() const;
 

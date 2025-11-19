@@ -1145,6 +1145,122 @@ ISO8601::Duration TemporalDurationObject::toDateDurationRecordWithoutTime(Execut
 }
 
 
+static double dateDurationDays(ExecutionState& state, ISO8601::Duration dateDuration, TemporalPlainDateObject* plainRelativeTo)
+{
+    // Let yearsMonthsWeeksDuration be ! AdjustDateDurationRecord(dateDuration, 0).
+    auto yearsMonthsWeeksDuration = Temporal::adjustDateDurationRecord(state, dateDuration, 0, NullOption, NullOption);
+    // If DateDurationSign(yearsMonthsWeeksDuration) = 0, return dateDuration.[[Days]].
+    if (yearsMonthsWeeksDuration.dateDurationSign() == 0) {
+        return dateDuration.days();
+    }
+    // Let later be ? CalendarDateAdd(plainRelativeTo.[[Calendar]], plainRelativeTo.[[ISODate]], yearsMonthsWeeksDuration, constrain).
+    UErrorCode status = U_ZERO_ERROR;
+    LocalResourcePointer<UCalendar> newCal(plainRelativeTo->calendarID().createICUCalendar(state), [](UCalendar* r) {
+        ucal_close(r);
+    });
+    auto inputDate = plainRelativeTo->computeISODate(state);
+    ucal_setMillis(newCal.get(), ISO8601::ExactTime::fromPlainDate(inputDate).floorEpochMilliseconds(), &status);
+    CHECK_ICU();
+    auto later = Temporal::calendarDateAdd(state, plainRelativeTo->calendarID(), inputDate, newCal.get(), yearsMonthsWeeksDuration, TemporalOverflowOption::Constrain);
+    ucal_close(later.first);
+    // Let epochDays1 be ISODateToEpochDays(plainRelativeTo.[[ISODate]].[[Year]], plainRelativeTo.[[ISODate]].[[Month]] - 1, plainRelativeTo.[[ISODate]].[[Day]]).
+    auto epochDays1 = ISO8601::dateToDaysFrom1970(inputDate.year(), inputDate.month() - 1, inputDate.day());
+    // Let epochDays2 be ISODateToEpochDays(later.[[Year]], later.[[Month]] - 1, later.[[Day]]).
+    auto epochDays2 = ISO8601::dateToDaysFrom1970(later.second.year(), later.second.month() - 1, later.second.day());
+    // Let yearsMonthsWeeksInDays be epochDays2 - epochDays1.
+    auto yearsMonthsWeeksInDays = epochDays2 - epochDays1;
+    // Return dateDuration.[[Days]] + yearsMonthsWeeksInDays.
+    return dateDuration.days() + yearsMonthsWeeksInDays;
+}
+
+int TemporalDurationObject::compare(ExecutionState& state, Value oneInput, Value twoInput, Value options)
+{
+    // Set one to ? ToTemporalDuration(one).
+    auto one = Temporal::toTemporalDuration(state, oneInput);
+    // Set two to ? ToTemporalDuration(two).
+    auto two = Temporal::toTemporalDuration(state, twoInput);
+    // Let resolvedOptions be ? GetOptionsObject(options).
+    if (!options.isObject() && !options.isUndefined()) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "Invalid option value");
+    }
+    auto resolvedOptions = Intl::getOptionsObject(state, options);
+    // Let relativeToRecord be ? GetTemporalRelativeToOption(resolvedOptions).
+    TemporalRelativeToOptionRecord relativeToRecord;
+    if (resolvedOptions) {
+        relativeToRecord = getTemporalRelativeToOption(state, resolvedOptions.value());
+    }
+    // If one.[[Years]] = two.[[Years]], and one.[[Months]] = two.[[Months]], and one.[[Weeks]] = two.[[Weeks]], and one.[[Days]] = two.[[Days]], and one.[[Hours]] = two.[[Hours]], and one.[[Minutes]] = two.[[Minutes]], and one.[[Seconds]] = two.[[Seconds]], and one.[[Milliseconds]] = two.[[Milliseconds]], and one.[[Microseconds]] = two.[[Microseconds]], and one.[[Nanoseconds]] = two.[[Nanoseconds]], then
+    if (one->duration() == two->duration()) {
+        // Return +0𝔽.
+        return 0;
+    }
+
+    // Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
+    auto zonedRelativeTo = relativeToRecord.zonedRelativeTo;
+    // Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
+    auto plainRelativeTo = relativeToRecord.plainRelativeTo;
+    // Let largestUnit1 be DefaultTemporalLargestUnit(one).
+    auto largestUnit1 = one->duration().defaultTemporalLargestUnit();
+    // Let largestUnit2 be DefaultTemporalLargestUnit(two).
+    auto largestUnit2 = two->duration().defaultTemporalLargestUnit();
+    // Let duration1 be ToInternalDurationRecord(one).
+    auto duration1 = toInternalDurationRecord(one->duration());
+    // Let duration2 be ToInternalDurationRecord(two).
+    auto duration2 = toInternalDurationRecord(two->duration());
+    // If zonedRelativeTo is not undefined, and either TemporalUnitCategory(largestUnit1) or TemporalUnitCategory(largestUnit2) is date, then
+    if (zonedRelativeTo && (ISO8601::toDateTimeCategory(largestUnit1) == ISO8601::DateTimeUnitCategory::Date || ISO8601::toDateTimeCategory(largestUnit2) == ISO8601::DateTimeUnitCategory::Date)) {
+        // Let timeZone be zonedRelativeTo.[[TimeZone]].
+        TimeZone timeZone = zonedRelativeTo->timeZone();
+        // Let calendar be zonedRelativeTo.[[Calendar]].
+        Calendar calendar = zonedRelativeTo->calendarID();
+        // Let after1 be ? AddZonedDateTime(zonedRelativeTo.[[EpochNanoseconds]], timeZone, calendar, duration1, constrain).
+        auto after1 = Temporal::addZonedDateTime(state, zonedRelativeTo->epochNanoseconds(), timeZone, calendar, duration1, TemporalOverflowOption::Constrain);
+        // Let after2 be ? AddZonedDateTime(zonedRelativeTo.[[EpochNanoseconds]], timeZone, calendar, duration2, constrain).
+        auto after2 = Temporal::addZonedDateTime(state, zonedRelativeTo->epochNanoseconds(), timeZone, calendar, duration2, TemporalOverflowOption::Constrain);
+        // If after1 > after2, return 1𝔽.
+        if (after1 > after2) {
+            return 1;
+        }
+        // If after1 < after2, return -1𝔽.
+        if (after1 < after2) {
+            return -1;
+        }
+        // Return +0𝔽.
+        return 0;
+    }
+    double days1;
+    double days2;
+    // If IsCalendarUnit(largestUnit1) is true or IsCalendarUnit(largestUnit2) is true, then
+    if (Temporal::isCalendarUnit(largestUnit1) || Temporal::isCalendarUnit(largestUnit2)) {
+        // If plainRelativeTo is undefined, throw a RangeError exception.
+        if (!plainRelativeTo) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid relativeTo value");
+        }
+        // Let days1 be ? DateDurationDays(duration1.[[Date]], plainRelativeTo).
+        days1 = dateDurationDays(state, duration1.dateDuration(), plainRelativeTo.value());
+        // Let days2 be ? DateDurationDays(duration2.[[Date]], plainRelativeTo).
+        days2 = dateDurationDays(state, duration2.dateDuration(), plainRelativeTo.value());
+    } else {
+        // Let days1 be one.[[Days]].
+        days1 = one->duration().days();
+        // Let days2 be two.[[Days]].
+        days2 = two->duration().days();
+    }
+
+    // Let timeDuration1 be ? Add24HourDaysToTimeDuration(duration1.[[Time]], days1).
+    auto timeDuration1 = add24HourDaysToTimeDuration(state, duration1.time(), days1);
+    // Let timeDuration2 be ? Add24HourDaysToTimeDuration(duration2.[[Time]], days2).
+    auto timeDuration2 = add24HourDaysToTimeDuration(state, duration2.time(), days2);
+    // Return 𝔽(CompareTimeDuration(timeDuration1, timeDuration2)).
+    if (timeDuration1 > timeDuration2) {
+        return 1;
+    }
+    if (timeDuration1 < timeDuration2) {
+        return -1;
+    }
+    return 0;
+}
+
 } // namespace Escargot
 
 #endif
