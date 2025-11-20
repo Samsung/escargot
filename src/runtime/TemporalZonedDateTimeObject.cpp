@@ -35,6 +35,11 @@ namespace Escargot {
         ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "failed to get value from ICU calendar"); \
     }
 
+bool TemporalZonedDateTimeObject::ComputedTimeZone::equals(const ComputedTimeZone& src) const
+{
+    return offset() == src.offset() && (timeZoneName()->equals(src.timeZoneName()) || Intl::canonicalTimeZoneID(timeZoneName()) == Intl::canonicalTimeZoneID(src.timeZoneName()));
+}
+
 // https://tc39.es/proposal-temporal/#sec-temporal-timezoneequals
 static bool timeZoneEquals(const TemporalZonedDateTimeObject::ComputedTimeZone& one, const TemporalZonedDateTimeObject::ComputedTimeZone& two)
 {

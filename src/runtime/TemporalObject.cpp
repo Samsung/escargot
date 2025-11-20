@@ -249,7 +249,7 @@ ISO8601::PlainDateTime Temporal::toPlainDateTime(Int128 epochNanoseconds)
                                   ISO8601::PlainTime(d.hours(), d.minutes(), d.seconds(), d.milliseconds(), d.microseconds(), d.nanoseconds()));
 }
 
-int32_t Temporal::computeTimeZoneOffset(ExecutionState& state, String* name, int64_t epoch)
+int64_t Temporal::computeTimeZoneOffset(ExecutionState& state, String* name, int64_t epoch)
 {
     auto u16 = name->toUTF16StringData();
     UErrorCode status = U_ZERO_ERROR;
@@ -273,7 +273,47 @@ int32_t Temporal::computeTimeZoneOffset(ExecutionState& state, String* name, int
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
     }
     ucal_close(ucalendar);
-    return zoneOffset + dstOffset;
+    return (zoneOffset + dstOffset) * 1000000LL;
+}
+
+int64_t Temporal::computeTimeZoneOffset(ExecutionState& state, String* name, const ISO8601::PlainDate& localDate, Optional<ISO8601::PlainTime> localTime, bool duplicateTimeAsDST)
+{
+#if defined(ENABLE_RUNTIME_ICU_BINDER)
+    UVersionInfo versionArray;
+    u_getVersion(versionArray);
+    if (versionArray[0] < 69) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::TypeError, "internal Temporal.computeTimeZoneOffset needs 69+ version of ICU");
+    }
+#endif
+
+    auto u16 = name->toUTF16StringData();
+    UErrorCode status = U_ZERO_ERROR;
+    const char* msg = "Failed to get timeZone offset from ICU";
+    auto ucalendar = ucal_open(u16.data(), u16.length(), "en", UCAL_GREGORIAN, &status);
+    LocalResourcePointer<UCalendar> calHolder(ucalendar, [](UCalendar* r) {
+        ucal_close(r);
+    });
+
+    if (!ucalendar) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+        return 0;
+    }
+
+    auto localEpoch = ISO8601::ExactTime::fromPlainDateTime(ISO8601::PlainDateTime(localDate, localTime.valueOr(ISO8601::PlainTime()))).floorEpochMilliseconds();
+    ucal_setMillis(ucalendar, localEpoch, &status);
+
+    int32_t rawOffset = 0;
+    int32_t dstOffset = 0;
+    if (localTime && duplicateTimeAsDST) {
+        ucal_getTimeZoneOffsetFromLocal(ucalendar, UCAL_TZ_LOCAL_STANDARD_FORMER, UCAL_TZ_LOCAL_STANDARD_FORMER, &rawOffset, &dstOffset, &status);
+    } else {
+        ucal_getTimeZoneOffsetFromLocal(ucalendar, UCAL_TZ_LOCAL_FORMER, UCAL_TZ_LOCAL_FORMER, &rawOffset, &dstOffset, &status);
+    }
+    if (U_FAILURE(status)) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
+    }
+
+    return (rawOffset + dstOffset) * 1000000LL;
 }
 
 Int128 Temporal::systemUTCEpochNanoseconds()
@@ -903,12 +943,9 @@ Int128 Temporal::getStartOfDay(ExecutionState& state, TimeZone timeZone, ISO8601
     if (timeZone.hasOffset()) {
         offset = timeZone.offset();
     } else {
-        offset = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(),
-                                                 ISO8601::ExactTime::fromPlainDate(isoDate).floorEpochMilliseconds());
+        offset = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), isoDate, NullOption, true);
     }
-    auto epoch = ISO8601::ExactTime::fromISOPartsAndOffset(isoDate.year(), isoDate.month(), isoDate.day(),
-                                                           0, 0, 0, 0, 0, 0, offset)
-                     .epochNanoseconds();
+    auto epoch = ISO8601::ExactTime::fromPlainDate(isoDate).epochNanoseconds() - offset;
 
     if (!ISO8601::isValidEpochNanoseconds(epoch)) {
         ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Out of range date-time");
@@ -942,7 +979,8 @@ Int128 Temporal::interpretISODateTimeOffset(ExecutionState& state, ISO8601::Plai
         // TODO Let epochNanoseconds be GetUTCEpochNanoseconds(balanced).
         // TODO If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
         // Return epochNanoseconds.
-        auto ns = ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds() + offsetNanoseconds;
+        auto ns = ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds();
+        ns -= offsetNanoseconds;
         if (!ISO8601::isValidEpochNanoseconds(ns)) {
             ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid date-time value");
         }
@@ -967,17 +1005,50 @@ Int128 Temporal::interpretISODateTimeOffset(ExecutionState& state, ISO8601::Plai
     // Return ? DisambiguatePossibleEpochNanoseconds(possibleEpochNs, timeZone, isoDateTime, disambiguation).
 
     Optional<int64_t> timeZoneOffsetNanoseconds;
+    Optional<int64_t> timeZoneOffsetNanosecondsDST;
+    Optional<int64_t> timeZoneOffsetNanosecondsResult;
     if (timeZone.hasOffset()) {
-        timeZoneOffsetNanoseconds = timeZone.offset();
+        timeZoneOffsetNanosecondsResult = timeZoneOffsetNanosecondsDST = timeZoneOffsetNanoseconds = timeZone.offset();
     } else if (timeZone.hasTimeZoneName()) {
-        timeZoneOffsetNanoseconds = -Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), ISO8601::ExactTime::fromPlainDateTime(isoDateTime).floorEpochMilliseconds());
+        timeZoneOffsetNanosecondsResult = timeZoneOffsetNanoseconds = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(),
+                                                                                                      isoDateTime.plainDate(), isoDateTime.plainTime());
+        timeZoneOffsetNanosecondsDST = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(),
+                                                                       isoDateTime.plainDate(), isoDateTime.plainTime(), true);
     }
 
     if (offsetOption == TemporalOffsetOption::Reject) {
-        if (offsetNanoseconds && timeZoneOffsetNanoseconds && offsetNanoseconds != timeZoneOffsetNanoseconds.value()) {
-            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid offset value");
-        } else if (offsetNanoseconds && timeZoneOffsetNanoseconds && offsetNanoseconds == timeZoneOffsetNanoseconds.value()) {
-            offsetNanoseconds = 0;
+        if (offsetNanoseconds && timeZoneOffsetNanoseconds) {
+            auto testTZ = [matchBehaviour, offsetNanoseconds, timeZone, &timeZoneOffsetNanosecondsResult](int64_t timeZoneOffsetNanoseconds) -> bool {
+                timeZoneOffsetNanosecondsResult = timeZoneOffsetNanoseconds;
+                if (matchBehaviour == TemporalMatchBehaviour::MatchMinutes) {
+                    if (intFloor(offsetNanoseconds, int64_t(ISO8601::ExactTime::nsPerMinute)) != intFloor(timeZoneOffsetNanoseconds, int64_t(ISO8601::ExactTime::nsPerMinute))) {
+                        return false;
+                    }
+                } else if (matchBehaviour == TemporalMatchBehaviour::MatchExactly) {
+                    if (offsetNanoseconds != timeZoneOffsetNanoseconds) {
+                        if (offsetNanoseconds % ISO8601::ExactTime::nsPerMinute) {
+                            // edge case like
+                            // "1952-10-15T23:59:59-11:19:50[Pacific/Niue]" should throws error(wrong second 50)
+                            return false;
+                        } else if (timeZoneOffsetNanoseconds % (ISO8601::ExactTime::nsPerMinute / 2)) {
+                            // edge case like
+                            // "1952-10-15T23:59:59-11:19:40[Pacific/Niue]" or "1952-10-15T23:59:59-11:20:00[Pacific/Niue]"
+                            if (timeZone.hasOffset() || intFloor(offsetNanoseconds, int64_t(ISO8601::ExactTime::nsPerMinute)) != intFloor(timeZoneOffsetNanoseconds, int64_t(ISO8601::ExactTime::nsPerMinute))) {
+                                return false;
+                            } else {
+                                timeZoneOffsetNanosecondsResult = offsetNanoseconds;
+                            }
+                        } else {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            };
+
+            if (!testTZ(timeZoneOffsetNanoseconds.value()) && !testTZ(timeZoneOffsetNanosecondsDST.value())) {
+                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Invalid offset value");
+            }
         }
     }
 
@@ -985,7 +1056,7 @@ Int128 Temporal::interpretISODateTimeOffset(ExecutionState& state, ISO8601::Plai
     if (hasUTCDesignator) {
         ns = ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds();
     } else {
-        ns = ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds() - timeZoneOffsetNanoseconds.valueOr(0);
+        ns = ISO8601::ExactTime::fromPlainDateTime(isoDateTime).epochNanoseconds() - timeZoneOffsetNanosecondsResult.valueOr(0);
     }
 
     if (!ISO8601::isValidEpochNanoseconds(ns)) {
@@ -1078,9 +1149,7 @@ TemporalZonedDateTimeObject* Temporal::toTemporalZonedDateTime(ExecutionState& s
         ISO8601::TimeZoneRecord tr = std::get<2>(result.value()).value();
         // Let offsetString be result.[[TimeZone]].[[OffsetString]].
         if (tr.m_offset) {
-            StringBuilder sb;
-            Temporal::formatOffsetTimeZoneIdentifier(state, (int)(tr.m_offset.value() / ISO8601::ExactTime::nsPerMinute), sb);
-            offsetString = sb.finalize();
+            offsetString = tr.m_offsetString.value();
         }
         // If result.[[TimeZone]].[[Z]] is true, then
         if (tr.m_z) {
@@ -1090,7 +1159,7 @@ TemporalZonedDateTimeObject* Temporal::toTemporalZonedDateTime(ExecutionState& s
 
         if (tr.m_z) {
             if (tr.m_nameOrOffset && tr.m_nameOrOffset.id().value() == 0) {
-                timeZone = TimeZone(tr.m_nameOrOffset.get<0>());
+                timeZone = Temporal::toTemporalTimezoneIdentifier(state, tr.m_nameOrOffset.get<0>());
             } else if (tr.m_nameOrOffset && tr.m_nameOrOffset.id().value() == 1) {
                 timeZone = TimeZone(tr.m_nameOrOffset.get<1>());
             } else if (tr.m_offset) {
@@ -1101,11 +1170,10 @@ TemporalZonedDateTimeObject* Temporal::toTemporalZonedDateTime(ExecutionState& s
             if (!std::get<1>(unwrappedResult)) {
                 ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
             }
+        } else if (tr.m_nameOrOffset && tr.m_nameOrOffset.id().value() == 0 && tr.m_offset && !std::get<1>(unwrappedResult)) {
+            ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
         } else if (tr.m_nameOrOffset && tr.m_nameOrOffset.id().value() == 0) {
-            if (!std::get<1>(unwrappedResult)) {
-                ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, msg);
-            }
-            timeZone = TimeZone(tr.m_nameOrOffset.get<0>());
+            timeZone = Temporal::toTemporalTimezoneIdentifier(state, tr.m_nameOrOffset.get<0>());
         } else if (tr.m_nameOrOffset && tr.m_nameOrOffset.id().value() == 1) {
             timeZone = TimeZone(tr.m_nameOrOffset.get<1>());
         } else {
@@ -1130,7 +1198,14 @@ TemporalZonedDateTimeObject* Temporal::toTemporalZonedDateTime(ExecutionState& s
             // Let offsetParseResult be ParseText(StringToCodePoints(offsetString), UTCOffset[+SubMinutePrecision]).
             // Assert: offsetParseResult is a Parse Node.
             // If offsetParseResult contains more than one MinuteSecond Parse Node, set matchBehaviour to match-exactly.
-            if (tr.m_offset.value() % ISO8601::ExactTime::nsPerHour) {
+            size_t digitCount = 0;
+            // 00:00:00
+            for (size_t i = 0; i < offsetString->length(); i++) {
+                if (isASCIIDigit(offsetString->charAt(i))) {
+                    digitCount++;
+                }
+            }
+            if (digitCount > 4) {
                 matchBehaviour = TemporalMatchBehaviour::MatchExactly;
             }
         }
@@ -2976,7 +3051,7 @@ Int128 Temporal::getEpochNanosecondsFor(ExecutionState& state, Optional<TimeZone
     }
     // TODO https://tc39.es/proposal-temporal/#sec-temporal-disambiguatepossibleepochnanoseconds
     auto offset = computeTimeZoneOffset(state, timeZone.value().timeZoneName(), ISO8601::ExactTime(epochNanoValue).floorEpochMilliseconds());
-    return epochNanoValue - Int128(offset) * 1000000;
+    return epochNanoValue - Int128(offset);
 }
 
 // https://tc39.es/proposal-temporal/#sec-applyunsignedroundingmode
@@ -3400,7 +3475,6 @@ int64_t Temporal::getOffsetNanosecondsFor(ExecutionState& state, TimeZone timeZo
         offsetNanoseconds = timeZone.offset();
     } else if (timeZone.hasTimeZoneName()) {
         offsetNanoseconds = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), ISO8601::ExactTime(epochNs).floorEpochMilliseconds());
-        offsetNanoseconds *= 1000000;
     }
 
     return offsetNanoseconds;

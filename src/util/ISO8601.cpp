@@ -1076,8 +1076,8 @@ static Optional<Variant<TimeZoneID, int64_t>> parseTimeZoneAnnotation(ParserStri
                         if (isASCIIDigit(secondHourCharacter)) {
                             hour = (secondHourCharacter - '0') + 10 * (firstHourCharacter - '0');
                             if (hour < 24 && buffer[10] == ']') {
-                                buffer.advanceBy(11);
-                                return Variant<TimeZoneID, int64_t>::create<1>(nsPerHour * hour * factor);
+                                std::string s = buffer.consume(11);
+                                return Variant<TimeZoneID, int64_t>::create<0>(String::fromASCII(s.data(), s.length() - 1));
                             }
                         }
                     }
@@ -1112,7 +1112,7 @@ static Optional<Variant<TimeZoneID, int64_t>> parseTimeZoneAnnotation(ParserStri
                 auto character = buffer[index];
                 if (character == ']')
                     break;
-                if (!isASCIIAlpha(character) && character != '.' && character != '_' && character != '-' && character != '/')
+                if (!isASCIIAlpha(character) && character != '.' && character != '_' && character != '-' && character != '/' && character != '+' && !isASCIIDigit(character))
                     return NullOption;
             }
             if (!index)
@@ -1138,7 +1138,7 @@ static Optional<Variant<TimeZoneID, int64_t>> parseTimeZoneAnnotation(ParserStri
         for (unsigned index = 0; index < nameLength; ++index) {
             auto character = buffer[index];
             if (isLeadingCharacterInNameComponent) {
-                if (!(isASCIIAlpha(character) || character == '.' || character == '_'))
+                if (!(isASCIIAlpha(character) || isASCIIDigit(character) || character == '.' || character == '_'))
                     return NullOption;
 
                 currentNameComponentStartIndex = index;
@@ -1153,7 +1153,7 @@ static Optional<Variant<TimeZoneID, int64_t>> parseTimeZoneAnnotation(ParserStri
                 continue;
             }
 
-            if (!(isASCIIAlpha(character) || character == '.' || character == '_' || character == '-'))
+            if (!(isASCIIAlpha(character) || isASCIIDigit(character) || character == '.' || character == '_' || character == '-' || character == '+'))
                 return NullOption;
         }
         if (isLeadingCharacterInNameComponent)
@@ -1187,24 +1187,26 @@ static Optional<TimeZoneRecord> parseTimeZone(ParserString& buffer, DateTimePars
             auto timeZone = parseTimeZoneAnnotation(buffer);
             if (!timeZone)
                 return NullOption;
-            return TimeZoneRecord{ true, NullOption, std::move(timeZone.value()) };
+            return TimeZoneRecord{ true, NullOption, NullOption, std::move(timeZone.value()) };
         }
-        return TimeZoneRecord{ true, NullOption, {} };
+        return TimeZoneRecord{ true, NullOption, NullOption, {} };
     }
     // TimeZoneUTCOffsetSign
     // https://tc39.es/proposal-temporal/#prod-TimeZoneUTCOffsetSign
     case '+':
     case '-': {
+        size_t start = buffer.position();
         auto offset = parseUTCOffset(buffer, option);
+        size_t end = buffer.position();
         if (!offset)
             return NullOption;
         if (!buffer.atEnd() && *buffer == '[' && canBeTimeZone(buffer, *buffer)) {
             auto timeZone = parseTimeZoneAnnotation(buffer);
             if (!timeZone)
                 return NullOption;
-            return TimeZoneRecord{ false, offset.value(), std::move(timeZone.value()) };
+            return TimeZoneRecord{ false, offset.value(), buffer.src()->substring(start, end), std::move(timeZone.value()) };
         }
-        return TimeZoneRecord{ false, offset.value(), {} };
+        return TimeZoneRecord{ false, offset.value(), buffer.src()->substring(start, end), {} };
     }
     // TimeZoneBracketedAnnotation
     // https://tc39.es/proposal-temporal/#prod-TimeZoneBracketedAnnotation
@@ -1212,7 +1214,7 @@ static Optional<TimeZoneRecord> parseTimeZone(ParserString& buffer, DateTimePars
         auto timeZone = parseTimeZoneAnnotation(buffer);
         if (!timeZone)
             return NullOption;
-        return TimeZoneRecord{ false, NullOption, std::move(timeZone.value()) };
+        return TimeZoneRecord{ false, NullOption, NullOption, std::move(timeZone.value()) };
     }
     default:
         return NullOption;
@@ -1919,6 +1921,61 @@ Optional<TimeZoneID> parseTimeZoneName(String* string)
     std::string lowerString = string->toNonGCUTF8StringData();
     std::transform(lowerString.begin(), lowerString.end(), lowerString.begin(), tolower);
 
+    if (lowerString.length() == 3 && lowerString.back() == 't') {
+        // skip non-iana names like "ACT" in https://github.com/unicode-org/icu/blob/main/icu4c/source/tools/tzcode/icuzones
+        if (lowerString == "act") {
+            return NullOption;
+        } else if (lowerString == "aet") {
+            return NullOption;
+        } else if (lowerString == "agt") {
+            return NullOption;
+        } else if (lowerString == "art") {
+            return NullOption;
+        } else if (lowerString == "ast") {
+            return NullOption;
+        } else if (lowerString == "bet") {
+            return NullOption;
+        } else if (lowerString == "bst") {
+            return NullOption;
+        } else if (lowerString == "cat") {
+            return NullOption;
+        } else if (lowerString == "cnt") {
+            return NullOption;
+        } else if (lowerString == "cst") {
+            return NullOption;
+        } else if (lowerString == "ctt") {
+            return NullOption;
+        } else if (lowerString == "eat") {
+            return NullOption;
+        } else if (lowerString == "ect") {
+            return NullOption;
+        } else if (lowerString == "iet") {
+            return NullOption;
+        } else if (lowerString == "ist") {
+            return NullOption;
+        } else if (lowerString == "jst") {
+            return NullOption;
+        } else if (lowerString == "mit") {
+            return NullOption;
+        } else if (lowerString == "net") {
+            return NullOption;
+        } else if (lowerString == "nst") {
+            return NullOption;
+        } else if (lowerString == "plt") {
+            return NullOption;
+        } else if (lowerString == "pnt") {
+            return NullOption;
+        } else if (lowerString == "prt") {
+            return NullOption;
+        } else if (lowerString == "pst") {
+            return NullOption;
+        } else if (lowerString == "sst") {
+            return NullOption;
+        } else if (lowerString == "vst") {
+            return NullOption;
+        }
+    }
+
     Optional<TimeZoneID> ret;
     Intl::availableTimeZones([&](const char* buf, size_t len) {
         if (len == lowerString.size()) {
@@ -1928,34 +1985,10 @@ Optional<TimeZoneID> parseTimeZoneName(String* string)
                 ret = String::fromUTF8(buf, len);
             }
         }
-    });
+    },
+                             true);
 
-    if (ret) {
-        return ret;
-    }
-
-    // skip non-iana names like "ACT" in https://github.com/unicode-org/icu/blob/main/icu4c/source/tools/tzcode/icuzones
-    if (string->length() <= 3) {
-        return NullOption;
-    }
-
-    auto u16String = string->toUTF16StringData();
-    UTF16StringDataNonGCStd buffer;
-    buffer.resize(u16String.length());
-    UBool isSystemID = false;
-    UErrorCode status = U_ZERO_ERROR;
-    auto canonicalLength = ucal_getCanonicalTimeZoneID(u16String.data(), u16String.length(), (UChar*)buffer.data(), u16String.length(), &isSystemID, &status);
-    if (status == U_BUFFER_OVERFLOW_ERROR) {
-        buffer.resize(canonicalLength);
-        isSystemID = false;
-        status = U_ZERO_ERROR;
-        ucal_getCanonicalTimeZoneID(u16String.data(), u16String.length(), (UChar*)buffer.data(), canonicalLength, &isSystemID, &status);
-        ASSERT(U_SUCCESS(status));
-        return new UTF16String(buffer.data(), canonicalLength);
-    } else if (U_SUCCESS(status)) {
-        return new UTF16String(buffer.data(), canonicalLength);
-    }
-    return NullOption;
+    return ret;
 }
 
 Int128 resolveNanosecondsValueByUnit(DateTimeUnit unit)

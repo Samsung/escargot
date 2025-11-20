@@ -1136,6 +1136,16 @@ public:
         return ret;
     }
 
+    size_t position() const
+    {
+        return m_position;
+    }
+
+    String* src() const
+    {
+        return m_src;
+    }
+
 private:
     String* m_src;
     StringBufferAccessData m_bad;

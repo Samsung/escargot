@@ -2336,11 +2336,11 @@ static String* removeUnicodeLocaleExtension(ExecutionState& state, String* local
     return builder.finalize();
 }
 
-void Intl::availableTimeZones(const std::function<void(const char* buf, size_t len)>& callback)
+void Intl::availableTimeZones(const std::function<void(const char* buf, size_t len)>& callback, bool includeNonCanonical)
 {
     UErrorCode status = U_ZERO_ERROR;
 
-    LocalResourcePointer<UEnumeration> tzs(ucal_openTimeZoneIDEnumeration(UCAL_ZONE_TYPE_CANONICAL_LOCATION, nullptr, nullptr, &status),
+    LocalResourcePointer<UEnumeration> tzs(ucal_openTimeZoneIDEnumeration(includeNonCanonical ? UCAL_ZONE_TYPE_ANY : UCAL_ZONE_TYPE_CANONICAL_LOCATION, nullptr, nullptr, &status),
                                            [](UEnumeration* fmt) { uenum_close(fmt); });
 
     if (!U_SUCCESS(status)) {
@@ -2351,25 +2351,52 @@ void Intl::availableTimeZones(const std::function<void(const char* buf, size_t l
     int32_t bufferLength = 0;
     while ((buffer = uenum_next(tzs.get(), &bufferLength, &status)) && U_SUCCESS(status)) {
         std::string id(buffer, bufferLength);
-        if (id == "UTC" || (id.find("Etc/GMT") != std::string::npos)) {
+        if (!includeNonCanonical && (id == "UTC" || (id.find("Etc/GMT") != std::string::npos))) {
             continue;
         }
         callback(id.data(), id.length());
     }
+    if (!includeNonCanonical) {
+        callback("UTC", 3);
 
-    callback("UTC", 3);
+        for (int i = 1; i <= 12; i++) {
+            std::string s;
+            s += "Etc/GMT+" + std::to_string(i);
+            callback(s.data(), s.length());
+            s = "";
+            s += "Etc/GMT-" + std::to_string(i);
+            callback(s.data(), s.length());
+        }
 
-    for (int i = 1; i <= 12; i++) {
-        std::string s;
-        s += "Etc/GMT+" + std::to_string(i);
-        callback(s.data(), s.length());
-        s = "";
-        s += "Etc/GMT-" + std::to_string(i);
-        callback(s.data(), s.length());
+        callback("Etc/GMT-13", 10);
+        callback("Etc/GMT-14", 10);
     }
+}
 
-    callback("Etc/GMT-13", 10);
-    callback("Etc/GMT-14", 10);
+UTF16StringDataNonGCStd Intl::canonicalTimeZoneID(String* timezoneId)
+{
+    if (timezoneId->equals("Etc/GMT0") || timezoneId->equals("Etc/UTC") || timezoneId->equals("GMT") || timezoneId->equals("Etc/GMT")) {
+        return u"Etc/UTC";
+    }
+    auto u16String = timezoneId->toUTF16StringData();
+    UTF16StringDataNonGCStd buffer;
+    buffer.resize(u16String.length());
+    UBool isSystemID = false;
+    UErrorCode status = U_ZERO_ERROR;
+    auto canonicalLength = ucal_getCanonicalTimeZoneID(u16String.data(), u16String.length(), (UChar*)buffer.data(), u16String.length(), &isSystemID, &status);
+    if (status == U_BUFFER_OVERFLOW_ERROR) {
+        buffer.resize(canonicalLength);
+        isSystemID = false;
+        status = U_ZERO_ERROR;
+        ucal_getCanonicalTimeZoneID(u16String.data(), u16String.length(), (UChar*)buffer.data(), canonicalLength, &isSystemID, &status);
+        ASSERT(U_SUCCESS(status));
+    } else if (U_SUCCESS(status)) {
+        buffer.resize(canonicalLength);
+    } else {
+        auto u16 = timezoneId->toUTF16StringData();
+        buffer = UTF16StringDataNonGCStd(u16.data(), u16.size());
+    }
+    return buffer;
 }
 
 ValueVector Intl::canonicalizeLocaleList(ExecutionState& state, Value locales)

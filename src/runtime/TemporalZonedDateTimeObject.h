@@ -54,10 +54,7 @@ public:
             return m_offset;
         }
 
-        bool equals(const ComputedTimeZone& src) const
-        {
-            return m_timeZoneName->equals(src.timeZoneName()) && offset() == src.offset();
-        }
+        bool equals(const ComputedTimeZone& src) const;
 
         operator TimeZone() const
         {

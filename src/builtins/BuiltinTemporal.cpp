@@ -1221,9 +1221,31 @@ static Value builtinTemporalZonedDateTimeTimeZoneId(ExecutionState& state, Value
 static Value builtinTemporalZonedDateTimeOffset(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_ZONEDDATETIME(zonedDateTime, Offset);
-    StringBuilder sb;
-    Temporal::formatOffsetTimeZoneIdentifier(state, (int)(zonedDateTime->timeZone().offset() / ISO8601::ExactTime::nsPerMinute), sb);
-    return sb.finalize();
+    auto offset = zonedDateTime->timeZone().offset();
+    StringBuilder builder;
+    char sign = offset >= 0 ? '+' : '-';
+    int32_t absoluteMinutes = int32_t(std::abs(zonedDateTime->timeZone().offset() / ISO8601::ExactTime::nsPerMinute));
+    int32_t hours = absoluteMinutes / 60;
+    int32_t minutes = absoluteMinutes % 60;
+    builder.appendChar(sign);
+    {
+        auto s = pad('0', 2, std::to_string(hours));
+        builder.appendString(String::fromASCII(s.data(), s.length()));
+    }
+    builder.appendChar(':');
+    {
+        auto s = pad('0', 2, std::to_string(minutes));
+        builder.appendString(String::fromASCII(s.data(), s.length()));
+    }
+
+    auto underMin = zonedDateTime->timeZone().offset() % ISO8601::ExactTime::nsPerMinute;
+    if (underMin) {
+        builder.appendChar(':');
+        auto s = pad('0', 2, std::to_string(std::abs(underMin / ISO8601::ExactTime::nsPerSecond)));
+        builder.appendString(String::fromASCII(s.data(), s.length()));
+    }
+
+    return builder.finalize();
 }
 
 static Value builtinTemporalZonedDateTimeOffsetNanoseconds(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
