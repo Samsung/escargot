@@ -6014,6 +6014,16 @@ enum UTimeZoneTransitionType {
 
 typedef enum UTimeZoneTransitionType UTimeZoneTransitionType;
 
+enum UTimeZoneLocalOption {
+    UCAL_TZ_LOCAL_FORMER = 0x04,
+    UCAL_TZ_LOCAL_LATTER = 0x0C,
+    UCAL_TZ_LOCAL_STANDARD_FORMER = UCAL_TZ_LOCAL_FORMER | 0x01,
+    UCAL_TZ_LOCAL_STANDARD_LATTER = UCAL_TZ_LOCAL_LATTER | 0x01,
+    UCAL_TZ_LOCAL_DAYLIGHT_FORMER = UCAL_TZ_LOCAL_FORMER | 0x03,
+    UCAL_TZ_LOCAL_DAYLIGHT_LATTER = UCAL_TZ_LOCAL_LATTER | 0x03,
+};
+typedef enum UTimeZoneLocalOption UTimeZoneLocalOption;
+
 // udatpg.h
 typedef void *UDateTimePatternGenerator;
 

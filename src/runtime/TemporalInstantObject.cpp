@@ -87,11 +87,11 @@ String* TemporalInstantObject::toString(ExecutionState& state, Int128 epochNanos
     int64_t offsetNanoseconds = 0;
     if (timeZone.hasOffset()) {
         offsetNanoseconds = timeZone.offset();
-        epochMilli += (offsetNanoseconds / (1000 * 1000));
     } else if (timeZone.hasTimeZoneName()) {
         offsetNanoseconds = Temporal::computeTimeZoneOffset(state, timeZone.timeZoneName(), epochMilli);
-        offsetNanoseconds *= 1000000;
     }
+
+    epochMilli += (offsetNanoseconds / (1000 * 1000));
 
     DateObject::DateTimeInfo timeInfo;
     DateObject::computeTimeInfoFromEpoch(epochMilli, timeInfo);

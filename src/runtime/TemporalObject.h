@@ -43,7 +43,7 @@ T nonNegativeModulo(T x, int y)
 }
 
 template <typename T>
-T intFloor(T x, int y)
+T intFloor(T x, int64_t y)
 {
     if (x > 0) {
         return x / y;
@@ -300,8 +300,8 @@ public:
         return 0;
     }
 
-    // returns offset(milliseconds)
-    static int32_t computeTimeZoneOffset(ExecutionState& state, String* name, int64_t epoch);
+    static int64_t computeTimeZoneOffset(ExecutionState& state, String* name, int64_t epochMilli);
+    static int64_t computeTimeZoneOffset(ExecutionState& state, String* name, const ISO8601::PlainDate& localDate, Optional<ISO8601::PlainTime> localTime, bool duplicateTimeAsDST = false);
 
     // https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
     static Int128 systemUTCEpochNanoseconds();

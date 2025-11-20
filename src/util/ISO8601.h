@@ -593,11 +593,13 @@ using TimeZone = Variant<TimeZoneID, int64_t>;
 struct TimeZoneRecord {
     bool m_z;
     Optional<int64_t> m_offset;
+    Optional<String*> m_offsetString;
     Variant<TimeZoneID, int64_t> m_nameOrOffset = Variant<TimeZoneID, int64_t>::empty();
 
-    TimeZoneRecord(bool z = false, Optional<int64_t> offset = NullOption, Variant<TimeZoneID, int64_t> nameOrOffset = Variant<TimeZoneID, int64_t>::empty())
+    TimeZoneRecord(bool z = false, Optional<int64_t> offset = NullOption, Optional<String*> offsetString = NullOption, Variant<TimeZoneID, int64_t> nameOrOffset = Variant<TimeZoneID, int64_t>::empty())
         : m_z(z)
         , m_offset(offset)
+        , m_offsetString(offsetString)
         , m_nameOrOffset(nameOrOffset)
     {
     }

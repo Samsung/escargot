@@ -127,6 +127,7 @@
 #define ucal_openTimeZoneIDEnumeration RuntimeICUBinder::ICU::instance().ucal_openTimeZoneIDEnumeration
 #define ucal_openTimeZones RuntimeICUBinder::ICU::instance().ucal_openTimeZones
 #define ucal_getCanonicalTimeZoneID RuntimeICUBinder::ICU::instance().ucal_getCanonicalTimeZoneID
+#define ucal_getIanaTimeZoneID RuntimeICUBinder::ICU::instance().ucal_getIanaTimeZoneID
 #define ucal_get RuntimeICUBinder::ICU::instance().ucal_get
 #define ucal_getType RuntimeICUBinder::ICU::instance().ucal_getType
 #define ucal_getAttribute RuntimeICUBinder::ICU::instance().ucal_getAttribute
@@ -140,6 +141,8 @@
 #define ucal_setTimeZone RuntimeICUBinder::ICU::instance().ucal_setTimeZone
 #define ucal_clone RuntimeICUBinder::ICU::instance().ucal_clone
 #define ucal_getTimeZoneTransitionDate RuntimeICUBinder::ICU::instance().ucal_getTimeZoneTransitionDate
+#define ucal_add RuntimeICUBinder::ICU::instance().ucal_add
+#define ucal_getTimeZoneOffsetFromLocal RuntimeICUBinder::ICU::instance().ucal_getTimeZoneOffsetFromLocal
 
 #define udatpg_close RuntimeICUBinder::ICU::instance().udatpg_close
 #define udatpg_open RuntimeICUBinder::ICU::instance().udatpg_open
