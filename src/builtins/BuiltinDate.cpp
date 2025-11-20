@@ -29,6 +29,10 @@
 #include "intl/IntlDateTimeFormat.h"
 #endif
 
+#if defined(ENABLE_TEMPORAL)
+#include "runtime/TemporalInstantObject.h"
+#endif
+
 namespace Escargot {
 
 #define FOR_EACH_DATE_VALUES(F)                     \
@@ -517,6 +521,14 @@ static Value builtinDateToPrimitive(ExecutionState& state, Value thisValue, size
     }
 }
 
+#if defined(ENABLE_TEMPORAL)
+static Value builtinDateToTemporalInstant(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
+{
+    RESOLVE_THIS_BINDING_TO_DATE(thisObject, Date, lazyToTemporalInstant());
+    return thisObject->toTemporalInstant(state);
+}
+#endif
+
 void GlobalObject::initializeDate(ExecutionState& state)
 {
     ObjectPropertyNativeGetterSetterData* nativeData = new ObjectPropertyNativeGetterSetterData(true, false, true, [](ExecutionState& state, Object* self, const Value& receiver, const EncodedValue& privateDataFromObjectPrivateArea) -> Value {
@@ -611,6 +623,12 @@ void GlobalObject::installDate(ExecutionState& state)
                                                                       (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
 
     FOR_EACH_DATE_VALUES(DATE_DEFINE_SETTER);
+
+#if defined(ENABLE_TEMPORAL)
+    m_datePrototype->directDefineOwnProperty(state, ObjectPropertyName(state.context()->staticStrings().lazyToTemporalInstant()),
+                                             ObjectPropertyDescriptor(new NativeFunctionObject(state, NativeFunctionInfo(state.context()->staticStrings().lazyToTemporalInstant(), builtinDateToTemporalInstant, 0, NativeFunctionInfo::Strict)),
+                                                                      (ObjectPropertyDescriptor::PresentAttribute)(ObjectPropertyDescriptor::WritablePresent | ObjectPropertyDescriptor::ConfigurablePresent)));
+#endif
 
     m_date->setFunctionPrototype(state, m_datePrototype);
 

@@ -74,6 +74,11 @@
 #include "DateObject.h"
 #include "Context.h"
 #include "runtime/VMInstance.h"
+
+#if defined(ENABLE_TEMPORAL)
+#include "runtime/TemporalInstantObject.h"
+#endif
+
 #include <time.h>
 
 namespace Escargot {
@@ -1564,6 +1569,22 @@ DECLARE_DATE_UTC_GETTER(Milliseconds);
 DECLARE_DATE_UTC_GETTER(Minutes);
 DECLARE_DATE_UTC_GETTER(Month);
 DECLARE_DATE_UTC_GETTER(Seconds);
+
+#if defined(ENABLE_TEMPORAL)
+TemporalInstantObject* DateObject::toTemporalInstant(ExecutionState& state)
+{
+    // Let t be dateObject.[[DateValue]].
+    // Let ns be ? NumberToBigInt(t) × ℤ(10**6).
+    double val = primitiveValue();
+    if (std::trunc(val) != val) {
+        ErrorObject::throwBuiltinError(state, ErrorCode::RangeError, "Date primitiveValue is not intergral");
+    }
+    Int128 n = int64_t(val);
+    Int128 ns = n * 1000000;
+    // Return ! CreateTemporalInstant(ns).
+    return new TemporalInstantObject(state, state.context()->globalObject()->temporalInstantPrototype(), ns);
+}
+#endif
 
 void* DateObject::operator new(size_t size)
 {

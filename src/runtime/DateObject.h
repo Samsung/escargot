@@ -142,6 +142,11 @@ public:
     int getUTCMonth(ExecutionState& state);
     int getUTCSeconds(ExecutionState& state);
 
+#if defined(ENABLE_TEMPORAL)
+    // https://tc39.es/proposal-temporal/#sec-date.prototype.totemporalinstant
+    TemporalInstantObject* toTemporalInstant(ExecutionState& state);
+#endif
+
     void* operator new(size_t size);
     void* operator new[](size_t size) = delete;
 
