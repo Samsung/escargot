@@ -75,6 +75,11 @@ void Global::finalize()
     std::vector<Waiter*>().swap(g_waiter);
 #endif
 
+    GC_gcollect_and_unmap();
+    GC_gcollect_and_unmap();
+    GC_gcollect_and_unmap();
+    GC_invoke_finalizers();
+
     delete g_platform;
     g_platform = nullptr;
 
