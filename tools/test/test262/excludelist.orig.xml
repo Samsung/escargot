@@ -35,14 +35,6 @@
     <test id="built-ins/DataView/custom-proto-access-resizes-buffer-valid-by-offset"><reason>TODO</reason></test>
     <test id="built-ins/Date/UTC/fp-evaluation-order"><reason>TODO</reason></test>
     <test id="built-ins/Date/parse/year-zero"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toTemporalInstant/length"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toTemporalInstant/name"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toTemporalInstant/not-a-constructor"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toTemporalInstant/prop-desc"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toTemporalInstant/this-value-invalid-date"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toTemporalInstant/this-value-non-date"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toTemporalInstant/this-value-non-object"><reason>TODO</reason></test>
-    <test id="built-ins/Date/prototype/toTemporalInstant/this-value-valid-date"><reason>TODO</reason></test>
     <test id="built-ins/Date/year-zero"><reason>TODO</reason></test>
     <test id="built-ins/Function/internals/Construct/derived-this-uninitialized-realm"><reason>TODO</reason></test>
     <test id="built-ins/Function/prototype/arguments/prop-desc"><reason>TODO</reason></test>
@@ -1033,7 +1025,6 @@
     <test id="staging/sm/Date/dst-offset-caching-7-of-8"><reason>TODO</reason></test>
     <test id="staging/sm/Date/dst-offset-caching-8-of-8"><reason>TODO</reason></test>
     <test id="staging/sm/Date/non-iso"><reason>TODO</reason></test>
-    <test id="staging/sm/Date/to-temporal-instant"><reason>TODO</reason></test>
     <test id="staging/sm/Date/two-digit-years"><reason>TODO</reason></test>
     <test id="staging/sm/Error/AggregateError"><reason>TODO</reason></test>
     <test id="staging/sm/Function/10.2.1.1.6"><reason>TODO</reason></test>
