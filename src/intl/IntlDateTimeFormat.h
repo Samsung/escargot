@@ -28,19 +28,20 @@ namespace Escargot {
 
 class IntlDateTimeFormatObject : public DerivedObject {
 public:
-    IntlDateTimeFormatObject(ExecutionState& state, Value locales, Value options);
-    IntlDateTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options);
+    IntlDateTimeFormatObject(ExecutionState& state, Value locales, Value options, Optional<String*> toLocaleStringTimeZone = NullOption);
+    IntlDateTimeFormatObject(ExecutionState& state, Object* proto, Value locales, Value options, Optional<String*> toLocaleStringTimeZone = NullOption);
 
     virtual bool isIntlDateTimeFormatObject() const override
     {
         return true;
     }
 
+    UTF16StringDataNonGCStd format(ExecutionState& state, Value x, bool allowZonedDateTime = false);
     UTF16StringDataNonGCStd format(ExecutionState& state, double x);
     ArrayObject* formatToParts(ExecutionState& state, double x);
     UTF16StringDataNonGCStd formatRange(ExecutionState& state, double startDate, double endDate);
     ArrayObject* formatRangeToParts(ExecutionState& state, double startDate, double endDate);
-    static Value toDateTimeOptions(ExecutionState& state, Value options, Value required, Value defaults);
+    static std::pair<Value, bool> toDateTimeOptions(ExecutionState& state, Value options, Value required, Value defaults);
     static std::string readHourCycleFromPattern(const UTF16StringDataNonGCStd& patternString);
     String* locale() const
     {
@@ -137,12 +138,29 @@ public:
         return m_timeStyle;
     }
 
+    UDateFormat* icuDateFormat()
+    {
+        return m_icuDateFormat;
+    }
+
+    bool allOptionsUndefined();
+
 protected:
-    String* initDateTimeFormatMainHelper(ExecutionState& state, StringMap& opt, const Value& options, const Value& hour12, std::function<void(String* prop, Value* values, size_t valuesSize)>& doTable4, StringBuilder& skeletonBuilder);
-    void initDateTimeFormatOtherHelper(ExecutionState& state, const Value& dataLocale, const Value& dateStyle, const Value& timeStyle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, std::string& dataLocaleWithExtensions, StringBuilder& skeletonBuilder);
+    static String* initDateTimeFormatMainHelper(ExecutionState& state, StringMap& opt, Object* options, const Value& hour12, StringBuilder& skeletonBuilder);
+    struct DateTimeFormatOtherHelperResult {
+        Optional<UDateFormat*> icuDateFormat;
+        Value newHourCycle;
+        Optional<String*> timeZoneICU;
+    };
+    static DateTimeFormatOtherHelperResult initDateTimeFormatOtherHelper(ExecutionState& state, Optional<IntlDateTimeFormatObject*> dateObject, const Value& dataLocale, String* timeZone, const Value& dateStyle, const Value& timeStyle, const Value& computedHourCycle, const Value& hourCycle, const Value& hour12, String* hour, const StringMap& opt, StringBuilder& skeletonBuilder);
     void setDateFromPattern(ExecutionState& state, UTF16StringDataNonGCStd& patternBuffer, bool hasHourOption);
     void initICUIntervalFormatIfNecessary(ExecutionState& state);
+    UTF16StringDataNonGCStd format(ExecutionState& state, UDateFormat* dateFormat, double x);
+
+    bool m_wasThereNoFormatOption;
+
     String* m_locale;
+    String* m_dataLocale;
     String* m_calendar;
     String* m_numberingSystem;
     String* m_timeZone;

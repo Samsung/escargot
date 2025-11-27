@@ -35,6 +35,8 @@
 #include "runtime/DateObject.h"
 #include "runtime/ArrayObject.h"
 
+#include "intl/IntlDateTimeFormat.h"
+
 namespace Escargot {
 
 #if defined(ENABLE_TEMPORAL)
@@ -1288,7 +1290,12 @@ static Value builtinTemporalZonedDateTimeToJSON(ExecutionState& state, Value thi
 static Value builtinTemporalZonedDateTimeToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_ZONEDDATETIME2(zonedDateTime, toLocaleString);
-    return zonedDateTime->toString(state, Value());
+
+    Value locales = argc > 0 ? argv[0] : Value();
+    Value options = argc > 1 ? argv[1] : Value();
+    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options, zonedDateTime->timeZone().timeZoneName());
+    auto result = dateFormat->format(state, zonedDateTime, true);
+    return new UTF16String(result.data(), result.length());
 }
 
 static Value builtinTemporalZonedDateTimeEquals(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)

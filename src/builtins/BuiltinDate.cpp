@@ -220,21 +220,23 @@ static Value builtinDateToTimeString(ExecutionState& state, Value thisValue, siz
 }
 
 #if defined(ENABLE_ICU) && defined(ENABLE_INTL)
-#define INTL_DATE_TIME_FORMAT_FORMAT(REQUIRED, DEFUALT)                                                                                         \
-    double x = thisObject->primitiveValue();                                                                                                    \
-    if (std::isnan(x)) {                                                                                                                        \
-        return new ASCIIStringFromExternalMemory("Invalid Date");                                                                               \
-    }                                                                                                                                           \
-    Value locales, options;                                                                                                                     \
-    if (argc >= 1) {                                                                                                                            \
-        locales = argv[0];                                                                                                                      \
-    }                                                                                                                                           \
-    if (argc >= 2) {                                                                                                                            \
-        options = argv[1];                                                                                                                      \
-    }                                                                                                                                           \
-    auto dateTimeOption = IntlDateTimeFormatObject::toDateTimeOptions(state, options, String::fromASCII(REQUIRED), String::fromASCII(DEFUALT)); \
-    IntlDateTimeFormatObject* dateFormat = new IntlDateTimeFormatObject(state, locales, dateTimeOption);                                        \
-    auto result = dateFormat->format(state, x);                                                                                                 \
+#define INTL_DATE_TIME_FORMAT_FORMAT(REQUIRED, DEFUALT)                                                                  \
+    double x = thisObject->primitiveValue();                                                                             \
+    if (std::isnan(x)) {                                                                                                 \
+        return new ASCIIStringFromExternalMemory("Invalid Date");                                                        \
+    }                                                                                                                    \
+    Value locales, options;                                                                                              \
+    if (argc >= 1) {                                                                                                     \
+        locales = argv[0];                                                                                               \
+    }                                                                                                                    \
+    if (argc >= 2) {                                                                                                     \
+        options = argv[1];                                                                                               \
+    }                                                                                                                    \
+    auto dateTimeOption = IntlDateTimeFormatObject::                                                                     \
+                              toDateTimeOptions(state, options, String::fromASCII(REQUIRED), String::fromASCII(DEFUALT)) \
+                                  .first;                                                                                \
+    IntlDateTimeFormatObject* dateFormat = new IntlDateTimeFormatObject(state, locales, dateTimeOption);                 \
+    auto result = dateFormat->format(state, x);                                                                          \
     return new UTF16String(result.data(), result.length());
 #endif
 
