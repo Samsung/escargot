@@ -178,7 +178,6 @@
     <test id="harness/asyncHelpers-asyncTest-without-async-flag"><reason>TODO</reason></test>
     <test id="harness/asyncHelpers-throwsAsync-func-never-settles"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/temporal-objects-not-overlapping-options"><reason>TODO</reason></test>
-    <test id="intl402/DateTimeFormat/prototype/format/temporal-objects-resolved-time-zone"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/temporal-plaindate-formatting-datetime-style"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/temporal-plaindatetime-formatting-datetime-style"><reason>TODO</reason></test>
     <test id="intl402/DateTimeFormat/prototype/format/temporal-plainmonthday-formatting-datetime-style"><reason>TODO</reason></test>
@@ -236,13 +235,6 @@
     <test id="intl402/Temporal/Duration/prototype/total/dst-day-length"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Duration/prototype/total/dst-rounding-result"><reason>TODO</reason></test>
     <test id="intl402/Temporal/Duration/prototype/total/relativeto-sub-minute-offset"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/Instant/prototype/toLocaleString/dateStyle"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/Instant/prototype/toLocaleString/dateStyle-timeStyle-undefined"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/Instant/prototype/toLocaleString/default-includes-time-not-time-zone-name"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/Instant/prototype/toLocaleString/locales-undefined"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/Instant/prototype/toLocaleString/lone-options-accepted"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/Instant/prototype/toLocaleString/options-conflict"><reason>TODO</reason></test>
-    <test id="intl402/Temporal/Instant/prototype/toLocaleString/options-undefined"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/toLocaleString/calendar-mismatch"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/toLocaleString/dateStyle"><reason>TODO</reason></test>
     <test id="intl402/Temporal/PlainDate/prototype/toLocaleString/dateStyle-timeStyle-undefined"><reason>TODO</reason></test>
@@ -898,7 +890,6 @@
     <test id="staging/Intl402/Temporal/old/duration-total"><reason>TODO</reason></test>
     <test id="staging/Intl402/Temporal/old/hebrew-leap-months"><reason>TODO</reason></test>
     <test id="staging/Intl402/Temporal/old/indian-calendar"><reason>TODO</reason></test>
-    <test id="staging/Intl402/Temporal/old/instant-toLocaleString"><reason>TODO</reason></test>
     <test id="staging/Intl402/Temporal/old/islamic-calendars-islamic"><reason>TODO</reason></test>
     <test id="staging/Intl402/Temporal/old/islamic-calendars-islamic-civil"><reason>TODO</reason></test>
     <test id="staging/Intl402/Temporal/old/islamic-calendars-islamic-rgsa"><reason>TODO</reason></test>

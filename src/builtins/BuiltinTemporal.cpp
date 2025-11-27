@@ -331,7 +331,11 @@ static Value builtinTemporalInstantToJSON(ExecutionState& state, Value thisValue
 static Value builtinTemporalInstantToLocaleString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     RESOLVE_THIS_BINDING_TO_INSTANT2(instant, toLocaleString);
-    return instant->toString(state, Value());
+    Value locales = argc > 0 ? argv[0] : Value();
+    Value options = argc > 1 ? argv[1] : Value();
+    auto dateFormat = new IntlDateTimeFormatObject(state, locales, options);
+    auto result = dateFormat->format(state, instant);
+    return new UTF16String(result.data(), result.length());
 }
 
 static Value builtinTemporalInstantToString(ExecutionState& state, Value thisValue, size_t argc, Value* argv, Optional<Object*> newTarget)
