@@ -1248,6 +1248,9 @@ UTF16StringDataNonGCStd IntlDateTimeFormatObject::format(ExecutionState& state, 
                 options->directDefineOwnProperty(state, state.context()->staticStrings().lazyHour(), ObjectPropertyDescriptor(numeric));
                 options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMinute(), ObjectPropertyDescriptor(numeric));
                 options->directDefineOwnProperty(state, state.context()->staticStrings().lazySecond(), ObjectPropertyDescriptor(numeric));
+                if (!m_timeZoneName.isUndefined()) {
+                    options->directDefineOwnProperty(state, state.context()->staticStrings().lazyTimeZoneName(), ObjectPropertyDescriptor(m_timeZoneName));
+                }
             } else if (dateTimeValue.second.value() == TemporalKind::ZonedDateTime) {
                 options->directDefineOwnProperty(state, state.context()->staticStrings().lazyYear(), ObjectPropertyDescriptor(numeric));
                 options->directDefineOwnProperty(state, state.context()->staticStrings().lazyMonth(), ObjectPropertyDescriptor(numeric));
