@@ -1333,29 +1333,29 @@ Value Object::call(ExecutionState& state, const Value& callee, const Value& this
 }
 
 // https://www.ecma-international.org/ecma-262/10.0/#sec-construct
-Value Object::construct(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv, Object* newTarget)
+Value Object::construct(ExecutionState& state, const Value& constructor, const size_t argc, Value* argv, Optional<Object*> newTarget)
 {
     // If newTarget was not passed, let newTarget be F.
-    if (newTarget == nullptr) {
+    if (!newTarget) {
         newTarget = constructor.asObject();
     }
 
     ASSERT(constructor.isConstructor());
     ASSERT(newTarget->isConstructor());
 
-    return constructor.asPointerValue()->construct(state, argc, argv, newTarget);
+    return constructor.asPointerValue()->construct(state, argc, argv, newTarget.value());
 }
 
-void Object::callConstructor(ExecutionState& state, const Value& constructor, Object* receiver, const size_t argc, Value* argv, Object* newTarget)
+void Object::callConstructor(ExecutionState& state, const Value& constructor, Object* receiver, const size_t argc, Value* argv, Optional<Object*> newTarget)
 {
-    if (newTarget == nullptr) {
+    if (!newTarget) {
         newTarget = constructor.asObject();
     }
 
     ASSERT(constructor.isConstructor());
     ASSERT(newTarget->isConstructor());
 
-    return constructor.asPointerValue()->callConstructor(state, receiver, argc, argv, newTarget);
+    return constructor.asPointerValue()->callConstructor(state, receiver, argc, argv, newTarget.value());
 }
 
 // https://www.ecma-international.org/ecma-262/#sec-setintegritylevel
